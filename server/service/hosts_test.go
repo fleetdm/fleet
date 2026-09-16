@@ -1740,7 +1740,15 @@ func TestHostAuth(t *testing.T) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
-		return nil, nil
+		hosts := make([]*fleet.Host, 0, len(ids))
+		for _, id := range ids {
+			if id == 1 {
+				hosts = append(hosts, &fleet.Host{ID: id, TeamID: teamHost.TeamID})
+				continue
+			}
+			hosts = append(hosts, &fleet.Host{ID: id})
+		}
+		return hosts, nil
 	}
 	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
@@ -3253,6 +3261,9 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		return map[string]uint{}, nil
 	}
 
+	// A team-scoped caller has no read visibility into hosts outside their
+	// team(s), so a source-team authorization failure must surface as
+	// NotFound rather than a Forbidden that would confirm the host exists.
 	t.Run("team maintainer cannot steal host from another team", func(t *testing.T) {
 		// Host 10 belongs to team 2, team 1 maintainer tries to transfer it to team 1
 		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -3261,9 +3272,8 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
 	t.Run("team admin cannot steal host from another team", func(t *testing.T) {
@@ -3275,8 +3285,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamAdminTeam1)
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
 	t.Run("team maintainer cannot steal host from no-team", func(t *testing.T) {
@@ -3288,8 +3297,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
 	t.Run("global admin can transfer host across teams", func(t *testing.T) {
@@ -3336,8 +3344,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10, 11}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
 	t.Run("multi-team admin+maintainer can transfer hosts between their teams", func(t *testing.T) {
@@ -3376,7 +3383,9 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 				{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
 			},
 		}
-		// Transfer host from team 2 (observer) to team 1 (admin) — blocked on source
+		// Transfer host from team 2 (observer) to team 1 (admin) — blocked on
+		// source. The observer can read the host, so this stays a Forbidden
+		// rather than being masked as NotFound: nothing new is disclosed.
 		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 			return []*fleet.Host{
 				{ID: 10, TeamID: new(uint(2))},
@@ -3384,8 +3393,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, multiTeamUser)
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrForbidden, err)
 
 		// Transfer host from team 1 (admin) to team 2 (observer) — blocked on destination
 		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -3394,8 +3402,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		err = svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrForbidden, err)
 	})
 
 	t.Run("global technician can transfer hosts across teams", func(t *testing.T) {
@@ -3458,8 +3465,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
 	t.Run("team technician cannot move host into a team they don't manage", func(t *testing.T) {
@@ -3471,8 +3477,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
 		err := svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrForbidden, err)
 	})
 
 	t.Run("team technician cannot transfer host to or from no team", func(t *testing.T) {
@@ -3484,8 +3489,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 
 		// Host on team 1 -> no team: blocked on destination (no team).
 		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -3494,8 +3498,105 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		err = svc.AddHostsToTeam(userCtx, nil, []uint{10}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrForbidden, err)
+	})
+}
+
+func TestAddHostsToTeamDoesNotLeakOutOfScopeExistence(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
+	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+
+	existing := map[uint]*fleet.Host{
+		10: {ID: 10, TeamID: new(uint(2))},
+		11: {ID: 11, TeamID: new(uint(1))},
+	}
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, id := range ids {
+			if h, ok := existing[id]; ok {
+				hosts = append(hosts, h)
+			}
+		}
+		return hosts, nil
+	}
+
+	team1Admin := test.UserContext(ctx, test.UserTeamAdminTeam1)
+	globalAdmin := test.UserContext(ctx, test.UserAdmin)
+
+	t.Run("out-of-scope host is reported as not found", func(t *testing.T) {
+		ds.AddHostsToTeamFuncInvoked = false
+		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{10}, false)
+		test.RequireErrKind(t, test.ErrNotFound, err)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("nonexistent host is reported as not found, even for a global admin", func(t *testing.T) {
+		ds.AddHostsToTeamFuncInvoked = false
+		err := svc.AddHostsToTeam(globalAdmin, new(uint(1)), []uint{999}, false)
+		test.RequireErrKind(t, test.ErrNotFound, err)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+
+		ds.AddHostsToTeamFuncInvoked = false
+		err = svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{999}, false)
+		test.RequireErrKind(t, test.ErrNotFound, err)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("mix of existing and nonexistent hosts fails the whole request", func(t *testing.T) {
+		ds.AddHostsToTeamFuncInvoked = false
+		err := svc.AddHostsToTeam(globalAdmin, new(uint(1)), []uint{11, 999}, false)
+		test.RequireErrKind(t, test.ErrNotFound, err)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("mix of in-scope and out-of-scope hosts is reported as not found", func(t *testing.T) {
+		ds.AddHostsToTeamFuncInvoked = false
+		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{11, 10}, false)
+		test.RequireErrKind(t, test.ErrNotFound, err)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("duplicate IDs of an existing host are not mistaken for missing hosts", func(t *testing.T) {
+		ds.AddHostsToTeamFuncInvoked = false
+		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{11, 11}, false)
+		require.NoError(t, err)
+		require.True(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("visible but non-transferable host stays forbidden", func(t *testing.T) {
+		// Admin on team 1, observer on team 2: can read host 10 but not move
+		// it, so the real Forbidden surfaces since it discloses nothing new.
+		user := &fleet.User{
+			ID: 100,
+			Teams: []fleet.UserTeam{
+				{ID: 1, Role: fleet.RoleAdmin},
+				{ID: 2, Role: fleet.RoleObserver},
+			},
+		}
+		ds.AddHostsToTeamFuncInvoked = false
+		err := svc.AddHostsToTeam(test.UserContext(ctx, user), new(uint(1)), []uint{10}, false)
+		test.RequireErrKind(t, test.ErrForbidden, err)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 }
 
@@ -3533,8 +3634,7 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
 		emptyFilter := &map[string]any{}
 		err := svc.AddHostsToTeamByFilter(userCtx, new(uint(1)), emptyFilter)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 		assert.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 
@@ -3649,8 +3749,7 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
 		emptyFilter := &map[string]any{}
 		err := svc.AddHostsToTeamByFilter(userCtx, new(uint(1)), emptyFilter)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden")
+		test.RequireErrKind(t, test.ErrNotFound, err)
 		assert.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 }

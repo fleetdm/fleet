@@ -855,3 +855,28 @@ func TestMakeDecoderPremiumAllowsExplicitNull(t *testing.T) {
 		require.NotContains(t, err.Error(), "requires a premium license")
 	})
 }
+
+type renamedPremiumRequest struct {
+	TeamIDs     []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	InstallerID uint   `json:"software_installer_id" renameto:"software_package_id,inline" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheRenamedFieldAsSent(t *testing.T) {
+	decode := MakeDecoder(renamedPremiumRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	for _, tc := range []struct {
+		body string
+		want string
+	}{
+		{body: `{"fleet_ids":[1]}`, want: "option fleet_ids requires a premium license"},
+		{body: `{"team_ids":[1]}`, want: "option team_ids requires a premium license"},
+		{body: `{"software_package_id":1}`, want: "option software_package_id requires a premium license"},
+		{body: `{"software_installer_id":1}`, want: "option software_installer_id requires a premium license"},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/", strings.NewReader(tc.body))
+			_, err := decode(t.Context(), r)
+			require.ErrorContains(t, err, tc.want)
+		})
+	}
+}
