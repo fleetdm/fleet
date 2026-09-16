@@ -413,11 +413,14 @@ export const SoftwareInstallDetailsModal = ({
       ? inventoryReportsInstalled
       : false;
 
-  // Treat failed_install / failed_uninstall with installed versions as installed
+  // Treat failed_install / failed_uninstall with installed versions as installed.
+  // Skips escape the override so the Details button + SKIPPED_PRE_INSTALL_OUTPUT
+  // still render on Library rows where inventory reports an older version.
   const overrideFailedMessageWithInstalledMessage =
     canOverrideFailureWithInstalled &&
+    !detailsFromProps.skipped_install &&
     ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || "" || ""
+      swInstallResult?.status || ""
     );
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)

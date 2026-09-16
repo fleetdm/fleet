@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
-import { createMockHostSoftware } from "__mocks__/hostMock";
+import {
+  createMockHostSoftware,
+  DEFAULT_INSTALLED_VERSION,
+} from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
   getDefaultSoftwareInstallHandler,
@@ -395,6 +398,30 @@ describe("SoftwareInstallDetailsModal", () => {
         )
       ).toBeInTheDocument();
       expect(screen.queryByText("Install stopped")).not.toBeInTheDocument();
+    });
+
+    it("keeps the Details button on a skip whose host inventory reports an installed version (regression)", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+            installed_versions: [DEFAULT_INSTALLED_VERSION],
+          })}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
     });
 
     it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {
