@@ -46,11 +46,11 @@ type Options struct {
 	// ReconnectJitterMax is the random delay before reconnecting after a drop,
 	// so a server restart doesn't produce a thundering herd (default 30s).
 	ReconnectJitterMax time.Duration
-	// BackoffBase/BackoffCap bound the reconnection backoff (default 5s/15m).
-	// BackoffCap is the pre-jitter ceiling; with 100% additive jitter the
+	// BackoffBase/BackoffBaseCap bound the reconnection backoff (default 5s/15m).
+	// BackoffBaseCap is the pre-jitter ceiling; with 100% additive jitter the
 	// effective interval at the cap is in [15m, 30m). See #45553.
 	BackoffBase time.Duration
-	BackoffCap  time.Duration
+	BackoffBaseCap  time.Duration
 	// ServerPingInterval is the server's keepalive ping cadence, used to size
 	// the read deadline (default 5m; the deadline is twice this).
 	ServerPingInterval time.Duration
@@ -68,8 +68,8 @@ func (o *Options) applyDefaults() {
 	if o.BackoffBase == 0 {
 		o.BackoffBase = 5 * time.Second
 	}
-	if o.BackoffCap == 0 {
-		o.BackoffCap = 15 * time.Minute
+	if o.BackoffBaseCap == 0 {
+		o.BackoffBaseCap = 15 * time.Minute
 	}
 	if o.ServerPingInterval == 0 {
 		o.ServerPingInterval = 5 * time.Minute
@@ -158,7 +158,7 @@ func (m *Manager) Interrupt(err error) {
 
 // connectionLoop dials, services and re-dials the WebSocket until interrupted.
 func (m *Manager) connectionLoop() {
-	tracker := backoff.New(m.opts.BackoffBase, m.opts.BackoffCap)
+	tracker := backoff.New(m.opts.BackoffBase, m.opts.BackoffBaseCap)
 
 	for {
 		if m.ctx.Err() != nil {
