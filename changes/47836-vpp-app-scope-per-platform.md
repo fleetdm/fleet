@@ -1,0 +1,1 @@
+- Fixed App Store apps that are not targeted at a host still showing up in Self-service with an "Update" action when the same app was also added to the fleet for another platform.
