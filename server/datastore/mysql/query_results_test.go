@@ -1000,8 +1000,8 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	})
 
 	// Verify 10 rows remain for query3
-	count = resultCountForQuery(t, ds, query2.ID)
-	require.Equal(t, 0, count)
+	count = resultCountForQuery(t, ds, query3.ID)
+	require.Equal(t, maxRows, count)
 
 	// Check that we actually have 22 rows (the 10 with data, and the 12 without data)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

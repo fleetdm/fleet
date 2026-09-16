@@ -1806,11 +1806,16 @@ func newQueryResultsCleanupSchedule(
 			// reports cover the whole fleet. Cached in Redis for the ingest path.
 			hostCount, err := ds.CountAllHosts(ctx)
 			if err != nil {
-				// Cleanup must still run; fall back to the last cached count.
+				// Fall back to the last cached count. Without any count the cap would drop to
+				// the configured value and the cleanup could delete valid rows, so skip this
+				// tick instead.
 				logger.WarnContext(ctx, "failed to count hosts for query report cap", "err", err)
-				if hostCount, _, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
-					logger.WarnContext(ctx, "failed to get query reports host count from redis", "err", err)
-					hostCount = 0
+				var ok bool
+				if hostCount, ok, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
+					return ctxerr.Wrap(ctx, err, "get query reports host count from redis")
+				}
+				if !ok {
+					return ctxerr.New(ctx, "query reports host count unavailable from database and redis")
 				}
 			} else if err := liveQueryStore.SetQueryReportsHostCount(hostCount); err != nil {
 				logger.WarnContext(ctx, "failed to set query reports host count in redis", "err", err)
