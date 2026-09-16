@@ -923,6 +923,8 @@ type MDMWindowsHostConfigState struct {
 	// capability header, so they read this column to decide whether to offer the end user the PIN form.
 	FleetdBitLockerPINCapable bool
 	// BitLockerPINRequestPending is true while the end user has submitted a startup PIN that the agent has not yet collected.
+	// It is denormalized from host_bitlocker_pin_requests so the orbit config poll can answer "is a PIN waiting?" from the
+	// enrollment row it already reads. That table is the source of truth; setBitLockerPINPendingFlag keeps this column in step.
 	BitLockerPINRequestPending bool
 }
 

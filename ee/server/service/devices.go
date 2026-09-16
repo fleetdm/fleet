@@ -252,15 +252,9 @@ func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet
 		return false, nil
 	}
 
-	state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
-	switch {
-	case fleet.IsNotFound(err):
-		// Not enrolled in Windows MDM, so there is no agent to apply a PIN and nothing to prompt for.
-		return false, nil
-	case err != nil:
-		return false, ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin prompt")
-	case !state.FleetdBitLockerPINCapable:
-		return false, nil
+	agent, err := svc.bitLockerPINAgent(ctx, host)
+	if err != nil || agent != bitLockerPINAgentCapable {
+		return false, err
 	}
 
 	diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
