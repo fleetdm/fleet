@@ -11007,28 +11007,34 @@
     "platforms": [
       "darwin"
     ],
-    "description": "Calculates the sha256 hash of a macOS application executable.",
+    "description": "Calculates the sha256 hash of a macOS application executable or of a Mach-O executable file.",
     "columns": [
       {
         "name": "path",
         "type": "text",
         "required": true,
-        "description": "Path is the absolute path to the app folder."
+        "description": "Absolute path to an app folder or to an executable file. Supports `=` and `LIKE`."
       },
       {
         "name": "executable_path",
         "type": "text",
         "required": false,
-        "description": "Path of the executable for this app."
+        "description": "Path of the executable that was hashed. For an app folder, the executable named by the app's Info.plist. For a file, the path with symlinks resolved."
       },
       {
         "name": "executable_sha256",
         "type": "text",
         "required": false,
-        "description": "Calculated hex-encoded SHA256 of the executable of this app."
+        "description": "Calculated hex-encoded SHA256 of the executable."
+      },
+      {
+        "name": "path_type",
+        "type": "text",
+        "required": false,
+        "description": "`bundle` when `path` is an app folder, `file` when `path` is a Mach-O executable file."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). A file that is not a Mach-O executable, such as a shell or Python script, returns no row.",
     "evented": false,
     "url": "https://fleetdm.com/tables/executable_hashes",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/executable_hashes.yml"
