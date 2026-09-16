@@ -341,7 +341,7 @@ Examples:
 
     all: {
       type: 'boolean',
-      defaultsTo: false,
+      defaultsTo: true,
       description: 'Run every case defined at the top of this script.'
     },
 
@@ -401,12 +401,11 @@ csp cases report as not-checked either way.`
 
     const MAX_ELAPSED_MS = 10000;
 
-    let waysToChooseWhatToRun = _.compact([all, naturalLanguageInstructions, caseId]).length;
-    if(waysToChooseWhatToRun === 0) {
-      throw new Error('One of --naturalLanguageInstructions, --caseId or --all is required.  See `sails run test-llm-generated-configuration-profile --help`.');
+    if(naturalLanguageInstructions || caseId) {
+      all = false;
     }
-    if(waysToChooseWhatToRun > 1) {
-      throw new Error('--naturalLanguageInstructions, --caseId and --all each choose what to run, so pass exactly one of them.');
+    if(naturalLanguageInstructions && !profileType){
+      throw new Error(`A profileType is required to run this script with a naturalLanguageInstructions input, please run this script again with a --profileType input set to the type of profile you want to test generating. (example: --profileType=ddm)`)
     }
     if(parallelTests < 1) {
       throw new Error(`--parallelTests must be at least 1 (got ${parallelTests}).`);
@@ -452,17 +451,28 @@ csp cases report as not-checked either way.`
     }
 
 
-    // Collected here and written to test-results/baseline/ at the end, in the same shape and under the same filename
-    // convention the current script uses, so a baseline transcript and a current one can be read side by side.  The
-    // file gets the full per-case output even when the terminal only got a summary.
-    let transcriptLines = [];
-    let report = (line)=>{ transcriptLines.push(line); sails.log(line); };
-    // No push to transcriptLines: the sails.log.warn override installed below already does it, and doing both
+    // Collected here and written to test-results/ at the end, so a baseline transcript and a current one can be
+    // read side by side.
+    //
+    // The terminal and the file get the same lines in a different ORDER.  The terminal has to stream: a full run
+    // takes minutes, and the per-case line printed as each one finishes is what keeps a slow run distinguishable
+    // from a hung one.  The file has no such constraint and a different reader -- someone opening a transcript
+    // wants the verdict first -- but the table and the summary cannot be computed until every case has run, so
+    // they can only be emitted last.  Buffering into three sections and assembling them at write time is what
+    // lets the file lead with the verdict while the terminal still streams.
+    let headerLines = [];
+    let summaryLines = [];
+    let detailLines = [];
+    // Whichever section the report helpers below are currently writing into.  Moved once when the case loop
+    // starts and once when it ends, rather than threaded through every call site.
+    let transcriptSection = headerLines;
+    let report = (line)=>{ transcriptSection.push(line); sails.log(line); };
+    // No push to the transcript: the sails.log.warn override installed below already does it, and doing both
     // wrote every warning to the saved file twice.
     let reportWarning = (line)=>{ sails.log.warn(line); };
     // console.log rather than sails.log, for the tables: the log prefix would break column alignment.
-    let reportWithoutLogPrefix = (line)=>{ transcriptLines.push(line); console.log(line); };
-    let reportToTranscriptOnly = (line)=>{ transcriptLines.push(line); };
+    let reportWithoutLogPrefix = (line)=>{ transcriptSection.push(line); console.log(line); };
+    let reportToTranscriptOnly = (line)=>{ transcriptSection.push(line); };
 
     // The prompt helper reports anything it had to work around through sails.log.warn.  Route those into the
     // transcript as well -- on a baseline run they are the record of what the old prompt made the helper do.
@@ -470,7 +480,7 @@ csp cases report as not-checked either way.`
     let originalSailsLogWarn = sails.log.warn;
     sails.log.warn = function(){
       let args = Array.prototype.slice.call(arguments);
-      transcriptLines.push(_.map(args, (arg)=>{ return _.isString(arg) ? arg : util.inspect(arg, {depth: 3}); }).join(' '));
+      transcriptSection.push(_.map(args, (arg)=>{ return _.isString(arg) ? arg : util.inspect(arg, {depth: 3}); }).join(' '));
       return originalSailsLogWarn.apply(sails.log, args);
     };
 
@@ -530,6 +540,12 @@ csp cases report as not-checked either way.`
       })();
     };
 
+
+    // Everything from here until the loop ends is per-case output, which lands at the BOTTOM of the saved file
+    // however early it was printed to the terminal.  The heading goes to the transcript only, since the terminal
+    // is already showing these lines as they happen and does not need to be told they are starting.
+    transcriptSection = detailLines;
+    reportToTranscriptOnly('\n\n=== Per-case details ===');
 
     for (let testCase of cases) {
 
@@ -632,14 +648,14 @@ csp cases report as not-checked either way.`
         // on those cases are the ones substrings can't express.
         if(generatedProfile) {
           let banner = testCase.canary && checkFailures.length === 0 ? 'CANARY, automated checks passed -- confirm by eye' : testCase.canary ? 'CANARY, FAILED' : checkFailures.length > 0 ? 'FAILED' : 'ok';
-          let detailLines = [
+          let caseDetailLines = [
             `\n──── ${displayId} @ (${baseModel}) -- ${banner} ────`,
             `instructions: ${testCase.instructions}`,
           ];
           if(testCase.readByEye) {
-            detailLines.push(`CONFIRM BY EYE: ${testCase.readByEye}`);
+            caseDetailLines.push(`CONFIRM BY EYE: ${testCase.readByEye}`);
           }
-          detailLines.push(
+          caseDetailLines.push(
           `profileFilename: ${generatedProfile.profileFilename}`,
           `deliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}`
           );
@@ -648,22 +664,22 @@ csp cases report as not-checked either way.`
           if(!contourResult) {
           // Not validated this run -- say nothing rather than implying a clean bill of health.
           } else if(!contourResult.ran) {
-            detailLines.push(`contour: not run -- ${contourResult.skippedBecause}`);
+            caseDetailLines.push(`contour: not run -- ${contourResult.skippedBecause}`);
           } else if(contourResult.errors.length === 0 && contourResult.warnings.length === 0) {
-            detailLines.push('contour: valid, no findings');
+            caseDetailLines.push('contour: valid, no findings');
           } else {
-            detailLines.push(`contour: ${contourResult.errors.length} error(s), ${contourResult.warnings.length} warning(s)`);
+            caseDetailLines.push(`contour: ${contourResult.errors.length} error(s), ${contourResult.warnings.length} warning(s)`);
             for (let contourError of contourResult.errors) {
-              detailLines.push(`  ERROR   ${contourError}`);
+              caseDetailLines.push(`  ERROR   ${contourError}`);
             }
             for (let contourWarning of contourResult.warnings) {
-              detailLines.push(`  warning ${contourWarning}`);
+              caseDetailLines.push(`  warning ${contourWarning}`);
             }
           }
-          detailLines.push(`\n${generatedProfile.profile}\n`)
+          caseDetailLines.push(`\n${generatedProfile.profile}\n`)
 
           if(verbose){
-            detailLines.push(
+            caseDetailLines.push(
             `settingsEnforced:\n${util.inspect(generatedProfile.items, {depth: 4, colors: false})}`,
             '────────\n'
             );
@@ -672,12 +688,15 @@ csp cases report as not-checked either way.`
           // thing there is to look at, and with --parallelTests the variance is read by comparing them.
           let isAdHocRun = !all;
           let writeDetailLine = (verbose || testCase.canary || checkFailures.length > 0 || isAdHocRun) ? report : reportToTranscriptOnly;
-          for (let detailLine of detailLines) {
+          for (let detailLine of caseDetailLines) {
             writeDetailLine(detailLine);
           }
         }
       }
     }
+
+    // Back to the section that gets assembled directly under the inputs header, ahead of the per-case details.
+    transcriptSection = summaryLines;
 
     for (let tableLine of buildResultsTable(results, baseModel, parallelTests)) {
       reportWithoutLogPrefix(tableLine);
@@ -789,7 +808,8 @@ csp cases report as not-checked either way.`
       'test-results',
       `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - ${baseModel}${whatWasRunForFilename}.txt`
     );
-    await sails.helpers.fs.write(transcriptPath, transcriptLines.join('\n'), true);
+    // The reordering the three sections exist for: what ran, then how it went, then the evidence.
+    await sails.helpers.fs.write(transcriptPath, headerLines.concat(summaryLines, detailLines).join('\n'), true);
     sails.log(`\nFull output of this run saved to:\n  ${transcriptPath}`);
 
   }
