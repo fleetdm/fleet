@@ -1218,6 +1218,8 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmen
 		return nil, nil
 	}
 
+	// created_at first, then id: created_at is second-resolution, so id breaks same-second ties, while rows that
+	// predate the id column were backfilled in primary-key order and must keep their chronological order.
 	const query = `
 SELECT
 	wmc.command_uuid,
@@ -1235,7 +1237,7 @@ WHERE
 	wmcq.enrollment_id = ? AND
 	wmcq.acked_at IS NULL
 ORDER BY
-	wmc.created_at ASC
+	wmc.created_at ASC, wmc.id ASC
 `
 
 	var commands []*fleet.MDMWindowsCommand
