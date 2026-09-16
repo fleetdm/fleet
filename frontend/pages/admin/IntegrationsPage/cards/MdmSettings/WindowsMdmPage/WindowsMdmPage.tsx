@@ -157,7 +157,8 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
       }
       helpText={
         <>
-          New hosts that enroll via the Settings app are assigned to this fleet.{" "}
+          New hosts that turn on MDM before installing Fleet&apos;s agent are
+          assigned to this fleet.{" "}
           <CustomLink
             text="Learn more"
             url="https://fleetdm.com/learn-more-about/windows-default-fleet"
