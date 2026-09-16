@@ -137,22 +137,25 @@ POST /api/v1/fleet/hosts/:id/clear_passcode
 fleetctl mdm clear-passcode --host $HOST_IDENTIFIER
 ```
 
-## Cancel a pending MDM command
+## Cancel a pending command
 
-> Available for Apple (macOS, iOS, iPadOS) hosts enrolled in Fleet MDM.
 
-If you accidentally send a lock, wipe, clear passcode, or lost mode command to an Apple host, you can cancel the pending command before the device acknowledges it. This prevents the command from executing on the device.
+If you accidentally send a lock, wipe, clear passcode, or lost mode command to an Apple host, you can cancel the pending command via **Host details > Activity > Upcoming > MDM commands**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-pending-mdm-command).
 
 The following MDM commands can be canceled:
 
-| Command | Apple request type | Triggered by |
-|---|---|---|
-| Lock (macOS) | `DeviceLock` | **Actions > Lock** |
-| Lock (iOS/iPadOS) | `EnableLostMode` | **Actions > Lock** |
-| Wipe | `EraseDevice` | **Actions > Wipe** |
-| Clear passcode | `ClearPasscode` | **Actions > Clear passcode** |
+| Command | Platform | Apple request type | Triggered by |
+|---|---|---|---|
+| Lock (macOS) | macOS | `DeviceLock` | **Actions > Lock** |
+| Lock (iOS/iPadOS) | iOS/iPadOS | `EnableLostMode` | **Actions > Lock** |
+| Wipe | macOS, iOS/iPadOS | `EraseDevice` | **Actions > Wipe** |
+| Clear passcode | iOS/iPadOS | `ClearPasscode` | **Actions > Clear passcode** |
 
 Configuration profile installations and other MDM command types cannot be canceled.
+
+Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. You can cancel them the same way: **Host details > Activity > Upcoming**, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-upcoming-activity).
+
+Wipe on Windows and lock, wipe, and clear passcode on Android aren't cancelable.
 
 ### Cancel from the UI
 
