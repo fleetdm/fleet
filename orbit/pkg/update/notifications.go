@@ -568,11 +568,11 @@ type windowsMDMBitlockerConfigReceiver struct {
 	execAddTPMProtectorFn        execAddTPMProtectorFunc
 	execEnableProtectionFn       execEnableProtectionFunc
 
-	// execSetTPMAndPINProtectorFn applies the end user's startup PIN. Set by the middleware from the COMWorker, or overridden in tests.
+	// execSetTPMAndPINProtectorFn applies the end user's startup PIN.
 	execSetTPMAndPINProtectorFn execSetTPMAndPINProtectorFunc
 
-	// heldPINOutcome is a PIN outcome the server has not accepted yet. It is retried on later polls until the server records it
-	// or no longer wants it, which includes an hour passing since collection. It does not survive a restart.
+	// heldPINOutcome is a PIN outcome the server has not accepted yet. It is retried on later polls until the server
+	// records it or no longer wants it. It does not survive a restart.
 	heldPINOutcome *pinOutcome
 
 	// restartPendingFn reports whether a restart is staged. Overridden in tests.
@@ -666,6 +666,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptSetBitLockerPIN() {
 }
 
 func (w *windowsMDMBitlockerConfigReceiver) setBitLockerPIN(pin string) error {
+	// Checking for server here is defense in depth, just in case the flow gets here.
 	isServer, err := IsRunningOnWindowsServer()
 	if err != nil {
 		return fmt.Errorf("checking if the host is a Windows server: %w", err)

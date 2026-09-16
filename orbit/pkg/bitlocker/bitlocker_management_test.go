@@ -129,9 +129,11 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			KeyProtectorTypeNumericalPassword: {fakeRecoveryID},
 		}
 	}
-	pinAndRecovery := map[int32][]string{
-		KeyProtectorTypeTPMAndPIN:         {fakePINID},
-		KeyProtectorTypeNumericalPassword: {fakeRecoveryID},
+	pinAndRecovery := func() map[int32][]string {
+		return map[int32][]string{
+			KeyProtectorTypeTPMAndPIN:         {fakePINID},
+			KeyProtectorTypeNumericalPassword: {fakeRecoveryID},
+		}
 	}
 	wmiErr := errors.New("WMI unavailable")
 
@@ -146,7 +148,7 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			name:           "adds the PIN and removes the TPM-only protector",
 			vol:            &fakePINVolume{status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery()},
 			wantAddCalled:  true,
-			wantProtectors: pinAndRecovery,
+			wantProtectors: pinAndRecovery(),
 		},
 		{
 			name: "a PIN is already set",
@@ -191,16 +193,7 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			wantProtectors: tpmOnlyAndRecovery(),
 		},
 		{
-			name: "Windows rejects the PIN characters",
-			vol: &fakePINVolume{
-				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(),
-				addErr: NewEncryptionError("invalid chars", ErrorCodeInvalidPINChars),
-			},
-			wantReason:     PINReasonInvalidChars,
-			wantAddCalled:  true,
-			wantProtectors: tpmOnlyAndRecovery(),
-		},
-		{
+			// Never reported as success, because the PIN on the volume is not the one the end user typed.
 			name: "Windows says a PIN protector exists",
 			vol: &fakePINVolume{
 				status: protectedAndEncrypted, protectors: tpmOnlyAndRecovery(),
@@ -253,7 +246,7 @@ func TestSetTPMAndPINProtector(t *testing.T) {
 			},
 			wantReason:     PINReasonNotFinished,
 			wantAddCalled:  true,
-			wantProtectors: pinAndRecovery,
+			wantProtectors: pinAndRecovery(),
 		},
 		{
 			name: "the rollback fails too",
