@@ -347,6 +347,7 @@ func main() {
 				pinToast                *bitLockerPINToast
 			)
 			if runtime.GOOS == "windows" {
+				// The marker keeps track of the toast notification across Fleet Desktop restarts.
 				var markerPath string
 				if dir, err := logDir(); err != nil {
 					log.Error().Err(err).Msg("find directory for the BitLocker PIN toast marker")

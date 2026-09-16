@@ -115,3 +115,55 @@ func requireScriptReadsEnv(t *testing.T, script string, vars map[string]string) 
 		require.Contains(t, script, "$env:"+name)
 	}
 }
+
+func TestNotificationValidate(t *testing.T) {
+	t.Parallel()
+
+	valid := Notification{Tag: "bitlocker-pin", Group: "fleet", Title: "Title", Body: "Body", ButtonLabel: "Create PIN", URL: "https://fleet.example.com"}
+	blank := func(set func(*Notification)) Notification {
+		n := valid
+		set(&n)
+		return n
+	}
+
+	for _, tc := range []struct {
+		name    string
+		n       Notification
+		wantErr string
+	}{
+		{name: "valid", n: valid},
+		{name: "no title", n: blank(func(n *Notification) { n.Title = "" }), wantErr: "toast title is empty"},
+		{name: "no body", n: blank(func(n *Notification) { n.Body = "" }), wantErr: "toast body is empty"},
+		{name: "no button label", n: blank(func(n *Notification) { n.ButtonLabel = "" }), wantErr: "toast button label is empty"},
+		{name: "no URL", n: blank(func(n *Notification) { n.URL = "" }), wantErr: "toast URL is empty"},
+		{name: "no tag", n: blank(func(n *Notification) { n.Tag = "" }), wantErr: "toast tag is empty"},
+		// Windows throws on a longer tag or group, which would surface as an opaque PowerShell failure.
+		{
+			name:    "group Windows would reject",
+			n:       blank(func(n *Notification) { n.Group = strings.Repeat("g", maxTagLength+1) }),
+			wantErr: "toast group is longer than the 64 characters Windows accepts",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := showEnv(tc.n)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestChildEnv(t *testing.T) {
+	t.Parallel()
+
+	// Fleet Desktop's own variables carry the Fleet client TLS key and the device URL, and PowerShell has no use for them.
+	env := childEnv([]string{
+		"PATH=C:\\Windows",
+		"FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY=-----BEGIN PRIVATE KEY-----",
+		"fleet_desktop_device_url=https://fleet.example.com/device/token",
+	}, []string{"FLEET_TOAST_TAG=bitlocker-pin"})
+
+	require.Equal(t, []string{"PATH=C:\\Windows", "FLEET_TOAST_TAG=bitlocker-pin"}, env)
+}

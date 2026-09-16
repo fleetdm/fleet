@@ -8,12 +8,21 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf16"
 )
 
 // FleetDesktopAppID is the AppUserModelID orbit registers so toasts are labelled "Fleet Desktop" with its icon.
 const FleetDesktopAppID = "FleetDM.FleetDesktop"
+
+// maxTagLength is what Windows accepts for a toast's tag and group since Windows 10 1703.
+const maxTagLength = 64
+
+// fleetDesktopEnvPrefix marks Fleet Desktop's own environment variables, which carry the Fleet client TLS key and the device
+// URL. PowerShell has no use for them, and powershell.exe is a process security tooling routinely records with its
+// environment.
+const fleetDesktopEnvPrefix = "FLEET_DESKTOP_"
 
 // ErrAppIDNotRegistered means orbit has not registered Fleet Desktop's AppUserModelID. Windows drops a toast posted under
 // one it does not know, and posting under another app's identity would attribute Fleet's prompt to that app.
@@ -52,6 +61,33 @@ type toastAction struct {
 	Arguments      string `xml:"arguments,attr"`
 }
 
+// validate reports whether Windows will accept the notification, so a caller gets a clear error instead of a PowerShell one.
+func (n Notification) validate() error {
+	for _, field := range []struct{ name, value string }{
+		{name: "title", value: n.Title},
+		{name: "body", value: n.Body},
+		{name: "button label", value: n.ButtonLabel},
+		{name: "URL", value: n.URL},
+	} {
+		if field.value == "" {
+			return fmt.Errorf("toast %s is empty", field.name)
+		}
+	}
+	return validateTagAndGroup(n.Tag, n.Group)
+}
+
+func validateTagAndGroup(tag, group string) error {
+	for _, field := range []struct{ name, value string }{{name: "tag", value: tag}, {name: "group", value: group}} {
+		switch {
+		case field.value == "":
+			return fmt.Errorf("toast %s is empty", field.name)
+		case len(field.value) > maxTagLength:
+			return fmt.Errorf("toast %s is longer than the %d characters Windows accepts", field.name, maxTagLength)
+		}
+	}
+	return nil
+}
+
 // xml renders the toast payload. Protocol activation hands the URL to its default handler, so clicking the toast or the
 // button opens the browser without any Fleet Desktop code running.
 func (n Notification) xml() (string, error) {
@@ -69,25 +105,42 @@ func (n Notification) xml() (string, error) {
 // The scripts are constant and read everything else from the environment, so no value needs PowerShell quoting and the
 // token-bearing URL stays out of the command line, script block logging, and the script lines PowerShell quotes in errors.
 const (
-	loadToastTypes = `$ErrorActionPreference = 'Stop'
+	// PowerShell serializes its error stream as CLIXML when it is redirected, so the body runs in a try and reports the
+	// message itself. Exiting non-zero is what tells the caller it failed.
+	scriptPrologue = `$ErrorActionPreference = 'Stop'
+# Progress records are serialized as CLIXML on the error stream, which would bury the message below.
+$ProgressPreference = 'SilentlyContinue'
+try {
 $null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
 $null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
 `
-	showScript = loadToastTypes + `$xml = [Windows.Data.Xml.Dom.XmlDocument]::new()
+	scriptEpilogue = `} catch {
+Write-Output $_.Exception.Message
+exit 1
+}
+`
+	showScript = scriptPrologue + `$xml = [Windows.Data.Xml.Dom.XmlDocument]::new()
 $xml.LoadXml($env:FLEET_TOAST_XML)
 $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
 $toast.Tag = $env:FLEET_TOAST_TAG
 $toast.Group = $env:FLEET_TOAST_GROUP
-$toast.ExpirationTime = [DateTimeOffset]::Now.AddSeconds([int]$env:FLEET_TOAST_EXPIRES_SECONDS)
+$expiresIn = [int]$env:FLEET_TOAST_EXPIRES_SECONDS
+if ($expiresIn -gt 0) { $toast.ExpirationTime = [DateTimeOffset]::Now.AddSeconds($expiresIn) }
 $toast.SuppressPopup = $env:FLEET_TOAST_SUPPRESS_POPUP -eq 'true'
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:FLEET_TOAST_APP_ID).Show($toast)
-`
-	removeScript = loadToastTypes + `[Windows.UI.Notifications.ToastNotificationManager]::History.Remove(
+$notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:FLEET_TOAST_APP_ID)
+# Show() is silent when notifications are off for this user, this app, or by policy, so report which it is instead.
+if ($notifier.Setting -ne 'Enabled') { throw "Windows notifications are $($notifier.Setting)" }
+$notifier.Show($toast)
+` + scriptEpilogue
+	removeScript = scriptPrologue + `[Windows.UI.Notifications.ToastNotificationManager]::History.Remove(
 	$env:FLEET_TOAST_TAG, $env:FLEET_TOAST_GROUP, $env:FLEET_TOAST_APP_ID)
-`
+` + scriptEpilogue
 )
 
 func showEnv(n Notification) ([]string, error) {
+	if err := n.validate(); err != nil {
+		return nil, err
+	}
 	payload, err := n.xml()
 	if err != nil {
 		return nil, err
@@ -108,6 +161,20 @@ func removeEnv(tag, group string) []string {
 		"FLEET_TOAST_GROUP=" + group,
 		"FLEET_TOAST_APP_ID=" + FleetDesktopAppID,
 	}
+}
+
+// childEnv is the environment for the PowerShell process: this process's, without Fleet Desktop's own variables, plus the
+// toast values.
+func childEnv(parent, values []string) []string {
+	env := make([]string, 0, len(parent)+len(values))
+	for _, variable := range parent {
+		// Windows environment variable names are case-insensitive.
+		if strings.HasPrefix(strings.ToUpper(variable), fleetDesktopEnvPrefix) {
+			continue
+		}
+		env = append(env, variable)
+	}
+	return append(env, values...)
 }
 
 // encodeCommand encodes a script for powershell.exe -EncodedCommand, which takes base64 of UTF-16LE.

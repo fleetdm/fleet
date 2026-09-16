@@ -37,6 +37,9 @@ func Remove(tag, group string) error {
 		// Nothing was ever posted, because Show refuses without the identity.
 		return nil
 	}
+	if err := validateTagAndGroup(tag, group); err != nil {
+		return err
+	}
 	return runPowerShell(removeScript, removeEnv(tag, group))
 }
 
@@ -45,9 +48,8 @@ func Remove(tag, group string) error {
 // at every start, so the file and values are only written when they differ.
 func RegisterFleetDesktopAppID(iconPath string, icon []byte) error {
 	if current, err := os.ReadFile(iconPath); err != nil || !bytes.Equal(current, icon) {
-		// The shell reads the icon as the logged-in user, so it has to be readable by everyone.
-		if err := os.WriteFile(iconPath, icon, 0o644); err != nil { //nolint:gosec
-			return fmt.Errorf("writing the Fleet Desktop icon: %w", err)
+		if err := writeIcon(iconPath, icon); err != nil {
+			return err
 		}
 	}
 
@@ -57,7 +59,7 @@ func RegisterFleetDesktopAppID(iconPath string, icon []byte) error {
 	}
 	defer k.Close()
 	for _, value := range []struct{ name, data string }{
-		{name: "DisplayName", data: "Fleet Desktop"},
+		{name: "DisplayName", data: fleetDesktopDisplayName},
 		{name: "IconUri", data: iconPath},
 	} {
 		if current, _, err := k.GetStringValue(value.name); err == nil && current == value.data {
@@ -70,7 +72,30 @@ func RegisterFleetDesktopAppID(iconPath string, icon []byte) error {
 	return nil
 }
 
-const appIDKeyPath = `Software\Classes\AppUserModelId\` + FleetDesktopAppID
+const (
+	appIDKeyPath            = `Software\Classes\AppUserModelId\` + FleetDesktopAppID
+	fleetDesktopDisplayName = "Fleet Desktop"
+)
+
+// writeIcon replaces the icon in one step, so the shell never reads a half-written file.
+func writeIcon(iconPath string, icon []byte) error {
+	temp, err := os.CreateTemp(filepath.Dir(iconPath), filepath.Base(iconPath)+".*")
+	if err != nil {
+		return fmt.Errorf("creating the Fleet Desktop icon: %w", err)
+	}
+	defer os.Remove(temp.Name())
+	// The shell reads the icon as the logged-in user, so it has to be readable by everyone.
+	if err := temp.Chmod(0o644); err != nil { //nolint:gosec
+		return fmt.Errorf("setting permissions on the Fleet Desktop icon: %w", err)
+	}
+	if _, err := temp.Write(icon); err != nil {
+		return fmt.Errorf("writing the Fleet Desktop icon: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("closing the Fleet Desktop icon: %w", err)
+	}
+	return os.Rename(temp.Name(), iconPath)
+}
 
 // appIDRegistered reports whether orbit has registered Fleet Desktop's AppUserModelID. An orbit without
 // RegisterFleetDesktopAppID can run next to a Fleet Desktop that has it, because the two update independently.
@@ -95,13 +120,16 @@ func runPowerShell(script string, env []string) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, powerShell,
 		"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodeCommand(script))
-	cmd.Env = append(os.Environ(), env...)
+	cmd.Env = childEnv(os.Environ(), env)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
+	// Without this, PowerShell exiting without closing its pipes would block CombinedOutput past the context timeout, and
+	// the caller holds a lock while it waits.
+	cmd.WaitDelay = time.Second
 	if out, err := cmd.CombinedOutput(); err != nil {
 		const maxOutput = 1000
 		output := strings.TrimSpace(string(out))
 		if len(output) > maxOutput {
-			output = output[:maxOutput]
+			output = strings.ToValidUTF8(output[:maxOutput], "")
 		}
 		return fmt.Errorf("running PowerShell: %w: %s", err, output)
 	}
