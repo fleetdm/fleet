@@ -174,6 +174,8 @@ export default {
     `/${API_VERSION}/fleet/ab_tokens/${id}/renew`,
   MDM_AB_TOKEN_TEAMS: (id: number) =>
     `/${API_VERSION}/fleet/ab_tokens/${id}/fleets`,
+  MDM_AB_TOKEN_DEFAULT: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/default`,
   MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,

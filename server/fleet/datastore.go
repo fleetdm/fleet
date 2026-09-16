@@ -1414,6 +1414,22 @@ type Datastore interface {
 	QueueEscrow(ctx context.Context, hostID uint) error
 	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
 
+	// QueueBitLockerPINRequest stores an end user's BitLocker startup PIN. Replaces any earlier submission for the host, and raises
+	// the pending flag on the host's Windows MDM enrollment row in the same transaction so the orbit config poll sees it.
+	QueueBitLockerPINRequest(ctx context.Context, host *Host, encryptedPIN string) error
+	// GetBitLockerPINRequest returns where a host's PIN submission stands, for the My device page to poll. It never
+	// returns the PIN, and reports notFound when the host has no submission.
+	GetBitLockerPINRequest(ctx context.Context, hostID uint) (*HostBitLockerPINRequest, error)
+	// TakeBitLockerPINRequest returns the encrypted PIN exactly once and clears it.
+	TakeBitLockerPINRequest(ctx context.Context, host *Host) (encryptedPIN string, requestUUID string, err error)
+	// SetBitLockerPINRequestOutcome records what the agent did with the PIN.
+	SetBitLockerPINRequestOutcome(ctx context.Context, host *Host, requestUUID string, outcome BitLockerPINRequestStatus, clientError string) error
+	// DeleteBitLockerPINRequest drops a host's PIN submission.
+	DeleteBitLockerPINRequest(ctx context.Context, host *Host) error
+	// CleanupExpiredBitLockerPINRequests discards the ciphertext of submissions the agent never collected and marks
+	// them timed out, so an offline or re-enrolled host does not leave a PIN sitting in the database indefinitely.
+	CleanupExpiredBitLockerPINRequests(ctx context.Context) error
+
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
@@ -2493,6 +2509,10 @@ type Datastore interface {
 	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
 	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
 	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
+
+	// SetMDMWindowsEnrollmentFleetdBitLockerPINCapable persists the last-observed CapabilityWindowsBitLockerPIN value for the host's most
+	// recent Windows MDM enrollment.
+	SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx context.Context, hostUUID string, capable bool) error
 
 	// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for its current Windows
 	// MDM enrollment, which is what stops the server asking it to create the account. Reports whether the value changed, so the caller logs the

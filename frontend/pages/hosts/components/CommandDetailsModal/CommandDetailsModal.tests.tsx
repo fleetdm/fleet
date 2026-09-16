@@ -1,9 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { ICommandResult } from "interfaces/command";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
+import mockServer from "test/mock-server";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
-import {
+import CommandResultsModal, {
+  decodeCommandResults,
   getIconName,
   getVerbForCommandStatus,
   ModalContent,
@@ -16,21 +20,6 @@ const APPLE_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
 	<string>DeviceInformation</string>
 </dict>
 </plist>`;
-
-const createCommandResult = (
-  overrides: Partial<ICommandResult> = {}
-): ICommandResult => ({
-  host_uuid: "host-uuid",
-  command_uuid: "command-uuid",
-  status: "Acknowledged",
-  updated_at: "2026-09-14T18:52:33Z",
-  request_type: "WIPE",
-  hostname: "test-host",
-  payload: "",
-  result: "",
-  name: null,
-  ...overrides,
-});
 
 describe("getIconName", () => {
   it("returns error for Apple Error status", () => {
@@ -100,11 +89,68 @@ describe("getVerbForCommandStatus", () => {
   });
 });
 
+describe("decodeCommandResults", () => {
+  it("decodes a null result to an empty string rather than garbage", () => {
+    // the API returns a null result for a command that hasn't run yet (e.g. a
+    // pending Android command). atob(null) stringifies null to "null", which is
+    // valid base64 and decodes to a truthy "\x9eée", faking a device response.
+    const decoded = decodeCommandResults({
+      results: [createMockAppleMdmCommandResult({ result: null })],
+    });
+
+    expect(decoded.results?.[0].result).toEqual("");
+  });
+
+  it("decodes a null payload to an empty string rather than garbage", () => {
+    const decoded = decodeCommandResults({
+      results: [createMockAppleMdmCommandResult({ payload: null })],
+    });
+
+    expect(decoded.results?.[0].payload).toEqual("");
+  });
+
+  it("decodes an empty-string result to an empty string", () => {
+    const decoded = decodeCommandResults({
+      results: [createMockAppleMdmCommandResult({ result: "" })],
+    });
+
+    expect(decoded.results?.[0].result).toEqual("");
+  });
+
+  it("decodes a result containing multi-byte UTF-8 without mangling it", () => {
+    const message = "Perdu ? Téléphonez au +33 1 23 45 67 89 🙏";
+    const decoded = decodeCommandResults({
+      results: [
+        createMockAppleMdmCommandResult({
+          result: Buffer.from(message, "utf-8").toString("base64"),
+        }),
+      ],
+    });
+
+    expect(decoded.results?.[0].result).toEqual(message);
+  });
+
+  it("decodes an unparseable result to an empty string rather than throwing", () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation();
+
+    const decoded = decodeCommandResults({
+      results: [createMockAppleMdmCommandResult({ result: "not base64!!" })],
+    });
+
+    expect(decoded.results?.[0].result).toEqual("");
+    expect(consoleError).toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
+  it("passes through a response with no results key, which is what the API sends when there is nothing to return", () => {
+    expect(decodeCommandResults({})).toEqual({});
+  });
+});
+
 describe("ModalContent", () => {
   it("renders normally, not as an error, when the API returns a 200 with no results (e.g. host re-enrolled since the command was sent)", () => {
-    render(
-      <ModalContent data={{ results: [] }} isLoading={false} error={null} />
-    );
+    render(<ModalContent data={{}} isLoading={false} error={null} />);
 
     expect(
       screen.getByText("This command has been deleted.")
@@ -114,17 +160,60 @@ describe("ModalContent", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not render a response section for a pending command that has no result", () => {
+    render(
+      <ModalContent
+        data={decodeCommandResults({
+          results: [
+            createMockAppleMdmCommandResult({
+              status: "Pending",
+              request_type: "REQUEST_DEVICE_INFO",
+              hostname: "Samsung SM-S906U1",
+              result: null,
+            }),
+          ],
+        })}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    expect(screen.queryByText(/Response from/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the response section for a command that has a result", () => {
+    render(
+      <ModalContent
+        data={decodeCommandResults({
+          results: [
+            createMockAppleMdmCommandResult({
+              hostname: "Samsung SM-S906U1",
+              result: btoa("Device is unlocked"),
+            }),
+          ],
+        })}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    expect(screen.getByText(/Response from/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Device is unlocked")).toBeInTheDocument();
+  });
+
   it("pretty-prints minified Android JSON in both boxes", () => {
     const { container } = render(
       <ModalContent
-        data={{
+        data={decodeCommandResults({
           results: [
-            createCommandResult({
-              payload: '{"type":"WIPE","wipeParams":{}}',
-              result: '{"done":true,"response":{"errorCode":"NONE"}}',
+            createMockAppleMdmCommandResult({
+              request_type: "WIPE",
+              hostname: "Samsung SM-S906U1",
+              payload: btoa('{"type":"WIPE","wipeParams":{}}'),
+              result: btoa('{"done":true,"response":{"errorCode":"NONE"}}'),
             }),
           ],
-        }}
+        })}
         isLoading={false}
         error={null}
       />
@@ -150,11 +239,14 @@ describe("ModalContent", () => {
     );
     const { container } = render(
       <ModalContent
-        data={{
+        data={decodeCommandResults({
           results: [
-            createCommandResult({ payload: APPLE_PLIST, result: resultPlist }),
+            createMockAppleMdmCommandResult({
+              payload: btoa(APPLE_PLIST),
+              result: btoa(resultPlist),
+            }),
           ],
-        }}
+        })}
         isLoading={false}
         error={null}
       />
@@ -164,29 +256,84 @@ describe("ModalContent", () => {
     expect(payload).toHaveValue(APPLE_PLIST);
     expect(result).toHaveValue(resultPlist);
   });
+});
 
-  it("renders only the payload box for a command with no result yet", () => {
-    const { container } = render(
-      <ModalContent
-        data={{
+describe("CommandResultsModal", () => {
+  const renderModal = createCustomRenderer({ withBackendMock: true });
+
+  it("does not render a fabricated response for a pending command the API returns a null result for", async () => {
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), () =>
+        HttpResponse.json({
           results: [
-            createCommandResult({
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: "pending-android-command",
               status: "Pending",
-              payload: '{"type":"WIPE"}',
-              result: "",
-            }),
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "REQUEST_DEVICE_INFO",
+              hostname: "Samsung SM-S906U1",
+              payload: btoa('{"type":"REQUEST_DEVICE_INFO"}'),
+              result: null,
+              name: null,
+            },
           ],
-        }}
-        isLoading={false}
-        error={null}
+        })
+      )
+    );
+
+    renderModal(
+      <CommandResultsModal
+        command={{ command_uuid: "pending-android-command" }}
+        onDone={jest.fn()}
       />
     );
 
-    const textareas = container.querySelectorAll("textarea");
-    expect(textareas).toHaveLength(1);
-    expect(textareas[0]).toHaveValue(`{
-  "type": "WIPE"
+    await waitFor(() => {
+      expect(screen.getByText(/is pending on/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Response from/i)).not.toBeInTheDocument();
+    // atob(null) decodes to this, the exact garbage reported in #53155
+    expect(screen.queryByDisplayValue(/ée/)).not.toBeInTheDocument();
+  });
+
+  it("renders the response for a command the API returns a result for", async () => {
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), () =>
+        HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: "completed-android-command",
+              status: "Acknowledged",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "REQUEST_DEVICE_INFO",
+              hostname: "Samsung SM-S906U1",
+              payload: btoa('{"type":"REQUEST_DEVICE_INFO"}'),
+              result: btoa('{"eid":"89049032"}'),
+              name: null,
+            },
+          ],
+        })
+      )
+    );
+
+    renderModal(
+      <CommandResultsModal
+        command={{ command_uuid: "completed-android-command" }}
+        onDone={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Response from/i)).toBeInTheDocument();
+    });
+
+    // getByDisplayValue collapses whitespace, so assert on the element itself
+    const [, result] = document.querySelectorAll("textarea");
+    expect(result).toHaveValue(`{
+  "eid": "89049032"
 }`);
-    expect(screen.queryByText(/Response from/)).not.toBeInTheDocument();
   });
 });
