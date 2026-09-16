@@ -55,8 +55,8 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
     - 1024 (default), 2048, 4096
 - For the `CN` key / value, what's added depends on what the certificate will be used for.
   - Using variables means that the certificates can be unique per host (see example below and Apple's [Use payload variables](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation).
-- For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 - For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
+- For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 
 #### Example configuration profile
 
