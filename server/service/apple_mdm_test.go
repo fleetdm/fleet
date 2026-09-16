@@ -4176,7 +4176,9 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				removed = true
 				require.Equal(t, hostID, cmd.HostID)
 				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, cmd.CommandType)
-				require.Equal(t, commandUUID, cmd.CommandUUID, "removal must target the acked command")
+				require.Len(t, addedCommands, 1)
+				require.Equal(t, addedCommands[0].CommandUUID, cmd.CommandUUID,
+					"rollback must target the command it tracked")
 				return nil
 			}
 
@@ -4202,6 +4204,9 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				enqueued = true
 				require.Equal(t, []string{expectTarget}, id)
 				require.Equal(t, "CertificateList", cmd.Command.Command.RequestType)
+				require.Len(t, addedCommands, 1)
+				require.Equal(t, addedCommands[0].CommandUUID, cmd.CommandUUID,
+					"enqueued command must be the one the tracking row records")
 				return nil, c.enqueueErr
 			}
 			mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {

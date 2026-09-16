@@ -6697,16 +6697,17 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 	// nothing was queued (the nano enqueue is transactional) and the row is
 	// removed again; if only the APNs notification failed the command is
 	// durably queued and the row must stay.
+	cmdUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
 	hostCmd := fleet.HostMDMCommand{
 		HostID:      res.HostID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+		CommandUUID: cmdUUID,
 	}
 	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd}); err != nil {
 		return ctxerr.Wrap(ctx, err, "track refetch certs command")
 	}
 
-	cmdUUID := uuid.NewString()
-	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, cmdUUID); err != nil {
 		if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 			if rmErr := svc.ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
 				svc.logger.ErrorContext(ctx, "untrack refetch certs command after enqueue failure",
