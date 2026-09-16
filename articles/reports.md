@@ -46,9 +46,9 @@ How to view a report:
 
 3. If you want to download the report, select **Export results** to save it as a CSV.
 
-Fleet stores up to 1,000 results per report, or one result per host if you have more than 1,000 hosts. If the count stays below this limit, Fleet updates the report each time hosts send new data.
+Fleet stores up to 1,000 results per report. If you have more than 1,000 hosts, the limit is the number of hosts. This means a report that returns one row per host always covers your whole fleet, so you can use reports the way you'd use extension attributes in Jamf. If the count stays below this limit, Fleet updates the report each time hosts send new data.
 
-When the report is full, Fleet keeps updating results for hosts that are already in the report, but doesn't add results from other hosts. To start collecting data from all hosts again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
+When the report is full, Fleet keeps updating hosts that are already in the report as long as they don't return more rows than before, but doesn't add results from other hosts. To start collecting data from all hosts again, clear the stored results from the report's page. Go to **Advanced options**, uncheck **Store data**, and select **Save**. Then check **Store data** and select **Save** again.
 
 Fleet also doesn't store a host's result if it's larger than 512 KB. Fleet records when the host last sent results, but the report shows that the host returned no data. To reduce the size of a result, return fewer columns or rows in your query.
 
