@@ -214,8 +214,16 @@ const HostDetailsBanners = ({
         </div>
       );
     }
+    // Nothing for the admin to do: Fleet Desktop asks the end user at every login.
     if (diskEncryptionOSSetting?.action_required === "create_pin") {
-      return actionRequiredBanner;
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">
+            Disk encryption: The end user needs to create a BitLocker PIN. Fleet
+            Desktop prompts them at each login.
+          </InfoBanner>
+        </div>
+      );
     }
   }
 

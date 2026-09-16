@@ -103,7 +103,7 @@ describe("Host Details Banners", () => {
     expect(screen.queryByText(logOutExpectedText)).not.toBeInTheDocument();
   });
 
-  it("tells the admin to send the end user to My device when a BitLocker PIN is missing", () => {
+  it("tells the admin that Fleet Desktop is asking the end user for a BitLocker PIN", () => {
     render(
       <HostDetailsBanners
         hostPlatform="windows"
@@ -120,7 +120,11 @@ describe("Host Details Banners", () => {
       />
     );
 
-    expect(screen.getByText(myDeviceInstructionsText)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /The end user needs to create a BitLocker PIN\. Fleet Desktop prompts them at each login\./
+      )
+    ).toBeInTheDocument();
   });
 
   it("tells the admin to ask for a restart when the repair is waiting on one", () => {

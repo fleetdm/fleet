@@ -1,0 +1,184 @@
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import React from "react";
+
+import createMockHost from "__mocks__/hostMock";
+import { notify } from "components/ToastNotification";
+import { IDUPDetails, IOSSettings } from "interfaces/host";
+import diskEncryptionAPI from "services/entities/disk_encryption";
+
+import BitLockerPinModal from "./BitLockerPinModal";
+
+jest.mock("services/entities/disk_encryption", () => ({
+  __esModule: true,
+  default: { submitBitLockerPIN: jest.fn() },
+}));
+
+jest.mock("components/ToastNotification", () => ({
+  notify: { success: jest.fn(), error: jest.fn() },
+}));
+
+const submitBitLockerPIN = diskEncryptionAPI.submitBitLockerPIN as jest.Mock;
+
+const POLL_INTERVAL_MS = 3000;
+
+/** The modal reads only this one path off the device response. */
+const deviceDetails = (
+  diskEncryption: IOSSettings["disk_encryption"]
+): IDUPDetails => {
+  const host = createMockHost();
+  return ({
+    host: {
+      ...host,
+      mdm: {
+        ...host.mdm,
+        os_settings: { certificates: [], disk_encryption: diskEncryption },
+      },
+    },
+  } as unknown) as IDUPDetails;
+};
+
+const renderModal = (onPollHost = jest.fn(), onExit = jest.fn()) => {
+  const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+  render(
+    <BitLockerPinModal
+      deviceAuthToken="token"
+      onPollHost={onPollHost}
+      onExit={onExit}
+    />
+  );
+  return { user, onPollHost, onExit };
+};
+
+const submitPIN = async (
+  user: ReturnType<typeof userEvent.setup>,
+  pin: string,
+  confirmPin = pin
+) => {
+  await user.type(screen.getByLabelText("BitLocker PIN"), pin);
+  await user.type(screen.getByLabelText("Confirm PIN"), confirmPin);
+  await user.click(screen.getByRole("button", { name: "Save" }));
+};
+
+/** Flushes the request the modal is waiting on, so it reaches its next state. */
+const settle = () =>
+  act(async () => {
+    await Promise.resolve();
+  });
+
+/** Runs the modal's wait through one poll. */
+const advanceOnePoll = () =>
+  act(async () => {
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+  });
+
+describe("BitLockerPinModal", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    submitBitLockerPIN.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("holds back a PIN the server would reject", async () => {
+    const { user } = renderModal();
+
+    await submitPIN(user, "12345");
+
+    expect(screen.getByText("Use 6 to 20 characters")).toBeVisible();
+    expect(submitBitLockerPIN).not.toHaveBeenCalled();
+  });
+
+  it("holds back a PIN the end user did not confirm", async () => {
+    const { user } = renderModal();
+
+    await submitPIN(user, "123456", "123457");
+
+    expect(screen.getByText("PINs must match")).toBeVisible();
+    expect(submitBitLockerPIN).not.toHaveBeenCalled();
+  });
+
+  it("closes with a success toast once the agent reports the PIN is set", async () => {
+    const onPollHost = jest.fn().mockResolvedValue(
+      deviceDetails({
+        status: "action_required",
+        detail: "",
+        action_required: "create_pin",
+        pin_request: { status: "set", error: "" },
+      })
+    );
+    const { user, onExit } = renderModal(onPollHost);
+
+    // Spaces are part of a BitLocker PIN, so the modal must not trim them away.
+    await submitPIN(user, " pin 1234 ");
+    expect(submitBitLockerPIN).toHaveBeenCalledWith("token", " pin 1234 ");
+
+    await settle();
+    await advanceOnePoll();
+
+    expect(notify.success).toHaveBeenCalledWith("Successfully set PIN.");
+    expect(onExit).toHaveBeenCalled();
+  });
+
+  it("keeps waiting while the agent has not answered", async () => {
+    const onPollHost = jest.fn().mockResolvedValue(
+      deviceDetails({
+        status: "action_required",
+        detail: "",
+        action_required: "create_pin",
+        pin_request: { status: "delivered", error: "" },
+      })
+    );
+    const { user, onExit } = renderModal(onPollHost);
+
+    await submitPIN(user, "123456");
+    await settle();
+    await advanceOnePoll();
+
+    expect(screen.getByText("Setting your PIN...")).toBeVisible();
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("stays open and reports the agent's reason when the PIN is refused", async () => {
+    const onPollHost = jest.fn().mockResolvedValue(
+      deviceDetails({
+        status: "action_required",
+        detail: "",
+        action_required: "create_pin",
+        pin_request: { status: "failed", error: "PIN already set." },
+      })
+    );
+    const { user, onExit } = renderModal(onPollHost);
+
+    await submitPIN(user, "123456");
+    await settle();
+    await advanceOnePoll();
+
+    expect(notify.error).toHaveBeenCalledWith(
+      "Couldn't set PIN. PIN already set. Try again or contact your IT admin."
+    );
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.queryByText("Setting your PIN...")).toBeNull();
+  });
+
+  it("reports a rejected submission without waiting on the agent", async () => {
+    submitBitLockerPIN.mockRejectedValue(new Error("422"));
+    const onPollHost = jest.fn();
+    const { user, onExit } = renderModal(onPollHost);
+
+    await submitPIN(user, "123456");
+    await settle();
+
+    expect(notify.error).toHaveBeenCalledWith(
+      "Couldn't set PIN. Try again or contact your IT admin.",
+      expect.anything()
+    );
+    expect(onPollHost).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+});

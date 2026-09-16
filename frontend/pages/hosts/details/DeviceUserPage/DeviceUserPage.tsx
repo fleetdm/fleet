@@ -1,7 +1,13 @@
 import { AxiosError } from "axios";
 import classNames from "classnames";
-import { pick } from "lodash";
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { omit, pick } from "lodash";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -50,6 +56,7 @@ import {
 } from "utilities/constants";
 import { normalizeEmptyValues } from "utilities/helpers";
 import { isDarkMode } from "utilities/theme";
+import { getPathWithQueryParams } from "utilities/url";
 
 import CertificatesCard from "../cards/Certificates";
 import ControlsCard from "../cards/Controls";
@@ -74,6 +81,7 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import BitLockerPinInstructionsModal from "./BitLockerPinInstructionsModal";
 import BitLockerPinModal from "./BitLockerPinModal";
 import BypassModal from "./BypassModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
@@ -136,6 +144,7 @@ interface IDeviceUserPageProps {
       order_direction?: "asc" | "desc";
       setup_only?: string;
       sso_error?: string;
+      create_pin?: string;
     };
     search?: string;
   };
@@ -393,6 +402,36 @@ const DeviceUserPage = ({
   const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
   const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
   const isPremiumTier = license?.tier === "premium";
+  const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
+  const needsBitLockerPIN =
+    diskEncryptionSetting?.action_required === "create_pin";
+
+  // The Fleet Desktop toast links here with ?create_pin=1. The parameter is dropped once the page has acted on it, so
+  // closing the modal and reloading does not reopen it.
+  const hasHandledCreatePINParam = useRef(false);
+  useEffect(() => {
+    if (
+      !location.query.create_pin ||
+      !host ||
+      hasHandledCreatePINParam.current
+    ) {
+      return;
+    }
+    hasHandledCreatePINParam.current = true;
+    if (needsBitLockerPIN) {
+      setShowBitLockerPINModal(true);
+    }
+    router.replace(
+      getPathWithQueryParams(
+        location.pathname,
+        omit(location.query, "create_pin")
+      )
+    );
+  }, [host, needsBitLockerPIN, location, router]);
+
+  const pollHostDetails = useCallback(async () => {
+    return (await refetchDupDetails()).data;
+  }, [refetchDupDetails]);
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
@@ -961,11 +1000,18 @@ const DeviceUserPage = ({
           {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
             <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
           ) : null}
-          {showBitLockerPINModal && (
-            <BitLockerPinModal
-              onCancel={() => setShowBitLockerPINModal(false)}
-            />
-          )}
+          {showBitLockerPINModal &&
+            (diskEncryptionSetting?.fleetd_can_set_pin ? (
+              <BitLockerPinModal
+                deviceAuthToken={deviceAuthToken}
+                onPollHost={pollHostDetails}
+                onExit={() => setShowBitLockerPINModal(false)}
+              />
+            ) : (
+              <BitLockerPinInstructionsModal
+                onExit={() => setShowBitLockerPINModal(false)}
+              />
+            ))}
         </div>
         {!!host && showPolicyDetailsModal && (
           <PolicyDetailsModal
