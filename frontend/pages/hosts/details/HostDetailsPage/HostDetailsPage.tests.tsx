@@ -1,18 +1,18 @@
+import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
 
+import createMockConfig from "__mocks__/configMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-
+import { notify } from "components/ToastNotification";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
-import hostAPI from "services/entities/hosts";
 import activitiesAPI from "services/entities/activities";
-import teamAPI from "services/entities/teams";
 import commandAPI from "services/entities/command";
-import { notify } from "components/ToastNotification";
+import hostAPI from "services/entities/hosts";
+import teamAPI from "services/entities/teams";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import HostDetailsPage from "./HostDetailsPage";
 
@@ -86,7 +86,14 @@ const stubQueries = (host: IHost) => {
   });
 };
 
-const renderPageAs = (currentUser: IUser, isGlobalAdmin: boolean) => {
+const renderHostDetails = (overrides?: {
+  currentUser?: IUser;
+  isGlobalAdmin?: boolean;
+  location?: typeof mockLocation;
+}) => {
+  const { currentUser = ADMIN, isGlobalAdmin = true, location = mockLocation } =
+    overrides || {};
+
   const render = createCustomRenderer({
     withBackendMock: true,
     context: {
@@ -102,7 +109,7 @@ const renderPageAs = (currentUser: IUser, isGlobalAdmin: boolean) => {
   return render(
     <HostDetailsPage
       router={createMockRouter()}
-      location={mockLocation}
+      location={location}
       params={{ host_id: "1" }}
     />
   );
@@ -117,7 +124,10 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     stubQueries(mockAppleHost());
 
     // Global admin: refetch fires the ping too.
-    const { user, unmount } = renderPageAs(ADMIN, true);
+    const { user, unmount } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -129,7 +139,10 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
     (hostAPI.apnsPing as jest.Mock).mockClear();
 
     // Global observer: fires the ping as well.
-    const { user: observer } = renderPageAs(OBSERVER, false);
+    const { user: observer } = renderHostDetails({
+      currentUser: OBSERVER,
+      isGlobalAdmin: false,
+    });
     await observer.click(
       await screen.findByRole("button", { name: /refetch/i })
     );
@@ -137,6 +150,53 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
       expect(hostAPI.refetch).toHaveBeenCalled();
     });
     expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("HostDetailsPage - MDM status modal Check in now", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.resetAllMocks();
+  });
+
+  it("delays the host details refetch by 5 seconds after a successful check-in", async () => {
+    stubQueries(mockAppleHost());
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      host_dep_assignment: null,
+    });
+
+    renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+      location: { ...mockLocation, query: { show_mdm_status: "true" } },
+    });
+
+    const checkInButton = await screen.findByRole("button", {
+      name: /check in now/i,
+    });
+    const callsBeforeCheckIn = (hostAPI.loadHostDetails as jest.Mock).mock.calls
+      .length;
+
+    // Fake timers only from here on, so user-event can control its own
+    // internal delays via the advanceTimers option.
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    await user.click(checkInButton);
+    expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
+
+    // No immediate refetch -- the app delays it 5s so the device has time to check in.
+    expect((hostAPI.loadHostDetails as jest.Mock).mock.calls.length).toBe(
+      callsBeforeCheckIn
+    );
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(
+      (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
+    ).toBeGreaterThan(callsBeforeCheckIn);
   });
 });
 
@@ -152,7 +212,10 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    renderPageAs(ADMIN, true);
+    renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
     await screen.findByText("Vitals");
     // Give the poll timer (2s) room to fire if it was scheduled.
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -169,7 +232,10 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    const { user } = renderPageAs(ADMIN, true);
+    const { user } = renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
