@@ -444,7 +444,8 @@ const QueryDetailsPage = ({
     >
       <div>
         <b>Report clipped.</b> This report is full. Hosts already in the report
-        keep updating, but results from other hosts aren&apos;t saved.
+        keep updating, but results from other hosts aren&apos;t saved. Once
+        there&apos;s room, this clears after the report&apos;s next run.
         {
           // Exclude below message for global and team observers/observer+s
           !(
