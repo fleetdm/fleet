@@ -34,7 +34,7 @@ module.exports = {
       description: 'Whether the email address associated with this newsletter subscription will be sent release posts and security update emails'
     },
 
-    emailsSent: {
+    newsletterEmailsSent: {
       type: 'json',
       description: 'A list of emails this newsletter subscriber was sent.',
       defaultsTo: [],

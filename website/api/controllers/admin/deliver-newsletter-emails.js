@@ -54,7 +54,7 @@ module.exports = {
 
 
         // Make sure we're not sending duplicate emails to this subscriber.
-        let emailsSentToThisSubscriber = newsletterSubscriber.emailsSent;
+        let emailsSentToThisSubscriber = newsletterSubscriber.newsletterEmailsSent;
         if(emailsSentToThisSubscriber.includes(emailTemplateName)) {
           return;
         }
@@ -80,7 +80,7 @@ module.exports = {
         // If an email was successfully sent, update the NewsletterSubscription record for this subscriber to ensure they don't receive a duplicate email if this newsletter is sent again.
         if(deliveredEmail) {
           emailsSentToThisSubscriber.push(emailTemplateName);
-          await NewsletterSubscription.updateOne({id: newsletterSubscriber.id}).set({emailsSent: emailsSentToThisSubscriber});
+          await NewsletterSubscription.updateOne({id: newsletterSubscriber.id}).set({newsletterEmailsSent: emailsSentToThisSubscriber});
           numberOfEmailsSent++;
         }
 
