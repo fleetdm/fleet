@@ -405,7 +405,7 @@ csp cases report as not-checked either way.`
       all = false;
     }
     if(naturalLanguageInstructions && !profileType){
-      throw new Error(`A profileType is required to run this script with a naturalLanguageInstructions input, please run this script again with a --profileType input set to the type of profile you want to test generating. (example: --profileType=ddm)`)
+      throw new Error(`A profileType is required to run this script with a naturalLanguageInstructions input, please run this script again with a --profileType input set to the type of profile you want to test generating. (example: --profileType=ddm)`);
     }
     if(parallelTests < 1) {
       throw new Error(`--parallelTests must be at least 1 (got ${parallelTests}).`);
@@ -594,7 +594,6 @@ csp cases report as not-checked either way.`
           checkFailures = checkExpectations(expectations, generatedProfile);
         }
 
-        let hasProfileFailure = checkFailures.length > 0;
         if(elapsedMs > MAX_ELAPSED_MS) {
           checkFailures = checkFailures.concat([`took ${elapsedMs}ms, over the ${MAX_ELAPSED_MS}ms budget`]);
         }
@@ -676,7 +675,7 @@ csp cases report as not-checked either way.`
               caseDetailLines.push(`  warning ${contourWarning}`);
             }
           }
-          caseDetailLines.push(`\n${generatedProfile.profile}\n`)
+          caseDetailLines.push(`\n${generatedProfile.profile}\n`);
 
           if(verbose){
             caseDetailLines.push(
