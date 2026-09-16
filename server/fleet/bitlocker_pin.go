@@ -36,10 +36,10 @@ const (
 
 // HostBitLockerPINRequest is the state of a host's BitLocker PIN submission. It never carries the PIN.
 type HostBitLockerPINRequest struct {
-	Status BitLockerPINRequestStatus `json:"status" db:"status"`
+	Status BitLockerPINRequestStatus `json:"status" db:"status" csv:"-"`
 	// Error is the agent's reason for a failure. Empty unless Status is failed.
-	Error     string    `json:"error" db:"client_error"`
-	CreatedAt time.Time `json:"-" db:"created_at"`
+	Error     string    `json:"error" db:"client_error" csv:"-"`
+	CreatedAt time.Time `json:"-" db:"created_at" csv:"-"`
 	// UpdatedAt is when the agent collected the PIN, while Status is delivered.
 	UpdatedAt time.Time `json:"-" db:"updated_at" csv:"-"`
 }
