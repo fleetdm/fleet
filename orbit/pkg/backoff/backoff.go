@@ -82,7 +82,9 @@ func (t *Tracker) RecordFailure() {
 // Interval returns the duration to wait before the next request.
 //
 // When consecutiveFailures is 0 it returns baseInterval. Otherwise it
-// returns min(baseInterval * 2^failures + jitter, maxBackoff).
+// returns min(baseInterval * 2^failures, maxBackoff) + jitter.
+// Jitter is applied after capping so that hosts at the ceiling still
+// spread their retries instead of all firing at exactly maxBackoff.
 func (t *Tracker) Interval() time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -98,19 +100,21 @@ func (t *Tracker) Interval() time.Duration {
 	if interval>>shift != t.baseInterval {
 		interval = t.maxBackoff
 	}
-	interval += jitter(interval)
 	interval = min(interval, t.maxBackoff)
+	interval += jitter(interval)
 
 	return interval
 }
 
-// jitter returns a random duration in [0, 10% of d).
+// jitter returns a random duration in [0, 100% of d).
+// Using 100% jitter ensures hosts at the backoff cap are spread
+// across a wide window rather than all retrying simultaneously.
 func jitter(d time.Duration) time.Duration {
-	tenth := int64(d / 10)
-	if tenth <= 0 {
+	n := int64(d)
+	if n <= 0 {
 		return 0
 	}
-	return time.Duration(rand.Int64N(tenth)) //nolint:gosec // jitter does not need cryptographic randomness
+	return time.Duration(rand.Int64N(n)) //nolint:gosec // jitter does not need cryptographic randomness
 }
 
 // InBackoff reports whether the tracker is currently in a backoff state

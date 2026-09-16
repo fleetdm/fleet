@@ -46,7 +46,7 @@ type Options struct {
 	// ReconnectJitterMax is the random delay before reconnecting after a drop,
 	// so a server restart doesn't produce a thundering herd (default 30s).
 	ReconnectJitterMax time.Duration
-	// BackoffBase/BackoffCap bound the reconnection backoff (default 5s/30m).
+	// BackoffBase/BackoffCap bound the reconnection backoff (default 5s/15m).
 	BackoffBase time.Duration
 	BackoffCap  time.Duration
 	// ServerPingInterval is the server's keepalive ping cadence, used to size
@@ -67,7 +67,7 @@ func (o *Options) applyDefaults() {
 		o.BackoffBase = 5 * time.Second
 	}
 	if o.BackoffCap == 0 {
-		o.BackoffCap = 30 * time.Minute
+		o.BackoffCap = 15 * time.Minute
 	}
 	if o.ServerPingInterval == 0 {
 		o.ServerPingInterval = 5 * time.Minute

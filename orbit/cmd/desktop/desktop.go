@@ -274,7 +274,7 @@ func main() {
 
 			go func() {
 				const checkTokenBase = 1 * time.Second
-				const maxTokenBackoff = 30 * time.Minute
+				const maxTokenBackoff = 15 * time.Minute
 				tokenBackoff := backoff.New(checkTokenBase, maxTokenBackoff)
 				ticker := time.NewTicker(checkTokenBase)
 				defer ticker.Stop()

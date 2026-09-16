@@ -202,7 +202,7 @@ var (
 	netErrInterval                     = 5 * time.Minute
 	configRetryOnNetworkError          = 30 * time.Second
 	defaultOrbitConfigReceiverInterval = 30 * time.Second
-	maxConfigBackoff                   = 30 * time.Minute
+	maxConfigBackoff                   = 15 * time.Minute
 	// downloadStallTimeout bounds a software-installer download that makes no
 	// progress (e.g. a network filter dropping packets mid-transfer). It resets
 	// on any received bytes, so slow-but-healthy downloads are unaffected.
