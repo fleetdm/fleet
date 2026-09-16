@@ -16,6 +16,7 @@ import commandApi, {
 } from "services/entities/command";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
+import formatJsonForDisplay from "utilities/json_format";
 
 const baseClass = "command-details-modal";
 
@@ -45,81 +46,6 @@ export const getIconName = (status: string): IconNames => {
     return "pending-outline";
   }
   return "warning";
-};
-
-// Indents already-valid JSON by inserting whitespace between tokens. Tokens
-// themselves are copied verbatim, so what's displayed stays byte-for-byte what
-// the host sent -- reserializing via JSON.parse/stringify would silently
-// truncate integers past 2^53, reorder integer-like keys and rewrite number
-// and escape formatting, which is exactly the detail this modal exists to show.
-const indentJson = (value: string): string => {
-  const indentUnit = "  ";
-  let out = "";
-  let depth = 0;
-  let inString = false;
-
-  const newline = () => `\n${indentUnit.repeat(depth)}`;
-
-  for (let i = 0; i < value.length; i += 1) {
-    const char = value[i];
-
-    if (inString) {
-      out += char;
-      if (char === "\\") {
-        // an escape sequence can contain a quote, so copy the escaped
-        // character with it rather than letting it end the string
-        i += 1;
-        out += value[i] ?? "";
-      } else if (char === '"') {
-        inString = false;
-      }
-    } else if (char === '"') {
-      inString = true;
-      out += char;
-    } else if (char === "{" || char === "[") {
-      const close = char === "{" ? "}" : "]";
-      let next = i + 1;
-      while (next < value.length && /\s/.test(value[next])) {
-        next += 1;
-      }
-      if (value[next] === close) {
-        // keep empty objects and arrays on one line
-        out += char + close;
-        i = next;
-      } else {
-        depth += 1;
-        out += char + newline();
-      }
-    } else if (char === "}" || char === "]") {
-      depth -= 1;
-      out += newline() + char;
-    } else if (char === ",") {
-      out += char + newline();
-    } else if (char === ":") {
-      out += ": ";
-    } else if (!/\s/.test(char)) {
-      out += char;
-    }
-  }
-
-  return out;
-};
-
-// Android command payloads and results are stored as minified JSON, which the
-// textarea wraps mid-token and makes unreadable. Only syntactically valid JSON
-// objects and arrays are reformatted, so Apple plists, Windows SyncML and
-// anything else that isn't JSON pass through untouched.
-export const formatCommandJson = (value: string): string => {
-  let parsed;
-  try {
-    parsed = JSON.parse(value);
-  } catch {
-    return value;
-  }
-  if (parsed === null || typeof parsed !== "object") {
-    return value;
-  }
-  return indentJson(value);
 };
 
 export const getVerbForCommandStatus = (status: string): string => {
@@ -269,7 +195,7 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={formatCommandJson(result.payload)}
+          value={formatJsonForDisplay(result.payload)}
           readOnly
           enableCopy
           disableResize
@@ -283,7 +209,7 @@ export const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
-          value={formatCommandJson(result.result)}
+          value={formatJsonForDisplay(result.result)}
           readOnly
           enableCopy
           disableResize
