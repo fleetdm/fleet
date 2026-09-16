@@ -15,9 +15,9 @@ import (
 //go:embed windows_app.ico
 var fleetDesktopIcon []byte
 
-// registerFleetDesktopAppID gives Fleet Desktop's toasts their name and icon. A failure only costs the toast those.
+// registerFleetDesktopAppID gives Fleet Desktop's toasts their name and icon.
 func registerFleetDesktopAppID(rootDir string) {
 	if err := toast.RegisterFleetDesktopAppID(filepath.Join(rootDir, "fleet-desktop.ico"), fleetDesktopIcon); err != nil {
-		log.Warn().Err(err).Msg("could not register the Fleet Desktop notification identity")
+		log.Error().Err(err).Msg("could not register the Fleet Desktop notification identity")
 	}
 }
