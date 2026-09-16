@@ -2280,7 +2280,7 @@ const HostDetailsPage = ({
             connectedToFleet={host.mdm.connected_to_fleet}
             onSuccessfulCheckIn={() => {
               // Delay the refetch of the host details
-              // so the device have time to check in.
+              // so the device has time to check in.
               setTimeout(() => {
                 refetchHostDetails();
               }, 5000);
