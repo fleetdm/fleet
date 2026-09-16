@@ -26,7 +26,7 @@ module.exports = {
 
     useLighterResponseShape: {
       type: 'boolean',
-      deafultsTo: false,
+      defaultsTo: false,
       description: 'Whether or not to request less information back with the generated profile.'
     }
   },
