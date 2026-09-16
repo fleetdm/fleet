@@ -1216,6 +1216,26 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
+// androidCustomCommandType returns the command type to persist for a custom AMAPI command.
+// AMAPI derives the type from a params field when type is omitted (e.g. clearAppsDataParams →
+// CLEAR_APP_DATA), and that derived type is reflected back in the Operation metadata but is not
+// trivially accessible here, so unrecognized shapes fall back to "CUSTOM".
+//
+// wipeParams is mapped explicitly because the acknowledged-wipe handling in ProcessPubSubPush keys
+// on the stored type: storing "CUSTOM" for a command AMAPI treats as a WIPE means a device that
+// really was wiped is never marked unenrolled. The other inferable types carry no such side effect
+// in Fleet, so they stay "CUSTOM" until one of them needs the same treatment.
+func androidCustomCommandType(cmd *androidmanagement.Command) string {
+	switch {
+	case cmd.Type != "":
+		return cmd.Type
+	case cmd.WipeParams != nil:
+		return string(android.MDMAndroidCommandTypeWipe)
+	default:
+		return "CUSTOM"
+	}
+}
+
 // IssueCustomCommand issues an arbitrary AMAPI command from raw JSON. It reuses resolveAndroidCommandTarget
 // for auth/device resolution, unmarshals the JSON into an AMAPI Command, calls IssueCommand, and persists the
 // row in mdm_android_commands with raw_command populated. No host_mdm_actions ref is written.
@@ -1244,14 +1264,7 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
 	}
 
-	// Determine the command type from the AMAPI response metadata or the request.
-	cmdType := amapiCmd.Type
-	if cmdType == "" {
-		// AMAPI infers the type from params fields (e.g. clearAppsDataParams → CLEAR_APP_DATA).
-		// The type is reflected back in the Operation metadata but not trivially accessible here,
-		// so fall back to "CUSTOM" for now.
-		cmdType = "CUSTOM"
-	}
+	cmdType := androidCustomCommandType(&amapiCmd)
 
 	// Redact sensitive fields before persisting. The original rawJSON (with any
 	// password) was already sent to AMAPI above; only the stored copy is sanitized.
