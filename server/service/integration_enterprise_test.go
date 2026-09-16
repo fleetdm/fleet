@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -65,6 +66,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -34712,7 +34714,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 //     END_USER_AUTH_REQUIRED.
 //  2. Orbit opens a browser, the user authenticates, and the SSO callback
 //     in ee/server/service/mdm.go writes the mdm_idp_accounts +
-//     host_mdm_idp_accounts rows via the bare AssociateHostMDMIdPAccountDB
+//     host_mdm_idp_accounts rows via AssociateHostMDMIdPAccountFromSSO
 //     (the hosts row does not exist yet at this point — only the IdP-side
 //     tables are populated). We simulate that callback by inserting the
 //     same rows directly.
@@ -34723,6 +34725,12 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 // Pre-fix behavior: host_emails stayed empty, so ListHostDeviceMapping
 // returned nothing and the hosts list endpoint returned device_mapping=null
 // even though the single-host endpoint showed the IdP user via SCIM.
+//
+// Steps 1 and 3 also settle the end-user-auth marker that gates the
+// unauthenticated setup experience SSO flow. Unit tests drive those branches
+// against an injected store; this is the only place the store is the one the
+// running server built for itself, so it is what proves the marker is wired at
+// all.
 func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMapping() {
 	t := s.T()
 	ctx := t.Context()
@@ -34795,6 +34803,13 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 
+		// The 401 also records the marker, without which the setup experience
+		// SSO flow below would refuse to start for this host UUID.
+		kv := redis_key_value.New(s.redisPool)
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, hostUUID, time.Now())
+		require.NoError(t, err)
+		require.True(t, pending)
+
 		// Step 2: Simulate the Orbit Setup Experience SSO callback writing the
 		// IdP account and linking it to the host UUID. This matches what
 		// ee/server/service/mdm.go's mdmSSOHandleCallbackAuth does after the
@@ -34809,10 +34824,10 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		idpAcct, err := s.ds.GetMDMIdPAccountByEmail(ctx, idpEmail)
 		require.NoError(t, err)
 		require.NotNil(t, idpAcct)
-		// Use the bare DB variant — this is the function the SSO callback
-		// uses, and the hosts row does not exist yet so the reconciling
-		// variant would error on the host-id lookup.
-		require.NoError(t, s.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, idpAcct.UUID))
+		// This is the function the SSO callback uses; the hosts row does not
+		// exist yet so the reconciling variant would error on the host-id lookup.
+		_, err = s.ds.AssociateHostMDMIdPAccountFromSSO(ctx, hostUUID, idpAcct.UUID, true)
+		require.NoError(t, err)
 
 		// host_mdm_idp_accounts is now populated, but host_emails is not.
 		var preCount int
@@ -34830,6 +34845,12 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
 		res.Body.Close()
 		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		// Enrolling ends the prompt, so a sign-in completing later can no longer
+		// take this host's IdP binding over.
+		pending, err = shared_mdm.HasEndUserAuthPrompt(ctx, kv, hostUUID, time.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
 
 		// Step 4: Verify host_emails got populated — this is what fixes the
 		// hosts list endpoint returning device_mapping=null (issue #45066).

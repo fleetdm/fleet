@@ -385,6 +385,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeRotatedManagedLocalAccountPassword{},
 		fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{},
 		fleet.ActivityTypeHostBypassedConditionalAccess{},
+		fleet.ActivityTypeBoundHostToIdPAccount{},
+		fleet.ActivityTypeRefusedHostIdPAccountChange{},
 		fleet.ActivityTypeClearedPasscode{},
 		fleet.ActivityTypeEditedHostIdpData{},
 	},

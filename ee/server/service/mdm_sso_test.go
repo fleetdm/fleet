@@ -6,18 +6,23 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"io"
 	"log/slog"
 	"net/url"
 	"testing"
 
+	"github.com/WatchBeam/clock"
 	"github.com/crewjam/saml"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mockredis "github.com/fleetdm/fleet/v4/server/mock/redis"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +70,7 @@ func mdmSSOTestAppConfig(serverURL string, idpConfigured bool) *fleet.AppConfig 
 	return ac
 }
 
-func newMDMSSOTestService(t *testing.T, appConfig *fleet.AppConfig, cfg config.FleetConfig) *Service {
+func newMDMSSOTestService(t *testing.T, appConfig *fleet.AppConfig, cfg config.FleetConfig) (*Service, *mock.Store) {
 	t.Helper()
 
 	authorizer, err := authz.NewAuthorizer()
@@ -74,13 +79,21 @@ func newMDMSSOTestService(t *testing.T, appConfig *fleet.AppConfig, cfg config.F
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return appConfig, nil }
 
+	svcMock := &svcmock.Service{}
+	svcMock.NewActivityFunc = func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil }
+
+	kvs, _ := inMemoryKeyValueStore()
+
 	return &Service{
+		Service:         svcMock,
 		ds:              ds,
 		logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
 		authz:           authorizer,
 		config:          cfg,
+		clock:           clock.NewMockClock(),
+		keyValueStore:   kvs,
 		ssoSessionStore: sso.NewSessionStore(redistest.NopRedis()),
-	}
+	}, ds
 }
 
 func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
@@ -106,7 +119,7 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 			cfg := config.TestConfig()
 			cfg.Server.URLPrefix = "/apps/fleet"
 
-			svc := newMDMSSOTestService(t, mdmSSOTestAppConfig(tc.serverURL, true), cfg)
+			svc, _ := newMDMSSOTestService(t, mdmSSOTestAppConfig(tc.serverURL, true), cfg)
 
 			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), "", "", "")
 			require.NoError(t, err)
@@ -128,8 +141,14 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 }
 
 func TestInitiateMDMSSOSetsNoRelayState(t *testing.T) {
-	svc := newMDMSSOTestService(t,
+	svc, _ := newMDMSSOTestService(t,
 		mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
+
+	// Each initiator names its own host UUID and only setup_experience's is
+	// seeded, so this also fails if the pending-prompt precondition is ever
+	// widened past setup_experience.
+	hostUUIDFor := func(initiator string) string { return "host-uuid-for-" + initiator }
+	seedEndUserAuthPrompt(t, svc, hostUUIDFor(fleet.SSOInitiatorOrbitSetupExperience))
 
 	for _, initiator := range []string{
 		fleet.SSOInitiatorOTAEnroll,
@@ -139,7 +158,7 @@ func TestInitiateMDMSSOSetsNoRelayState(t *testing.T) {
 		fleet.SSOInitiatorAccountDrivenEnroll + ":cf2b9a1e4d7c8f36b05e91a2d4c7e830f16b5a92",
 	} {
 		t.Run(initiator, func(t *testing.T) {
-			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", "host-uuid-1")
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", hostUUIDFor(initiator))
 			require.NoError(t, err)
 
 			parsed, err := url.Parse(idpURL)
@@ -180,7 +199,7 @@ func TestMDMSSOCallbackEarlyFailureRedirects(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newMDMSSOTestService(t,
+			svc, _ := newMDMSSOTestService(t,
 				mdmSSOTestAppConfig("https://fleet.example.com", tc.idpConfigured), config.TestConfig())
 			redirectURL, byodCookie, deviceSessionID, deviceSessionDuration := svc.MDMSSOCallback(
 				t.Context(), "does-not-exist", []byte("<x/>"))
@@ -196,4 +215,196 @@ func TestMDMSSOCallbackEarlyFailureRedirects(t *testing.T) {
 			}, redirectURL, "early-failure redirect must be one the endpoint can rewrite")
 		})
 	}
+}
+
+// seedEndUserAuthPrompt puts the service in the state a device is in after Fleet
+// answered its enroll request with END_USER_AUTH_REQUIRED.
+func seedEndUserAuthPrompt(t *testing.T, svc *Service, hostUUID string) {
+	t.Helper()
+	require.NoError(t, shared_mdm.RecordEndUserAuthPrompt(
+		t.Context(), svc.keyValueStore, hostUUID, svc.clock.Now()))
+}
+
+func TestInitiateMDMSSOSetupExperienceRequiresPendingPrompt(t *testing.T) {
+	// A host UUID is not a secret, so the unauthenticated setup experience SSO
+	// flow may only be started for a device Fleet just told to authenticate.
+	// Otherwise any IdP user can bind any host to their own account.
+	testCases := []struct {
+		name string
+		// pendingFor is the host UUID Fleet answered END_USER_AUTH_REQUIRED for.
+		pendingFor  string
+		hostUUID    string
+		storeFails  bool
+		wantRefused bool
+	}{
+		{
+			name:        "device fleet prompted",
+			pendingFor:  "host-uuid-1",
+			hostUUID:    "host-uuid-1",
+			wantRefused: false,
+		},
+		{
+			name:        "some other host uuid",
+			pendingFor:  "host-uuid-1",
+			hostUUID:    "victim-uuid",
+			wantRefused: true,
+		},
+		{
+			name:        "no host uuid at all",
+			pendingFor:  "host-uuid-1",
+			hostUUID:    "",
+			wantRefused: true,
+		},
+		{
+			name:        "store failure fails closed",
+			pendingFor:  "host-uuid-1",
+			hostUUID:    "host-uuid-1",
+			storeFails:  true,
+			wantRefused: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, _ := newMDMSSOTestService(t,
+				mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
+			seedEndUserAuthPrompt(t, svc, tc.pendingFor)
+			if tc.storeFails {
+				svc.keyValueStore = &mockredis.KeyValueStore{
+					GetFunc: func(_ context.Context, _ string) (*string, error) {
+						return nil, errors.New("redis is down")
+					},
+				}
+			}
+
+			_, _, idpURL, err := svc.InitiateMDMSSO(
+				t.Context(), fleet.SSOInitiatorOrbitSetupExperience, "", tc.hostUUID)
+			if tc.wantRefused {
+				require.Error(t, err)
+				require.Empty(t, idpURL)
+				return
+			}
+			require.NoError(t, err)
+			require.NotEmpty(t, idpURL)
+		})
+	}
+}
+
+func TestBindHostToIdPAccountFromSSO(t *testing.T) {
+	const hostUUID = "host-uuid-1"
+	acct := &fleet.MDMIdPAccount{UUID: "acct-uuid-new", Email: "new@example.com"}
+
+	newBindTestService := func(t *testing.T) (*Service, *mock.Store, *[]fleet.ActivityDetails) {
+		t.Helper()
+
+		svc, ds := newMDMSSOTestService(t,
+			mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
+		ds.GetMDMIdPAccountByUUIDFunc = func(_ context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: uuid, Email: "old@example.com"}, nil
+		}
+
+		var activities []fleet.ActivityDetails
+		svc.Service.(*svcmock.Service).NewActivityFunc = func(
+			_ context.Context, _ *fleet.User, activity fleet.ActivityDetails,
+		) error {
+			activities = append(activities, activity)
+			return nil
+		}
+		return svc, ds, &activities
+	}
+
+	testCases := []struct {
+		name string
+		// prompted is whether Fleet is still waiting on this device's end user.
+		// Once the device has enrolled the prompt is gone, and a sign-in that
+		// started before that may no longer overwrite what enrollment settled on.
+		prompted bool
+		// previousAcctUUID is the binding the datastore reports the host had.
+		previousAcctUUID string
+		wantReplace      bool
+		// wantActivity is nil when nothing is recorded.
+		wantActivity fleet.ActivityDetails
+	}{
+		{
+			// The ordinary first enrollment: no account is linked to the UUID,
+			// and no host row exists for it either.
+			name:        "binds a prompted device that has nothing linked yet",
+			prompted:    true,
+			wantReplace: true,
+			wantActivity: fleet.ActivityTypeBoundHostToIdPAccount{
+				HostUUID: hostUUID, IdPEmail: "new@example.com",
+			},
+		},
+		{
+			name:             "replaces while fleet is still waiting on the device",
+			prompted:         true,
+			previousAcctUUID: "acct-uuid-old",
+			wantReplace:      true,
+			wantActivity: fleet.ActivityTypeBoundHostToIdPAccount{
+				HostUUID: hostUUID, IdPEmail: "new@example.com", ReplacedIdPEmail: "old@example.com",
+			},
+		},
+		{
+			// The refusal is the signature of a replayed sign-in, so it is
+			// recorded rather than only logged.
+			name:             "does not take over the binding of a host that already enrolled",
+			previousAcctUUID: "acct-uuid-old",
+			wantActivity: fleet.ActivityTypeRefusedHostIdPAccountChange{
+				HostUUID: hostUUID, IdPEmail: "new@example.com", ExistingIdPEmail: "old@example.com",
+			},
+		},
+		{
+			name: "still fills in a missing binding after enrollment",
+			wantActivity: fleet.ActivityTypeBoundHostToIdPAccount{
+				HostUUID: hostUUID, IdPEmail: "new@example.com",
+			},
+		},
+		{
+			name:             "records nothing when the binding is unchanged",
+			previousAcctUUID: acct.UUID,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, ds, activities := newBindTestService(t)
+			if tc.prompted {
+				seedEndUserAuthPrompt(t, svc, hostUUID)
+			}
+			ds.AssociateHostMDMIdPAccountFromSSOFunc = func(
+				_ context.Context, gotHostUUID string, gotAcctUUID string, replaceExisting bool,
+			) (string, error) {
+				require.Equal(t, hostUUID, gotHostUUID)
+				require.Equal(t, acct.UUID, gotAcctUUID)
+				require.Equal(t, tc.wantReplace, replaceExisting)
+				return tc.previousAcctUUID, nil
+			}
+
+			require.NoError(t, svc.bindHostToIdPAccountFromSSO(t.Context(), hostUUID, acct))
+			require.True(t, ds.AssociateHostMDMIdPAccountFromSSOFuncInvoked)
+
+			if tc.wantActivity == nil {
+				require.Empty(t, *activities)
+				return
+			}
+			require.Equal(t, []fleet.ActivityDetails{tc.wantActivity}, *activities)
+		})
+	}
+
+	t.Run("fails closed when the prompt store is unreadable", func(t *testing.T) {
+		svc, ds, _ := newBindTestService(t)
+		svc.keyValueStore = &mockredis.KeyValueStore{
+			GetFunc: func(_ context.Context, _ string) (*string, error) {
+				return nil, errors.New("redis is down")
+			},
+		}
+		ds.AssociateHostMDMIdPAccountFromSSOFunc = func(
+			_ context.Context, _ string, _ string, _ bool,
+		) (string, error) {
+			t.Fatal("must not write a binding it cannot decide the rule for")
+			return "", nil
+		}
+
+		require.Error(t, svc.bindHostToIdPAccountFromSSO(t.Context(), hostUUID, acct))
+	})
 }

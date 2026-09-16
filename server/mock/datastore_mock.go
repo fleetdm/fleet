@@ -1156,7 +1156,7 @@ type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fl
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
-type AssociateHostMDMIdPAccountDBFunc func(ctx context.Context, hostUUID string, acctUUID string) error
+type AssociateHostMDMIdPAccountFromSSOFunc func(ctx context.Context, hostUUID string, acctUUID string, replaceExisting bool) (previousAcctUUID string, err error)
 
 type GetMDMIdPAccountByUUIDFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
 
@@ -4119,8 +4119,8 @@ type DataStore struct {
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
 
-	AssociateHostMDMIdPAccountDBFunc        AssociateHostMDMIdPAccountDBFunc
-	AssociateHostMDMIdPAccountDBFuncInvoked bool
+	AssociateHostMDMIdPAccountFromSSOFunc        AssociateHostMDMIdPAccountFromSSOFunc
+	AssociateHostMDMIdPAccountFromSSOFuncInvoked bool
 
 	GetMDMIdPAccountByUUIDFunc        GetMDMIdPAccountByUUIDFunc
 	GetMDMIdPAccountByUUIDFuncInvoked bool
@@ -9980,11 +9980,11 @@ func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMI
 	return s.InsertMDMIdPAccountFunc(ctx, account)
 }
 
-func (s *DataStore) AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error {
+func (s *DataStore) AssociateHostMDMIdPAccountFromSSO(ctx context.Context, hostUUID string, acctUUID string, replaceExisting bool) (previousAcctUUID string, err error) {
 	s.mu.Lock()
-	s.AssociateHostMDMIdPAccountDBFuncInvoked = true
+	s.AssociateHostMDMIdPAccountFromSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.AssociateHostMDMIdPAccountDBFunc(ctx, hostUUID, acctUUID)
+	return s.AssociateHostMDMIdPAccountFromSSOFunc(ctx, hostUUID, acctUUID, replaceExisting)
 }
 
 func (s *DataStore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {

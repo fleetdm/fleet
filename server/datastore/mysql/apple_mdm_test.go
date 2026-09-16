@@ -70,6 +70,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
 		{"TestMDMAppleHostsDiskEncryption", testMDMAppleHostsDiskEncryption},
 		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
+		{"TestAssociateHostMDMIdPAccountFromSSO", testAssociateHostMDMIdPAccountFromSSO},
 		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
@@ -3252,6 +3253,62 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, idpAccount)
 	require.Equal(t, *acc1, *idpAccount)
+}
+
+func testAssociateHostMDMIdPAccountFromSSO(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	acc1 := &fleet.MDMIdPAccount{Username: "sso1@example.com", Email: "sso1@example.com", Fullname: "One"}
+	acc2 := &fleet.MDMIdPAccount{Username: "sso2@example.com", Email: "sso2@example.com", Fullname: "Two"}
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, acc1))
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, acc2))
+	acc1, err := ds.GetMDMIdPAccountByEmail(ctx, acc1.Email)
+	require.NoError(t, err)
+	acc2, err = ds.GetMDMIdPAccountByEmail(ctx, acc2.Email)
+	require.NoError(t, err)
+
+	host := newTestHostWithPlatform(t, ds, "sso-binding-host", "ubuntu", nil)
+
+	// First binding: nothing to report as replaced.
+	previous, err := ds.AssociateHostMDMIdPAccountFromSSO(ctx, host.UUID, acc1.UUID, true)
+	require.NoError(t, err)
+	require.Empty(t, previous)
+
+	bound, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc1.UUID, bound.UUID)
+
+	// Insert-if-absent leaves the existing binding alone and reports it.
+	previous, err = ds.AssociateHostMDMIdPAccountFromSSO(ctx, host.UUID, acc2.UUID, false)
+	require.NoError(t, err)
+	require.Equal(t, acc1.UUID, previous)
+
+	bound, err = ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc1.UUID, bound.UUID)
+
+	// Replacing does overwrite, and still reports what it replaced.
+	previous, err = ds.AssociateHostMDMIdPAccountFromSSO(ctx, host.UUID, acc2.UUID, true)
+	require.NoError(t, err)
+	require.Equal(t, acc1.UUID, previous)
+
+	bound, err = ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc2.UUID, bound.UUID)
+
+	// Insert-if-absent on a host with no binding still writes one.
+	other := newTestHostWithPlatform(t, ds, "sso-binding-host-2", "ubuntu", nil)
+	previous, err = ds.AssociateHostMDMIdPAccountFromSSO(ctx, other.UUID, acc1.UUID, false)
+	require.NoError(t, err)
+	require.Empty(t, previous)
+
+	bound, err = ds.GetMDMIdPAccountByHostUUID(ctx, other.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc1.UUID, bound.UUID)
 }
 
 func testDoNotIgnoreMDMClientError(t *testing.T, ds *Datastore) {

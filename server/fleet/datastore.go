@@ -1826,8 +1826,11 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
-	// AssociateHostMDMIdPAccountDB associates a host with an MDM IdP account
-	AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error
+	// AssociateHostMDMIdPAccountFromSSO associates a host with an MDM IdP account
+	// on behalf of an MDM SSO callback, and reports the account UUID the host was
+	// bound to beforehand (empty when it had no binding). When replaceExisting is
+	// false an existing binding is kept and the call is a no-op.
+	AssociateHostMDMIdPAccountFromSSO(ctx context.Context, hostUUID string, acctUUID string, replaceExisting bool) (previousAcctUUID string, err error)
 
 	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)

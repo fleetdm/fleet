@@ -7649,99 +7649,130 @@ func (s *integrationMDMTestSuite) TestDeviceSSO() {
 	require.Equal(t, "/mdm/sso/callback?error=true&reason=session_expired", forgedRelayRes.Header.Get("Location"))
 }
 
-// TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for
-// https://github.com/fleetdm/fleet/issues/47626.
+// TestMDMSSOSetupExperienceHostBinding covers which IdP account the Orbit Setup
+// Experience SSO flow (Linux/Windows) leaves a host UUID bound to.
 //
-// In the Orbit Setup Experience SSO flow (Linux/Windows) the device's host UUID
-// is provided in the SSO request data. Previously mdmSSOHandleCallbackAuth keyed
-// the mdm_idp_accounts row on that host UUID, so a device re-enrolling and
-// signing in with a *different* IdP email collided on the primary key. The
-// ON DUPLICATE KEY UPDATE clause did not touch the email, so the row kept the
-// old email and the immediate GetMDMIdPAccountByEmail read-back returned
-// not-found, surfacing as "retrieving new account data from IdP" and a failed
-// SSO login. The account UUID is now DB-generated (matching the Apple flow), so
-// the second login find-or-creates the account by email and succeeds.
-//
-// Note: the pre-existing TestSSO also re-enrolls a second user, but via the
-// Apple initiator with no host UUID, where the account UUID was always
-// generated — which is exactly why it never caught this bug.
-func (s *integrationMDMTestSuite) TestMDMSSOReenrollWithDifferentIdPEmail() {
+// The flow is unauthenticated and the device's host UUID travels in the SSO
+// request data, so the binding rules only hold as a pair: while Fleet is still
+// waiting on that device's end user a sign-in may create or replace the binding,
+// and once Fleet is no longer waiting a sign-in may fill in a missing binding but
+// never take one over. Host UUIDs are not secret, so without the first
+// precondition any IdP user could claim any host and have the victim's fleetd
+// enroll silently attributed to them.
+func (s *integrationMDMTestSuite) TestMDMSSOSetupExperienceHostBinding() {
 	t := s.T()
+	// Skip up here rather than letting newSSOTestClient do it: it skips the
+	// suite's T, which Go rejects from inside a subtest, and setUpMDMSSO below
+	// needs the IdP's metadata anyway.
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
 	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
-	// Configure MDM end-user authentication SSO against the test IdP.
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"server_settings": { "server_url": "https://localhost:8080" },
-		"mdm": {
-			"end_user_authentication": {
-				"entity_id": "mdm.test.com",
-				"idp_name": "SimpleSAML",
-				"metadata_url": "%s"
-			},
-			"macos_setup": {
-				"enable_end_user_authentication": true
-			}
-		}
-	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+	s.setUpMDMSSO(t, false)
 
-	// TearDownTest clears the SSO provider settings but not
-	// macos_setup.enable_end_user_authentication, so disable end-user auth here
-	// (via t.Cleanup, so it runs even if the test fails) to avoid leaking the
-	// enabled-without-IdP state into subsequent suite tests.
-	t.Cleanup(func() {
-		var cleanupResp appConfigResponse
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": {
-				"end_user_authentication": {
-					"entity_id": "",
-					"idp_name": "",
-					"metadata_url": ""
-				},
-				"macos_setup": {
-					"enable_end_user_authentication": false
-				}
-			}
-		}`), http.StatusOK, &cleanupResp)
+	t.Run("a host uuid fleet is not waiting on cannot start the flow", func(t *testing.T) {
+		initiate := func(hostUUID string) {
+			t.Helper()
+			body, err := json.Marshal(initiateMDMSSORequest{
+				Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+				HostUUID:  hostUUID,
+			})
+			require.NoError(t, err)
+			s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso", body, http.StatusUnauthorized)
+		}
+
+		victimUUID := uuid.NewString()
+		initiate(victimUUID)
+		initiate("")
+
+		acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, victimUUID)
+		require.NoError(t, err)
+		require.Nil(t, acct)
 	})
 
-	// A single device (identified by a stable host UUID) enrolls, is deleted and
-	// re-enrolls under the same host UUID, signing in as two different IdP users.
-	hostUUID := uuid.NewString()
+	t.Run("a sign-in binds the host, and a later one re-points it", func(t *testing.T) {
+		hostUUID := uuid.NewString()
 
-	// First enrollment: sign in as sso_user (sso_user@example.com).
-	res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
-	require.Equal(t, http.StatusSeeOther, res.StatusCode)
-	loc, err := url.Parse(res.Header.Get("Location"))
-	require.NoError(t, err)
-	require.False(t, loc.Query().Has("error"), "first setup-experience SSO login should succeed")
+		res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+		loc, err := url.Parse(res.Header.Get("Location"))
+		require.NoError(t, err)
+		require.False(t, loc.Query().Has("error"), "first setup-experience SSO login should succeed")
 
-	acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
-	require.NoError(t, err)
-	require.NotNil(t, acct)
-	require.Equal(t, "sso_user@example.com", acct.Email)
-	// The account UUID must not be the host UUID — that coupling was the root
-	// cause of #47626.
-	require.NotEqual(t, hostUUID, acct.UUID)
-	firstAcctUUID := acct.UUID
+		acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, acct)
+		require.Equal(t, "sso_user@example.com", acct.Email)
+		// The account UUID must not be the host UUID: keying the account row on
+		// the host UUID is what used to break the re-point below.
+		require.NotEqual(t, hostUUID, acct.UUID)
+		firstAcctUUID := acct.UUID
 
-	// Re-enrollment: SAME host UUID, but a DIFFERENT IdP user, sso_user2
-	// (sso_user2@example.com). This is the scenario that previously failed with
-	// "retrieving new account data from IdP".
-	res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID)
-	require.Equal(t, http.StatusSeeOther, res.StatusCode)
-	loc, err = url.Parse(res.Header.Get("Location"))
-	require.NoError(t, err)
-	require.False(t, loc.Query().Has("error"),
-		"re-enrollment SSO with a different IdP email must not fail (#47626)")
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
+			fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user@example.com"}`, hostUUID),
+			0,
+		)
 
-	// The host is now linked to the new user's account.
-	acct, err = s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
-	require.NoError(t, err)
-	require.NotNil(t, acct)
-	require.Equal(t, "sso_user2@example.com", acct.Email)
-	require.NotEqual(t, firstAcctUUID, acct.UUID, "host should be re-pointed to the new account")
+		// The SAME host UUID signs in as a DIFFERENT IdP user, which is what a
+		// device re-enrolling after a wipe does, and what an end user correcting
+		// a wrong-account sign-in does. mdmSSOHandleCallbackAuth once keyed the
+		// mdm_idp_accounts row on the host UUID, so this collided on the primary
+		// key: ON DUPLICATE KEY UPDATE left the old email in place and the
+		// read-back by email returned not-found, surfacing as "retrieving new
+		// account data from IdP". The account UUID is now DB-generated, matching
+		// the Apple flow, so the second login find-or-creates by email instead.
+		// TestSSO re-enrolls a second user too, but through the Apple initiator
+		// with no host UUID, where the UUID was always generated -- which is
+		// exactly why it never caught that.
+		res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID)
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+		loc, err = url.Parse(res.Header.Get("Location"))
+		require.NoError(t, err)
+		require.False(t, loc.Query().Has("error"),
+			"re-enrollment SSO with a different IdP email must not fail")
+
+		acct, err = s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, acct)
+		require.Equal(t, "sso_user2@example.com", acct.Email)
+		require.NotEqual(t, firstAcctUUID, acct.UUID, "host should be re-pointed to the new account")
+
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeBoundHostToIdPAccount{}.ActivityName(),
+			fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "replaced_idp_email": "sso_user@example.com"}`, hostUUID),
+			0,
+		)
+	})
+
+	t.Run("a sign-in that outlived the prompt cannot take over an existing binding", func(t *testing.T) {
+		hostUUID := uuid.NewString()
+
+		// The device enrolls with one account...
+		res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+		// ...and a second sign-in completes after fleetd has enrolled, which is
+		// what clears the prompt.
+		res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID, func() {
+			s.ClearEndUserAuthPrompt(hostUUID)
+		})
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+		acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, acct)
+		require.Equal(t, "sso_user@example.com", acct.Email,
+			"the binding the enrollment settled on must survive a late sign-in")
+
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeRefusedHostIdPAccountChange{}.ActivityName(),
+			fmt.Sprintf(`{"host_uuid": %q, "idp_email": "sso_user2@example.com", "existing_idp_email": "sso_user@example.com"}`, hostUUID),
+			0,
+		)
+	})
 }
 
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
