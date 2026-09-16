@@ -28,8 +28,7 @@ func TestUp_20260916150929(t *testing.T) {
 	var uuids []string
 	err := db.Select(&uuids, `SELECT command_uuid FROM windows_mdm_commands ORDER BY id ASC`)
 	require.NoError(t, err)
-	require.Len(t, uuids, 3)
-	// Backfill follows primary-key order, so only the post-migration row has a guaranteed position.
-	require.Equal(t, "000-inserted-third", uuids[2])
-	require.ElementsMatch(t, []string{"zzz-inserted-first", "aaa-inserted-second"}, uuids[:2])
+	// ALGORITHM=COPY backfills existing rows in primary-key order, and a post-migration insert sorts after them
+	// even though its uuid sorts first.
+	require.Equal(t, []string{"aaa-inserted-second", "zzz-inserted-first", "000-inserted-third"}, uuids)
 }
