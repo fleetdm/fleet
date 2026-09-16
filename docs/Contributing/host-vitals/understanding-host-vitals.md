@@ -1094,6 +1094,43 @@ WITH app_paths AS (
 			WHERE apps.bundle_identifier = 'org.mozilla.firefox'
 ```
 
+## software_macos_homebrew_executable_sha256
+
+- Description: A software override query[^1] to append the sha256 hash of Mach-O executables installed by Homebrew formulae to macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('executable_hashes') WHERE name = 'path_type'
+```
+
+- Query:
+```sql
+WITH keg_execs AS (
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/opt/homebrew/Cellar/%/%/bin/%' AND path_type = 'file'
+		  UNION ALL
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/opt/homebrew/Cellar/%/%/sbin/%' AND path_type = 'file'
+		  UNION ALL
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/usr/local/Cellar/%/%/bin/%' AND path_type = 'file'
+		  UNION ALL
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/usr/local/Cellar/%/%/sbin/%' AND path_type = 'file'
+		)
+		SELECT
+		  hp.path AS keg_path,
+		  hp.version AS version,
+		  ke.executable_path AS executable_path,
+		  ke.executable_sha256 AS executable_sha256
+		FROM homebrew_packages hp
+		JOIN keg_execs ke
+		  ON substr(ke.path, 1, length(hp.path || '/' || hp.version || '/')) = hp.path || '/' || hp.version || '/'
+		WHERE hp.type = 'formula'
+```
+
 ## software_python_packages
 
 - Description: Prior to osquery version 5.16.0, the python_packages table did not search user directories.

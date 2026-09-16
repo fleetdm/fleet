@@ -210,6 +210,35 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	return result, nil
 }
 
+// groupHostSoftwareInstalledPaths groups installed path rows by software ID, returning the
+// installed paths and the signature information of each row.
+//
+// Installed paths are deduplicated: a path reports one row per executable found under it, so a
+// Homebrew keg reports its Cellar directory once per Mach-O file it installs. Every row keeps its
+// own signature information entry.
+func groupHostSoftwareInstalledPaths(installedPaths []fleet.HostSoftwareInstalledPath) (map[uint][]string, map[uint][]fleet.PathSignatureInformation) {
+	pathsBySoftwareID := make(map[uint][]string)
+	signatureInfoBySoftwareID := make(map[uint][]fleet.PathSignatureInformation)
+	seenPaths := make(map[uint]map[string]struct{})
+	for _, ip := range installedPaths {
+		if _, ok := seenPaths[ip.SoftwareID][ip.InstalledPath]; !ok {
+			if seenPaths[ip.SoftwareID] == nil {
+				seenPaths[ip.SoftwareID] = make(map[string]struct{})
+			}
+			seenPaths[ip.SoftwareID][ip.InstalledPath] = struct{}{}
+			pathsBySoftwareID[ip.SoftwareID] = append(pathsBySoftwareID[ip.SoftwareID], ip.InstalledPath)
+		}
+		signatureInfoBySoftwareID[ip.SoftwareID] = append(signatureInfoBySoftwareID[ip.SoftwareID], fleet.PathSignatureInformation{
+			InstalledPath:    ip.InstalledPath,
+			TeamIdentifier:   ip.TeamIdentifier,
+			CDHashSHA256:     ip.CDHashSHA256,
+			ExecutableSHA256: ip.ExecutableSHA256,
+			ExecutablePath:   ip.ExecutablePath,
+		})
+	}
+	return pathsBySoftwareID, signatureInfoBySoftwareID
+}
+
 // macOSTopLevelApplicationTitleIDs returns the set of software title IDs that
 // have at least one macOS app installed at the top level of the /Applications
 // folder on the given host (e.g. /Applications/Foo.app). Nested helper apps,
@@ -2573,18 +2602,7 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		return err
 	}
 
-	installedPathsList := make(map[uint][]string)
-	pathSignatureInformation := make(map[uint][]fleet.PathSignatureInformation)
-	for _, ip := range installedPaths {
-		installedPathsList[ip.SoftwareID] = append(installedPathsList[ip.SoftwareID], ip.InstalledPath)
-		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-			InstalledPath:    ip.InstalledPath,
-			TeamIdentifier:   ip.TeamIdentifier,
-			CDHashSHA256:     ip.CDHashSHA256,
-			ExecutableSHA256: ip.ExecutableSHA256,
-			ExecutablePath:   ip.ExecutablePath,
-		})
-	}
+	installedPathsList, pathSignatureInformation := groupHostSoftwareInstalledPaths(installedPaths)
 
 	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
 	for _, s := range software {
@@ -5189,7 +5207,9 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 					version.InstalledPaths = a.installedPathBySoftwareId[softwareId]
 					version.Vulnerabilities = a.vulnerabilitiesBySoftwareID[softwareId]
 
-					if version.Source == "apps" {
+					// Only sources that report signature information are listed; every other
+					// source has installed path rows with empty hashes.
+					if version.Source == "apps" || version.Source == "homebrew_packages" {
 						version.SignatureInformation = a.pathSignatureInformation[softwareId]
 					}
 
@@ -7132,18 +7152,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "Could not get software installed paths")
 		}
-		installedPathBySoftwareId := make(map[uint][]string)
-		pathSignatureInformation := make(map[uint][]fleet.PathSignatureInformation)
-		for _, ip := range installedPaths {
-			installedPathBySoftwareId[ip.SoftwareID] = append(installedPathBySoftwareId[ip.SoftwareID], ip.InstalledPath)
-			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-				InstalledPath:    ip.InstalledPath,
-				TeamIdentifier:   ip.TeamIdentifier,
-				CDHashSHA256:     ip.CDHashSHA256,
-				ExecutableSHA256: ip.ExecutableSHA256,
-				ExecutablePath:   ip.ExecutablePath,
-			})
-		}
+		installedPathBySoftwareId, pathSignatureInformation := groupHostSoftwareInstalledPaths(installedPaths)
 
 		// extract into vulnerabilitiesBySoftwareID
 		type softwareCVE struct {

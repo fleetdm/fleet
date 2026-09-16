@@ -93,6 +93,7 @@ func TestSoftware(t *testing.T) {
 		{"HostVPPInstallLatestPerApp", testHostVPPInstallLatestPerApp},
 		{"HostInHouseInstallLatestPerApp", testHostInHouseInstallLatestPerApp},
 		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
+		{"ListHostSoftwareHomebrewExecutableHashes", testListHostSoftwareHomebrewExecutableHashes},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
@@ -1565,21 +1566,42 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 			Version: "0.0.1",
 			Source:  "apps",
 		},
+		{
+			Name:    "git",
+			Version: "2.46.0",
+			Source:  "homebrew_packages",
+		},
 	}
 
 	mutation, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 
+	softwareIDByName := make(map[string]uint, len(mutation.Inserted))
+	for _, s := range mutation.Inserted {
+		softwareIDByName[s.Name] = s.ID
+	}
+
 	cdHash, execHash, execPath := "frog", "toad", "/path/to/executable"
+	kegPath := "/opt/homebrew/Cellar/git"
 	installpaths := []fleet.HostSoftwareInstalledPath{
 		{
 			HostID:           host.ID,
-			SoftwareID:       mutation.Inserted[0].ID,
+			SoftwareID:       softwareIDByName["banana"],
 			InstalledPath:    "/the/path",
 			CDHashSHA256:     ptr.String(cdHash),
 			ExecutableSHA256: ptr.String(execHash),
 			ExecutablePath:   ptr.String(execPath),
 		},
+	}
+	// A Homebrew keg reports one row per Mach-O executable, all sharing the keg path.
+	for _, binary := range []string{"git", "git-shell", "git-upload-pack"} {
+		installpaths = append(installpaths, fleet.HostSoftwareInstalledPath{
+			HostID:           host.ID,
+			SoftwareID:       softwareIDByName["git"],
+			InstalledPath:    kegPath,
+			ExecutableSHA256: new(fmt.Sprintf("%x", sha256.Sum256([]byte(binary)))),
+			ExecutablePath:   new(kegPath + "/2.46.0/bin/" + binary),
+		})
 	}
 
 	err = insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), installpaths)
@@ -1588,10 +1610,34 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 	err = ds.LoadHostSoftware(ctx, host, false)
 	require.NoError(t, err)
 
-	require.Equal(t, "/the/path", host.Software[0].PathSignatureInformation[0].InstalledPath)
-	require.Equal(t, cdHash, *host.Software[0].PathSignatureInformation[0].CDHashSHA256)
-	require.Equal(t, execHash, *host.Software[0].PathSignatureInformation[0].ExecutableSHA256)
-	require.Equal(t, execPath, *host.Software[0].PathSignatureInformation[0].ExecutablePath)
+	softwareByName := make(map[string]fleet.HostSoftwareEntry, len(host.Software))
+	for _, s := range host.Software {
+		softwareByName[s.Name] = s
+	}
+	require.Len(t, softwareByName, 2)
+
+	banana := softwareByName["banana"]
+	require.Equal(t, []string{"/the/path"}, banana.InstalledPaths)
+	require.Len(t, banana.PathSignatureInformation, 1)
+	require.Equal(t, "/the/path", banana.PathSignatureInformation[0].InstalledPath)
+	require.Equal(t, cdHash, *banana.PathSignatureInformation[0].CDHashSHA256)
+	require.Equal(t, execHash, *banana.PathSignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, execPath, *banana.PathSignatureInformation[0].ExecutablePath)
+
+	// The keg path is reported once, but every executable keeps its own signature information.
+	git := softwareByName["git"]
+	require.Equal(t, []string{kegPath}, git.InstalledPaths)
+	require.Len(t, git.PathSignatureInformation, 3)
+	gotBinaries := make([]string, 0, len(git.PathSignatureInformation))
+	for _, psi := range git.PathSignatureInformation {
+		require.Equal(t, kegPath, psi.InstalledPath)
+		require.Empty(t, psi.TeamIdentifier)
+		require.Nil(t, psi.CDHashSHA256)
+		binary := strings.TrimPrefix(*psi.ExecutablePath, kegPath+"/2.46.0/bin/")
+		require.Equal(t, fmt.Sprintf("%x", sha256.Sum256([]byte(binary))), *psi.ExecutableSHA256)
+		gotBinaries = append(gotBinaries, binary)
+	}
+	require.ElementsMatch(t, []string{"git", "git-shell", "git-upload-pack"}, gotBinaries)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -3805,6 +3851,61 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			[]*string{&ePath1, nil},
 		)
 	})
+
+	t.Run("several executables share one installed path", func(t *testing.T) {
+		// A Homebrew keg reports one row per Mach-O executable, all with the keg as their
+		// installed path, so the delta has to key on the executable as well as on the path.
+		keg := fleet.Software{ID: 6, Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
+		const kegPath = "/opt/homebrew/Cellar/git"
+
+		execPath := func(binary string) string { return kegPath + "/2.46.0/bin/" + binary }
+		execHash := func(binary string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(binary))) }
+		reportedKey := func(binary string) string {
+			return fmt.Sprintf(
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				kegPath, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, execHash(binary), fleet.SoftwareFieldSeparator, execPath(binary), fleet.SoftwareFieldSeparator, keg.ToUniqueStr(),
+			)
+		}
+		storedRow := func(id uint, binary string) fleet.HostSoftwareInstalledPath {
+			return fleet.HostSoftwareInstalledPath{
+				ID:               id,
+				HostID:           host.ID,
+				SoftwareID:       keg.ID,
+				InstalledPath:    kegPath,
+				ExecutableSHA256: new(execHash(binary)),
+				ExecutablePath:   new(execPath(binary)),
+			}
+		}
+
+		stored := []fleet.HostSoftwareInstalledPath{storedRow(1, "git"), storedRow(2, "git-shell")}
+		hostSoftware := []fleet.Software{keg}
+
+		toI, toD, err := hostSoftwareInstalledPathsDelta(
+			t.Context(), host.ID,
+			map[string]struct{}{reportedKey("git"): {}, reportedKey("git-upload-pack"): {}},
+			stored, hostSoftware, slog.New(slog.DiscardHandler),
+		)
+		require.NoError(t, err)
+
+		// The executable that is gone is deleted, the new one is inserted, the unchanged one is
+		// left alone.
+		require.Equal(t, []uint{stored[1].ID}, toD)
+		require.Len(t, toI, 1)
+		require.Equal(t, keg.ID, toI[0].SoftwareID)
+		require.Equal(t, kegPath, toI[0].InstalledPath)
+		require.Equal(t, execPath("git-upload-pack"), *toI[0].ExecutablePath)
+		require.Equal(t, execHash("git-upload-pack"), *toI[0].ExecutableSHA256)
+
+		// Reporting the same keg again is a no-op.
+		toI, toD, err = hostSoftwareInstalledPathsDelta(
+			t.Context(), host.ID,
+			map[string]struct{}{reportedKey("git"): {}, reportedKey("git-shell"): {}},
+			stored, hostSoftware, slog.New(slog.DiscardHandler),
+		)
+		require.NoError(t, err)
+		require.Empty(t, toI)
+		require.Empty(t, toD)
+	})
 }
 
 func testDeleteHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
@@ -4305,6 +4406,78 @@ func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, sw, 2)
 	require.EqualValues(t, 2, meta.TotalResults)
+}
+
+func testListHostSoftwareHomebrewExecutableHashes(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "brew-host", "", "brewkey", "brewuuid", time.Now(), test.WithPlatform("darwin"))
+
+	const kegPath = "/opt/homebrew/Cellar/git"
+	binaries := []string{"git", "git-shell", "git-upload-pack"}
+
+	gitFormula := fleet.Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
+	lodashPackage := fleet.Software{Name: "lodash", Version: "4.17.21", Source: "npm_packages"}
+	// Ingestion appends one fleet.Software per reported row, so a keg with several executables
+	// arrives as the same software several times and has to collapse into one.
+	reported := []fleet.Software{gitFormula, gitFormula, gitFormula, lodashPackage}
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, reported)
+	require.NoError(t, err)
+	require.Len(t, mutationResults.CurrInstalled(), 2)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 2)
+	swPaths := map[string]struct{}{}
+	for _, hs := range host.Software {
+		paths := [][3]string{{"/usr/local/lib/node_modules/lodash", "", ""}}
+		if hs.Source == "homebrew_packages" {
+			paths = nil
+			for _, binary := range binaries {
+				paths = append(paths, [3]string{
+					kegPath,
+					fmt.Sprintf("%x", sha256.Sum256([]byte(binary))),
+					kegPath + "/2.46.0/bin/" + binary,
+				})
+			}
+		}
+		for _, p := range paths {
+			key := fmt.Sprintf(
+				"%s%s%s%s%s%s%s%s%s%s%s",
+				p[0], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, p[1], fleet.SoftwareFieldSeparator, p[2], fleet.SoftwareFieldSeparator, hs.ToUniqueStr(),
+			)
+			swPaths[key] = struct{}{}
+		}
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"},
+	})
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, "git", sw[0].Name)
+	require.Equal(t, "lodash", sw[1].Name)
+	require.Len(t, sw[0].InstalledVersions, 1)
+	require.Len(t, sw[1].InstalledVersions, 1)
+
+	// The keg path is listed once, but every executable in it keeps its signature information.
+	git := sw[0].InstalledVersions[0]
+	require.Equal(t, []string{kegPath}, git.InstalledPaths)
+	require.Len(t, git.SignatureInformation, len(binaries))
+	gotBinaries := make([]string, 0, len(git.SignatureInformation))
+	for _, si := range git.SignatureInformation {
+		require.Equal(t, kegPath, si.InstalledPath)
+		require.Empty(t, si.TeamIdentifier)
+		require.Nil(t, si.CDHashSHA256)
+		binary := strings.TrimPrefix(*si.ExecutablePath, kegPath+"/2.46.0/bin/")
+		require.Equal(t, fmt.Sprintf("%x", sha256.Sum256([]byte(binary))), *si.ExecutableSHA256)
+		gotBinaries = append(gotBinaries, binary)
+	}
+	require.ElementsMatch(t, binaries, gotBinaries)
+
+	// Sources that report no hashes keep an empty signature information list.
+	lodash := sw[1].InstalledVersions[0]
+	require.Equal(t, []string{"/usr/local/lib/node_modules/lodash"}, lodash.InstalledPaths)
+	require.Nil(t, lodash.SignatureInformation)
 }
 
 func testListHostSoftware(t *testing.T, ds *Datastore) {

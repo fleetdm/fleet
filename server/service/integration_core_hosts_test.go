@@ -921,20 +921,34 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 			ExtensionFor:     "chrome",
 			BundleIdentifier: "com.google.Chrome",
 		},
+		{
+			Name:    "git",
+			Version: "2.46.0",
+			Source:  "homebrew_packages",
+		},
 	}
 	hostSoftware, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 1)
+	require.Len(t, hostSoftware.CurrInstalled(), 2)
 
 	// Add installed paths and signature information
 	swPaths := map[string]struct{}{}
 	testCdHash := "abc123hash"
 	testExecHash := "def456hash"
 	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	kegPath := "/opt/homebrew/Cellar/git"
 	for _, s := range software {
 		pathItems := [][5]string{
 			{"/Applications/Google Chrome.app", "EQHXZ8M8AV", testCdHash, testExecHash, testExecPath},
 			{"/Users/test/Applications/Google Chrome.app", "", "", "", ""},
+		}
+		if s.Source == "homebrew_packages" {
+			// A Homebrew keg reports one row per Mach-O executable it installs, all under the
+			// same keg path.
+			pathItems = [][5]string{
+				{kegPath, "", "", "1111", kegPath + "/2.46.0/bin/git"},
+				{kegPath, "", "", "2222", kegPath + "/2.46.0/bin/git-shell"},
+			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
@@ -972,10 +986,15 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 
 	// Verify software is populated
 	require.NotEmpty(t, testHost.Software, "software should be populated")
-	require.Len(t, testHost.Software, 1, "expected 1 software entry")
+	require.Len(t, testHost.Software, 2, "expected 2 software entries")
+
+	softwareByName := make(map[string]fleet.HostSoftwareEntry, len(testHost.Software))
+	for _, entry := range testHost.Software {
+		softwareByName[entry.Name] = entry
+	}
 
 	// Verify the software entry has the expected fields
-	sw := testHost.Software[0]
+	sw := softwareByName["Google Chrome.app"]
 	assert.Equal(t, "Google Chrome.app", sw.Name)
 	assert.Equal(t, "121.0.6167.160", sw.Version)
 	assert.Equal(t, "chrome_extensions", sw.Source)
@@ -1017,6 +1036,24 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Nil(t, sigInfo1.CDHashSHA256)
 	assert.Nil(t, sigInfo1.ExecutableSHA256)
 	assert.Nil(t, sigInfo1.ExecutablePath)
+
+	// The Homebrew keg lists its path once, but keeps one signature information entry per
+	// executable it installs.
+	keg := softwareByName["git"]
+	assert.Equal(t, []string{kegPath}, keg.InstalledPaths)
+	require.Len(t, keg.PathSignatureInformation, 2)
+	sort.Slice(keg.PathSignatureInformation, func(i, j int) bool {
+		return *keg.PathSignatureInformation[i].ExecutablePath < *keg.PathSignatureInformation[j].ExecutablePath
+	})
+	for i, binary := range []string{"git", "git-shell"} {
+		sigInfo := keg.PathSignatureInformation[i]
+		assert.Equal(t, kegPath, sigInfo.InstalledPath)
+		assert.Empty(t, sigInfo.TeamIdentifier)
+		assert.Nil(t, sigInfo.CDHashSHA256)
+		assert.Equal(t, kegPath+"/2.46.0/bin/"+binary, *sigInfo.ExecutablePath)
+	}
+	assert.Equal(t, "1111", *keg.PathSignatureInformation[0].ExecutableSHA256)
+	assert.Equal(t, "2222", *keg.PathSignatureInformation[1].ExecutableSHA256)
 
 	// Also verify the JSON marshaling by checking the raw JSON response
 	rawResp := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, "populate_software", "true")
@@ -1908,17 +1945,23 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		Source:           "apps",
 	}
 	ghCli := fleet.Software{
-		Name:   "gh",
-		Source: "homebrew_packages",
+		Name:    "gh",
+		Version: "2.55.0",
+		Source:  "homebrew_packages",
+	}
+	axiosPackage := fleet.Software{
+		Name:    "axios",
+		Version: "1.7.7",
+		Source:  "npm_packages",
 	}
 
 	// Update the host's software.
 	software := []fleet.Software{
-		safariApp, googleChromeApp, ghCli,
+		safariApp, googleChromeApp, ghCli, axiosPackage,
 	}
 	hostSoftware, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 3)
+	require.Len(t, hostSoftware.CurrInstalled(), 4)
 
 	// Update the host's software installed paths for the software above.
 	// Google Chrome.app will have two installed paths one with team identifier set
@@ -1927,6 +1970,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
+	ghKegPath := "/opt/homebrew/Cellar/gh"
 	for _, s := range software {
 		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
@@ -1938,6 +1982,14 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 			pathItems = [][5]string{
 				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", "", "", ""},
 				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
+			}
+		}
+		if s.Name == "gh" {
+			// A Homebrew keg reports one row per Mach-O executable it installs, all under the
+			// same keg path.
+			pathItems = [][5]string{
+				{ghKegPath, "", "", "1111", ghKegPath + "/2.55.0/bin/gh"},
+				{ghKegPath, "", "", "2222", ghKegPath + "/2.55.0/bin/gh-helper"},
 			}
 		}
 		for _, pathItem := range pathItems {
@@ -1966,7 +2018,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		nil, http.StatusOK, &getHostSoftwareResp,
 		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
 	)
-	require.Len(t, getHostSoftwareResp.Software, 3)
+	require.Len(t, getHostSoftwareResp.Software, 4)
 	require.Equal(t, "Safari.app", getHostSoftwareResp.Software[0].Name)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].InstalledPaths, 1)
@@ -1999,11 +2051,49 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
+	// The Homebrew keg lists its path once, but keeps one signature information entry per
+	// executable it installs.
 	require.Equal(t, "gh", getHostSoftwareResp.Software[2].Name)
 	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions, 1)
-	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths, 1)
-	require.Equal(t, "/some/path/gh", getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths[0])
-	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
+	ghVersion := getHostSoftwareResp.Software[2].InstalledVersions[0]
+	require.Equal(t, []string{ghKegPath}, ghVersion.InstalledPaths)
+	require.Len(t, ghVersion.SignatureInformation, 2)
+	sort.Slice(ghVersion.SignatureInformation, func(i, j int) bool {
+		return *ghVersion.SignatureInformation[i].ExecutablePath < *ghVersion.SignatureInformation[j].ExecutablePath
+	})
+	for i, binary := range []string{"gh", "gh-helper"} {
+		sigInfo := ghVersion.SignatureInformation[i]
+		require.Equal(t, ghKegPath, sigInfo.InstalledPath)
+		require.Empty(t, sigInfo.TeamIdentifier)
+		require.Nil(t, sigInfo.CDHashSHA256)
+		require.Equal(t, ghKegPath+"/2.55.0/bin/"+binary, *sigInfo.ExecutablePath)
+	}
+	require.Equal(t, "1111", *ghVersion.SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, "2222", *ghVersion.SignatureInformation[1].ExecutableSHA256)
+
+	// Sources that report no hashes keep an empty signature information list.
+	require.Equal(t, "axios", getHostSoftwareResp.Software[3].Name)
+	require.Len(t, getHostSoftwareResp.Software[3].InstalledVersions, 1)
+	require.Equal(t, []string{"/some/path/axios"}, getHostSoftwareResp.Software[3].InstalledVersions[0].InstalledPaths)
+	require.Nil(t, getHostSoftwareResp.Software[3].InstalledVersions[0].SignatureInformation)
+
+	// The my device page goes through the same assembler.
+	createDeviceTokenForHost(t, s.ds, host.ID, "brewkeghost")
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/brewkeghost/software", nil, http.StatusOK)
+	getDeviceSoftwareResp := getDeviceSoftwareResponse{}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDeviceSoftwareResp))
+	res.Body.Close()
+
+	var deviceKeg *fleet.HostSoftwareInstalledVersion
+	for _, sw := range getDeviceSoftwareResp.Software {
+		if sw.Name == "gh" {
+			require.Len(t, sw.InstalledVersions, 1)
+			deviceKeg = sw.InstalledVersions[0]
+		}
+	}
+	require.NotNil(t, deviceKeg)
+	require.Equal(t, []string{ghKegPath}, deviceKeg.InstalledPaths)
+	require.Len(t, deviceKeg.SignatureInformation, 2)
 }
 
 func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {

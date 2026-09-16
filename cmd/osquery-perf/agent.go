@@ -3790,6 +3790,35 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			}
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_homebrew_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb { // nolint:gosec // load testing, not security-sensitive
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			for _, s := range cachedResults.software {
+				kegPath := s["installed_path"]
+				if s["source"] != "homebrew_packages" || kegPath == "" {
+					continue
+				}
+				// The executable count is derived from the name so that a keg reports the same
+				// set on every run, like a real host does.
+				for i := range len(s["name"])%3 + 1 {
+					binary := s["name"]
+					if i > 0 {
+						binary = fmt.Sprintf("%s-%d", binary, i+1)
+					}
+					executablePath := kegPath + "/" + s["version"] + "/bin/" + binary
+					results = append(results, map[string]string{
+						"keg_path":          kegPath,
+						"version":           s["version"],
+						"executable_path":   executablePath,
+						"executable_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath))),
+					})
+				}
+			}
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
 		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {

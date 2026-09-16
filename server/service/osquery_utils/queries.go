@@ -1681,6 +1681,44 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
+	// macos_homebrew_executable_sha256 collects the sha256 of every Mach-O executable a Homebrew
+	// formula installs under its keg's bin and sbin, via the fleetd `executable_hashes` table.
+	// Discovery keys on the path_type column rather than on the table being present: older
+	// extensions resolve every path as an app bundle, so they would return empty hashes while
+	// spawning a process per file.
+	"macos_homebrew_executable_sha256": {
+		// The globs are constants so the extension is called once per pattern instead of once per
+		// keg, and the keg is recovered by matching the executable path prefix. executable_hashes
+		// keeps only the last path constraint it receives, so each UNION member passes exactly one.
+		Query: `
+		WITH keg_execs AS (
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/opt/homebrew/Cellar/%/%/bin/%' AND path_type = 'file'
+		  UNION ALL
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/opt/homebrew/Cellar/%/%/sbin/%' AND path_type = 'file'
+		  UNION ALL
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/usr/local/Cellar/%/%/bin/%' AND path_type = 'file'
+		  UNION ALL
+		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
+		  WHERE path LIKE '/usr/local/Cellar/%/%/sbin/%' AND path_type = 'file'
+		)
+		SELECT
+		  hp.path AS keg_path,
+		  hp.version AS version,
+		  ke.executable_path AS executable_path,
+		  ke.executable_sha256 AS executable_sha256
+		FROM homebrew_packages hp
+		JOIN keg_execs ke
+		  ON substr(ke.path, 1, length(hp.path || '/' || hp.version || '/')) = hp.path || '/' || hp.version || '/'
+		WHERE hp.type = 'formula'
+		`,
+		Description:            "A software override query[^1] to append the sha256 hash of Mach-O executables installed by Homebrew formulae to macOS software entries. Requires `fleetd`",
+		Platforms:              []string{"darwin"},
+		Discovery:              `SELECT 1 FROM pragma_table_info('executable_hashes') WHERE name = 'path_type'`,
+		SoftwareProcessResults: mergeHomebrewExecutableHashes,
+	},
 	// windows_last_opened_at collects last opened at information from prefetch files on Windows
 	// hosts. Joining this within the main software query is not performant enough to do on the
 	// device (resulted in denylisted queries during testing), so we do it on the server instead.
@@ -1798,6 +1836,53 @@ WHERE (
   AND path NOT LIKE 'C:\Program Files\WindowsApps\%'`,
 		SoftwareProcessResults: processProgramFilesScan,
 	},
+}
+
+// mergeHomebrewExecutableHashes fans each Homebrew formula row out to one row per Mach-O
+// executable found in its keg, since the codesign and app bundle hash merges can mutate rows in
+// place only because an app has a single executable.
+//
+// Rows are keyed by installed path and version together because homebrew_packages.path is the
+// Cellar directory, which every installed version of a formula shares.
+func mergeHomebrewExecutableHashes(mainSoftwareResults, results []map[string]string) []map[string]string {
+	if len(results) == 0 {
+		return mainSoftwareResults
+	}
+
+	type execRow struct {
+		path   string
+		sha256 string
+	}
+
+	execsByKeg := make(map[string][]execRow, len(results))
+	for _, r := range results {
+		if r["executable_sha256"] == "" {
+			continue
+		}
+		key := r["keg_path"] + fleet.SoftwareFieldSeparator + r["version"]
+		execsByKeg[key] = append(execsByKeg[key], execRow{path: r["executable_path"], sha256: r["executable_sha256"]})
+	}
+
+	merged := make([]map[string]string, 0, len(mainSoftwareResults))
+	for _, row := range mainSoftwareResults {
+		if row["source"] != "homebrew_packages" {
+			merged = append(merged, row)
+			continue
+		}
+		// A formula that installs only scripts, and every cask, has no executables to report.
+		execs := execsByKeg[row["installed_path"]+fleet.SoftwareFieldSeparator+row["version"]]
+		if len(execs) == 0 {
+			merged = append(merged, row)
+			continue
+		}
+		for _, e := range execs {
+			execRow := maps.Clone(row)
+			execRow["executable_path"] = e.path
+			execRow["executable_sha256"] = e.sha256
+			merged = append(merged, execRow)
+		}
+	}
+	return merged
 }
 
 // processProgramFilesScan deduplicates file scan results against existing programs entries,
