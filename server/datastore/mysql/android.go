@@ -297,6 +297,17 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
 
+		// An Android host never checks in through osquery, so the AMAPI status reports that
+		// drive this update are the only evidence Fleet has heard from the device. Without a
+		// host_seen_times row the host reads as last seen when its row was created.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+			host.Host.ID, time.Now().UTC(),
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host seen time")
+		}
+
 		// Keep android_devices.team_id in sync so the team survives host deletion.
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE android_devices SET team_id = ? WHERE host_id = ?`,
@@ -306,6 +317,14 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		}
 
 		if fromEnroll {
+			// A re-enrolling device keeps its hosts row, so the enrollment time has to be
+			// refreshed here, as EnrollHost does for osquery hosts.
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE hosts SET last_enrolled_at = NOW() WHERE id = ?`, host.Host.ID,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "update Android host enrollment time")
+			}
+
 			// update host_mdm to set enrolled back to true
 			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
