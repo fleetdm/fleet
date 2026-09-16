@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -1275,13 +1276,24 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 	}
 
 	if cmdType := companyOwnedOnlyCommandType(&amapiCmd); cmdType != "" {
-		// A missing host_mdm row means the host is not MDM-enrolled, so there is no ownership to check and the
-		// command is left to fail on its own (the caller already gated on Fleet MDM being on).
-		hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
-		if err != nil && !fleet.IsNotFound(err) {
+		// Read the primary: is_personal_enrollment is written during enrollment, and a replica that has not
+		// caught up yet would report a freshly enrolled BYOD host as company-owned, letting the command through
+		// on exactly the hosts this check exists to protect.
+		hostMDM, err := svc.fleetDS.GetHostMDM(ctxdb.RequirePrimary(ctx, true), host.ID)
+		switch {
+		case err != nil && !fleet.IsNotFound(err):
 			return nil, ctxerr.Wrap(ctx, err, "getting host_mdm for android custom command")
-		}
-		if hostMDM != nil && hostMDM.IsPersonalEnrollment {
+
+		case err != nil || hostMDM == nil:
+			// Every enrolled Android host gets its host_mdm row in the same transaction as the host, so a
+			// missing row means the host stopped being enrolled between the caller's MDM check and here.
+			// Ownership is then unknowable, and issuing anyway is how the silent success this check prevents
+			// would come back.
+			return nil, &fleet.BadRequestError{
+				Message: "Can't run the MDM command because the host doesn't have MDM turned on.",
+			}
+
+		case hostMDM.IsPersonalEnrollment:
 			// Logged because the rejection hinges on Fleet's ownership classification, which is derived from an
 			// AMAPI Ownership field that some payloads omit. If an admin reports a wrongly refused command, this
 			// is the record that says Fleet considered the host personally owned.

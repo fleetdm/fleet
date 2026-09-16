@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -84,9 +85,12 @@ func TestIssueCustomCommandOwnership(t *testing.T) {
 			isPersonalEnrollment: true,
 		},
 		{
-			name:            "reboot is issued when the host has no host_mdm row",
+			// Ownership cannot be determined without the row, so the command must not be issued.
+			name:            "reboot is refused when the host has no host_mdm row",
 			rawCommand:      `{"type":"REBOOT"}`,
 			hostMDMNotFound: true,
+			wantErrContains: "Can't run the MDM command because the host doesn't have MDM turned on.",
+			wantRejected:    true,
 		},
 		{
 			// Failing to read ownership must fail closed rather than fall through to issuing the command.
@@ -120,7 +124,9 @@ func TestIssueCustomCommandOwnership(t *testing.T) {
 					Device: &android.Device{HostID: hostID, DeviceID: "dev1"},
 				}, nil
 			}
-			fleetDS.Store.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
+			fleetDS.Store.GetHostMDMFunc = func(ctx context.Context, _ uint) (*fleet.HostMDM, error) {
+				assert.True(t, ctxdb.IsPrimaryRequired(ctx),
+					"ownership must be read from the primary: a lagging replica reports a freshly enrolled BYOD host as company-owned")
 				if tt.hostMDMErr {
 					return nil, errors.New("host_mdm read failed")
 				}
