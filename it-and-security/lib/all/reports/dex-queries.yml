@@ -771,3 +771,22 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
+- name: DEX - AI Tools - Surfaces AI tools on the host
+  description: Surfaces AI tools on the host such as MCP servers, AI agent CLIs and desktop apps.
+  query: |
+    SELECT
+      identifier AS event_id,
+      name AS tool_name,
+      type AS tool_type,
+      source AS origin,
+      endpoint AS target_endpoint,
+      location AS file_location,
+      path AS executable_path,
+      sha256 AS file_hash,
+      risk_flags AS risk_indicators,
+      detail AS activity_details
+    FROM ai_tools;
+  interval: 3600
+  platform: darwin,linux,windows
+  automations_enabled: true
+  logging: snapshot
