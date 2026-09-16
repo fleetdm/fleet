@@ -1078,7 +1078,7 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, Zendesk, and the identity checks applied to the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 This section also lets you connect Google Workspace to sync identity provider (IdP) host vitals directly from your directory.
 
@@ -1109,6 +1109,11 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
+    certificates_idp_introspection_urls:
+      - https://company.okta.com/oauth2/v1/introspect
+    certificates_idp_client_ids:
+      - 0oa1b2c3d4e5f6g7h8i9
+    certificates_disable_host_end_user_binding: false
 ```
 
 `/fleets/fleet-name.yml`
@@ -1161,6 +1166,16 @@ Can be configured for "All fleets" (`org_settings`). Use API to configure Jira f
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
 Can be configured for "All fleets" (`org_settings`). Use API to configure Zendesk for specific fleets or "Unassigned" hosts.
+
+#### certificates_idp_introspection_urls, certificates_idp_client_ids, and certificates_disable_host_end_user_binding
+
+These settings control identity verification on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. Can only be configured for "All fleets" (`org_settings`).
+
+- `certificates_idp_introspection_urls` (Fleet Premium): allowlist of OAuth 2.0 token introspection URLs accepted in `idp_oauth_url`. Entries must be absolute `https` URLs without embedded credentials and are matched exactly. While empty, requests that include IdP credentials are rejected. Once it has entries, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every request (default: `[]`).
+- `certificates_idp_client_ids` (Fleet Premium): optional allowlist of OAuth client IDs accepted in `idp_client_id`. Requires `certificates_idp_introspection_urls` to have entries (default: `[]`).
+- `certificates_disable_host_end_user_binding`: by default, requests authenticated with an HTTP signature must carry a CSR whose email and UPN match the end user Fleet has recorded for the host, and hosts with no recorded end user are rejected. Set to `true` to turn this check off (default: `false`).
+
+Omitting these keys from your YAML resets them to their defaults, which clears both allowlists. To restore the behavior of earlier Fleet versions while you migrate, set the [`server.allow_request_certificate_any_idp`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-request-certificate-any-idp) server setting.
 
 ### certificate_authorities
 

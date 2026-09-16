@@ -815,6 +815,20 @@ server:
   allow_private_network_integrations: true
 ```
 
+### server_allow_request_certificate_any_idp
+
+Turns off the identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. When set, requests authenticated with an HTTP signature don't have to name the end user recorded for the host, and IdP credentials are accepted for any introspection endpoint, not only those listed in `integrations.certificates_idp_introspection_urls`.
+
+This restores the behavior of Fleet versions that predate these checks. Use it while you migrate, then configure the `integrations.certificates_*` settings and turn it off.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_REQUEST_CERTIFICATE_ANY_IDP`
+- Config file format:
+```yaml
+server:
+  allow_request_certificate_any_idp: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
