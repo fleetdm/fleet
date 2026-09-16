@@ -1,1 +1,0 @@
-- Fixed a missing space in the host activity feed's self-service install/uninstall text (e.g. "installed on this host(self service)." now reads "installed on this host (self service).").
