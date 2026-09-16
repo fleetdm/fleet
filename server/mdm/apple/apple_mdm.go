@@ -1774,7 +1774,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err := enqueue()
 		if err != nil {
 			if _, isNotifErr := errors.AsType[*NotificationFailedError](err); !isNotifErr {
-				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType); rmErr != nil {
+				if rmErr := ds.RemoveHostMDMCommands(ctx, group.hostIDs, commandType, commandUUID); rmErr != nil {
 					logger.ErrorContext(ctx, "untrack host mdm commands after enqueue failure",
 						"err", rmErr, "command_type", commandType)
 				}

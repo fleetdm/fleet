@@ -3777,19 +3777,27 @@ func TestRefetchHostIOSTracksBeforeEnqueue(t *testing.T) {
 		env.ds.GetHostLockWipeStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 			return &fleet.HostLockWipeStatus{}, nil
 		}
+		trackedUUIDs := map[string]string{}
 		env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
 			for _, cmd := range commands {
 				require.Equal(t, host.ID, cmd.HostID)
+				require.True(t, strings.HasPrefix(cmd.CommandUUID, cmd.CommandType),
+					"tracking row must record the full prefixed command UUID")
+				trackedUUIDs[cmd.CommandType] = cmd.CommandUUID
 				env.events = append(env.events, "add:"+cmd.CommandType)
 			}
 			return nil
 		}
 		env.ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 			require.Equal(t, host.ID, command.HostID)
+			require.Equal(t, trackedUUIDs[command.CommandType], command.CommandUUID,
+				"rollback must target the command it tracked")
 			env.events = append(env.events, "remove:"+command.CommandType)
 			return nil
 		}
 		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			require.Equal(t, trackedUUIDs[refetchCommandTypeFromUUID(cmd.CommandUUID)], cmd.CommandUUID,
+				"enqueued command must be the one the tracking row records")
 			env.events = append(env.events, "enqueue:"+refetchCommandTypeFromUUID(cmd.CommandUUID))
 			return nil, nil
 		}
