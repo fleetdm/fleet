@@ -616,17 +616,11 @@ WHERE status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
 	}
 
 	// Retiring a submission above does not touch the enrollment row, so clear the flag for any host whose submission is no
-	// longer collectable. Without this the next config poll would tell the agent to collect a PIN that is no longer there,
-	// which it would then discover for itself.
-	//
-	// STRAIGHT_JOIN because the optimizer otherwise drives this from mdm_windows_enrollments, which is one row per Windows
-	// host and has no index on the flag, so it scans the whole table hourly. Driving from host_bitlocker_pin_requests, which
-	// holds at most one row per host and only while a submission is live, reaches hosts by primary key and the enrollment by
-	// idx_mdm_windows_enrollments_host_uuid_hardware_serial.
+	// longer collectable.
 	const clearFlagStmt = `
 UPDATE host_bitlocker_pin_requests r
-STRAIGHT_JOIN hosts h ON h.id = r.host_id
-STRAIGHT_JOIN mdm_windows_enrollments e ON e.host_uuid = h.uuid
+JOIN hosts h ON h.id = r.host_id
+JOIN mdm_windows_enrollments e ON e.host_uuid = h.uuid
 SET e.bitlocker_pin_request_pending = 0
 WHERE r.status != ? AND e.bitlocker_pin_request_pending = 1`
 	if _, err := ds.writer(ctx).ExecContext(ctx, clearFlagStmt, fleet.BitLockerPINRequestPending); err != nil {
