@@ -343,7 +343,7 @@ module.exports = {
 
         var messageId = response.headers['x-message-id'];
         return messageId;
-      })
+      });
       if (ensureAck) {
         await deferred;
       } else {
