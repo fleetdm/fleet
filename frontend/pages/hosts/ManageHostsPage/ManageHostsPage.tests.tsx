@@ -158,6 +158,59 @@ describe("ManageHostsPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the no enroll secrets banner with an Add enroll secret link", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(
+      await screen.findByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/new hosts will not enroll until an enroll secret/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the no enroll secrets banner and Add hosts button when one-time enroll secrets are on", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...mockAppContext,
+          config: createMockConfig({
+            auth: { use_one_time_enroll_secrets: true },
+          }),
+        },
+      },
+    });
+
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(await screen.findByText("No hosts")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/you have no enroll secrets\./i)
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Add hosts")).not.toBeInTheDocument();
+  });
+
   it("renders the settings gear menu with its options", async () => {
     setupHandlers(0);
     const render = createCustomRenderer({

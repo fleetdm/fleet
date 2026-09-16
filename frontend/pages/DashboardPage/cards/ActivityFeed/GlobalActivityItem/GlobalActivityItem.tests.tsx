@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
@@ -1524,58 +1525,35 @@ describe("Activity Feed", () => {
   });
 
   describe("host_enrollment_rejected", () => {
-    const renderRejected = (details: Partial<IActivityDetails>) =>
+    const renderRejected = (
+      details: Partial<IActivityDetails>,
+      onDetailsClick = jest.fn()
+    ) =>
       render(
         <GlobalActivityItem
           activity={createMockActivity({
             type: ActivityType.HostEnrollmentRejected,
             actor_full_name: "",
             actor_id: 0,
+            created_at: "2026-01-01T00:00:00Z",
             details,
           })}
           isPremiumTier
+          onDetailsClick={onDetailsClick}
         />
       );
 
-    it("names the host and explains a spent one-time secret", () => {
+    it("renders Fleet as the actor and names the host", () => {
       renderRejected({
         reason: "one_time_secret_spent",
         host_display_name: "Anna's MacBook Pro",
         host_serial: "C02ABC",
       });
-      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+      expect(screen.getByText("Fleet")).toBeInTheDocument();
       expect(
-        screen.getByText(
-          /was rejected because its one-time enroll secret was already used\. Resend the Fleetd configuration profile/i
-        )
-      ).toBeInTheDocument();
-    });
-
-    it("explains an identifier mismatch", () => {
-      renderRejected({
-        reason: "one_time_secret_identifier_mismatch",
-        host_display_name: "Anna's MacBook Pro",
-      });
-      // The host name is a separate <b> node, so match the text on each side of it.
-      expect(
-        screen.getByText(/used the one-time enroll secret issued to/i)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/with a different serial number or hardware UUID/i)
+        screen.getByText(/rejected an enrollment attempt for/i)
       ).toBeInTheDocument();
       expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
-    });
-
-    it("explains a shared secret used for an MDM-managed host", () => {
-      renderRejected({
-        reason: "shared_secret_for_mdm_managed_host",
-        host_display_name: "Anna's MacBook Pro",
-      });
-      expect(
-        screen.getByText(
-          /used a shared enroll secret\. Hosts enrolled in Fleet MDM must enroll with their one-time enroll secret/i
-        )
-      ).toBeInTheDocument();
     });
 
     it("falls back to the serial number when there is no display name", () => {
@@ -1589,19 +1567,32 @@ describe("Activity Feed", () => {
       ).toBeInTheDocument();
     });
 
-    it("falls back to 'a host' and a generic sentence for an unknown reason", () => {
+    it("falls back to 'a host' when there is no display name or serial", () => {
       renderRejected({ reason: "something_new" });
       expect(
-        screen.getByText(/^An enrollment attempt for a host was rejected\.$/i)
+        screen.getByText(/rejected an enrollment attempt for a host\./i)
       ).toBeInTheDocument();
     });
 
-    it("does not prefix an actor", () => {
-      renderRejected({
-        reason: "one_time_secret_spent",
-        host_display_name: "X",
-      });
-      expect(screen.queryByText("Fleet")).not.toBeInTheDocument();
+    it("offers details and passes the reason and time to the handler", async () => {
+      const onDetailsClick = jest.fn();
+      renderRejected(
+        { reason: "one_time_secret_spent", host_display_name: "X" },
+        onDetailsClick
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+
+      expect(onDetailsClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: ActivityType.HostEnrollmentRejected,
+          created_at: "2026-01-01T00:00:00Z",
+          details: expect.objectContaining({
+            reason: "one_time_secret_spent",
+            host_display_name: "X",
+          }),
+        })
+      );
     });
   });
 

@@ -677,5 +677,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Enabled Apple Business only enrollment",
   [ActivityType.DisabledAppleBusinessOnlyEnrollment]:
     "Disabled Apple Business only enrollment",
-  [ActivityType.HostEnrollmentRejected]: "Rejected host enrollment",
+  [ActivityType.HostEnrollmentRejected]: "Host enroll failed",
 };

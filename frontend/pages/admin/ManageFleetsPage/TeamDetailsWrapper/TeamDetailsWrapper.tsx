@@ -30,6 +30,7 @@ import formatErrorResponse from "utilities/format_error_response";
 import sortUtils from "utilities/sort";
 
 import AddHostsModal from "../../../../components/AddHostsModal";
+import { isAddHostsAvailable } from "../../../../components/AddHostsModal/helpers";
 import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
 import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
 import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
@@ -185,6 +186,12 @@ const TeamDetailsWrapper = ({
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
+
+  const canAddHosts = isAddHostsAvailable({
+    useOneTimeEnrollSecrets: !!config?.auth?.use_one_time_enroll_secrets,
+    isLoadingSecrets: isTeamSecretsLoading,
+    hasEnrollSecret: !!teamSecrets?.length,
+  });
 
   const navigateToNav = (i: number): void => {
     const navPath = teamDetailsSubNav[i].getPathname(teamIdForApi);
@@ -423,6 +430,7 @@ const TeamDetailsWrapper = ({
                 type: "primary",
                 label: "Add hosts",
                 onClick: toggleAddHostsModal,
+                hideAction: !canAddHosts,
               },
               {
                 type: "secondary",

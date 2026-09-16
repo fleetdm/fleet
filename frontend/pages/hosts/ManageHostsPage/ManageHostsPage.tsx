@@ -100,6 +100,7 @@ import { strToBool } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
 import AddHostsModal from "../../../components/AddHostsModal";
+import { isAddHostsAvailable } from "../../../components/AddHostsModal/helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
@@ -543,6 +544,19 @@ const ManageHostsPage = ({
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
+
+  const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
+  const canAddHosts =
+    canEnrollHosts &&
+    isAddHostsAvailable({
+      useOneTimeEnrollSecrets,
+      isLoadingSecrets: isAnyTeamSelected
+        ? isTeamSecretsLoading
+        : isGlobalSecretsLoading,
+      hasEnrollSecret: isAnyTeamSelected
+        ? !!teamSecrets?.length
+        : !!globalSecrets?.length,
+    });
 
   const {
     data: teams,
@@ -2025,7 +2039,7 @@ const ManageHostsPage = ({
         header: "No hosts match your filters",
         info:
           "Recently enrolled hosts will appear here after their first check-in.",
-        primaryButton: canEnrollHosts ? (
+        primaryButton: canAddHosts ? (
           <Button onClick={toggleAddHostsModal} type="button">
             Add hosts
           </Button>
@@ -2041,11 +2055,11 @@ const ManageHostsPage = ({
               Add a host to start seeing data.
             </>
           );
-          emptyHosts.primaryButton = (
+          emptyHosts.primaryButton = canAddHosts ? (
             <Button onClick={toggleAddHostsModal} type="button">
               Add hosts
             </Button>
-          );
+          ) : undefined;
         } else {
           emptyHosts.info =
             "Fleet refers to computers, servers, and mobile devices as hosts.";
@@ -2138,6 +2152,9 @@ const ManageHostsPage = ({
   };
 
   const renderNoEnrollSecretBanner = () => {
+    if (useOneTimeEnrollSecrets) {
+      return null;
+    }
     const noTeamEnrollSecrets =
       isAnyTeamSelected && !isTeamSecretsLoading && !teamSecrets?.length;
     const noGlobalEnrollSecrets =
@@ -2152,17 +2169,19 @@ const ManageHostsPage = ({
         <InfoBanner
           className={`${baseClass}__no-enroll-secret-banner`}
           color="yellow"
+          cta={
+            <Button
+              variant="link"
+              onClick={() => setShowEnrollSecretModal(true)}
+            >
+              Add enroll secret
+            </Button>
+          }
         >
           <div>
             <span>
-              You have no enroll secrets.{" "}
-              <Button
-                variant="link"
-                onClick={() => setShowEnrollSecretModal(true)}
-              >
-                Manage enroll secrets
-              </Button>{" "}
-              to enroll hosts to{" "}
+              You have no enroll secrets. New hosts will not enroll until an
+              enroll secret is added to{" "}
               <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
@@ -2171,7 +2190,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const showAddHostsButton = canEnrollHosts && !hasErrors;
+  const showAddHostsButton = canAddHosts && !hasErrors;
 
   // Gear menu grouping the page-level settings (see #50219). Options are
   // gated per item; the gear renders only when at least one is available.

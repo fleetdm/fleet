@@ -378,15 +378,18 @@ describe("AddHostsModal", () => {
       />
     );
 
-    expect(screen.getByText("Something's gone wrong.")).toBeInTheDocument();
     expect(
       screen.getByText(/you have no enroll secrets\./i)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /new hosts will not enroll until an enroll secret is added to/i
+      )
+    ).toBeInTheDocument();
 
-    const cta = screen.getByText(/manage enroll secrets/i);
-    expect(cta).toBeInTheDocument();
-
-    await user.click(cta);
+    await user.click(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    );
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(openEnrollSecretModal).toHaveBeenCalledTimes(1);
