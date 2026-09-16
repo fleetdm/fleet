@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260914161913, Down_20260914161913)
+	MigrationClient.AddMigration(Up_20260916145443, Down_20260916145443)
 }
 
 // patch_when_closed snapshots the triggering policy's flag at install-activation
@@ -14,7 +14,7 @@ func init() {
 // policy flag can be toggled and hsi.policy_id is ON DELETE SET NULL, either of
 // which would silently reclassify historical rows. No backfill: pre-upgrade rows
 // keep DEFAULT 0 and render as "Failed" (pre-PR behavior).
-func Up_20260914161913(tx *sql.Tx) error {
+func Up_20260916145443(tx *sql.Tx) error {
 	if columnExists(tx, "host_software_installs", "patch_when_closed") {
 		return nil
 	}
@@ -31,6 +31,6 @@ func Up_20260914161913(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260914161913(tx *sql.Tx) error {
+func Down_20260916145443(tx *sql.Tx) error {
 	return nil
 }
