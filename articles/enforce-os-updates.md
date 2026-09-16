@@ -6,7 +6,14 @@ In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hos
 
 For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
-For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+
+Support depends on how the Android host is managed:
+
+- **Fully-managed hosts**: supported. `systemUpdate` controls the whole device, and Android only exposes it on fully-managed hosts.
+- **Work profile hosts (BYOD, or company-owned with a work profile)**: not supported. Android has no work profile equivalent of `systemUpdate`, since the setting applies to the whole device rather than just the work profile.
+- **OEMConfig devices (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't yet support OEMConfig.
+- **AOSP devices**: not supported. Fleet's Android MDM runs on the Android Management API, which requires Google Mobile Services. Devices without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
 
 ## Fleet-managed OS updates vs. custom profiles
 
