@@ -40,9 +40,10 @@ type Tracker struct {
 	backoffStartedAt    time.Time
 }
 
-// New creates a Tracker with the given base polling interval and maximum
-// backoff ceiling. Both values are floored at minInterval (1s) to
-// guarantee Interval never returns a value that would panic a ticker.
+// New creates a Tracker with the given base polling interval and backoff
+// cap (the pre-jitter ceiling). With 100% additive jitter the effective
+// maximum is 2*maxBackoff. Both values are floored at minInterval (1s)
+// to guarantee Interval never returns a value that would panic a ticker.
 func New(baseInterval, maxBackoff time.Duration) *Tracker {
 	if baseInterval < minInterval {
 		baseInterval = minInterval
@@ -82,9 +83,11 @@ func (t *Tracker) RecordFailure() {
 // Interval returns the duration to wait before the next request.
 //
 // When consecutiveFailures is 0 it returns baseInterval. Otherwise it
-// returns min(baseInterval * 2^failures, maxBackoff) + jitter.
-// Jitter is applied after capping so that hosts at the ceiling still
-// spread their retries instead of all firing at exactly maxBackoff.
+// computes min(baseInterval * 2^failures, maxBackoff) and adds 100%
+// additive jitter: rand [0, capped). The effective interval is
+// therefore in [capped, 2*capped). Jitter is applied after capping
+// so that hosts at the ceiling are spread across a wide window
+// instead of all firing at exactly maxBackoff.
 func (t *Tracker) Interval() time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()

@@ -47,6 +47,8 @@ type Options struct {
 	// so a server restart doesn't produce a thundering herd (default 30s).
 	ReconnectJitterMax time.Duration
 	// BackoffBase/BackoffCap bound the reconnection backoff (default 5s/15m).
+	// BackoffCap is the pre-jitter ceiling; with 100% additive jitter the
+	// effective interval at the cap is in [15m, 30m). See #45553.
 	BackoffBase time.Duration
 	BackoffCap  time.Duration
 	// ServerPingInterval is the server's keepalive ping cadence, used to size
