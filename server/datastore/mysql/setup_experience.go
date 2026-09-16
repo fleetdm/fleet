@@ -20,6 +20,12 @@ import (
 // linking host_uuid, plus typical jitter.
 const windowsFreshEnrollmentWindow = 5 * time.Minute
 
+// setupExperienceGatingPolicyClause selects the policies that gate a Windows/Linux setup-experience software item: those
+// whose install-software automation points at the item's installer, excluding patch policies. A patch policy's query passes
+// when the app is absent (nothing outdated to find), so a pass can't be read as "installed and up to date" and would skip the
+// install on a fresh host. Requires the policies table to be aliased as `p`.
+const setupExperienceGatingPolicyClause = `p.software_installer_id IS NOT NULL AND p.type != 'patch'`
+
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
 	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, false)
 }
@@ -203,13 +209,13 @@ SELECT
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
 	NULL AS in_house_app_id,
-	-- policy_gated: true when the installer has at least one policy whose install-software automation points at it (a gating policy
-	-- used as a gate during setup experience). A policy's software_installer_id already uniquely identifies the installer (and its
-	-- team), so no team check is needed; only gate on Windows/Linux. The specific policy ids are derived from the installer at
-	-- decision time, so only this marker is stored.
+	-- policy_gated: true when the installer has at least one gating policy (see setupExperienceGatingPolicyClause). A policy's
+	-- software_installer_id already uniquely identifies the installer (and its team), so no team check is needed; only gate on
+	-- Windows/Linux. The specific policy ids are derived from the installer at decision time, so only this marker is stored.
 	EXISTS (SELECT 1
 		FROM policies p
 		WHERE p.software_installer_id = si.id
+		AND ` + setupExperienceGatingPolicyClause + `
 		AND ? IN ('windows', 'linux')) AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
 	st.id AS software_title_id
@@ -947,6 +953,7 @@ SELECT DISTINCT p.id
 FROM setup_experience_status_results sesr
 JOIN policies p ON p.software_installer_id = sesr.software_installer_id
 WHERE sesr.host_uuid = ?
+	AND ` + setupExperienceGatingPolicyClause + `
 	AND sesr.policy_gated = 1
 	AND sesr.status IN ('pending', 'running')
 	AND sesr.host_software_installs_execution_id IS NULL`
@@ -957,13 +964,14 @@ WHERE sesr.host_uuid = ?
 	return ids, nil
 }
 
-// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies whose install-software automation points at the given
-// software installer.
+// GetSetupExperiencePolicyIDsForInstaller returns the IDs of all policies gating the given software installer (see
+// setupExperienceGatingPolicyClause).
 func (ds *Datastore) GetSetupExperiencePolicyIDsForInstaller(ctx context.Context, softwareInstallerID uint) ([]uint, error) {
 	const stmt = `
 SELECT p.id
 FROM policies p
-WHERE p.software_installer_id = ?`
+WHERE p.software_installer_id = ?
+	AND ` + setupExperienceGatingPolicyClause
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, softwareInstallerID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get setup experience policy ids for installer")
