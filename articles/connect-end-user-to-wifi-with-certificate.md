@@ -128,7 +128,7 @@ Example:
 
 1. In GitHub, open your Fleet GitOps repository, then go to to **Settings > Secrets and variables > Actions** then click the "New Repository Secret" button.
 
-2. Populate the Name field with your variable name, e.g., FLEET_OKTA_CA_NDES_PASSWORD and populate the Secret field with the Okta CA password created in Step 1.
+2. Populate the Name field with your variable name (e.g., FLEET_OKTA_CA_NDES_PASSWORD) and populate the Secret field with the Okta CA password created in Step 1.
 
 3. Add the following to the `default.yml` file in your Fleet GitOps repo under `org_settings`:
 
