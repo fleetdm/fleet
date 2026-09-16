@@ -15,7 +15,7 @@ To retrieve more detailed logs, you can run one of our health check scripts:
 
 - [Linux health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/linux_ubuntu_fleetd_healthcheck.sh)
 - [macOS health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/fleetd_healthcheck_macos.sh)
-- Windows health check
+- [Windows health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fleetd-healthcheck.ps1)
 
 ### osquery status logs
 
