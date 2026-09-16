@@ -86,7 +86,7 @@ module.exports = {
         pageDescriptionForMeta = 'Read about engineering at Fleet and beyond.';
         break;
       case 'announcements':
-        pageTitleForMeta = 'Announcements';
+        pageTitleForMeta = 'Roadmap';
         pageDescriptionForMeta = 'Read the latest news from Fleet.';
         break;
       case 'podcasts':

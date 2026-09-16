@@ -292,7 +292,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
-		return nil, err
+		svc.logger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if certRep == nil {
+			return nil, err
+		}
+		return certRep.Raw, err
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
