@@ -13,6 +13,7 @@ import commandAPI, {
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
+import decodeBase64Utf8 from "utilities/base64";
 
 import {
   IHostSoftware,
@@ -36,7 +37,6 @@ import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
-import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
