@@ -48,13 +48,22 @@ const (
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
 
+	// MobileRefetchInterval is the ListIOSAndIPadOSToRefetch cadence: mobile
+	// hosts are queued for a refetch this often (see fleet.RefetchIOSHostInterval).
+	MobileRefetchInterval = time.Hour
+
+	// MobileCronTickPeriod is the apple_mdm_iphone_ipad_refetcher cron tick.
+	// A refetch queued at t may not be dispatched until the next tick, so the
+	// online window must cover a full tick of dispatch latency on top of the
+	// refetch interval.
+	MobileCronTickPeriod = 10 * time.Minute
+
 	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
 	// count as online. Sized to cover the worst-case gap between refetcher
-	// bumps: 1h refetch interval (ListIOSAndIPadOSToRefetch) plus 10m cron tick
-	// (apple_mdm_iphone_ipad_refetcher) plus OnlineIntervalBuffer for network
-	// latency. Duplicated in the chart context (mobileOnlineWindowSeconds)
-	// which can't import server/fleet — update both together.
-	MobileOnlineWindow = time.Hour + 10*time.Minute + time.Duration(OnlineIntervalBuffer)*time.Second
+	// bumps (refetch interval + cron tick + network buffer). Duplicated in the
+	// chart context (mobileOnlineWindowSeconds) which can't import
+	// server/fleet — update both together.
+	MobileOnlineWindow = MobileRefetchInterval + MobileCronTickPeriod + time.Duration(OnlineIntervalBuffer)*time.Second
 
 	// HostIdentiferNotFound is the error message returned when a search for a host by its
 	// identifier (hostname, UUID, or serial number) does not return any results.

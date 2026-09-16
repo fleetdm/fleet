@@ -1349,11 +1349,14 @@ WHERE
 // hostFilterMode signals how the caller uses the SELECT: hostFilterList
 // SELECTs nstm.seen_time (and needs the mobile MDM join unconditionally, to
 // populate Host.LastMDMCheckedInAt); hostFilterCount omits nstm and only
-// needs the join when a status filter references it in the WHERE.
+// needs the join when a status filter references it in the WHERE. The zero
+// value is deliberately invalid so an uninitialized caller panics instead of
+// silently taking the count path.
 type hostFilterMode int
 
 const (
-	hostFilterCount hostFilterMode = iota
+	hostFilterUnspecified hostFilterMode = iota
+	hostFilterCount
 	hostFilterList
 )
 
@@ -1362,6 +1365,9 @@ const (
 func (ds *Datastore) applyHostFilters(
 	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []any, mode hostFilterMode,
 ) (string, []interface{}, error) {
+	if mode == hostFilterUnspecified {
+		panic("applyHostFilters: hostFilterMode must be set (hostFilterList or hostFilterCount)")
+	}
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
@@ -1747,9 +1753,9 @@ const hostMDMSeenTimeJoin = `
 // hostMobileMDMSeenTimeJoin is the mobile online/offline join. Filters to
 // active enrollments only (nano_seen_times.seen_time keeps updating after
 // checkout, so the enabled = 1 gate on nesm keeps checked-out devices out
-// of the mobile online window). Aliases nesm/nstm coexist with
-// hostMDMSeenTimeJoin's nes/nst so MIA/Missing can still use the unfiltered
-// join.
+// of the mobile online window). Aliases nesm (nano_enrollments) and nstm
+// (nano_seen_times) coexist with hostMDMSeenTimeJoin's nes/nst so
+// MIA/Missing can still use the unfiltered join in the same query.
 //
 // detail_updated_at in hostMobileOnlineExpr is not gated on enrollment
 // state, so a checked-out device with a fresh detail_updated_at still reads

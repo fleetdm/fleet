@@ -105,6 +105,7 @@ func TestHosts(t *testing.T) {
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
 		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
 		{"MobileOnlineOffline", testHostsMobileOnlineOffline},
+		{"MDMCheckinParity", testHostsMDMCheckinParity},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
@@ -3345,6 +3346,114 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
 	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
 	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
+}
+
+// testHostsMDMCheckinParity locks in the parity contract between the /hosts
+// SQL join (populates Host.LastMDMCheckedInAt via nstm.seen_time, filtered by
+// nesm.enabled = 1) and the /hosts/{id} Go read (via
+// GetNanoMDMEnrollmentDetails, gated by "!IsAppleMobilePlatform || Enabled").
+// The four (platform × enabled) cases pin each cell of the matrix, including
+// the known and intentional macOS-checked-out divergence — a future change to
+// either the join predicate or the service-side gate will surface here
+// instead of silently drifting between endpoints.
+func testHostsMDMCheckinParity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	seenAt := time.Now().Add(-30 * time.Minute).Truncate(time.Second)
+
+	newAppleHost := func(t *testing.T, name, platform string, enabled bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        name,
+			UUID:            name + "-uuid",
+			HardwareSerial:  name + "-serial",
+			Platform:        platform,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?)
+			 ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, h.UUID, seenAt)
+		require.NoError(t, err)
+		if !enabled {
+			_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, h.UUID)
+			require.NoError(t, err)
+		}
+		return h
+	}
+
+	// simulateGetHostDetailsGate mirrors the service-layer assignment in
+	// getHostDetails: for macOS the LastMDMSeenTime is always surfaced (the
+	// field is purely informational there), for mobile only when the nano
+	// enrollment is still Enabled.
+	simulateGetHostDetailsGate := func(platform string, details *fleet.NanoMDMEnrollmentDetails) *time.Time {
+		if details == nil {
+			return nil
+		}
+		if !fleet.IsAppleMobilePlatform(platform) || details.Enabled {
+			return details.LastMDMSeenTime
+		}
+		return nil
+	}
+
+	cases := []struct {
+		name        string
+		platform    string
+		enabled     bool
+		wantList    *time.Time // /hosts SQL side
+		wantDetails *time.Time // /hosts/{id} Go side
+	}{
+		{"macOS enabled", "darwin", true, &seenAt, &seenAt},
+		// Known divergence: SQL join filters nesm.enabled=1 so /hosts drops the
+		// value, but /hosts/{id} still surfaces it (macOS bypasses the mobile
+		// gate — the field is informational on Host details). If this changes,
+		// pick one side of the divergence deliberately, don't accidentally
+		// flip it.
+		{"macOS checked-out (divergence)", "darwin", false, nil, &seenAt},
+		{"iOS enabled", "ios", true, &seenAt, &seenAt},
+		{"iOS checked-out", "ios", false, nil, nil},
+	}
+
+	hosts := make(map[string]*fleet.Host, len(cases))
+	for _, tc := range cases {
+		hosts[tc.name] = newAppleHost(t, tc.name, tc.platform, tc.enabled)
+	}
+
+	listed, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	byUUID := make(map[string]*fleet.Host, len(listed))
+	for _, h := range listed {
+		byUUID[h.UUID] = h
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			seeded := hosts[tc.name]
+			listedHost := byUUID[seeded.UUID]
+			require.NotNil(t, listedHost, "seeded host missing from ListHosts")
+
+			details, err := ds.GetNanoMDMEnrollmentDetails(ctx, seeded.UUID)
+			require.NoError(t, err)
+
+			gotList := listedHost.LastMDMCheckedInAt
+			gotDetails := simulateGetHostDetailsGate(tc.platform, details)
+
+			if tc.wantList == nil {
+				assert.Nil(t, gotList, "/hosts SQL LastMDMCheckedInAt")
+			} else {
+				require.NotNil(t, gotList, "/hosts SQL LastMDMCheckedInAt")
+				assert.WithinDuration(t, *tc.wantList, *gotList, time.Second, "/hosts SQL LastMDMCheckedInAt")
+			}
+			if tc.wantDetails == nil {
+				assert.Nil(t, gotDetails, "/hosts/{id} Go LastMDMCheckedInAt")
+			} else {
+				require.NotNil(t, gotDetails, "/hosts/{id} Go LastMDMCheckedInAt")
+				assert.WithinDuration(t, *tc.wantDetails, *gotDetails, time.Second, "/hosts/{id} Go LastMDMCheckedInAt")
+			}
+		})
+	}
 }
 
 // TestExplainListHostsMobileJoin asserts the ListHosts-shaped SELECT reaches
