@@ -24,7 +24,7 @@ func Show(n Notification) error {
 	if !appIDRegistered() {
 		return ErrAppIDNotRegistered
 	}
-	env, err := showEnv(n)
+	env, err := showScriptEnv(n)
 	if err != nil {
 		return err
 	}
@@ -40,10 +40,10 @@ func Remove(tag, group string) error {
 	if err := validateTagAndGroup(tag, group); err != nil {
 		return err
 	}
-	return runPowerShell(removeScript, removeEnv(tag, group))
+	return runPowerShell(removeScript, removeScriptEnv(tag, group))
 }
 
-// RegisterFleetDesktopAppID registers Fleet Desktop's AppUserModelID so its toasts are labelled "Fleet Desktop" with its
+// RegisterFleetDesktopAppID registers Fleet Desktop's AppUserModelID so its toasts are labeled "Fleet Desktop" with its
 // icon. Windows reads IconUri as an image file path, so the icon is written to iconPath first. Orbit calls this as SYSTEM
 // at every start, so the file and values are only written when they differ.
 func RegisterFleetDesktopAppID(iconPath string, icon []byte) error {
@@ -97,8 +97,7 @@ func writeIcon(iconPath string, icon []byte) error {
 	return os.Rename(temp.Name(), iconPath)
 }
 
-// appIDRegistered reports whether orbit has registered Fleet Desktop's AppUserModelID. An orbit without
-// RegisterFleetDesktopAppID can run next to a Fleet Desktop that has it, because the two update independently.
+// appIDRegistered reports whether orbit has registered Fleet Desktop's AppUserModelID.
 func appIDRegistered() bool {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, appIDKeyPath, registry.QUERY_VALUE)
 	if err != nil {
@@ -114,6 +113,7 @@ func runPowerShell(script string, env []string) error {
 	if err != nil {
 		return fmt.Errorf("locating the system directory: %w", err)
 	}
+	// Canonical path for PowerShell
 	powerShell := filepath.Join(systemDir, `WindowsPowerShell\v1.0\powershell.exe`)
 
 	ctx, cancel := context.WithTimeout(context.Background(), powerShellTimeout)

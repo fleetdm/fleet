@@ -39,7 +39,7 @@ func TestNotificationXML(t *testing.T) {
 	require.Equal(t, []toastAction{{Content: n.ButtonLabel, ActivationType: "protocol", Arguments: n.URL}}, parsed.Actions)
 }
 
-func TestShowEnv(t *testing.T) {
+func TestShowScriptEnv(t *testing.T) {
 	t.Parallel()
 
 	n := Notification{
@@ -52,7 +52,7 @@ func TestShowEnv(t *testing.T) {
 		ExpiresIn:     time.Hour,
 		SuppressPopup: true,
 	}
-	env, err := showEnv(n)
+	env, err := showScriptEnv(n)
 	require.NoError(t, err)
 	vars := envMap(t, env)
 
@@ -69,10 +69,10 @@ func TestShowEnv(t *testing.T) {
 	requireScriptReadsEnv(t, showScript, vars)
 }
 
-func TestRemoveEnv(t *testing.T) {
+func TestRemoveScriptEnv(t *testing.T) {
 	t.Parallel()
 
-	vars := envMap(t, removeEnv("bitlocker-pin", "fleet"))
+	vars := envMap(t, removeScriptEnv("bitlocker-pin", "fleet"))
 	require.Equal(t, map[string]string{
 		"FLEET_TOAST_TAG":    "bitlocker-pin",
 		"FLEET_TOAST_GROUP":  "fleet",
@@ -145,7 +145,7 @@ func TestNotificationValidate(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := showEnv(tc.n)
+			_, err := showScriptEnv(tc.n)
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 				return

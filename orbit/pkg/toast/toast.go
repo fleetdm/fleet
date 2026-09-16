@@ -13,19 +13,16 @@ import (
 	"unicode/utf16"
 )
 
-// FleetDesktopAppID is the AppUserModelID orbit registers so toasts are labelled "Fleet Desktop" with its icon.
+// FleetDesktopAppID is the AppUserModelID orbit registers so toasts are labeled "Fleet Desktop" with its icon.
 const FleetDesktopAppID = "FleetDM.FleetDesktop"
 
-// maxTagLength is what Windows accepts for a toast's tag and group since Windows 10 1703.
+// maxTagLength is what Windows accepts for a toast's tag and group.
 const maxTagLength = 64
 
-// fleetDesktopEnvPrefix marks Fleet Desktop's own environment variables, which carry the Fleet client TLS key and the device
-// URL. PowerShell has no use for them, and powershell.exe is a process security tooling routinely records with its
-// environment.
+// fleetDesktopEnvPrefix marks Fleet Desktop's own environment variables, which carry the Fleet client TLS key and the device URL.
 const fleetDesktopEnvPrefix = "FLEET_DESKTOP_"
 
-// ErrAppIDNotRegistered means orbit has not registered Fleet Desktop's AppUserModelID. Windows drops a toast posted under
-// one it does not know, and posting under another app's identity would attribute Fleet's prompt to that app.
+// ErrAppIDNotRegistered means orbit has not registered Fleet Desktop's AppUserModelID. Windows drops a toast posted under one it does not know.
 var ErrAppIDNotRegistered = errors.New("the Fleet Desktop notification identity is not registered")
 
 // Notification is a toast with a heading, a body, and one button that opens a URL.
@@ -102,8 +99,7 @@ func (n Notification) xml() (string, error) {
 	return string(b), nil
 }
 
-// The scripts are constant and read everything else from the environment, so no value needs PowerShell quoting and the
-// token-bearing URL stays out of the command line, script block logging, and the script lines PowerShell quotes in errors.
+// The scripts are constant and read everything else from the environment.
 const (
 	// PowerShell serializes its error stream as CLIXML when it is redirected, so the body runs in a try and reports the
 	// message itself. Exiting non-zero is what tells the caller it failed.
@@ -137,7 +133,7 @@ $notifier.Show($toast)
 ` + scriptEpilogue
 )
 
-func showEnv(n Notification) ([]string, error) {
+func showScriptEnv(n Notification) ([]string, error) {
 	if err := n.validate(); err != nil {
 		return nil, err
 	}
@@ -155,7 +151,7 @@ func showEnv(n Notification) ([]string, error) {
 	}, nil
 }
 
-func removeEnv(tag, group string) []string {
+func removeScriptEnv(tag, group string) []string {
 	return []string{
 		"FLEET_TOAST_TAG=" + tag,
 		"FLEET_TOAST_GROUP=" + group,
