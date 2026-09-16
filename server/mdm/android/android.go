@@ -108,9 +108,13 @@ type MDMAndroidCommand struct {
 type MDMAndroidCommandType string
 
 const (
-	MDMAndroidCommandTypeLock          MDMAndroidCommandType = "LOCK"
-	MDMAndroidCommandTypeResetPassword MDMAndroidCommandType = "RESET_PASSWORD"
-	MDMAndroidCommandTypeWipe          MDMAndroidCommandType = "WIPE"
+	MDMAndroidCommandTypeLock                MDMAndroidCommandType = "LOCK"
+	MDMAndroidCommandTypeResetPassword       MDMAndroidCommandType = "RESET_PASSWORD"
+	MDMAndroidCommandTypeWipe                MDMAndroidCommandType = "WIPE"
+	MDMAndroidCommandTypeReboot              MDMAndroidCommandType = "REBOOT"
+	MDMAndroidCommandTypeRelinquishOwnership MDMAndroidCommandType = "RELINQUISH_OWNERSHIP"
+	MDMAndroidCommandTypeStartLostMode       MDMAndroidCommandType = "START_LOST_MODE"
+	MDMAndroidCommandTypeStopLostMode        MDMAndroidCommandType = "STOP_LOST_MODE"
 )
 
 // AndroidMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
