@@ -675,7 +675,8 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
 	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
 	// let a caller-supplied type decide whether the check runs.
-	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
+if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
+		ctx = ctxdb.RequirePrimary(ctx, true)
 		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
 		// enrollment status has to come from a separate load. Reusing the shared validator
 		// rather than re-deriving the rule here is what keeps this refusal identical to the
