@@ -615,7 +615,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
-Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
+A software title can have more than one package (see [packages](#packages)) or more than one App Store app version (see [app_store_apps](#app_store_apps)) on the same fleet. It can't mix types: if you specify Google Chrome for macOS once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
 Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
@@ -639,32 +639,40 @@ software:
   app_store_apps:
     - app_store_id: "546505307"
       platform: ios
-      labels_include_any: # Available in Fleet Premium
-        - Product
-        - Marketing
-      categories:
-        - "👬 Communication"
       setup_experience: true
-      auto_update_enabled: true
-      auto_update_window_start: "00:00"
-      auto_update_window_end: "04:00"
-      configurations:
-        - labels_include_any:
+      versions:
+        - name: Production
+          labels_include_any: # Available in Fleet Premium
             - Product
-          path: ../lib/software/zoom-config-product.xml
-        - labels_include_any:
             - Marketing
-          path: ../lib/software/zoom-config-marketing.xml
-        - path: ../lib/software/zoom-config-default.xml
+          categories:
+            - "👬 Communication"
+          auto_update_enabled: true
+          auto_update_window_start: "00:00"
+          auto_update_window_end: "04:00"
+          configuration:
+            path: ../lib/software/zoom-config-production.xml
+        - name: Test
+          labels_include_any:
+            - IT test team
+          configuration:
+            path: ../lib/software/zoom-config-test.xml
     - app_store_id: "us.zoom.videomeetings"
       platform: android
-      self_service: true
       setup_experience: true
-      configurations:
-        - labels_include_all:
+      versions:
+        - name: Sales
+          self_service: true
+          labels_include_all:
             - Sales
-          path: ../lib/software/zoom-config-sales.json
-        - path: ../lib/software/zoom-config-default.json
+          configuration:
+            path: ../lib/software/zoom-config-sales.json
+        - name: Everyone else
+          self_service: true
+          labels_exclude_any:
+            - Sales
+          configuration:
+            path: ../lib/software/zoom-config-default.json
   fleet_maintained_apps:
     - slug: slack/darwin
       version: "4.47.65"
@@ -820,12 +828,15 @@ software:
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
-- `configurations` is a list of one or more managed app configurations for this app. For iOS and iPadOS apps each configuration is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
-  - Each entry has a `path` to the configuration file, and optionally one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` to scope that specific configuration to a subset of the hosts the app is installed on (e.g. give one IdP group a different VPN configuration than another).
-    - If multiple entries match the same host, Fleet applies the one that was added first (same precedence rule as [multiple versions of the same software](#packages)). Best practice is to always scope configurations if you add more than one, to prevent conflicts. If you don't scope one configuration it will be in scope on all hosts in the fleet and in that case first added will be always applied on all hosts, because of the conflict.
-    - You can add an empty configuration if you want the same app to be installed on different hosts with and without configuration. In that case your configuration YAML that is referenced by `path` should only have `<Dict></Dict>` for iOS and iPadOS or `{managedConfiguration: {}}` for Android.
-  - Up to 10 configurations are supported per app (same limit as [multiple versions of the same software](#packages)).
-  - `configuration` (singular) is kept for backwards compatibility. It's equivalent to a `configurations` entry with no labels. `configuration` and `configurations` can't both be specified for the same app.
+- `setup_experience` installs the app when hosts enroll (default: `false`). It's defined for the app, not per version.
+- `versions` is a list of one or more versions of the app. Fleet always installs the latest version available in the App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings, which lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
+  - `name` identifies the version in Fleet (e.g. `Production`). It must be unique for the app on the fleet.
+  - `self_service`, `categories`, `display_name`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration` are defined per version. See [self_service, labels, categories, setup_experience, and display_name](#self_service-labels-categories-setup_experience-and-display_name) for the shared fields.
+  - Up to 10 versions are supported per app (same limit as [multiple versions of the same software](#packages)).
+  - If a host is in scope for more than one version, Fleet installs the one that was added first (same precedence rule as [multiple versions of the same software](#packages)). Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
+  - If `versions` is omitted, settings can be defined directly on the app, which is equivalent to a single unnamed version.
+- `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
+  - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<Dict></Dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
   - Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   - Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
@@ -838,19 +849,17 @@ When you update an Android app's configuration via GitOps, the app's settings ar
 
 #### Example
 
-##### Multiple label-scoped configurations
+##### Multiple versions of the same app
 
-You can add multiple managed app configurations for the same App Store app. This lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group).
+You can add more than one version of the same App Store app to a fleet. Each version has its own name, settings, and managed app configuration.
 
-`labels_include_any`, `labels_include_all`, `labels_exclude_any`, and `path` are defined per configuration.
+If a host is in scope for more than one version, Fleet will install the one that was added first.
 
-If multiple configurations target the same host, Fleet will apply the one that was added first.
-
-> In GitOps, the first configuration added is the first one in the app's `configurations` list on the initial run that adds the app's configurations. Reordering the list on a later run doesn't change the order.
+> In GitOps, the first version added is the first one in the app's `versions` list on the initial run that adds the app. Reordering the list on a later run doesn't change the order.
 >
-> You can preview the order of the configurations in the UI. The first configuration in the list is always a fallback in case multiple configurations are scoped to the same host.
+> You can preview the order of the versions in the UI. The first version in the list is always a fallback in case a host is in scope for more than one version.
 
-Currently, labels aren't evaluated during the setup experience on iOS and iPadOS hosts. Best practice is to first add the configuration that applies to the majority of hosts, because the first added will be applied during the setup experience. For example, add your production VPN configuration first, and the test configuration second. Once the host enrolls and labels are evaluated, the second configuration will be applied to scoped hosts.
+Currently, labels aren't evaluated during the setup experience on iOS and iPadOS hosts. Best practice is to first add the version that applies to the majority of hosts, because the first added will be applied during the setup experience. For example, add your production VPN configuration first, and the test configuration second. Once the host enrolls and labels are evaluated, the second version will be applied to scoped hosts.
 
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
@@ -859,14 +868,18 @@ software:
   app_store_apps:
     - app_store_id: "546505307"
       platform: ios
-      configurations:
-        - labels_include_any:
+      versions:
+        - name: Production
+          labels_include_any:
             - Product
-          path: ../lib/software/zoom-config-product.xml
-        - labels_include_any:
             - Marketing
-          path: ../lib/software/zoom-config-marketing.xml
-        - path: ../lib/software/zoom-config-default.xml
+          configuration:
+            path: ../lib/software/zoom-config-production.xml
+        - name: Test
+          labels_include_any:
+            - IT test team
+          configuration:
+            path: ../lib/software/zoom-config-test.xml
 ```
 
 ### fleet_maintained_apps
