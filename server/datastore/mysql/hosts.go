@@ -4237,10 +4237,20 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 		}
 
 		// an authenticated mapping supersedes the device-reported one, or the API
-		// would report both under the "mdm_idp_accounts" source
+		// would report both under the "mdm_idp_accounts" source. Its SCIM link goes
+		// with it in the same transaction: the caller re-links the authenticated user
+		// afterwards, and a device-asserted link must not outlive this on an MDM host.
 		if source == fleet.DeviceMappingMDMIdpAccounts && len(mappings) > 0 {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ? AND source = ?`, hid, fleet.DeviceMappingEntraJoin); err != nil {
+			res, err := tx.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ? AND source = ?`, hid, fleet.DeviceMappingEntraJoin)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete entra join host emails")
+			}
+			if n, err := res.RowsAffected(); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete entra join host emails rows affected")
+			} else if n > 0 {
+				if _, err := deleteHostSCIMUserMapping(ctx, tx, hid); err != nil {
+					return ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
+				}
 			}
 		}
 

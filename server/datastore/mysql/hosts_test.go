@@ -15356,11 +15356,17 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h2.ID, "join.user@example.com")
 	require.NoError(t, err)
 	require.True(t, updated)
+	_, err = ds.ScimUserByHostID(ctx, h2.ID)
+	require.NoError(t, err)
 	err = ds.ReplaceHostDeviceMapping(ctx, h2.ID, []*fleet.HostDeviceMapping{
 		{HostID: h2.ID, Email: "enrolled.user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 	}, fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	require.Equal(t, 0, countRawRows(h2.ID, fleet.DeviceMappingEntraJoin))
+	// the device-reported SCIM link goes with the row, so the enrollment path
+	// links the authenticated user instead of a stale one surviving
+	_, err = ds.ScimUserByHostID(ctx, h2.ID)
+	require.True(t, fleet.IsNotFound(err))
 	mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
 	require.NoError(t, err)
 	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
