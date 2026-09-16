@@ -966,6 +966,10 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 // returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
 // host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string, enrollType fleet.WindowsMDMEnrollType, err error) {
+	if svc.wstepCertManager == nil {
+		return "", "", 0, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
+	}
+
 	if authToken == nil {
 		return "", "", 0, errors.New("authToken is empty")
 	}
@@ -1028,10 +1032,6 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
 	if authToken.IsAzureJWTToken() {
-		if svc.wstepCertManager == nil {
-			return "", "", 0, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
-		}
-
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return "", "", 0, ctxerr.Wrap(ctx, err, "retrieving app config for auth token validation")
