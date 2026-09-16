@@ -37257,7 +37257,10 @@ func (s *integrationEnterpriseTestSuite) TestEntraJoinUserDetailQueryPopulatesId
 		Department: new("Engineering"),
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = s.ds.DeleteScimUser(ctx, scimUserID) })
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteScimUser(context.Background(), scimUserID)
+		require.NoError(t, err)
+	})
 
 	host := createOrbitEnrolledHost(t, "windows", "entra-join", s.ds)
 

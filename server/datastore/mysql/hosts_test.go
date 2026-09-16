@@ -15324,6 +15324,8 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "manual.user@example.com")
 	require.NoError(t, err)
 	require.Equal(t, 0, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
+	_, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.True(t, fleet.IsNotFound(err))
 	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
 	require.NoError(t, err)
 	require.False(t, updated)

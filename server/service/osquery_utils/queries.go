@@ -2278,7 +2278,6 @@ func directIngestEntraJoinUser(
 	}
 	if updated {
 		logger.InfoContext(ctx, "reconciled host IdP mapping from Entra join record", "host.id", host.ID)
-		logger.DebugContext(ctx, "entra join record user", "host.id", host.ID, "upn", upn)
 	}
 	return nil
 }
