@@ -1,36 +1,31 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import { IconNames } from "components/icons";
+import Modal from "components/Modal";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
-
 import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
-
-import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import Icon from "components/Icon";
-import { IconNames } from "components/icons";
-import { notify } from "components/ToastNotification";
-
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import { AppContext } from "context/app";
-
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import { useQuery } from "react-query";
-import DataError from "components/DataError";
-import Modal from "components/Modal";
-import TooltipWrapper from "components/TooltipWrapper";
-import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
+
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
 
@@ -142,7 +137,7 @@ const DeleteConditionalAccessModal = ({
         </Button>
         <Button
           onClick={toggleDeleteConditionalAccessModal}
-          variant="inverse-alert"
+          variant="secondary"
           disabled={isDeleting}
         >
           Cancel
@@ -248,9 +243,6 @@ const ConditionalAccess = () => {
   } = config?.conditional_access || {};
 
   const oktaConfigured = isOktaConditionalAccessConfigured(config);
-
-  // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
-  const isManagedCloud = config?.license?.managed_cloud || false;
 
   // Check Entra configuration state
   // Note: entraPhase is intentionally included in the dependency array to allow
@@ -372,9 +364,13 @@ const ConditionalAccess = () => {
         iconName={oktaConfigured ? "success" : undefined}
         cta={
           oktaConfigured ? (
-            <Button variant="text-icon" onClick={handleOktaDelete}>
+            <Button
+              variant="subdued"
+              onClick={handleOktaDelete}
+              icon="trash"
+              iconPosition="right"
+            >
               Delete
-              <Icon name="trash" color="ui-fleet-black-75" />
             </Button>
           ) : (
             <Button onClick={toggleOktaModal}>Connect</Button>
@@ -439,9 +435,13 @@ const ConditionalAccess = () => {
     let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
       entraCta = (
-        <Button variant="text-icon" onClick={handleEntraDelete}>
+        <Button
+          variant="subdued"
+          onClick={handleEntraDelete}
+          icon="trash"
+          iconPosition="right"
+        >
           Delete
-          <Icon name="trash" color="ui-fleet-black-75" />
         </Button>
       );
     } else if (!entraIsAwaitingOAuth) {
@@ -490,7 +490,7 @@ const ConditionalAccess = () => {
     return (
       <div className={`${baseClass}__cards`}>
         {renderOktaContent()}
-        {isManagedCloud && renderEntraContent()}
+        {renderEntraContent()}
       </div>
     );
   };
@@ -539,10 +539,11 @@ const ConditionalAccess = () => {
                 tipContent={
                   <>
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.{" "}
-                    <em>
+                    in audit logs. Critical policies can never be bypassed.
+                    <br />
+                    <i>
                       (Default: <strong>On</strong>)
-                    </em>
+                    </i>
                   </>
                 }
                 showArrow={false}

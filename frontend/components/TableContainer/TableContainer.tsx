@@ -1,17 +1,17 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
-import { Row } from "react-table";
-import useDeepEffect from "hooks/useDeepEffect";
 import { noop } from "lodash";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { Row } from "react-table";
 
-import SearchField from "components/forms/fields/SearchField";
-import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
+import SearchField from "components/forms/fields/SearchField";
 import Icon from "components/Icon/Icon";
+import Pagination from "components/Pagination";
 import TooltipWrapper from "components/TooltipWrapper";
+import useDeepEffect from "hooks/useDeepEffect";
 
-import DataTable from "./DataTable/DataTable";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
+import DataTable from "./DataTable/DataTable";
 import TableLayoutContext from "./TableLayoutContext";
 
 export interface ITableQueryData {
@@ -373,11 +373,19 @@ const TableContainer = <T,>({
           className={`${baseClass}__table-action-button`}
         >
           <>
-            {resolvedButtonText}
-            {actionButton.iconSvg && (
+            {actionButton.iconPosition === "left" && actionButton.iconSvg && (
               <Icon
                 name={actionButton.iconSvg}
                 color={actionButton.iconColor || "ui-fleet-black-75"}
+                size="small"
+              />
+            )}
+            {resolvedButtonText}
+            {actionButton.iconPosition !== "left" && actionButton.iconSvg && (
+              <Icon
+                name={actionButton.iconSvg}
+                color={actionButton.iconColor || "ui-fleet-black-75"}
+                size="small"
               />
             )}
           </>
@@ -488,6 +496,11 @@ const TableContainer = <T,>({
                   {renderCount()}
                 </div>
               )}
+              {/* `.controls` shape is load-bearing: the collapse rule in
+                  TableContainer/_styles.scss uses `:has(.controls > *)` to
+                  hide the header when this element renders no children.
+                  Renaming or restructuring this span needs a matching
+                  update to the selector. */}
               <span className="controls">
                 {actionButton &&
                   !actionButton.hideButton &&

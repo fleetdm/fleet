@@ -1,0 +1,1 @@
+- Improved `fleetctl generate-gitops` to emit software titles in name order instead of the default `hosts_count` order.

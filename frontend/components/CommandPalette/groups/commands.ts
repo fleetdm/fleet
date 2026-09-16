@@ -1,6 +1,7 @@
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
+
 import { IDerivedContext } from "./derivations";
 
 const buildCommandsItems = (
@@ -291,6 +292,8 @@ const buildCommandsItems = (
                     "tar.gz",
                     "tarballs",
                     "sh",
+                    "py",
+                    "python",
                   ],
                 },
                 {

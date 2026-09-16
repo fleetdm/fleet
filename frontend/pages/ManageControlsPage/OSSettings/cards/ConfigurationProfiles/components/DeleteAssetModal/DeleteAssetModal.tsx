@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "delete-asset-modal";
 
@@ -43,7 +43,7 @@ const DeleteAssetModal = ({
           >
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

@@ -1,15 +1,17 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { http, HttpResponse } from "msw";
+
+import { ScriptsLocation } from "../../Scripts";
 
 import ScriptLibrary from "./ScriptLibrary";
-import { ScriptsLocation } from "../../Scripts";
 
 const mockRouter = createMockRouter();
 
@@ -164,9 +166,10 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
       <ScriptLibrary router={router} teamId={1} location={deepLinkLocation} />
     );
 
-    // Modal opens — title and submit button both read "Add script"
+    // Modal opens — title and submit button both read "Add script", plus
+    // the tab-header "Add script" button that persists above the list.
     await waitFor(() => {
-      expect(screen.getAllByText("Add script")).toHaveLength(2);
+      expect(screen.getAllByText("Add script")).toHaveLength(3);
     });
 
     // Param is stripped via the router prop, not window.history
@@ -207,8 +210,9 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
       <ScriptLibrary router={router} teamId={1} location={linkedLocation} />
     );
 
+    // Modal open — tab-header button + modal title + modal submit = 3
     await waitFor(() => {
-      expect(screen.getAllByText("Add script")).toHaveLength(2);
+      expect(screen.getAllByText("Add script")).toHaveLength(3);
     });
 
     // Simulate the effect's router.replace landing us back at the clean URL.
@@ -216,10 +220,10 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
       <ScriptLibrary router={router} teamId={1} location={cleanLocation} />
     );
 
-    // User dismisses the modal with Escape.
+    // User dismisses the modal with Escape. The tab-header button remains.
     await user.keyboard("{Escape}");
     await waitFor(() => {
-      expect(screen.queryAllByText("Add script")).toHaveLength(0);
+      expect(screen.queryAllByText("Add script")).toHaveLength(1);
     });
 
     // Round 2: palette pushes the deep-link again (new location object).
@@ -236,7 +240,7 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("Add script")).toHaveLength(2);
+      expect(screen.getAllByText("Add script")).toHaveLength(3);
     });
   });
 

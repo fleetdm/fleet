@@ -1,1 +1,0 @@
-- Fixed the Add certificate modal (Controls > OS settings > Certificates) to only list custom SCEP CAs in the "Certificate authority (CA)" dropdown, matching the modal's help text.

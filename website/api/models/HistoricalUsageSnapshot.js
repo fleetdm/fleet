@@ -35,6 +35,7 @@ module.exports = {
     organization: { required: true, type: 'string' },
     mdmMacOsEnabled: {required: true, type: 'boolean'},
     mdmWindowsEnabled: {required: true, type: 'boolean'},
+    mdmAndroidEnabled: {required: true, type: 'boolean'},
     liveQueryDisabled: {required: true, type: 'boolean'},
     hostExpiryEnabled: {required: true, type: 'boolean'},
     numSoftwareVersions: {required: true, type: 'number'},
@@ -57,7 +58,9 @@ module.exports = {
     entraConditionalAccessConfigured: {required: true, type: 'boolean'},
     gitOpsModeEnabled: {required: true, type: 'boolean'},
     gitOpsModeExceptions: {required: true, type: 'json'},
-
+    fleetDesktopSSOEnabled: {required: true, type: 'boolean'},
+    numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
+    numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

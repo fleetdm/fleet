@@ -4,7 +4,8 @@
       "version": "3.9.12.57",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'WeChat' AND publisher = '腾讯科技(深圳)有限公司';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'WeChat' AND publisher = '腾讯科技(深圳)有限公司' AND version_compare(version, '3.9.12.57') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'WeChat' AND publisher = '腾讯科技(深圳)有限公司' AND version_compare(version, '3.9.12.57') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wechat.exe');"
       },
       "installer_url": "https://dldir1v6.qq.com/weixin/Windows/WeChatSetup.exe",
       "install_script_ref": "fcde0972",

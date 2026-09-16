@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.0",
+      "version": "5.6.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name = 'darktable' OR name LIKE 'darktable %') AND publisher LIKE '%darktable%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'darktable' OR name LIKE 'darktable %') AND publisher LIKE '%darktable%') AND version_compare(version, '5.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'darktable' OR name LIKE 'darktable %') AND publisher LIKE '%darktable%') AND version_compare(version, '5.6.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'darktable.exe');"
       },
-      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.0/darktable-5.6.0-win64.exe",
+      "installer_url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.1/darktable-5.6.1-win64.exe",
       "install_script_ref": "14588e29",
       "uninstall_script_ref": "43a78344",
-      "sha256": "b42989195dfff44540c0b767b407987329ca99853612304cbbf14c48d1d3f803",
+      "sha256": "bb15a8e4d24c21097cfdef0a560920f7fa0c05dec93482448dd538f2be02d6c4",
       "default_categories": [
         "Productivity"
       ]

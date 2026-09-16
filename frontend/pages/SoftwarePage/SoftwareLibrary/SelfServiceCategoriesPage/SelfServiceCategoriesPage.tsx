@@ -2,33 +2,31 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import useTeamIdParam from "hooks/useTeamIdParam";
-import { getPathWithQueryParams } from "utilities/url";
-import selfServiceCategoriesAPI, {
-  ISelfServiceCategoriesResponse,
-} from "services/entities/self_service_categories";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-
-import { notify } from "components/ToastNotification";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon";
+import FleetsDropdown from "components/FleetsDropdown";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
-import TeamsDropdown from "components/TeamsDropdown";
+import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
+import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import PATHS from "router/paths";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
+import { getPathWithQueryParams } from "utilities/url";
 
 import AddCategoryModal from "./AddCategoryModal";
-import EditCategoryModal from "./EditCategoryModal";
 import DeleteCategoryModal from "./DeleteCategoryModal";
+import EditCategoryModal from "./EditCategoryModal";
 
 const baseClass = "self-service-categories-page";
 
@@ -143,12 +141,12 @@ const SelfServiceCategoriesPage = ({
       <BackButton text="Back to software library" path={backToLibraryPath} />
       {isPremiumTier && !isPrimoMode ? (
         <div className={`${baseClass}__fleet-row`}>
-          <TeamsDropdown
-            currentUserTeams={userTeams ?? []}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams ?? []}
+            selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
-            includeAllTeams={false}
-            includeNoTeams
+            includeAllFleets={false}
+            includeUnassigned
           />
         </div>
       ) : (
@@ -196,7 +194,7 @@ const SelfServiceCategoriesPage = ({
           header="No self-service categories"
           info={
             canManage
-              ? "Add category to group your software and scripts in self-service."
+              ? "Add category to group your software and scripts in self service."
               : "No self-service categories are available."
           }
           primaryButton={
@@ -221,8 +219,11 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button variant="inverse" onClick={() => setShowAddModal(true)}>
-                <Icon name="plus" />
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddModal(true)}
+                icon="plus"
+              >
                 Add category
               </Button>
             )}
@@ -236,21 +237,19 @@ const SelfServiceCategoriesPage = ({
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
                 <Button
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => setCategoryToEdit(listItem)}
                   ariaLabel={`Edit ${listItem.name}`}
                   title="Edit"
-                >
-                  <Icon name="pencil" />
-                </Button>
+                  icon="pencil"
+                />
                 <Button
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => setCategoryToDelete(listItem)}
                   ariaLabel={`Delete ${listItem.name}`}
                   title="Delete"
-                >
-                  <Icon name="trash" />
-                </Button>
+                  icon="trash"
+                />
               </div>
             )}
           </div>

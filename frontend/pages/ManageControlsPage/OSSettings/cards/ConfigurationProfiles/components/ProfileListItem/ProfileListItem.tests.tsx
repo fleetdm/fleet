@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { IMdmProfile } from "interfaces/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import ProfileListItem from "./ProfileListItem";
 
@@ -26,8 +26,8 @@ const renderItem = (profile: IMdmProfile) =>
       isPremium={false}
       profile={profile}
       onClickInfo={noop}
+      onClickEdit={noop}
       onClickDelete={noop}
-      setProfileLabelsModalData={noop as any}
     />
   );
 

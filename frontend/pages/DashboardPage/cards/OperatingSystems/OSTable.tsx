@@ -1,7 +1,8 @@
+import React, { useMemo } from "react";
+
 import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import React, { useMemo } from "react";
 import {
   PlatformValueOptions,
   PLATFORM_DISPLAY_NAMES,
@@ -40,8 +41,14 @@ const OSTable = ({
   isLoading,
 }: IOSTableProps) => {
   const columnConfigs = useMemo(
-    () => generateTableHeaders(currentTeamId, undefined),
-    [currentTeamId]
+    // Linux is the only platform where the distro name ("Ubuntu", "Debian",
+    // ...) isn't obvious from the Version column alone, so it gets the extra
+    // Name column that other platforms don't need.
+    () =>
+      generateTableHeaders(currentTeamId, undefined, {
+        includeName: selectedPlatform === "linux",
+      }),
+    [currentTeamId, selectedPlatform]
   );
 
   const showPaginationControls = osVersions.length > PAGE_SIZE;

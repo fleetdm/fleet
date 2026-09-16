@@ -1,7 +1,7 @@
 import React from "react";
 
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -37,7 +37,7 @@ const ScriptBatchHostCountCell = ({
       <Button
         className={`${baseClass}__cancel-button`}
         onClick={onClickCancel}
-        variant="inverse"
+        variant="secondary"
       >
         Cancel
       </Button>

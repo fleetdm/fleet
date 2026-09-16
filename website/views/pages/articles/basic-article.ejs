@@ -9,22 +9,23 @@
           <span>{{thisPage.meta.articleTitle}}</span>
         </div>
       </div>
-      <div purpose="search" id="docsearch-query" class="d-flex">
-        <div purpose="disabled-search" class="d-flex w-100">
-          <div class="input-group">
+      <form purpose="google-search" id="docs-nav-search-form">
+        <div purpose="searchbar" class="d-flex">
+          <div class="input-group d-flex flex-nowrap">
             <div class="input-group-prepend">
-              <span class="input-group-text border-0 bg-transparent pl-3" >
+              <span class="input-group-text border-0 bg-transparent pr-0" >
                 <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
               </span>
             </div>
-            <div class="form-control border-0 ">
-            <input class="docsearch-input pr-1"
-              placeholder="Search" aria-label="Search the handbook"
-              />
-            </div>
+              <div class="form-control">
+                <input id="article-desktop-search" placeholder="Search" aria-label="Search"/>
+              </div>
+            <button type="submit" form="docs-nav-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">
+              ⏎
+            </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
     <div purpose="article-and-sidebar" class="d-flex flex-lg-row-reverse flex-column justify-content-lg-between">
       <div purpose="article-title-and-author" class="d-lg-none d-block">
@@ -69,7 +70,7 @@
             <a purpose="sidebar-link" href="/docs"><img alt="Docs" src="/images/icon-docs-16x16@2x.png"> Docs</a>
             <a purpose="sidebar-link" href="/docs/rest-api"><img alt="REST API" src="/images/icon-api-16x16@2x.png"> REST API</a>
             <a purpose="sidebar-link" href="/guides"><img alt="Guides" src="/images/icon-guides-16x16@2x.png"> Guides</a>
-            <a purpose="sidebar-link" href="/contact"><img alt="Get a demo" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
+            <a purpose="sidebar-link" href="/contact?talkToUs"><img alt="Get a demo" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
             <div purpose="edit-link">
               <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
             </div>
@@ -95,7 +96,7 @@
             </div>
           </div>
         </div>
-        <div purpose="article-content" :class="[[['articles', 'releases', 'guides', 'announcements', 'podcasts', 'securing'].includes(articleCategorySlug) ? 'pb-0' : '']]" parasails-has-no-page-script>
+        <div purpose="article-content" :class="[[['articles', 'releases', 'guides', 'announcements', 'podcasts', 'securing', 'newsletters', 'industry-news'].includes(articleCategorySlug) ? 'pb-0' : '']]" parasails-has-no-page-script>
           <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
 
           <div purpose="about-fleet-section" v-if="articleCategorySlug === 'customers'">
@@ -108,7 +109,7 @@
             <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
           </div>
           <div purpose="cta-container">
-            <div purpose="article-cta" v-if="['articles', 'releases', 'guides', 'announcements', 'podcasts', 'securing'].includes(articleCategorySlug)">
+            <div purpose="article-cta" v-if="['articles', 'releases', 'guides', 'announcements', 'podcasts', 'securing', 'newsletters', 'industry-news'].includes(articleCategorySlug)">
               <h2>Manage all your devices like it's 2026</h2>
               <p>Open MDM, patching, and vuln management for every OS.</p>
               <div purpose="button-row">

@@ -326,10 +326,11 @@ func TestComputeWindowsReconcileDeltasLabelMatrix(t *testing.T) {
 			wantInstall: false,
 		},
 		{
-			name: "exclude-any dynamic label created after host scan disqualifies",
+			name: "exclude-any dynamic label created after host scan withholds (profile not on host)",
 			profile: &fleet.WindowsProfileForReconcile{ProfileUUID: "p", TeamID: 0, Checksum: []byte("c"),
 				// host is NOT a member of label 50, but the dynamic label was created after the host's last label scan, so results are not yet
-				// reported and the host is treated as excluded.
+				// reported. The profile is not on the host, so the unknown membership keeps it withheld. (The on-host preservation side is
+				// covered in TestComputeWindowsReconcileDeltasUnknownLabelPreservation.)
 				ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(50)), CreatedAt: time.Now().Add(time.Hour), LabelMembershipType: int(fleet.LabelMembershipTypeDynamic)}},
 			},
 			wantInstall: false,
@@ -432,6 +433,108 @@ func TestComputeWindowsReconcileDeltasMultipleProfilesPerHost(t *testing.T) {
 	require.NotContains(t, remove, key("h1", "p-noop"))
 }
 
+// TestComputeWindowsReconcileDeltasUnknownLabelPreservation covers the state-preservation rule for dynamic labels the host has
+// not evaluated yet (label created after the host's last label scan): the host's current profile state is preserved — kept when
+// installed, withheld when not — until the host reports label results and membership becomes authoritative (see #47865).
+func TestComputeWindowsReconcileDeltasUnknownLabelPreservation(t *testing.T) {
+	scannedAt := time.Now().Add(-time.Hour)
+	staleHost := &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: "h1", TeamID: nil, LabelUpdatedAt: scannedAt}
+	freshHost := &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: "h1", TeamID: nil, LabelUpdatedAt: time.Now().Add(time.Hour)}
+	unknownAt := time.Now() // after staleHost's scan, before freshHost's
+
+	checksum := []byte("c")
+	installedRow := &fleet.MDMWindowsProfilePayload{
+		ProfileUUID: "p", HostUUID: "h1", Checksum: checksum,
+		OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified),
+	}
+
+	excProfile := &fleet.WindowsProfileForReconcile{ProfileUUID: "p", ProfileName: "P", TeamID: 0, Checksum: checksum,
+		ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(50)), CreatedAt: unknownAt, LabelMembershipType: int(fleet.LabelMembershipTypeDynamic)}},
+	}
+	incProfile := &fleet.WindowsProfileForReconcile{ProfileUUID: "p", ProfileName: "P", TeamID: 0, Checksum: checksum,
+		IncludeMode: fleet.MDMProfileIncludeAll,
+		IncludeLabels: []fleet.MDMProfileLabelRef{
+			{LabelID: new(uint(10))},
+			{LabelID: new(uint(50)), CreatedAt: unknownAt, LabelMembershipType: int(fleet.LabelMembershipTypeDynamic)},
+		},
+	}
+	// host is a confirmed member of the pre-existing include label 10 only.
+	memberOf10 := map[uint]map[uint]struct{}{1: {10: {}}}
+
+	cases := []struct {
+		name        string
+		host        *fleet.WindowsHostReconcileInfo
+		hostLabels  map[uint]map[uint]struct{}
+		profile     *fleet.WindowsProfileForReconcile
+		installed   bool
+		wantInstall bool
+		wantRemove  bool
+	}{
+		{
+			name: "unknown exclude label keeps installed profile",
+			host: staleHost, profile: excProfile, installed: true,
+		},
+		{
+			name: "unknown exclude label withholds uninstalled profile",
+			host: staleHost, profile: excProfile,
+		},
+		{
+			name: "exclude membership confirmed after scan removes profile",
+			host: freshHost, hostLabels: map[uint]map[uint]struct{}{1: {50: {}}}, profile: excProfile, installed: true,
+			wantRemove: true,
+		},
+		{
+			name: "exclude non-membership confirmed after scan installs profile",
+			host: freshHost, profile: excProfile,
+			wantInstall: true,
+		},
+		{
+			name: "unknown include-all label keeps installed profile",
+			host: staleHost, hostLabels: memberOf10, profile: incProfile, installed: true,
+		},
+		{
+			name: "unknown include-all label withholds uninstalled profile",
+			host: staleHost, hostLabels: memberOf10, profile: incProfile,
+		},
+		{
+			name: "include-all non-membership confirmed after scan removes profile",
+			host: freshHost, hostLabels: memberOf10, profile: incProfile, installed: true,
+			wantRemove: true,
+		},
+		{
+			name: "include-all with confirmed non-membership of another label removes despite unknown label",
+			host: staleHost, hostLabels: map[uint]map[uint]struct{}{1: {}}, profile: incProfile, installed: true,
+			wantRemove: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			currentByHost := map[string][]*fleet.MDMWindowsProfilePayload{}
+			if tc.installed {
+				currentByHost["h1"] = []*fleet.MDMWindowsProfilePayload{installedRow}
+			}
+			toInstall, toRemove := ComputeWindowsReconcileDeltas(
+				[]*fleet.WindowsHostReconcileInfo{tc.host},
+				tc.hostLabels,
+				currentByHost,
+				map[uint][]*fleet.WindowsProfileForReconcile{0: {tc.profile}},
+				nil,
+			)
+			if tc.wantInstall {
+				require.Contains(t, deltaSet(toInstall), key("h1", "p"))
+			} else {
+				require.Empty(t, toInstall)
+			}
+			if tc.wantRemove {
+				require.Contains(t, deltaSet(toRemove), key("h1", "p"))
+			} else {
+				require.Empty(t, toRemove)
+			}
+		})
+	}
+}
+
 // TestDesiredWindowsProfileUUIDsByHost covers the per-host desired-state map that the reconciler uses to protect a removed profile's
 // LocURIs from being deleted on hosts where another still-applicable profile enforces them. It must apply the same team-gating and
 // per-host label rules as ComputeWindowsReconcileDeltas: a label-scoped profile appears only for the hosts it actually matches, and a
@@ -462,6 +565,7 @@ func TestDesiredWindowsProfileUUIDsByHost(t *testing.T) {
 	out := DesiredWindowsProfileUUIDsByHost(
 		[]*fleet.WindowsHostReconcileInfo{labeledHost, plainHost, teamHost, emptyHost},
 		hostLabels,
+		nil,
 		profilesByTeam,
 	)
 
@@ -476,4 +580,21 @@ func TestDesiredWindowsProfileUUIDsByHost(t *testing.T) {
 
 	// Team gating: the teamed host sees only its own team's profile, never the no-team profiles.
 	require.ElementsMatch(t, []string{"p-team"}, out["h-team"])
+
+	// A profile kept on a host only through unknown-label preservation is still desired there, so its LocURIs stay protected —
+	// consistent with ComputeWindowsReconcileDeltas not removing it.
+	pUnknownExc := &fleet.WindowsProfileForReconcile{ProfileUUID: "p-exc", ProfileName: "exc", TeamID: 0, Checksum: []byte("c"),
+		ExcludeLabels: []fleet.MDMProfileLabelRef{{LabelID: new(uint(50)), CreatedAt: time.Now().Add(time.Hour), LabelMembershipType: int(fleet.LabelMembershipTypeDynamic)}},
+	}
+	currentByHost := map[string][]*fleet.MDMWindowsProfilePayload{
+		"h-labeled": {{ProfileUUID: "p-exc", HostUUID: "h-labeled", OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified)}},
+	}
+	out = DesiredWindowsProfileUUIDsByHost(
+		[]*fleet.WindowsHostReconcileInfo{labeledHost, plainHost},
+		hostLabels,
+		currentByHost,
+		map[uint][]*fleet.WindowsProfileForReconcile{0: {pUnknownExc}},
+	)
+	require.ElementsMatch(t, []string{"p-exc"}, out["h-labeled"])
+	require.NotContains(t, out, "h-plain")
 }

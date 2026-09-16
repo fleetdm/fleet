@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
+| Marketing Coordinator | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -177,7 +177,29 @@ The CMO is the DRI for deploying Fleet's outward-facing content. The content sch
   - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Content Specialist  to review and settle the proposed content.
 
+To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/projects/114) project board, add the `content-planning` label to the issue.
+
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
+
+
+### Localize content
+
+To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+
+- 🇮🇳 Hindi (Delhi, Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
+- 🇷🇺 Russian (Russia) (while Fleet is unable to advertise or do business with organizations in Russia, Belarus, and other markets with export controls, Fleet still advertises to native speakers of every supported language in every market where Fleet can do business, around the world)
+- 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- ळ Marathi (Maharashtra)
+- ಠ Kannada (Karnataka)
+- 🇲🇾 Malay (Malaysia)
+- 🇷🇴 Romanian (Romania, Moldova)
+- 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
+- 🇸🇪 Swedish (Sweden)
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark)
 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
@@ -335,11 +357,11 @@ After every GitOps workshop, Fleet issues a certificate to all participants who 
 -->
 
 
-### Publish sprint demo video
+### Publish release demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+After each release demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. **Download the sprint demo recording**
+1. **Download the release demo recording**
 
    This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
    
@@ -370,7 +392,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 6. **Upload the video to Youtube**
    Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
-   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+   Make sure the YouTube title follows the pattern `Release-demo - <version #.##.#>` (eg. "Release demo - 4.82.0").
 
    Add a brief description highlighting the new features.
 
@@ -379,7 +401,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 
 ### Upload to YouTube
 
-Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, release demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as:
@@ -401,7 +423,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
 1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
-2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivalent
 3. Title the file with the slug version of your blog title, ending in `.md`
 4. First line should be the Title of the blog with H1 markdown (`#`)
 5. Put in your article, using markdown to format it
@@ -422,6 +444,9 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 
 #### Stubs
 The following stubs are included only to make links backward compatible
+
+##### Publish sprint demo video
+Please see [handbook/marketing#publish-release-demo-video](https://fleetdm.com/handbook/marketing#publish-release-demo-video)
 
 ##### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)

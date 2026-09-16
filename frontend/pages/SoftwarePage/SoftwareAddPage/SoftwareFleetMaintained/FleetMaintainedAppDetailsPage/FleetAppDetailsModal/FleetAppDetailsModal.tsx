@@ -1,17 +1,16 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
+import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
+import Modal from "components/Modal";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   LEARN_MORE_ABOUT_BASE_LINK,
   PLATFORM_DISPLAY_NAMES,
 } from "utilities/constants";
-
-import Modal from "components/Modal";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Button from "components/buttons/Button";
-import CopyButton from "components/buttons/CopyButton";
-import CustomLink from "components/CustomLink";
 
 const baseClass = "fleet-app-details-modal";
 
@@ -38,9 +37,8 @@ const SLUG_TOOLTIP_MESSAGE = (
 
 const URL_TOOLTIP_MESSAGE = (
   <>
-    Fleet downloads the package from the URL and stores it.
-    <br />
-    Hosts download it from Fleet before install.
+    Fleet downloads the package from the URL and stores it. Hosts download it
+    from Fleet before install.
   </>
 );
 
@@ -57,11 +55,7 @@ const FleetAppDetailsModal = ({
     versionElement = (
       <TooltipWrapper
         tipContent={
-          <>
-            To preview the version download
-            <br />
-            {name} using the URL below.
-          </>
+          <>To preview the version, download {name} using the URL below.</>
         }
       >
         Latest
@@ -83,7 +77,8 @@ const FleetAppDetailsModal = ({
             }
             value={
               <>
-                {slug} <CopyButton copyText={slug} variant="compact" />
+                {slug}
+                <CopyButton copyText={slug} variant="compact" />
               </>
             }
           />

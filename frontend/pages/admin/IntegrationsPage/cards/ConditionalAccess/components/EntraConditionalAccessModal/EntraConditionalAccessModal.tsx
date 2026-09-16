@@ -1,14 +1,13 @@
-import React, { useState } from "react";
 import { size } from "lodash";
+import React, { useState } from "react";
 
-import conditionalAccessAPI from "services/entities/conditional_access";
-
-import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import conditionalAccessAPI from "services/entities/conditional_access";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "entra-conditional-access-modal";
@@ -118,7 +117,7 @@ const EntraConditionalAccessModal = ({
           >
             Save
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

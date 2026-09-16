@@ -1,0 +1,2 @@
+Added `server.endpoint_request_size_overrides` to configure a max request body size per API endpoint, with the largest of the endpoint's default and the override winning.
+Deprecated `osquery_max_log_write_body_size` and `osquery_max_distributed_write_body_size` in favor of the above config.

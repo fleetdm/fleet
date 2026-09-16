@@ -225,7 +225,7 @@ func RegisterSCIM(
 					Required: false,
 				},
 			},
-			Handler: NewUserHandler(ds, svc.NewActivity, scimLogger),
+			Handler: newSanitizedResourceHandler(NewUserHandler(ds, svc.NewActivity, scimLogger), scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),
@@ -233,7 +233,7 @@ func RegisterSCIM(
 			Endpoint:    "/Groups",
 			Description: optional.NewString("Group"),
 			Schema:      groupSchema,
-			Handler:     NewGroupHandler(ds, scimLogger),
+			Handler:     newSanitizedResourceHandler(NewGroupHandler(ds, scimLogger), scimLogger),
 		},
 	}
 
@@ -443,6 +443,8 @@ func GoogleWorkspaceExclusionMiddleware(ds fleet.Datastore, logger *slog.Logger,
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
 func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, detailHolder := withScimDetail(r.Context())
+		r = r.WithContext(ctx)
 		multi := newMultiResponseWriter(w)
 		next.ServeHTTP(multi, r)
 
@@ -450,9 +452,16 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 		switch {
 		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
 			status = "success"
-		case multi.statusCode == http.StatusUnauthorized:
-			// We do not save unauthenticated error details; we simply log them.
-			logger.InfoContext(r.Context(), "unauthenticated request",
+		case multi.statusCode == http.StatusUnauthorized || multi.statusCode == http.StatusForbidden:
+			// We do not save authentication (401) or authorization (403) failures; we
+			// simply log them. Otherwise an authenticated-but-unauthorized user (e.g. an
+			// observer) could overwrite the admin-visible last_request telemetry with
+			// their rejected attempts.
+			msg := "unauthenticated request"
+			if multi.statusCode == http.StatusForbidden {
+				msg = "unauthorized request"
+			}
+			logger.InfoContext(r.Context(), msg,
 				"origin", r.Header.Get("Origin"),
 				"ip", r.RemoteAddr,
 				"method", r.Method,
@@ -463,12 +472,18 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 			return
 		case multi.statusCode >= 400:
 			status = "error"
-			// Attempt to parse the response body as a SCIM error.
-			var parsedScimError scimerrors.ScimError
-			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
-				details = parsedScimError.Detail
-			} else {
-				details = multi.body.String()
+			switch {
+			case detailHolder.detail != "":
+				// the client response is generic; the holder still has the real detail
+				details = detailHolder.detail
+			default:
+				// Attempt to parse the response body as a SCIM error.
+				var parsedScimError scimerrors.ScimError
+				if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
+					details = parsedScimError.Detail
+				} else {
+					details = multi.body.String()
+				}
 			}
 			if multi.statusCode == scimerrors.ScimErrorInvalidValue.Status && details == scimerrors.ScimErrorInvalidValue.Detail &&
 				strings.Contains(r.URL.Path, "/Users") {

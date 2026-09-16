@@ -88,6 +88,7 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 				return scim.Resource{}, err
 			}
 			user.ID = existingUser.ID
+			u.linkMatchingFleetUser(ctx, existingUser)
 			resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
 			if err != nil {
 				u.logger.ErrorContext(ctx, "failed to reactivate user", userNameAttr, userName, "err", err)
@@ -118,6 +119,8 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		u.logger.ErrorContext(ctx, "failed to create scim user", userNameAttr, userName, "err", err)
 		return scim.Resource{}, err
 	}
+
+	u.linkMatchingFleetUser(ctx, user)
 
 	return createUserResource(user), nil
 }
@@ -462,8 +465,11 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	user.ID = idUint
 
 	// Username is unique, so we must check if another user already exists with that username to return a clear error
-	// We also use this to get the previous active state when the username isn't changing
+	// We also use this to get the previous active state when the username isn't changing.
+	// prePatchUser captures the persisted (pre-replace) record so deactivation
+	// resolves the Fleet user from durable state, not the incoming mutated one.
 	var previousActive *bool
+	var prePatchUser *fleet.ScimUser
 	userWithSameUsername, err := u.ds.ScimUserByUserName(ctx, user.UserName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
@@ -475,6 +481,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	case err == nil && user.ID == userWithSameUsername.ID:
 		// Same user, username not changing - use this for previous active state
 		previousActive = userWithSameUsername.Active
+		prePatchUser = userWithSameUsername
 	case fleet.IsNotFound(err):
 		// Username is being changed - need to fetch existing user by ID for previous active state
 		existingUser, err := u.ds.ScimUserByID(ctx, idUint)
@@ -487,7 +494,10 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 			return scim.Resource{}, err
 		}
 		previousActive = existingUser.Active
+		prePatchUser = existingUser
 	}
+
+	u.linkMatchingFleetUser(ctx, prePatchUser)
 
 	resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
 	switch {
@@ -511,7 +521,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 
 	// Check if user was deactivated and delete matching Fleet user if so
 	if wasDeactivated(previousActive, user.Active) {
-		if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
+		if err := u.deleteMatchingFleetUser(ctx, prePatchUser); err != nil {
 			u.logger.ErrorContext(ctx, "failed to delete fleet user on deactivation", "err", err)
 		}
 	}
@@ -576,40 +586,100 @@ func wasDeactivated(previous, current *bool) bool {
 	return previous == nil || *previous
 }
 
-func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
-	// Collect unique emails from SCIM user (userName is often the email in many IdP configurations, e.g. Okta).
-	// userName is added first so it's checked first when looking up Fleet users.
+// fleetUserLookupEmails returns the lowercased, de-duplicated emails used to
+// match a SCIM user to a Fleet user by email. userName is added first (it is the
+// email in most IdP configs, e.g. Okta).
+func fleetUserLookupEmails(scimUser *fleet.ScimUser) []string {
 	emails := make([]string, 0, len(scimUser.Emails)+1)
-
 	if strings.Contains(scimUser.UserName, "@") {
 		emails = append(emails, strings.ToLower(scimUser.UserName))
 	}
-
 	for _, e := range scimUser.Emails {
 		emails = append(emails, strings.ToLower(e.Email))
 	}
+	return server.RemoveDuplicatesFromSlice(emails)
+}
 
-	emails = server.RemoveDuplicatesFromSlice(emails)
+// resolveFleetUser finds the Fleet user to deprovision for a SCIM user.
+func (u *UserHandler) resolveFleetUser(ctx context.Context, scimUser *fleet.ScimUser) (*fleet.User, error) {
+	if scimUser.FleetUserID != nil {
+		user, err := u.ds.UserByID(ctx, *scimUser.FleetUserID)
+		switch {
+		case err == nil:
+			return user, nil
+		case fleet.IsNotFound(err):
+			// Linked Fleet user already deleted; nothing to deprovision.
+			return nil, nil
+		default:
+			return nil, ctxerr.Wrap(ctx, err, "lookup fleet user by id")
+		}
+	}
 
-	if len(emails) == 0 {
-		u.logger.DebugContext(ctx, "no emails found for scim user",
-			"scim_user_id", scimUser.ID, "user_name", scimUser.UserName)
-		return nil
+	for _, email := range fleetUserLookupEmails(scimUser) {
+		user, err := u.ds.UserByEmail(ctx, email)
+		if err == nil {
+			return user, nil
+		}
+		if !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "lookup fleet user by email")
+		}
+	}
+	return nil, nil
+}
+
+// linkMatchingFleetUser establishes the durable scim_users.user_id link, set-once,
+// when a SCIM user's identifiers resolve to a Fleet user. The link is never
+// re-pointed or cleared: once linked, later identifier changes cannot move the
+// SCIM user to a different Fleet account.
+// Callers MUST pass the persisted (pre-mutation) record so the link is derived
+// from trusted identifiers, and MUST call this before persisting any
+// identifier mutation.
+func (u *UserHandler) linkMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) {
+	if scimUser == nil || scimUser.FleetUserID != nil {
+		return // no record, or durable link already established; never re-point
 	}
 
 	var fleetUser *fleet.User
-	for _, email := range emails {
+	for _, email := range fleetUserLookupEmails(scimUser) {
 		user, err := u.ds.UserByEmail(ctx, email)
 		if err == nil {
 			fleetUser = user
 			break
 		}
 		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "lookup fleet user by email")
+			u.logger.ErrorContext(ctx, "link fleet user: lookup by email", "scim_user_id", scimUser.ID, "err", err)
+			return
 		}
 	}
-
 	if fleetUser == nil {
+		return // no match; leave the record unlinked
+	}
+	if err := u.ds.SetScimUserFleetUserID(ctx, scimUser.ID, fleetUser.ID); err != nil {
+		u.logger.ErrorContext(ctx, "link fleet user: set scim_users.user_id", "scim_user_id", scimUser.ID, "err", err)
+		return
+	}
+	scimUser.FleetUserID = &fleetUser.ID
+}
+
+// deleteMatchingFleetUser deletes the SSO Fleet user linked to (or matching) the
+// given SCIM user.
+func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
+	if scimUser == nil {
+		return nil
+	}
+	fleetUser, err := u.resolveFleetUser(ctx, scimUser)
+	if err != nil {
+		return err
+	}
+	if fleetUser == nil {
+		if scimUser.FleetUserID == nil && len(fleetUserLookupEmails(scimUser)) == 0 {
+			if err := u.newActivity(ctx, nil, fleet.ActivityTypeScimUserDeprovisionSkipped{
+				ScimUserID:   scimUser.ID,
+				ScimUserName: scimUser.UserName,
+			}); err != nil {
+				u.logger.ErrorContext(ctx, "failed to create scim_user_deprovision_skipped activity", "err", err)
+			}
+		}
 		u.logger.DebugContext(ctx, "no matching fleet user found for scim user",
 			"scim_user_id", scimUser.ID, "user_name", scimUser.UserName)
 		return nil
@@ -678,8 +748,12 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		return scim.Resource{}, err
 	}
 
-	// Store previous active state before applying patches
+	// Snapshot the persisted identifiers before the patch loop mutates `user` in
+	// place, so deactivation resolves the Fleet user from pre-patch state. Emails
+	// is cloned because patch operations mutate its elements in place.
 	previousActive := user.Active
+	prePatchUser := *user
+	prePatchUser.Emails = slices.Clone(user.Emails)
 
 	allUnknown := true
 	for _, op := range operations {
@@ -768,6 +842,8 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	if !allUnknown {
+		u.linkMatchingFleetUser(ctx, &prePatchUser)
+
 		resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
 		switch {
 		case fleet.IsNotFound(err):
@@ -793,7 +869,7 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		// least one recognized op was applied; if every op was unrecognized,
 		// user.Active equals previousActive and no deactivation can have occurred.
 		if wasDeactivated(previousActive, user.Active) {
-			if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
+			if err := u.deleteMatchingFleetUser(ctx, &prePatchUser); err != nil {
 				u.logger.ErrorContext(ctx, "failed to delete fleet user on deactivation", "err", err)
 			}
 		}

@@ -105,6 +105,12 @@ export const CRONS: CronInfo[] = [
     interval: "1h",
     note: "Reconciles Android device existence with Google AMAPI.",
   },
+  {
+    name: "mdm_android_command_reconciler",
+    group: "mdm",
+    interval: "24h",
+    note: "Resolves stuck Android MDM commands via AMAPI operations.get.",
+  },
 
   // ---------- activity / maintenance ----------
   {

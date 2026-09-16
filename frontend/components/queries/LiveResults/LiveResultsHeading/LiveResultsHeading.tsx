@@ -1,10 +1,9 @@
 import React from "react";
 
-import strUtils from "utilities/strings";
-
-import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import strUtils from "utilities/strings";
 
 const pluralizeHost = (count: number) => {
   return strUtils.pluralize(count, "host");
@@ -28,7 +27,7 @@ const FinishedButtons = ({
     <Button
       className={`${baseClass}__run-btn`}
       onClick={onClickRunAgain}
-      variant="brand-inverse-icon"
+      variant="secondary"
     >
       Run again
     </Button>
@@ -108,22 +107,22 @@ const LiveResultsHeading = ({
                 isFinished ? (
                   <>
                     Results from{" "}
-                    <b>
+                    <strong>
                       {numHostsRespondedResults}{" "}
                       {pluralizeHost(numHostsRespondedResults)}
-                    </b>
+                    </strong>
                     <br />
                     No results from{" "}
-                    <b>
+                    <strong>
                       {numHostsRespondedNoErrorsAndNoResults}{" "}
                       {pluralizeHost(numHostsRespondedNoErrorsAndNoResults)}
-                    </b>
+                    </strong>
                     <br />
                     Errors from{" "}
-                    <b>
+                    <strong>
                       {numHostsRespondedErrors}{" "}
                       {pluralizeHost(numHostsRespondedErrors)}
-                    </b>
+                    </strong>
                   </>
                 ) : (
                   <>
@@ -142,7 +141,6 @@ const LiveResultsHeading = ({
             <Spinner
               size="x-small"
               centered={false}
-              includeContainer={false}
               className={`${baseClass}__responding-spinner`}
             />
           )}
@@ -152,8 +150,8 @@ const LiveResultsHeading = ({
             <TooltipWrapper
               tipContent={
                 <>
-                  The hosts&apos; distributed interval can <br />
-                  impact live report response times.
+                  The hosts&apos; distributed interval can impact live report
+                  response times.
                 </>
               }
             >

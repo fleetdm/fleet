@@ -1,5 +1,5 @@
-import React from "react";
 import { flatMap } from "lodash";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
@@ -24,7 +24,7 @@ const HashCell = ({
         <span className={`${baseClass}__sha256`}>
           {hash.slice(0, 7)}&hellip;{" "}
         </span>
-        <CopyButton copyText={hash} variant="compact" />
+        <CopyButton copyText={hash} variant="secondary" size="small" rowHover />
       </>
     );
   };

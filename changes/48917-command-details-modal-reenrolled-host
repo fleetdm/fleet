@@ -1,1 +1,0 @@
-- Fixed the MDM command details modal showing a generic error, instead of a clear message, for a command sent to a host that was later wiped and re-enrolled.

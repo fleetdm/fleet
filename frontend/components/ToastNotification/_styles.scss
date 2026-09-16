@@ -2,7 +2,6 @@
 // <ToastCard/> via toast.custom(), so all card styling below is ours.
 
 $toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
-$toast-notification-action-size: 36px;
 $toast-notification-width: 500px;
 
 .toast-notification {
@@ -80,7 +79,9 @@ $toast-notification-width: 500px;
 
   &__header {
     display: flex;
-    align-items: center;
+    // Do not align items center — the icon and action-button rows are each
+    // one text line tall so they line up with the first line of the
+    // message, which matters when the message wraps.
     justify-content: space-between;
     gap: $pad-small;
     width: 100%;
@@ -127,41 +128,20 @@ $toast-notification-width: 500px;
     align-items: center;
     gap: $pad-small;
     flex-shrink: 0;
+    // Match __icon's one-line-tall box so the action buttons visually
+    // track the first line of text when the message wraps. The subdued
+    // Button children are 36px tall and intentionally overflow this
+    // ~21px band — the mismatch is what centers each button on the
+    // first text line without dragging the whole header down.
+    height: calc(#{$x-small} * #{$line-height});
   }
 
-  &__action-button {
-    appearance: none;
-    background: transparent;
-    border: 0;
-    margin: 0;
-    padding: $pad-small;
-    width: $toast-notification-action-size;
-    height: $toast-notification-action-size;
-    cursor: pointer;
-    color: $ui-fleet-black-75;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: $border-radius;
-    transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
-
-    &:hover,
-    &:focus-visible {
-      background-color: $ui-fleet-black-5;
-      color: $core-fleet-black;
-      outline: none;
-    }
+  &__chevron svg {
+    transition: transform 0.25s ease;
   }
 
-  &__chevron {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 200ms ease-in-out;
-
-    &--open {
-      transform: rotate(180deg);
-    }
+  &__chevron--open svg {
+    transform: rotate(180deg);
   }
 
   &__panel {

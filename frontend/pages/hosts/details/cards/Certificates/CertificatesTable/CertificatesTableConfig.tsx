@@ -1,18 +1,17 @@
 import React from "react";
 import { Column } from "react-table";
 
-import { IHostCertificate } from "interfaces/certificates";
-import { monthDayYearFormat } from "utilities/date_format";
-import { hasExpired, willExpireWithinXDays } from "utilities/helpers";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import StatusIndicator from "components/StatusIndicator";
 import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IHostCertificate } from "interfaces/certificates";
 import { IStringCellProps } from "interfaces/datatable_config";
+import { monthDayYearFormat } from "utilities/date_format";
+import { hasExpired, willExpireWithinXDays } from "utilities/helpers";
 
 type IHostCertificatesTableConfig = Column<IHostCertificate>;
 type IIssuerCellProps = IStringCellProps<IHostCertificate>;
@@ -104,7 +103,6 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
             className="view-cert-details"
             noLink
             rowHover
-            excludeChevron
             customText="View details"
           />
         );

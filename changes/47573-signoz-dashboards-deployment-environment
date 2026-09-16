@@ -1,1 +1,0 @@
-* Updated the SigNoz OTEL dashboards under `tools/signoz/` to template and filter on the `deployment.environment` resource attribute, with the environment variable defaulting to `default`, so multiple Fleet environments reporting to the same SigNoz backend can be scoped per environment.

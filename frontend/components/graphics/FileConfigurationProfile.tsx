@@ -1,13 +1,18 @@
-import React from "react";
-
 import { uniqueId } from "lodash";
+import React from "react";
 
 const FileConfigurationProfile = () => {
   const clipPathIdA = uniqueId("clip-path-");
   const clipPathIdB = uniqueId("clip-path-");
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="34"
+      height="40"
+      fill="none"
+      viewBox="0 0 34 40"
+    >
       <g clipPath={`url(#${clipPathIdA})`}>
         <path
           fill="#fff"

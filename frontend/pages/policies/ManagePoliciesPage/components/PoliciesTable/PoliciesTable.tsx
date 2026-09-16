@@ -1,27 +1,29 @@
 import React, { useCallback, useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
 
-import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
-import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { IEmptyStateProps } from "interfaces/empty_state";
-import { SelectedPlatform } from "interfaces/platform";
-import { getNextLocationPath } from "utilities/helpers";
 import Button from "components/buttons/Button";
-import TableContainer from "components/TableContainer";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
+import EmptyState from "components/EmptyState";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { AppContext } from "context/app";
+import { IEmptyStateProps } from "interfaces/empty_state";
+import { SelectedPlatform } from "interfaces/platform";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import PATHS from "router/paths";
 import { AutomationType } from "services/entities/team_policies";
-import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
+import { getNextLocationPath } from "utilities/helpers";
+
 import {
   DEFAULT_SORT_COLUMN,
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
 } from "../../ManagePoliciesPage";
+
+import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 
 // isLastPage is removable if/when API is updated to include meta.has_next_results
 const isLastPage = (count: number, pageSize: number, page: number) => {
@@ -240,7 +242,7 @@ const PoliciesTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
           onClick: onDeletePoliciesClick,
         }}
         emptyComponent={() => (

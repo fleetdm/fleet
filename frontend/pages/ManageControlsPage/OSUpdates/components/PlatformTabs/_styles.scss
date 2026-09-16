@@ -1,7 +1,7 @@
 .platform-tabs {
   &__tab-panel {
     display: grid;
-    gap: $pad-medium;
+    gap: $pad-large; // match figma
     grid-template-columns: 1fr 1fr;
     grid-template-areas: "target nudge-preview";
 
@@ -26,10 +26,5 @@
         padding-bottom: $pad-small;
       }
     }
-  }
-
-  .apple-os-target-form,
-  .windows-target-form {
-    padding-right: $pad-xlarge; // match figma
   }
 }

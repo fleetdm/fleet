@@ -80,6 +80,9 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		if err != nil {
 			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
 		}
+		if err := svc.validateCustomHostVitalCriteria(ctx, label.HostVitalsCriteria); err != nil {
+			return nil, nil, err
+		}
 	} else {
 		if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
 			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
@@ -104,10 +107,8 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, err
 	}
 
-	for name := range fleet.ReservedLabelNames() {
-		if label.Name == name {
-			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", name))
-		}
+	if reserved, ok := fleet.IsReservedLabelName(label.Name); ok {
+		return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot add label '%s' because it conflicts with the name of a built-in label", reserved))
 	}
 
 	// For a manual label, resolve the target hosts and verify the caller is
@@ -147,6 +148,33 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, *label, manualHostIDs, filter)
 	}
 	return label, nil, nil
+}
+
+// validateCustomHostVitalCriteria verifies that a custom_host_vital criterion
+// references a custom host vital that actually exists. Without this a label
+// could be created against a stale or made-up id, which would silently match
+// zero hosts (the membership join finds no rows) instead of erroring.
+func (svc *Service) validateCustomHostVitalCriteria(ctx context.Context, raw *json.RawMessage) error {
+	if raw == nil {
+		return nil
+	}
+	var criteria fleet.HostVitalCriteria
+	if err := json.Unmarshal(*raw, &criteria); err != nil {
+		return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+	}
+	if criteria.CustomHostVitalID == nil {
+		return nil
+	}
+	id := *criteria.CustomHostVitalID
+
+	existing, err := svc.ds.GetCustomHostVitals(ctx, []uint{id})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validate custom host vital criteria")
+	}
+	if len(existing) == 0 {
+		return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("custom host vital %d does not exist", id))
+	}
+	return nil
 }
 
 // authorizeWriteLabelOnHosts verifies that the caller is authorized to write
@@ -234,12 +262,12 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
+	if label.LabelMembershipType != fleet.LabelMembershipTypeManual && (payload.Hosts != nil || payload.HostIDs != nil) {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", `"hosts" or "host_ids" can only be provided for a manual label`)
+	}
 	if payload.Name != nil {
-		// Check if the new name is a reserved label name
-		for name := range fleet.ReservedLabelNames() {
-			if *payload.Name == name {
-				return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", name))
-			}
+		if reserved, ok := fleet.IsReservedLabelName(*payload.Name); ok {
+			return nil, nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot rename label to '%s' because it conflicts with the name of a built-in label", reserved))
 		}
 		label.Name = *payload.Name
 	}
@@ -260,10 +288,6 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		hostIDs = make([]uint, 0)
 	}
 
-	if len(hostIDs) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
-		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
-	}
-
 	// Verify the caller is authorized to write labels to each target host
 	// before updating membership, so that hosts from teams the caller can't
 	// write to cannot be attached via their raw IDs.
@@ -271,13 +295,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, nil, err
 	}
 
-	if hostIDs != nil {
-		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.Label, hostIDs, filter); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	saved, savedHostIDs, err := svc.ds.SaveLabel(ctx, &label.Label, filter)
+	saved, savedHostIDs, err := svc.ds.SaveLabel(ctx, &label.Label, hostIDs, filter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -544,11 +562,9 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 	}
 
 	// check if the label is a built-in label
-	for n := range fleet.ReservedLabelNames() {
-		if n == name {
-			svc.SkipAuth(ctx)
-			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", name))
-		}
+	if reserved, ok := fleet.IsReservedLabelName(name); ok {
+		svc.SkipAuth(ctx)
+		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
 	filter := fleet.TeamFilter{User: vc.User}
@@ -624,10 +640,8 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
 	}
-	for name := range fleet.ReservedLabelNames() {
-		if label.Name == name {
-			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
-		}
+	if reserved, ok := fleet.IsReservedLabelName(label.Name); ok {
+		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
 	if err := svc.ds.DeleteLabel(ctx, label.Name, filter); err != nil {
@@ -681,6 +695,18 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
 			return err.WithStatus(http.StatusUnprocessableEntity)
 		}
+		// Validate host vitals criteria structurally (unknown vital, missing
+		// custom_host_vital_id, etc.) and that any referenced custom vital
+		// exists, mirroring the checks in NewLabel so a bad spec fails at apply
+		// rather than silently matching no hosts at cron evaluation time.
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals {
+			if _, _, err := (&fleet.Label{HostVitalsCriteria: spec.HostVitalsCriteria}).CalculateHostVitalsQuery(); err != nil {
+				return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error())).WithStatus(http.StatusUnprocessableEntity)
+			}
+			if err := svc.validateCustomHostVitalCriteria(ctx, spec.HostVitalsCriteria); err != nil {
+				return err
+			}
+		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
 			// We allow specs to contain built-in labels as long as they are not being modified.
 			// This allows the user to do the following workflow without manually removing built-in labels:
@@ -691,15 +717,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			builtInSpecNames = append(builtInSpecNames, spec.Name)
 			continue
 		}
-		for name := range fleet.ReservedLabelNames() {
-			if spec.Name == name {
-				return fleet.NewUserMessageError(
-					ctxerr.Errorf(
-						ctx,
-						"cannot add label '%s' because it conflicts with the name of a built-in label",
-						name,
-					), http.StatusUnprocessableEntity)
-			}
+		if reserved, ok := fleet.IsReservedLabelName(spec.Name); ok {
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(
+					ctx,
+					"cannot add label '%s' because it conflicts with the name of a built-in label",
+					reserved,
+				), http.StatusUnprocessableEntity)
 		}
 
 		if slices.Contains(namesToMove, spec.Name) {

@@ -1,0 +1,8 @@
+{
+  "passwordPolicies": [
+    {
+      "passwordScope": "SCOPE_PROFILE",
+      "unifiedLockSettings": "REQUIRE_SEPARATE_WORK_LOCK"
+    }
+  ]
+}

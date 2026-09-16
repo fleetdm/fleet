@@ -121,19 +121,21 @@ func (r *redisLock) GetAndDelete(ctx context.Context, key string) (*string, erro
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	// Note: In Redis 6.2.0, this can be accomplished with a single command: GETDEL.
+	// GET and DEL must run atomically so a key can be consumed only once.
+	const getDelScript = `
+		local v = redis.call("get", KEYS[1])
+		if v then
+			redis.call("del", KEYS[1])
+		end
+		return v
+	`
 
-	res, err := redigo.String(conn.Do("GET", r.testPrefix+key))
+	res, err := redigo.String(conn.Do("EVAL", getDelScript, 1, r.testPrefix+key))
 	if errors.Is(err, redigo.ErrNil) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "redis GET")
-	}
-
-	_, err = conn.Do("DEL", r.testPrefix+key)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "redis DEL")
+		return nil, ctxerr.Wrap(ctx, err, "redis GET/DEL")
 	}
 
 	return &res, nil

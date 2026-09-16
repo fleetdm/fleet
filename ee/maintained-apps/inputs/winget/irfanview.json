@@ -1,0 +1,16 @@
+{
+  "name": "IrfanView",
+  "slug": "irfanview/windows",
+  "package_identifier": "IrfanSkiljan.IrfanView",
+  "unique_identifier": "IrfanView",
+  "fuzzy_match_name": "IrfanView%",
+  "program_publisher": "Irfan Skiljan",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/irfanview_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/irfanview_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

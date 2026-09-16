@@ -1,30 +1,29 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { useQuery } from "react-query";
 
-import Checkbox from "components/forms/fields/Checkbox";
-import Slider from "components/forms/fields/Slider";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import Slider from "components/forms/fields/Slider";
 import Spinner from "components/Spinner";
-
-import paths from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
-import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   CATEGORIES_ITEMS,
   ICategory,
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
-import Button from "components/buttons/Button";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
+import paths from "router/paths";
 import selfServiceCategoriesAPI, {
   ISelfServiceCategoriesResponse,
 } from "services/entities/self_service_categories";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-options-selector";
 
@@ -152,7 +151,7 @@ const CategoriesSelector = ({
       <div className="form-field__label">Categories</div>
       {renderList()}
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
@@ -219,8 +218,8 @@ const SoftwareOptionsSelector = ({
         <Slider
           value={formData.selfService}
           onChange={onToggleSelfService}
-          inactiveText="Self-service"
-          activeText="Self-service"
+          inactiveText="Self service"
+          activeText="Self service"
           labelTooltip={selfServiceLabelTooltip}
           className={`${baseClass}__self-service-slider`}
           disabled={isSelfServiceDisabled}

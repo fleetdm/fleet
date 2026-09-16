@@ -1,10 +1,9 @@
 import React from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import SectionHeader from "components/SectionHeader";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SectionHeader from "components/SectionHeader";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 interface IHistoricalDataTeamControlsProps {
   disableHostsActive: boolean;
@@ -37,11 +36,8 @@ const HistoricalDataTeamControls = ({
                 ? "Disabled globally"
                 : !disableChildren && (
                     <>
-                      When enabled, Fleet stops collecting hosts online
-                      <br />
-                      data for this fleet&apos;s contribution to the
-                      <br />
-                      dashboard chart.
+                      When enabled, Fleet stops collecting hosts online data for
+                      this fleet&apos;s contribution to the dashboard chart.
                     </>
                   )
             }
@@ -64,10 +60,8 @@ const HistoricalDataTeamControls = ({
                 : !disableChildren && (
                     <>
                       When enabled, Fleet stops collecting vulnerability
-                      <br />
-                      exposure data for this fleet&apos;s contribution
-                      <br />
-                      to the dashboard chart.
+                      exposure data for this fleet&apos;s contribution to the
+                      dashboard chart.
                     </>
                   )
             }

@@ -1,11 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
 import { baseUrl } from "test/default-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import InstallAllInCategoryButton, {
   IInstallAllInCategoryButtonProps,
@@ -161,6 +161,63 @@ describe("InstallAllInCategoryButton", () => {
       expect(onSuccess).toHaveBeenCalled();
     });
     expect(requestedUrl).toContain("category_id=1");
+  });
+
+  // When a search query is active, install_all must scope to the visible
+  // subset, not the entire category.
+  it("forwards the query param on the POST when a search query is active", async () => {
+    let requestedUrl = "";
+    mockServer.use(
+      http.post(
+        baseUrl("/device/:token/software/install_all"),
+        ({ request }) => {
+          requestedUrl = request.url;
+          return new HttpResponse(null, { status: 202 });
+        }
+      )
+    );
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+    render(<InstallAllInCategoryButton {...baseProps} query="fox" />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
+
+    await waitFor(() => {
+      expect(requestedUrl).toContain("query=fox");
+    });
+    expect(requestedUrl).toContain("category_id=1");
+  });
+
+  it("omits the query param when the caller passes an empty search", async () => {
+    let requestedUrl = "";
+    mockServer.use(
+      http.post(
+        baseUrl("/device/:token/software/install_all"),
+        ({ request }) => {
+          requestedUrl = request.url;
+          return new HttpResponse(null, { status: 202 });
+        }
+      )
+    );
+    const render = createCustomRenderer({ withBackendMock: true });
+    const user = userEvent.setup();
+    render(<InstallAllInCategoryButton {...baseProps} query="" />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
+
+    await waitFor(() => {
+      expect(requestedUrl).not.toContain("query=");
+    });
   });
 
   it("omits category_id when categoryId is undefined ('All' selected)", async () => {

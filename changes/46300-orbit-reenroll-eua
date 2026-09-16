@@ -1,1 +1,0 @@
-- Fixed an issue where Windows and Linux hosts that had already enrolled were prompted for end user authentication (an SSO browser tab) when fleetd re-enrolled after a service restart. Re-enrollment of an already-enrolled host no longer requires end user authentication; only genuinely new devices are prompted.

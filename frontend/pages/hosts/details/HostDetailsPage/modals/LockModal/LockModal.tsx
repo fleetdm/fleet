@@ -1,21 +1,19 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import PATHS from "router/paths";
+import hostAPI from "services/entities/hosts";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import PATHS from "router/paths";
-import { getErrorReason } from "interfaces/errors";
-import hostAPI from "services/entities/hosts";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import Card from "components/Card";
-
-import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
 import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
+import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
 
 const baseClass = "lock-modal";
 
@@ -165,7 +163,7 @@ const LockModal = ({
         >
           Lock
         </Button>
-        <Button onClick={onClose} variant="inverse">
+        <Button onClick={onClose} variant="secondary">
           Cancel
         </Button>
       </div>

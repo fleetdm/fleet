@@ -2,7 +2,8 @@ $softwareName = "Google Drive"
 
 $uninstallArgs = "--silent --force_stop"
 
-$expectedExitCodes = @()
+# 1641/3010 are reboot-initiated/reboot-required success codes.
+$expectedExitCodes = @(0, 1641, 3010)
 
 $machineKey = `
  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'

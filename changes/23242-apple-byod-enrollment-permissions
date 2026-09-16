@@ -1,1 +1,0 @@
-- Added support for personal (BYOD) Apple MDM enrollment, tracking per-host enrollment permissions so that personal devices cannot be remotely wiped or locked, and preserving those permissions across SCEP/ACME certificate renewal.

@@ -500,13 +500,8 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 		installerPath = extractDestination
 	}
 
-	scriptExtension := ".sh"
-	if runtime.GOOS == "windows" {
-		scriptExtension = ".ps1"
-	}
-
 	logger.Info().Msg("about to run install script")
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptFileExtension(installer.InstallScript, runtime.GOOS))
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
@@ -517,7 +512,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 
 	if installer.PostInstallScript != "" {
 		logger.Info().Str("installerPath", installerPath).Msg("about to run post-install script")
-		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
+		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptFileExtension(installer.PostInstallScript, runtime.GOOS))
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
@@ -539,7 +534,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 				uninstallScript = file.GetRemoveScript(ext)
 			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
-				"rollback-script"+scriptExtension)
+				"rollback-script"+scriptFileExtension(uninstallScript, runtime.GOOS))
 			logger.Info().Msgf(
 				"rollback status: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
@@ -641,6 +636,20 @@ func isNetworkOrTransientError(err error) bool {
 	return false
 }
 
+// scriptFileExtension picks the temp script filename extension so interpreter
+// error output (e.g. Python tracebacks) references a correctly-typed file.
+// Windows scripts are always PowerShell; on unix we honor the script's shebang.
+// goos is passed in (rather than read from runtime) so it stays a pure function.
+func scriptFileExtension(contents, goos string) string {
+	if goos == "windows" {
+		return ".ps1"
+	}
+	if kind, _, err := fleet.ShebangInfo(contents); err == nil && kind == fleet.ShebangPython {
+		return ".py"
+	}
+	return ".sh"
+}
+
 func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
@@ -664,7 +673,14 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 
 	output, exitCode, err := execFn(ctx, scriptPath, env)
 	if err != nil {
-		return string(output), exitCode, err
+		out := string(output)
+		// An execve failure (e.g. a missing shebang interpreter) surfaces as exit
+		// code -1 with no output; the only diagnostic lives in err, so fold it into
+		// the output so the server reports something actionable instead of blank.
+		if exitCode == -1 && out == "" {
+			out = err.Error()
+		}
+		return out, exitCode, err
 	}
 
 	return string(output), exitCode, nil

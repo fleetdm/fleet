@@ -1,12 +1,13 @@
 /* This component is used for creating and editing pack queries */
 
-import React, { useState } from "react";
 import { pull } from "lodash";
-import Modal from "components/Modal";
+import React, { useState } from "react";
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import {
@@ -252,7 +253,7 @@ const PackQueryEditorModal = ({
           >
             {editQuery?.name ? "Save" : "Add query"}
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

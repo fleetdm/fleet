@@ -1,4 +1,4 @@
-- name: Windows - Secure Boot enabled
+- name: Secure Boot enabled
   query: |-
     SELECT 1 FROM registry
     WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\State'

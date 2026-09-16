@@ -2,6 +2,8 @@ package execuser
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -97,14 +99,100 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
+// bracketScript runs the command named by the first positional parameter, with its
+// stdout and exit status bracketed by markers.
+//
+// The command runs under the login user's shell (see getConfigForCommand), whose
+// startup files write to the same stdout (/etc/profile, /etc/profile.d/*,
+// ~/.profile, ~/.bash_logout). Without the markers that output is indistinguishable
+// from the command's own, and prepending it to a passphrase silently corrupts it.
+//
+// The status travels in the closing marker because the process status is the
+// shell's by then. The script goes over stdin because as an argument it is expanded
+// by the login shell on some sudo implementations, leaving the inner shell to run
+// that shell's argv[0] instead of the command.
+func bracketScript(nonce string) string {
+	return fmt.Sprintf(`echo "B-%s"; cmd=$1; shift; "$cmd" "$@"; echo "E-%s:$?"`, nonce, nonce)
+}
+
+// newOutputNonce returns a random tag for one invocation's markers, so that no
+// startup file can produce output that looks like them.
+func newOutputNonce() (string, error) {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", fmt.Errorf("generate output marker: %w", err)
+	}
+	return hex.EncodeToString(buf[:]), nil
+}
+
+// parseBracketedOutput returns the wrapped command's own stdout and exit status,
+// discarding whatever the login shell wrote around them.
+//
+// ok is false when the markers are absent or malformed, meaning the wrapper did not
+// run as expected; callers then fall back to the raw output and the process exit
+// code, which is no worse than not wrapping at all.
+func parseBracketedOutput(b []byte, nonce string) (output []byte, exitCode int, ok bool) {
+	// Redundant with the search below, which already fails on empty input, but
+	// nilaway needs it to see that the slice further down is guarded.
+	if len(b) == 0 {
+		return nil, 0, false
+	}
+
+	begin := []byte("B-" + nonce + "\n")
+	i := bytes.LastIndex(b, begin)
+	if i < 0 {
+		return nil, 0, false
+	}
+
+	out, after, found := bytes.Cut(b[i+len(begin):], []byte("E-"+nonce+":"))
+	if !found {
+		return nil, 0, false
+	}
+
+	// The status is the rest of the marker's line; anything past it was written
+	// after the command exited.
+	statusLine, _, _ := bytes.Cut(after, []byte("\n"))
+	status, err := strconv.Atoi(string(statusLine))
+	if err != nil {
+		return nil, 0, false
+	}
+
+	return out, status, true
+}
+
 // runWithOutput runs a command and return its output and exit code.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	cmd, err := baserun(path, opts)
+	nonce, err := newOutputNonce()
 	if err != nil {
 		return nil, -1, err
 	}
 
+	// The command and its arguments become the inner shell's positional parameters;
+	// the script itself arrives on stdin. See bracketScript.
+	opts.args = append([][2]string{
+		{"-s", ""},
+		{path, ""},
+	}, opts.args...)
+
+	// baserun logs the program it launches, which is the wrapping shell, so name
+	// the actual command here too.
+	log.Info().Str("program", path).Msg("running command through a shell wrapper")
+
+	cmd, err := baserun("sh", opts)
+	if err != nil {
+		return nil, -1, err
+	}
+	cmd.Stdin = strings.NewReader(bracketScript(nonce))
+
 	output, err = cmd.Output()
+	if bracketed, status, ok := parseBracketedOutput(output, nonce); ok {
+		if status != 0 {
+			return bracketed, status, fmt.Errorf("%q exited with code %d", path, status)
+		}
+		return bracketed, 0, nil
+	}
+	log.Debug().Str("path", path).Msg("output markers not found, using raw command output")
+
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()

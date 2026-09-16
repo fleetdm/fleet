@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, type DockerStatus, type ProcInfo } from "./tauri";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  api,
+  type DockerStatus,
+  type ProcInfo,
+  type ServerProfile,
+} from "./ipc";
 
 export type ServeStatus = { up: boolean; upSinceMs: number | null };
 export type DockerHealth = {
@@ -7,97 +12,144 @@ export type DockerHealth = {
   upSinceMs: number | null;
   containers: DockerStatus["containers"];
 };
+export type ServerHealth = { serve: ServeStatus; docker: DockerHealth };
 
-/// Polls `fleet serve --dev` (TCP 8080) and `docker compose ps`, plus
-/// fires an ad-hoc probe whenever the underlying spawn proc transitions
-/// (start, stop, exit) so the UI doesn't lag behind reality. Lives at
-/// app-level so the tray menu can read the same state without
-/// duplicating probes.
+const SERVE_DOWN: ServeStatus = { up: false, upSinceMs: null };
+const DOCKER_DOWN: DockerHealth = { up: false, upSinceMs: null, containers: [] };
+
+/// Polls each server's `fleet serve` (TCP on its server port) and its docker
+/// compose project, returning a per-server health map. Lives at app level so
+/// the switcher, status strip, and tray all read the same state.
 ///
-/// The serve probe is a raw TCP connect — fleet listens TLS on 8080 in
-/// dev, so each probe shows up in fleet's logs as `TLS handshake error:
-/// EOF`. The proc-state-driven reprobe below catches transitions
-/// instantly, so the periodic poll is just a fallback for cases the
-/// proc events don't cover (docker restarted outside the app, fleet
-/// crashed without our spawn dying). 10s keeps the spam at ~6/min while
-/// still recovering from out-of-band changes within reasonable time.
+/// Serve is probed on a slower cadence than docker because each serve probe is
+/// a raw TLS connect that shows up in fleet's log as a handshake error — with
+/// multiple servers that spam adds up, so we keep it to ~6/min/server and lean
+/// on the proc-transition reprobe for snappy updates. `enabled` gates the
+/// periodic probes off (e.g. during the first-run gate).
 const SERVE_POLL_MS = 10_000;
 const DOCKER_POLL_MS = 3_000;
-/// `enabled` gates the periodic probes off entirely — passed false while
-/// the first-run gate is up so we don't probe serve / docker before the
-/// user has even picked a repo or anything can be running.
-export function useSystemHealth(
-  repoPath: string | null,
+
+export function useMultiServerHealth(
+  servers: ServerProfile[],
   procs: ProcInfo[],
   enabled = true,
-) {
-  const [serve, setServe] = useState<ServeStatus>({ up: false, upSinceMs: null });
-  const [docker, setDocker] = useState<DockerHealth>({
-    up: false,
-    upSinceMs: null,
-    containers: [],
-  });
+): Record<string, ServerHealth> {
+  const [serveMap, setServeMap] = useState<Record<string, ServeStatus>>({});
+  const [dockerMap, setDockerMap] = useState<Record<string, DockerHealth>>({});
+
+  // Signature of just the fields the probes depend on, so unrelated settings
+  // edits (theme, ngrok, …) don't churn the probe callbacks.
+  const sig = useMemo(
+    () =>
+      servers
+        .map(
+          (s) =>
+            `${s.id}:${s.ports.server}:${s.worktree_path ?? ""}:${s.compose_project}`,
+        )
+        .join("|"),
+    [servers],
+  );
 
   const probeServe = useCallback(async () => {
-    try {
-      const up = await api.serveTcpCheck(8080);
-      setServe((prev) =>
-        up
-          ? { up: true, upSinceMs: prev.up ? prev.upSinceMs : Date.now() }
-          : { up: false, upSinceMs: null },
-      );
-    } catch {
-      // ignore
-    }
-  }, []);
+    const entries = await Promise.all(
+      servers.map(async (s) => {
+        let up = false;
+        try {
+          up = await api.serveTcpCheck(s.ports.server);
+        } catch {
+          // ignore
+        }
+        return [s.id, up] as const;
+      }),
+    );
+    setServeMap((prev) => {
+      const next: Record<string, ServeStatus> = {};
+      for (const [id, up] of entries) {
+        next[id] = up
+          ? { up: true, upSinceMs: prev[id]?.up ? prev[id].upSinceMs : Date.now() }
+          : SERVE_DOWN;
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig]);
 
   const probeDocker = useCallback(async () => {
-    if (!repoPath) return;
-    try {
-      const s = await api.dockerComposeStatus(repoPath);
-      setDocker((prev) => ({
-        up: s.running,
-        upSinceMs: s.running ? (prev.up ? prev.upSinceMs : Date.now()) : null,
-        containers: s.containers,
-      }));
-    } catch {
-      setDocker({ up: false, upSinceMs: null, containers: [] });
-    }
-  }, [repoPath]);
+    const entries = await Promise.all(
+      servers.map(async (s) => {
+        if (!s.worktree_path) {
+          return [s.id, false, [] as DockerStatus["containers"]] as const;
+        }
+        try {
+          const d = await api.dockerComposeStatus(
+            s.worktree_path,
+            s.compose_project,
+          );
+          return [s.id, d.running, d.containers] as const;
+        } catch {
+          return [s.id, false, [] as DockerStatus["containers"]] as const;
+        }
+      }),
+    );
+    setDockerMap((prev) => {
+      const next: Record<string, DockerHealth> = {};
+      for (const [id, running, containers] of entries) {
+        next[id] = running
+          ? {
+              up: true,
+              upSinceMs: prev[id]?.up ? prev[id].upSinceMs : Date.now(),
+              containers,
+            }
+          : DOCKER_DOWN;
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setServeMap({});
+      return;
+    }
     probeServe();
     const id = window.setInterval(probeServe, SERVE_POLL_MS);
     return () => window.clearInterval(id);
   }, [enabled, probeServe]);
 
   useEffect(() => {
-    if (!enabled || !repoPath) {
-      setDocker({ up: false, upSinceMs: null, containers: [] });
+    if (!enabled) {
+      setDockerMap({});
       return;
     }
     probeDocker();
     const id = window.setInterval(probeDocker, DOCKER_POLL_MS);
     return () => window.clearInterval(id);
-  }, [enabled, repoPath, probeDocker]);
+  }, [enabled, probeDocker]);
 
-  // Ad-hoc reprobe on proc state transitions — saves up to one full
+  // Ad-hoc reprobe when any managed process transitions — saves up to a full
   // polling interval of "I clicked start, why is it still grey?".
-  const dockerProcState = procs.find((p) => p.id === "docker-compose-up")?.state;
+  const procSig = useMemo(
+    () => procs.map((p) => `${p.id}:${p.state}`).join("|"),
+    [procs],
+  );
   useEffect(() => {
-    if (dockerProcState === "done" || dockerProcState === "failed") {
-      const t = window.setTimeout(probeDocker, 300);
-      return () => window.clearTimeout(t);
-    }
-  }, [dockerProcState, probeDocker]);
-
-  const serveProcState = procs.find((p) => p.id === "fleet-serve")?.state;
-  useEffect(() => {
-    if (!serveProcState) return;
-    const t = window.setTimeout(probeServe, 300);
+    if (!enabled) return;
+    const t = window.setTimeout(() => {
+      probeServe();
+      probeDocker();
+    }, 300);
     return () => window.clearTimeout(t);
-  }, [serveProcState, probeServe]);
+  }, [procSig, enabled, probeServe, probeDocker]);
 
-  return { serve, docker, probeServe, probeDocker };
+  return useMemo(() => {
+    const out: Record<string, ServerHealth> = {};
+    for (const s of servers) {
+      out[s.id] = {
+        serve: serveMap[s.id] ?? SERVE_DOWN,
+        docker: dockerMap[s.id] ?? DOCKER_DOWN,
+      };
+    }
+    return out;
+  }, [servers, serveMap, dockerMap]);
 }

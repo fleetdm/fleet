@@ -1,11 +1,10 @@
 import React from "react";
 
-import strUtils from "utilities/strings";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import strUtils from "utilities/strings";
 
 const baseClass = "delete-host-modal";
 
@@ -89,7 +88,7 @@ const DeleteHostModal = ({
         >
           Delete
         </Button>
-        <Button onClick={onCancel} variant="inverse-alert">
+        <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
       </div>

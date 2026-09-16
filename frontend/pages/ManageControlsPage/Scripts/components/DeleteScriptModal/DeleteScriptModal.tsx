@@ -1,11 +1,11 @@
+import { AxiosResponse } from "axios";
 import React, { useState } from "react";
 
-import scriptAPI from "services/entities/scripts";
-import { notify } from "components/ToastNotification";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { AxiosResponse } from "axios";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import scriptAPI from "services/entities/scripts";
+
 import { IApiError } from "../../../../../interfaces/errors";
 import { getErrorMessage } from "../ScriptUploadModal/helpers";
 
@@ -76,7 +76,7 @@ const DeleteScriptModal = ({
           >
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

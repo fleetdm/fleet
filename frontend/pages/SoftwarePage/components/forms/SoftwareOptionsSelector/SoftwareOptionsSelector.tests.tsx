@@ -1,12 +1,13 @@
-import React from "react";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
+import React from "react";
+
 import {
   emptySelfServiceCategoriesHandler,
   listSelfServiceCategoriesErrorHandler,
   listSelfServiceCategoriesHandler,
 } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareOptionsSelector from "./SoftwareOptionsSelector";
 
@@ -46,7 +47,7 @@ describe("SoftwareOptionsSelector", () => {
     const onToggleSelfService = jest.fn();
     renderComponent({ onToggleSelfService });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
     fireEvent.click(selfServiceSwitch);
 
     expect(onToggleSelfService).toHaveBeenCalledTimes(1);
@@ -57,21 +58,21 @@ describe("SoftwareOptionsSelector", () => {
   it("enables self-service sliders for iOS", () => {
     renderComponent({ platform: "ios" });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
     expect(selfServiceSwitch.disabled).toBe(false);
   });
 
   it("enables self-service  for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
     expect(selfServiceSwitch.disabled).toBe(false);
   });
 
   it("disables self-service when disableOptions is true", () => {
     renderComponent({ disableOptions: true });
 
-    const selfServiceSwitch = getSwitchByLabelText("Self-service");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
 
     expect(selfServiceSwitch.disabled).toBe(true);
   });

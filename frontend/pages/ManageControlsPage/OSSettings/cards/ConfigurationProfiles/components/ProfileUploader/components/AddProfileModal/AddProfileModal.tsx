@@ -1,18 +1,6 @@
+import { AxiosResponse } from "axios";
 import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
-
-import PATHS from "router/paths";
-import { notify } from "components/ToastNotification";
-
-import { IApiError } from "interfaces/errors";
-import { ILabelSummary } from "interfaces/label";
-
-import labelsAPI, {
-  getCustomLabels,
-  listNamesFromSelectedLabels,
-} from "services/entities/labels";
-import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
@@ -26,15 +14,24 @@ import {
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
-import ProfileGraphic from "../ProfileGraphic";
+import { notify } from "components/ToastNotification";
+import { IApiError } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
+import PATHS from "router/paths";
+import labelsAPI, {
+  getCustomLabels,
+  listNamesFromSelectedLabels,
+} from "services/entities/labels";
+import mdmAPI from "services/entities/mdm";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import generateCustomTargetLabelKey from "./helpers";
+import ProfileGraphic from "../ProfileGraphic";
 
 const baseClass = "add-profile-modal";
 
@@ -61,12 +58,12 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="brand-inverse-icon"
+      variant="secondary"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" color="core-fleet-green" />
+          Choose file <Icon name="upload" />
         </span>
       </label>
     </Button>
@@ -137,7 +134,7 @@ const AddProfileModal = ({
     isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
+    ["custom_labels", currentTeamId],
     () =>
       labelsAPI
         .summary(currentTeamId)
@@ -279,7 +276,7 @@ const AddProfileModal = ({
             </div>
           )}
           <div className={`${baseClass}__button-wrap`}>
-            <Button variant="inverse" onClick={onDone}>
+            <Button variant="secondary" onClick={onDone}>
               Cancel
             </Button>
             <Button

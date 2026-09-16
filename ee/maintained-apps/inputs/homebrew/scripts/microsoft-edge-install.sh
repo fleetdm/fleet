@@ -46,9 +46,17 @@ quit_application() {
 }
 
 # extract contents
+# Fail before the existing app is removed below, so a bad download can't leave
+# the host without a working install.
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
+	echo "Failed to mount DMG '$INSTALLER_PATH'." >&2
+	exit 1
+fi
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || true
+	exit 1
+fi
 hdiutil detach "$MOUNT_POINT"
 
 # Clean up any backup files that might exist from previous failed installations
@@ -69,6 +77,15 @@ cleanup_backup_files() {
   done
 }
 
+remove_stale_updater_bundles() {
+  local root
+  for root in / /Users/*; do
+    local updater_dir="${root%/}/Library/Application Support/Microsoft/EdgeUpdater"
+    [ -d "$updater_dir" ] || continue
+    find "$updater_dir" -type d -name "Microsoft Edge.app" -prune -exec sudo rm -rf {} + 2>/dev/null || true
+  done
+}
+
 # copy to the applications folder
 quit_application 'com.microsoft.edgemac'
 
@@ -81,16 +98,20 @@ if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 fi
 
 # Install the new app
-sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR"
+if ! sudo cp -R "$TMPDIR/Microsoft Edge.app" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new version
+	sudo rm -rf "$APPDIR/Microsoft Edge.app"
+	echo "Installation failed"
+	exit 1
+fi
 
 # Verify installation and do final cleanup
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 	# Installation successful - ensure no backup files remain
 	cleanup_backup_files
+	remove_stale_updater_bundles
 	echo "Installation verified"
 else
 	echo "Installation failed"
 	exit 1
 fi
-
-

@@ -1,9 +1,8 @@
-import React, { useState } from "react";
 import { noop } from "lodash";
+import React, { useState } from "react";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getExtensionFromFileName } from "utilities/file/fileUtils";
-
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
 import {
   isPackageType,
   isWindowsPackageType,
@@ -11,12 +10,11 @@ import {
   isScriptOnlyPackageType,
   PackageType,
 } from "interfaces/package_type";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
-import CustomLink from "components/CustomLink";
-import RevealButton from "components/buttons/RevealButton";
-
-import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
+import { IPackageFormData } from "../PackageForm/PackageForm";
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   // .ps1 is a script-only package type, not a "windows package type", but it's
@@ -32,6 +30,7 @@ const PKG_TYPE_TO_ID_TEXT = {
   deb: "package name",
   rpm: "package name",
   msi: "product code",
+  msix: "product code or package family name",
   exe: "software name",
   zip: "software name",
   sh: "package name",
@@ -219,6 +218,7 @@ interface IPackageAdvancedOptionsProps {
   /** Currently for editing FMA only, users cannot edit */
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
+  patchWhenClosed?: boolean;
 }
 
 const PackageAdvancedOptions = ({
@@ -236,6 +236,7 @@ const PackageAdvancedOptions = ({
   onChangeUninstallScript,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
+  patchWhenClosed = false,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const name = selectedPackage?.name || "";
@@ -269,6 +270,7 @@ const PackageAdvancedOptions = ({
         onChangeUninstallScript={onChangeUninstallScript}
         gitopsCompatible={gitopsCompatible}
         gitOpsModeEnabled={gitOpsModeEnabled}
+        patchWhenClosed={patchWhenClosed}
       />
     );
   };
@@ -290,10 +292,7 @@ const PackageAdvancedOptions = ({
           requiresAdvancedOptions ? (
             <>Install and uninstall scripts are required for .{ext} packages.</>
           ) : (
-            <>
-              Choose a file to modify <br />
-              advanced options.
-            </>
+            <>Choose a file to modify advanced options.</>
           )
         }
       />

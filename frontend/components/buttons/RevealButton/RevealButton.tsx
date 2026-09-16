@@ -1,8 +1,9 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
+
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 export interface IRevealButtonProps {
   isShowing: boolean;
@@ -67,12 +68,11 @@ const RevealButton = ({
 
   const button = (
     <Button
-      variant="inverse"
+      variant="secondary"
       className={classNames}
       onClick={onClick}
       autofocus={autofocus}
       disabled={disabled}
-      iconStroke
     >
       {buttonContent()}
     </Button>

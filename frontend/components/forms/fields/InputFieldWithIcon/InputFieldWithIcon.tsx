@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useRef } from "react";
 import classnames from "classnames";
+import React, { useCallback, useEffect, useRef } from "react";
 
-import { ICON_MAP } from "components/icons";
-import Icon from "components/Icon/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon/Icon";
+import { ICON_MAP } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "input-icon-field";
 
@@ -157,7 +157,7 @@ const InputFieldWithIcon = ({
         {clearButton && !!value && (
           <Button
             onClick={() => handleClear()}
-            variant="icon"
+            variant="subdued"
             className={`${baseClass}__clear-button`}
           >
             <Icon name="close-filled" color="core-fleet-black" />

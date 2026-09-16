@@ -357,13 +357,16 @@ func TestIngestValidations(t *testing.T) {
 	cases := []struct {
 		name                string
 		wantErr             string
+		wantExists          string
+		wantPatched         string
 		wantPatchedContains string
 		inputApp            inputApp
 		cfg                 serverConfig
 	}{
 		{
-			name:    "valid",
-			wantErr: "",
+			name:       "valid",
+			wantErr:    "",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
 			inputApp: inputApp{
 				Name:                "Foo",
 				UniqueIdentifier:    "Foo",
@@ -436,6 +439,32 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			name: "arm64 scopes policy queries to ARM hosts",
+			// An arm64 build can't run on x64, so both policy queries pass on non-ARM
+			// hosts. The open query runs only on a host already queued, so it is unscoped.
+			wantExists:  "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			wantPatched: "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.' AND version_compare(version, '1.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "arm64",
+				Slug:                "foo-arm64/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "arm64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
 			name:    "wrong installer type",
 			wantErr: "failed to find installer for app",
 			inputApp: inputApp{
@@ -478,9 +507,20 @@ func TestIngestValidations(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			if c.wantExists != "" {
+				require.Equal(t, c.wantExists, out.Queries.Exists)
+			}
+			if c.wantPatched != "" {
+				require.Equal(t, c.wantPatched, out.Queries.Patched)
+			}
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
+			// The managed "is app open" query matches a process named "<title>.exe".
+			require.Equal(t,
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
+				out.Queries.Open,
+			)
 		})
 	}
 }
@@ -659,4 +699,57 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.ErrorContains(t, err, "504")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
+}
+
+func TestNormalizeSourceForgeURL(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			// CrystalDiskMark's manifest omits the suffix, so a bare fetch gets
+			// SourceForge's HTML landing page instead of the installer.
+			name: "project file URL gets the download suffix",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe/download",
+		},
+		{
+			name: "already suffixed URL is left alone",
+			in:   "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+			want: "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+		},
+		{
+			name: "www host is normalized too",
+			in:   "https://www.sourceforge.net/projects/foo/files/bar.exe",
+			want: "https://www.sourceforge.net/projects/foo/files/bar.exe/download",
+		},
+		{
+			// This host serves the bytes directly; a suffix would 404.
+			name: "downloads subdomain is untouched",
+			in:   "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+		},
+		{
+			name: "non-file sourceforge path is untouched",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/",
+			want: "https://sourceforge.net/projects/crystaldiskmark/",
+		},
+		{
+			name: "other hosts are untouched",
+			in:   "https://github.com/owner/repo/releases/download/v1/app.exe",
+			want: "https://github.com/owner/repo/releases/download/v1/app.exe",
+		},
+		{
+			name: "query string is preserved",
+			in:   "https://sourceforge.net/projects/foo/files/bar.exe?use_mirror=psychz",
+			want: "https://sourceforge.net/projects/foo/files/bar.exe/download?use_mirror=psychz",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, normalizeSourceForgeURL(tt.in))
+		})
+	}
 }

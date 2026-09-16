@@ -1,18 +1,18 @@
 import React, { useState } from "react";
-import PATHS from "router/paths";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon/Icon";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
+import { timeAgo } from "utilities/date_format";
 
-import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import Icon from "components/Icon/Icon";
-import CustomLink from "components/CustomLink";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
@@ -83,7 +83,7 @@ const WelcomeHost = ({
               }
             } else {
               notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
               );
               setShowRefetchLoadingSpinner(false);
             }

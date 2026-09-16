@@ -1,1 +1,0 @@
-- Fixed observers not seeing the "Show managed account" action on a macOS host's details page, even though the API already allows them to view the managed local account password.

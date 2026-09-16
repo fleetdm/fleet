@@ -80,7 +80,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit "Unassigned" policy automations                                                                                                          |          |            |            |            | ✅    | ✅      |
 | View users\**                                                                                                                              | ✅       | ✅        | ✅         |  ✅        | ✅    |         |
 | Create, edit, view, and delete users                                                                                                       |          |            |            |            | ✅    |         |
-| Add and remove a fleet's users\*                                                                                                                |          |            |            |            | ✅    | ✅      |
+| Add and remove a fleet's users\*                                                                                                                |          |            |            |            | ✅    |         |
 | Create, edit, and delete fleets\*                                                                                                           |          |            |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets for a fleet](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |            |            | ✅         | ✅    |         |
@@ -124,6 +124,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Add Microsoft Entra tenant                                                                                                                 |          |            |            |            | ✅    |         |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Create, edit, and delete custom variables                                                                                                  |          |            |            | ✅         | ✅    | ✅      |
+| View custom host vitals                                                                                                                    | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
+| Create, edit, and delete custom host vitals                                                                                                |          |            |            | ✅         | ✅    | ✅      |
+| Set custom host vital values on hosts                                                                                                      |          |            |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -175,7 +178,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Create, edit, and delete fleet-level policies                                                                                           |               |                |                 | ✅              | ✅         | ✅          |
 | Edit fleet-level policy automations: calendar events, install software, and run script                                                  |               |                |                 | ✅              | ✅         | ✅          |
 | Edit fleet-level policy automations: other workflows (tickets and webhooks)                                                             |               |                |                 |                 | ✅         | ✅          |
-| Add and remove fleet-level users                                                                                                        |               |                |                 |                 | ✅         | ✅          |
+| Add and remove fleet-level users                                                                                                        |               |                |                 |                 | ✅         |             |
 | Edit the fleet's name                                                                                                                   |               |                |                 |                 | ✅         | ✅          |
 | Create, edit, and delete a [fleet's enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                |                 | ✅              | ✅         |             |
 | Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅              | ✅         | ✅          |
@@ -201,6 +204,8 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
 | View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
+| View custom host vitals                                                                                                          | ✅            | ✅             | ✅              | ✅              | ✅         | ✅         |
+| Set custom host vital values on hosts                                                                                            |               |                |                 | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

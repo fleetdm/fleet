@@ -6,6 +6,14 @@
 # install/repair rather than uninstall.
 
 $softwareNameLike = "*Proton Drive*"
+$timeoutSeconds = 300
+
+# The MSI auto-launches ProtonDrive.exe even on silent installs
+# (LaunchApplicationSilently, UILevel <= 2), and its uninstall runs a
+# synchronous "ProtonDrive.exe -uninstall" custom action (CleanUpFromApp) that
+# hangs while another instance is running. Kill the app before uninstalling.
+Get-Process -Name "ProtonDrive*", "Proton Drive*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -64,9 +72,18 @@ foreach ($key in $orderedKeys) {
     Write-Host "Uninstall command: $exe"
     Write-Host "Uninstall args: $uninstallArgs"
 
-    $processOptions = @{ FilePath = $exe; PassThru = $true; Wait = $true }
+    $processOptions = @{ FilePath = $exe; PassThru = $true }
     if ($uninstallArgs -ne '') { $processOptions.ArgumentList = $uninstallArgs }
     $process = Start-Process @processOptions
+
+    # Watchdog: fail fast with a real exit code instead of hanging forever if
+    # the burn engine (or its embedded MSI) never exits.
+    $completed = $process.WaitForExit($timeoutSeconds * 1000)
+    if (-not $completed) {
+        Write-Host "Error: Uninstall timed out after $timeoutSeconds seconds"
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        Exit 1603
+    }
     $exitCode = $process.ExitCode
     Write-Host "Uninstall exit code: $exitCode"
     break

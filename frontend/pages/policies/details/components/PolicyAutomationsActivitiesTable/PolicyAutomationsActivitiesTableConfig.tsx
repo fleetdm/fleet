@@ -1,21 +1,20 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import PATHS from "router/paths";
-import { IPolicyAutomationActivity } from "interfaces/policy";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { IPolicyAutomationActivity } from "interfaces/policy";
+import PATHS from "router/paths";
 
 import {
   getAutomationRunDisplayName,
-  getAutomationStatusIconName,
+  getAutomationStatusIcon,
   getDetailOutputText,
 } from "./helpers";
 
@@ -39,9 +38,10 @@ const generateColumnConfigs = (
     accessor: (row) => row.type,
     Cell: (cellProps: ICellProps) => {
       const activity = cellProps.row.original;
+      const statusIcon = getAutomationStatusIcon(activity);
       return (
         <div className={`${baseClass}__automation-cell`}>
-          <Icon name={getAutomationStatusIconName(activity.status)} />
+          <Icon name={statusIcon.name} color={statusIcon.color} />
           <TooltipTruncatedText value={getAutomationRunDisplayName(activity)} />
         </div>
       );
@@ -94,7 +94,7 @@ const generateColumnConfigs = (
       return (
         <Button
           className={`${baseClass}__details-cell`}
-          variant="inverse"
+          variant="subdued"
           onClick={() => onShowDetails(activity)}
         >
           <span className={`${baseClass}__details-text`}>

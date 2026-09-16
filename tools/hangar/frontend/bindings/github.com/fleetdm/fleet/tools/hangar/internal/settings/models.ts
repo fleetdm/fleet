@@ -147,6 +147,43 @@ export class NgrokConfig {
 }
 
 /**
+ * NgrokRunningTunnel is one live tunnel from ngrok's local API, including the
+ * public URL it's forwarding from.
+ */
+export class NgrokRunningTunnel {
+    "name": string;
+    "public_url": string;
+    "proto": string;
+    "addr": string;
+
+    /** Creates a new NgrokRunningTunnel instance. */
+    constructor($$source: Partial<NgrokRunningTunnel> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("public_url" in $$source)) {
+            this["public_url"] = "";
+        }
+        if (!("proto" in $$source)) {
+            this["proto"] = "";
+        }
+        if (!("addr" in $$source)) {
+            this["addr"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NgrokRunningTunnel instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NgrokRunningTunnel {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NgrokRunningTunnel($$parsedSource as Partial<NgrokRunningTunnel>);
+    }
+}
+
+/**
  * NgrokTunnel is one tunnel definition from ngrok.yml.
  */
 export class NgrokTunnel {
@@ -287,7 +324,249 @@ export class RepoProbe {
 }
 
 /**
+ * ScepProfile is one saved SCEP server launch configuration. The in-repo
+ * scepserver binary (a fork of micromdm/scep) is shared across profiles; each
+ * profile differs by its depot (CA), port, and challenge, so several can run
+ * side by side and expose multiple Custom SCEP CAs to Fleet at once. Profiles
+ * are the reusable ("starred") configs — every profile is persisted, so the
+ * saved list *is* the set of reusable selections.
+ */
+export class ScepProfile {
+    /**
+     * stable, e.g. "scep1" (never reused/renumbered)
+     */
+    "id": string;
+
+    /**
+     * user-facing label, e.g. "windows" / "temp"
+     */
+    "name": string;
+
+    /**
+     * DepotPath is the CA folder (ca.pem/ca.key/index.txt/serial/...). Empty
+     * means the managed default <ScepDepotsDir>/<ID>; see ResolveDepotPath.
+     */
+    "depot_path": string;
+    "port": number;
+    "challenge": string;
+
+    /**
+     * AllowRenew is the number of days before expiry a renewal is allowed
+     * (scepserver -allowrenew). 0 = always allow.
+     */
+    "allow_renew": number;
+
+    /**
+     * scepserver -debug
+     */
+    "debug": boolean;
+
+    /**
+     * ExtraFlags are additional scepserver args, whitespace-separated, for
+     * anything not covered by the fields above.
+     */
+    "extra_flags": string;
+
+    /** Creates a new ScepProfile instance. */
+    constructor($$source: Partial<ScepProfile> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("depot_path" in $$source)) {
+            this["depot_path"] = "";
+        }
+        if (!("port" in $$source)) {
+            this["port"] = 0;
+        }
+        if (!("challenge" in $$source)) {
+            this["challenge"] = "";
+        }
+        if (!("allow_renew" in $$source)) {
+            this["allow_renew"] = 0;
+        }
+        if (!("debug" in $$source)) {
+            this["debug"] = false;
+        }
+        if (!("extra_flags" in $$source)) {
+            this["extra_flags"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ScepProfile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ScepProfile {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ScepProfile($$parsedSource as Partial<ScepProfile>);
+    }
+}
+
+/**
+ * ServerPorts holds the host ports one server's stack binds to. Server 1 keeps
+ * the canonical dev defaults (8080/3306/6379/9000/9001) so existing scripts and
+ * muscle memory keep working; additional servers use offset blocks so two
+ * stacks never collide.
+ */
+export class ServerPorts {
+    /**
+     * fleet serve --server_address host port
+     */
+    "server": number;
+
+    /**
+     * docker mysql host port
+     */
+    "mysql": number;
+
+    /**
+     * docker redis host port
+     */
+    "redis": number;
+
+    /**
+     * docker s3 (object store) host port
+     */
+    "s3": number;
+
+    /**
+     * docker s3 console host port
+     */
+    "s3_console": number;
+
+    /** Creates a new ServerPorts instance. */
+    constructor($$source: Partial<ServerPorts> = {}) {
+        if (!("server" in $$source)) {
+            this["server"] = 0;
+        }
+        if (!("mysql" in $$source)) {
+            this["mysql"] = 0;
+        }
+        if (!("redis" in $$source)) {
+            this["redis"] = 0;
+        }
+        if (!("s3" in $$source)) {
+            this["s3"] = 0;
+        }
+        if (!("s3_console" in $$source)) {
+            this["s3_console"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerPorts instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerPorts {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ServerPorts($$parsedSource as Partial<ServerPorts>);
+    }
+}
+
+/**
+ * ServerProfile is one independent local Fleet server instance: its own git
+ * worktree (so it can build/run a different branch), host ports, docker compose
+ * project, and serve config. Multiple profiles can run in parallel.
+ */
+export class ServerProfile {
+    /**
+     * stable, e.g. "s1" (never reused/renumbered)
+     */
+    "id": string;
+
+    /**
+     * user-facing label, e.g. "main" / "n-1 repro"
+     */
+    "name": string;
+
+    /**
+     * accent key for the switcher/status: green|purple|blue
+     */
+    "color": string;
+
+    /**
+     * WorktreePath is the git worktree this server builds and runs from. For
+     * server 1 this is typically the primary clone; others are `git worktree
+     * add`-ed trees. nil until the user picks one.
+     */
+    "worktree_path": string | null;
+
+    /**
+     * Branch is informational (the branch the worktree was created on). The
+     * live branch is read from git; checkout happens in the Git tab.
+     */
+    "branch": string | null;
+    "ports": ServerPorts;
+
+    /**
+     * docker compose -p value
+     */
+    "compose_project": string;
+    "fleet_serve": FleetServeConfig;
+    "enabled": boolean;
+
+    /** Creates a new ServerProfile instance. */
+    constructor($$source: Partial<ServerProfile> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("color" in $$source)) {
+            this["color"] = "";
+        }
+        if (!("worktree_path" in $$source)) {
+            this["worktree_path"] = null;
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = null;
+        }
+        if (!("ports" in $$source)) {
+            this["ports"] = (new ServerPorts());
+        }
+        if (!("compose_project" in $$source)) {
+            this["compose_project"] = "";
+        }
+        if (!("fleet_serve" in $$source)) {
+            this["fleet_serve"] = (new FleetServeConfig());
+        }
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ServerProfile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ServerProfile {
+        const $$createField5_0 = $$createType5;
+        const $$createField7_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ports" in $$parsedSource) {
+            $$parsedSource["ports"] = $$createField5_0($$parsedSource["ports"]);
+        }
+        if ("fleet_serve" in $$parsedSource) {
+            $$parsedSource["fleet_serve"] = $$createField7_0($$parsedSource["fleet_serve"]);
+        }
+        return new ServerProfile($$parsedSource as Partial<ServerProfile>);
+    }
+}
+
+/**
  * Settings is the full persisted configuration.
+ * 
+ * Servers is the multi-server source of truth. The legacy single-server fields
+ * (RepoPath, FleetServe) are retained so settings written before multi-server
+ * support still parse; Load() migrates them into Servers[0]. New code reads
+ * from Servers / ActiveServerID, not the legacy fields.
  */
 export class Settings {
     "repo_path": string | null;
@@ -299,6 +578,27 @@ export class Settings {
     "fleet_serve": FleetServeConfig;
     "theme": ThemePreference;
     "favorite_crons": string[];
+    "tuf": TufConfig;
+
+    /**
+     * Servers is nil in a pre-multi-server file; migrate() backfills it from
+     * the legacy fields on Load so callers always see at least one server.
+     */
+    "servers": ServerProfile[];
+    "active_server_id": string;
+
+    /**
+     * ScepProfiles are saved SCEP server launch configs (see scep.go). The
+     * in-repo scepserver binary is shared; profiles differ by depot/port so
+     * several CAs can run at once.
+     */
+    "scep_profiles": ScepProfile[];
+
+    /**
+     * ScepDepotsDir overrides where managed CA depots live; empty means the
+     * service default under app-data (<app-data>/scep-depots).
+     */
+    "scep_depots_dir": string | null;
 
     /** Creates a new Settings instance. */
     constructor($$source: Partial<Settings> = {}) {
@@ -329,6 +629,21 @@ export class Settings {
         if (!("favorite_crons" in $$source)) {
             this["favorite_crons"] = [];
         }
+        if (!("tuf" in $$source)) {
+            this["tuf"] = (new TufConfig());
+        }
+        if (!("servers" in $$source)) {
+            this["servers"] = [];
+        }
+        if (!("active_server_id" in $$source)) {
+            this["active_server_id"] = "";
+        }
+        if (!("scep_profiles" in $$source)) {
+            this["scep_profiles"] = [];
+        }
+        if (!("scep_depots_dir" in $$source)) {
+            this["scep_depots_dir"] = null;
+        }
 
         Object.assign(this, $$source);
     }
@@ -337,10 +652,13 @@ export class Settings {
      * Creates a new Settings instance from a string or object.
      */
     static createFrom($$source: any = {}): Settings {
-        const $$createField4_0 = $$createType5;
-        const $$createField5_0 = $$createType6;
-        const $$createField6_0 = $$createType7;
+        const $$createField4_0 = $$createType7;
+        const $$createField5_0 = $$createType8;
+        const $$createField6_0 = $$createType6;
         const $$createField8_0 = $$createType2;
+        const $$createField9_0 = $$createType9;
+        const $$createField10_0 = $$createType11;
+        const $$createField12_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ngrok" in $$parsedSource) {
             $$parsedSource["ngrok"] = $$createField4_0($$parsedSource["ngrok"]);
@@ -353,6 +671,15 @@ export class Settings {
         }
         if ("favorite_crons" in $$parsedSource) {
             $$parsedSource["favorite_crons"] = $$createField8_0($$parsedSource["favorite_crons"]);
+        }
+        if ("tuf" in $$parsedSource) {
+            $$parsedSource["tuf"] = $$createField9_0($$parsedSource["tuf"]);
+        }
+        if ("servers" in $$parsedSource) {
+            $$parsedSource["servers"] = $$createField10_0($$parsedSource["servers"]);
+        }
+        if ("scep_profiles" in $$parsedSource) {
+            $$parsedSource["scep_profiles"] = $$createField12_0($$parsedSource["scep_profiles"]);
         }
         return new Settings($$parsedSource as Partial<Settings>);
     }
@@ -372,12 +699,69 @@ export enum ThemePreference {
     ThemeDark = "dark",
 };
 
+/**
+ * TufConfig is the saved inputs for a local TUF build (drives
+ * tools/tuf/test/main.sh). Platforms are UI keys (macos|windows|windows-arm64|
+ * linux|linux-arm64) that expand to SYSTEMS + GENERATE_* env; the URLs are the
+ * public (ngrok) Fleet/TUF endpoints baked into the generated installers.
+ */
+export class TufConfig {
+    "platforms": string[];
+    "fleet_url": string;
+    "tuf_url": string;
+    "enroll_secret": string;
+    "fleet_desktop": boolean;
+    "debug": boolean;
+
+    /** Creates a new TufConfig instance. */
+    constructor($$source: Partial<TufConfig> = {}) {
+        if (!("platforms" in $$source)) {
+            this["platforms"] = [];
+        }
+        if (!("fleet_url" in $$source)) {
+            this["fleet_url"] = "";
+        }
+        if (!("tuf_url" in $$source)) {
+            this["tuf_url"] = "";
+        }
+        if (!("enroll_secret" in $$source)) {
+            this["enroll_secret"] = "";
+        }
+        if (!("fleet_desktop" in $$source)) {
+            this["fleet_desktop"] = false;
+        }
+        if (!("debug" in $$source)) {
+            this["debug"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TufConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TufConfig {
+        const $$createField0_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("platforms" in $$parsedSource) {
+            $$parsedSource["platforms"] = $$createField0_0($$parsedSource["platforms"]);
+        }
+        return new TufConfig($$parsedSource as Partial<TufConfig>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = EnvVar.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = NgrokTunnel.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = NgrokConfig.createFrom;
-const $$createType6 = PythonConfig.createFrom;
-const $$createType7 = FleetServeConfig.createFrom;
+const $$createType5 = ServerPorts.createFrom;
+const $$createType6 = FleetServeConfig.createFrom;
+const $$createType7 = NgrokConfig.createFrom;
+const $$createType8 = PythonConfig.createFrom;
+const $$createType9 = TufConfig.createFrom;
+const $$createType10 = ServerProfile.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = ScepProfile.createFrom;
+const $$createType13 = $Create.Array($$createType12);

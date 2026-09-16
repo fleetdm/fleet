@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
 
 const baseClass = "delete-label-modal";
 
@@ -34,6 +33,10 @@ const DeleteLabelModal = ({
             deleted. You will need to delete the configuration profile first.
           </li>
           <li>
+            Labels that are used in custom software targets will not be deleted.
+            You will need to remove the label from the software targets first.
+          </li>
+          <li>
             Reports and policies that target this label will continue to run,
             but may target different hosts.
           </li>
@@ -48,7 +51,7 @@ const DeleteLabelModal = ({
         >
           Delete
         </Button>
-        <Button onClick={onCancel} variant="inverse-alert">
+        <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
       </div>

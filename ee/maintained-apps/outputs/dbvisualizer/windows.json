@@ -4,7 +4,8 @@
       "version": "26.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'DbVisualizer' AND publisher = 'DbVis Software AB';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DbVisualizer' AND publisher = 'DbVis Software AB' AND version_compare(version, '26.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DbVisualizer' AND publisher = 'DbVis Software AB' AND version_compare(version, '26.2.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dbvisualizer.exe');"
       },
       "installer_url": "https://www.dbvis.com/product_download/dbvis-26.2.1/media/dbvis_windows-x64_26_2_1_jre.exe",
       "install_script_ref": "a8ba6613",

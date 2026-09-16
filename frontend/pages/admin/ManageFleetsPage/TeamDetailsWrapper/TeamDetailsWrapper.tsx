@@ -1,9 +1,17 @@
 import React, { useState, useCallback, useContext } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { Tab, TabList, Tabs } from "react-tabs";
 
+import BackButton from "components/BackButton";
+import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
+import FleetsDropdown from "components/FleetsDropdown";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
@@ -21,20 +29,12 @@ import usersAPI, { IGetMeResponse } from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
 import sortUtils from "utilities/sort";
 
-import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
-import Spinner from "components/Spinner";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import BackButton from "components/BackButton";
-import TeamsDropdown from "components/TeamsDropdown";
-import MainContent from "components/MainContent";
-import { notify } from "components/ToastNotification";
+import AddHostsModal from "../../../../components/AddHostsModal";
+import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
+import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
+import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import DeleteFleetModal from "../components/DeleteFleetModal";
 import RenameFleetModal from "../components/RenameFleetModal";
-import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
-import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
-import AddHostsModal from "../../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
 
 const baseClass = "team-details";
 
@@ -402,11 +402,11 @@ const TeamDetailsWrapper = ({
             {userTeams?.length === 1 ? (
               <h1>{currentTeamDetails.name}</h1>
             ) : (
-              <TeamsDropdown
-                selectedTeamId={currentTeamId}
-                currentUserTeams={userTeams || []}
+              <FleetsDropdown
+                selectedFleetId={currentTeamId}
+                currentUserFleets={userTeams || []}
                 isDisabled={isLoadingTeams}
-                includeAllTeams={false}
+                includeAllFleets={false}
                 onChange={handleTeamChange}
               />
             )}
@@ -427,24 +427,21 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Manage enroll secrets",
-                buttonVariant: "inverse",
-                iconName: "eye",
+                buttonVariant: "secondary",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
                 label: "Rename fleet",
-                buttonVariant: "inverse",
-                iconName: "pencil",
+                buttonVariant: "secondary",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
                 label: "Delete fleet",
-                buttonVariant: "inverse",
-                iconName: "trash",
+                buttonVariant: "secondary",
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,
                 gitOpsModeCompatible: true,

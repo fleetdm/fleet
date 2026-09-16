@@ -11,9 +11,11 @@
       // opacity/pointer-events (not display:none) so action buttons stay in
       // the tab order in both directions. display:none would remove them from
       // layout and tab order, breaking Shift+Tab reversal.
+      // Gap between the buttons is set in ScriptListItem's own styles — not
+      // duplicated here, since an equally-specific selector on both would make
+      // the winner depend on SCSS compile order.
       display: flex;
       justify-content: flex-end;
-      gap: $pad-medium;
       opacity: 0;
       pointer-events: none;
       transition: opacity 150ms ease-in-out;

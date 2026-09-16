@@ -1,6 +1,6 @@
+import { findLastIndex, sortBy, trimStart } from "lodash";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, sortBy, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -157,15 +157,13 @@ const filterUserTeamsByRole = (
   userTeams: ITeam[],
   permittedAccessByUserRole?: Record<IUserRole, boolean>
 ) => {
-  if (!permittedAccessByUserRole) {
-    return userTeams;
-  }
+  const filtered = permittedAccessByUserRole
+    ? userTeams.filter(
+        ({ role }) => role && !!permittedAccessByUserRole[role as IUserRole]
+      )
+    : [...userTeams];
 
-  return userTeams
-    .filter(
-      ({ role }) => role && !!permittedAccessByUserRole[role as IUserRole]
-    )
-    .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name));
+  return filtered.sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name));
 };
 
 const getUserTeams = ({

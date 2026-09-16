@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 
-import mdmAPI from "services/entities/mdm";
-import { notify } from "components/ToastNotification";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "delete-setup-experience-script-modal";
 
@@ -63,7 +62,7 @@ const DeleteSetupExperienceScriptModal = ({
         >
           Delete
         </Button>
-        <Button onClick={onExit} variant="inverse-alert">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

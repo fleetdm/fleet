@@ -1,6 +1,9 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
+
+import classnames from "classnames";
+import { kebabCase, noop } from "lodash";
 import React, {
   useMemo,
   useEffect,
@@ -8,7 +11,6 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import classnames from "classnames";
 import {
   Column,
   HeaderGroup,
@@ -20,16 +22,15 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
+import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
-import { AppContext } from "context/app";
 
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -267,6 +268,11 @@ const DataTable = ({
             b: { values: Record<string, unknown[]> },
             id: string
           ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
+          version: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.versionAsc(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -555,20 +561,11 @@ const DataTable = ({
             </div>
             {toggleAllPagesSelected && renderAreAllSelected()}
             {shouldRenderToggleAllPages && (
-              <Button
-                onClick={onToggleAllPagesClick}
-                variant="inverse"
-                className="light-text"
-                size="small"
-              >
+              <Button onClick={onToggleAllPagesClick} variant="link">
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button
-              onClick={onClearSelectionClick}
-              variant="inverse"
-              size="small"
-            >
+            <Button onClick={onClearSelectionClick} variant="link">
               Clear selection
             </Button>
           </div>
@@ -596,7 +593,11 @@ const DataTable = ({
           <Spinner />
         </div>
       )}
-      <div className="data-table data-table__wrapper">
+      <div
+        className={classnames("data-table", "data-table__wrapper", {
+          "data-table__wrapper--no-rows": !rows.length,
+        })}
+      >
         <table className={tableStyles}>
           {!suppressHeaderActions &&
             Object.keys(selectedRowIds).length !== 0 &&

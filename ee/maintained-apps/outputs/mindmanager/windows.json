@@ -4,7 +4,8 @@
       "version": "25.0.208.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'MindManager %' AND publisher = 'Corel Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'MindManager %' AND publisher = 'Corel Corporation' AND version_compare(version, '25.0.208.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'MindManager %' AND publisher = 'Corel Corporation' AND version_compare(version, '25.0.208.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mindmanager.exe');"
       },
       "installer_url": "https://download.mindjet.com/MindManager_64bit_25.0.208_redist.exe",
       "install_script_ref": "83267335",

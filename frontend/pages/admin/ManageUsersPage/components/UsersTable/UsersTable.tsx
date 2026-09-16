@@ -1,32 +1,33 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
-import PATHS from "router/paths";
-import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import authToken from "utilities/auth_token";
-
-import { AppContext } from "context/app";
-import usersAPI from "services/entities/users";
-import invitesAPI from "services/entities/invites";
-
+import ActionsDropdown from "components/ActionsDropdown";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TableDataError from "components/DataError";
-import ActionsDropdown from "components/ActionsDropdown";
-import EmptyState from "components/EmptyState";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IInvite } from "interfaces/invite";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import invitesAPI from "services/entities/invites";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+
+import DeleteUserModal from "../DeleteUserModal";
+import ResetPasswordModal from "../ResetPasswordModal";
+import ResetSessionsModal from "../ResetSessionsModal";
+
 import {
   generateTableHeaders,
   combineDataSets,
   IUserTableData,
 } from "./UsersTableConfig";
-import DeleteUserModal from "../DeleteUserModal";
-import ResetPasswordModal from "../ResetPasswordModal";
-import ResetSessionsModal from "../ResetSessionsModal";
 
 const ADD_USER_OPTIONS: IDropdownOption[] = [
   {
@@ -47,6 +48,10 @@ const EmptyUsersTable = () => (
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
 );
+
+interface IRowProps extends Row {
+  original: IUserTableData;
+}
 
 interface IUsersTableProps {
   router: InjectedRouter; // v3
@@ -121,16 +126,27 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
+  const goToEditUser = useCallback(
+    (user: IUserTableData) => {
+      if (user.type === "user" && user.apiId === currentUser?.id) {
+        router.push(PATHS.ACCOUNT);
+        return;
+      }
+      const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
+      router.push(
+        user.type === "invite" ? `${editPath}?type=invite` : editPath
+      );
+    },
+    [router, currentUser?.id]
+  );
+
   const onActionSelect = useCallback(
     (value: string, user: IUserTableData) => {
       switch (value) {
-        case "edit": {
-          const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
-          router.push(
-            user.type === "invite" ? `${editPath}?type=invite` : editPath
-          );
+        case "edit":
+        case "editMyAccount":
+          goToEditUser(user);
           break;
-        }
         case "delete":
           toggleDeleteUserModal(user);
           break;
@@ -140,16 +156,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         case "resetSessions":
           toggleResetSessionsUserModal(user);
           break;
-        case "editMyAccount":
-          router.push(PATHS.ACCOUNT);
-          break;
         default:
           return null;
       }
       return null;
     },
     [
-      router,
+      goToEditUser,
       toggleDeleteUserModal,
       toggleResetPasswordUserModal,
       toggleResetSessionsUserModal,
@@ -317,7 +330,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         options={ADD_USER_OPTIONS}
         onChange={onAddUserSelect}
         placeholder="Add user"
-        variant="brand-button"
+        variant="primary"
         buttonLabel="Add user"
         className="add-user-dropdown"
         menuAlign="left"
@@ -347,6 +360,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           isAllPagesSelected={false}
           isClientSidePagination
           renderCount={renderUsersCount}
+          disableMultiRowSelect
+          onClickRow={(row: IRowProps) => goToEditUser(row.original)}
         />
       )}
       {showDeleteUserModal && renderDeleteUserModal()}

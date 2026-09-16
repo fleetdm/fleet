@@ -56,8 +56,35 @@ func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables [
 		return nil
 	}
 
-	if err := svc.ds.UpsertSecretVariables(ctx, secretVariables); err != nil {
+	created, updated, err := svc.ds.UpsertSecretVariables(ctx, secretVariables)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving secret variables")
+	}
+
+	// Emit an activity per created/updated variable so secret changes are
+	// auditable.
+	user := authz.UserFromContext(ctx)
+	for _, name := range created {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityCreatedCustomVariable{
+				CustomVariableName: name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for secret variable creation")
+		}
+	}
+	for _, name := range updated {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityUpdatedCustomVariable{
+				CustomVariableName: name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for secret variable update")
+		}
 	}
 	return nil
 }

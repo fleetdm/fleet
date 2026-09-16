@@ -11,6 +11,8 @@
 - **You have three ways to push it through.** Microsoft Intune's Secure Boot certificate settings, a registry value, or a configuration profile (CSP). The profile is the cleanest option for a managed fleet.
 - **Looking now beats scrambling in June.** Deploy the extension today and you can count blocked devices, group them by bucket, and validate a fix on one machine before rolling it out to the rest.
 
+Grab the [secure boot certificate extension](https://github.com/allenhouchins/fleet-extensions/tree/main/secureboot_cert_update).
+
 <a purpose="cta-button" href="/articles/deploying-custom-osquery-extensions-in-fleet">Deploy the extension</a>
 
 If you manage Windows devices, this one is going to sneak up on you. Per Microsoft's guidance, an affected device keeps starting normally, Windows keeps installing most updates, and everyday app use, networking, and browsing stay unchanged, so there's no alarm to trip.

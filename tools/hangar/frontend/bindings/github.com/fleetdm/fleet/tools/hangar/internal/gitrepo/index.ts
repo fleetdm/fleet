@@ -5,5 +5,6 @@ export {
     Branch,
     BranchStatus,
     CommitInfo,
-    FileChange
+    FileChange,
+    Worktree
 } from "./models.js";

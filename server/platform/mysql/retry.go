@@ -52,6 +52,20 @@ func TriggerFatalError(ctx context.Context, err error) {
 
 var DoRetryErr = errors.New("fleet datastore retry")
 
+type wrappedTx struct {
+	*sqlx.Tx
+	onCommitHooks []func()
+}
+
+func (tx *wrappedTx) AddOnCommitHook(hook func()) {
+	tx.onCommitHooks = append(tx.onCommitHooks, hook)
+}
+
+type WrappedExtContext interface {
+	sqlx.ExtContext
+	AddOnCommitHook(hook func())
+}
+
 type TxFn func(tx sqlx.ExtContext) error
 
 // ReadTxFn is the read-only variant of TxFn, with tx only exposing the read methods
@@ -64,6 +78,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
+		wrappedTx := wrappedTx{Tx: tx}
 
 		defer func() {
 			if p := recover(); p != nil {
@@ -74,7 +89,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger
 			}
 		}()
 
-		if err := fn(tx); err != nil {
+		if err := fn(&wrappedTx); err != nil {
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
 				// Consider rollback errors to be non-retryable
@@ -111,6 +126,11 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger
 			return backoff.Permanent(err)
 		}
 
+		// run any onCommit hooks.
+		for _, hook := range wrappedTx.onCommitHooks {
+			hook()
+		}
+
 		return nil
 	}
 
@@ -133,6 +153,8 @@ func RetryableError(err error) bool {
 		switch b.Number {
 		// Consider lock related errors to be retryable
 		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
+			return true
+		case mysqlerr.ER_NEED_REPREPARE:
 			return true
 		}
 	}

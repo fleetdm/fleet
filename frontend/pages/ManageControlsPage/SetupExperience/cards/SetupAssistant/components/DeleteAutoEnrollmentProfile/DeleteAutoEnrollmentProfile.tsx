@@ -1,10 +1,9 @@
 import React from "react";
 
-import mdmAPI from "services/entities/mdm";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
 
 interface DeleteAutoEnrollProfileProps {
   currentTeamId: number;
@@ -44,7 +43,7 @@ const DeleteAutoEnrollProfile = ({
         <Button type="button" onClick={handleDelete} variant="alert">
           Delete
         </Button>
-        <Button onClick={onCancel} variant="inverse-alert">
+        <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
       </div>

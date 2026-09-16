@@ -1,20 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
+import { IHostCertificate } from "interfaces/certificates";
 import { IHost, HostStatus } from "interfaces/host";
-import {
-  QueryParams,
-  buildQueryStringFromParams,
-  getLabelParam,
-  reconcileMutuallyExclusiveHostParams,
-  reconcileMutuallyInclusiveHostParams,
-} from "utilities/url";
-import {
-  IHostSoftware,
-  ISoftware,
-  SoftwareAggregateStatus,
-  SoftwareSource,
-} from "interfaces/software";
+import { IListOptions } from "interfaces/list_options";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -22,10 +11,22 @@ import {
   MdmProfileStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  IHostSoftware,
+  ISoftware,
+  SoftwareAggregateStatus,
+  SoftwareSource,
+} from "interfaces/software";
+import sendRequest from "services";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
-import { IHostCertificate } from "interfaces/certificates";
-import { IListOptions } from "interfaces/list_options";
+import endpoints from "utilities/endpoints";
+import {
+  QueryParams,
+  buildQueryStringFromParams,
+  getLabelParam,
+  reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
+} from "utilities/url";
 
 import { ScriptBatchHostCountV1 } from "./scripts";
 
@@ -46,7 +47,7 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
-export type DepAssignProfileResponse =
+export type DEPDeviceStatus =
   | "SUCCESS"
   | "FAILED"
   | "THROTTLED"
@@ -68,9 +69,11 @@ export interface IDepAssignmentHostResponse {
     profile_uuid: string;
     mdm_migration_deadline: string | null;
     serial_number: string;
-  };
+    response_status: DEPDeviceStatus;
+  } | null;
+  dep_device_error: string | null;
   host_dep_assignment: {
-    assign_profile_response: DepAssignProfileResponse;
+    assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
     added_at: string;
@@ -78,7 +81,7 @@ export interface IDepAssignmentHostResponse {
     abm_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
-  };
+  } | null;
 }
 
 export type IUnlockHostResponse =
@@ -139,7 +142,7 @@ export interface ILoadHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IExportHostsOptions {
@@ -177,7 +180,7 @@ export interface IExportHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IActionByFilter {
@@ -207,7 +210,7 @@ export interface IActionByFilter {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -570,6 +573,12 @@ export default {
 
     return sendRequest("POST", path);
   },
+  apnsPing: (hostID: number) => {
+    const { HOST_APNS_PING } = endpoints;
+    const path = `${HOST_APNS_PING(hostID)}`;
+
+    return sendRequest("POST", path);
+  },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}?query=${searchText}`;
@@ -728,6 +737,12 @@ export default {
       "POST",
       HOST_RESEND_CERTIFICATE(hostId, certificateTemplateId)
     );
+  },
+
+  resendNameTemplate: (hostId: number): Promise<void> => {
+    const { HOST_RESEND_NAME_TEMPLATE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_NAME_TEMPLATE(hostId));
   },
 
   getHostSoftware: (

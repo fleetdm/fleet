@@ -4,7 +4,8 @@
       "version": "1.126.04524",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium' AND version_compare(version, '1.126.04524') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VSCodium' AND publisher = 'VSCodium' AND version_compare(version, '1.126.04524') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'vscodium.exe');"
       },
       "installer_url": "https://github.com/VSCodium/vscodium/releases/download/1.126.04524/VSCodiumSetup-x64-1.126.04524.exe",
       "install_script_ref": "38852240",

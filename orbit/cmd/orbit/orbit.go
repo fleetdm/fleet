@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/managedaccount"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -55,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/wstransport"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
@@ -250,6 +252,11 @@ func main() {
 			Name:    "disable-setup-experience",
 			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
+		},
+		&cli.BoolFlag{
+			Name:    "bypass-end-user-auth",
+			Usage:   "Bypasses end-user authentication during fleetd enrollment on Linux and Windows",
+			EnvVars: []string{"ORBIT_BYPASS_END_USER_AUTH"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -1169,6 +1176,14 @@ func orbitAction(c *cli.Context) error {
 		)
 	}
 
+	// Bypass end-user authentication only when there is no EUA token to process. When the Windows MDM installer supplies
+	// an EUA token, the user already authenticated during MDM enrollment and the server links the host's IdP account
+	// from that token. Processing the token requires that orbit keep advertising the end-user auth capability, so a
+	// present token takes precedence over the bypass flag.
+	euaToken := c.String("eua-token")
+	hasEUAToken := euaToken != "" && euaToken != constant.UnusedFlagKeyword
+	bypassEndUserAuth := c.Bool("bypass-end-user-auth") && !hasEUAToken
+
 	orbitClient, err = fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
@@ -1187,6 +1202,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		signerWrapper,
 		hostIdentityCertificatePath,
+		bypassEndUserAuth,
 	)
 	if err != nil {
 		return fmt.Errorf("error new orbit client: %w", err)
@@ -1204,7 +1220,7 @@ func orbitAction(c *cli.Context) error {
 
 	// Set the EUA token from the MSI installer (Windows MDM enrollment).
 	// Must be set before any authenticated request triggers enrollment.
-	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != constant.UnusedFlagKeyword {
+	if hasEUAToken {
 		orbitClient.SetEUAToken(euaToken)
 	}
 
@@ -1221,6 +1237,9 @@ func orbitAction(c *cli.Context) error {
 		// windowsMDMSyncCommandFrequency throttles on-demand OMA-DM syncs: while a command stays queued the server keeps setting
 		// WindowsMDMSyncRequest on each config poll, and this bounds how often we act on it.
 		windowsMDMSyncCommandFrequency = time.Minute
+		// windowsManagedAccountRetryFrequency paces retries when the managed local account cannot be
+		// provisioned, for instance because the host's password policy rejects the generated password.
+		windowsManagedAccountRetryFrequency = time.Hour
 	)
 
 	scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
@@ -1300,6 +1319,7 @@ func orbitAction(c *cli.Context) error {
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
@@ -1308,6 +1328,11 @@ func orbitAction(c *cli.Context) error {
 		RootDir: c.String("root-dir"),
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+
+	// Watch the orbit config for the server's WebSocket transport directive; a
+	// toggle persists the new state and restarts orbit (see
+	// wstransport.ToggleReceiver).
+	orbitClient.RegisterConfigReceiver(wstransport.NewToggleReceiver(c.String("root-dir"), orbitClient.TriggerOrbitRestart))
 
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
 	startedInDebug := c.Bool("debug")
@@ -1385,6 +1410,16 @@ func orbitAction(c *cli.Context) error {
 		interrupt: orbitClient.InterruptConfigReceivers,
 	})
 
+	// The WebSocket transport toggle is read once per process lifetime, after
+	// the early config fetch above had a chance to persist a server-directed
+	// change (and restart orbit if it did). Everything — the osquery flag
+	// flip, the plugin registration, the manager subsystem — derives from this
+	// one bool, so there is no mixed state within a run.
+	wsTransportEnabled := wstransport.Enabled(c.String("root-dir"))
+	if wsTransportEnabled {
+		log.Info().Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
+	}
+
 	// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
 	// `"", nil`. Therefore there's no platform-specific stuff required here
 	augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
@@ -1419,6 +1454,30 @@ func orbitAction(c *cli.Context) error {
 	options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
 	options = append(options, optionsAfterFlagfile...)
 
+	// Route osquery's distributed queries through orbit's extension plugin.
+	// Set after --flagfile so user flagfiles can't override it (repeated
+	// gflags: last one wins, overriding --distributed_plugin=tls from
+	// FleetFlags).
+	//
+	// --extensions_require makes osqueryd wait for orbit's extension before
+	// activating plugins; without it activation races extension registration
+	// (~1s window, observed on osquery 5.23) and a lost race crashloops the
+	// whole process. User-set --extensions_require/--extensions_timeout from
+	// the flagfile are merged in rather than clobbered — dropping the user's
+	// list would hit the same race for their extensions (see
+	// wstransport.OsqueryFlags).
+	if wsTransportEnabled {
+		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
+		if err != nil {
+			// the flagfile may legitimately not exist; merge against nothing
+			if !errors.Is(err, os.ErrNotExist) {
+				log.Warn().Err(err).Msg("read osquery.flags to merge websocket transport flags")
+			}
+			userFlags = nil
+		}
+		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags)))
+	}
+
 	// Handle additional args after '--' in the command line. These are added last and should
 	// override all other flags and flagfile entries.
 	options = append(options, osquery.WithFlags(c.Args().Slice()))
@@ -1448,6 +1507,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		nil,
 		"",
+		bypassEndUserAuth,
 	)
 	if err != nil {
 		return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -1471,9 +1531,7 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
-	registerExtensionRunner(
-		&g,
-		r.ExtensionSocketPath(),
+	extensionOpts := []table.Opt{
 		table.WithExtension(orbit_info.New(
 			orbitClient,
 			c.String("orbit-channel"),
@@ -1485,6 +1543,30 @@ func orbitAction(c *cli.Context) error {
 			scriptsEnabledFn,
 			opt.ServerURL,
 		)),
+	}
+
+	if wsTransportEnabled {
+		parsedFleetURL, err := url.Parse(fleetURL)
+		if err != nil {
+			return fmt.Errorf("parse Fleet URL for websocket transport: %w", err)
+		}
+		wsManager := wstransport.NewManager(wstransport.Options{
+			ServerURL:          parsedFleetURL,
+			RootCA:             c.String("fleet-certificate"),
+			InsecureSkipVerify: c.Bool("insecure"),
+			ClientCertificate:  fleetClientCertificate,
+			NodeKeyFunc:        orbitClient.GetNodeKey,
+			Client:             orbitClient,
+			Cache:              wstransport.NewQueryCache(),
+		})
+		addSubsystem(&g, "websocket transport", wsManager)
+		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
+	}
+
+	registerExtensionRunner(
+		&g,
+		r.ExtensionSocketPath(),
+		extensionOpts...,
 	)
 
 	if c.Bool("fleet-desktop") {

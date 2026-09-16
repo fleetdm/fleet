@@ -1,0 +1,1 @@
+- Fixed a query returning a MySQL error if hit with unsupported platforms, by now returning an empty result.

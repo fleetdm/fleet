@@ -1,21 +1,18 @@
+import classnames from "classnames";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 import React from "react";
 
-import { format } from "date-fns";
-import { timeAgo } from "utilities/date_format";
-import FileSaver from "file-saver";
-import classnames from "classnames";
-
-import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
-import mdmAPI, { isDDMProfile } from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-
+import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
 import strUtils from "utilities/strings";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 
@@ -27,7 +24,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
-    <Icon name="filter" color="ui-fleet-black-75" />
+    <Icon name="tag" color="ui-fleet-black-75" />
     {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );
@@ -94,10 +91,8 @@ interface IProfileListItemProps {
   isPremium: boolean;
   profile: IMdmProfile;
   onClickInfo: (profile: IMdmProfile) => void;
+  onClickEdit: (profile: IMdmProfile) => void;
   onClickDelete: (profile: IMdmProfile) => void;
-  setProfileLabelsModalData: React.Dispatch<
-    React.SetStateAction<IMdmProfile | null>
-  >;
   isTechnician?: boolean;
 }
 
@@ -105,8 +100,8 @@ const ProfileListItem = ({
   isPremium,
   profile,
   onClickInfo,
+  onClickEdit,
   onClickDelete,
-  setProfileLabelsModalData,
   isTechnician,
 }: IProfileListItemProps) => {
   const {
@@ -191,40 +186,75 @@ const ProfileListItem = ({
       <div className={`${subClass}__actions-wrap`}>
         {renderLabelInfo()}
         <div className={`${subClass}__actions`}>
-          <Button
-            className={`${subClass}__action-button`}
-            variant="icon"
-            onClick={() => onClickInfo(profile)}
+          <TooltipWrapper
+            tipContent="Details"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
           >
-            <Icon name="info" size="medium" />
-          </Button>
-          {isPremium && labels.length > 0 && (
             <Button
               className={`${subClass}__action-button`}
-              variant="icon"
-              onClick={() => setProfileLabelsModalData({ ...profile })}
+              variant="secondary"
+              onClick={() => onClickInfo(profile)}
+              icon="info"
+              ariaLabel={`View ${profile.name} details`}
+            />
+          </TooltipWrapper>
+          {!isTechnician && (
+            // stays enabled in GitOps mode -- the modal is the only place to
+            // see a profile's label targeting; it blocks saving instead
+            <TooltipWrapper
+              tipContent="Edit"
+              underline={false}
+              position="top"
+              showArrow
+              tipOffset={8}
             >
-              <Icon name="filter" />
-            </Button>
+              <Button
+                className={`${subClass}__action-button`}
+                variant="secondary"
+                onClick={() => onClickEdit(profile)}
+                ariaLabel={`Edit ${profile.name}`}
+                icon="pencil"
+              />
+            </TooltipWrapper>
           )}
-          <Button
-            className={`${subClass}__action-button`}
-            variant="icon"
-            onClick={onClickDownload}
+          <TooltipWrapper
+            tipContent="Download"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
           >
-            <Icon name="download" />
-          </Button>
+            <Button
+              className={`${subClass}__action-button`}
+              variant="secondary"
+              onClick={onClickDownload}
+              icon="download"
+              ariaLabel={`Download ${profile.name}`}
+            />
+          </TooltipWrapper>
           {!isTechnician && (
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  className={`${subClass}__action-button`}
-                  variant="icon"
-                  onClick={() => onClickDelete(profile)}
+                <TooltipWrapper
+                  tipContent="Delete"
+                  underline={false}
+                  position="top"
+                  showArrow
+                  tipOffset={8}
+                  disableTooltip={disableChildren}
                 >
-                  <Icon name="trash" />
-                </Button>
+                  <Button
+                    disabled={disableChildren}
+                    className={`${subClass}__action-button`}
+                    variant="secondary"
+                    onClick={() => onClickDelete(profile)}
+                    icon="trash"
+                    ariaLabel={`Delete ${profile.name}`}
+                  />
+                </TooltipWrapper>
               )}
             />
           )}

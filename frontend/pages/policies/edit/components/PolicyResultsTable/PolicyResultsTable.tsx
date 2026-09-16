@@ -1,9 +1,10 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
-import { IPolicyHostResponse } from "interfaces/host";
-import TableContainer from "components/TableContainer";
 import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { IPolicyHostResponse } from "interfaces/host";
+
 import {
   generateTableHeaders,
   generateDataSet,
@@ -40,7 +41,7 @@ const PolicyResultsTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
         }}
         emptyComponent={() => <EmptyState header="No hosts are online" />}
         onQueryChange={noop}

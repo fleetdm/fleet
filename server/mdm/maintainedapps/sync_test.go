@@ -63,7 +63,7 @@ func TestHydrate(t *testing.T) {
 
 	// Cache holds only an older 1.0 (still cached, not the published latest).
 	cache := fakeFMACache{versions: map[string]*fleet.MaintainedApp{
-		"1.0": {Version: "1.0", Platform: "darwin", InstallerURL: "cached-1.0", SHA256: "hash-1.0", InstallScript: "ci", UninstallScript: "cu"},
+		"1.0": {Version: "1.0", Platform: "darwin", InstallerURL: "cached-1.0", SHA256: "hash-1.0", InstallScript: "ci", UninstallScript: "cu", AppOpenQuery: "cached-open-1.0"},
 	}}
 
 	t.Run("no version requested hydrates the latest published version", func(t *testing.T) {
@@ -80,6 +80,8 @@ func TestHydrate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "1.0", app.Version)
 		require.Equal(t, "cached-1.0", app.InstallerURL)
+		// the FMA-managed open query is preserved on a cache hit
+		require.Equal(t, "cached-open-1.0", app.AppOpenQuery)
 		require.Equal(t, before, manifestHits.Load(), "cache hit must not fetch the manifest")
 	})
 

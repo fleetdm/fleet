@@ -2,35 +2,32 @@
  * is rendered instead of the SoftwareInstallDetailsModal when the package is
  * an .ipa for iOS/iPadOS */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
-import { timeAgo } from "utilities/date_format";
 
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import { ICommandResult } from "interfaces/command";
+import {
+  IHostSoftware,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
+import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import commandAPI, {
   IGetCommandResultsResponse,
 } from "services/entities/command";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
-
-import {
-  IHostSoftware,
-  SoftwareInstallUninstallStatus,
-} from "interfaces/software";
-import { ICommandResult } from "interfaces/command";
-
-import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
+import { timeAgo } from "utilities/date_format";
 
 import {
   getInstallDetailsStatusPredicate,
@@ -244,7 +241,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>

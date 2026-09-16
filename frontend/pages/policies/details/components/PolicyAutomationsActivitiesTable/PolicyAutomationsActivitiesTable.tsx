@@ -1,38 +1,37 @@
+import { AxiosError } from "axios";
+import classnames from "classnames";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Row } from "react-table";
-import { AxiosError } from "axios";
-import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import SearchField from "components/forms/fields/SearchField";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import {
   IPolicy,
   IPolicyAutomationActivity,
   OtherAutomationType,
 } from "interfaces/policy";
+import { OrderDirection } from "services/entities/common";
 import policiesAPI, {
   IGetPolicyAutomationActivitiesParams,
   IPolicyAutomationActivitiesResponse,
   PolicyAutomationActivitiesOrderKey,
 } from "services/entities/policies";
-import { OrderDirection } from "services/entities/common";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { pluralize } from "utilities/strings/stringUtils";
 
-import TableContainer from "components/TableContainer";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyState from "components/EmptyState";
-import DataError from "components/DataError";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import generateColumnConfigs from "./PolicyAutomationsActivitiesTableConfig";
 import PolicyAutomationActivityDetailsModal from "../PolicyAutomationActivityDetailsModal";
 import PolicyResetModal from "../PolicyResetModal";
+
+import generateColumnConfigs from "./PolicyAutomationsActivitiesTableConfig";
 
 const baseClass = "policy-automations-activities-table";
 
@@ -225,9 +224,13 @@ const PolicyAutomationsActivitiesTable = ({
           )}
           <div className={`${baseClass}__controls`}>
             {canResetPolicy && (
-              <Button variant="inverse" onClick={onClickResetPolicy}>
+              <Button
+                variant="subdued"
+                onClick={onClickResetPolicy}
+                icon="refresh"
+                iconPosition="right"
+              >
                 Reset policy
-                <Icon name="refresh" />
               </Button>
             )}
             {showControls && (
@@ -256,6 +259,13 @@ const PolicyAutomationsActivitiesTable = ({
       <TableContainer
         columnConfigs={columnConfigs}
         data={data?.activities ?? []}
+        // Each row is one (activity, host) pair, so batch automations (e.g.
+        // one webhook POST covering many hosts) return multiple rows sharing
+        // the same activity id. The default row id (row.id) would collapse
+        // them into a single rendered row.
+        getRowId={(row: IPolicyAutomationActivity) =>
+          `${row.id}-${row.host_id}`
+        }
         isLoading={isLoading}
         manualSortBy
         pageIndex={page}

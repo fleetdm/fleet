@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// flipASCIICase swaps the case of ASCII letters, leaving other bytes intact.
+func flipASCIICase(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		switch {
+		case c >= 'a' && c <= 'z':
+			b[i] = c - ('a' - 'A')
+		case c >= 'A' && c <= 'Z':
+			b[i] = c + ('a' - 'A')
+		}
+	}
+	return string(b)
+}
+
 func TestSessions(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -22,6 +37,7 @@ func TestSessions(t *testing.T) {
 	}{
 		{"Getters", testSessionsGetters},
 		{"MFA", testMFA},
+		{"LastLoginAt", testSessionsLastLoginAt},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -78,6 +94,128 @@ func testMFA(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.Nil(t, mfaUser)
 	require.Nil(t, session)
+
+	// concurrent redemptions of the same token must only ever mint one session
+	sessionsBefore, err := ds.ListSessionsForUser(context.Background(), user.ID)
+	require.NoError(t, err)
+
+	token, err = ds.NewMFAToken(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	const concurrentRedemptions = 8
+	var (
+		wg         sync.WaitGroup
+		mu         sync.Mutex
+		successes  int
+		lastErr    error
+		successKey string
+	)
+	wg.Add(concurrentRedemptions)
+	for range concurrentRedemptions {
+		go func() {
+			defer wg.Done()
+			s, _, err := ds.SessionByMFAToken(context.Background(), token, 8)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				lastErr = err
+				return
+			}
+			successes++
+			if s != nil {
+				successKey = s.Key
+			}
+		}()
+	}
+	wg.Wait()
+
+	require.Equal(t, 1, successes, "exactly one concurrent redemption should succeed")
+	require.Error(t, lastErr, "losing redemptions should return an error")
+
+	// the token must be consumed and exactly one new session created for the user
+	sessionsAfter, err := ds.ListSessionsForUser(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Len(t, sessionsAfter, len(sessionsBefore)+1)
+	require.Contains(t, sessionKeys(sessionsAfter), successKey)
+
+	session, mfaUser, err = ds.SessionByMFAToken(context.Background(), token, 8)
+	require.Error(t, err)
+	require.Nil(t, mfaUser)
+	require.Nil(t, session)
+}
+
+func sessionKeys(sessions []*fleet.Session) []string {
+	keys := make([]string, 0, len(sessions))
+	for _, s := range sessions {
+		keys = append(keys, s.Key)
+	}
+	return keys
+}
+
+func testSessionsLastLoginAt(t *testing.T, ds *Datastore) {
+	user, err := ds.NewUser(context.Background(), &fleet.User{
+		Password:   []byte("supersecret"),
+		Email:      "login@example.com",
+		GlobalRole: new(fleet.RoleObserver),
+	})
+	require.NoError(t, err)
+
+	// never logged in
+	got, err := ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.LastLoginAt)
+	require.Nil(t, got.LastActivityAt)
+
+	var updatedAtBefore time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &updatedAtBefore, "SELECT updated_at FROM users WHERE id = ?", user.ID)
+	})
+
+	// creating a session records the login
+	_, err = ds.NewSession(context.Background(), user.ID, 8)
+	require.NoError(t, err)
+
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.LastLoginAt)
+	require.WithinDuration(t, ds.clock.Now(), *got.LastLoginAt, time.Minute)
+
+	// recording the login must not bump updated_at
+	var updatedAtAfter time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &updatedAtAfter, "SELECT updated_at FROM users WHERE id = ?", user.ID)
+	})
+	require.Equal(t, updatedAtBefore, updatedAtAfter)
+
+	// a later session moves last_login_at forward
+	firstLogin := *got.LastLoginAt
+	mc := ds.clock.(*clock.MockClock)
+	mc.AddTime(2 * time.Second)
+	_, err = ds.NewSession(context.Background(), user.ID, 8)
+	require.NoError(t, err)
+
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.LastLoginAt)
+	require.True(t, got.LastLoginAt.After(firstLogin))
+
+	// live sessions surface last activity (accessed_at); ListUsers also
+	// returns it
+	require.NotNil(t, got.LastActivityAt)
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+	require.NotNil(t, users[0].LastActivityAt)
+	require.NotNil(t, users[0].LastLoginAt)
+
+	// destroying all sessions clears last activity, but the durable
+	// last_login_at survives
+	require.NoError(t, ds.DestroyAllSessionsForUser(context.Background(), user.ID))
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.LastActivityAt)
+	require.NotNil(t, got.LastLoginAt)
 }
 
 func testSessionsGetters(t *testing.T, ds *Datastore) {
@@ -103,6 +241,14 @@ func testSessionsGetters(t *testing.T, ds *Datastore) {
 	assert.Equal(t, session.ID, gotByKey.ID)
 	require.NotNil(t, gotByKey.APIOnly)
 	assert.False(t, *gotByKey.APIOnly)
+
+	// Session keys are case-sensitive: a case-mutated key must not match (the
+	// key column uses a byte-exact collation). Guards against a regression to a
+	// case-insensitive collation on this per-request auth lookup.
+	mutated := flipASCIICase(session.Key)
+	require.NotEqual(t, session.Key, mutated)
+	_, err = ds.SessionByKey(context.Background(), mutated)
+	require.Error(t, err)
 
 	newSession, err := ds.NewSession(context.Background(), user.ID, 8)
 	require.NoError(t, err)

@@ -1,13 +1,12 @@
 import React, { useContext } from "react";
 
-import { dateAgo } from "utilities/date_format";
-
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -18,18 +17,20 @@ import {
   IMdmProfile,
   MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { SoftwareAggregateStatus } from "interfaces/software";
+import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
 } from "services/entities/hosts";
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
-
 import {
   MDM_STATUS_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -37,19 +38,13 @@ import {
   isPlatformLabelNameFromAPI,
   PolicyResponse,
 } from "utilities/constants";
+import { dateAgo } from "utilities/date_format";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon/Icon";
-import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
-
+import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
+import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
+import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
-import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
-import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
 const baseClass = "hosts-filter-block";
 
@@ -99,7 +94,7 @@ interface IHostsFilterBlockProps {
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
     depProfileError: string; // string "true" as we don't handle booleans
-    depAssignProfileResponse?: DepAssignProfileResponse;
+    depAssignProfileResponse?: DEPDeviceStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -230,21 +225,23 @@ const HostsFilterBlock = ({
                         <Button
                           className={`${baseClass}__action-btn`}
                           onClick={onClickEditLabel}
-                          variant="icon"
+                          variant="secondary"
+                          size="small"
                           disabled={disableChildren}
-                        >
-                          <Icon name="pencil" size="small" />
-                        </Button>
+                          icon="pencil"
+                          ariaLabel="Edit label"
+                        />
                       )
                     }
                     <Button
                       className={`${baseClass}__action-btn`}
                       onClick={onClickDeleteLabel}
-                      variant="icon"
+                      variant="secondary"
+                      size="small"
                       disabled={disableChildren}
-                    >
-                      <Icon name="trash" size="small" />
-                    </Button>
+                      icon="trash"
+                      ariaLabel="Delete label"
+                    />
                   </>
                 )}
               />
@@ -701,7 +698,8 @@ const HostsFilterBlock = ({
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
-        // (label + mdm solution) OR (label + mdm enrollment status)
+        // (label + mdm solution) OR (label + mdm enrollment status) OR
+        // (label + os settings) OR (label + disk encryption)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -725,6 +723,12 @@ const HostsFilterBlock = ({
           return (
             <>
               {renderLabelFilterPill()} {renderOsSettingsBlock()}
+            </>
+          );
+        case showSelectedLabel && !!diskEncryptionStatus:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
             </>
           );
         case showSelectedLabel:

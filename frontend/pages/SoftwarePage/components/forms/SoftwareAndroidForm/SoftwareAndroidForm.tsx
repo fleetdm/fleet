@@ -1,27 +1,25 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { IAppStoreApp } from "interfaces/software";
-
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { IAppStoreApp } from "interfaces/software";
 import {
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
   isAndroidWebApp,
 } from "pages/SoftwarePage/helpers";
-import InfoBanner from "components/InfoBanner/InfoBanner";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import { AndroidOptionsDescription } from "../SoftwareOptionsSelector/SoftwareOptionsSelector";
 
 import generateFormValidation from "./helpers";
-import { AndroidOptionsDescription } from "../SoftwareOptionsSelector/SoftwareOptionsSelector";
 
 const baseClass = "software-android-form";
 
@@ -182,7 +180,7 @@ const SoftwareAndroidForm = ({
               </Button>
             )}
           />
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

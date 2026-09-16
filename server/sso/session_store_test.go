@@ -31,6 +31,9 @@ func TestSessionStore(t *testing.T) {
 		sess, err = store.get("sessionID123")
 		var authRequiredError *fleet.AuthRequiredError
 		assert.ErrorAs(t, err, &authRequiredError)
+		// The SSO callbacks tell an expired session apart from other failures
+		// with this, so that they can explain the timeout to the end user.
+		require.ErrorIs(t, err, ErrSessionNotFound)
 		assert.Nil(t, sess)
 
 		// Create another session for 1 second
@@ -60,4 +63,19 @@ func TestSessionStore(t *testing.T) {
 		p := redistest.SetupRedis(t, "request", true, false, false)
 		runTest(t, p)
 	})
+}
+
+// A missing session has to answer to two different callers: the authz
+// middleware matches on the AuthRequiredError type, and the SSO callbacks match
+// on ErrSessionNotFound so they can tell the end user their sign-in timed out.
+func TestSessionNotFoundErrorSatisfiesBothCallers(t *testing.T) {
+	authRequired := fleet.NewAuthRequiredError("session not found")
+	err := &sessionNotFoundError{authRequired: authRequired}
+
+	var asAuthRequired *fleet.AuthRequiredError
+	require.ErrorAs(t, err, &asAuthRequired)
+	require.ErrorIs(t, err, ErrSessionNotFound)
+
+	// Callers that surface the message must not see it change.
+	require.Equal(t, authRequired.Error(), err.Error())
 }

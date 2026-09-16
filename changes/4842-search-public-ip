@@ -1,1 +1,0 @@
-- Added public IP address to host search, so that searching by IP now matches both the primary (private) IP and the public IP.

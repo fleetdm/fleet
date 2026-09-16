@@ -16,7 +16,7 @@ Below is the end user experience for macOS. Check out the separate videos for [i
    <iframe src="https://www.youtube.com/embed/BU0Q_8cQXuw?si=2N6abC9y1mEpFlzI" frameborder="0" allowfullscreen></iframe>
 </div>
 
-## Require IdP authentication
+## End user authentication
 
 You can require IdP authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. IdP authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
@@ -30,7 +30,9 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable IdP authentication by heading to **Controls > Setup experience > Require IdP authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable IdP authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable IdP authentication by heading to **Controls > Setup experience > Require IdP authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable IdP authentication.
+
+> **Require IdP authentication** is configured per fleet. When [enrolling mobile devices](https://fleetdm.com/guides/enroll-hosts#mobile-devices) using an enrollment link, make sure the `enroll_secret` in the link's URL belongs to the fleet where you turned on **Require IdP authentication**.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
@@ -67,9 +69,9 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB).
+Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 
-To configure via the Fleet UI:
+How to enforce account types on macOS hosts:
 
 1. Head to **Controls > Setup experience**.
 
@@ -91,27 +93,55 @@ Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`
 
 ## Managed local account
 
-Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each macOS host during Setup Assistant. IT admins can use this account as a break-glass login for troubleshooting.
+Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each eligible host during setup. IT admins can use this account as a break-glass login for troubleshooting.
 
-This feature is available for macOS hosts that automatically enroll via Apple Business (AB). Manually enrolled hosts are not supported.
+This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and check **Managed local account**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
 
-2. Wipe and re-enroll any existing macOS hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through Setup Assistant again.
+2. Wipe and re-enroll any existing hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 
+### Password complexity
+
+Fleet generates a cryptographically random password for each host's managed local account. The password is formatted as six groups of four characters separated by hyphens (for example, `A3BC-D5EF-GH7J-KL9M-NP2Q-RS4T`) so it can be read aloud and typed at a login prompt.
+
+The following character classes are used. Characters that are easily confused when transcribed by hand (`0`/`O`/`o` and `1`/`I`/`l`) are omitted:
+
+| Platform | Character classes | Alphabet size |
+| --- | --- | --- |
+| macOS | Digits (`23456789`) + uppercase (`ABCDEFGHJKLMNPQRSTUVWXYZ`) | 32 |
+| Windows | Digits + uppercase + lowercase (`abcdefghijkmnpqrstuvwxyz`) | 56 |
+
+Each generated password is guaranteed to contain at least one character from every enabled class.
+
+### Password rotation
+
+Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
+
+> Shortly after a host enrolls via DEP, the managed account's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
+
+A manual rotation cancels any active auto-rotation timer for that host.
+
+### macOS
 > The managed account is hidden from the macOS login window. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
 
 > The managed account does not have a Secure Token. To access a FileVault-encrypted disk, first unlock it using the [escrowed recovery key](https://fleetdm.com/guides/macos-mdm-setup#disk-encryption), then log in as `_fleetadmin` at the login window.
 
 > On macOS 15.7, if the end user account type is set to **Standard** or **Skip (no account)**, FileVault cannot be enabled locally through System Settings by the managed local account. To encrypt the disk, [enforce disk encryption via Fleet](https://fleetdm.com/guides/enforce-disk-encryption) instead. This issue does not affect macOS 26.
 
+### Windows
+> The managed account is hidden from the Windows sign-in screen. To log in as _fleetadmin, select **Other user** on the sign-in screen and enter the username and password manually.
+
+
 ## Platform SSO
 
 Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. If you use Okta, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions. PSSO can be used with or without [end user authentication](#end-user-authentication) enabled.
+
+Fleet also supports using the Fleet Desktop app's built-in PSSO extension to achieve initial account provisioning during setup and password sync with any OAuth ROPG IdP for use cases where a native IdP PSSO integration is unavailable or is not configured. See [Deploying Apple Account Provisioning with Fleet](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet).
 
 ## End user license agreement (EULA)
 
@@ -119,21 +149,11 @@ To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user 
 
 Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business (AB).
 
-## Managed local account
-Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
-
-Admins can view the current password from **Host details > Show managed account** in the Fleet UI or via the API.
-
-### Password rotation
-Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
-
-> Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
-
-A manual rotation cancels any active auto-rotation timer for that host.
-
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience). 
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
+
+> Fleet will always deliver the command to install a bootstrap package before delivering commands for installing profiles. 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
@@ -264,6 +284,21 @@ When this feature is enabled, any failed software will immediately end the setup
 
 End users won't continue through setup experience unless they press Command (⌘) + Shift + X.
 
+### App Store (VPP) apps in setup experience
+
+App Store (VPP) apps are installed by Apple. Fleet sends an [InstallApplication](https://developer.apple.com/documentation/devicemanagement/install-application-command) MDM command, and the device downloads and installs the app from the App Store. As a result, VPP installs during setup depend on Apple's services and the device's connection to the App Store while it's still in Setup Assistant.
+
+Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
+
+To reduce these risks:
+
+- Only add apps that end users need before their first login. Deliver everything else after enrollment using [automatic install](https://fleetdm.com/guides/automatic-software-install-in-fleet), which runs in the background and doesn't hold the device in Setup Assistant.
+- Keep the setup experience software list short. Each item extends setup time.
+- Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
+- If available, choose Fleet-maintained app over App Store (VPP) app for better control
+
+If a host gets stuck, you can send the [`DeviceConfigured`](https://developer.apple.com/documentation/devicemanagement/device-configured-command) command using Fleet's [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API to let the end user through.
+
 ## Run script
 
 To configure a script to run during setup experience:
@@ -360,8 +395,6 @@ To manage setup experience software and script using Fleet's best practice GitOp
 
 ### Manually install fleetd
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
 
 How to deploy a custom fleetd:
@@ -379,7 +412,7 @@ If you deploy a custom fleetd, also add the software and scripts you want to ins
 
 ### swiftDialog
 
-Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to show end users [software install](#install-software) and [script run](#run-script) status. swiftDialog is only installed on macOS hosts if there is setup experience software or a script. After setup experinece, swiftDialog stays installed.
+Fleet only deploys [swiftDialog](https://github.com/swiftDialog/swiftDialog) during setup experience if there is setup experience [software](#install-software) or [scripts](#run-script), and the [end user migration workflow](https://fleetdm.com/guides/mdm-migration#end-user-workflow). After setup experience and migration, swiftDialog stays installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

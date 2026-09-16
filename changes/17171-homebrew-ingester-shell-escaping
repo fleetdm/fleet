@@ -1,0 +1,1 @@
+- Fixed an issue where Homebrew cask metadata for a Fleet-maintained app (macOS) could reach the generated install/uninstall scripts without being escaped for shell use. All cask-controlled values interpolated into generated scripts are now escaped, so shell metacharacters in the metadata are treated as literal text.

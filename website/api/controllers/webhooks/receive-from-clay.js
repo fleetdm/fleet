@@ -32,18 +32,31 @@ module.exports = {
       type: 'string',
       required: true,
       isIn: [
-        'Website - Contact forms',
-        'Website - Sign up',
-        'Website - Newsletter',
-        'Website - Swag request',
+        'Attended a call with Fleet',
         'Event',
-        'GitHub - Stared fleetdm/fleet',
-        'GitHub - Forked fleetdm/fleet',
+        'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
         'GitHub - Contributed to fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Stared fleetdm/fleet',
         'LinkedIn - Comment',
+        'LinkedIn - Liked the LinkedIn company page',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
-        'LinkedIn - Liked the LinkedIn company page',
+        'Prospecting - AE',
+        'Prospecting - Meeting service',
+        'Prospecting - Specialist',
+        'Website - Chat',
+        'Website - Contact forms',
+        'Website - Contact forms - Demo',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
+        'Website - Newsletter',
+        'Website - Sign up',
+        'Website - Swag request',
+        'Website - Workshop request'
       ],
     },
     jobTitle: {
@@ -100,6 +113,7 @@ module.exports = {
     duplicateContactOrAccountFound: {description: 'A contact or account could not be created because a duplicate record exists.', statusCode: 409 },
     couldNotCreateContactOrAccount: { description: 'A contact or account could not be created in the CRM using the provided information.' },
     couldNotCreateActivity: { description: 'An error occured when trying to create a historical event record in the CRM' },
+    invalidWebhookSecret: {description: 'This webhook request could not be verified.', responseType: 'unauthorized'},
   },
 
 
@@ -111,7 +125,7 @@ module.exports = {
     }
 
     if(webhookSecret !== sails.config.custom.clayWebhookSecret){
-      throw new Error('Received unexpected webhook request with webhookSecret set to: '+webhookSecret);
+      throw 'invalidWebhookSecret';
     }
 
 
@@ -152,6 +166,7 @@ module.exports = {
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
       relatedCampaign: relatedCampaign || recordDetails.mostRecentCampaign,
+      eventSource: contactSource,
     })
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);

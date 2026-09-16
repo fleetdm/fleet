@@ -1,29 +1,29 @@
-import React, { useCallback, useState } from "react";
 import { Ace } from "ace-builds";
+import React, { useCallback, useState } from "react";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Editor from "components/Editor";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import { notify } from "components/ToastNotification";
 import {
   IAppStoreApp,
   ISoftwarePackage,
   isSoftwarePackage,
 } from "interfaces/software";
-
 import softwareAPI from "services/entities/software";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Editor from "components/Editor";
-import Button from "components/buttons/Button";
-
-import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import { getDisplayedSoftwareName } from "../../helpers";
 import InstallerDetailsWidget from "../SoftwareInstallerCard/InstallerDetailsWidget";
+
 import {
   getErrorMessage,
   validateJson,
   validateXml,
   getPlatformLabel,
 } from "./helpers";
-import { getDisplayedSoftwareName } from "../../helpers";
 
 const baseClass = "edit-configuration-modal";
 
@@ -251,7 +251,7 @@ const EditConfigurationModal = ({
         <ModalFooter
           primaryButtons={
             <>
-              <Button onClick={onExit} variant="inverse">
+              <Button onClick={onExit} variant="secondary">
                 Cancel
               </Button>
               <Button

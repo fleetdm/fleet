@@ -3,11 +3,13 @@
  * More can be learnt about React Select custom components here:
  * https://react-select.com/components
  */
+
+import React, { useRef } from "react";
+import { components, GroupHeadingProps } from "react-select-5";
+
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import { ILabel } from "interfaces/label";
-import React, { useRef } from "react";
-import { components, GroupHeadingProps } from "react-select-5";
 
 import { IEmptyOption, IGroupOption } from "../LabelFilterSelect/helpers";
 
@@ -45,21 +47,6 @@ const CustomLabelGroupHeading = (
     <components.GroupHeading {...props}>
       <div className={`${baseClass}__labels-header`}>
         <span className={`${baseClass}__label-title`}>{props.children}</span>
-        <div className={`${baseClass}__add_new_label`}>
-          {canAddNewLabels && (
-            <Button
-              variant="brand-inverse-icon"
-              onClick={onAddLabel}
-              iconStroke
-              size="small"
-            >
-              <>
-                Add label
-                <Icon name="plus" color="core-fleet-green" />
-              </>
-            </Button>
-          )}
-        </div>
       </div>
       <div className={`${baseClass}__field`}>
         <input
@@ -78,6 +65,15 @@ const CustomLabelGroupHeading = (
           onBlur={onBlurLabelSearchInput}
         />
         <Icon name="search" />
+        {canAddNewLabels && (
+          <Button
+            className={`${baseClass}__add-label-button`}
+            variant="secondary"
+            onClick={onAddLabel}
+            icon="plus"
+            ariaLabel="Add label"
+          />
+        )}
       </div>
     </components.GroupHeading>
   );

@@ -1,15 +1,15 @@
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import mdmAndroidAPI from "services/entities/mdm_android";
+import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import { notify } from "components/ToastNotification";
+import PATHS from "router/paths";
+import mdmAndroidAPI from "services/entities/mdm_android";
 
 const baseClass = "turn-off-android-mdm-modal";
 
@@ -65,15 +65,20 @@ const TurnOffAndroidMdmModal = ({
         their Android work partition.
       </p>
       <div className="modal-cta-wrap">
-        <Button
-          variant="alert"
-          isLoading={isDeleting}
-          disabled={isDeleting}
-          onClick={onClickConfirm}
-        >
-          Turn off
-        </Button>
-        <Button variant="inverse-alert" disabled={isDeleting} onClick={onExit}>
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <Button
+              variant="alert"
+              isLoading={isDeleting}
+              disabled={isDeleting || disableChildren}
+              onClick={onClickConfirm}
+            >
+              Turn off
+            </Button>
+          )}
+        />
+        <Button variant="secondary" disabled={isDeleting} onClick={onExit}>
           Cancel
         </Button>
       </div>

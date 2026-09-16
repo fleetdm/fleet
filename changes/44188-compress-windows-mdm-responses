@@ -1,1 +1,0 @@
-* Reduced database write pressure on the Windows MDM check-in path by gzip-compressing stored device response envelopes.

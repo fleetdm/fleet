@@ -1,43 +1,73 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
+#
+# Amazon Chime installs per user and has no machine-wide mode, so installing it from this
+# script's SYSTEM context would put it in SYSTEM's profile where nobody can launch
+# it. Run the installer as the signed-in user instead.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$taskName = "fleet-install-amazon-chime"
+$taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$exitCode = 0
+$stagedInstaller = $null
 
 try {
-    # Verify installer file exists
-    if (-not (Test-Path $exeFilePath)) {
-        Write-Host "Error: Installer file not found at: $exeFilePath"
-        Exit 1
+    $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
+        Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue |
+        Where-Object { $_.User } |
+        Select-Object -First 1
+    if (-not $owner) {
+        Throw "Amazon Chime installs per user and no user is signed in to this host. Sign in and try again."
     }
+    $userAccount = "$($owner.Domain)\$($owner.User)"
+    Write-Host "Installing Amazon Chime for $userAccount."
 
-    Write-Host "Installing Amazon Chime from: $exeFilePath"
+    # Fleet's installer directory is not readable by that user.
+    $stagedInstaller = Join-Path $env:PUBLIC (Split-Path $exeFilePath -Leaf)
+    Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force
 
-    # Amazon Chime silent install switch (from the winget manifest InstallerSwitches):
-    #   --silent
-    $processOptions = @{
-        FilePath = "$exeFilePath"
-        ArgumentList = "--silent"
-        PassThru = $true
-        Wait = $true
-        NoNewWindow = $true
+    $installArgs = "--silent"
+    if ($installArgs) {
+        $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument $installArgs
+    } else {
+        $action = New-ScheduledTaskAction -Execute $stagedInstaller
     }
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    $principal = New-ScheduledTaskPrincipal -UserId $userAccount
+    $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
-    Write-Host "Starting installation with arguments: $($processOptions.ArgumentList)"
-    $process = Start-Process @processOptions
+    $startDate = Get-Date
+    Start-ScheduledTask -TaskName $taskName
 
-    if ($null -eq $process) {
-        Write-Host "Error: Failed to start installer process"
-        Exit 1
+    # Wait for a result rather than for the "Running" state, which a fast task can
+    # enter and leave between polls.
+    Start-Sleep -Seconds 2
+    while ($true) {
+        $info = Get-ScheduledTaskInfo -TaskName $taskName
+        $state = (Get-ScheduledTask -TaskName $taskName).State
+        if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+            $exitCode = $info.LastTaskResult
+            break
+        }
+        if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
+            Throw "Timed out waiting for the install task to finish."
+        }
+        Start-Sleep -Seconds 5
     }
-
-    $exitCode = $process.ExitCode
-
-    # Prints the exit code
     Write-Host "Install exit code: $exitCode"
-    Exit $exitCode
 
 } catch {
     Write-Host "Error: $_"
-    Write-Host "Error details: $($_.Exception.Message)"
-    Exit 1
+    $exitCode = 1
+} finally {
+    if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    if ($stagedInstaller -and (Test-Path -LiteralPath $stagedInstaller)) {
+        Remove-Item -LiteralPath $stagedInstaller -Force -ErrorAction SilentlyContinue
+    }
 }
+
+Exit $exitCode

@@ -1,6 +1,7 @@
 package profiles
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -36,20 +37,23 @@ func (e *UnresolvableAndroidAppConfigVarError) Is(target error) bool {
 }
 
 // AndroidAppConfigSubstitutionHost carries the host context needed to
-// substitute host-scoped $FLEET_VAR_* tokens in Android managed app
-// configuration.
+// substitute host-scoped $FLEET_VAR_* tokens and $FLEET_HOST_VITAL_<id>
+// custom host vitals in Android managed app configuration.
 type AndroidAppConfigSubstitutionHost struct {
+	HostID         uint
 	UUID           string
 	HardwareSerial string
 	Platform       string
 }
 
-// SubstituteFleetVarsInAndroidAppConfig replaces every supported $FLEET_VAR_*
-// token in config with the resolved value for the given host, returning the
-// substituted bytes. End-user IDP fields are looked up via ds.
-// Returns ErrUnresolvableAndroidAppConfigVar (wrapped) if the host can't
-// supply a referenced variable.
-func SubstituteFleetVarsInAndroidAppConfig(
+// SubstituteFleetVarsAndVitalsInAndroidAppConfig replaces every supported
+// $FLEET_VAR_* token and $FLEET_HOST_VITAL_<id> custom host vital reference in
+// config with the resolved value for the given host, returning the substituted
+// bytes. End-user IDP fields are looked up via ds.
+// Returns ErrUnresolvableAndroidAppConfigVar (wrapped) if the host can't supply
+// a referenced variable, or a *fleet.MissingCustomHostVitalValueError if a
+// referenced vital has no value set for this host.
+func SubstituteFleetVarsAndVitalsInAndroidAppConfig(
 	ctx context.Context,
 	ds fleet.Datastore,
 	config []byte,
@@ -58,12 +62,13 @@ func SubstituteFleetVarsInAndroidAppConfig(
 	if len(config) == 0 {
 		return config, nil
 	}
-	used := variables.Find(string(config))
-	if len(used) == 0 {
+	contents := string(config)
+	used := variables.Find(contents)
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(contents)) > 0
+	if len(used) == 0 && !hasHostVitals {
 		return config, nil
 	}
 
-	contents := string(config)
 	idpUUIDCache := map[string]uint{}
 
 	for _, name := range used {
@@ -119,7 +124,29 @@ func SubstituteFleetVarsInAndroidAppConfig(
 		}
 	}
 
+	if hasHostVitals {
+		expanded, err := ds.ExpandCustomHostVitals(ctx, host.HostID, contents)
+		if err != nil {
+			return nil, err
+		}
+		contents = expanded
+	}
+
 	return []byte(contents), nil
+}
+
+// ContainsFleetVarOrCustomHostVital reports whether content has a $FLEET_VAR_*
+// token or a $FLEET_HOST_VITAL_<id> token. Checks bytes for the vital prefix
+// before falling back to fleet.FindCustomHostVitalIDs, which needs a string, to
+// avoid that conversion's allocation in the common case where content has neither.
+func ContainsFleetVarOrCustomHostVital(content []byte) bool {
+	if variables.ContainsBytes(content) {
+		return true
+	}
+	if !bytes.Contains(content, []byte(fleet.CustomHostVitalPrefix)) {
+		return false
+	}
+	return len(fleet.FindCustomHostVitalIDs(string(content))) > 0
 }
 
 // replaceJSONSafe replaces a Fleet variable in contents with a JSON-safe value.

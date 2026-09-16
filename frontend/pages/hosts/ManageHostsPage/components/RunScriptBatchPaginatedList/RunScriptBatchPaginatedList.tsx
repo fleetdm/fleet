@@ -1,13 +1,11 @@
 import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 
-import scriptAPI, { IScriptsResponse } from "services/entities/scripts";
-
-import { addTeamIdCriteria, IScript } from "interfaces/script";
-
-import PaginatedList from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import PaginatedList from "components/PaginatedList";
+import { addTeamIdCriteria, IScript } from "interfaces/script";
+import scriptAPI, { IScriptsResponse } from "services/entities/scripts";
 
 const baseClass = "run-script-batch-paginated-list";
 
@@ -79,8 +77,8 @@ const RunScriptBatchPaginatedList = ({
     <>
       <a>{script.name}</a>
       <Button
-        variant="inverse"
-        iconStroke={!script.hasRun}
+        className="row-hover-button"
+        variant="secondary"
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
           onRunScript(script, onChange);

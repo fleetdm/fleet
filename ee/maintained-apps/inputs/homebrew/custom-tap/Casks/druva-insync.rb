@@ -1,6 +1,6 @@
 cask "druva-insync" do
-  version "7.6.1,110931"
-  sha256 "a67784b4d6789e9a671e2d77789c408116b10c89c6c8893c3f08ed6212684bf2"
+  version "8.1.4,110973"
+  sha256 "c705eeea0ceb7b3022fed577da7dc4725751dd3c383efbb3850e049b5abc137a"
 
   url "https://downloads.druva.com/downloads/inSync/MAC/#{version.csv.first}/inSync-#{version.csv.first}-r#{version.csv.second}.dmg"
   name "Druva inSync"
@@ -11,7 +11,7 @@ cask "druva-insync" do
     skip "Druva does not expose a parseable version feed; bump manually"
   end
 
-  depends_on macos: ">= :big_sur"
+  depends_on macos: ">= :sonoma"
 
   pkg "Install inSync.pkg"
 

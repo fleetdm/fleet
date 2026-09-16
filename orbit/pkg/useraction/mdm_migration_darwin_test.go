@@ -182,6 +182,11 @@ func TestShouldSendWebhookUntilUnmanaged(t *testing.T) {
 				},
 			}
 
+			// Mock the initial enrollment status check - device is enrolled
+			m.testParseEnrollmentStatusFn = func() (bool, bool, error) {
+				return typ == constant.MDMMigrationTypeADE, true, nil
+			}
+
 			// Set up enrollment check functions - device stays enrolled throughout
 			m.testEnrollmentCheckFileFn = func() (bool, error) {
 				return true, nil // Always enrolled (file exists)
@@ -259,6 +264,18 @@ func TestShouldSendWebhookUntilUnmanaged(t *testing.T) {
 			// Should succeed without error
 			require.NoError(t, err)
 			require.Equal(t, 3, handler.TimeCalled) // webhook was not called
+
+			// Device is locally not enrolled - should also skip webhook even if IsUnmanaged is false
+			m.props.IsUnmanaged = false
+			m.testParseEnrollmentStatusFn = func() (bool, bool, error) {
+				return false, false, nil // not enrolled locally
+			}
+
+			mockDialog.exitWithCode(0)
+			err = m.renderMigration()
+
+			require.NoError(t, err)
+			require.Equal(t, 3, handler.TimeCalled) // webhook was NOT called
 		})
 	}
 }

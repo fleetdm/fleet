@@ -4,7 +4,8 @@
       "version": "4.3.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'dupeGuru' AND publisher = 'Hardcoded Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'dupeGuru' AND publisher = 'Hardcoded Software' AND version_compare(version, '4.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'dupeGuru' AND publisher = 'Hardcoded Software' AND version_compare(version, '4.3.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dupeguru.exe');"
       },
       "installer_url": "https://github.com/arsenetar/dupeguru/releases/download/4.3.1/dupeGuru_win64_4.3.1.exe",
       "install_script_ref": "a5276316",

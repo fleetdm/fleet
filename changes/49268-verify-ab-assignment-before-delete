@@ -1,0 +1,1 @@
+- Fixed deleting a host that was released from Apple Business reporting success while the host record stayed in Fleet. Fleet now checks the assignment with Apple before deleting, and returns an error instead of reporting success if Apple can't be reached.

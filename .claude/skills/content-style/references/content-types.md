@@ -28,6 +28,12 @@ Each content type has its own shape. Identify the type first, then apply the mat
 - Stay aligned with Fleet values; no vendor-pitch language.
 - Requires the article endmatter below.
 
+## Case studies
+
+- Customer story told in three acts: their problem, why they chose Fleet, what changed — anchored by real, verbatim, attributed quotes.
+- Requires the case-study-specific meta tags (`summaryChallenge`, `summarySolution`, `summaryKeyResults`, company/quote tags) in addition to the standard article endmatter; the website build enforces these.
+- For the full structure, the `attribution-quote`/`checklist` custom syntax, the required meta tags, and honesty guardrails around quotes and numbers, use the `fleet-case-study-formatting` skill.
+
 ## Announcements and release notes
 
 - Lead with the news in the first sentence.
@@ -49,6 +55,8 @@ Each content type has its own shape. Identify the type first, then apply the mat
 ## Article endmatter template
 
 Articles, guides, and announcements end with this YAML block. Match `articleTitle` to the H1 exactly. Don't fabricate the author, username, or date — ask if you don't have them.
+
+The 150-character cap on `description` is **enforced by the website build**, not a style preference: `website/scripts/build-static-content.js` throws `An article page has an invalid description meta tag` and fails the whole production build for any page over the limit, whatever its category. Count the characters rather than eyeballing it.
 
 ```
 <meta name="articleTitle" value="[Must match the H1 exactly]">

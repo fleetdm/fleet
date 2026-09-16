@@ -1,6 +1,6 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import { createMockRouter } from "test/test-utils";
 
@@ -13,7 +13,6 @@ describe("HostSoftwareTableConfig - Last opened column", () => {
     router: mockRouter,
     teamId: 1,
     onShowInventoryVersions: noop,
-    platform: "windows",
   });
 
   const lastOpenedColumn = headers.find((h) => h.id === "Last opened") as any;

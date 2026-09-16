@@ -1,22 +1,63 @@
+import {
+  CUSTOM_HOST_VITAL_CRITERION,
+  LabelHostVitalsCriterion,
+} from "interfaces/label";
+
 import { INewLabelFormData } from "./NewLabelPage";
+
+// The criteria dropdown needs a single string per option, but custom host
+// vitals all share the `custom_host_vital` criterion value, so the definition
+// id is encoded into the option value and decoded on selection.
+export const buildCriterionOptionValue = (customHostVitalId: number) =>
+  `${CUSTOM_HOST_VITAL_CRITERION}:${customHostVitalId}`;
+
+export const parseCriterionOptionValue = (
+  optionValue: string
+): { vital: LabelHostVitalsCriterion; customHostVitalId?: number } => {
+  if (optionValue.startsWith(`${CUSTOM_HOST_VITAL_CRITERION}:`)) {
+    // Guard against a malformed/missing id: an unparseable value would become
+    // NaN, later pass `!= null`, and serialize to `null` in the request body.
+    const parsedId = Number(optionValue.split(":")[1]);
+    return {
+      vital: CUSTOM_HOST_VITAL_CRITERION,
+      customHostVitalId: Number.isFinite(parsedId) ? parsedId : undefined,
+    };
+  }
+  return { vital: optionValue as LabelHostVitalsCriterion };
+};
+
+export const getVitalValuePlaceholder = (vital: LabelHostVitalsCriterion) => {
+  if (vital === "end_user_idp_group") {
+    return "IT admins";
+  }
+  if (vital === "end_user_idp_department") {
+    return "Engineering";
+  }
+  return "Value";
+};
+
+export const getCriterionHelpText = (vital: LabelHostVitalsCriterion) => {
+  if (vital === "end_user_idp_group") {
+    return "Label criteria is based on the end user's IdP group.";
+  }
+  if (vital === "end_user_idp_department") {
+    return "Label criteria is based on the end user's IdP department.";
+  }
+  return "Label criteria is based on the selected custom host vital.";
+};
 
 export interface INewLabelFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
-  description?: { isValid: boolean; message?: string };
   labelQuery?: { isValid: boolean; message?: string };
   criteria?: { isValid: boolean; message?: string };
 }
-
-// Matches DB
-const MAX_LABEL_NAME_LENGTH = 255;
-const MAX_DESCRIPTION_LENGTH = 255;
 
 type IMessageFunc = (formData: INewLabelFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 type IFormValidationKey = keyof Pick<
   INewLabelFormData,
-  "name" | "description" | "labelQuery" | "vitalValue"
+  "name" | "labelQuery" | "vitalValue"
 >;
 
 interface IValidation {
@@ -40,22 +81,6 @@ const FORM_VALIDATIONS: IFormValidations = {
         name: "required",
         isValid: (formData) => formData.name.trim().length > 0,
         message: "Label name must be present",
-      },
-      {
-        name: "notTooLong",
-        isValid: (formData) => formData.name.length <= MAX_LABEL_NAME_LENGTH,
-        message: `Name may not exceed ${MAX_LABEL_NAME_LENGTH} characters`,
-      },
-    ],
-  },
-  description: {
-    validations: [
-      {
-        name: "notTooLong",
-        isValid: (formData) =>
-          !formData.description ||
-          formData.description.length <= MAX_DESCRIPTION_LENGTH,
-        message: `Description may not exceed ${MAX_DESCRIPTION_LENGTH} characters`,
       },
     ],
   },
@@ -82,6 +107,20 @@ const FORM_VALIDATIONS: IFormValidations = {
             return true;
           }
           return formData.vitalValue.trim().length > 0;
+        },
+        message: "Label criteria must be completed",
+      },
+      {
+        // A custom-vital criterion is incomplete without a selected definition id.
+        name: "customVitalRequiresId",
+        isValid: (formData) => {
+          if (
+            formData.type !== "host_vitals" ||
+            formData.vital !== CUSTOM_HOST_VITAL_CRITERION
+          ) {
+            return true;
+          }
+          return formData.customHostVitalId != null;
         },
         message: "Label criteria must be completed",
       },
@@ -114,9 +153,6 @@ export const validateNewLabelFormData = (
         case "name":
           formValidation.name = { isValid: true };
           break;
-        case "description":
-          formValidation.description = { isValid: true };
-          break;
         case "labelQuery":
           formValidation.labelQuery = { isValid: true };
           break;
@@ -133,9 +169,6 @@ export const validateNewLabelFormData = (
       switch (objKey) {
         case "name":
           formValidation.name = { isValid: false, message };
-          break;
-        case "description":
-          formValidation.description = { isValid: false, message };
           break;
         case "labelQuery":
           formValidation.labelQuery = { isValid: false, message };

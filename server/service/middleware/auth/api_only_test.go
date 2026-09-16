@@ -2,11 +2,13 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -24,6 +26,7 @@ var testCatalogEndpoints = []fleet.APIEndpoint{
 	fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/hosts"),
 	fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/hosts/:id"),
 	fleet.NewAPIEndpointFromTpl("POST", "/api/v1/fleet/scripts/run"),
+	fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/charts/:metric"),
 }
 
 // testIsInCatalog builds a fingerprint set from testCatalogEndpoints and
@@ -43,6 +46,19 @@ func testIsInCatalog() func(string) bool {
 // what RouteTemplateRequestFunc would extract from mux.CurrentRoute(r).GetPathTemplate().
 func muxTemplate(pathSuffix string) string {
 	return muxVersionSegment + pathSuffix
+}
+
+// requireEndpointRestrictionDenied asserts that err is the 403 returned when an
+// API-only user's endpoint restrictions deny a request: a UserMessageError
+// carrying EndpointRestrictionDeniedMessage, distinguishable from a role-based
+// permission denial.
+func requireEndpointRestrictionDenied(t *testing.T, err error) {
+	t.Helper()
+	require.Error(t, err)
+	var umErr *fleet.UserMessageError
+	require.ErrorAs(t, err, &umErr)
+	require.Equal(t, http.StatusForbidden, umErr.StatusCode())
+	require.Equal(t, EndpointRestrictionDeniedMessage, umErr.UserMessage())
 }
 
 func TestAPIOnlyEndpointCheck(t *testing.T) {
@@ -138,8 +154,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		var permErr *fleet.PermissionError
-		require.ErrorAs(t, err, &permErr)
+		requireEndpointRestrictionDenied(t, err)
 	})
 
 	t.Run("api-only user with restrictions, missing route template in context is rejected", func(t *testing.T) {
@@ -155,8 +170,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		var permErr *fleet.PermissionError
-		require.ErrorAs(t, err, &permErr)
+		requireEndpointRestrictionDenied(t, err)
 	})
 
 	t.Run("api-only user with restrictions, missing method and template are both rejected", func(t *testing.T) {
@@ -171,8 +185,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		var permErr *fleet.PermissionError
-		require.ErrorAs(t, err, &permErr)
+		requireEndpointRestrictionDenied(t, err)
 	})
 
 	t.Run("api-only user, method normalization is case-insensitive", func(t *testing.T) {
@@ -254,8 +267,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.Error(t, err)
 		require.False(t, *called)
 
-		var permErr *fleet.PermissionError
-		require.ErrorAs(t, err, &permErr)
+		requireEndpointRestrictionDenied(t, err)
 	})
 
 	t.Run("api-only user, allow-list entry for non-catalog endpoint is still denied", func(t *testing.T) {
@@ -273,8 +285,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		var permErr *fleet.PermissionError
-		require.ErrorAs(t, err, &permErr)
+		requireEndpointRestrictionDenied(t, err)
 	})
 
 	t.Run("api-only user, wrong method for catalog endpoint is rejected at catalog step", func(t *testing.T) {
@@ -291,8 +302,89 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		var permErr *fleet.PermissionError
-		require.ErrorAs(t, err, &permErr)
+		requireEndpointRestrictionDenied(t, err)
+	})
+
+	t.Run("api-only user with restrictions, chart endpoint not in allow-list is rejected", func(t *testing.T) {
+		// Chart endpoint is in the catalog (testCatalogEndpoints), so the
+		// catalog check passes. The user's allow-list does not include charts,
+		// so the allow-list check rejects the request.
+		next, called := newNext()
+		ctx := ctxWithMethod("GET", muxTemplate("fleet/charts/{metric}"))
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly: true,
+			APIEndpoints: []fleet.APIEndpointRef{
+				{Method: "GET", Path: "/api/v1/fleet/hosts"},
+			},
+		}})
+
+		_, err := newEndpoint(next)(ctx, nil)
+		require.Error(t, err)
+		require.False(t, *called)
+		requireEndpointRestrictionDenied(t, err)
+	})
+
+	t.Run("denial surfaces route and reason on the request log line at info level", func(t *testing.T) {
+		cases := []struct {
+			name       string
+			method     string
+			routeTpl   string
+			wantReason string
+		}{
+			{
+				name:       "endpoint not in catalog",
+				method:     "POST",
+				routeTpl:   muxTemplate("fleet/secret_admin_endpoint"),
+				wantReason: "endpoint not in API endpoint catalog",
+			},
+			{
+				name:       "endpoint not in allow-list",
+				method:     "POST",
+				routeTpl:   muxTemplate("fleet/scripts/run"),
+				wantReason: "endpoint not in user's allowed API endpoints",
+			},
+			{
+				name:       "request method missing from context",
+				method:     "",
+				routeTpl:   muxTemplate("fleet/scripts/run"),
+				wantReason: "request method missing from request context",
+			},
+			{
+				name:       "route template missing from context",
+				method:     "POST",
+				routeTpl:   "", // RouteTemplateRequestFunc not wired
+				wantReason: "route template missing from request context",
+			},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				next, called := newNext()
+				lc := &logging.LoggingContext{}
+				ctx := logging.NewContext(t.Context(), lc)
+				if c.method != "" {
+					ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, c.method)
+				}
+				if c.routeTpl != "" {
+					ctx = eu.WithRouteTemplate(ctx, c.routeTpl)
+				}
+				ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+					APIOnly:      true,
+					APIEndpoints: []fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/hosts"}},
+				}})
+
+				_, err := newEndpoint(next)(ctx, nil)
+				requireEndpointRestrictionDenied(t, err)
+				require.False(t, *called)
+
+				require.NotNil(t, lc.ForceLevel)
+				require.Equal(t, slog.LevelInfo, *lc.ForceLevel)
+				require.Equal(t, []any{
+					"denied_by", "api_only_endpoint_restriction",
+					"denial_reason", c.wantReason,
+					"route", c.routeTpl,
+				}, lc.Extras)
+			})
+		}
 	})
 
 	t.Run("api-only user with multiple allowed endpoints, accessing one of them", func(t *testing.T) {
@@ -310,6 +402,16 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, *called)
 	})
+}
+
+func TestEndpointRestrictionDeniedEncoding(t *testing.T) {
+	err := endpointRestrictionDenied(t.Context(), muxTemplate("fleet/hosts"), "endpoint not in user's allowed API endpoints")
+
+	rec := httptest.NewRecorder()
+	eu.EncodeError(t.Context(), err, rec, nil)
+
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), EndpointRestrictionDeniedMessage)
 }
 
 func TestRouteTemplateRequestFunc(t *testing.T) {

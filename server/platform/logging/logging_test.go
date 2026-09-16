@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,6 +103,15 @@ func TestNewSlogLoggerBackwardCompatibility(t *testing.T) {
 
 		// RFC3339Nano would have decimal: 2024-01-15T10:00:00.123456789Z
 		assert.NotRegexp(t, `"ts":"[^"]+\.[0-9]+Z"`, output)
+	})
+
+	t.Run("renders durations with a time unit", func(t *testing.T) {
+		buf, logger := newTestLogger(t, Options{JSON: true})
+
+		logger.InfoContext(t.Context(), "test", "took", 1116187*time.Nanosecond)
+		output := buf.String()
+
+		assert.Contains(t, output, `"took":"1.116187ms"`)
 	})
 
 	t.Run("uses lowercase levels", func(t *testing.T) {

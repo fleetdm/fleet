@@ -20,10 +20,4 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
-  .list-item__actions {
-    .button--icon {
-      @include bordered-icon-button;
-    }
-  }
 }

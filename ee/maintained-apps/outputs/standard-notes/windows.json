@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.201.21",
+      "version": "3.202.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Standard Notes %' AND publisher = 'Standard Notes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Standard Notes %' AND publisher = 'Standard Notes' AND version_compare(version, '3.201.21') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Standard Notes %' AND publisher = 'Standard Notes' AND version_compare(version, '3.202.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'standard notes.exe');"
       },
-      "installer_url": "https://github.com/standardnotes/app/releases/download/@standardnotes/desktop@3.201.21/standard-notes-3.201.21-win-x64.exe",
+      "installer_url": "https://github.com/standardnotes/app/releases/download/@standardnotes/desktop@3.202.0/standard-notes-3.202.0-win-x64.exe",
       "install_script_ref": "45257f64",
       "uninstall_script_ref": "5b6cc5ec",
-      "sha256": "da034509c6fbfdd05f0ad7c4106ba7d8e562cca680486af7edcbcc1ab81f148e",
+      "sha256": "d69d93d098665c2b62a25ab45b72bdf983a4dae9432ee071981afcb61035761f",
       "default_categories": [
         "Security"
       ]

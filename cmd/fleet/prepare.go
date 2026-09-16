@@ -44,7 +44,8 @@ To setup Fleet infrastructure, use one of the available commands.
 				noPrompt = true
 			}
 
-			ds, err := mysql.New(config.Mysql, clock.C)
+			// migrations issue a prepared statement per row, the path most exposed to 1615
+			ds, err := mysql.New(config.Mysql, clock.C, mysql.WithReprepareRetry())
 			if err != nil {
 				initFatal(err, "creating db connection")
 			}

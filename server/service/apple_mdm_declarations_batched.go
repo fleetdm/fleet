@@ -49,7 +49,7 @@ func ReconcileAppleDeclarationsBatched(
 		cursor = ""
 	}
 
-	hosts, allDecls, hostLabels, currentByHost, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, cursor, reconcileAppleDeclarationsBatchSize)
+	hosts, allDecls, hostLabels, currentByHost, pageFull, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, cursor, reconcileAppleDeclarationsBatchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading apple declaration reconcile snapshot")
 	}
@@ -66,8 +66,13 @@ func ReconcileAppleDeclarationsBatched(
 		return nil
 	}
 
+	// Advance the cursor whenever the underlying host page was full — not when
+	// len(hosts) hits the batch size. Duplicate-UUID host rows are collapsed
+	// after the SQL LIMIT, so a full page can dedupe to fewer than batchSize
+	// hosts; treating that as the end of the host universe wraps the cursor
+	// early and permanently starves every host later in the UUID ordering.
 	var nextCursor string
-	if len(hosts) >= reconcileAppleDeclarationsBatchSize {
+	if pageFull {
 		nextCursor = hosts[len(hosts)-1].UUID
 	}
 

@@ -4,7 +4,8 @@
       "version": "90.0.77070",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Sonos%' AND publisher = 'Sonos, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Sonos%' AND publisher = 'Sonos, Inc.' AND version_compare(version, '90.0.77070') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Sonos%' AND publisher = 'Sonos, Inc.' AND version_compare(version, '90.0.77070') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sonos.exe');"
       },
       "installer_url": "https://update-software.sonos.com/software/rT0797IawE/Sonos_90.0-77070.exe",
       "install_script_ref": "109fa54d",

@@ -1,18 +1,16 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
-
-import { IMdmAbToken } from "interfaces/mdm";
-import { ITeamSummary } from "interfaces/team";
-
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
-
-import Modal from "components/Modal";
+import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-import { notify } from "components/ToastNotification";
 import FormField from "components/forms/FormField";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IMdmAbToken } from "interfaces/mdm";
+import { ITeamSummary } from "interfaces/team";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
+
 import RenewDateCell from "../../../components/RenewDateCell";
 
 const baseClass = "edit-teams-abm-modal";
@@ -111,14 +109,21 @@ const EditTeamsAbmModal = ({
           tokenId: token.id,
           teams: getSelectedTeamIds(selectedTeamNames, availableTeams),
         });
-        notify.success("Successfully updated fleets for AB token.");
+        notify.success(`Successfully updated fleets for ${token.org_name}`);
         onSuccess();
       } catch (e) {
         notify.error("Couldn’t edit. Please try again.", { response: e });
         onCancel();
       }
     },
-    [token.id, selectedTeamNames, availableTeams, onSuccess, onCancel]
+    [
+      token.id,
+      token.org_name,
+      selectedTeamNames,
+      availableTeams,
+      onSuccess,
+      onCancel,
+    ]
   );
 
   return (

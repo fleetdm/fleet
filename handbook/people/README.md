@@ -332,7 +332,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 
 ### Purchase a SaaS tool
 
-When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+When procuring SaaS tools and services, analyze the purchase of these subscription services and look for ways to help the company:
 - Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
 - Avoid extra features you don't need, and if they're there anyway, avoid using them.
 - Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?

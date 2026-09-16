@@ -49,12 +49,16 @@ module.exports = {
 
 
   exits: {
-
+    success: {description: 'A Fleet premium quote was successfully created.'},
+    invalidNumberOfHosts: { description: 'A quote could not be created.', responseType: 'badRequest'},
   },
 
 
   fn: async function (inputs) {
     let numberOfHosts = _.sum(_.values(inputs));
+    if(numberOfHosts < 1) {
+      throw 'invalidNumberOfHosts';
+    }
     // Determine the price, 7 dollars * host * month (Billed anually)
     let price = 7.00 * numberOfHosts * 12;
 
@@ -84,7 +88,7 @@ module.exports = {
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
         lastName: this.req.me.lastName,
-        contactSource: 'Website - Contact forms',
+        contactSource: 'Website - Sign up',
         description: descriptionForContactUpdate,
         marketingAttributionCookie: attributionCookieOrUndefined,
         numberOfHostsDetails: inputs,
@@ -104,6 +108,7 @@ module.exports = {
         intentSignal: 'Created a quote for a self-service Fleet Premium license',
         eventContent: descriptionForContactUpdate,
         relatedCampaign: recordDetails.mostRecentCampaign,
+        eventSource: 'Website - Sign up',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

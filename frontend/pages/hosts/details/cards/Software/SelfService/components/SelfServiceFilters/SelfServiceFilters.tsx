@@ -1,9 +1,8 @@
-import React from "react";
 import classnames from "classnames";
-
-import { ISelfServiceCategory } from "interfaces/self_service_category";
+import React from "react";
 
 import SearchField from "components/forms/fields/SearchField";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 import CategoryFilter from "../CategoryFilter";
 
@@ -43,15 +42,17 @@ const SelfServiceFilters = ({
           onChange={onCategoryChange}
         />
       )}
-      {installAllSlot && (
-        <div className={`${baseClass}__install-all`}>{installAllSlot}</div>
-      )}
-      <div className={`${baseClass}__search`}>
-        <SearchField
-          placeholder="Search by name"
-          onChange={onSearchQueryChange}
-          defaultValue={query}
-        />
+      <div className={`${baseClass}__actions`}>
+        {installAllSlot && (
+          <div className={`${baseClass}__install-all`}>{installAllSlot}</div>
+        )}
+        <div className={`${baseClass}__search`}>
+          <SearchField
+            placeholder="Search by name"
+            onChange={onSearchQueryChange}
+            defaultValue={query}
+          />
+        </div>
       </div>
     </div>
   );

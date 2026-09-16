@@ -1,5 +1,5 @@
-import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
+import { IUser } from "interfaces/user";
 
 export const teamStub: ITeam = {
   description: "This is the test team",
@@ -21,6 +21,8 @@ export const userStub: IUser = {
   role: "Observer",
   global_role: null,
   api_only: false,
+  last_login_at: null,
+  last_activity_at: null,
   force_password_reset: false,
   gravatar_url: "https://image.com",
   sso_enabled: false,

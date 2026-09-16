@@ -1,17 +1,16 @@
 import React from "react";
 
-import stringUtils from "utilities/strings";
-import permissions from "utilities/permissions";
-import { IUser, UserRole } from "interfaces/user";
-import { ITeam } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
-import PillBadge from "components/PillBadge";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeam } from "interfaces/team";
+import { IUser, UserRole } from "interfaces/user";
+import permissions from "utilities/permissions";
+import stringUtils from "utilities/strings";
 
 interface IHeaderProps {
   column: {
@@ -61,8 +60,8 @@ export interface ITeamUsersTableData {
 
 export const renderApiUserIndicator = () => {
   return (
-    <PillBadge
-      tipContent={
+    <Tag
+      tooltip={
         <>
           This user was created using fleetctl and
           <br /> only has API access.{" "}
@@ -74,9 +73,10 @@ export const renderApiUserIndicator = () => {
           />
         </>
       }
+      size="xsmall"
     >
       API
-    </PillBadge>
+    </Tag>
   );
 };
 
@@ -180,7 +180,7 @@ const generateColumnConfigs = (
             options={cellProps.cell.value}
             onChange={(value: string) => actionSelectHandler(value, rowUser)}
             placeholder="Actions"
-            variant="small-button"
+            variant="secondary"
             disabled={!canManageUser}
           />
         );

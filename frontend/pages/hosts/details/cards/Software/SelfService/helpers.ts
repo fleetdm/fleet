@@ -1,10 +1,10 @@
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES,
   HOST_SOFTWARE_UI_PENDING_STATUSES,
   IDeviceSoftwareWithUiStatus,
   SoftwareCategory,
 } from "interfaces/software";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 type CategoryFilterValue = SoftwareCategory | "All";
 
@@ -97,6 +97,23 @@ export const filterSoftwareByCustomCategory = (
       ...(item.app_store_app?.categories ?? []),
     ];
     return itemCategories.some((c) => c.toLowerCase() === normalized);
+  });
+};
+
+// Client-side match filter used by the desktop `SelfServiceTable`, the mobile
+// tile list, and the "Install all" count. Matches the backend `MatchQuery`
+// columns on `software_titles` (name, bundle_identifier, custom display_name)
+// so a rename-only admin edit is still findable and the Install all button
+// installs exactly what the user sees on screen.
+export const filterSoftwareByQuery = (
+  software: IDeviceSoftwareWithUiStatus[],
+  query: string | undefined
+): IDeviceSoftwareWithUiStatus[] => {
+  const q = query?.toLowerCase().trim() ?? "";
+  if (!q) return software;
+  return software.filter((item) => {
+    const fields = [item.name, item.display_name, item.bundle_identifier];
+    return fields.some((f) => f?.toLowerCase().includes(q));
   });
 };
 

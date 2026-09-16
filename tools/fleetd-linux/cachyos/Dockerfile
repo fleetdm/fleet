@@ -1,4 +1,4 @@
-FROM cachyos/cachyos:latest
+FROM cachyos/cachyos:latest@sha256:f654824d870b4222f8d6c2d4f57ecc6bd27c416123b78f103779044a10bcc0f0
 
 COPY fleet-osquery_amd64.pkg.tar.zst /
 COPY run-fleetd.sh /

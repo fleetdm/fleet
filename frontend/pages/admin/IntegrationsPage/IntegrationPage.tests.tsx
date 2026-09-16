@@ -1,10 +1,10 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
+import React from "react";
 
 import createMockConfig, { DEFAULT_LICENSE_MOCK } from "__mocks__/configMock";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import IntegrationsPage from "./IntegrationsPage";
 
@@ -39,7 +39,7 @@ describe("Integrations Page", () => {
   describe("Conditional access", () => {
     it("Does not render the conditional access sidenav for self-hosted Fleet instances", () => {
       const mockConfig = createMockConfig({
-        license: { ...DEFAULT_LICENSE_MOCK, managed_cloud: false },
+        license: { ...DEFAULT_LICENSE_MOCK },
       });
 
       const render = createCustomRenderer({

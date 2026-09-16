@@ -19,16 +19,16 @@ export function ClearLogChannel(channel: string): $CancellablePromise<void> {
     return $Call.ByID(4273696403, channel);
 }
 
-export function DockerComposeDown(cwd: string): $CancellablePromise<string> {
-    return $Call.ByID(627523335, cwd);
+export function DockerComposeDown(id: string, cwd: string, project: string): $CancellablePromise<string> {
+    return $Call.ByID(627523335, id, cwd, project);
 }
 
-export function DockerComposeRestart(cwd: string): $CancellablePromise<string> {
-    return $Call.ByID(3994734050, cwd);
+export function DockerComposeRestart(cwd: string, project: string): $CancellablePromise<string> {
+    return $Call.ByID(3994734050, cwd, project);
 }
 
-export function DockerComposeStatus(cwd: string): $CancellablePromise<processes$0.DockerStatus> {
-    return $Call.ByID(1513541277, cwd).then(($result: any) => {
+export function DockerComposeStatus(cwd: string, project: string): $CancellablePromise<processes$0.DockerStatus> {
+    return $Call.ByID(1513541277, cwd, project).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -66,10 +66,11 @@ export function ServeTCPCheck(host: string, port: number): $CancellablePromise<b
 }
 
 /**
- * ShutdownNow stops all managed processes + docker, then triggers app exit.
+ * ShutdownNow stops all managed processes + every server's docker stack, then
+ * triggers app exit. targets is one (cwd, project) per configured server.
  */
-export function ShutdownNow(repoPath: string): $CancellablePromise<void> {
-    return $Call.ByID(4274814133, repoPath);
+export function ShutdownNow(targets: processes$0.ComposeTarget[]): $CancellablePromise<void> {
+    return $Call.ByID(4274814133, targets);
 }
 
 export function StartProcess(id: string, label: string, cwd: string, program: string, args: string[], logChannel: string, env: processes$0.EnvPair[]): $CancellablePromise<void> {

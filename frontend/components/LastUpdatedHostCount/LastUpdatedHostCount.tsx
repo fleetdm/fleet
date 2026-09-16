@@ -1,4 +1,5 @@
 import React from "react";
+
 import LastUpdatedText from "components/LastUpdatedText";
 
 const baseClass = "last-updated-host-count";
@@ -15,7 +16,7 @@ const LastUpdatedHostCount = ({
   const tooltipContent = (
     <>
       The last time host data was updated. <br />
-      Click <b>View all hosts</b> to see the most
+      Click the host count to see the most
       <br /> up-to-date host count.
     </>
   );

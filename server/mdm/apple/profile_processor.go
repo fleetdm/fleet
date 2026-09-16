@@ -187,10 +187,11 @@ func preprocessProfileContents(
 			continue
 		}
 
-		// Check if Fleet variables are present.
+		// Check if Fleet variables or custom host vitals are present.
 		contentsStr := string(contents)
 		fleetVars := variables.Find(contentsStr)
-		if len(fleetVars) == 0 {
+		hasHostVitals := len(fleet.FindCustomHostVitalIDs(contentsStr)) > 0
+		if len(fleetVars) == 0 && !hasHostVitals {
 			continue
 		}
 
@@ -389,6 +390,13 @@ func preprocessProfileContents(
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
+						if !scep.IsTerminalNDESChallengeError(err) {
+							// Nothing was delivered, and the condition clears on its own, so leave the profile queued and let a later tick preprocess it.
+							logger.WarnContext(ctx, "could not reach NDES for a SCEP challenge; leaving profile queued for a later tick",
+								"host_uuid", hostUUID, "profile_uuid", profUUID, "err", err)
+							failed = true
+							break fleetVarLoop
+						}
 						detail := scep.NDESChallengeErrorToDetail(err)
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:        target.CmdUUID,
@@ -452,7 +460,7 @@ func preprocessProfileContents(
 					ca, ok := smallstepCAs[caName]
 					if !ok {
 						logger.ErrorContext(ctx, "Smallstep SCEP CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+							"This error should never happen since we validated/populated CAs earlier", "known_cas", profiles.KnownCANames(smallstepCAs))
 						continue
 					}
 					logger.DebugContext(ctx, "fetching Smallstep SCEP challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
@@ -570,7 +578,7 @@ func preprocessProfileContents(
 					ca, ok := digiCertCAs[caName]
 					if !ok {
 						logger.ErrorContext(ctx, "Custom DigiCert CA not found. "+
-							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+							"This error should never happen since we validated/populated CAs earlier", "known_cas", profiles.KnownCANames(digiCertCAs))
 						continue
 					}
 					caCopy := *ca
@@ -651,6 +659,44 @@ func preprocessProfileContents(
 					// This was handled in the above switch statement, so we should never reach this case
 				}
 			}
+
+			// Expand per-host custom host vitals ($FLEET_HOST_VITAL_<id>). This is a
+			// top-level prefix not handled by the FLEET_VAR_ loop above. On a
+			// missing/empty value for this host, mark the profile failed with a
+			// detail rather than shipping a blank substitution.
+			if !failed && hasHostVitals {
+				hostForVitals, ok, err := profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "hydrating host for custom host vitals")
+				}
+				if !ok {
+					// onMismatchedHostCount already marked the profile failed.
+					failed = true
+				} else {
+					hostLite = hostForVitals
+					expanded, err := ds.ExpandCustomHostVitals(ctx, hostLite.ID, hostContents)
+					if err != nil {
+						var missing *fleet.MissingCustomHostVitalValueError
+						if !errors.As(err, &missing) {
+							return ctxerr.Wrap(ctx, err, "expanding custom host vitals")
+						}
+						if updErr := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:        target.CmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             missing.Error(),
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
+						}); updErr != nil {
+							return ctxerr.Wrap(ctx, updErr, "marking profile failed for missing custom host vital")
+						}
+						failed = true
+					} else {
+						hostContents = expanded
+					}
+				}
+			}
+
 			if !failed {
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,

@@ -37,6 +37,7 @@ module.exports = {
   exits: {
     success: { description: 'A Stripe event has successfully been received' },
     missingStripeHeader: { description: 'The webhook received a request with no stripe-signature header', responseType: 'unauthorized'},
+    invalidWebhookSecret: {description: 'This webhook request could not be verified.', responseType: 'unauthorized'},
   },
 
 
@@ -53,7 +54,7 @@ module.exports = {
     }
 
     if (sails.config.custom.stripeSubscriptionWebhookSecret !== webhookSecret) {
-      throw new Error('Received unexpected Stripe webhook request with webhookSecret set to: '+webhookSecret);
+      throw 'invalidWebhookSecret';
     }
 
     let stripeEventData = data.object;

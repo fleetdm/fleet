@@ -1,17 +1,15 @@
-import React from "react";
-import FileSaver from "file-saver";
 import classnames from "classnames";
+import FileSaver from "file-saver";
+import React from "react";
 
-import { uploadedFromNow } from "utilities/date_format";
-
-import Icon from "components/Icon";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
-import Button from "components/buttons/Button";
 import {
   IAppleSetupEnrollmentProfileResponse,
   IDefaultAppleSetupEnrollmentProfileResponse,
 } from "services/entities/mdm";
+import { uploadedFromNow } from "utilities/date_format";
 
 interface IBaseProps<TProfile> {
   profile: TProfile;
@@ -81,19 +79,19 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
       <div className={`${baseClass}__actions`}>
         <Button
           className={`${baseClass}__download-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDownload}
-        >
-          <Icon name="download" />
-        </Button>
+          icon="download"
+          ariaLabel="Download setup assistant profile"
+        />
         {!props.defaultProfile && (
           <Button
             className={`${baseClass}__delete-button`}
-            variant="icon"
+            variant="secondary"
             onClick={props.onDelete}
-          >
-            <Icon name="trash" />
-          </Button>
+            icon="trash"
+            ariaLabel="Delete setup assistant profile"
+          />
         )}
       </div>
     </Card>

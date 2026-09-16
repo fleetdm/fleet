@@ -59,6 +59,7 @@ module.exports = {
         intentSignal: 'Requested whitepaper download',
         eventContent: whitepaperName,
         relatedCampaign: recordDetails.mostRecentCampaign,
+        eventSource: 'Website - Gated document',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

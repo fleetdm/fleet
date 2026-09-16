@@ -1,18 +1,17 @@
-import React, { FormEvent, useEffect, useState } from "react";
-import { size } from "lodash";
 import classnames from "classnames";
-import { ILoginUserData } from "interfaces/user";
+import { size } from "lodash";
+import React, { FormEvent, useEffect, useState } from "react";
 
-import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import paths from "router/paths";
-import { ISSOSettings } from "interfaces/ssoSettings";
-import validatePresence from "components/forms/validators/validate_presence";
 import validateEmail from "components/forms/validators/valid_email";
+import validatePresence from "components/forms/validators/validate_presence";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ISSOSettings } from "interfaces/ssoSettings";
+import { ILoginUserData } from "interfaces/user";
+import paths from "router/paths";
 
 const baseClass = "login-form";
 
@@ -88,7 +87,7 @@ const LoginForm = ({
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
-        variant="inverse"
+        variant="secondary"
         onClick={handleSSOSignOn}
         tabIndex={0}
       >
@@ -134,10 +133,10 @@ const LoginForm = ({
         <>
           <Button
             onClick={() => setShowPendingEmail(false)}
-            variant="inverse"
+            variant="subdued"
             className="back-link"
+            icon="chevron-left"
           >
-            <Icon name="chevron-left" color="ui-fleet-black-75" />
             Back to login
           </Button>
           <h1>Check your email</h1>

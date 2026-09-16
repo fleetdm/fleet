@@ -31,8 +31,14 @@ export interface IWebhookActivities {
   destination_url: string;
 }
 
+export interface IWebhookHostActivities {
+  enable_host_activities_webhook: boolean;
+  destination_url: string;
+}
+
 export type IWebhook =
   | IWebhookHostStatus
   | IWebhookFailingPolicies
   | IWebhookSoftwareVulnerabilities
-  | IWebhookActivities;
+  | IWebhookActivities
+  | IWebhookHostActivities;

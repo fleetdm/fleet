@@ -1,13 +1,13 @@
-import { getExtensionFromFileName } from "./file/fileUtils";
-
-// @ts-ignore
-import installPkg from "../../pkg/file/scripts/install_pkg.sh";
-// @ts-ignore
-import installMsi from "../../pkg/file/scripts/install_msi.ps1";
 // @ts-ignore
 import installDeb from "../../pkg/file/scripts/install_deb.sh";
 // @ts-ignore
+import installMsi from "../../pkg/file/scripts/install_msi.ps1";
+// @ts-ignore
+import installPkg from "../../pkg/file/scripts/install_pkg.sh";
+// @ts-ignore
 import installRPM from "../../pkg/file/scripts/install_rpm.sh";
+
+import { getExtensionFromFileName } from "./file/fileUtils";
 
 /*
  * getInstallScript returns a string with a script to install the
@@ -30,6 +30,7 @@ const getDefaultInstallScript = (fileName: string): string => {
     case "tar.gz":
     case "sh":
     case "ps1":
+    case "py":
     case "ipa":
       return "";
     default:

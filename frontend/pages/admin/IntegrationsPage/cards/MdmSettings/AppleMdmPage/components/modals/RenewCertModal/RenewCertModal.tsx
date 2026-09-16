@@ -1,13 +1,13 @@
 import React, { useState, useCallback } from "react";
 
-import mdmAppleApi from "services/entities/mdm_apple";
-import { getErrorReason } from "interfaces/errors";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAppleApi from "services/entities/mdm_apple";
+
 import DownloadCSR from "../../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 const baseClass = "modal renew-cert-modal";
@@ -93,7 +93,7 @@ const RenewCertModal = ({
           className={`${baseClass}__file-uploader`}
           accept=".pem"
           buttonMessage="Choose file"
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           graphicName="file-pem"
           message="APNs certificate (.pem)"
           onFileUpload={onSelectFile}

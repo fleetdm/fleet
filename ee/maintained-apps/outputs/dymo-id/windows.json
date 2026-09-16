@@ -4,7 +4,8 @@
       "version": "1.5.1.71",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'DYMO ID' AND publisher = 'Sanford, L.P.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DYMO ID' AND publisher = 'Sanford, L.P.' AND version_compare(version, '1.5.1.71') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DYMO ID' AND publisher = 'Sanford, L.P.' AND version_compare(version, '1.5.1.71') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dymo id.exe');"
       },
       "installer_url": "https://download.dymo.com/dymo/Software/DYMOID_1.5.1/DYMOIDSetup.1.5.1.exe",
       "install_script_ref": "9f419a93",

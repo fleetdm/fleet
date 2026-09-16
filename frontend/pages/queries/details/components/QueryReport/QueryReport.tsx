@@ -1,23 +1,20 @@
-import React, { useState, useMemo, useCallback } from "react";
-
-import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
-
-import {
-  generateCSVFilename,
-  generateCSVQueryResults,
-} from "utilities/generate_csv";
-import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
-import PATHS from "router/paths";
+import React, { useState, useMemo, useCallback } from "react";
+import { Row, Column } from "react-table";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
+import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
+import PATHS from "router/paths";
+import {
+  generateCSVFilename,
+  generateCSVQueryResults,
+} from "utilities/generate_csv";
 
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
@@ -83,12 +80,12 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export results
-            <Icon name="download" color="ui-fleet-black-75" />
-          </>
+          Export results
         </Button>
       </div>
     );

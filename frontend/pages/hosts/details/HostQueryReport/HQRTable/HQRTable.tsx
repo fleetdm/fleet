@@ -1,24 +1,25 @@
-import Button from "components/buttons/Button";
-import EmptyState from "components/EmptyState";
-import Icon from "components/Icon";
-import TableContainer from "components/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
+import FileSaver from "file-saver";
 import React, { useCallback, useState } from "react";
 import { Row } from "react-table";
+
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import FileSaver from "file-saver";
-import Spinner from "components/Spinner";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   getPerformanceImpactDescription,
   getPerformanceImpactIndicatorTooltip,
 } from "utilities/helpers";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
+
 import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
@@ -109,21 +110,22 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export results
-            <Icon name="download" />
-          </>
+          Export results
         </Button>
       </div>
     );

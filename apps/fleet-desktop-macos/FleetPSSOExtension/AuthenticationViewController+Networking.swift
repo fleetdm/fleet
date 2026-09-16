@@ -13,6 +13,7 @@
 // to support a web view
 
 import Foundation
+import os
 import Security
 
 extension AuthenticationViewController {
@@ -23,35 +24,122 @@ extension AuthenticationViewController {
     // assertion. Fleet always publishes an encryption key, so the caller treats
     // nil as fatal rather than proceeding with password encryption disabled.
     func loginRequestEncryptionKey(jwksURL: URL) async -> SecKey? {
-        guard let (data, resp) = try? await URLSession.shared.data(from: jwksURL),
-              let http = resp as? HTTPURLResponse,
-              (200...299).contains(http.statusCode),
-              let jwks = try? JSONDecoder().decode(JWKSet.self, from: data)
-        else { return nil }
+        do {
+            return try await fetchLoginRequestEncryptionKey(jwksURL: jwksURL)
+        } catch {
+            logger.error("loginRequestEncryptionKey: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
 
+    // fetchLoginRequestEncryptionKey is the throwing form, keeping the failure
+    // category (network vs. server vs. malformed) so an interactive caller can
+    // tell the user something more specific than "something went wrong".
+    func fetchLoginRequestEncryptionKey(jwksURL: URL) async throws -> SecKey {
+        let data: Data
+        let resp: URLResponse
+        do {
+            (data, resp) = try await URLSession.shared.data(from: jwksURL)
+        } catch {
+            throw UserRegistrationError.network(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw UserRegistrationError.internalFailure("jwks: non-HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw UserRegistrationError.server(status: http.statusCode)
+        }
+        guard let jwks = try? JSONDecoder().decode(JWKSet.self, from: data) else {
+            throw UserRegistrationError.internalFailure("jwks: undecodable response")
+        }
         for jwk in jwks.keys where jwk.use == "enc" {
             if let key = jwk.ecPublicSecKey() {
                 return key
             }
         }
-        return nil
+        throw UserRegistrationError.internalFailure("jwks: no usable enc key published")
     }
 
     // postDeviceRegistration POSTs the registration payload to Fleet and
     // returns true on a 2xx response.
     func postDeviceRegistration(payload: [String: String]) async -> Bool {
-        guard let endpoint = registrationEndpointURL else { return false }
+        guard let endpoint = registrationEndpointURL else {
+            logger.error("postDeviceRegistration: no registration endpoint URL")
+            return false
+        }
         var req = URLRequest(url: endpoint)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded",
                      forHTTPHeaderField: "Content-Type")
         let items = payload.map { URLQueryItem(name: $0.key, value: $0.value) }
         req.httpBody = formURLEncodedBody(items)
-        guard let (_, resp) = try? await URLSession.shared.data(for: req),
-              let http = resp as? HTTPURLResponse else {
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else {
+                logger.error("postDeviceRegistration: non-HTTP response")
+                return false
+            }
+            logger.log("postDeviceRegistration: HTTP \(http.statusCode, privacy: .public)")
+            return (200...299).contains(http.statusCode)
+        } catch {
+            logger.error("postDeviceRegistration: request failed: \(String(describing: error), privacy: .public)")
             return false
         }
-        return (200...299).contains(http.statusCode)
+    }
+
+    // fetchRequestNonce obtains the single-use request_nonce every token request
+    // must carry. The body mirrors what AppSSOAgent sends; Fleet ignores it.
+    func fetchRequestNonce(nonceURL: URL) async throws -> String {
+        var req = URLRequest(url: nonceURL)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.httpBody = Data("grant_type=srv_challenge".utf8)
+        let body: Data
+        let resp: URLResponse
+        do {
+            (body, resp) = try await URLSession.shared.data(for: req)
+        } catch {
+            logger.error("fetchRequestNonce: request failed: \(String(describing: error), privacy: .public)")
+            throw UserRegistrationError.network(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw UserRegistrationError.internalFailure("nonce: non-HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            logger.error("fetchRequestNonce: HTTP \(http.statusCode, privacy: .public)")
+            throw UserRegistrationError.server(status: http.statusCode)
+        }
+        struct NonceResponse: Decodable {
+            let nonce: String
+            enum CodingKeys: String, CodingKey { case nonce = "Nonce" }
+        }
+        guard let decoded = try? JSONDecoder().decode(NonceResponse.self, from: body), !decoded.nonce.isEmpty else {
+            throw UserRegistrationError.internalFailure("nonce: undecodable response")
+        }
+        return decoded.nonce
+    }
+
+    // postTokenRequest submits a signed login assertion and returns the HTTP
+    // status. The response JWE is encrypted to the device key and not needed
+    // here: the status alone says whether the IdP accepted the credentials.
+    func postTokenRequest(assertion: String, tokenURL: URL) async throws -> Int {
+        var req = URLRequest(url: tokenURL)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        req.httpBody = formURLEncodedBody([URLQueryItem(name: "assertion", value: assertion)])
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else {
+                throw UserRegistrationError.internalFailure("token: non-HTTP response")
+            }
+            logger.log("postTokenRequest: HTTP \(http.statusCode, privacy: .public)")
+            return http.statusCode
+        } catch let error as UserRegistrationError {
+            throw error
+        } catch {
+            logger.error("postTokenRequest: request failed: \(String(describing: error), privacy: .public)")
+            throw UserRegistrationError.network(error)
+        }
     }
 
     // formURLEncodedBody serializes query items as an x-www-form-urlencoded

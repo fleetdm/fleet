@@ -6,7 +6,7 @@
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET Runtime - 8.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation';",
   "installer_arch": "x64",
   "installer_type": "exe",
-  "installer_scope": "",
+  "installer_scope": "machine",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_runtime_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/microsoft_dotnet_runtime_uninstall.ps1",
   "default_categories": ["Developer tools"]

@@ -1,20 +1,18 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
 import { IHostManagedAccountPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import Icon from "components/Icon";
-import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { monthDayTimeFormat } from "utilities/date_format";
-import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "managed-account-modal";
 
@@ -26,6 +24,9 @@ interface IManagedAccountModalProps {
   // We deferred this decision for now because this modal only displays for
   // Admin or Maintainer roles
   canRotatePassword: boolean;
+  /** The last rotation failed. The password shown is still the last one Fleet received. The reason the host
+   * reported is shown on the failure activity instead, not here. */
+  rotationFailed?: boolean;
   onCancel: () => void;
   onRotate: () => void;
 }
@@ -33,6 +34,7 @@ interface IManagedAccountModalProps {
 const ManagedAccountModal = ({
   hostId,
   canRotatePassword,
+  rotationFailed = false,
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
@@ -83,6 +85,34 @@ const ManagedAccountModal = ({
     justRotated || managedAccountData?.pending_rotation === true;
   const autoRotateAt = managedAccountData?.auto_rotate_at;
 
+  // One banner at a time. Gated on booleans, not the reason string, so a failure without a reason still shows.
+  const renderRotationBanner = () => {
+    if (showPendingRotationBanner) {
+      return (
+        <InfoBanner color="yellow">
+          Password will rotate once the host acknowledges the request.
+        </InfoBanner>
+      );
+    }
+    // A failed row has no timer armed, so the failure outranks the auto-rotate hint.
+    if (rotationFailed) {
+      return (
+        <InfoBanner color="yellow" icon="warning">
+          Couldn&apos;t rotate password.
+        </InfoBanner>
+      );
+    }
+    if (autoRotateAt) {
+      return (
+        <InfoBanner color="yellow">
+          Password rotates automatically after{" "}
+          {monthDayTimeFormat(autoRotateAt)}.
+        </InfoBanner>
+      );
+    }
+    return null;
+  };
+
   return (
     <Modal title="Managed account" onExit={onCancel} className={baseClass}>
       {isLoading && <Spinner />}
@@ -99,28 +129,17 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
-            {showPendingRotationBanner ? (
-              <InfoBanner color="yellow">
-                Password will rotate once the host acknowledges the request.
-              </InfoBanner>
-            ) : (
-              autoRotateAt && (
-                <InfoBanner color="yellow">
-                  Password rotates automatically after{" "}
-                  {monthDayTimeFormat(autoRotateAt)}.
-                </InfoBanner>
-              )
-            )}
+            {renderRotationBanner()}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (
                 <Button
-                  variant="inverse"
+                  variant="secondary"
                   onClick={onRotatePassword}
                   disabled={isRotating}
                   className={`${baseClass}__rotate-button`}
+                  icon="refresh"
                 >
-                  <Icon name="refresh" />
                   {isRotating ? "Rotating..." : "Rotate password"}
                 </Button>
               )}

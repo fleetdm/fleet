@@ -113,6 +113,7 @@ resource "aws_ecs_task_definition" "backend" {
             awslogs-stream-prefix = "fleet"
           }
         },
+        command = ["fleet", "serve", "--dev"]
         secrets = concat([
           {
             name      = "FLEET_MYSQL_PASSWORD"

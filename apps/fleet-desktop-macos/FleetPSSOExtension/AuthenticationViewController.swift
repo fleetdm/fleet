@@ -5,10 +5,19 @@
 // ASAuthorizationProviderExtensionLoginManager. Conforms minimally to
 // ASAuthorizationProviderExtensionAuthorizationRequestHandler so the
 // extension binary loads; Password-mode registration and sign-in have no
-// browser leg, so no web view is needed.
+// browser leg, so no web view is needed. The view only ever hosts the native
+// sign-in form used for interactive user registration.
 
 import AuthenticationServices
 import Cocoa
+import os
+
+// Registration runs headless (Setup Assistant, background repairs), so the
+// unified log is the only visibility into which step failed. Dynamic values
+// are private-by-default; annotate non-sensitive ones .public and never log
+// the registration token or key material.
+let logger = Logger(subsystem: "com.fleetdm.fleet-desktop.pssoextension",
+                    category: "psso")
 
 final class AuthenticationViewController: NSViewController,
     ASAuthorizationProviderExtensionAuthorizationRequestHandler {
@@ -16,9 +25,15 @@ final class AuthenticationViewController: NSViewController,
     var loginManager: ASAuthorizationProviderExtensionLoginManager?
     var pendingRequest: ASAuthorizationProviderExtensionAuthorizationRequest?
     var registrationEndpointURL: URL?
+    var registrationForm: RegistrationFormView?
+    var userRegistrationCompletion: ((ASAuthorizationProviderExtensionRegistrationResult) -> Void)?
+    var verificationTask: Task<Void, Never>?
+
+    static let formSize = NSSize(width: 480, height: 300)
 
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 720))
+        view = NSView(frame: NSRect(origin: .zero, size: Self.formSize))
+        preferredContentSize = Self.formSize
     }
 
     func beginAuthorization(

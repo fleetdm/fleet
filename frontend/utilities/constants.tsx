@@ -1,11 +1,12 @@
-import URL_PREFIX from "router/url_prefix";
+import React from "react";
+
+import { ICampaign } from "interfaces/campaign";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHost } from "interfaces/host";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ICampaign } from "interfaces/campaign";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-import { IHost } from "interfaces/host";
+import URL_PREFIX from "router/url_prefix";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -88,8 +89,16 @@ export const LOGGING_TYPE_OPTIONS = [
 
 export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
+// Max character length for most user-supplied free-text fields (name, title,
+// description) — matches the varchar(255) column shared across policies,
+// reports, teams (fleets), labels, software categories, custom variables,
+// certificate authorities, etc. Use on any `InputField` bound to such a
+// column: `inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}`.
+export const MAX_ENTITY_CHAR_LENGTH = 255;
+
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
   { label: "5.22.1 +", value: "5.22.1" },
   { label: "5.21.0 +", value: "5.21.0" },
@@ -384,9 +393,24 @@ export const MDM_STATUS_TOOLTIP: Record<
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business (AB).
-      <br /> These will automatically enroll to Fleet <br /> and turn on MDM
-      when they&apos;re unboxed.
+      Hosts pending automatic enrollment in Apple Business (AB) or Windows
+      Autopilot.
+    </span>
+  ),
+};
+
+/** Used where a single host's platform is known, e.g. the host details MDM status modal. */
+export const MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM = {
+  windows: (
+    <span>
+      Hosts added to Windows Autopilot. These will automatically enroll to Fleet
+      and turn on MDM when they&apos;re unboxed.
+    </span>
+  ),
+  apple: (
+    <span>
+      Hosts ordered via Apple Business (AB). These will automatically enroll to
+      Fleet and turn on MDM when they&apos;re unboxed.
     </span>
   ),
 };
@@ -429,11 +453,13 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "issues",
   "platform",
   "detail_updated_at",
+  "policy_updated_at",
   "team_name",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
   "os_version",
   "mdm",
+  "last_mdm_checked_in_at",
 ];
 
 export const HOST_VITALS_DATA = [
@@ -441,6 +467,7 @@ export const HOST_VITALS_DATA = [
   "uptime",
   "last_enrolled_at",
   "hardware_model",
+  "hardware_marketing_name",
   "hardware_serial",
   "primary_ip",
   "public_ip",
@@ -464,6 +491,22 @@ export const HOST_VITALS_DATA = [
   "timezone",
   "mdm_enrollment_hardware_attested",
   "primary_mac",
+  // Android-only vitals. Absent for every other platform, so they're simply
+  // dropped by the pick rather than needing a platform check here.
+  "adb_enabled",
+  "passcode_protected",
+  "play_protect_enabled",
+  "encryption_type",
+  "manufacturer",
+  "security_update_version",
+  "device_kernel_version",
+  "bootloader_version",
+  "system_update_status",
+  "security_posture",
+  "imei",
+  "meid",
+  "api_level",
+  "telephony_infos",
 ];
 
 export const HOST_OSQUERY_DATA = [

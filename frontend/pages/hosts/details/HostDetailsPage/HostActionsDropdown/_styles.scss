@@ -13,3 +13,9 @@
     min-width: 200px;
   }
 }
+
+// Left-align error tooltip.
+.host-actions-dropdown__managed-account-error {
+  display: block;
+  text-align: left;
+}

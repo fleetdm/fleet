@@ -1,7 +1,8 @@
+import { trimEnd, upperFirst } from "lodash";
 import React from "react";
+
 import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, IVPPHostSoftware } from "interfaces/software";
-import { trimEnd, upperFirst } from "lodash";
 
 const INSTALL_SOFTWARE_ERROR_PREFIX = "Couldn't install.";
 const DEFAULT_INSTALL_ERROR_MESSAGE = `${INSTALL_SOFTWARE_ERROR_PREFIX} Please try again.`;
@@ -20,12 +21,12 @@ export const DROPDOWN_OPTIONS = [
   },
   {
     disabled: false,
-    label: "Self-service",
+    label: "Self service",
     value: "selfService",
     helpText: (
       <>
         Software that end users can install from <b>Fleet Desktop</b> {">"}
-        <b>Self-service</b>.
+        <b>Self service</b>.
       </>
     ),
   },

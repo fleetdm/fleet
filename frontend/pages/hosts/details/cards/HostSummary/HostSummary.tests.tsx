@@ -1,11 +1,12 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
+
+import { createMockHostSummary } from "__mocks__/hostMock";
+import createMockUser from "__mocks__/userMock";
+import { BootstrapPackageStatus } from "interfaces/mdm";
+import { HostPlatform } from "interfaces/platform";
 import { createCustomRenderer } from "test/test-utils";
 
-import createMockUser from "__mocks__/userMock";
-import { createMockHostSummary } from "__mocks__/hostMock";
-
-import { BootstrapPackageStatus } from "interfaces/mdm";
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
@@ -136,6 +137,37 @@ describe("Host Summary section", () => {
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
       expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
     });
+  });
+
+  describe("Empty card", () => {
+    it.each<[string, HostPlatform, string]>([
+      ["Android", "android", "Android 14"],
+      ["iOS", "ios", "iOS 17.4"],
+      ["iPadOS", "ipados", "iPadOS 17.4"],
+    ])(
+      "does not render the summary card for a Free-tier %s host",
+      (_label, platform, os_version) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: false,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+        const summaryData = createMockHostSummary({
+          platform,
+          os_version,
+        });
+
+        const { container } = render(
+          <HostSummary summaryData={summaryData} isPremiumTier={false} />
+        );
+
+        expect(container).toBeEmptyDOMElement();
+      }
+    );
   });
 
   describe("Bootstrap package data", () => {

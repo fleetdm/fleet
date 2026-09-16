@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 interface DeleteBootstrapPackageModalProps {
   onCancel: () => void;
@@ -35,7 +35,7 @@ const DeleteBootstrapPackageModal = ({
           <Button type="button" onClick={() => onDelete()} variant="alert">
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

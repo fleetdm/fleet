@@ -3,8 +3,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"math"
+	"net/http"
 	"time"
 
 	"github.com/RoaringBitmap/roaring"
@@ -12,8 +15,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+)
+
+const (
+	cvssMinScore = 0.0
+	cvssMaxScore = 10.0
+	epssMinScore = 0.0
+	epssMaxScore = 1.0
 )
 
 // Service is the chart bounded context service implementation.
@@ -97,6 +108,13 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("unknown chart metric: %s", metric)}
 	}
 
+	if metric == api.MetricCVE && !license.IsPremium(ctx) {
+		return nil, platform_http.NewUserMessageError(
+			errors.New("the vulnerability exposure chart requires a Fleet Premium license"),
+			http.StatusPaymentRequired,
+		)
+	}
+
 	// Don't allow requesting more days than the charts are designed to handle.
 	// This mostly prevents expensive queries for large day ranges.
 	if opts.Days < 1 || opts.Days > 31 {
@@ -106,6 +124,15 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	// Resolution must be 0 or a positive divisor of 24.
 	if opts.Resolution < 0 || (opts.Resolution != 0 && 24%opts.Resolution != 0) {
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid resolution value: %d (must be 0 or a positive divisor of 24)", opts.Resolution)}
+	}
+
+	if metric == api.MetricCVE {
+		if err := validateScoreBounds("severity", opts.SeverityMin, opts.SeverityMax, cvssMinScore, cvssMaxScore); err != nil {
+			return nil, err
+		}
+		if err := validateScoreBounds("epss", opts.EPSSMin, opts.EPSSMax, epssMinScore, epssMaxScore); err != nil {
+			return nil, err
+		}
 	}
 
 	hours := opts.Resolution
@@ -140,17 +167,19 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 
 	// entityIDs semantics at the storage layer: nil = no filter (all entities);
 	// non-nil empty = match nothing (zero-valued buckets). For the CVE metric we
-	// always resolve a concrete allow-set — never nil — so that lower-severity
-	// CVEs (now collected for all severities) never leak into the chart.
+	// always resolve a concrete allow-set — never nil — so the chart is always
+	// scoped to the curated tracked-software universe rather than to everything
+	// the collector happens to have recorded.
 	var entityIDs []string
 	if metric == api.MetricCVE {
-		// Severity is plumbed through the API (opts.SeverityMin/Max) but forced
-		// to critical-only this round; the severity UI lands in a follow-up.
-		// TODO(#47326): honor opts.SeverityMin/Max instead of hard-coding.
+		// Severity bounds pass through untouched, including nil. A nil bound
+		// drops the CVSS predicate rather than substituting the full 0.0–10.0
+		// range, which matters because cve_meta.cvss_score is nullable: the full
+		// range still excludes unscored CVEs, while no predicate includes them.
 		cveFilter := types.CVEChartFilter{
 			Categories:   opts.SoftwareFilters,
-			CVSSMin:      9.0,
-			CVSSMax:      10.0,
+			CVSSMin:      opts.SeverityMin,
+			CVSSMax:      opts.SeverityMax,
 			EPSSMin:      opts.EPSSMin,
 			EPSSMax:      opts.EPSSMax,
 			KnownExploit: opts.KnownExploit,
@@ -184,14 +213,32 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			KnownExploit:    opts.KnownExploit,
 			EPSSMin:         opts.EPSSMin,
 			EPSSMax:         opts.EPSSMax,
-			// Severity is not echoed: it's forced to critical-only this round
-			// (see above), so echoing the client's requested severity_min/max
-			// would misrepresent what was actually applied. It returns to the
-			// echo when severity becomes a real filter (#47326).
-			ExcludeCVEs: opts.ExcludeCVEs,
+			SeverityMin:     opts.SeverityMin,
+			SeverityMax:     opts.SeverityMax,
+			ExcludeCVEs:     opts.ExcludeCVEs,
 		},
 		Data: data,
 	}, nil
+}
+
+func validateScoreBounds(label string, minScore, maxScore *float64, lo, hi float64) error {
+	if minScore != nil && (math.IsNaN(*minScore) || *minScore < lo || *minScore > hi) {
+		return &platform_http.BadRequestError{
+			Message: fmt.Sprintf("invalid %s_min value: %v (must be between %v and %v)", label, *minScore, lo, hi),
+		}
+	}
+	if maxScore != nil && (math.IsNaN(*maxScore) || *maxScore < lo || *maxScore > hi) {
+		return &platform_http.BadRequestError{
+			Message: fmt.Sprintf("invalid %s_max value: %v (must be between %v and %v)", label, *maxScore, lo, hi),
+		}
+	}
+	if minScore != nil && maxScore != nil && *minScore > *maxScore {
+		return &platform_http.BadRequestError{
+			Message: fmt.Sprintf("invalid %s range: %s_min (%v) must not be greater than %s_max (%v)",
+				label, label, *minScore, label, *maxScore),
+		}
+	}
+	return nil
 }
 
 // effectiveTeamIDs decides the team scope applied at SQL time.

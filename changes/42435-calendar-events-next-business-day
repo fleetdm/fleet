@@ -1,1 +1,0 @@
-* Changed calendar remediation events to be scheduled on the next business day (skipping weekends) after a policy failure, instead of always being scheduled on the next Tuesday.

@@ -25,6 +25,8 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 ![Install software modal](../website/assets/images/articles/automatic-software-install-install-software-398x259@2x.png)
 
+> If a software title has more than one [custom package](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title), you can select which package to install. Fleet selects the package that was added first by default. Fleet installs the package on hosts within that package's label scope.
+
 Once the software is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
 Policy automation software installs are automatically attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.

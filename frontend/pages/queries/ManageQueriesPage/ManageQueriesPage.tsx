@@ -1,3 +1,4 @@
+import { pick } from "lodash";
 import React, {
   useContext,
   useCallback,
@@ -5,18 +6,21 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import { pick } from "lodash";
+import { InjectedRouter } from "react-router";
 
+import AutomationsButton from "components/buttons/AutomationsButton";
+import Button from "components/buttons/Button";
+import TableDataError from "components/DataError";
+import FleetsDropdown from "components/FleetsDropdown";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
-import { notify } from "components/ToastNotification";
-import { DEFAULT_QUERY } from "utilities/constants";
-import { getPerformanceImpactDescription } from "utilities/helpers";
-import { getPathWithQueryParams } from "utilities/url";
-
+import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   isQueryablePlatform,
   QueryablePlatform,
@@ -29,23 +33,18 @@ import {
 } from "interfaces/schedulable_query";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
-import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
+import queriesAPI, { IQueriesResponse } from "services/entities/queries";
+import { DEFAULT_QUERY } from "utilities/constants";
+import { getPerformanceImpactDescription } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
-import PageDescription from "components/PageDescription";
-import Button from "components/buttons/Button";
-import AutomationsButton from "components/buttons/AutomationsButton";
-import TableDataError from "components/DataError";
-import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
-import useTeamIdParam from "hooks/useTeamIdParam";
-import TooltipWrapper from "components/TooltipWrapper";
-import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 import ManageQueryAutomationsModal, {
   IQueryAutomationsSubmitData,
 } from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
+import QueriesTable from "./components/QueriesTable";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -282,9 +281,9 @@ const ManageQueriesPage = ({
     if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
-          <TeamsDropdown
-            currentUserTeams={userTeams}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams}
+            selectedFleetId={currentTeamId}
             onChange={onTeamChange}
           />
         );
@@ -439,7 +438,6 @@ const ManageQueriesPage = ({
                           (queriesResponse?.count ?? 0) > 0 ? (
                             <>
                               To manage automations add a report to this fleet.
-                              <br />
                               For inherited reports select &ldquo;All
                               fleets&rdquo;.
                             </>

@@ -27,17 +27,40 @@ var (
 	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
+	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
+	MyDeviceURLUnsupportedPlatformMessage        = "The My device page is only supported for macOS, Windows, Linux, and iOS/iPadOS hosts."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
+	CantClearPasscodeAccessRightsMessage         = "Clear passcode permissions are disabled for this host. Unable to issue ClearPasscode command."
 	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
+	// Args: the two conflicting app names (order not significant).
+	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer
+	// download timeout is exceeded (context.DeadlineExceeded).
+	AddMaintainedAppTimeoutErrMsg = "Couldn't add. Downloading the installer took longer than Fleet's 15-minute limit. This can happen with very large installers or a slow connection to the vendor's content delivery network (CDN). Try again, and make sure any proxy, gateway, or load balancer in front of Fleet allows the request to run at least that long."
+	// AddMaintainedAppCanceledErrMsg is returned when an upstream proxy, gateway, or
+	// load balancer cancels the request before the download finishes (context.Canceled).
+	AddMaintainedAppCanceledErrMsg               = "Couldn't add. The request was canceled before the installer finished downloading. This usually means a proxy, gateway, or load balancer in front of Fleet (for example, Envoy, or an AWS/GCP load balancer) closed the connection first. Increase its request and idle timeout above the time it takes to download large installers."
+	SoftwarePackageHashConflictMessage           = "%s package is already added (same SHA-256 hash)."
+	SoftwarePackageTitleMismatchMessage          = "Couldn't add. %s doesn't match the software title. To add it, go to Software and add it as new software."
+	SoftwareAlreadyHasVPPAppMessage              = "%s already has an Apple App Store (VPP) on the %s fleet."
+	SoftwareAlreadyHasFleetMaintainedAppMessage  = "%s already has a Fleet-maintained app on the %s fleet."
+	SoftwareAlreadyHasPackageMessage             = "%s already has a software package on the %s fleet."
+	SoftwarePackageLimitMessage                  = "%s already has %d packages. Before adding, delete one you no longer use."
+	SoftwareSelfServiceCategoriesConflictMessage = "Couldn't add software (%q). self_service and categories can be specified either in the fleet-level file or in the package YAML file."
+	SoftwareSetupExperienceFleetLevelOnlyMessage = "Couldn't add software (%q). setup_experience can be specified only in the fleet-level file."
+	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
+	SoftwareLabelsConflictMessage                = "Couldn't add software (%q). Labels can be specified either in the fleet-level file or in the package YAML file."
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
+	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -164,6 +187,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
+
+// DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
+type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
+
+// NewDeviceSSORequiredError is an alias for platform_http.NewDeviceSSORequiredError.
+var NewDeviceSSORequiredError = platform_http.NewDeviceSSORequiredError
 
 // AuthHeaderRequiredError is an alias for platform_http.AuthHeaderRequiredError.
 type AuthHeaderRequiredError = platform_http.AuthHeaderRequiredError
@@ -519,6 +548,7 @@ const (
 	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
 	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
+	RunScriptFleetVarsFailedErrMsg         = "Fleet couldn't resolve variables in this script. See the script output for details."
 
 	// Software
 	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
@@ -569,6 +599,20 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// LinuxEscrowInFlightError is the 409 for a LUKS escrow request refused because fleetd is already
+// handling one. Retry-After is how long until that state expires if fleetd sends nothing further.
+type LinuxEscrowInFlightError struct {
+	RetryAfterSeconds int
+}
+
+func (e LinuxEscrowInFlightError) Error() string { return LinuxEscrowInFlightMessage }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e LinuxEscrowInFlightError) StatusCode() int { return http.StatusConflict }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e LinuxEscrowInFlightError) RetryAfter() int { return e.RetryAfterSeconds }
+
 // IsConflict implements the conflict interface for middleware compatibility
 func (e ConflictError) IsConflict() bool {
 	return true
@@ -589,3 +633,25 @@ type VPPIconAvailable struct {
 func (e *VPPIconAvailable) Error() string {
 	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
 }
+
+// ABOnlyEnrollmentForbiddenError is returned by device-facing enrollment
+// endpoints when only Apple Business enrollment is allowed.
+type ABOnlyEnrollmentForbiddenError struct {
+	ErrorWithUUID
+	InternalErr error
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) Error() string {
+	return "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
+}
+
+func (e *ABOnlyEnrollmentForbiddenError) StatusCode() int { return http.StatusForbidden }
+
+func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
+	if e.InternalErr != nil {
+		return e.InternalErr.Error()
+	}
+	return ""
+}
+
+const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."

@@ -1,12 +1,11 @@
 import React, { useState, useCallback } from "react";
 
-import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 
 import { getErrorMessage } from "./helpers";
 
@@ -73,7 +72,7 @@ const RenewAbmModal = ({
           className={`${baseClass}__file-uploader`}
           accept=".p7m"
           buttonMessage="Choose file"
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           graphicName="file-p7m"
           message="AB token (.p7m)"
           onFileUpload={onSelectFile}

@@ -63,6 +63,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -72,6 +73,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -90,6 +92,51 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	// Custom host vital reference validation is wired into all script/profile
+	// upload paths. Provide a permissive default so tests that don't reference
+	// $FLEET_HOST_VITAL_<id> don't need to stub it (the real datastore no-ops
+	// when the document has no such tokens). Tests that assert on it can override.
+	if mockDS, ok := ds.(*fleet_mock.Store); ok {
+		if mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
+			mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+		}
+		// On Premium, AppConfig assembly and the osquery detail-query flow read the
+		// Microsoft conditional access integration. Default to an empty (not set up)
+		// integration so premium tests that don't care about it don't panic on a nil
+		// mock. Tests that assert on it can override.
+		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
+			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+		// Config reads hydrate the Windows enrollment default fleet from its config row.
+		if mockDS.GetWindowsEnrollmentDefaultFleetFunc == nil {
+			mockDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+		}
+		// Default to none configured so tests that don't care don't panic on a nil mock.
+		if mockDS.ListMicrosoftGraphCredentialsFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+				return nil, nil
+			}
+		}
+		if mockDS.ListMicrosoftGraphCredentialMetadataFunc == nil {
+			mockDS.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+				return nil, nil
+			}
+		}
+		// The pack config cache calls HasLabelScopedScheduledQueries on every
+		// GetClientConfig request to decide whether caching is safe. Default to
+		// "no label-scoped queries" so existing tests that don't care about
+		// label scoping don't panic on a nil mock.
+		if mockDS.HasLabelScopedScheduledQueriesFunc == nil {
+			mockDS.HasLabelScopedScheduledQueriesFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {
+				return false, nil
+			}
+		}
+	}
+
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	logger := slog.New(slog.DiscardHandler)
 	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
@@ -119,6 +166,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
+		installAttemptCounter  fleet.SoftwareInstallAttemptCounter = NewMemSoftwareInstallAttemptCounter()
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -155,6 +203,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
 			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
@@ -162,6 +211,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
+		}
+		if opts[0].InstallAttemptCounter != nil {
+			installAttemptCounter = opts[0].InstallAttemptCounter
 		}
 		if opts[0].EnrollHostLimiter != nil {
 			enrollHostLimiter = opts[0].EnrollHostLimiter
@@ -214,7 +266,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
-		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
+		// The Conditional Access feature is gated on Fleet Premium; callers that
+		// exercise it must provide a premium license via opts[0].License.
+		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
@@ -234,6 +288,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
 	require.NoError(t, err)
+
+	// Config writes that carry a new credential verify it against Entra and Graph, so default to a no-op factory and
+	// let tests inject their own when they assert on verification.
+	msGraphClientFactory := msgraph.ClientFactory(noopGraphFactory)
+	if len(opts) > 0 && opts[0].MicrosoftGraphClientFactory != nil {
+		msGraphClientFactory = opts[0].MicrosoftGraphClientFactory
+	}
 
 	svc, err := NewService(
 		ctx,
@@ -260,6 +321,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
+		installAttemptCounter,
 		androidService,
 		orgLogoStore,
 	)
@@ -298,11 +360,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareTitleIconStore,
 			distributedLock,
 			keyValueStore,
+			installAttemptCounter,
 			scepConfigService,
 			digiCertService,
 			androidModule,
 			estCAService,
 			pssoNonceStore,
+			msGraphClientFactory,
 		)
 		if err != nil {
 			panic(err)
@@ -437,14 +501,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		logger = opts[0].Logger
 	}
 
+	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
+
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].AndroidModule))
+	} else {
+		// No opts (mock-backed tests): android routes aren't wired into the handler,
+		// but the endpointer only dereferences the android module when an endpoint is
+		// actually served, so surface a path-only stub to apiendpoints.Validate.
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(android_service.GetRoutes(svc, nil)))
 	}
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
 	// the main handler. Otherwise, build a path-only stub from the same registration
 	// code and surface it to apiendpoints.Validate for catalog validation only.
-	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -530,10 +600,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
-			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
+			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, commander))
+			checkInAndCommand.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, NewVerifyRecoveryLockResultsHandler(ds, logger, commander, svc.NewActivity))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -546,9 +618,14 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 					logger: logger,
 				},
 				commander,
+				&MDMAppleGetTokenService{
+					ds:     ds,
+					logger: logger,
+				},
 				"https://test-url.com",
 				cfg,
 				svc,
+				ds,
 			)
 			require.NoError(t, err)
 		}
@@ -601,7 +678,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	apiHandler, err := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
 	// that gorilla/mux can't introspect, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
@@ -615,9 +693,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger, false))
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
@@ -859,6 +937,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"GET", "/api/latest/fleet/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
+		{"POST", "/api/fleet/orbit/disk_encryption_protection", false, false},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
@@ -888,12 +967,20 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
+		{"POST", "/api/latest/fleet/hosts/1/name_template/resend", false, true},
+		{"GET", "/api/latest/fleet/assets", false, true},
+		{"GET", "/api/latest/fleet/assets/1", false, true},
+		// TODO: multipart/form data parsing issue, see comment above
+		// {"POST", "/api/latest/fleet/assets", false, true},
+		{"DELETE", "/api/latest/fleet/assets/1", false, true},
+		{"POST", "/api/latest/fleet/assets/batch", false, true},
 	}
 }
 
 func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
+		"/api/fleet/orbit/disk_encryption_protection",
 	}
 }
 
@@ -1364,6 +1451,18 @@ type fmaTestState struct {
 	sha256         string
 	installerPath  string
 	patchQuery     string
+	// installScript is the manifest install script content. Defaults to a
+	// placeholder when empty; set it to vary the script across builds (a real FMA
+	// script embeds the versioned installer filename, so a rebuild changes it).
+	installScript string
+	// installerDelay holds each installer download for this long, standing in for a slow but reachable CDN.
+	installerDelay time.Duration
+	// noCheckSHA publishes Homebrew's no_check sentinel instead of the computed
+	// digest, the way a cask without a hash does. sha256 still holds the real
+	// digest of installerBytes so assertions can compare against it.
+	noCheckSHA bool
+	// contentDisposition stands in for a vendor whose download URL carries no filename.
+	contentDisposition string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1372,7 +1471,10 @@ func (s *fmaTestState) ComputeSHA(b []byte) {
 	s.sha256 = hex.EncodeToString(h.Sum(nil))
 }
 
-func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
+// startFMAServers returns a func reporting how many installer downloads have
+// been served for an installerPath, so a test can assert that a re-apply moved
+// no bytes.
+func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) func(installerPath string) int {
 	if len(states) == 0 {
 		states = make(map[string]*fmaTestState, 1)
 		states["/zoom/windows.json"] = &fmaTestState{
@@ -1382,24 +1484,37 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		}
 	}
 
-	statesByInstallerPath := make(map[string]*fmaTestState, len(states))
 	for _, state := range states {
 		state.ComputeSHA(state.installerBytes)
-		statesByInstallerPath[state.installerPath] = state
 	}
 	var downloadMu sync.Mutex
+	downloads := make(map[string]int)
 
-	// Mock installer server — routes by path to serve per-FMA bytes.
+	// Mock installer server — routes by path to serve per-FMA bytes. The lookup
+	// happens per request so a test can change a state's installerPath or bytes
+	// between applies (recomputing sha256) without restarting the server.
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		downloadMu.Lock()
 		defer downloadMu.Unlock()
 
-		state, found := statesByInstallerPath[r.URL.Path]
-		if !found {
-			http.NotFound(w, r)
-			return
+		for _, state := range states {
+			if state.installerPath == r.URL.Path {
+				downloads[r.URL.Path]++
+				if state.contentDisposition != "" {
+					w.Header().Set("Content-Disposition", state.contentDisposition)
+				}
+				if state.installerDelay > 0 {
+					select {
+					case <-time.After(state.installerDelay):
+					case <-r.Context().Done():
+						return
+					}
+				}
+				_, _ = w.Write(state.installerBytes)
+				return
+			}
 		}
-		_, _ = w.Write(state.installerBytes)
+		http.NotFound(w, r)
 	}))
 
 	// Locate the repo's apps.json so the manifest server can serve it.
@@ -1428,6 +1543,11 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 			return
 		}
 
+		manifestSHA := state.sha256
+		if state.noCheckSHA {
+			manifestSHA = "no_check"
+		}
+
 		versions := []*ma.FMAManifestApp{
 			{
 				Version: state.version,
@@ -1438,13 +1558,17 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",
-				SHA256:             state.sha256,
+				SHA256:             manifestSHA,
 				DefaultCategories:  []string{"Productivity"},
 			},
 		}
+		installScript := state.installScript
+		if installScript == "" {
+			installScript = "Hello World!"
+		}
 		manifest := ma.FMAManifestFile{
 			Versions: versions,
-			Refs:     map[string]string{"foobaz": "Hello World!"},
+			Refs:     map[string]string{"foobaz": installScript},
 		}
 		require.NoError(t, json.NewEncoder(w).Encode(manifest))
 	}))
@@ -1456,6 +1580,12 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
 
 	require.NoError(t, maintained_apps.SyncAppsList(t.Context(), ds))
+
+	return func(installerPath string) int {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+		return downloads[installerPath]
+	}
 }
 
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
@@ -1491,3 +1621,17 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 // errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
 // for assertions that only care about the error.
 func errOnly(_ []uint, err error) error { return err }
+
+// noopGraphClient keeps credential verification off the network. Test servers built without an injected factory would
+// otherwise reach the real login.microsoftonline.com and graph.microsoft.com on any config write carrying a credential.
+type noopGraphClient struct{}
+
+func (noopGraphClient) VerifyCredential(context.Context) error { return nil }
+
+func (noopGraphClient) ListWindowsAutopilotDevices(context.Context) ([]msgraph.WindowsAutopilotDevice, error) {
+	return nil, nil
+}
+
+func noopGraphFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return noopGraphClient{}, nil
+}

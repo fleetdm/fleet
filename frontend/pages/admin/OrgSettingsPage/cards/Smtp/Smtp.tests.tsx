@@ -1,8 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import Smtp from "./Smtp";
 

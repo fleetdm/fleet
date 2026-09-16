@@ -19,6 +19,7 @@ settings:
       enable_calendar_events: true
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
+  script_execution_timeout: 600
   config:
     options:
       pack_delimiter: /
@@ -161,6 +162,7 @@ controls:
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
+    - path: ../lib/linux/scripts/update-claude-desktop.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:
@@ -201,6 +203,7 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
   - path: ../lib/linux/policies/removable-storage-read-only.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
+  - path: ../lib/linux/policies/update-claude.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
@@ -214,6 +217,7 @@ reports:
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
   - path: ../lib/all/reports/collect-listening-ports.yml
+  - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   packages:
     # macOS apps
@@ -283,6 +287,20 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
+    - path: ../lib/linux/scripts/install-claude-desktop.sh # Claude for Debian-based Linux (script-only package)
+      display_name: Claude
+      self_service: true
+      setup_experience: true
+      categories:
+        - Productivity
+      labels_include_any:
+        - "Debian-based Linux hosts"
+      icon:
+        path: ../lib/all/icons/claude-logo.png
+      uninstall_script:
+        path: ../lib/linux/scripts/uninstall-claude-desktop.sh
+      post_install_script:
+        path: ../lib/linux/scripts/verify-claude-desktop.sh
     # Windows apps
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)

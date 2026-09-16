@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.13.14",
+      "version": "3.13.15",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.14150.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.15150.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'python 3.13.exe');"
       },
-      "installer_url": "https://www.python.org/ftp/python/3.13.14/python-3.13.14-amd64.exe",
+      "installer_url": "https://www.python.org/ftp/python/3.13.15/python-3.13.15-amd64.exe",
       "install_script_ref": "8272e48d",
       "uninstall_script_ref": "c408078d",
-      "sha256": "c54d9b9bbb8a36e6489363ddd01139707fd781d72f1f9e90c7ec65d0061368e0",
+      "sha256": "edec09c4853aeae9ac36efb8c9f95b6b8e2fee65eee56d9767a8b7c69c574403",
       "default_categories": [
         "Developer tools"
       ]

@@ -1,16 +1,14 @@
 import React, { useRef, useState } from "react";
 
-import { notify } from "components/ToastNotification";
-
-import { getErrorReason } from "interfaces/errors";
-import mdmAPI from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "add-asset-modal";
 
@@ -32,18 +30,18 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => {
       <Graphic name="file-json" className={`${baseClass}__graphic`} />
       <span className={`${baseClass}__file-chooser--title`}>Upload asset</span>
       <span className={`${baseClass}__file-chooser--message`}>
-        Currently, only asset declarations (com.apple.asset) are supported. All
-        other assets must be user hosted.{" "}
+        Only JSON files with com.apple.asset.* are supported. Referenced data
+        (Reference.DataURL) must be self-hosted.{" "}
         <CustomLink newTab text="Learn more" url={LEARN_MORE_URL} />
       </span>
       <Button
         className={`${baseClass}__upload-button`}
-        variant="brand-inverse-icon"
+        variant="secondary"
         isLoading={isLoading}
         onClick={() => inputRef.current?.click()}
       >
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" color="core-fleet-green" />
+          Choose file <Icon name="upload" />
         </span>
       </Button>
       <input
@@ -153,7 +151,7 @@ const AddAssetModal = ({
           >
             Add asset
           </Button>
-          <Button variant="inverse" onClick={onDone}>
+          <Button variant="secondary" onClick={onDone}>
             Cancel
           </Button>
         </div>

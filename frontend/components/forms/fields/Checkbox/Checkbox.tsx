@@ -1,14 +1,16 @@
-import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 import { noop, pick } from "lodash";
+import React, { ReactNode, KeyboardEvent, useEffect, useRef } from "react";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "fleet-checkbox";
+
+export type CheckboxVariant = "default" | "danger";
 
 interface ICheckboxPropsBase {
   children?: ReactNode;
@@ -19,7 +21,7 @@ interface ICheckboxPropsBase {
   disabled?: boolean;
   name?: string;
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
-  value?: boolean | null;
+  value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
   /** to display over the checkbox label */
@@ -30,6 +32,7 @@ interface ICheckboxPropsBase {
   iconTooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
   helpText?: React.ReactNode;
+  variant?: CheckboxVariant;
   /** Use in table action only
    * Do not use on forms as enter key reserved for submit */
   enableEnterToCheck?: boolean;
@@ -68,6 +71,7 @@ const Checkbox = (props: ICheckboxProps) => {
     iconTooltipContent,
     isLeftLabel,
     enableEnterToCheck = false,
+    variant = "default",
   } = props;
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,7 +115,8 @@ const Checkbox = (props: ICheckboxProps) => {
   const checkBoxClass = classnames(
     { inverse: isLeftLabel },
     className,
-    baseClass
+    baseClass,
+    { [`${baseClass}--${variant}`]: variant !== "default" }
   );
 
   const checkBoxLabelClass = classnames(checkBoxClass, {

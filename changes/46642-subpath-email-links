@@ -1,1 +1,0 @@
-* Fixed password reset, user invite, MFA login, change-email confirmation, and SMTP test emails to no longer duplicate the URL prefix in their links when Fleet is deployed under a subpath.

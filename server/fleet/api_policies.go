@@ -108,7 +108,8 @@ func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetPolicyRequest struct {
-	PolicyID uint `url:"policy_id"`
+	PolicyID uint  `url:"policy_id"`
+	HostID   *uint `query:"host_id,optional"`
 }
 
 type ResetPolicyResponse struct {
@@ -167,17 +168,23 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type TeamPolicyRequest struct {
-	TeamID                       uint     `url:"fleet_id"`
-	QueryID                      *uint    `json:"query_id" renameto:"report_id"`
-	Query                        string   `json:"query"`
-	Name                         string   `json:"name"`
-	Description                  string   `json:"description"`
-	Resolution                   string   `json:"resolution"`
-	Platform                     string   `json:"platform"`
-	Critical                     bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled        bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID              *uint    `json:"software_title_id"`
+	TeamID                uint   `url:"fleet_id"`
+	QueryID               *uint  `json:"query_id" renameto:"report_id"`
+	Query                 string `json:"query"`
+	Name                  string `json:"name"`
+	Description           string `json:"description"`
+	Resolution            string `json:"resolution"`
+	Platform              string `json:"platform"`
+	Critical              bool   `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint  `json:"software_title_id"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted, the policy defaults to the title's first-added package. The wire
+	// key is `software_package_id`; the endpointer's renameto layer accepts the
+	// legacy `software_installer_id` alias and logs a deprecation warning.
+	SoftwareInstallerID          *uint    `json:"software_installer_id" renameto:"software_package_id"`
 	ScriptID                     *uint    `json:"script_id"`
+	ProfileUUID                  *string  `json:"profile_uuid" premium:"true"`
 	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
@@ -186,6 +193,7 @@ type TeamPolicyRequest struct {
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
+	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
 }
 
 type TeamPolicyResponse struct {
@@ -200,15 +208,15 @@ func (r TeamPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ListTeamPoliciesRequest struct {
-	TeamID                  uint           `url:"fleet_id"`
-	Opts                    ListOptions    `url:"list_options"`
-	InheritedPage           uint           `query:"inherited_page,optional"`
-	InheritedPerPage        uint           `query:"inherited_per_page,optional"`
-	InheritedOrderDirection OrderDirection `query:"inherited_order_direction,optional"`
-	InheritedOrderKey       string         `query:"inherited_order_key,optional"`
-	MergeInherited          bool           `query:"merge_inherited,optional"`
-	AutomationType          string         `query:"automation_type,optional"`
-	Platform                string         `query:"platform,optional"`
+	TeamID                  uint                 `url:"fleet_id"`
+	Opts                    ListOptions          `url:"list_options"`
+	InheritedPage           uint                 `query:"inherited_page,optional"`
+	InheritedPerPage        uint                 `query:"inherited_per_page,optional"`
+	InheritedOrderDirection OrderDirection       `query:"inherited_order_direction,optional"`
+	InheritedOrderKey       string               `query:"inherited_order_key,optional"`
+	MergeInherited          bool                 `query:"merge_inherited,optional"`
+	AutomationType          PolicyAutomationType `query:"automation_type,optional"`
+	Platform                string               `query:"platform,optional"`
 }
 
 type ListTeamPoliciesResponse struct {
@@ -224,11 +232,11 @@ func (r ListTeamPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type CountTeamPoliciesRequest struct {
-	ListOptions    ListOptions `url:"list_options"`
-	TeamID         uint        `url:"fleet_id"`
-	MergeInherited bool        `query:"merge_inherited,optional"`
-	AutomationType string      `query:"automation_type,optional"`
-	Platform       string      `query:"platform,optional"`
+	ListOptions    ListOptions          `url:"list_options"`
+	TeamID         uint                 `url:"fleet_id"`
+	MergeInherited bool                 `query:"merge_inherited,optional"`
+	AutomationType PolicyAutomationType `query:"automation_type,optional"`
+	Platform       string               `query:"platform,optional"`
 }
 
 type CountTeamPoliciesResponse struct {

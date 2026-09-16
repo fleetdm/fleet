@@ -2,6 +2,7 @@ import React from "react";
 
 import FileUploader, { ISupportedGraphicNames } from "components/FileUploader";
 import { getFileDetails } from "utilities/file/fileUtils";
+
 import { SCRIPT_UPLOADER_TEXT } from "../../helpers";
 
 const baseClass = "script-uploader";
@@ -25,7 +26,7 @@ const ScriptPackageUploader = ({
     }
   };
 
-  const buttonType = forModal ? "brand-inverse-icon" : undefined;
+  const buttonType = forModal ? "secondary" : undefined;
   const buttonMessage = forModal ? "Choose file" : "Add script";
   const extension = selectedFile?.name.match(/(sh|py|ps1)$/i)?.[1];
   let graphicName: ISupportedGraphicNames[];

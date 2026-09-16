@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-
 import CustomLink from "components/CustomLink";
-import Radio from "components/forms/fields/Radio";
-
 import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+
+import EnrollQrCode from "../EnrollQrCode";
 
 type EnrollmentType = "workProfile" | "fullyManaged";
 
@@ -82,13 +82,14 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
           />
         </fieldset>
         <InputField
-          label="Enrollment instructions:"
+          label="Share this link with your end users:"
           enableCopy
           readOnly
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
         />
+        <EnrollQrCode url={url} />
       </form>
     </div>
   );

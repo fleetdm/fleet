@@ -1,12 +1,16 @@
+import classnames from "classnames";
 import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
-import classnames from "classnames";
+
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
-import { noop } from "lodash";
+
 import ace, { Ace } from "ace-builds";
+import { noop } from "lodash";
+
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 import {
   osqueryTableNames,
   selectedTableColumns,
@@ -18,11 +22,12 @@ import {
   sqlKeyWords,
 } from "utilities/sql_tools";
 
+import "utilities/ace_theme";
+
 import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 
 import "./mode";
-import "./theme";
 
 export interface ISQLEditorProps {
   focus?: boolean;
@@ -104,14 +109,8 @@ const SQLEditor = ({
     // Takes SQL and returns what table(s) are being used
     const checkTableValues = checkTable(value);
 
-    // Update completers if no sql errors or the errors include syntax near table name
-    const updateCompleters =
-      !checkTableValues.error ||
-      checkTableValues.error
-        .toString()
-        .includes("Syntax error found near Identifier (FROM Clause)");
-
-    if (updateCompleters) {
+    // Update completers only when the query parses cleanly.
+    if (!checkTableValues.error) {
       langTools.setCompleters([]); // Reset completers as modifications are additive
 
       // Autocomplete sql keywords, builtin functions, and datatypes
@@ -230,6 +229,9 @@ const SQLEditor = ({
       readOnly: true,
     });
 
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
     if (isReadonlyCopy) {
       // keep Ace read-only and remove any selection
       editor.setOption("readOnly", true);
@@ -285,7 +287,7 @@ const SQLEditor = ({
         <div className={`${baseClass}__label-actions`}>
           {labelActionComponent}
           {enableCopy && (
-            <CopyButton copyText={value || ""} variant="inverse" size="small">
+            <CopyButton copyText={value || ""} variant="subdued" size="small">
               Copy <Icon name="copy" />
             </CopyButton>
           )}

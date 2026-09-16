@@ -1,5 +1,5 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
 
 import ToastNotification, { notify } from ".";
 
@@ -69,6 +69,54 @@ export const Success: Story = {
       <TriggerButton
         label="Show success toast"
         onClick={() => notify.success("Successfully added script.")}
+      />
+    </>
+  ),
+};
+
+/**
+ * MultiLineSuccess — a success message long enough to wrap, so the
+ * icon's alignment against the first line (vs. later lines) is visible.
+ * Also exercises rich formatting (a bolded entity name).
+ */
+export const MultiLineSuccess: Story = {
+  render: () => (
+    <>
+      <ToastNotification />
+      <TriggerButton
+        label="Show multi-line success toast"
+        onClick={() =>
+          notify.success(
+            <>
+              Successfully released <b>MacBook Air</b> from Apple Business. This
+              is a very long line that should wrap two lines if not three.
+            </>
+          )
+        }
+      />
+    </>
+  ),
+};
+
+/**
+ * MultiLineError — an error message long enough to wrap. Same alignment
+ * concern as MultiLineSuccess, on the error variant.
+ */
+export const MultiLineError: Story = {
+  render: () => (
+    <>
+      <ToastNotification />
+      <TriggerButton
+        label="Show multi-line error toast"
+        onClick={() =>
+          notify.error(
+            <>
+              Couldn&apos;t release <b>MacBook Air</b> from Apple Business.
+              Please try again. If the problem persists, contact your
+              administrator for help.
+            </>
+          )
+        }
       />
     </>
   ),

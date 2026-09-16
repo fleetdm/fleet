@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
 
 import PlatformWrapper from "./PlatformWrapper/PlatformWrapper";
 

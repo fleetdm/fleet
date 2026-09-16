@@ -181,4 +181,27 @@
       margin-bottom: 0;
     }
   }
+
+}
+
+// Responsive tweaks that only apply when the schema sidebar is open on the
+// edit-policy page — that's when the automations table gets tight. Anchored
+// on `:has(.side-panel-content)` so the sidebar's own render presence is
+// the signal (no JS class needed). Modal-hosted PolicyAutomationsFields is
+// never inside a SidePanelPage, so these rules can't accidentally target it.
+.side-panel-page:has(.side-panel-content) {
+  // Below md, shrink the picker so both dropdowns still fit side-by-side.
+  @media (max-width: $break-md) {
+    .policy-automations-fields__row-picker {
+      width: 175px;
+    }
+  }
+
+  // Below the table-controls breakpoint, stack the pickers vertically
+  // (each keeps its natural width) since even the shrunken pair won't fit.
+  @media (max-width: $table-controls-break) {
+    .policy-automations-fields__software-pickers {
+      flex-direction: column;
+    }
+  }
 }

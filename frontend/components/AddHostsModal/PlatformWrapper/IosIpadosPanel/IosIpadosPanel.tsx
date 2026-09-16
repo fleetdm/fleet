@@ -1,12 +1,14 @@
 import React, { useContext, useState } from "react";
 
+import { renderAppleManualEnrollmentDisabled } from "components/AddHostsModal/helpers";
 import CustomLink from "components/CustomLink";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { getPathWithQueryParams } from "utilities/url";
-
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
+
+import EnrollQrCode from "../EnrollQrCode";
 
 type EnrollmentType = "personal" | "companyOwned";
 
@@ -14,9 +16,13 @@ const baseClass = "ios-ipados-panel";
 
 interface IosIpadosPanelProps {
   enrollSecret: string;
+  isManualAppleEnrollmentsBlocked: boolean;
 }
 
-const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
+const IosIpadosPanel = ({
+  enrollSecret,
+  isManualAppleEnrollmentsBlocked,
+}: IosIpadosPanelProps) => {
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
 
   // Default to "Personal (BYOD)" per #23242 design.
@@ -24,12 +30,11 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
     "personal"
   );
 
-  const helpText =
-    "When the end user navigates to this URL, the enrollment profile " +
-    "will download in their browser. End users will have to install the profile " +
-    "to enroll to Fleet.";
-
   if (!config) return null;
+
+  if (isManualAppleEnrollmentsBlocked) {
+    return renderAppleManualEnrollmentDisabled("iOS & iPadOS");
+  }
 
   if (!isMacMdmEnabledAndConfigured) {
     return (
@@ -67,21 +72,22 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
           <Radio
             name="iosIpadosEnrollmentType"
             id="iosIpadosCompanyOwned"
-            label="Company-owned"
+            label="Company-owned (fully-managed)"
             value="companyOwned"
             checked={enrollmentType === "companyOwned"}
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
         <InputField
-          label="Enrollment instructions:"
+          label="Share this link with your end users:"
           enableCopy
           readOnly
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
-          helpText={helpText}
+          helpText="This link must be opened in Safari. If opened in another browser, end users will have to sign in again using Safari."
         />
+        <EnrollQrCode url={url} />
       </form>
     </div>
   );

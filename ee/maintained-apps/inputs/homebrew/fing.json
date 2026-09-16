@@ -2,7 +2,7 @@
   "name": "Fing Desktop",
   "unique_identifier": "com.fing.app",
   "token": "fing",
-  "installer_format": "dmg",
+  "installer_format": "zip",
   "slug": "fing/darwin",
   "default_categories": [
     "Productivity"

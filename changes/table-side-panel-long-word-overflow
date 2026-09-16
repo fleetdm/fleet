@@ -1,0 +1,1 @@
+Fixed long unbreakable words (e.g. file paths in inline code) overflowing the table info side panel on the report and policy editor pages.

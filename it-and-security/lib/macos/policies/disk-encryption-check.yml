@@ -1,4 +1,4 @@
-- name: macOS - Disk encryption enabled
+- name: Disk encryption enabled (macOS)
   query: SELECT 1 FROM filevault_status WHERE status LIKE '%on%';
   critical: false
   description: This policy checks if disk encryption is enabled.

@@ -2,42 +2,40 @@ import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import FileUploader from "components/FileUploader";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
+import TableCount from "components/TableContainer/TableCount";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   IAppStoreApp,
+  isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
-
-import { AppContext } from "context/app";
-import { notify, INotifyBatchItem } from "components/ToastNotification";
-import { getErrorReason } from "interfaces/errors";
-import softwareAPI from "services/entities/software";
-import selfServiceCategoriesAPI, {
-  ISelfServiceCategoriesResponse,
-} from "services/entities/self_service_categories";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import InputField from "components/forms/fields/InputField";
-import FileUploader from "components/FileUploader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import Card from "components/Card";
-import Button from "components/buttons/Button";
+import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
+import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TableCount from "components/TableContainer/TableCount";
-import Spinner from "components/Spinner";
-
+import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
 import {
   getDisplayedSoftwareName,
   isSafeImagePreviewUrl,
 } from "pages/SoftwarePage/helpers";
-import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
-import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
-import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
+import softwareAPI from "services/entities/software";
 
 import { TitleVersionsLastUpdatedInfo } from "../TitleVersionsTable/TitleVersionsTable";
 
@@ -162,6 +160,7 @@ const EditIconModal = ({
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
     previewInfo?.source || ""
   );
+  const isAndroidApp = isAndroidSoftwareSource(previewInfo?.source || "");
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -607,26 +606,30 @@ const EditIconModal = ({
         message={UPLOAD_MESSAGE}
         onFileUpload={onFileSelect}
         buttonMessage="Choose file"
-        buttonType="brand-inverse-icon"
+        buttonType="secondary"
         className={`${baseClass}__file-uploader`}
         fileDetails={fileDetails}
         gitopsCompatible={false}
       />
       <h2>Preview</h2>
-      <TabNav>
-        <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
-          <TabList>
-            <Tab>
-              <TabText>Fleet</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Self-service</TabText>
-            </Tab>
-          </TabList>
-          <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-          <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
-        </Tabs>
-      </TabNav>
+      {isAndroidApp ? (
+        renderPreviewFleetCard()
+      ) : (
+        <TabNav>
+          <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
+            <TabList>
+              <Tab>
+                <TabText>Fleet</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Self service</TabText>
+              </Tab>
+            </TabList>
+            <TabPanel>{renderPreviewFleetCard()}</TabPanel>
+            <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
+          </Tabs>
+        </TabNav>
+      )}
     </>
   );
 
@@ -681,6 +684,10 @@ const EditIconModal = ({
             ? softwareAPI.editSoftwarePackage({
                 data: { displayName: trimmedDisplayName },
                 softwareId,
+                // Multi-package titles require `installer_id` on any edit; display_name
+                // is title-level, so target the first-added package (`software` is
+                // `software_package`, which mirrors `packages[0]`).
+                installerId: (software as ISoftwarePackage).installer_id,
                 teamId: teamIdForApi,
               })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
@@ -766,11 +773,7 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      {isFirstLoadWithCustomIcon ? (
-        <Spinner includeContainer={false} />
-      ) : (
-        renderForm()
-      )}
+      {isFirstLoadWithCustomIcon ? <Spinner /> : renderForm()}
       <ModalFooter
         primaryButtons={
           <Button

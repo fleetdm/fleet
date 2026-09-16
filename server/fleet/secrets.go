@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -51,4 +52,12 @@ func (e MissingSecretsError) Error() string {
 		plural = "s"
 	}
 	return fmt.Sprintf("Couldn't add. Secret variable%s %s missing from database", plural, strings.Join(secretVars, ", "))
+}
+
+// IsMissingSecretsError reports whether err is (or wraps) a MissingSecretsError,
+// i.e. a reference to a secret variable that doesn't exist.
+func IsMissingSecretsError(err error) bool {
+	var valErr MissingSecretsError
+	var ptrErr *MissingSecretsError
+	return errors.As(err, &valErr) || errors.As(err, &ptrErr)
 }

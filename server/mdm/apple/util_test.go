@@ -1,7 +1,6 @@
 package apple_mdm
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -253,24 +252,6 @@ func TestIsRecoveryLockPasswordMismatchError(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-func TestGenerateManagedAccountPassword(t *testing.T) {
-	pw := GenerateManagedAccountPassword()
-
-	// Format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (6 groups of 4 chars separated by dashes)
-	groups := strings.Split(pw, "-")
-	require.Len(t, groups, ManagedAccountPasswordGroupCount)
-	for _, g := range groups {
-		require.Len(t, g, ManagedAccountPasswordGroupLen)
-		for _, c := range g {
-			assert.Contains(t, RecoveryLockPasswordCharset, string(c))
-		}
-	}
-
-	// Two calls should produce different passwords (with overwhelming probability).
-	pw2 := GenerateManagedAccountPassword()
-	require.NotEqual(t, pw, pw2)
 }
 
 func TestGenerateSaltedSHA512PBKDF2Hash(t *testing.T) {

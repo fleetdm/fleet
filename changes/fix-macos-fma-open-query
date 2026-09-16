@@ -1,0 +1,1 @@
+* Fixed macOS Fleet-maintained apps with in-bundle login items or background helpers (e.g. 1Password's browser helper) always being detected as open. The Fleet-managed "app is open" check now matches only the app's own executable instead of any process running inside the app bundle.

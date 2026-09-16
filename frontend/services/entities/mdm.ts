@@ -2,22 +2,20 @@ import {
   EndUserLocalAccountType,
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
-  IHostMdmProfile,
   IMdmAsset,
   IMdmProfile,
   IMdmSSOResponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import { API_NO_TEAM_ID } from "interfaces/team";
-import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
+import { ISoftwareTitle } from "interfaces/software";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
+import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -49,6 +47,16 @@ export interface IUploadProfileApiParams {
   labelsExcludeAny?: string[];
 }
 
+export interface IUpdateProfileApiParams {
+  profileUUID: string;
+  /** replacement profile contents. Omit to keep the current contents and only
+   * update label targeting. */
+  profile?: File;
+  labelsIncludeAll?: string[];
+  labelsIncludeAny?: string[];
+  labelsExcludeAny?: string[];
+}
+
 export interface IGetAssetsApiParams {
   fleet_id?: number;
 }
@@ -66,7 +74,7 @@ export interface IUploadAssetResponse {
   asset_uuid: string;
 }
 
-export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+export const isDDMProfile = (profile: Pick<IMdmProfile, "profile_uuid">) => {
   return profile.profile_uuid.startsWith("d");
 };
 
@@ -183,6 +191,39 @@ const mdmService = {
     });
 
     return sendRequest("POST", MDM_PROFILES, formData);
+  },
+
+  /** Updates an existing profile's contents and/or label targeting. Labels
+   * use replace semantics: omitting all label fields clears label targeting
+   * (the profile targets all hosts). */
+  updateProfile: ({
+    profileUUID,
+    profile,
+    labelsIncludeAll,
+    labelsIncludeAny,
+    labelsExcludeAny,
+  }: IUpdateProfileApiParams) => {
+    const { CONFIG_PROFILE } = endpoints;
+
+    const formData = new FormData();
+
+    if (profile) {
+      formData.append("profile", profile);
+    }
+
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
+
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
+
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
+
+    return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
   },
 
   downloadProfile: (profileId: string) => {

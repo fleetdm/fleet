@@ -1,13 +1,11 @@
 import React from "react";
-
 import { PlacesType } from "react-tooltip-5";
+
 import NotSupported from "components/NotSupported";
-
-import { COLORS } from "styles/var/colors";
-
 import ProgressBar from "components/ProgressBar";
 import TooltipWrapper from "components/TooltipWrapper";
 import { isLinuxLike } from "interfaces/platform";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "disk-space-indicator";
 interface IDiskSpaceIndicatorProps {
@@ -77,10 +75,7 @@ const DiskSpaceIndicator = ({
 
   // get disk space tooltip content for Linux hosts
   const totalDiskSpaceContent = gigsTotalDiskSpace ? (
-    <>
-      System disk space: {gigsTotalDiskSpace} GB
-      <br />
-    </>
+    <>System disk space: {gigsTotalDiskSpace} GB</>
   ) : null;
   const allPartitionsContent = gigsAllDiskSpace ? (
     <>All partitions: {gigsAllDiskSpace} GB</>
@@ -90,6 +85,7 @@ const DiskSpaceIndicator = ({
     totalDiskSpaceContent || allPartitionsContent ? (
       <>
         {totalDiskSpaceContent}
+        {totalDiskSpaceContent && allPartitionsContent && <br />}
         {allPartitionsContent}
       </>
     ) : null;

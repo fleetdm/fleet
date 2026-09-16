@@ -1,10 +1,10 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import mdmAPI from "services/entities/mdm";
 import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import AddAssetModal from "./AddAssetModal";
 
@@ -29,7 +29,7 @@ describe("AddAssetModal", () => {
 
     expect(
       screen.getByText(
-        /only asset declarations \(com\.apple\.asset\) are supported/i
+        /only json files with com\.apple\.asset\.\* are supported/i
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Upload asset")).toBeInTheDocument();

@@ -1,7 +1,9 @@
 .certificates {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  @include vertical-card-layout;
+
+  &__tab-header {
+    @include tab-header;
+  }
 
   .list-item__title {
     max-width: px-to-rem(900);

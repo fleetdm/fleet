@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 
-import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-
-import mdmAPI from "services/entities/mdm";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { hasStatusKey } from "interfaces/errors";
 import {
   isAutomaticDeviceEnrollment,
   isBYODAccountDrivenUserEnrollment,
   isBYODManualEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "unenroll-mdm-modal";
 
@@ -21,7 +21,10 @@ interface IUnenrollMdmModalProps {
   hostPlatform: string;
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
+  onlyAllowAppleBusinessEnrollment: boolean;
+  depAssignedToFleet: boolean;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -29,7 +32,10 @@ const UnenrollMdmModal = ({
   hostPlatform,
   hostName,
   enrollmentStatus,
+  onlyAllowAppleBusinessEnrollment,
+  depAssignedToFleet,
   onClose,
+  onSuccess,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
@@ -51,22 +57,53 @@ const UnenrollMdmModal = ({
           </>
         );
       notify.success(successMessage);
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
-      const errorMessage =
-        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
-          "Couldn't unenroll. Please try again."
-        ) : (
-          <>
-            Failed to turn off MDM for <b>{hostName}</b>. Please try again.
-          </>
+      // A 409 means MDM is already off for this host, so "please try again"
+      // would send the user in a loop. It also means this page was working from
+      // stale data, so refresh it to drop the action.
+      if (hasStatusKey(unenrollMdmError) && unenrollMdmError.status === 409) {
+        notify.error(
+          "Couldn't turn off MDM. This host already has MDM turned off.",
+          { response: unenrollMdmError }
         );
-      notify.error(errorMessage, { response: unenrollMdmError });
+        onSuccess();
+        onClose();
+      } else {
+        const errorMessage =
+          isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+            "Couldn't unenroll. Please try again."
+          ) : (
+            <>
+              Failed to turn off MDM for <b>{hostName}</b>. Please try again.
+            </>
+          );
+        notify.error(errorMessage, { response: unenrollMdmError });
+      }
     }
     setRequestState(undefined);
   };
 
   const generateIosOrIpadosDescription = () => {
+    if (onlyAllowAppleBusinessEnrollment) {
+      if (isAutomaticDeviceEnrollment(enrollmentStatus) && depAssignedToFleet) {
+        return (
+          <p>
+            Once MDM is turned off, this host will be able to re-enroll as long
+            as it remains in Apple Business.
+          </p>
+        );
+      }
+
+      return (
+        <p>
+          Once MDM is turned off, this host will not be able to re-enroll unless
+          it&apos;s added to Apple Business.
+        </p>
+      );
+    }
+
     if (isBYODManualEnrollment(enrollmentStatus)) {
       return (
         <p>
@@ -116,6 +153,40 @@ const UnenrollMdmModal = ({
         </>
       );
     }
+
+    if (isMacOS(hostPlatform) && onlyAllowAppleBusinessEnrollment) {
+      if (isAutomaticDeviceEnrollment(enrollmentStatus) && depAssignedToFleet) {
+        return (
+          <>
+            <p>Settings configured by Fleet will be removed.</p>
+            <p>
+              Once MDM is turned off, this host will be able to re-enroll as
+              long as it remains in Apple Business.
+            </p>
+          </>
+        );
+      }
+
+      return (
+        <>
+          <p>Settings configured by Fleet will be removed.</p>
+          <p>
+            Once MDM is turned off, this host will not be able to re-enroll
+            unless it&apos;s added to Apple Business.
+          </p>
+        </>
+      );
+    }
+
+    if (isMacOS(hostPlatform) && depAssignedToFleet) {
+      return (
+        <>
+          <p>Settings configured by Fleet will be removed.</p>
+          <p>The device will automatically turn on MDM again, unless wiped.</p>
+        </>
+      );
+    }
+
     return (
       <>
         <p>Settings configured by Fleet will be removed.</p>
@@ -151,7 +222,7 @@ const UnenrollMdmModal = ({
           >
             {buttonText}
           </Button>
-          <Button onClick={onClose} variant="inverse-alert">
+          <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
         </div>

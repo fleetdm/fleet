@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.13.10.3",
+      "version": "12.13.11.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.' AND version_compare(version, '12.13.10.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iTunes' AND publisher = 'Apple Inc.' AND version_compare(version, '12.13.11.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'itunes.exe');"
       },
-      "installer_url": "https://secure-appldnld.apple.com/itunes12/047-76416-20260302-fefe4356-211d-4da1-8bc4-058eb36ea803/iTunes64Setup.exe",
+      "installer_url": "https://secure-appldnld.apple.com/itunes12/140-75773-20260908-6e5e0165-99cb-4b30-b541-1b615fccfc1a/iTunes64Setup.exe",
       "install_script_ref": "d180d999",
       "uninstall_script_ref": "4dbf142f",
-      "sha256": "cea2a74cae3f061eadc11358eeaae9b40cfdea9ec1ee037b47da54a64219e182",
+      "sha256": "25b28905a81406a5edbf482f7f3ee4831a8641d32d29dceda5d1eb3e8d534c08",
       "default_categories": [
         "Productivity"
       ]

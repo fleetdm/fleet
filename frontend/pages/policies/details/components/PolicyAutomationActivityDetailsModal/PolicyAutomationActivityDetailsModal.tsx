@@ -1,21 +1,21 @@
 import React from "react";
 
-import { ActivityType } from "interfaces/activity";
-import { IPolicyAutomationActivity } from "interfaces/policy";
-import PATHS from "router/paths";
-
-import Modal from "components/Modal";
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
-import Textarea from "components/Textarea";
-import Icon from "components/Icon";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import Modal from "components/Modal";
+import Textarea from "components/Textarea";
+import { ActivityType } from "interfaces/activity";
+import { IPolicyAutomationActivity } from "interfaces/policy";
+import PATHS from "router/paths";
 
 import {
   getAutomationRunDisplayName,
-  getAutomationStatusIconName,
+  getAutomationStatusIcon,
   getDetailOutputText,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
@@ -33,7 +33,7 @@ const PolicyAutomationActivityDetailsModal = ({
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
-  const { status, created_at, host_id, host_display_name } = activity;
+  const { created_at, host_id, host_display_name } = activity;
   const detailOutput = getDetailOutputText(activity);
   const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
 
@@ -84,7 +84,10 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon name={getAutomationStatusIconName(status)} />
+              <Icon
+                name={getAutomationStatusIcon(activity).name}
+                color={getAutomationStatusIcon(activity).color}
+              />
               {getAutomationRunDisplayName(activity)}
             </span>
           }
@@ -93,7 +96,9 @@ const PolicyAutomationActivityDetailsModal = ({
           <>
             {renderOutputSection(
               "Pre-install query output",
-              activity.pre_install_output
+              activity.details?.skipped_install
+                ? SKIPPED_PRE_INSTALL_OUTPUT
+                : activity.pre_install_output
             )}
             {renderOutputSection("Details", activity.output)}
             {renderOutputSection(
@@ -108,11 +113,11 @@ const PolicyAutomationActivityDetailsModal = ({
           <Button onClick={onCancel}>Done</Button>
           {onResetPolicy && (
             <Button
-              variant="inverse"
+              variant="secondary"
               onClick={onResetPolicy}
               className={`${baseClass}__reset`}
+              icon="refresh"
             >
-              <Icon name="refresh" />
               Reset policy
             </Button>
           )}

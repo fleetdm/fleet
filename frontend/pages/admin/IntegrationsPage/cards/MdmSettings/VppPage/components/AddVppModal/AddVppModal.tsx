@@ -1,12 +1,11 @@
 import React, { useCallback, useState } from "react";
 
-import mdmAppleAPI from "services/entities/mdm_apple";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { getErrorMessage } from "./helpers";
 
@@ -70,7 +69,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
         accept=".vpptoken"
         message="Content token (.vpptoken)"
         graphicName="file-vpp"
-        buttonType="brand-inverse-icon"
+        buttonType="secondary"
         buttonMessage={isUploading ? "Uploading..." : "Upload"}
         fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
         onFileUpload={onSelectFile}

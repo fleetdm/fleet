@@ -1,6 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
@@ -111,6 +111,32 @@ describe("PolicyAutomationActivityDetailsModal", () => {
     expect(
       screen.queryByText("Post-install script output")
     ).not.toBeInTheDocument();
+  });
+
+  it("explains a patch-when-closed skip instead of showing empty output sections", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        activity={{
+          ...failedSoftwareActivity,
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+          },
+          output: null,
+          pre_install_output: "",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Patch skipped (1Password)")).toBeInTheDocument();
+
+    // Shown inline, the same way a failing row shows its output sections.
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Query didn't return result or failed/)
+    ).toBeInTheDocument();
   });
 
   it("omits the details box when there is no output or error", () => {

@@ -138,9 +138,10 @@ var anyFieldTypes = map[reflect.Type]map[string]reflect.Type{
 		"android_settings": reflect.TypeFor[fleet.AndroidSettings](),
 	},
 	reflect.TypeFor[GitOpsOrgSettings](): {
-		"certificate_authorities": reflect.TypeFor[fleet.GroupedCertificateAuthorities](),
-		"mdm":                     reflect.TypeFor[GitOpsMDM](),
-		"org_info":                reflect.TypeFor[GitOpsOrgInfo](),
+		"certificate_authorities":     reflect.TypeFor[fleet.GroupedCertificateAuthorities](),
+		"microsoft_graph_credentials": reflect.TypeFor[[]fleet.MicrosoftGraphCredential](),
+		"mdm":                         reflect.TypeFor[GitOpsMDM](),
+		"org_info":                    reflect.TypeFor[GitOpsOrgInfo](),
 	},
 }
 

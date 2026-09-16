@@ -1,10 +1,9 @@
 import React from "react";
 
-import configProfilesAPI from "services/entities/config_profiles";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import configProfilesAPI from "services/entities/config_profiles";
 
 const baseClass = "resend-config-profile-modal";
 
@@ -63,7 +62,7 @@ const ResendConfigProfileModal = ({
         >
           Resend
         </Button>
-        <Button variant="inverse" onClick={onExit} disabled={isResending}>
+        <Button variant="secondary" onClick={onExit} disabled={isResending}>
           Cancel
         </Button>
       </div>

@@ -1,31 +1,29 @@
+import classnames from "classnames";
+import FileSaver from "file-saver";
 import React, { useState, useContext, useEffect, useCallback } from "react";
 import { Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import classnames from "classnames";
-import FileSaver from "file-saver";
-import { QueryContext } from "context/query";
 import { useDebouncedCallback } from "use-debounce";
 
-import {
-  generateCSVFilename,
-  generateCSVQueryResults,
-} from "utilities/generate_csv";
-import { SUPPORT_LINK } from "utilities/constants";
-import { ICampaign, ICampaignError } from "interfaces/campaign";
-import { ITarget } from "interfaces/target";
-
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
-import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
-import EmptyState from "components/EmptyState";
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
+import { QueryContext } from "context/query";
+import { ICampaign, ICampaignError } from "interfaces/campaign";
+import { ITarget } from "interfaces/target";
+import { SUPPORT_LINK } from "utilities/constants";
+import {
+  generateCSVFilename,
+  generateCSVQueryResults,
+} from "utilities/generate_csv";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
@@ -193,11 +191,11 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="inverse"
+          variant="secondary"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
@@ -206,12 +204,11 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="inverse"
+          variant="secondary"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export {tableType}
-            <Icon name="download" />
-          </>
+          Export {tableType}
         </Button>
       </div>
     );

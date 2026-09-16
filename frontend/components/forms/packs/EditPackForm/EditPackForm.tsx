@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import useDeepEffect from "hooks/useDeepEffect";
 
 import Button from "components/buttons/Button";
-
-import { IQuery } from "interfaces/query";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 import PackQueriesTable from "components/queries/PackQueriesTable";
+import useDeepEffect from "hooks/useDeepEffect";
+import { IQuery } from "interfaces/query";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { ITarget, ITargetsAPIResponse } from "interfaces/target";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 const baseClass = "edit-pack-form";
 
@@ -111,6 +111,7 @@ const EditPackForm = ({
         name="name"
         error={errors.name}
         inputWrapperClass={`${baseClass}__pack-title`}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
         onChange={onChangePackDescription}
@@ -120,6 +121,7 @@ const EditPackForm = ({
         name="description"
         placeholder="Add a description of your pack"
         type="textarea"
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <SelectTargetsDropdown
         label="Select pack targets"
@@ -138,7 +140,7 @@ const EditPackForm = ({
         isLoadingPackQueries={isLoadingPackQueries}
       />
       <div className={`${baseClass}__pack-buttons`}>
-        <Button onClick={onCancelEditPack} type="button" variant="inverse">
+        <Button onClick={onCancelEditPack} type="button" variant="secondary">
           Cancel
         </Button>
         <Button

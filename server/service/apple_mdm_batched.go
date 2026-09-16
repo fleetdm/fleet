@@ -62,7 +62,7 @@ func ReconcileAppleProfilesBatched(
 		cursor = ""
 	}
 
-	hosts, allProfiles, hostLabels, currentByHost, err := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
+	hosts, allProfiles, hostLabels, currentByHost, pageFull, err := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading apple profile reconcile snapshot")
 	}
@@ -79,8 +79,13 @@ func ReconcileAppleProfilesBatched(
 		return nil
 	}
 
+	// Advance the cursor whenever the underlying host page was full. Deciding
+	// from len(hosts) is wrong: duplicate-UUID host rows are collapsed after
+	// the SQL LIMIT, so a full page can dedupe to fewer than batchSize hosts —
+	// treating that as the end of the host universe wraps the cursor early and
+	// permanently starves every host later in the UUID ordering.
 	var nextCursor string
-	if len(hosts) >= reconcileAppleProfilesBatchSize {
+	if pageFull {
 		nextCursor = hosts[len(hosts)-1].UUID
 	}
 

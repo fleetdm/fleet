@@ -4,7 +4,8 @@
       "version": "12.0.40664.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual C++ 2013 Redistributable (x64)%' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual C++ 2013 Redistributable (x64)%' AND publisher = 'Microsoft Corporation' AND version_compare(version, '12.0.40664.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual C++ 2013 Redistributable (x64)%' AND publisher = 'Microsoft Corporation' AND version_compare(version, '12.0.40664.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft visual c++ 2013 redistributable (x64).exe');"
       },
       "installer_url": "https://download.visualstudio.microsoft.com/download/pr/10912041/cee5d6bca2ddbcd039da727bf4acb48a/vcredist_x64.exe",
       "install_script_ref": "65654cc8",

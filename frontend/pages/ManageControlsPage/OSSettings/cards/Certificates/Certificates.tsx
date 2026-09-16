@@ -1,47 +1,43 @@
-import React, { useState, useCallback, useContext } from "react";
 import { AxiosError } from "axios";
+import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
-
-import { AppContext } from "context/app";
-import PATHS from "router/paths";
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { getGitOpsModeTipContent } from "utilities/helpers";
-
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import UploadList from "components/UploadList";
-import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
 import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
-import ListItem from "components/ListItem";
-import Pagination from "components/Pagination";
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import ListItem from "components/ListItem";
 import PageDescription from "components/PageDescription";
+import Pagination from "components/Pagination";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
-import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
-
+import UploadList from "components/UploadList";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import PATHS from "router/paths";
 import certAPI, {
   ICertificate,
   IGetCertsResponse,
   IQueryKeyGetCerts,
 } from "services/entities/certificates";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
-import AddCertCard from "./components/AddCertificateCard/AddCertificateCard";
+
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
-import DeleteCertModal from "./components/DeleteCertificateModal";
+import AddCertCard from "./components/AddCertificateCard/AddCertificateCard";
 import AddCertModal from "./components/AddCertificateModal";
+import DeleteCertModal from "./components/DeleteCertificateModal";
 import ViewCertModal from "./components/ViewCertificateModal";
 
 const baseClass = "certificates";
@@ -187,13 +183,6 @@ const Certificates = ({
         <UploadList
           keyAttribute="id"
           listItems={certs}
-          HeadingComponent={() => (
-            <UploadListHeading
-              entityName="Certificate"
-              createEntityText="Add"
-              onClickAdd={() => setShowAddCertModal(true)}
-            />
-          )}
           ListItemComponent={({ listItem }) => {
             const {
               name,
@@ -230,7 +219,7 @@ const Certificates = ({
                   <ActionsDropdown
                     options={certActions}
                     placeholder="Actions"
-                    variant="small-button"
+                    variant="secondary"
                     menuAlign="right"
                     menuPlacement="auto"
                     onChange={(action) => onSelectCertAction(action, listItem)}
@@ -251,24 +240,45 @@ const Certificates = ({
     );
   };
 
+  const showAddCertButton =
+    isPremiumTier && androidMdmEnabled && hasCustomScepCA;
+
   return (
     <div className={`${baseClass}`}>
       <SectionHeader title="Certificates" alignLeftHeaderVertically />
-      <PageDescription
-        variant="right-panel"
-        content={
-          <>
-            Deploy certificates. Currently only Android is supported. For macOS,
-            iOS, iPadOS and Windows use configuration profiles, and for Linux
-            use scripts.{" "}
-            <CustomLink
-              newTab
-              text="Learn more"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/certificates`}
-            />
-          </>
-        }
-      />
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="right-panel"
+          content={
+            <>
+              Deploy certificates. Currently only Android is supported. For
+              macOS, iOS, iPadOS and Windows use configuration profiles, and for
+              Linux use scripts.{" "}
+              <CustomLink
+                newTab
+                text="Learn more"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/certificates`}
+              />
+            </>
+          }
+        />
+        {showAddCertButton && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowAddCertModal(true)}
+                disabled={disableChildren}
+                icon="plus"
+              >
+                Add certificate
+              </Button>
+            )}
+          />
+        )}
+      </div>
       {renderContent()}
       {showAddCertModal && (
         <AddCertModal

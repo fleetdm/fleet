@@ -53,6 +53,19 @@ type Branch struct {
 	LastCommit *CommitInfo `json:"last_commit"`
 }
 
+// Worktree is one entry from `git worktree list --porcelain`. Multi-server
+// Hangar runs each server from its own worktree so they can build/run
+// different branches simultaneously while sharing one .git.
+type Worktree struct {
+	Path     string  `json:"path"`
+	Head     string  `json:"head"`   // commit SHA the worktree is at
+	Branch   *string `json:"branch"` // short branch name; nil if detached/bare
+	Detached bool    `json:"detached"`
+	Bare     bool    `json:"bare"`
+	Locked   bool    `json:"locked"`
+	IsMain   bool    `json:"is_main"` // the primary (non-linked) worktree
+}
+
 // runGit runs `git -C repo <args>` with the login-shell PATH so git
 // resolves in a Finder-launched app. On failure it returns git's stderr.
 func runGit(repo string, args ...string) (string, error) {
@@ -118,6 +131,57 @@ func parseLastCommit(raw string) *CommitInfo {
 		return nil
 	}
 	return &CommitInfo{SHA: parts[0], Subject: parts[1], Author: parts[2], TimeAgo: parts[3]}
+}
+
+// parseWorktrees parses `git worktree list --porcelain`. Entries are separated
+// by blank lines; each is a set of `key value` lines (`worktree <path>`,
+// `HEAD <sha>`, `branch refs/heads/<name>` | `detached`, plus optional `bare`
+// / `locked`). The first entry is always the main worktree.
+func parseWorktrees(raw string) []Worktree {
+	var out []Worktree
+	var cur *Worktree
+	flush := func() {
+		if cur != nil && cur.Path != "" {
+			cur.IsMain = len(out) == 0
+			out = append(out, *cur)
+		}
+		cur = nil
+	}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if line == "" {
+			flush()
+			continue
+		}
+		key, val, _ := strings.Cut(line, " ")
+		switch key {
+		case "worktree":
+			cur = &Worktree{Path: val}
+		case "HEAD":
+			if cur != nil {
+				cur.Head = val
+			}
+		case "branch":
+			if cur != nil {
+				name := strings.TrimPrefix(val, "refs/heads/")
+				cur.Branch = &name
+			}
+		case "detached":
+			if cur != nil {
+				cur.Detached = true
+			}
+		case "bare":
+			if cur != nil {
+				cur.Bare = true
+			}
+		case "locked":
+			if cur != nil {
+				cur.Locked = true
+			}
+		}
+	}
+	flush()
+	return out
 }
 
 // parseRCMinorKey extracts the minor-line key from an RC branch name:
@@ -362,4 +426,50 @@ func DiscardAndCheckout(repo, branch string) (string, error) {
 		return "", err
 	}
 	return runGit(repo, "checkout", branch)
+}
+
+// ---- worktrees ----
+
+// ListWorktrees returns every worktree linked to repo (including repo's own,
+// which is reported first as IsMain). repo may be any worktree of the repo —
+// they all share the same worktree list.
+func ListWorktrees(repo string) ([]Worktree, error) {
+	out, err := runGit(repo, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	return parseWorktrees(out), nil
+}
+
+// AddWorktree creates a new worktree at path checked out to ref (a branch,
+// tag, or commit). Git's DWIM applies: a remote-only branch name creates a
+// local tracking branch. path must not already exist. On success returns
+// git's (often empty) stdout; on failure returns git's stderr.
+func AddWorktree(repo, path, ref string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", errors.New("worktree path is required")
+	}
+	args := []string{"worktree", "add"}
+	if strings.TrimSpace(ref) != "" {
+		args = append(args, path, ref)
+	} else {
+		// No ref: git checks out a detached HEAD at the current commit and
+		// warns; callers usually pass a ref.
+		args = append(args, path)
+	}
+	return runGit(repo, args...)
+}
+
+// RemoveWorktree removes the worktree at path (`git worktree remove`). force
+// allows removal even with uncommitted changes. It does NOT delete the branch.
+func RemoveWorktree(repo, path string, force bool) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", errors.New("worktree path is required")
+	}
+	args := []string{"worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, path)
+	return runGit(repo, args...)
 }

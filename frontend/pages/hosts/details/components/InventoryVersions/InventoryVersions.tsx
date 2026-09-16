@@ -1,7 +1,9 @@
 import React from "react";
 
-import { dateAgo } from "utilities/date_format";
-
+import Card from "components/Card";
+import DataSet from "components/DataSet";
+import TooltipWrapper from "components/TooltipWrapper";
+import TruncatedTextList from "components/TruncatedTextList";
 import {
   SoftwareExtensionFor,
   formatSoftwareType,
@@ -10,24 +12,8 @@ import {
   ISoftwareInstallVersion,
   SoftwareSource,
 } from "interfaces/software";
-
-import Card from "components/Card";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-
-const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
-  const first3 = vulnerabilities.slice(0, 3);
-  const rest = vulnerabilities.slice(3);
-
-  const first3Text = first3.join(", ");
-  const restText = `, +${rest.length} more`;
-
-  return (
-    <>
-      <span>{`${first3Text}${rest.length > 0 ? restText : ""}`}</span>
-    </>
-  );
-};
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { dateAgo } from "utilities/date_format";
 
 const baseClass = "inventory-versions";
 
@@ -52,14 +38,7 @@ const InventoryVersion = ({
 
   const lastOpenedTitle =
     INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] === "linux" ? (
-      <TooltipWrapper
-        tipContent={
-          <>
-            The last time the package was opened by the end user <br />
-            or accessed by any process on the host.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="The last time the package was opened by the end user or accessed by any process on the host.">
         Last opened
       </TooltipWrapper>
     ) : (
@@ -73,7 +52,11 @@ const InventoryVersion = ({
       borderRadiusSize="medium"
     >
       <div className={`${baseClass}__row`}>
-        <DataSet title="Version" value={version.version} textOnly />
+        <DataSet
+          title="Version"
+          value={version.version || DEFAULT_EMPTY_CELL_VALUE}
+          textOnly
+        />
         <DataSet
           title="Type"
           value={formatSoftwareType({ source, extension_for })}
@@ -97,15 +80,14 @@ const InventoryVersion = ({
             textOnly
           />
         )}
-      </div>
-      {vulnerabilities && vulnerabilities.length !== 0 && (
-        <div className={`${baseClass}__row`}>
+        {vulnerabilities && vulnerabilities.length !== 0 && (
           <DataSet
+            className={`${baseClass}__vulnerabilities`}
             title="Vulnerabilities"
-            value={generateVulnerabilitiesValue(vulnerabilities)}
+            value={<TruncatedTextList items={vulnerabilities} />}
           />
-        </div>
-      )}
+        )}
+      </div>
       {!!installedPaths?.length &&
         installedPaths.map((path) => {
           // Find the signature info for this path

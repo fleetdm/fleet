@@ -1,16 +1,17 @@
 import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
-import TicketDestinations from "./cards/Integrations";
-import MdmSettings from "./cards/MdmSettings";
+import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
+
+import AccountProvisioning from "./cards/AccountProvisioning";
 import Calendars from "./cards/Calendars";
-import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
+import ChangeManagement from "./cards/ChangeManagement";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
+import TicketDestinations from "./cards/Integrations";
+import MdmSettings from "./cards/MdmSettings";
 import Sso from "./cards/Sso";
-import AccountProvisioning from "./cards/AccountProvisioning";
-import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
 const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   const items: ISideNavItem<any>[] = [
@@ -57,7 +58,7 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       Card: IdentityProviders,
     },
     {
-      title: "Certificate enrollment",
+      title: "Certificate authorities",
       urlSection: "certificate-authorities",
       path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
       Card: CertificateAuthorities,

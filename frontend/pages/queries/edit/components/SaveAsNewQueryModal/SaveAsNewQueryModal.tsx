@@ -1,32 +1,28 @@
+import { Location } from "history";
 import React, { useCallback, useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { Location } from "history";
-import { AppContext } from "context/app";
 
-import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
-
-import { ICreateQueryFormData } from "interfaces/schedulable_query";
-
-import queryAPI from "services/entities/queries";
+import Button from "components/buttons/Button";
+import FleetsDropdown from "components/FleetsDropdown";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-
+import { AppContext } from "context/app";
+import { useTeamIdParam } from "hooks/useTeamIdParam";
 import { getErrorReason } from "interfaces/errors";
-import {
-  INVALID_PLATFORMS_FLASH_MESSAGE,
-  INVALID_PLATFORMS_REASON,
-} from "utilities/constants";
+import { ICreateQueryFormData } from "interfaces/schedulable_query";
 import {
   API_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
   ITeamSummary,
 } from "interfaces/team";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import InputField from "components/forms/fields/InputField";
-import TeamsDropdown from "components/TeamsDropdown";
-import { useTeamIdParam } from "hooks/useTeamIdParam";
+import PATHS from "router/paths";
+import queryAPI from "services/entities/queries";
+import {
+  INVALID_PLATFORMS_FLASH_MESSAGE,
+  INVALID_PLATFORMS_REASON,
+} from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "save-as-new-query-modal";
 
@@ -201,10 +197,10 @@ const SaveAsNewQueryModal = ({
         {isPremiumTier && (userTeams?.length || 0) > 1 && (
           <div className="form-field">
             <div className="form-field__label">Fleet</div>
-            <TeamsDropdown
+            <FleetsDropdown
               asFormField
-              currentUserTeams={userTeams || []}
-              selectedTeamId={formData.team.id}
+              currentUserFleets={userTeams || []}
+              selectedFleetId={formData.team.id}
               onChange={onTeamChange}
             />
           </div>
@@ -219,7 +215,7 @@ const SaveAsNewQueryModal = ({
           >
             Save
           </Button>
-          <Button onClick={onExit} variant="inverse">
+          <Button onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

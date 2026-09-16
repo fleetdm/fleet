@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from "react";
 
-import mdmAppleAPI from "services/entities/mdm_apple";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 const baseClass = "delete-vpp-modal";
 
@@ -64,11 +63,7 @@ const DeleteVppModal = ({
         >
           Delete
         </Button>
-        <Button
-          onClick={onCancel}
-          disabled={isDeleting}
-          variant="inverse-alert"
-        >
+        <Button onClick={onCancel} disabled={isDeleting} variant="secondary">
           Cancel
         </Button>
       </div>

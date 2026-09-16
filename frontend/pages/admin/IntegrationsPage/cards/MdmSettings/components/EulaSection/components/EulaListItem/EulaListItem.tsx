@@ -1,13 +1,12 @@
 import React from "react";
-import { timeAgo } from "utilities/date_format";
 
-import endpoints from "utilities/endpoints";
-import { IEulaMetadataResponse } from "services/entities/mdm";
-
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import Graphic from "components/Graphic";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Graphic from "components/Graphic";
+import Icon from "components/Icon";
+import { IEulaMetadataResponse } from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "eula-list-item";
 
@@ -42,7 +41,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
       >
         <Button
           className={`${baseClass}__list-item-button`}
-          variant="icon"
+          variant="subdued"
           onClick={onOpenEula}
         >
           <Icon
@@ -55,7 +54,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
           renderChildren={(disableChildren) => (
             <Button
               className={`${baseClass}__list-item-button`}
-              variant="icon"
+              variant="subdued"
               onClick={() => onDelete()}
               disabled={disableChildren}
             >

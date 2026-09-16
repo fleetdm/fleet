@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from "react";
 
-import { ITeamFormData as IFleetFormData } from "services/entities/teams";
-
-import Modal from "components/Modal";
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { ITeamFormData as IFleetFormData } from "services/entities/teams";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 const baseClass = "rename-fleet-modal";
 
@@ -63,6 +63,7 @@ const RenameFleetModal = ({
           placeholder="Fleet name"
           value={name}
           error={errors.name}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <div className="modal-cta-wrap">
           <Button
@@ -73,7 +74,7 @@ const RenameFleetModal = ({
           >
             Save
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

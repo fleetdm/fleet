@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from "react";
+
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
 import {
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
@@ -6,9 +10,6 @@ import {
   isSoftwareInProgressStatus,
   isSoftwarePendingStatus,
 } from "interfaces/software";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import Spinner from "components/Spinner";
 
 const baseClass = "tile-action-status";
 
@@ -96,12 +97,7 @@ const TileActionStatus = ({
   const renderActiveActionStatus = () => {
     return (
       <>
-        <Spinner
-          size="x-small"
-          includeContainer={false}
-          centered={false}
-          delay={0}
-        />
+        <Spinner size="x-small" centered={false} delay={0} />
         {getPendingOrRunningLabel(software.ui_status)}
       </>
     );
@@ -118,7 +114,7 @@ const TileActionStatus = ({
         )}
         {actionLabel && (
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={handleClick}
             disabled={disableAction}
           >

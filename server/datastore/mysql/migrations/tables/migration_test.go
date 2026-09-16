@@ -159,10 +159,26 @@ WHERE
 	require.NoError(t, err)
 
 	exceptions := []collationData{
+		{"utf8mb4_bin", "acme_challenges", "token", "utf8mb4"},
+		{"utf8mb4_bin", "android_enterprises", "signup_token", "utf8mb4"},
+		{"utf8mb4_bin", "challenges", "challenge", "utf8mb4"},
+		{"utf8mb4_bin", "email_changes", "token", "utf8mb4"},
 		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},
+		{"utf8mb4_bin", "eulas", "token", "utf8mb4"},
+		{"utf8mb4_bin", "host_certificate_templates", "fleet_challenge", "utf8mb4"},
+		{"utf8mb4_bin", "host_device_auth", "previous_token", "utf8mb4"},
+		{"utf8mb4_bin", "host_device_auth", "token", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
+		{"utf8mb4_bin", "in_house_app_install_tokens", "token", "utf8mb4"},
+		{"utf8mb4_bin", "invites", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_bootstrap_packages", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_installers", "url_token", "utf8mb4"},
+		{"utf8mb4_bin", "password_reset_requests", "token", "utf8mb4"},
+		{"utf8mb4_bin", "sessions", "key", "utf8mb4"},
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
+		{"utf8mb4_bin", "verification_tokens", "token", "utf8mb4"},
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)

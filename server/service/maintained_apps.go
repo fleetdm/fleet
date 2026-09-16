@@ -109,10 +109,12 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.LabelsIncludeAll,
 	)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			err = fleet.NewGatewayTimeoutError("Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			err = fleet.NewGatewayTimeoutError(fleet.AddMaintainedAppTimeoutErrMsg, err)
+		case errors.Is(err, context.Canceled):
+			err = fleet.NewGatewayTimeoutError(fleet.AddMaintainedAppCanceledErrMsg, err)
 		}
-
 		return &addFleetMaintainedAppResponse{Err: err}, nil
 	}
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil

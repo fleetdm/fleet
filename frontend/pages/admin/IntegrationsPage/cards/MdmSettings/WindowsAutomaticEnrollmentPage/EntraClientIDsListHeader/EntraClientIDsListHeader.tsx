@@ -2,7 +2,6 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 
 const baseClass = "entra-client-ids-list-header";
 
@@ -22,15 +21,12 @@ const EntraClientIDsListHeader = ({
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
-              variant="inverse"
+              variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddClientId}
-              iconStroke
+              icon="plus"
             >
-              <>
-                <Icon name="plus" />
-                Add
-              </>
+              Add
             </Button>
           )}
         />

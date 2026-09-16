@@ -1,7 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
+
 import InventoryVersionsModal from "./InventoryVersionsModal";
 
 // Mock current time for time stamp test
@@ -39,8 +40,9 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Hash:")).toBeVisible();
     expect(screen.getByText("mockhashhere")).toBeVisible();
 
-    // Vulnerabilities
-    expect(screen.getByText(/CVE-2020-0001/)).toBeVisible();
+    // Vulnerabilities — TruncatedTextList renders items in both a hidden
+    // measure layer and the visible row, so match all occurrences.
+    expect(screen.getAllByText(/CVE-2020-0001/).length).toBeGreaterThan(0);
 
     // Close button
     expect(screen.getByRole("button", { name: "Close" })).toBeVisible();

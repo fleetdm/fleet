@@ -1,13 +1,13 @@
 import React, { useCallback, useState } from "react";
 
-import mdmAbmAPI from "services/entities/mdm_apple_bm";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import FileUploader from "components/FileUploader";
 import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import DownloadABMKey from "pages/admin/components/DownloadFileButtons/DownloadABMKey";
+import mdmAbmAPI from "services/entities/mdm_apple_bm";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "add-abm-modal";
@@ -65,7 +65,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         accept=".p7m"
         message="AB token (.p7m)"
         graphicName="file-p7m"
-        buttonType="brand-inverse-icon"
+        buttonType="secondary"
         buttonMessage={isUploading ? "Uploading..." : "Upload"}
         fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
         onFileUpload={onSelectFile}

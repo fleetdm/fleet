@@ -1,14 +1,15 @@
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
+import PATHS from "router/paths";
 
-import DiskEncryption from "./cards/DiskEncryption";
-import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import Certificates from "./cards/Certificates";
-import Passwords from "./cards/Passwords";
+import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import { IConfigurationProfilesProps } from "./cards/ConfigurationProfiles/ConfigurationProfiles";
+import DiskEncryption from "./cards/DiskEncryption";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
+import HostNameTemplate from "./cards/HostNameTemplate";
+import Passwords from "./cards/Passwords";
 
 export interface IOSSettingsCommonProps {
   currentTeamId: number;
@@ -16,6 +17,9 @@ export interface IOSSettingsCommonProps {
   /** handler that fires when a change occures on the section (e.g. disk encryption
    * enabled, profile uploaded) */
   onMutation: () => void;
+  /** Platform sub-route segment (`os-settings/:section/:platform`); only the
+   * disk encryption card has platform tabs. */
+  urlPlatformParam?: string;
 }
 
 type IOSSettingsCardProps = IDiskEncryptionProps | IConfigurationProfilesProps;
@@ -50,6 +54,13 @@ const getOSSettingsNavItems = (
       Card: Passwords,
       urlSection: "passwords",
       path: PATHS.CONTROLS_PASSWORDS,
+      exclude: isTechnician,
+    },
+    {
+      title: "Host names",
+      Card: HostNameTemplate,
+      urlSection: "host-name-template",
+      path: PATHS.CONTROLS_HOST_NAME_TEMPLATE,
       exclude: isTechnician,
     },
   ];

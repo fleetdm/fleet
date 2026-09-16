@@ -6,20 +6,31 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
-import { AppContext } from "context/app";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import FleetsDropdown from "components/FleetsDropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import LastUpdatedText from "components/LastUpdatedText";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { notify } from "components/ToastNotification";
-
-import paths from "router/paths";
-
+import { AppContext } from "context/app";
+import { useTeamIdParam } from "hooks/useTeamIdParam";
+import { isHistoricalDataEnabled } from "interfaces/charts";
+import { IConfig } from "interfaces/config";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import { IHostSummary } from "interfaces/host_summary";
-import { ILabelSummary } from "interfaces/label";
+import { getBuiltinPlatformLabelId, ILabelSummary } from "interfaces/label";
 import { IMacadminAggregate } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
@@ -28,64 +39,43 @@ import {
 } from "interfaces/mdm";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
-import { IConfig } from "interfaces/config";
-import { isHistoricalDataEnabled } from "interfaces/charts";
-
-import { useTeamIdParam } from "hooks/useTeamIdParam";
-
+import paths from "router/paths";
+import configAPI from "services/entities/config";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
+import hosts from "services/entities/hosts";
 import macadminsAPI from "services/entities/macadmins";
 import softwareAPI, {
   ISoftwareQueryKey,
   ISoftwareCountQueryKey,
 } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
-import hosts from "services/entities/hosts";
-
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   PlatformValueOptions,
 } from "utilities/constants";
+import sortUtils from "utilities/sort";
 
-import { ITableQueryData } from "components/TableContainer/TableContainer";
+import AddHostsModal from "../../components/AddHostsModal";
 
-import TeamsDropdown from "components/TeamsDropdown";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import MainContent from "components/MainContent";
-import LastUpdatedText from "components/LastUpdatedText";
-import Card from "components/Card";
-import DataError from "components/DataError";
-
-import {
-  LOW_DISK_SPACE_GB,
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
-} from "./helpers";
-import useInfoCard from "./components/InfoCard";
-import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
-import Software from "./cards/Software";
-import LearnFleet from "./cards/LearnFleet";
-import WelcomeHost from "./cards/WelcomeHost";
-import Mdm from "./cards/MDM";
-import Munki from "./cards/Munki";
-import OperatingSystems from "./cards/OperatingSystems";
 import ChartCard from "./cards/ChartCard";
 import {
   HostsEnrolledCard,
   IHostPlatformCounts,
 } from "./cards/HostsEnrolledCard";
-import AddHostsModal from "../../components/AddHostsModal";
-import MdmSolutionModal from "./components/MdmSolutionModal";
+import LearnFleet from "./cards/LearnFleet";
+import Mdm from "./cards/MDM";
+import Munki from "./cards/Munki";
+import OperatingSystems from "./cards/OperatingSystems";
+import Software from "./cards/Software";
+import WelcomeHost from "./cards/WelcomeHost";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
+import useInfoCard from "./components/InfoCard";
+import MdmSolutionModal from "./components/MdmSolutionModal";
+import { LOW_DISK_SPACE_GB, PLATFORM_DROPDOWN_OPTIONS } from "./helpers";
+import MetricsHostCounts from "./sections/MetricsHostCounts";
 
 const baseClass = "dashboard-page";
 
@@ -242,8 +232,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
+        setMissingCount(data.missing_30_days_count || 0);
+        // low_disk_space_count and dep_assign_error_count are Premium-only.
+        // The backend nulls out low_disk_space_count for non-Premium callers,
+        // and the linked filters (`?low_disk_space=`, ABM issue filters) are
+        // also Premium-gated, so their cards stay hidden on Free.
         if (isPremiumTier) {
-          setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
           setAbmIssueCount(data.dep_assign_error_count || 0);
         }
@@ -398,15 +392,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareTitleDetail(
         <LastUpdatedText
           lastUpdatedAt={software.counts_updated_at}
-          customTooltipText={
-            <>
-              Fleet periodically queries all hosts to
-              <br />
-              retrieve software. Click to view
-              <br />
-              hosts for the most up-to-date lists.
-            </>
-          }
+          customTooltipText="Fleet periodically queries all hosts to retrieve software. Click to view hosts for the most up-to-date lists."
         />
       );
     } else if (!isViewingVulnerableSoftware) {
@@ -524,18 +510,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
     if (labels) {
-      const getLabel = (
-        labelString: string,
-        summaryLabels: ILabelSummary[]
-      ): ILabelSummary | undefined => {
-        return Object.values(summaryLabels).find((label: ILabelSummary) => {
-          return label.label_type === "builtin" && label.name === labelString;
-        });
-      };
-
       if (selectedPlatform !== "all") {
-        const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
-        setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+        setSelectedPlatformLabelId(
+          getBuiltinPlatformLabelId(labels, selectedPlatform)
+        );
       } else {
         setSelectedPlatformLabelId(undefined);
       }
@@ -806,7 +784,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
-  const linuxLayout = () => null;
+  const linuxLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
 
   const chromeLayout = () => (
     <>
@@ -830,6 +812,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const androidLayout = () => (
     <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
@@ -898,9 +881,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
-            <TeamsDropdown
-              selectedTeamId={currentTeamId}
-              currentUserTeams={userTeams}
+            <FleetsDropdown
+              selectedFleetId={currentTeamId}
+              currentUserFleets={userTeams}
               onChange={handleTeamChange}
             />
           );
@@ -968,7 +951,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__host-sections`}>
           {isHostSummaryFetching ? (
             <Card paddingSize="medium">
-              <Spinner includeContainer={false} verticalPadding="small" />
+              <Spinner verticalPadding="small" />
             </Card>
           ) : (
             HostCountCards

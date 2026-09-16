@@ -52,7 +52,7 @@ type rawRelease struct {
 
 // getLatestRelease fetches the latest release from the vulnerabilities repository
 func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
-	httpClient := fleethttp.NewClient()
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", osvGithubOwner, osvGithubRepo)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -83,8 +83,7 @@ func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
 
 	assets := make(map[string]*AssetInfo)
 	for _, asset := range release.Assets {
-		isOSVAsset := strings.HasPrefix(asset.Name, OSVFilePrefix) || strings.HasPrefix(asset.Name, OSVRHELFilePrefix)
-		if isOSVAsset && !strings.Contains(asset.Name, "delta") {
+		if isOSVReleaseAsset(asset.Name) {
 			assets[asset.Name] = &AssetInfo{
 				Name:   asset.Name,
 				ID:     asset.ID,
@@ -99,12 +98,22 @@ func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
 	}, nil
 }
 
+// isOSVReleaseAsset reports whether a release asset name is a non-delta OSV
+// artifact Fleet consumes (Ubuntu, RHEL, or Android). New OSV ecosystems must be
+// added here or getLatestRelease will silently drop their assets.
+func isOSVReleaseAsset(name string) bool {
+	isOSVAsset := strings.HasPrefix(name, OSVFilePrefix) ||
+		strings.HasPrefix(name, OSVRHELFilePrefix) ||
+		strings.HasPrefix(name, OSVAndroidFilePrefix)
+	return isOSVAsset && !strings.Contains(name, "delta")
+}
+
 // downloadOSVArtifact downloads a specific OSV artifact using the asset ID from ReleaseInfo
 func downloadOSVArtifact(ctx context.Context, assetID int64, dstPath string) error {
 	ghClient := fleethttp.NewGithubClient()
 	client := github.NewClient(ghClient)
 
-	httpClient := fleethttp.NewClient()
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	rc, redirectURL, err := client.Repositories.DownloadReleaseAsset(
 		ctx,
 		osvGithubOwner,

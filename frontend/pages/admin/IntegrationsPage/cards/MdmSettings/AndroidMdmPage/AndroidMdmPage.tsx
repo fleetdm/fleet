@@ -5,25 +5,25 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import DataSet from "components/DataSet";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
+import PATHS from "router/paths";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
-
-import MainContent from "components/MainContent";
-import BackButton from "components/BackButton";
-import Button from "components/buttons/Button";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import { notify } from "components/ToastNotification";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
@@ -144,9 +144,18 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
           url="https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
         />
       </div>
-      <Button isLoading={fetchingSignupUrl} onClick={onConnectMdm}>
-        Connect
-      </Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button
+            isLoading={fetchingSignupUrl}
+            disabled={disableChildren}
+            onClick={onConnectMdm}
+          >
+            Connect
+          </Button>
+        )}
+      />
     </>
   );
 };
@@ -192,12 +201,19 @@ const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
               </>
             }
           >
-            Android Enterprise Id
+            Android Enterprise ID
           </TooltipWrapper>
         }
         value={data.android_enterprise_id}
       />
-      <Button onClick={onClickTurnOff}>Turn off Android MDM</Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button onClick={onClickTurnOff} disabled={disableChildren}>
+            Turn off Android MDM
+          </Button>
+        )}
+      />
     </>
   );
 };

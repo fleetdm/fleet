@@ -12,7 +12,7 @@ parasails.registerPage('homepage', {
     formRules: {
       emailAddress: {isEmail: true, required: true},
     },
-    animationDelayInMs: 1200,
+    animationDelayInMs: 2000,
     syncing: false,
 
     // Server error state for the form

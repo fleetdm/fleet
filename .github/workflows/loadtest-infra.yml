@@ -65,6 +65,11 @@ on:
         type: string
         default: "redis7"
         required: false
+      mock_apns_server_instance_count:
+        description: "Number of mock Apple APNs push server instances. When 0, pushes are disabled entirely. (Roughly 40k hosts per instance.)"
+        type: number
+        default: 0
+        required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -100,10 +105,12 @@ env:
   TF_VAR_redis_engine: "${{ inputs.fleet_redis_engine }}"
   TF_VAR_redis_engine_version: "${{ inputs.fleet_redis_engine_version }}"
   TF_VAR_redis_parameter_group_family: "${{ inputs.fleet_redis_parameter_group_family }}"
+  TF_VAR_enable_apple_mdm: "${{ inputs.mock_apns_server_instance_count != 0 }}"
+  TF_VAR_apple_apns_mock_instance_count: "${{ inputs.mock_apns_server_instance_count }}"
 
 permissions:
   id-token: write
-  contents: read    # This is required for actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+  contents: read    # This is required for actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
 jobs:
   deploy:
@@ -115,7 +122,7 @@ jobs:
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - id: fail-on-main

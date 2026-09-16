@@ -54,7 +54,7 @@ if [[ "$CHROME_RUNNING" == "true" ]]; then
   quit_application 'com.google.Chrome' "$CONSOLE_USER"
 fi
 
-installer -pkg "$INSTALLER_PATH" -target /
+installer -pkg "$INSTALLER_PATH" -target / || exit $?
 
 # Restart Chrome if it was running before installation
 if [[ "$CHROME_WAS_RUNNING" == "true" ]]; then

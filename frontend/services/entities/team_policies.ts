@@ -1,22 +1,25 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { snakeCase, reduce } from "lodash";
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
-import { QueryablePlatform } from "interfaces/platform";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =
   | "software"
+  | "patch"
   | "scripts"
+  | "profiles"
   | "calendar"
   | "conditional_access"
   | "other";
@@ -88,7 +91,8 @@ export default {
       labels_exclude_all,
       type,
       patch_software_title_id,
-      // note absence of automations-related fields, which are only set by the UI via update
+      continuous_automations_enabled,
+      patch_when_closed,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
@@ -107,6 +111,8 @@ export default {
       labels_exclude_all,
       type,
       patch_software_title_id,
+      continuous_automations_enabled,
+      patch_when_closed,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -123,8 +129,11 @@ export default {
       calendar_events_enabled,
       conditional_access_enabled,
       continuous_automations_enabled,
+      patch_when_closed,
       software_title_id,
+      software_package_id,
       script_id,
+      profile_uuid,
       labels_include_any,
       labels_include_all,
       labels_exclude_any,
@@ -143,8 +152,11 @@ export default {
       calendar_events_enabled,
       conditional_access_enabled,
       continuous_automations_enabled,
+      patch_when_closed,
       software_title_id,
+      software_package_id,
       script_id,
+      profile_uuid,
       labels_include_any,
       labels_include_all,
       labels_exclude_any,

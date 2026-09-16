@@ -1,0 +1,1 @@
+- Fixed activity feed rendering a blank actor for failed iPad VPP installs: auto-update terminal failures now attribute to Fleet, and any install whose initiating admin has since been deleted also renders "Fleet" instead of an empty name.

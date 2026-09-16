@@ -1,9 +1,9 @@
-// Drop-in replacement for @tauri-apps/api/event's listen(), backed by Wails'
-// event bus. Wails delivers events as { data }, whereas the Tauri handlers
-// we ported read { payload } — so we adapt the shape here. Tauri's listen()
-// resolves to an unlisten function; Wails' On() returns one synchronously, so
-// we wrap it in a resolved promise to keep the `await listen(...)` callers
-// working unchanged.
+// Event subscription helper over the Wails event bus. Wails delivers events as
+// { data }, whereas our handlers read { payload } — so we adapt the shape here.
+// Wails' On() returns an unlisten function synchronously; we wrap it in a
+// resolved promise so the `await listen(...)` callers work unchanged. (The
+// `{ payload }` shape and the promise are carry-overs from the original
+// @tauri-apps/api/event listen() this replaced.)
 import { Events } from "@wailsio/runtime";
 
 export function listen<T = unknown>(

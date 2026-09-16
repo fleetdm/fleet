@@ -31,6 +31,10 @@ A collection of guides to help you with Fleet.
 
 [Enforce disk encryption](https://fleetdm.com/guides/enforce-disk-encryption)
 
+[Create Windows configuration profiles (CSPs)](https://fleetdm.com/guides/creating-windows-csps)
+
+[Build and validate configuration profiles with AI](https://fleetdm.com/guides/build-configuration-profiles-with-ai)
+
 [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script)
 
 <!--Installing software-->

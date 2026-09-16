@@ -9,6 +9,22 @@ vars:
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Build identity. APP_VERSION is read from build/config.yml — that file is the
+  # single place to bump the release, and it feeds both the binary (via ldflags,
+  # see build/darwin/Taskfile.yml) and the bundle's Info.plist. GIT_COMMIT is the
+  # exact source it was built from, "-dirty" when the tree had uncommitted
+  # changes, which is the normal state of a build made to test a branch.
+  APP_VERSION:
+    sh: >-
+      grep -m1 '^  version:' build/config.yml | cut -d'"' -f2
+  GIT_COMMIT:
+    sh: >-
+      printf '%s%s'
+      "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+      "$(test -n "$(git status --porcelain -- . 2>/dev/null)" && echo '-dirty')"
+  BUILD_DATE:
+    sh: >-
+      date -u +%Y-%m-%dT%H:%M:%SZ
 
 includes:
   common: ./build/Taskfile.yml
@@ -29,6 +45,11 @@ tasks:
     summary: Zips the already-built .app into a single shareable archive (bin/Fleet Hangar.zip)
     cmds:
       - task: "{{OS}}:dist"
+
+  pkg:
+    summary: Wraps the already-built .app into a Fleet-installable .pkg (bin/Fleet Hangar.pkg)
+    cmds:
+      - task: "{{OS}}:pkg"
 
   run:
     summary: Runs the application

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDisplayName</key>
+            <string>Printing</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.printer.printing</string>
+            <key>PayloadType</key>
+            <string>com.apple.mcxprinting</string>
+            <key>PayloadUUID</key>
+            <string>7C3C0D3E-6B1A-4B0A-9C2E-6B6D2E9F3A11</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>UserPrinterList</key>
+            <dict>
+                <key>TODO: QUEUE NAME</key>
+                <dict>
+                    <key>DeviceURI</key>
+                    <string>ipp://TODO: PRINTER HOST OR IP/ipp/print</string>
+                    <key>DisplayName</key>
+                    <string>TODO: DISPLAY NAME</string>
+                    <key>Location</key>
+                    <string>TODO: LOCATION</string>
+                    <key>PrinterLocked</key>
+                    <false/>
+                </dict>
+            </dict>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Printer</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.printer</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>4F9A1C2D-8E3B-4A6F-9D5C-1B7E3A9F0C33</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

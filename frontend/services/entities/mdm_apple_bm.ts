@@ -23,6 +23,14 @@ export interface IAbTokenResponse {
   ab_token: IMdmAbToken;
 }
 
+export interface IReleaseHostsFromABResponse {
+  results: {
+    host_id: number;
+    status: "success" | "failed";
+    error?: string;
+  }[];
+}
+
 export default {
   getAppleBMInfo: (): Promise<IGetAppleBMInfoResponse> => {
     const { MDM_APPLE_BM } = endpoints;
@@ -84,6 +92,15 @@ export default {
     return sendRequest("GET", MDM_AB_TOKENS);
   },
 
+  updateTokenDefault: (
+    id: number,
+    isDefault: boolean
+  ): Promise<IAbTokenResponse> => {
+    const { MDM_AB_TOKEN_DEFAULT } = endpoints;
+    const path = MDM_AB_TOKEN_DEFAULT(id);
+    return sendRequest("PATCH", path, { default: isDefault });
+  },
+
   editTeams: async (params: {
     tokenId: number;
     teams: {
@@ -96,5 +113,11 @@ export default {
     const { MDM_AB_TOKEN_TEAMS } = endpoints;
     const path = MDM_AB_TOKEN_TEAMS(params.tokenId);
     return sendRequest("PATCH", path, params.teams);
+  },
+  releaseHostsFromAB: async (
+    hostIds: number[]
+  ): Promise<IReleaseHostsFromABResponse> => {
+    const { RELEASE_AB_HOSTS } = endpoints;
+    return sendRequest("POST", RELEASE_AB_HOSTS, { ids: hostIds });
   },
 };

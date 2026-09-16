@@ -1,14 +1,13 @@
 import React, { useRef } from "react";
 
-import { notify } from "components/ToastNotification";
-import { IPolicyStats } from "interfaces/policy";
-import { IConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
-import { PLATFORM_DISPLAY_NAMES, QueryablePlatform } from "interfaces/platform";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { IConfig } from "interfaces/config";
+import { PLATFORM_DISPLAY_NAMES, QueryablePlatform } from "interfaces/platform";
+import { IPolicyStats } from "interfaces/policy";
+import { ITeamConfig } from "interfaces/team";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
 } from "pages/policies/components/PolicyAutomationsFields";
@@ -131,6 +130,7 @@ const ManageAutomationsModal = ({
               automationsConfig={automationsConfig}
               globalConfig={globalConfig}
               fleetName={fleetName}
+              selectedPlatforms={policyPlatforms}
             />
           </section>
         </div>
@@ -139,7 +139,7 @@ const ManageAutomationsModal = ({
           <Button type="submit" isLoading={isSaving} disabled={isSaving}>
             Save
           </Button>
-          <Button type="button" onClick={onExit} variant="inverse">
+          <Button type="button" onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

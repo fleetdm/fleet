@@ -304,12 +304,16 @@ func TestGetTeams(t *testing.T) {
 			actualJSON, err := runWithErrWriter([]string{"get", "fleets", "--json"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
-			require.Equal(t, expectedJson, actualJSON.String())
+			if !updateGoldenFile(t, "expectedGetTeamsJson.json", actualJSON.String()) {
+				require.Equal(t, expectedJson, actualJSON.String()) //nolint:testifylint // this is a list of JSON objects not a single JSON value
+			}
 
 			errBuffer.Reset()
 			actualYaml, err := runWithErrWriter([]string{"get", "fleets", "--yaml"}, &errBuffer)
 			require.NoError(t, err)
-			assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			if !updateGoldenFile(t, "expectedGetTeamsYaml.yml", actualYaml.String()) {
+				assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			}
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
 			// Test --remove-deprecated-keys: "fleet" present, "team" absent at spec level
@@ -525,6 +529,9 @@ func TestGetHosts(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
@@ -751,6 +758,9 @@ func TestGetHostsMDM(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
@@ -1015,6 +1025,7 @@ spec:
   id: 0
   name: foo
   software_package: null
+  packages: null
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
@@ -1040,6 +1051,7 @@ spec:
   id: 0
   name: bar
   software_package: null
+  packages: null
   source: deb_packages
   extension_for: ""
   display_name: ""
@@ -1091,6 +1103,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     },
     {
@@ -1111,6 +1124,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     }
   ]
@@ -2832,12 +2846,12 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		return nil, nil
 	}
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil

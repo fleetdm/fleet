@@ -1,15 +1,10 @@
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
-# variable
-# Evernote (electron-builder NSIS) registers a versioned DisplayName in HKLM
-# when installed with /allusers, e.g. "Evernote 11.24.3 (All Users)". The
-# "(All Users)" suffix is locale-dependent, so match on the "Evernote" prefix
-# only. Its QuietUninstallString runs "Uninstall Evernote.exe" /allusers /S,
-# which also closes the running tray app.
+# The "(All Users)" suffix in Evernote's DisplayName is locale-dependent, so
+# match on the "Evernote" prefix only.
 $softwareName = "Evernote"
 
 $softwareNameLike = "Evernote*"
 
-# electron-builder NSIS uninstaller; /allusers matches the machine-wide install
+# /allusers matches the machine-wide install
 $uninstallArgs = "/allusers /S"
 
 $machineKey = `
@@ -30,17 +25,12 @@ $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
     if ($key.DisplayName -like $softwareNameLike) {
         $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include
-        # 'QuietUninstallString' and require a flag to run silently.
         $uninstallCommand = if ($key.QuietUninstallString) {
             $key.QuietUninstallString
         } else {
             $key.UninstallString
         }
 
-        # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" /SILENT
-        # Split the command and args
         $splitArgs = $uninstallCommand.Split('"')
         if ($splitArgs.Length -gt 1) {
             if ($splitArgs.Length -eq 3) {
@@ -65,21 +55,51 @@ foreach ($key in $uninstallKeys) {
             $processOptions.ArgumentList = "$uninstallArgs"
         }
 
-        # Start process and track exit code
         $process = Start-Process @processOptions
         $exitCode = $process.ExitCode
 
-        # Prints the exit code
         Write-Host "Uninstall exit code: $exitCode"
-        # Exit the loop once the software is found and uninstalled.
+
+        # Without an "_?=<installdir>" argument an NSIS uninstaller relaunches
+        # itself from %TEMP% and exits 0 before the removal finishes, so wait
+        # for the registry entry to clear.
+        if ($exitCode -eq 0) {
+            $deadline = (Get-Date).AddSeconds(300)
+            do {
+                Start-Sleep -Seconds 5
+                # Fail closed: a failed query is not proof of removal. Keys are
+                # read leniently since the uninstaller deletes them as we walk.
+                $stillInstalled = $true
+                try {
+                    $stillInstalled = [bool](Get-ChildItem `
+                        -Path @($machineKey, $machineKey32on64) `
+                        -ErrorAction Stop |
+                            ForEach-Object {
+                                Get-ItemProperty $_.PSPath `
+                                    -ErrorAction SilentlyContinue
+                            } |
+                            Where-Object {
+                                $_.DisplayName -like $softwareNameLike
+                            })
+                } catch {
+                    Write-Host "Could not query the uninstall registry: $_"
+                }
+            } while ($stillInstalled -and (Get-Date) -lt $deadline)
+
+            if ($stillInstalled) {
+                Write-Host "Could not confirm '$softwareName' was removed."
+                $exitCode = 1
+            } else {
+                Write-Host "'$softwareName' was removed."
+            }
+        }
+
         break
     }
 }
 
 if (-not $foundUninstaller) {
     Write-Host "Uninstaller for '$softwareName' not found."
-    # Change exit code to 0 if you don't want to fail if uninstaller is not
-    # found. This could happen if program was already uninstalled.
     $exitCode = 1
 }
 

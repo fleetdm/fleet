@@ -1,4 +1,4 @@
-- name: macOS - User .npmrc min-release-age at least 0.5 days
+- name: User .npmrc min-release-age at least 0.5 days (macOS)
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM users u
@@ -77,7 +77,7 @@
   run_script:
     path: ../scripts/configure-npmrc-min-release-age.sh
 
-- name: Linux - User .npmrc min-release-age at least 0.5 days
+- name: User .npmrc min-release-age at least 0.5 days (Linux)
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM users u
@@ -154,7 +154,7 @@
   run_script:
     path: ../scripts/configure-npmrc-min-release-age.sh
 
-- name: Windows - User .npmrc min-release-age at least 0.5 days
+- name: User .npmrc min-release-age at least 0.5 days (Windows)
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM users u

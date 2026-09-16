@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useEffect, useRef, useState } from "react";
 import { InjectedRouter } from "react-router";
 import {
@@ -11,10 +12,9 @@ import {
   Tooltip,
 } from "recharts";
 
+import { getBuiltinPlatformLabelId, ILabelSummary } from "interfaces/label";
 import PATHS from "router/paths";
-import { ILabelSummary } from "interfaces/label";
 import { getPathWithQueryParams } from "utilities/url";
-import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 const baseClass = "hosts-enrolled-card";
 
@@ -119,6 +119,9 @@ interface IYAxisTickProps {
   x?: number;
   y?: number;
   payload?: { value: string; index: number };
+  // recharts merges its own "recharts-cartesian-axis-tick-value" class in via
+  // cloneElement; forward it so recharts' internal tick measurement still works.
+  className?: string;
   fontSize: number;
   isClickable: (index: number) => boolean;
   onLabelClick: (index: number) => void;
@@ -128,24 +131,42 @@ const ClickableYAxisTick = ({
   x = 0,
   y = 0,
   payload,
+  className,
   fontSize,
   isClickable,
   onLabelClick,
 }: IYAxisTickProps): JSX.Element => {
   if (!payload) return <g />;
   const clickable = isClickable(payload.index);
+
+  // Make clickable platform labels real, keyboard-operable controls: focusable
+  // via Tab (tabIndex), announced as buttons, and activatable with Enter/Space
+  // in addition to a mouse click. They navigate programmatically (no href), so
+  // button semantics fit better than a link. See #48214.
+  const handleKeyDown = (event: React.KeyboardEvent<SVGTextElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onLabelClick(payload.index);
+    }
+  };
+
   return (
-    <g
-      transform={`translate(${x},${y})`}
-      onClick={clickable ? () => onLabelClick(payload.index) : undefined}
-    >
+    <g transform={`translate(${x},${y})`}>
       <text
         x={0}
         y={0}
         dy={4}
         textAnchor="end"
         fontSize={fontSize}
-        className={clickable ? `${baseClass}__tick--clickable` : undefined}
+        fontWeight="normal"
+        className={classnames(className, {
+          [`${baseClass}__tick--clickable`]: clickable,
+        })}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        aria-label={clickable ? `${payload.value} hosts` : undefined}
+        onClick={clickable ? () => onLabelClick(payload.index) : undefined}
+        onKeyDown={clickable ? handleKeyDown : undefined}
       >
         {payload.value}
       </text>
@@ -167,20 +188,15 @@ const HostsEnrolledCard = ({
     percent: totalHostCount ? (counts[platform] / totalHostCount) * 100 : 0,
   }));
 
-  // Given a platform, find the corresponding built-in label ID for linking to the
-  // hosts list.
-  const getLabelId = (platform: PlatformKey): number | undefined => {
-    const labelName = PLATFORM_NAME_TO_LABEL_NAME[platform];
-    return builtInLabels?.find((l) => l.name === labelName)?.id;
-  };
-
   const navigateToPlatform = (platform: PlatformKey, count: number) => {
     if (!count) return;
-    const labelId = getLabelId(platform);
+    const labelId = getBuiltinPlatformLabelId(builtInLabels, platform);
     if (labelId === undefined) return;
     router.push(
       getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(labelId), {
         fleet_id: currentTeamId,
+        // the chart doesn't count hosts pending MDM enrollment
+        status: "enrolled",
       })
     );
   };
@@ -197,7 +213,9 @@ const HostsEnrolledCard = ({
   const isTickClickable = (index: number) => {
     const datum = data[index];
     if (!datum || !datum.count) return false;
-    return getLabelId(datum.platform) !== undefined;
+    return (
+      getBuiltinPlatformLabelId(builtInLabels, datum.platform) !== undefined
+    );
   };
 
   // Mirror CheckerboardViz's wide-mode detection so the bar chart's plot area
@@ -218,12 +236,10 @@ const HostsEnrolledCard = ({
   }, []);
 
   const chartHeight = isWide ? CHART_HEIGHT_WIDE : CHART_HEIGHT_NARROW;
-  // 7 platforms in ~166px (narrow) leaves ~23px per row, so the default 14px
-  // ticks crowd. Step down a couple sizes when narrow.
-  const tickFontSize = isWide ? 14 : 11;
-  // ChromeOS is the widest label and just barely doesn't fit at 80/60, so add
-  // a bit of breathing room.
-  const yAxisWidth = isWide ? 90 : 68;
+  const tickFontSize = 12;
+  // ChromeOS is the widest label and clips without this margin at 12px medium
+  // weight.
+  const yAxisWidth = isWide ? 90 : 84;
 
   return (
     <div className={baseClass} ref={containerRef}>
@@ -258,7 +274,7 @@ const HostsEnrolledCard = ({
               axisLine={false}
               tickLine={false}
               tickMargin={6}
-              tick={{ fontSize: tickFontSize }}
+              tick={{ fontSize: tickFontSize, fontWeight: 600 }}
               allowDecimals={false}
             />
             <YAxis

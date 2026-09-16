@@ -30,6 +30,7 @@ type StatisticsPayload struct {
 	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
 	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
+	MDMAndroidEnabled              bool   `json:"mdmAndroidEnabled"`
 	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
 	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
 	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
@@ -58,15 +59,15 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].domain
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
-	// GoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
+	// IDPGoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
 	// configured (integrations.google_workspace[0] has a domain and service account).
-	GoogleWorkspaceConfigured bool `json:"googleWorkspaceConfigured"`
+	IDPGoogleWorkspaceConfigured bool `json:"idpGoogleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
-	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
-	FleetMaintainedAppsMacOS []string `json:"fleetMaintainedAppsMacOS,omitempty"`
-	// FleetMaintainedAppsWindows is an array of Fleet-maintained app slugs being used on Windows
-	FleetMaintainedAppsWindows []string `json:"fleetMaintainedAppsWindows,omitempty"`
+	// FleetMaintainedAppsMacOS is the set of Fleet-maintained apps being used on macOS
+	FleetMaintainedAppsMacOS []FleetMaintainedAppUsage `json:"fleetMaintainedAppsMacOS,omitempty"`
+	// FleetMaintainedAppsWindows is the set of Fleet-maintained apps being used on Windows
+	FleetMaintainedAppsWindows []FleetMaintainedAppUsage `json:"fleetMaintainedAppsWindows,omitempty"`
 
 	// ConditionalAccessEnabled indicates whether any team has conditional access enabled.
 	ConditionalAccessEnabled bool `json:"conditionalAccessEnabled"`
@@ -83,10 +84,69 @@ type StatisticsPayload struct {
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
 
+	// FleetDesktopSSOEnabled is true when SSO is required in front of Fleet Desktop (fleet_desktop.sso_enabled).
+	FleetDesktopSSOEnabled bool `json:"fleetDesktopSSOEnabled"`
+
 	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+	// NumMDMAppleProfiles is the number of Apple (macOS/iOS) configuration profiles defined across all teams
+	NumMDMAppleProfiles int `json:"numMDMAppleProfiles"`
+	// NumMDMWindowsProfiles is the number of Windows configuration profiles defined across all teams
+	NumMDMWindowsProfiles int `json:"numMDMWindowsProfiles"`
+	// NumMDMAppleDeclarations is the number of Apple DDM declarations defined across all teams
+	NumMDMAppleDeclarations int `json:"numMDMAppleDeclarations"`
+	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
+	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
+
+	// The *LogDestination fields are the configured server-side log plugins
+	// (osquery.result_log_plugin, osquery.status_log_plugin, activity.audit_log_plugin),
+	// e.g. "filesystem" or "firehose". They come from the server config, not the app config.
+	ResultLogDestination string `json:"resultLogDestination"`
+	StatusLogDestination string `json:"statusLogDestination"`
+	AuditLogDestination  string `json:"auditLogDestination"`
+
+	// Vulnerabilities webhooks are a global-only setting, so despite the "any" prefix this tracks
+	// just the one global flag.
+	AnyVulnerabilitiesWebhookEnabled bool `json:"anyVulnerabilitiesWebhookEnabled"`
+	// AnyFailingPoliciesWebhookEnabled and AnyHostActivitiesWebhookEnabled are true when the
+	// webhook is enabled globally or on any fleet, including "No team".
+	AnyFailingPoliciesWebhookEnabled bool `json:"anyFailingPoliciesWebhookEnabled"`
+	AnyHostActivitiesWebhookEnabled  bool `json:"anyHostActivitiesWebhookEnabled"`
+	GlobalActivityWebhookEnabled     bool `json:"globalActivityWebhookEnabled"`
+
+	// A ticket destination is "configured" when a Jira or Zendesk integration exists in the global
+	// config; fleet-level entries only toggle an already-configured destination.
+	TicketDestinationConfigured bool `json:"ticketDestinationConfigured"`
+	// SSOConfiguredFleetUsers covers logging in to Fleet; SSOConfiguredEndUsers covers end user
+	// authentication during MDM enrollment.
+	SSOConfiguredFleetUsers bool `json:"ssoConfiguredFleetUsers"`
+	SSOConfiguredEndUsers   bool `json:"ssoConfiguredEndUsers"`
+	// Apple account provisioning (Platform SSO).
+	AccountProvisioningConfigured bool `json:"accountProvisioningConfigured"`
+	// IDPSCIMConfigured is true once Fleet has received a SCIM request, the same signal the IdP
+	// settings page uses to report the connection.
+	IDPSCIMConfigured              bool `json:"idpSCIMConfigured"`
+	CertificateAuthorityConfigured bool `json:"certificateAuthorityConfigured"`
+
+	// NumPoliciesAutomationEnabledSoftware is the number of policies with a software
+	// automation, using the same definition as the automation_type=software filter:
+	// the policy installs a package or a VPP app. Kept in sync with
+	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
+	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
+}
+
+// FleetMaintainedAppUsage reports a Fleet-maintained app in use, whether a patch policy
+// covers it, and whether that patch policy carries a software automation.
+//
+// The patch policy is matched on the app's software title, so two slugs that share a title
+// (Firefox GA and ESR) report the same patch policy.
+type FleetMaintainedAppUsage struct {
+	// Name is the Fleet-maintained app slug, e.g. "1password/darwin".
+	Name               string `json:"name" db:"name"`
+	PatchPolicy        bool   `json:"patchPolicy" db:"patch_policy"`
+	SoftwareAutomation bool   `json:"softwareAutomation" db:"software_automation"`
 }
 
 type HostsCountByOrbitVersion struct {

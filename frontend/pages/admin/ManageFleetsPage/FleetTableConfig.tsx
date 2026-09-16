@@ -1,13 +1,12 @@
 import React from "react";
 
-import { ITeam as IFleet } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
-
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeam as IFleet } from "interfaces/team";
+import PATHS from "router/paths";
 
 interface IHeaderProps {
   column: {
@@ -63,8 +62,10 @@ const generateTableHeaders = (
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
         <LinkCell
+          className="w400"
           value={cellProps.cell.value}
           path={PATHS.FLEET_DETAILS_USERS(cellProps.row.original.id)}
+          tooltipTruncate
         />
       ),
     },
@@ -110,7 +111,7 @@ const generateTableHeaders = (
                 }
                 placeholder="Actions"
                 disabled={disableChildren}
-                variant="small-button"
+                variant="secondary"
               />
             </div>
           )}

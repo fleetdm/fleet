@@ -19,7 +19,7 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
 	execCommandContext = fakeExecCommandContext(t, sampleStatusJSON())
 
-	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	row := rows[0]
@@ -49,7 +49,7 @@ func TestGenerateStatus_DaemonUnreachableReturnsRowWithError(t *testing.T) {
 	const daemonErr = "An error occurred communicating with the Santa daemon"
 	execCommandContext = fakeExecCommandContext(t, "", withExitCode(1), withStderr(daemonErr))
 
-	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "0", rows[0]["daemon_reachable"])
@@ -60,7 +60,7 @@ func TestGenerateStatus_BadJSONReturnsError(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
 	execCommandContext = fakeExecCommandContext(t, "{not-json}")
 
-	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
 	require.Error(t, err)
 	require.Nil(t, rows)
 }
@@ -70,7 +70,7 @@ func TestGenerateStatus_ContextCancelBehavesLikeCmdError(t *testing.T) {
 	// Simulate a slow command; we'll cancel the context before it returns
 	execCommandContext = fakeExecCommandContext(t, sampleStatusJSON(), withSleep(200*time.Millisecond))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
 	defer cancel()
 
 	rows, err := GenerateStatus(ctx, table.QueryContext{})

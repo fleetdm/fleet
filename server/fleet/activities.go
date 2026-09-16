@@ -8,6 +8,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// Priorities for the upcoming activities queue (higher activates first).
+// User-initiated activities sit above Fleet-initiated ones (default 0) so a
+// person acting on a host is never queued behind deferred policy-automation
+// work, and setup experience outranks both.
+const (
+	UserInitiatedActivityPriority   = 10
+	SetupExperienceActivityPriority = 100
+)
+
 // ActivityWriteService is the subset of the activity bounded context service
 // used by the legacy service layer for write operations.
 type ActivityWriteService interface {
@@ -58,6 +67,21 @@ type UpcomingActivityMeta struct {
 	// WellKnownAction is the special action that this activity corresponds to,
 	// if any (default is WellKnownActionNone).
 	WellKnownAction WellKnownActionType `db:"well_known_action"`
+}
+
+// ReapedMDMInstall is an install that the stuck-queue reaper failed, carrying
+// what the caller needs to finish recording it.
+type ReapedMDMInstall struct {
+	HostID      uint
+	HostUUID    string
+	CommandUUID string
+	// User is nil when Fleet initiated the install rather than a person.
+	User *User
+	// Exactly one of the two activities is set. They are concrete types rather
+	// than ActivityDetails because the caller sets FromSetupExperience on the
+	// App Store one once it knows whether a setup experience step was updated.
+	AppStoreActivity *ActivityInstalledAppStoreApp
+	InHouseActivity  *ActivityTypeInstalledSoftware
 }
 
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
@@ -155,10 +179,21 @@ type ActivityTypeResetPolicy struct {
 	Name     string  `json:"policy_name"`
 	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
 	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	// HostID and HostDisplayName are set only when the reset was scoped to a single host.
+	HostID          *uint   `json:"host_id,omitempty"`
+	HostDisplayName *string `json:"host_display_name,omitempty"`
 }
 
 func (a ActivityTypeResetPolicy) ActivityName() string {
 	return "reset_policy"
+}
+
+// HostIDs links a host-scoped reset to that host so it shows in the host's activity feed.
+func (a ActivityTypeResetPolicy) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
 }
 
 type ActivityTypeAppliedSpecPolicy struct {
@@ -305,6 +340,15 @@ func (a ActivityTypeUserFailedLogin) ActivityName() string {
 	return "user_failed_login"
 }
 
+type ActivityTypeUserMFARequested struct {
+	Email    string `json:"email"`
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserMFARequested) ActivityName() string {
+	return "user_mfa_requested"
+}
+
 type ActivityTypeCreatedUser struct {
 	UserID    uint   `json:"user_id"`
 	UserName  string `json:"user_name"`
@@ -328,6 +372,23 @@ func (a ActivityTypeDeletedUser) ActivityName() string {
 
 func (a ActivityTypeDeletedUser) WasFromAutomation() bool {
 	return a.FromScimUserDeletion
+}
+
+// ActivityTypeScimUserDeprovisionSkipped flags a SCIM deactivation or deletion
+// that could not be matched to a Fleet user because the SCIM record has no
+// email identifiers and no durable link — a corresponding Fleet account may
+// remain active.
+type ActivityTypeScimUserDeprovisionSkipped struct {
+	ScimUserID   uint   `json:"scim_user_id"`
+	ScimUserName string `json:"scim_user_name"`
+}
+
+func (a ActivityTypeScimUserDeprovisionSkipped) ActivityName() string {
+	return "scim_user_deprovision_skipped"
+}
+
+func (a ActivityTypeScimUserDeprovisionSkipped) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeDeletedHost struct {
@@ -358,6 +419,7 @@ type ActivityTypeChangedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	Role      string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserGlobalRole) ActivityName() string {
@@ -369,6 +431,7 @@ type ActivityTypeDeletedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	OldRole   string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserGlobalRole) ActivityName() string {
@@ -382,6 +445,7 @@ type ActivityTypeChangedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
@@ -395,6 +459,7 @@ type ActivityTypeDeletedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
@@ -412,6 +477,10 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
+	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
+	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
+	// is deferred until the enrollment is linked to a host rather than recorded without one.
+	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
 	InstalledFromDEP bool    `json:"installed_from_dep"`
@@ -423,6 +492,16 @@ type ActivityTypeMDMEnrolled struct {
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
 	return "mdm_enrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the enrollment is being processed before the host record exists) so the global
+// activity is still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMEnrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
@@ -575,6 +654,10 @@ func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
 type ActivityTypeEditedMacosProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName and ProfileIdentifier are set only when a single profile
+	// was edited in place; fleetctl/GitOps batch edits omit them.
+	ProfileName       string `json:"profile_name,omitempty"`
+	ProfileIdentifier string `json:"profile_identifier,omitempty"`
 }
 
 func (a ActivityTypeEditedMacosProfile) ActivityName() string {
@@ -601,6 +684,9 @@ func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
+// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeEnabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -610,6 +696,9 @@ func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
 	return "enabled_macos_disk_encryption"
 }
 
+// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
+// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
+// activities still render.
 type ActivityTypeDisabledMacosDiskEncryption struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
@@ -617,6 +706,20 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+// ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
+// effective disk encryption settings changed. It replaces the deprecated
+// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
+// pair.
+type ActivityTypeEditedDiskEncryptionSettings struct {
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+	Platform  string  `json:"platform"` // "macos" | "windows" | "linux"
+}
+
+func (a ActivityTypeEditedDiskEncryptionSettings) ActivityName() string {
+	return "edited_disk_encryption_settings"
 }
 
 type ActivityTypeSetHostRecoveryLockPassword struct {
@@ -654,6 +757,16 @@ func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
 	return "disabled_recovery_lock_passwords"
 }
 
+type ActivityTypeEditedHostNameTemplate struct {
+	FleetID          *uint   `json:"fleet_id"`
+	FleetName        *string `json:"fleet_name"`
+	HostNameTemplate *string `json:"name_template"` // nil when the template was cleared
+}
+
+func (a ActivityTypeEditedHostNameTemplate) ActivityName() string {
+	return "edited_host_name_template"
+}
+
 type ActivityTypeCreatedManagedLocalAccount struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -687,6 +800,7 @@ func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
 type ActivityTypeEnabledManagedLocalAccount struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	Platform string  `json:"platform,omitempty"`
 }
 
 func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
@@ -696,6 +810,7 @@ func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
 type ActivityTypeDisabledManagedLocalAccount struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	Platform string  `json:"platform,omitempty"`
 }
 
 func (a ActivityTypeDisabledManagedLocalAccount) ActivityName() string {
@@ -712,6 +827,18 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeEnabledSSOFleetDesktop) ActivityName() string {
+	return "enabled_sso_fleet_desktop"
+}
+
+type ActivityTypeDisabledSSOFleetDesktop struct{}
+
+func (a ActivityTypeDisabledSSOFleetDesktop) ActivityName() string {
+	return "disabled_sso_fleet_desktop"
 }
 
 // ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
@@ -939,6 +1066,9 @@ func (a ActivityTypeDeletedWindowsProfile) ActivityName() string {
 type ActivityTypeEditedWindowsProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName is set only when a single profile was edited in place;
+	// fleetctl/GitOps batch edits omit it.
+	ProfileName string `json:"profile_name,omitempty"`
 }
 
 func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
@@ -1048,14 +1178,14 @@ func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool
 	return a.FleetInitiated
 }
 
-// ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
-// to rotate the managed local account password (the device acked the
-// SetAutoAdminPassword command with an error or command-format error). Always
-// attributed to Fleet — the failure is detected at ack time, outside any user
-// context, regardless of who originally initiated the rotation.
+// ActivityTypeFailedToRotateManagedLocalAccountPassword records that the device reported it could not rotate the
+// password. Always attributed to Fleet: the failure arrives from the device outside any user context.
 type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	// Detail is the reason the device reported, when it sent one. Only Windows reports one today: the macOS ack
+	// carries no reason beyond the command status, so the field is absent there rather than filled with a placeholder.
+	Detail string `json:"detail,omitempty"`
 }
 
 func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) ActivityName() string {
@@ -1095,6 +1225,10 @@ func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
 type ActivityTypeEditedDeclarationProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName and ProfileIdentifier are set only when a single
+	// declaration was edited in place; fleetctl/GitOps batch edits omit them.
+	ProfileName       string `json:"profile_name,omitempty"`
+	ProfileIdentifier string `json:"profile_identifier,omitempty"`
 }
 
 func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
@@ -1135,14 +1269,32 @@ type ActivityTypeResentConfigurationProfile struct {
 	HostID          *uint   `json:"host_id"`
 	HostDisplayName *string `json:"host_display_name"`
 	ProfileName     string  `json:"profile_name"`
+	ProfileUUID     string  `json:"profile_uuid"`
+	PolicyID        *uint   `json:"policy_id"`   // null on manual resend
+	PolicyName      *string `json:"policy_name"` // null on manual resend
 }
 
 func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 	return "resent_configuration_profile"
 }
 
+func (a ActivityTypeResentConfigurationProfile) WasFromAutomation() bool {
+	return a.PolicyID != nil
+}
+
+// HostIDs links the activity to the host whose profile was resent. Without it no
+// activity_host_past row is written, and the activity is invisible to every feed that joins
+// through that table — including the policy automation feed.
+func (a ActivityTypeResentConfigurationProfile) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
+}
+
 type ActivityTypeResentConfigurationProfileBatch struct {
 	ProfileName string `json:"profile_name"`
+	ProfileUUID string `json:"profile_uuid"`
 	HostCount   int64  `json:"host_count"`
 }
 
@@ -1155,6 +1307,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
 	SoftwarePackage     string  `json:"software_package"`
+	HashSHA256          *string `json:"hash_sha256,omitempty"`
 	SelfService         bool    `json:"self_service"`
 	InstallUUID         string  `json:"install_uuid"`
 	Status              string  `json:"status"`
@@ -1164,6 +1317,8 @@ type ActivityTypeInstalledSoftware struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
+	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
+	SkippedInstall bool `json:"skipped_install,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1172,6 +1327,13 @@ func (a ActivityTypeInstalledSoftware) ActivityName() string {
 
 func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+// HostOnly hides patch-when-closed skips from the global activity feed; they
+// stay on the host activity feed. Skips fire on every policy re-eval while the
+// app is open, which is too noisy globally.
+func (a ActivityTypeInstalledSoftware) HostOnly() bool {
+	return a.SkippedInstall
 }
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
@@ -1297,8 +1459,9 @@ func (a ActivityTypeDeletedOrgLogo) ActivityName() string {
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
+// If jit is true, the activities are marked as originating from JIT (just-in-time) SSO provisioning.
 func LogRoleChangeActivities(
-	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User, jit bool,
 ) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
 		if err := svc.NewActivity(
@@ -1309,6 +1472,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				Role:      *user.GlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1323,6 +1487,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				OldRole:   *oldGlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1350,6 +1515,7 @@ func LogRoleChangeActivities(
 				Role:      t.Role,
 				TeamID:    t.ID,
 				TeamName:  t.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1369,6 +1535,7 @@ func LogRoleChangeActivities(
 				Role:      o.Role,
 				TeamID:    o.ID,
 				TeamName:  o.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1649,6 +1816,21 @@ func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeCanceledMDMCommand struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// CommandType is the raw MDM request type, e.g. "DeviceLock".
+	CommandType string `json:"command_type"`
+}
+
+func (a ActivityTypeCanceledMDMCommand) ActivityName() string {
+	return "canceled_mdm_command"
+}
+
+func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCanceledInstallSoftware struct {
 	HostID              uint   `json:"host_id"`
 	HostDisplayName     string `json:"host_display_name"`
@@ -1844,6 +2026,14 @@ func (a ActivityCreatedCustomVariable) ActivityName() string {
 	return "created_custom_variable"
 }
 
+type ActivityUpdatedCustomVariable struct {
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityUpdatedCustomVariable) ActivityName() string {
+	return "updated_custom_variable"
+}
+
 type ActivityDeletedCustomVariable struct {
 	CustomVariableID   uint   `json:"custom_variable_id"`
 	CustomVariableName string `json:"custom_variable_name"`
@@ -1851,6 +2041,48 @@ type ActivityDeletedCustomVariable struct {
 
 func (a ActivityDeletedCustomVariable) ActivityName() string {
 	return "deleted_custom_variable"
+}
+
+type ActivityTypeCreatedCustomHostVital struct {
+	CustomHostVitalID   uint   `json:"custom_host_vital_id"`
+	CustomHostVitalName string `json:"custom_host_vital_name"`
+}
+
+func (a ActivityTypeCreatedCustomHostVital) ActivityName() string {
+	return "created_custom_host_vital"
+}
+
+type ActivityTypeEditedCustomHostVital struct {
+	CustomHostVitalID   uint   `json:"custom_host_vital_id"`
+	CustomHostVitalName string `json:"custom_host_vital_name"`
+}
+
+func (a ActivityTypeEditedCustomHostVital) ActivityName() string {
+	return "edited_custom_host_vital"
+}
+
+type ActivityTypeDeletedCustomHostVital struct {
+	CustomHostVitalID   uint   `json:"custom_host_vital_id"`
+	CustomHostVitalName string `json:"custom_host_vital_name"`
+}
+
+func (a ActivityTypeDeletedCustomHostVital) ActivityName() string {
+	return "deleted_custom_host_vital"
+}
+
+type ActivityTypeEditedCustomHostVitalValue struct {
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	CustomHostVitalID   uint   `json:"custom_host_vital_id"`
+	CustomHostVitalName string `json:"custom_host_vital_name"`
+}
+
+func (a ActivityTypeEditedCustomHostVitalValue) ActivityName() string {
+	return "edited_custom_host_vital_value"
+}
+
+func (a ActivityTypeEditedCustomHostVitalValue) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 type ActivityEditedSetupExperienceSoftware struct {
@@ -1861,6 +2093,28 @@ type ActivityEditedSetupExperienceSoftware struct {
 
 func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 	return "edited_setup_experience_software"
+}
+
+// These activities are new, so they use the fleet_id/fleet_name field names directly rather than
+// the team_id/team_name + renameto pattern the older team-scoped activities keep for back-compat.
+type ActivityCreatedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityCreatedSetupExperienceScript) ActivityName() string {
+	return "created_setup_experience_script"
+}
+
+type ActivityDeletedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityDeletedSetupExperienceScript) ActivityName() string {
+	return "deleted_setup_experience_script"
 }
 
 type ActivityTypeCreatedAndroidProfile struct {
@@ -1886,6 +2140,9 @@ func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
 type ActivityTypeEditedAndroidProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName is set only when a single profile was edited in place;
+	// fleetctl/GitOps batch edits omit it.
+	ProfileName string `json:"profile_name,omitempty"`
 }
 
 func (a ActivityTypeEditedAndroidProfile) ActivityName() string {
@@ -1906,6 +2163,7 @@ type ActivityTypeResentCertificate struct {
 	HostDisplayName       string `json:"host_display_name"`
 	CertificateTemplateID uint   `json:"certificate_template_id"`
 	CertificateName       string `json:"certificate_name"`
+	Automated             bool   `json:"-"`
 }
 
 func (a ActivityTypeResentCertificate) ActivityName() string {
@@ -1914,6 +2172,10 @@ func (a ActivityTypeResentCertificate) ActivityName() string {
 
 func (a ActivityTypeResentCertificate) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeResentCertificate) WasFromAutomation() bool {
+	return a.Automated
 }
 
 type ActivityTypeEditedHostIdpData struct {
@@ -1976,6 +2238,44 @@ type ActivityTypeDeletedMicrosoftEntraClientID struct {
 
 func (a ActivityTypeDeletedMicrosoftEntraClientID) ActivityName() string {
 	return "deleted_microsoft_entra_client_id"
+}
+
+// The three activities below track the Microsoft Graph credential Fleet uses to read Windows Autopilot devices. Only
+// the tenant ID is recorded, which is sufficient.
+
+type ActivityTypeAddedMicrosoftGraphCredential struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftGraphCredential) ActivityName() string {
+	return "added_microsoft_graph_credential"
+}
+
+type ActivityTypeEditedMicrosoftGraphCredential struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeEditedMicrosoftGraphCredential) ActivityName() string {
+	return "edited_microsoft_graph_credential"
+}
+
+type ActivityTypeDeletedMicrosoftGraphCredential struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftGraphCredential) ActivityName() string {
+	return "deleted_microsoft_graph_credential"
+}
+
+// ActivityTypeEditedWindowsEnrollmentDefaultFleet is logged when the default fleet for new
+// user-driven Windows MDM enrollments changes. Both fields are null when the default is cleared.
+type ActivityTypeEditedWindowsEnrollmentDefaultFleet struct {
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
+}
+
+func (a ActivityTypeEditedWindowsEnrollmentDefaultFleet) ActivityName() string {
+	return "edited_windows_enrollment_default_fleet"
 }
 
 type ActivityTypeEditedEnrollSecrets struct {
@@ -2307,4 +2607,30 @@ func (a ActivityTypeRanAutomationConditionalAccess) HostIDs() []uint {
 
 func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
 	return true
+}
+
+type ActivityTypeReleasedDeviceFromAB struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostSerial      string `json:"host_serial"`
+}
+
+func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
+	return "released_from_ab"
+}
+
+func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeEnabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "enabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "disabled_apple_business_only_enrollment"
 }

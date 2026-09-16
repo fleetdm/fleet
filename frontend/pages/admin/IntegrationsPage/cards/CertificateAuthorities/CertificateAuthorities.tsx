@@ -1,25 +1,23 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import certificatesAPI from "services/entities/certificates";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-
-import Button from "components/buttons/Button";
-import EmptyState from "components/EmptyState";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
+import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
 import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
-import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
 
 const CertificateAuthorities = () => {
@@ -155,7 +153,7 @@ const CertificateAuthorities = () => {
   };
 
   return (
-    <SettingsSection title="Certificate enrollment">
+    <SettingsSection title="Certificate authorities">
       {renderContent()}
       {showAddCertAuthorityModal && certAuthorities && (
         <AddCertAuthorityModal

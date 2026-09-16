@@ -188,13 +188,13 @@ func (dc *DeviceClient) Ping() error {
 // listDevicePoliciesResponse is a local response type for deserializing the device policies response.
 // Definition duplicated for now (orbit should not depend server/service).
 type listDevicePoliciesResponse struct {
-	Err      error               `json:"error,omitempty"`
-	Policies []*fleet.HostPolicy `json:"policies"`
+	Err      error                 `json:"error,omitempty"`
+	Policies []*fleet.DevicePolicy `json:"policies"`
 }
 
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
 
-func (dc *DeviceClient) getListDevicePolicies(token string) ([]*fleet.HostPolicy, error) {
+func (dc *DeviceClient) getListDevicePolicies(token string) ([]*fleet.DevicePolicy, error) {
 	verb, path := "GET", "/api/latest/fleet/device/%s/policies"
 	var responseBody listDevicePoliciesResponse
 	err := dc.request(verb, path, token, "", nil, &responseBody)

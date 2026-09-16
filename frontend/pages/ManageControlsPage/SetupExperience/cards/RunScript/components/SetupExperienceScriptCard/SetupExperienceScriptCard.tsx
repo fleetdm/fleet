@@ -1,18 +1,15 @@
-import React from "react";
 import FileSaver from "file-saver";
-
-import mdmAPI, {
-  IGetSetupExperienceScriptResponse,
-} from "services/entities/mdm";
-
-import { uploadedFromNow } from "utilities/date_format";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
-import Icon from "components/Icon";
 import { notify } from "components/ToastNotification";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import mdmAPI, {
+  IGetSetupExperienceScriptResponse,
+} from "services/entities/mdm";
+import { uploadedFromNow } from "utilities/date_format";
 
 const baseClass = "setup-experience-script-card";
 
@@ -55,18 +52,18 @@ const SetupExperienceScriptCard = ({
       <div className={`${baseClass}__actions`}>
         <Button
           className={`${baseClass}__download-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDownload}
-        >
-          <Icon name="download" />
-        </Button>
+          icon="download"
+          ariaLabel="Download script"
+        />
         <Button
           className={`${baseClass}__delete-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDelete}
-        >
-          <Icon name="trash" color="ui-fleet-black-75" />
-        </Button>
+          icon="trash"
+          ariaLabel="Delete script"
+        />
       </div>
     </Card>
   );

@@ -104,7 +104,9 @@ jobs:
 
     - name: Run Fleet server
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl preview --no-hosts --disable-open-browser
         fleetctl config set --address ${{ needs.gen.outputs.address }}
         fleetctl get enroll-secret
@@ -195,7 +197,9 @@ jobs:
     - id: login
       name: Attempt login
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }}
 
         # Wait for DNS to propagate by querying Cloudflare's DoH endpoint over HTTPS.
@@ -244,7 +248,9 @@ jobs:
     steps:
     - name: Install fleetctl
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Set Cloudflare DNS
@@ -258,6 +264,17 @@ jobs:
         sudo killall -HUP mDNSResponder || true
 
 
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
+
     - name: Install fleetd
       run: |
         ARCH=$(uname -m)
@@ -267,8 +284,19 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        # Instance identifier is needed because macOS runners share UUIDs
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}
+        # Instance identifier is needed because macOS runners share UUIDs.
+        # Retry a few times: downloading fleetd components from the TUF server
+        # occasionally times out on macOS runners.
+        for attempt in 1 2 3; do
+          if fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}; then
+            break
+          elif [ "$attempt" = "3" ]; then
+            echo "fleetctl package failed after $attempt attempts"
+            exit 1
+          fi
+          echo "fleetctl package failed (attempt $attempt), retrying in 10s..."
+          sleep 10
+        done
         sudo installer -pkg fleet-osquery.pkg -target /
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s);
@@ -298,7 +326,7 @@ jobs:
         sudo cat /var/log/orbit/*
 
     - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
         sparse-checkout: |
@@ -328,7 +356,9 @@ jobs:
 
     - name: Install fleetctl
       run: |
-        npm install -g fleetctl
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        export PATH="$HOME/.fleetctl:$PATH"
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Set Cloudflare DNS
@@ -340,11 +370,26 @@ jobs:
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
         done
 
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
+      run: |
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
+
     - name: Install Orbit
       run: |
         ARCH=$(uname -m)
         if [ "$ARCH" = "x86_64" ]; then FLEET_ARCH="amd64"; else FLEET_ARCH="arm64"; fi
-        sudo hostnamectl set-hostname ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
+        # --transient: newer runner images don't allow hostnamed to write /etc/hostname;
+        # the kernel hostname is all osquery and `hostname -s` read anyway. Use
+        # FLEET_ARCH (amd64/arm64) because transient hostnames must be valid internet
+        # hostnames — the underscore in `uname -m` output (x86_64) is rejected.
+        sudo hostnamectl set-hostname --transient ubuntu-${FLEET_ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
@@ -428,11 +473,42 @@ jobs:
         Clear-DnsClientCache
 
     - name: Install fleetctl
+      shell: powershell
+      env:
+        GH_TOKEN: ${{ github.token }} # authenticated requests avoid the 60/hour anonymous GitHub API limit
+      # install-fleetctl.sh does not support Windows, so install the fleetctl MSI from the latest release.
+      # The MSI installs to C:\Program Files\FleetDM\fleetctl and adds it to the system PATH.
+      run: |
+        $ProgressPreference = "SilentlyContinue"
+        $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/fleetdm/fleet/releases/latest" -Headers $headers
+        $arch = if ("${{ runner.arch }}" -eq "ARM64") { "arm64" } else { "amd64" }
+        $asset = $release.assets | Where-Object { $_.name -like "fleetctl_*_windows_$arch.msi" }
+        if (-not $asset) { throw "No fleetctl MSI for windows_$arch in release $($release.tag_name)" }
+        Write-Host "Installing $($asset.name)..."
+        $msi = Join-Path $env:RUNNER_TEMP $asset.name
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $msi
+        $proc = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn" -Wait -PassThru
+        if ($proc.ExitCode -ne 0) { throw "msiexec exited with code $($proc.ExitCode)" }
+        $installDir = "C:\Program Files\FleetDM\fleetctl"
+        $installDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        & "$installDir\fleetctl.exe" --version
+
+    - name: Configure fleetctl
       shell: bash
       # On Windows we need to set rootca or tls-skip verify. Since this is a test environment we can skip TLS verification.
+      run: fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
+
+    - name: Wait until fleet address is reachable and fleet responds
+      shell: bash
       run: |
-        npm install -g fleetctl
-        fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }} --tls-skip-verify
+        # Probe with fleetctl itself (not curl): the tunnel DNS record can lag or flap
+        # on some runners, and a successful curl lookup hasn't guaranteed the next
+        # fleetctl lookup succeeds.
+        until fleetctl get enroll_secret --json > /dev/null 2>&1; do
+          echo "Awaiting until fleet server responds..."
+          sleep 5
+        done
 
     - name: Install WiX toolset (arm runner only)
       if: matrix.runner == 'windows-11-arm'
@@ -514,7 +590,7 @@ jobs:
       run: Get-Content "C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -ErrorAction SilentlyContinue
 
     - name: Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
         sparse-checkout: |

@@ -1,8 +1,8 @@
 import React from "react";
 
-import { IPolicy, OtherAutomationType } from "interfaces/policy";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { IPolicy, OtherAutomationType } from "interfaces/policy";
 import {
   PolicyAutomationsList,
   mapAutomationRows,
@@ -69,7 +69,7 @@ const PolicyResetModal = ({
           >
             Reset
           </Button>
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         </div>

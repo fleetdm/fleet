@@ -1,0 +1,1 @@
+Documented why `safari_extensions` returns empty without Full Disk Access or a `uid` constraint (`users` JOIN/`CROSS JOIN`, or `WHERE uid = ...`), noted the `/Applications`-only scan limitation, fixed standard Safari inventory SQL to include a `users` CROSS JOIN, and replaced legacy `.safariextz` bash equivalents with modern Safari App/Web Extension paths.

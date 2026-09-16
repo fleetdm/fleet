@@ -1,1 +1,0 @@
-* Fixed a bug where adding a script-only package via path in GitOps made fleetctl generate-gitops produce an invalid file.

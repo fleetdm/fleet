@@ -1,0 +1,118 @@
+{
+  "metadata": {
+    "workspace": "4640ltvulnbl",
+    "collected_at": "2025-02-21T00:00:00Z",
+    "interval": "1h",
+    "release": "4.64.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 10
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 72.0
+    },
+    "memory_utilization": {
+      "Average": 3.0
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 46.0
+    },
+    "memory_utilization": {
+      "Average": 7.0
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 18.5,
+      "Maximum": 25.0
+    },
+    "write_iops": {
+      "Average": 3311.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 8.0,
+      "maximum": 14.0
+    },
+    "iops_utilization": {
+      "utilization_pct": 16.0
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 44.0,
+        "Maximum": 74.0
+      },
+      "read_iops": {
+        "Average": 0.17
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 6.0,
+        "maximum": 12.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 1.93,
+        "Maximum": 2.45
+      },
+      "memory_utilization": {
+        "Average": 0.26,
+        "Maximum": 0.27
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "New baseline after adding additional vuln titles t\u2026",
+    "one_click": null,
+    "notes": "100k hosts, no mdm, increased vuln software",
+    "raw": {
+      "full_day": "no",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~72%",
+      "fleet_mem": "~3%",
+      "errors": "No new errors",
+      "writer_top_sql": "INSERT INTO `host_seen_ti\u2026",
+      "writer_cpu": "12-25%",
+      "writer_sessions": "4-14 avg ~8",
+      "writer_iops": "3311 (~16%)",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "74% at peak, avg ~44%",
+      "reader_sessions": "1-12 avg ~6",
+      "reader_iops": "0.175",
+      "redis_cpu": "1.4-2.45%",
+      "redis_mem": "0.25-0.27%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "46%",
+      "osquery_mem": "7%",
+      "deadlocks": "Between 0 and 8 per min with a peak at 60"
+    }
+  }
+}

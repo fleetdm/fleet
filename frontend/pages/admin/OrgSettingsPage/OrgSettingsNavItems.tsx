@@ -1,15 +1,15 @@
 import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
-import { IAppConfigFormProps } from "./cards/constants";
 
-import Info from "./cards/Info";
-import WebAddress from "./cards/WebAddress";
-import Smtp from "./cards/Smtp";
-import Statistics from "./cards/Statistics";
-import FleetDesktop from "./cards/FleetDesktop";
 import Advanced from "./cards/Advanced";
 import Agents from "./cards/Agents";
+import { IAppConfigFormProps } from "./cards/constants";
+import FleetDesktop from "./cards/FleetDesktop";
+import Info from "./cards/Info";
+import Smtp from "./cards/Smtp";
+import Statistics from "./cards/Statistics";
+import WebAddress from "./cards/WebAddress";
 
 const ORG_SETTINGS_NAV_ITEMS: ISideNavItem<IAppConfigFormProps>[] = [
   {

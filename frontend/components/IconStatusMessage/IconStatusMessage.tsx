@@ -1,8 +1,8 @@
+import classnames from "classnames";
 import React, { ReactNode } from "react";
 
-import classnames from "classnames";
-import { IconNames } from "components/icons";
 import Icon from "components/Icon/Icon";
+import { IconNames } from "components/icons";
 import { Colors } from "styles/var/colors";
 
 const baseClass = "icon-status-message";

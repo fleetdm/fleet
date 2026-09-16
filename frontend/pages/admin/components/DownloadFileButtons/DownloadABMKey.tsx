@@ -1,11 +1,11 @@
 import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
-import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
-import { getErrorReason } from "interfaces/errors";
-
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
+
 import { downloadBase64ToFile, RequestState } from "./helpers";
 
 interface IDownloadABMKeyProps {
@@ -66,11 +66,11 @@ export const DownloadABMKey = ({
   return (
     <Button
       className={`${baseClass}__request-button`}
-      variant="inverse"
+      variant="secondary"
       onClick={handleDownload}
     >
       <label htmlFor="download-key">
-        <Icon name="download" color="ui-fleet-black-75" size="medium" />
+        <Icon name="download" />
         <span>Download public key</span>
       </label>
     </Button>

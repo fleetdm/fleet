@@ -1,12 +1,13 @@
 import React, { useContext } from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import { AppContext } from "context/app";
 import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
-import { AppContext } from "context/app";
 
-import ActionsDropdown from "components/ActionsDropdown";
-import { generateHostActionOptions } from "./helpers";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import { generateHostActionOptions } from "./helpers";
 
 const baseClass = "host-actions-dropdown";
 
@@ -17,10 +18,12 @@ interface IHostActionsDropdownProps {
   /** This represents the mdm managed host device status (e.g. unlocked, locked,
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
-  doesStoreEncryptionKey?: boolean;
+  isEncryptionKeyAvailable?: boolean;
+  isEncryptionKeyArchived?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   hostCpuType?: string;
+  isDEPAssignedToFleet?: boolean;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
@@ -28,6 +31,7 @@ interface IHostActionsDropdownProps {
   recoveryLockPasswordAvailable?: boolean;
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
+  managedAccountDetail?: string;
   managedAccountPasswordAvailable?: boolean;
   /**
    * BYOD permission gates from the host MDM payload. Undefined when the host's
@@ -44,8 +48,10 @@ const HostActionsDropdown = ({
   hostStatus,
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
-  doesStoreEncryptionKey,
+  isEncryptionKeyAvailable,
+  isEncryptionKeyArchived,
   isConnectedToFleetMdm,
+  isDEPAssignedToFleet = false,
   hostPlatform = "",
   hostCpuType = "",
   hostScriptsEnabled = false,
@@ -55,6 +61,7 @@ const HostActionsDropdown = ({
   recoveryLockPasswordAvailable = false,
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
+  managedAccountDetail,
   managedAccountPasswordAvailable = false,
   wipeAllowed,
   lockAllowed,
@@ -101,13 +108,18 @@ const HostActionsDropdown = ({
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
     isConnectedToFleetMdm,
+    isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
+    isAppleBusinessEnabledAndConfigured:
+      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
-    doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
+    isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
+    isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
+    scriptsGloballyDisabled:
+      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,
@@ -115,6 +127,7 @@ const HostActionsDropdown = ({
     recoveryLockPasswordAvailable,
     isManagedLocalAccountEnabled,
     managedAccountStatus,
+    managedAccountDetail,
     managedAccountPasswordAvailable,
     wipeAllowed,
     lockAllowed,
@@ -132,7 +145,7 @@ const HostActionsDropdown = ({
         placeholder="Actions"
         options={options}
         menuAlign="right"
-        variant="brand-button"
+        variant="primary"
       />
     </div>
   );

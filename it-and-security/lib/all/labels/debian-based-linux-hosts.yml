@@ -1,4 +1,4 @@
 - name: Debian-based Linux hosts
   description: Linux hosts running on Debian-based operating systems
-  query: SELECT 1 FROM os_version WHERE platform_like = 'debian';
+  query: SELECT 1 FROM os_version WHERE platform = 'debian' OR platform_like LIKE '%debian%' OR platform_like LIKE '%ubuntu%';
   label_membership_type: dynamic

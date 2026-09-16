@@ -1,21 +1,22 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import CustomLink from "components/CustomLink";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { IConfig } from "interfaces/config";
+import { EndUserLocalAccountType } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { IConfig, IMdmConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
-
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import PageDescription from "components/PageDescription";
-import { EndUserLocalAccountType } from "interfaces/mdm";
+import { isEndUserIdPConfigured } from "utilities/permissions/permissions";
+
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 import UsersForm from "./components/UsersForm/UsersForm";
-import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
-import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "setup-experience-users";
 
@@ -50,6 +51,21 @@ const getEnabledManagedLocalAccount = (
     local_account_type:
       teamConfig?.mdm?.setup_experience?.end_user_local_account_type,
   };
+};
+
+const getEnabledManagedLocalAccountWindows = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+): boolean => {
+  if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+    return (
+      globalConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
+    );
+  }
+  return (
+    teamConfig?.mdm?.windows_settings?.enable_managed_local_account ?? false
+  );
 };
 
 const getEnabledEndUserAuth = (
@@ -91,14 +107,6 @@ const getLockEndUserInfo = (
   return teamConfig?.mdm?.setup_experience.lock_end_user_info ?? false;
 };
 
-const isIdPConfigured = ({
-  end_user_authentication: idp,
-}: Pick<IMdmConfig, "end_user_authentication">) => {
-  return (
-    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
-  );
-};
-
 const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
@@ -137,11 +145,16 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     teamConfig
   );
 
+  const enableManagedLocalAccountWindows = getEnabledManagedLocalAccountWindows(
+    currentTeamId,
+    globalConfig,
+    teamConfig
+  );
+
   const renderContent = () => {
     if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
     }
-    const mdmConfig = globalConfig.mdm;
     return (
       <UsersForm
         currentTeamId={currentTeamId}
@@ -151,7 +164,10 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
           managedLocalAccountConfig.managed_local_account
         }
         defaultLocalAccountType={managedLocalAccountConfig.local_account_type}
-        isIdPConfigured={isIdPConfigured(mdmConfig)}
+        defaultEnableManagedLocalAccountWindows={
+          enableManagedLocalAccountWindows
+        }
+        isIdPConfigured={isEndUserIdPConfigured(globalConfig)}
       />
     );
   };
@@ -169,11 +185,12 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
         }
       />
       <PageDescription
+        className={`${baseClass}__page-description`}
         content={
           <>
-            Customize local user accounts. You can automatically create local
-            user accounts using IdP credentials via Platform Single Sign-On
-            (PSSO), an advanced account configuration.{" "}
+            Customize local user accounts. For advanced account configuration,
+            like creating local accounts with IdP credentials via Platform
+            Single Sign-On (PSSO), use a custom setup.{" "}
             <CustomLink
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
               text="Learn how"

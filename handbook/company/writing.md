@@ -88,7 +88,7 @@ Case study articles use a separate article template that requires additional `<m
 - Required `<meta>` tags:
   - `useBasicArticleTemplate` - Whether or not the case study should use the standard article template or the non-anonymous case study template. **Note:** if this meta tag is set, the case study specific meta tags below are not required.
   - `summaryChallenge` - The challenge this case study subject faced before they started using Fleet. Used in the case study summary on the non-anonymous case study template page.
-  - `summarySolution` - How Fleet helped the case study subject acomplish their goals. Used in the case study summary on the non-anonymous case study template page.
+  - `summarySolution` - How Fleet helped the case study subject accomplish their goals. Used in the case study summary on the non-anonymous case study template page.
   - `summaryKeyResults` - A semicolon-separated list of results that the case study subject saw after using Fleet. Each item in the list is added a bullet point to the case study summary on the non-anonymous case study template page.
 - Optional `<meta>` tags:
   - `companyLogoFilename` - The filename of the case study subject's logo in the `website/assets/images/` folder. **Note:** images for this value are not stored in the articles folder, because they may be used outside of articles (e.g., Testimonial cards on landing pages)
@@ -205,10 +205,10 @@ handbook/..."_). Navigate to the file's location on GitHub, and press "y" to tra
 For instance when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a location outside of `/docs`. An example of a link that lives outside of `/docs` is:
 
 ```
-../../tools/app/prometheus
+../../tools/saml/config.php
 ```
 
-If the link lives outside `/docs`, head to the file's location (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and copy the full URL  into its canonical form (a version of the link that will always point to the same location) ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with full URL.
+If the link lives outside `/docs`, head to the file's location (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/saml/config.php](https://github.com/fleetdm/fleet/blob/main/tools/saml/config.php)), and copy the full URL into its canonical form (a version of the link that will always point to the same location) ([https://github.com/fleetdm/fleet/blob/0504e5949ec718cdd5b4081a2c650c081faa1214/tools/saml/config.php](https://github.com/fleetdm/fleet/blob/0504e5949ec718cdd5b4081a2c650c081faa1214/tools/saml/config.php)). Replace the relative link with full URL.
 
 
 ## Making a pull request
@@ -947,7 +947,7 @@ To add a quote blockquote, add a `<blockquote>` HTML element with `purpose="quot
 <blockquote purpose="quote">
 This is a quote blockquote.
 
-Lines seperated by a blank newline will be rendered on a different line in the blockquote.
+Lines separated by a blank newline will be rendered on a different line in the blockquote.
 </blockquote>
 ```
 
@@ -956,7 +956,7 @@ Lines seperated by a blank newline will be rendered on a different line in the b
 <blockquote purpose="quote">
 This is a quote blockquote.
 
-Lines seperated by a blank newline will be rendered on a different line in the blockquote.
+Lines separated by a blank newline will be rendered on a different line in the blockquote.
 </blockquote>
 
 

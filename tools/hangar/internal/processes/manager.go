@@ -435,10 +435,23 @@ func (m *Manager) Restart(id string) error {
 	return m.Start(id, a)
 }
 
-// ShutdownNow stops every running managed process and tears down docker
-// compose (unconditionally, since `up -d` exits and leaves containers). It
-// does NOT exit the app — the caller handles that after this returns.
-func (m *Manager) ShutdownNow(repoPath string) {
+// ComposeTarget is one server's docker compose stack to tear down on quit:
+// its worktree dir and compose project name.
+type ComposeTarget struct {
+	Cwd     string `json:"cwd"`
+	Project string `json:"project"`
+}
+
+// ShutdownNow stops every running managed process and tears down each server's
+// docker compose stack (unconditionally, since `up -d` exits and leaves the
+// containers running with the compose-up row already "done"). It does NOT exit
+// the app — the caller handles that after this returns.
+//
+// targets is the set of (cwd, project) compose stacks to bring down — one per
+// configured server. We also fold in any compose stacks we can derive from the
+// processes Hangar spawned this session, so a stack started here is always torn
+// down even if the caller's list is incomplete.
+func (m *Manager) ShutdownNow(targets []ComposeTarget) {
 	m.stateMu.Lock()
 	var ids []string
 	for id, info := range m.procs {
@@ -446,16 +459,22 @@ func (m *Manager) ShutdownNow(repoPath string) {
 			ids = append(ids, id)
 		}
 	}
+	tracked := m.composeTargetsLocked()
 	m.stateMu.Unlock()
 
 	for _, id := range ids {
 		_ = m.signalStop(id)
 	}
-	if repoPath != "" {
-		cmd := dockerCmd("compose", "down")
-		cmd.Dir = repoPath
+
+	for _, tgt := range dedupeComposeTargets(append(targets, tracked...)) {
+		if tgt.Cwd == "" {
+			continue
+		}
+		cmd := dockerCmd(composeArgs(tgt.Project, "down")...)
+		cmd.Dir = tgt.Cwd
 		_ = cmd.Run()
 	}
+
 	// Final safety net for anything still alive.
 	for _, id := range ids {
 		m.stateMu.Lock()
@@ -466,4 +485,34 @@ func (m *Manager) ShutdownNow(repoPath string) {
 		}
 	}
 	time.Sleep(150 * time.Millisecond)
+}
+
+// composeTargetsLocked derives compose (cwd, project) pairs from every
+// compose-up process Hangar has spawned this session. Caller holds stateMu.
+func (m *Manager) composeTargetsLocked() []ComposeTarget {
+	var out []ComposeTarget
+	for id, a := range m.lastArgs {
+		info := m.procs[id]
+		if info == nil || info.Cwd == "" {
+			continue
+		}
+		if !strings.HasPrefix(info.Command, "docker compose") {
+			continue
+		}
+		out = append(out, ComposeTarget{Cwd: info.Cwd, Project: composeProjectFromArgs(a.Args)})
+	}
+	return out
+}
+
+func dedupeComposeTargets(in []ComposeTarget) []ComposeTarget {
+	seen := map[ComposeTarget]struct{}{}
+	var out []ComposeTarget
+	for _, t := range in {
+		if _, ok := seen[t]; ok {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	return out
 }

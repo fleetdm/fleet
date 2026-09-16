@@ -87,7 +87,7 @@ parasails.registerPage('osquery-table-details', {
         // let replacementHMTL = block.innerHTML;
         for(let keywordInExample of columnNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
-          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-string">'+keywordInExample+'</span>');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr-column">'+keywordInExample+'</span>');
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
