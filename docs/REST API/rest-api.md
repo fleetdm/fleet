@@ -6724,7 +6724,7 @@ The host will only return a key if its disk encryption status is "Verified." Get
 | Name | Type    | In   | Description                                                        |
 | ---- | ------- | ---- | ------------------------------------------------------------------ |
 | id   | integer | path | **Required** The id of the host to get the disk encryption key for. |
-| archived_can_fallback_to_serial | boolean | query | Tells Fleet wether or not to fallback to serial lookup for archived encryption keys. Requires global user permission to use.
+| allow_serial_lookup | boolean | query | Tells Fleet whether or not to fallback to serial lookup for archived encryption keys. Requires global user permission to use.
 
 
 #### Example
