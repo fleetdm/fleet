@@ -299,7 +299,7 @@ module.exports = {
           };
         }
         let uniqueCategories;
-        if(messageData.categories && messageData.categories){
+        if(messageData.categories && messageData.categories.length > 0){
           uniqueCategories = _.uniq(messageData.categories);
         }
 
