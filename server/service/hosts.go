@@ -4034,7 +4034,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		// Check global-scoped permission only for falling back to serial
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
 			// The user can't read hosts without a team-id, global scoped - limit the fallback to only host ID.
-			// WE discard the error here to avoid permission oracle probing.
+			// We discard the error here to avoid permission oracle probing.
 			archivedFallbackToSerial = false
 		}
 		archivedKey, err = svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host, archivedFallbackToSerial)

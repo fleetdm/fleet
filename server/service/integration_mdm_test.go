@@ -28753,3 +28753,94 @@ func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUI
 	require.NoError(t, err)
 	return sessionID
 }
+
+// The archived-key lookup can fall back to matching on hardware_serial, which is
+// agent-reported and carries no tenancy. That fallback is opt-in via a query
+// parameter and restricted to globally-scoped users; this exercises the public
+// endpoint so the parameter cannot silently stop reaching the service.
+func (s *integrationMDMTestSuite) TestHostEncryptionKeyArchivedSerialFallback() {
+	t := s.T()
+	ctx := context.Background()
+
+	const serial = "ARCHIVEFALLBACK1"
+	recoveryKey := "AAA-BBB-CCC"
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
+	require.NoError(t, err)
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	require.NotNil(t, block)
+	parsed, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	encryptFor := func(key string) string {
+		enc, err := pkcs7.Encrypt([]byte(key), []*x509.Certificate{parsed})
+		require.NoError(t, err)
+		return base64.StdEncoding.EncodeToString(enc)
+	}
+
+	victimTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_victim"})
+	require.NoError(t, err)
+	claimantTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_claimant"})
+	require.NoError(t, err)
+
+	newHost := func(suffix string, teamID uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(t.Name() + suffix),
+			UUID:            t.Name() + suffix,
+			Hostname:        t.Name() + suffix,
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			TeamID:          &teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// Every escrow of a changed key appends to the archive, and the fallback takes the
+	// newest row for the serial - so the second key here is the one it should reach.
+	victim := newHost("_victim", victimTeam.ID)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, victim, encryptFor("DDD-EEE-FFF"), "", nil)
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, victim, encryptFor(recoveryKey), "", nil)
+	require.NoError(t, err)
+
+	// Same serial, different fleet, and no key of its own: the shape a spoofed
+	// enrollment produces.
+	claimant := newHost("_claimant", claimantTeam.ID)
+
+	claimantObserver := &fleet.User{
+		Name:       "claimant observer",
+		Email:      t.Name() + "_observer@example.com",
+		GlobalRole: nil,
+		Teams:      []fleet.UserTeam{{Team: *claimantTeam, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, claimantObserver.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, claimantObserver)
+	require.NoError(t, err)
+
+	keyURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", claimant.ID)
+
+	t.Run("fleet-scoped user is denied the fallback", func(t *testing.T) {
+		s.setTokenForTest(t, claimantObserver.Email, test.GoodPassword)
+		defer func() { s.token = s.getTestAdminToken() }()
+
+		// Asking for the fallback explicitly must not reach the other fleet's key, and
+		// must be indistinguishable from the key simply not existing.
+		s.Do("GET", keyURL+"?archived_fallback_to_serial=true", nil, http.StatusNotFound)
+		s.Do("GET", keyURL, nil, http.StatusNotFound)
+	})
+
+	t.Run("global user only gets it when opting in", func(t *testing.T) {
+		// Omitting the parameter must keep the old, host-id-only behaviour: the
+		// parameter is optional, so this also pins that it stays optional.
+		s.Do("GET", keyURL, nil, http.StatusNotFound)
+
+		var resp getHostEncryptionKeyResponse
+		s.DoJSON("GET", keyURL+"?archived_fallback_to_serial=true", nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.EncryptionKey)
+		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
+	})
+}

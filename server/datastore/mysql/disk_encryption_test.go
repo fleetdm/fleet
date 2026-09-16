@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,7 @@ func TestDiskEncryption(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestGetHostArchivedDiskEncryptionKey", testGetHostArchivedDiskEncryptionKey},
 		{"TestCleanupDiskEncryptionKeysOnTeamChange", testCleanupDiskEncryptionKeysOnTeamChange},
 		{"TestDeleteLUKSData", testDeleteLUKSData},
 	}
@@ -194,4 +196,86 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetHostDiskEncryptionKey(ctx, hostOne.ID)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testGetHostArchivedDiskEncryptionKey(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	newHost := func(suffix, serial string, teamID *uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new("archived-" + suffix),
+			UUID:            "archived-" + suffix,
+			Hostname:        "archived-" + suffix,
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	archiveRow := func(hostID uint, serial, key string, createdAt time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys_archive (host_id, hardware_serial, base64_encrypted, base64_encrypted_salt, key_slot, created_at)
+VALUES (?, ?, ?, ?, NULL, ?)`, hostID, serial, base64.StdEncoding.EncodeToString([]byte(key)), "", createdAt)
+			return err
+		})
+	}
+
+	const serial = "SHAREDSERIAL1"
+	now := time.Now().UTC().Truncate(time.Second)
+
+	victimTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "archived-victim-fleet"})
+	require.NoError(t, err)
+	claimantTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "archived-claimant-fleet"})
+	require.NoError(t, err)
+
+	victim := newHost("victim", serial, &victimTeam.ID)
+	// Two rows for the victim so the "newest wins" ordering is actually exercised.
+	archiveRow(victim.ID, serial, "older-key", now.Add(-2*time.Hour))
+	archiveRow(victim.ID, serial, "newest-key", now.Add(-1*time.Hour))
+
+	// A second host carrying the same serial in another fleet, with no archived row
+	// of its own. This is the shape the cross-fleet disclosure relied on.
+	claimant := newHost("claimant", serial, &claimantTeam.ID)
+
+	t.Run("host id match ignores the fallback flag", func(t *testing.T) {
+		for _, fallback := range []bool{false, true} {
+			key, err := ds.GetHostArchivedDiskEncryptionKey(ctx, victim, fallback)
+			require.NoError(t, err)
+			requireDecodes(t, "newest-key", key.Base64Encrypted)
+		}
+	})
+
+	t.Run("no fallback means no serial lookup", func(t *testing.T) {
+		_, err := ds.GetHostArchivedDiskEncryptionKey(ctx, claimant, false)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("fallback finds the newest row for the serial", func(t *testing.T) {
+		key, err := ds.GetHostArchivedDiskEncryptionKey(ctx, claimant, true)
+		require.NoError(t, err)
+		requireDecodes(t, "newest-key", key.Base64Encrypted)
+		require.Equal(t, victim.ID, key.HostID, "the row returned belongs to the other fleet's host")
+	})
+
+	t.Run("fallback needs a serial to match on", func(t *testing.T) {
+		noSerial := newHost("noserial", "", &claimantTeam.ID)
+		_, err := ds.GetHostArchivedDiskEncryptionKey(ctx, noSerial, true)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func requireDecodes(t *testing.T, want, gotBase64 string) {
+	t.Helper()
+	got, err := base64.StdEncoding.DecodeString(gotBase64)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
 }
