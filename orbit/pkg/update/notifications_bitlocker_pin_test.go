@@ -170,6 +170,22 @@ func TestWindowsMDMBitlockerPIN(t *testing.T) {
 		require.Nil(t, f.receiver.heldPINOutcome)
 	})
 
+	t.Run("a held outcome is retried while the server asks for a repair", func(t *testing.T) {
+		f := newFixture(t, nil)
+		f.server.SetPINResultImpl = func(pinOutcome) error { return networkErr }
+		require.NoError(t, f.receiver.Run(pinPending))
+		require.Equal(t, &setOutcome, f.receiver.heldPINOutcome)
+
+		// The repair branches return early, and the server times a collected PIN out an hour after the agent took it.
+		f.server.SetPINResultImpl = func(pinOutcome) error { return nil }
+		f.receiver.encryptionRetryAfter = time.Now().Add(time.Hour)
+		repairing := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{EnforceBitLockerEncryption: true}}
+		require.NoError(t, f.receiver.Run(repairing))
+
+		require.Equal(t, []pinOutcome{setOutcome, setOutcome}, f.server.PINResults)
+		require.Nil(t, f.receiver.heldPINOutcome)
+	})
+
 	t.Run("an outcome the server no longer wants is dropped", func(t *testing.T) {
 		f := newFixture(t, nil)
 		f.server.SetPINResultImpl = func(pinOutcome) error { return notFound }

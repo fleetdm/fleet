@@ -607,6 +607,13 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 // server set the "EnforceBitLockerEncryption" flag to true, executes the command
 // to attempt BitlockerEncryption (or not, if the device is a Windows Server).
 func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	// Before the branches below, which return early: the server times a collected PIN out an hour after the agent took it,
+	// so try to resend it.
+	if w.mu.TryLock() {
+		w.retryHeldPINOutcome()
+		w.mu.Unlock()
+	}
+
 	if cfg.Notifications.EnforceBitLockerEncryption {
 		if w.mu.TryLock() {
 			defer w.mu.Unlock()
@@ -628,7 +635,6 @@ func (w *windowsMDMBitlockerConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	if w.mu.TryLock() {
 		defer w.mu.Unlock()
 		w.retryHeldRecoveryKeyEscrow()
-		w.retryHeldPINOutcome()
 		if cfg.Notifications.BitLockerPINRequestPending {
 			w.attemptSetBitLockerPIN()
 		}

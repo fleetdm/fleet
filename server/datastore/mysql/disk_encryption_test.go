@@ -385,6 +385,9 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	_, unreportedUUID, err := ds.TakeBitLockerPINRequest(ctx, unreported)
 	require.NoError(t, err)
 	ageBitLockerPINRequest(t, ds, unreported.ID, "updated_at", fleet.BitLockerPINResultTimeout+time.Minute)
+	// Refused as soon as it times out.
+	require.True(t, fleet.IsNotFound(
+		ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")))
 
 	// Collected recently, so the agent may still report.
 	recentlyCollected := newBitLockerPINHost(t, ds)
@@ -416,7 +419,7 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.BitLockerPINRequestDelivered, req.Status)
 
-	// A report arriving after the timeout is refused, so orbit drops it. osquery still shows whether the PIN was set.
+	// Still refused once the cron has retired it, so orbit drops the outcome. osquery still shows whether the PIN was set.
 	err = ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")
 	require.True(t, fleet.IsNotFound(err))
 }

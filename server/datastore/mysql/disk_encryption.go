@@ -573,10 +573,13 @@ UPDATE host_bitlocker_pin_requests SET status = ?, pin_encrypted = NULL WHERE ho
 func (ds *Datastore) SetBitLockerPINRequestOutcome(
 	ctx context.Context, host *fleet.Host, requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string,
 ) error {
+	// The age guard matches HostBitLockerPINRequest.Expired, so an outcome the My device page has already reported as timed
+	// out cannot be accepted between the timeout and the hourly cleanup and flip the page back.
 	const stmt = `
 UPDATE host_bitlocker_pin_requests
 SET status = ?, client_error = ?, pin_encrypted = NULL
-WHERE host_id = ? AND request_uuid = ? AND status = ?`
+WHERE host_id = ? AND request_uuid = ? AND status = ?
+	AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND)`
 	// The id comes from the agent. Make sure it is valid.
 	requestID, err := uuid.Parse(requestUUID)
 	if err != nil {
@@ -584,7 +587,8 @@ WHERE host_id = ? AND request_uuid = ? AND status = ?`
 	}
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestID[:], fleet.BitLockerPINRequestDelivered)
+		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestID[:], fleet.BitLockerPINRequestDelivered,
+			int(fleet.BitLockerPINResultTimeout.Seconds()))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set bitlocker pin request outcome")
 		}
