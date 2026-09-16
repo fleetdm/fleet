@@ -5446,30 +5446,44 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 	}
 
 	t.Run("rejects WIPE on personally-owned host", func(t *testing.T) {
-		for _, rawType := range []string{"WIPE", "wipe", " Wipe "} {
-			t.Run(rawType, func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			payload string
+		}{
+			{"explicit type", `{"type":"WIPE","wipeParams":{}}`},
+			{"lowercase type", `{"type":"wipe","wipeParams":{}}`},
+			{"padded type", `{"type":" Wipe ","wipeParams":{}}`},
+			// AMAPI sets the type to WIPE itself when only wipeParams is given, so a payload
+			// with no type at all still wipes the device. This is the shape the AMAPI docs
+			// recommend, and wipeReason exists specifically for the BYOD work-profile case.
+			{"inferred from wipeParams", `{"wipeParams":{}}`},
+			{"inferred with wipeReason", `{"wipeParams":{"wipeReason":{"defaultMessage":"bye"}}}`},
+			// A mismatched type must not launder a wipe past the check.
+			{"wipeParams under another type", `{"type":"LOCK","wipeParams":{}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
 				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
 				androidMock := &mockAndroidService{
 					IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
-						t.Fatal("wipe must not reach AMAPI for a personally-owned host")
-						return nil, nil
+						t.Error("wipe must not reach AMAPI for a personally-owned host")
+						return nil, errors.New("unexpected call")
 					},
 				}
 				opts := &TestServerOpts{
 					SkipCreateTestUsers: true,
 					AndroidModule:       androidMock,
-					License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
+					// premium so the LOCK case clears premium gating and reaches the wipe check
+					License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
 				}
 				svc, ctx := newTestService(t, ds, nil, nil, opts)
 				ctx = test.UserContext(ctx, test.UserAdmin)
 
 				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-					t.Fatal("no activity must be recorded for a refused wipe")
+					t.Error("no activity must be recorded for a refused wipe")
 					return nil
 				}
 
-				cmd := fmt.Sprintf(`{"type":%q,"wipeParams":{}}`, rawType)
-				encoded := base64.StdEncoding.EncodeToString([]byte(cmd))
+				encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
 				_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
 				require.Error(t, err)
 				// same message the dedicated POST /hosts/{id}/wipe endpoint returns
@@ -5481,34 +5495,46 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 	})
 
 	t.Run("allows WIPE on company-owned host", func(t *testing.T) {
-		ds := setupWipeDS(t, fleet.MDMEnrollmentStatusAutomatic)
-		androidMock := &mockAndroidService{
-			IssueCustomCommandFunc: func(_ context.Context, hostID uint, _ []byte) (*android.MDMAndroidCommand, error) {
-				require.Equal(t, androidHost.ID, hostID)
-				return &android.MDMAndroidCommand{
-					CommandUUID: "cmd-uuid-wipe",
-					CommandType: "WIPE",
-				}, nil
-			},
-		}
-		opts := &TestServerOpts{
-			SkipCreateTestUsers: true,
-			AndroidModule:       androidMock,
-		}
-		svc, ctx := newTestService(t, ds, nil, nil, opts)
-		ctx = test.UserContext(ctx, test.UserAdmin)
+		for _, tc := range []struct {
+			name    string
+			payload string
+		}{
+			{"explicit type", `{"type":"WIPE","wipeParams":{}}`},
+			{"inferred from wipeParams", `{"wipeParams":{}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusAutomatic)
+				androidMock := &mockAndroidService{
+					IssueCustomCommandFunc: func(_ context.Context, hostID uint, _ []byte) (*android.MDMAndroidCommand, error) {
+						require.Equal(t, androidHost.ID, hostID)
+						return &android.MDMAndroidCommand{
+							CommandUUID: "cmd-uuid-wipe",
+							CommandType: "WIPE",
+						}, nil
+					},
+				}
+				// no License: Android wipe is available on Fleet Free, matching the
+				// dedicated endpoint, so it must not be premium gated here either
+				opts := &TestServerOpts{
+					SkipCreateTestUsers: true,
+					AndroidModule:       androidMock,
+				}
+				svc, ctx := newTestService(t, ds, nil, nil, opts)
+				ctx = test.UserContext(ctx, test.UserAdmin)
 
-		var capturedActivity activity_api.ActivityDetails
-		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
-			capturedActivity = act
-			return nil
-		}
+				var capturedActivity activity_api.ActivityDetails
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+					capturedActivity = act
+					return nil
+				}
 
-		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"WIPE","wipeParams":{}}`))
-		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
-		require.NoError(t, err)
-		assert.Equal(t, "WIPE", result.RequestType)
-		require.NotNil(t, capturedActivity)
+				encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
+				result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+				require.NoError(t, err)
+				assert.Equal(t, "WIPE", result.RequestType)
+				require.NotNil(t, capturedActivity)
+			})
+		}
 	})
 
 	t.Run("non-WIPE command skips the wipe validation", func(t *testing.T) {

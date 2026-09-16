@@ -643,8 +643,9 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	// Parse the command type and sensitive fields for premium gating.
 	var cmdPayload struct {
-		Type        string `json:"type"`
-		NewPassword string `json:"newPassword"`
+		Type        string           `json:"type"`
+		NewPassword string           `json:"newPassword"`
+		WipeParams  *json.RawMessage `json:"wipeParams"`
 	}
 	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
 		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
@@ -670,10 +671,15 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	host := hosts[0]
 
-	// Wipe is COBO-only, so a custom WIPE command must clear the same validation as the
-	// dedicated wipe endpoint. hosts came from ListHostsLiteByUUIDs, which leaves host.MDM
-	// empty, so reload the host to get its enrollment status.
-	if cmdType == string(android.MDMAndroidCommandTypeWipe) {
+	// Wipe is COBO-only on Android, so a custom wipe must clear the same validation as the
+	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
+	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
+	// let a caller-supplied type decide whether the check runs.
+	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
+		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
+		// enrollment status has to come from a separate load. Reusing the shared validator
+		// rather than re-deriving the rule here is what keeps this refusal identical to the
+		// dedicated endpoint's; the extra queries are noise next to the AMAPI round trip.
 		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host")
