@@ -1036,6 +1036,8 @@ var windowsEntraIDDetails = DetailQuery{
 
 // windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
 // agent-only Windows hosts get IdP vitals without an end user authentication prompt.
+// The datastore ignores it for hosts enrolled in Fleet MDM: those receive profiles
+// and certificates, which must not be driven by a device-asserted identity.
 // The JoinInfo subkey is named after the device's Entra certificate thumbprint;
 // matching them drops stale keys but is not an integrity control, the value is
 // device-asserted. One row per join record, newest certificate first, so a current

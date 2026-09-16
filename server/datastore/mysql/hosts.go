@@ -4457,28 +4457,37 @@ func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx
 		}
 	}
 
-	// One scalar query resolves both the SCIM user for the UPN and the host's
-	// current link, so the common no-change case costs two reads in total. The
-	// lookup runs on every call so a user provisioned later is mapped on the next
-	// refresh. userName only: Entra maps it to the UPN, and the email fallback
-	// logs an error on every refresh when two users share an email.
+	// One scalar query resolves the SCIM user, the current link and the Fleet MDM
+	// enrollment, so the no-change case stays at two reads. It runs on every call
+	// so a user provisioned later is mapped on the next refresh. userName only:
+	// Entra maps it to the UPN, and the email fallback logs an error on every
+	// refresh when two users share an email.
 	var ids struct {
-		ScimUserID *uint `db:"scim_user_id"`
-		LinkedID   *uint `db:"linked_scim_user_id"`
+		ScimUserID       *uint `db:"scim_user_id"`
+		LinkedID         *uint `db:"linked_scim_user_id"`
+		FleetMDMEnrolled bool  `db:"fleet_mdm_enrolled"`
 	}
 	if err := sqlx.GetContext(ctx, q, &ids,
 		`SELECT
 			(SELECT id FROM scim_users WHERE user_name = ? LIMIT 1) AS scim_user_id,
-			(SELECT scim_user_id FROM host_scim_user WHERE host_id = ?) AS linked_scim_user_id`,
-		upn, hostID); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get scim user and link for Entra join device mapping")
+			(SELECT scim_user_id FROM host_scim_user WHERE host_id = ?) AS linked_scim_user_id,
+			EXISTS (
+				SELECT 1 FROM mdm_windows_enrollments mwe
+				JOIN hosts h ON h.uuid = mwe.host_uuid
+				WHERE h.id = ? AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
+			) AS fleet_mdm_enrolled`,
+		upn, hostID, hostID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get scim user, link and MDM enrollment for Entra join device mapping")
 	}
-	if upn == "" {
+	// Fleet MDM hosts receive profiles and certificates, which must not follow a
+	// device-asserted identity; their user comes from the enrollment or end user
+	// authentication. Treated as unprovisioned so an earlier mapping is removed.
+	if upn == "" || ids.FleetMDMEnrolled {
 		ids.ScimUserID = nil
 	}
 	if ids.ScimUserID == nil {
-		// Only provisioned users are mapped. Leftover rows and their SCIM link are
-		// ours to remove: no higher-priority mapping exists (checked above).
+		// Only provisioned users on agent-only hosts are mapped. Leftover rows and
+		// their link are ours to remove: no higher-priority mapping exists (above).
 		if len(existing) == 0 {
 			return false, nil
 		}
