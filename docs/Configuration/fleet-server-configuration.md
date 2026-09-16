@@ -934,6 +934,17 @@ Enable this to significantly reduce the outbound bandwidth from the Fleet server
     gzip_responses: true
   ```
 
+### fleet_server_enable_csp
+
+When set to `1` or `true`, the Fleet server adds a `Content-Security-Policy` header to responses for the Fleet UI, API, and static assets. The policy restricts where the browser can load scripts, styles, images, fonts, and network connections from.
+
+The policy allows resources from the Fleet server, images from `www.gravatar.com` and any HTTPS origin (for custom logos), and WebSocket connections. Inline scripts and styles are allowed only when they carry a per-response nonce that the server injects into the UI.
+
+This is only supported as an environment variable.
+
+- Default value: not set (no `Content-Security-Policy` header is sent)
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
+
 ## Auth
 
 ### auth_sso_session_validity_period
