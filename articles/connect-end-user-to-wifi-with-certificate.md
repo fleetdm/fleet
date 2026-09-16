@@ -53,7 +53,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
   - determine the length of the encryption key
 - For the `CN` key / value, what's added is dependent on what the certificate will be used for. Using variables means that the certificates can be unique per host (See example below and Apple's [Use payload variables...](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation
 - For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- For the OU key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
+- For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
 
 Example:
 
@@ -141,7 +141,7 @@ org_settings:
       password: "$FLEET_OKTA_CA_NDES_PASSWORD"
 ```
 
-4. Add a reference for the new repository secret in the workflows.yml (i.e., something like the following):
+4. Add a reference for the new repository secret in the `workflow.yml` (i.e., something like the following):
 
 ```
 ...
