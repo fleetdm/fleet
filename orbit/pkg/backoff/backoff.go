@@ -10,6 +10,7 @@
 package backoff
 
 import (
+	"math"
 	"math/rand/v2"
 	"sync"
 	"time"
@@ -114,7 +115,7 @@ func (t *Tracker) Interval() time.Duration {
 // across a wide window rather than all retrying simultaneously.
 func jitter(d time.Duration) time.Duration {
 	n := int64(d)
-	if n <= 0 {
+	if n <= 0 || n > math.MaxInt64/2 {
 		return 0
 	}
 	return time.Duration(rand.Int64N(n)) //nolint:gosec // jitter does not need cryptographic randomness
