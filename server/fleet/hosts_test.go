@@ -697,8 +697,12 @@ func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
 				for keyName, key := range keySignals {
 					for diskName, disk := range diskSignals {
 						exp := delivered.keyBasedWant[keyName]
-						if !combo.keyBased {
+						switch {
+						case !combo.keyBased:
 							exp = delivered.diskBasedWant[diskName]
+						case combo.cfg.MacOSEscrowEnabled && !combo.cfg.MacOSEnabled && diskName == "unencrypted" && exp.action == ActionRequiredRotateKey:
+							// without enforcement there is no key to rotate until the disk is encrypted
+							exp.action = ActionRequiredTurnOnEncryption
 						}
 						t.Run(fmt.Sprintf("%s install/key=%s/disk=%s", delivered.status, keyName, diskName), func(t *testing.T) {
 							status := delivered.status
@@ -730,6 +734,32 @@ func TestHostEscrowStateInFlightRemaining(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			require.Equal(t, c.want, c.state.InFlightRemaining(window))
+		})
+	}
+}
+
+func TestHostMDMDiskEncryptionNeedsBitLockerPIN(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		de   *HostMDMDiskEncryption
+		want bool
+	}{
+		{name: "no disk encryption status"},
+		{name: "no action required", de: &HostMDMDiskEncryption{}},
+		{
+			name: "create pin",
+			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredCreatePIN)},
+			want: true,
+		},
+		{
+			name: "restart required",
+			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredRestart)},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.de.NeedsBitLockerPIN())
 		})
 	}
 }

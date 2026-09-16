@@ -1847,6 +1847,45 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	// withBitLockerPINCapability returns a context whose X-Fleet-Capabilities advertise CapabilityWindowsBitLockerPIN.
+	withBitLockerPINCapability := func(ctx context.Context) context.Context {
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/config", nil)
+		cm := fleet.CapabilityMap{fleet.CapabilityWindowsBitLockerPIN: struct{}{}}
+		req.Header.Set(fleet.CapabilitiesHeader, cm.String())
+		return capabilities.NewContext(ctx, req)
+	}
+
+	t.Run("pending BitLocker PIN on a host that no longer needs one is discarded", func(t *testing.T) {
+		// The fleet stopped requiring a PIN, or another session set one, after the end user submitted.
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: true, BitLockerPINRequestPending: true}, nil
+		}
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+			return &fleet.HostMDMDiskEncryption{}, nil
+		}
+		ds.DeleteBitLockerPINRequestFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+
+		cfg, err := svc.GetOrbitConfig(withBitLockerPINCapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.BitLockerPINRequestPending)
+		assert.True(t, ds.DeleteBitLockerPINRequestFuncInvoked)
+	})
+
+	t.Run("BitLocker PIN lookup failure fails the orbit config", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: true, BitLockerPINRequestPending: true}, nil
+		}
+		lookupErr := errors.New("bitlocker status unavailable")
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+			return nil, lookupErr
+		}
+
+		_, err := svc.GetOrbitConfig(withBitLockerPINCapability(ctx))
+		require.ErrorIs(t, err, lookupErr)
+	})
+
 	t.Run("non-Windows host does not query Windows host config state", func(t *testing.T) {
 		ds, svc, ctx, host := setupSvc(t)
 		host.Platform = "darwin"

@@ -798,6 +798,16 @@ type HostMDMDiskEncryption struct {
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
 	// macos_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
+	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
+	// the PIN form rather than the Manage BitLocker instructions.
+	FleetdCanSetPIN *bool `json:"fleetd_can_set_pin,omitempty" db:"-" csv:"-"`
+	// PINRequest is the state of the end user's PIN submission, while one exists. It never carries the PIN.
+	PINRequest *HostBitLockerPINRequest `json:"pin_request,omitempty" db:"-" csv:"-"`
+}
+
+// NeedsBitLockerPIN reports whether the end user is being asked to create a startup PIN.
+func (d *HostMDMDiskEncryption) NeedsBitLockerPIN() bool {
+	return d != nil && d.ActionRequired != nil && *d.ActionRequired == ActionRequiredCreatePIN
 }
 
 type HostMDMRecoveryLockPassword struct {
@@ -964,6 +974,9 @@ type ActionRequiredState string
 const (
 	ActionRequiredLogOut    ActionRequiredState = "log_out"
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+	// ActionRequiredTurnOnEncryption is macOS-only: the fleet escrows keys without enforcing FileVault and the disk is
+	// not encrypted, so there is no key to rotate until the end user turns FileVault on.
+	ActionRequiredTurnOnEncryption ActionRequiredState = "turn_on_encryption"
 	// ActionRequiredCreatePIN is Windows-only: BitLocker policy requires a startup PIN and the end user has not set one.
 	ActionRequiredCreatePIN ActionRequiredState = "create_pin"
 	// ActionRequiredRestart is Windows-only: BitLocker protection is off and the agent is waiting for a staged restart
@@ -1050,9 +1063,14 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				// logging out lets the deferred FileVault enablement run; rotating
 				// produces a key Fleet can escrow
 				actionRequired := ActionRequiredRotateKey
-				if cfg.MacOSEnforceOnly() {
+				switch {
+				case cfg.MacOSEnforceOnly():
 					verification = diskVerification(diskEncrypted)
 					actionRequired = ActionRequiredLogOut
+				case cfg.MacOSEscrowEnabled && !cfg.MacOSEnabled && diskVerification(diskEncrypted) == fileVaultVerificationNotConfirmed:
+					// nothing enforces FileVault, so there is no key to rotate
+					// until the end user turns it on
+					actionRequired = ActionRequiredTurnOnEncryption
 				}
 
 				switch verification {
