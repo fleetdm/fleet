@@ -1,14 +1,10 @@
-import React, { useState } from "react";
 import { AxiosError } from "axios";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
-
-import { IActivityDetails } from "interfaces/activity";
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import DataSet from "components/DataSet";
 import IconStatusMessage from "components/IconStatusMessage";
@@ -17,8 +13,10 @@ import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
 import TooltipWrapper from "components/TooltipWrapper";
-
-import CustomLink from "components/CustomLink";
+import { IActivityDetails } from "interfaces/activity";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
   getCaveatMessage,

@@ -1,13 +1,13 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
 import { noop } from "lodash";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { baseUrl, createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
 import { IActivityDetails } from "interfaces/activity";
 import { IScriptResultResponse } from "services/entities/scripts";
+import mockServer from "test/mock-server";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import NotifyBeforePatchingDetailsModal from "./NotifyBeforePatchingDetailsModal";
 
