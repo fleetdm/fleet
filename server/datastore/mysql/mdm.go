@@ -3167,7 +3167,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	if removingEntraJoin {
 		// Drop the SCIM link that came with the device-reported mapping so the
 		// authenticated user gets linked; the association step skips hosts that have one.
-		if _, err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+		if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
 		}
 	}

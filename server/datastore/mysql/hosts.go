@@ -4248,7 +4248,7 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 			if n, err := res.RowsAffected(); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete entra join host emails rows affected")
 			} else if n > 0 {
-				if _, err := deleteHostSCIMUserMapping(ctx, tx, hid); err != nil {
+				if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hid); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
 				}
 			}
@@ -5223,6 +5223,19 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 // deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
 func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	return deleteHostSCIMUserMappingFor(ctx, exec, hostID, nil)
+}
+
+// deleteObservedHostSCIMUserMapping removes the host's SCIM link as it stands at the
+// time of the read, so a link written concurrently after that read survives.
+func deleteObservedHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var scimUserID uint
+	if err := sqlx.GetContext(ctx, exec, &scimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, hostID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host SCIM user mapping")
+	}
+	return deleteHostSCIMUserMappingFor(ctx, exec, hostID, &scimUserID)
 }
 
 // deleteHostSCIMUserMappingFor removes the host's SCIM link. With a non-nil scimUserID
