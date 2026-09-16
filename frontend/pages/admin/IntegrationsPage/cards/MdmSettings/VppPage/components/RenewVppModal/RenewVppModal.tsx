@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from "react";
 
-import mdmAppleAPI from "services/entities/mdm_apple";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAppleAPI from "services/entities/mdm_apple";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "modal renew-vpp-modal";

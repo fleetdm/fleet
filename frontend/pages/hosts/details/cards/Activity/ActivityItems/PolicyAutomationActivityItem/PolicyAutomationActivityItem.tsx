@@ -1,7 +1,7 @@
 import React from "react";
 
-import { ActivityType, IHostPastActivityType } from "interfaces/activity";
 import ActivityItem from "components/ActivityItem";
+import { ActivityType, IHostPastActivityType } from "interfaces/activity";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 

@@ -255,7 +255,6 @@ func (svc *Service) SandboxEnabled() bool {
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -722,6 +721,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Appends rather than returning early; errors surface at the validation gate below.
+	validateCertificateRequestIdentityControlsLicense(newAppConfig.Integrations, lic, invalid)
+
 	// Google Workspace IdP is a premium-only feature.
 	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
 		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
@@ -1038,6 +1040,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
 	}
 
+	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
+		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+	}
+
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
@@ -1071,6 +1077,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
 	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
+	fleet.ValidateCertIdPIntrospectionAllowlists(&appConfig.Integrations, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -1291,6 +1298,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
 		}
+	}
+
+	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.
+	// even if we fail to actually save, this is a safe operation to retry.
+	if err := clearCertRenewals(ctx, svc, oldAppConfig, appConfig); err != nil {
+		return nil, err
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
@@ -1567,6 +1580,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedAppConfig, nil
+}
+
+func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
+	if oldAppConfig == nil || appConfig == nil {
+		return nil
+	}
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
+		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
+		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+		}
+
+		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+	}
+	return nil
 }
 
 // processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
@@ -1942,6 +1972,21 @@ func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesk
 	return nil
 }
 
+// validateCertificateRequestIdentityControlsLicense premium-gates the request_certificate IdP
+// allowlists, consistently with the endpoint itself. Disabling the host binding is a relaxation,
+// not a licensed feature, so it is not gated.
+func validateCertificateRequestIdentityControlsLicense(intgs fleet.Integrations, lic *fleet.LicenseInfo, invalid *fleet.InvalidArgumentError) {
+	if lic.IsPremium() {
+		return
+	}
+	if len(intgs.CertificatesIdPIntrospectionURLs.Value) > 0 {
+		invalid.Append("integrations.certificates_idp_introspection_urls", ErrMissingLicense.Error())
+	}
+	if len(intgs.CertificatesIdPClientIDs.Value) > 0 {
+		invalid.Append("integrations.certificates_idp_client_ids", ErrMissingLicense.Error())
+	}
+}
+
 func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
@@ -2195,7 +2240,8 @@ func (svc *Service) validateMDM(
 	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
-		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value,
+			svc.authz.CanWriteSecretVariables(ctx)); err != nil {
 			// A validation or missing-secret error is invalid user input (422); any
 			// other error (e.g. a datastore failure while checking secrets) must
 			// propagate as a server error rather than be misreported as invalid input.

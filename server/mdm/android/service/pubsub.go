@@ -204,6 +204,8 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 
 	newStatus, errCode, errMsg := androidOperationTerminalState(&op)
 
+	redactOperationSensitiveFields(&op)
+
 	// Store the raw Operation JSON so custom command results can be retrieved via the API.
 	var rawResult *string
 	if resultJSON, err := json.Marshal(op); err == nil {
@@ -1514,11 +1516,13 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidProfilePayload{
-				HostUUID:                profile.HostUUID,
-				Status:                  &fleet.MDMDeliveryVerified,
-				OperationType:           profile.OperationType,
-				ProfileUUID:             profile.ProfileUUID,
-				Detail:                  profile.Detail,
+				HostUUID:      profile.HostUUID,
+				Status:        &fleet.MDMDeliveryVerified,
+				OperationType: profile.OperationType,
+				ProfileUUID:   profile.ProfileUUID,
+				// The profile is verified, so any detail recorded by an earlier
+				// failed report is stale and must not be carried over.
+				Detail:                  "",
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				DeviceRequestUUID:       profile.DeviceRequestUUID,
@@ -1602,7 +1606,11 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		var profiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
-			detail := profile.Detail
+			// A verified profile has no detail; only a profile that is still
+			// non-compliant carries an error message. Defaulting to the stored
+			// detail would leave a stale failure message on a profile that has
+			// since become compliant.
+			detail := ""
 			canReverify := false
 
 			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {

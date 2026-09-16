@@ -1,12 +1,12 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
-
+import createMockUser from "__mocks__/userMock";
 import { BootstrapPackageStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
+import { createCustomRenderer } from "test/test-utils";
+
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {

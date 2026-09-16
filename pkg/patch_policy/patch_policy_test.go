@@ -100,6 +100,9 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
 
+	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
+
 	// Unknown platform yields no query.
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }

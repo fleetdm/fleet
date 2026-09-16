@@ -1,15 +1,14 @@
+import classnames from "classnames";
 import React, { useCallback, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import classnames from "classnames";
-
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import ControlDetailsModal from "./ControlDetailsModal";
 import generateTableConfig, {

@@ -1,17 +1,17 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
 import {
   IPolicyAutomationActivity,
   IStoredPolicyResponse,
   PolicyAutomationActivityStatus,
 } from "interfaces/policy";
+import sendRequest from "services";
 import {
   ListEntitiesResponseCommon,
   OrderDirection,
 } from "services/entities/common";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export type PolicyAutomationActivitiesOrderKey =
   | "id"

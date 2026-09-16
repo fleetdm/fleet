@@ -1,6 +1,12 @@
 import React, { ReactNode } from "react";
 
-import { dateAgo } from "utilities/date_format";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
@@ -11,16 +17,10 @@ import {
   IAppLastInstall,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { isAndroid, isAppleDevice } from "interfaces/platform";
-import { Colors } from "styles/var/colors";
-
-import Icon from "components/Icon";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { Colors } from "styles/var/colors";
+import { dateAgo } from "utilities/date_format";
+
 import {
   getLastInstall,
   getLastUninstall,
@@ -507,10 +507,19 @@ const InstallStatusCell = ({
     const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
 
     // Status groups and their click handlers
+    // Script packages route ALL install-side statuses (including "Installed"
+    // and "Install (pending)" for script packages with an uninstall script)
+    // to the script execution details modal, since the install is a script run.
     const displayStatusConfig = [
       {
         condition: isScriptPackage, // Still allows click even if no last install to see details modal
-        statuses: ["Failed", "Run (pending)", "Ran"],
+        statuses: [
+          "Failed",
+          "Run (pending)",
+          "Ran",
+          "Install (pending)",
+          "Installed",
+        ],
         onClick: onClickScriptStatus,
       },
       {

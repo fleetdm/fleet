@@ -1,7 +1,7 @@
+import classnames from "classnames";
 import React from "react";
 import { browserHistory } from "react-router";
 
-import classnames from "classnames";
 import Button from "components/buttons/Button";
 
 interface IBackButtonProps {

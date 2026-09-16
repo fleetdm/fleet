@@ -1,7 +1,10 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import CustomLink from "components/CustomLink";
+
 import InfoBanner from ".";
+
 import "../../index.scss";
 
 const meta: Meta<typeof InfoBanner> = {

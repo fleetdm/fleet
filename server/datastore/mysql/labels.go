@@ -1280,7 +1280,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
-      nesm.last_seen_at AS last_mdm_checked_in_at,
+      nstm.seen_time AS last_mdm_checked_in_at,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
       h.timezone,
@@ -1350,7 +1350,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	var whereParams, joinParams []interface{}
 
 	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
-	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	// MDM protocol's seen time instead of being flagged missing (see hostEffectiveLastSeenExpr).
 	if opt.StatusFilter.IsValid() {
 		query += hostMDMSeenTimeJoin
 	}

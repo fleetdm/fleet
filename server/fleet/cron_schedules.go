@@ -77,6 +77,10 @@ const (
 	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
 	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
 	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
+	// CronAppleMDMAPNsSweep walks enabled Apple MDM enrollments in daily laps
+	// and re-pushes any that have been silent for more than a day, so offline
+	// devices always have a stored push waiting at APNs.
+	CronAppleMDMAPNsSweep CronScheduleName = "apple_mdm_apns_sweep"
 )
 
 type CronSchedulesService interface {

@@ -1,16 +1,19 @@
 import React from "react";
 
-import { isAppleDevice } from "interfaces/platform";
+import { isAppleDevice, isWindows } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-// Only the Pending ABM case carries tooltip copy now; online/offline pills
-// no longer explain themselves ("will respond to a live report" was misleading
-// once mobile hosts started showing real online/offline).
+// Only the Pending enrollment case carries tooltip copy now; online/offline
+// pills no longer explain themselves ("will respond to a live report" was
+// misleading once mobile hosts started showing real online/offline).
 export const getHostStatusTooltipText = (
-  status: string
+  status: string,
+  platform?: string
 ): string | undefined => {
   if (status === DEFAULT_EMPTY_CELL_VALUE) {
-    return "Device is pending enrollment in Apple Business and status is not yet available.";
+    const enrollmentSource =
+      platform && isWindows(platform) ? "Windows Autopilot" : "Apple Business";
+    return `Device is pending enrollment in ${enrollmentSource} and status is not yet available.`;
   }
   return undefined;
 };

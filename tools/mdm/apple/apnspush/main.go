@@ -122,7 +122,7 @@ func main() {
 			})), nil
 		}),
 		// same default expiration the Fleet server uses (mdm.apple_apns_push_expiration)
-		nanopush.WithExpiration(7*24*time.Hour),
+		nanopush.WithExpiration(30*24*time.Hour),
 	)
 
 	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))

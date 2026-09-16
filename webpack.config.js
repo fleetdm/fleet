@@ -67,9 +67,6 @@ const config = {
     minimize: process.env.NODE_ENV === "production",
   },
   module: {
-    // The following noParse suppresses the warning about sqlite-parser being a
-    // pre-compiled JS file. See https://goo.gl/N4s6bB.
-    noParse: /node_modules\/sqlite-parser\/dist\/sqlite-parser-min.js/,
     rules: [
       {
         // Fleet-maintained app icons: always emitted as separate files, never
@@ -168,12 +165,6 @@ const config = {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
     fallback: { path: require.resolve("path-browserify") },
-    alias: {
-      "node-sql-parser": path.resolve(
-        __dirname,
-        "node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
-      ),
-    },
   },
 };
 

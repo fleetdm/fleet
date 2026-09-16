@@ -21,6 +21,15 @@
   <head>
     <title>Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %></title>
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% /* [?]: https://developers.google.com/search/docs/appearance/site-names#json-ld */%>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Fleet",
+      "url": "https://fleetdm.com/"
+    }
+    </script>
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -199,8 +208,11 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
-                    <div purpose="mobile-search" id="mobile-docsearch" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
-                    </div>
+                    <form purpose="google-search" >
+                      <div purpose="mobile-search" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
+                        <input class="docsearch-input pr-1" placeholder="Search" aria-label="Search"/>
+                      </div>
+                    </form>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
                       <div><p>Solutions</p></div>
                       <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
@@ -892,6 +904,7 @@
     <script src="/js/cloud.setup.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/ajax-overlay.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
     <script src="/js/components/bubble.component.js"></script>
@@ -916,6 +929,7 @@
     <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/ai-in-it.page.js"></script>
+    <script src="/js/pages/arch-linux-management.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/articles/basic-comparison.page.js"></script>
@@ -976,6 +990,7 @@
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
+    <script src="/js/pages/omarchy.page.js"></script>
     <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
@@ -1129,6 +1144,18 @@
             });
           }
         }
+      });
+    </script>
+    <script>
+      // Sends search queries to a scoped Google search.
+      document.addEventListener('submit', function(event) {
+        var form = event.target.closest('form[purpose="google-search"]');
+        if (!form) { return; }
+        event.preventDefault();
+        var input = form.querySelector('input');
+        var searchQuery = (input ? input.value : '').trim();
+        if (!searchQuery) { return; }
+        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery) + '&udm=50', '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>

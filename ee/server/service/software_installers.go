@@ -2244,7 +2244,6 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	host, err := svc.ds.Host(ctx, hostID)
 
 	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 
 	if err != nil {
@@ -2411,7 +2410,6 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
@@ -3177,8 +3175,7 @@ const (
 // On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304 and a
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
-	client := fleethttp.NewClient()
-	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(maxInstallerSize))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -3575,8 +3572,22 @@ func (svc *Service) softwareBatchUpload(
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check cached FMA version")
 				}
-				if versionExists && cachedHash == p.MaintainedApp.SHA256 {
-					fmaVersionCached = true
+				switch {
+				case p.MaintainedApp.SHA256 != noCheckHash:
+					fmaVersionCached = versionExists && cachedHash == p.MaintainedApp.SHA256
+				case versionExists && cachedHash != "" && cachedHash != noCheckHash:
+					// A manifest without a hash has nothing to compare, so the cached
+					// bytes identify the version. Their digest replaces the sentinel
+					// here because StorageID is derived from this field below, and the
+					// download path is the only other place that substitutes it.
+					bytesExist, err := svc.softwareInstallStore.Exists(ctx, cachedHash)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "check cached FMA installer in store")
+					}
+					if bytesExist {
+						fmaVersionCached = true
+						p.MaintainedApp.SHA256 = cachedHash
+					}
 				}
 				installer.FMAVersionCached = fmaVersionCached
 			}

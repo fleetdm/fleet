@@ -35,6 +35,7 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestRetrievePushCert", testRetrievePushCert},
 		{"TestIsPushCertStale", testIsPushCertStale},
 		{"TestStorePushCert", testStorePushCert},
+		{"TestDisable", testNanoDisable},
 	}
 
 	for _, c := range cases {
@@ -334,8 +335,8 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 
 	// Insert a nano_enrollment so cert auth association can reference it.
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
-		 VALUES (?, ?, 'Device', 'topic', 'magic', 'deadbeef', 1, NOW())`,
+		`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally)
+		 VALUES (?, ?, 'Device', 'topic', 'magic', 'deadbeef', 1)`,
 		deviceUUID, deviceUUID)
 	require.NoError(t, err)
 
@@ -457,8 +458,8 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 
 	// Create nano_enrollments record (required for MDM commands)
 	_, err = ds.writer(ctx).Exec(`
-		INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at)
-		VALUES (?, ?, 'Device', 'com.apple.mgmt.test', 'test-magic', 'deadbeef', NOW())`,
+		INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
+		VALUES (?, ?, 'Device', 'com.apple.mgmt.test', 'test-magic', 'deadbeef')`,
 		host.UUID, deviceID)
 	require.NoError(t, err)
 
@@ -691,4 +692,66 @@ func testStorePushCert(t *testing.T, ds *Datastore) {
 	err = ns.StorePushCert(ctx, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, "please use fleet.Datastore to manage MDM assets", err.Error())
+}
+
+func testNanoDisable(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	newEnrolledHost := func(i int, withUser bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("disable-host%d-name", i),
+			OsqueryHostID: new(fmt.Sprintf("disable-osquery-%d", i)),
+			NodeKey:       new(fmt.Sprintf("disable-nodekey-%d", i)),
+			UUID:          fmt.Sprintf("disable-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, withUser)
+		return h
+	}
+	host := newEnrolledHost(1, true)
+	otherHost := newEnrolledHost(2, false)
+	userID := host.UUID + ":" + nanoenroll_useruuid_prefix + host.UUID
+
+	// Backdate every seen time so the disable-time bump is observable.
+	stale := time.Now().Add(-24 * time.Hour).UTC().Truncate(time.Second)
+	for _, id := range []string{host.UUID, userID, otherHost.UUID} {
+		setNanoSeenTime(t, ds, id, stale)
+	}
+
+	type row struct {
+		Enabled  bool      `db:"enabled"`
+		SeenTime time.Time `db:"seen_time"`
+	}
+	getRow := func(id string) row {
+		var r row
+		err := ds.writer(ctx).GetContext(ctx, &r,
+			`SELECT ne.enabled, nst.seen_time FROM nano_enrollments ne JOIN nano_seen_times nst ON nst.id = ne.id WHERE ne.id = ?`, id)
+		require.NoError(t, err)
+		return r
+	}
+
+	require.NoError(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: host.UUID}}))
+
+	// Both channels are disabled and their seen times bumped, atomically.
+	for _, id := range []string{host.UUID, userID} {
+		got := getRow(id)
+		assert.False(t, got.Enabled, "enrollment %s should be disabled", id)
+		assert.True(t, got.SeenTime.After(stale), "seen time for %s should be bumped, got %s", id, got.SeenTime)
+	}
+
+	// The other device's enrollment is untouched.
+	other := getRow(otherHost.UUID)
+	assert.True(t, other.Enabled)
+	assert.True(t, other.SeenTime.Equal(stale), "unrelated seen time should not be bumped, got %s", other.SeenTime)
+
+	// Disabling again is a clean no-op: no error, and no further seen-time bump.
+	bumped := getRow(host.UUID).SeenTime
+	require.NoError(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: host.UUID}}))
+	assert.True(t, getRow(host.UUID).SeenTime.Equal(bumped), "no-op disable must not bump the seen time")
+
+	// A user-channel request is rejected.
+	require.Error(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: userID, ParentID: host.UUID}}))
 }

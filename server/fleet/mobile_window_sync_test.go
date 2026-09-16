@@ -16,8 +16,8 @@ import (
 // can't import server/fleet; this test is the only automated sync check.
 func TestMobileOnlineWindowMatchesChart(t *testing.T) {
 	require.Equal(t,
-		int(fleet.MobileOnlineWindow/time.Second),
 		chartapi.MobileOnlineWindowSeconds,
+		int(fleet.MobileOnlineWindow/time.Second),
 		"fleet.MobileOnlineWindow and chartapi.MobileOnlineWindowSeconds drifted; edit both together",
 	)
 }
