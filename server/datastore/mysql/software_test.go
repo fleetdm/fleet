@@ -10294,10 +10294,9 @@ func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForA
 
 		// the macOS app targets a custom label, the iOS app with the same adam id targets all hosts
 		macOSApp := &fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				SelfService: true,
-				VPPAppID:    fleet.VPPAppID{AdamID: c.adamID, Platform: fleet.MacOSPlatform},
-			},
+			SelfService:      true,
+			AdamID:           c.adamID,
+			Platform:         fleet.MacOSPlatform,
 			Name:             "WhatsApp",
 			BundleIdentifier: "net.whatsapp.WhatsApp" + c.name,
 			LatestVersion:    "2.0.0",
@@ -10306,10 +10305,9 @@ func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForA
 		require.NoError(t, err, c.name)
 
 		iOSApp := &fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				SelfService: true,
-				VPPAppID:    fleet.VPPAppID{AdamID: c.adamID, Platform: fleet.IOSPlatform},
-			},
+			SelfService:      true,
+			AdamID:           c.adamID,
+			Platform:         fleet.IOSPlatform,
 			Name:             "WhatsApp",
 			BundleIdentifier: "net.whatsapp.WhatsApp" + c.name,
 			LatestVersion:    "2.0.0",
