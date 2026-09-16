@@ -132,8 +132,8 @@ Keep in mind:
 - Vitals appear on the host's next detail refresh, up to one hour after enrollment. Select **Refetch** on the Host details page to update them right away.
 - If the device leaves Entra ID, or the join user is removed from the Fleet application in Entra ID, the vitals are removed on the next detail refresh. A user that is only deactivated (unassigned in Entra ID) keeps showing until Entra ID deletes it, which happens about 30 days later.
 - An IdP username set manually on the Host details page takes precedence. Clearing it brings the join user back on the next detail refresh.
-- Hosts enrolled through Fleet MDM, or hosts where the end user authenticated, keep the user from that enrollment.
-- The join user comes from the device and isn't verified against Entra ID. This is the same level of trust as the Google Chrome profiles that Fleet collects. Use these vitals for labels and configuration profile variables, not as proof of identity.
+- Hosts enrolled in Fleet MDM don't get vitals from the join user. Their user comes from the MDM enrollment or end user authentication. A join user recorded before the host enrolled is removed on the next detail refresh.
+- The join user comes from the device and isn't verified against Entra ID. This is the same level of trust as the Google Chrome profiles that Fleet collects. Use these vitals for labels, not as proof of identity.
 
 ## Google Workspace
 

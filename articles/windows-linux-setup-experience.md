@@ -44,7 +44,7 @@ fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_e
 
 This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to false.
 
-On Windows hosts joined to Microsoft Entra ID, Fleet populates the IdP host vitals without end user authentication. Learn more in the [IdP host vitals guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#entra-joined-windows-hosts).
+On Windows hosts joined to Microsoft Entra ID and not enrolled in Fleet MDM, Fleet populates the IdP host vitals without end user authentication. Learn more in the [IdP host vitals guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#entra-joined-windows-hosts).
 
 ## Install software
 
