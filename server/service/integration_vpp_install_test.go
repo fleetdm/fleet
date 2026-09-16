@@ -3029,3 +3029,110 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	require.Equal(t, listResp.Hosts[1].ID, mdmHost2.ID)
 }
+
+// The refetch that follows a verified install must respect the host's
+// enrollment type, like the hourly cron and the manual refetch do.
+func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDevices() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	var newTeamResp teamResponse
+	teamPayload := fleet.TeamPayload{Name: new("Managed apps only")}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: teamPayload}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	s.setVPPTokenForTeam(team.ID)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "3", Platform: fleet.IPadOSPlatform},
+		http.StatusOK, &addAppStoreAppResponse{})
+
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
+		"available_for_install", "true")
+	var titleID uint
+	for _, sw := range listSw.SoftwareTitles {
+		if sw.Source == "ipados_apps" {
+			titleID = sw.ID
+		}
+	}
+	require.NotZero(t, titleID)
+
+	managedApp := fleet.Software{Name: "App 3", BundleIdentifier: "c-3", Version: "3.0.0", Installed: true}
+	personalApp := fleet.Software{Name: "PersonalGame", BundleIdentifier: "com.example.personalgame", Version: "9.9.9", Installed: true}
+
+	for _, tc := range []struct {
+		name             string
+		installedFromDEP bool
+	}{
+		{"manual enrollment", false},
+		{"automatic enrollment", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host, device := s.createAppleMobileHostThenEnrollMDM("ipados")
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", false))
+			s.awaitRunAppleMDMWorkerSchedule()
+			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+			s.Do("POST", "/api/latest/fleet/hosts/transfer",
+				&addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+			// Report the personal app only when the command didn't ask for
+			// managed apps, the way a real device does.
+			var refetchManagedOnly *bool
+			drain := func() {
+				cmd, err := device.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					switch cmd.Command.RequestType {
+					case "InstalledApplicationList":
+						var fullCmd micromdm.CommandPayload
+						require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+						require.NotNil(t, fullCmd.Command.InstalledApplicationList)
+						managedOnly := fullCmd.Command.InstalledApplicationList.ManagedAppsOnly
+						reported := []fleet.Software{managedApp}
+						if !managedOnly {
+							reported = append(reported, personalApp)
+						}
+						if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+							refetchManagedOnly = &managedOnly
+						}
+						cmd, err = device.AcknowledgeInstalledApplicationList(device.UUID, cmd.CommandUUID, reported)
+						require.NoError(t, err)
+					default:
+						cmd, err = device.Acknowledge(cmd.CommandUUID)
+						require.NoError(t, err)
+					}
+				}
+			}
+
+			s.runWorker()
+			drain()
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID),
+				&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+
+			for range 5 {
+				s.runWorker()
+				drain()
+				if refetchManagedOnly != nil {
+					break
+				}
+			}
+			require.NotNil(t, refetchManagedOnly, "no refetch apps command was sent")
+			require.Equal(t, !tc.installedFromDEP, *refetchManagedOnly)
+
+			var getHostSw getHostSoftwareResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+			var names []string
+			for _, sw := range getHostSw.Software {
+				names = append(names, sw.Name)
+			}
+			require.Contains(t, names, managedApp.Name)
+			if tc.installedFromDEP {
+				require.Contains(t, names, personalApp.Name)
+			} else {
+				require.NotContains(t, names, personalApp.Name)
+			}
+		})
+	}
+}

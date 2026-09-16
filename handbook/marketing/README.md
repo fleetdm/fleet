@@ -423,7 +423,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
 1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
-2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivalent
 3. Title the file with the slug version of your blog title, ending in `.md`
 4. First line should be the Title of the blog with H1 markdown (`#`)
 5. Put in your article, using markdown to format it
