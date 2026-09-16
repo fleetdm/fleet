@@ -159,7 +159,7 @@ Support depends on how the Android host is managed:
 - **Fully-managed hosts**: supported. `systemUpdate` controls the whole device, and Android only exposes it on fully-managed hosts.
 - **Work profile hosts (BYOD, or company-owned with a work profile)**: not supported. Android has no work profile equivalent of `systemUpdate`, since the setting applies to the whole device rather than just the work profile.
 - **OEMConfig devices (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't yet support OEMConfig.
-- **AOSP devices**: not supported. Fleet's Android MDM runs on the Android Management API, which requires Google Mobile Services. Devices without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
+- **[Android Open Source (AOSP)](https://source.android.com/) hosts**: not supported. Fleet's Android MDM runs on the [Android Management API](https://developers.google.com/android/management), which requires Google Mobile Services. Devices without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
 
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
