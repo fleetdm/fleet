@@ -486,8 +486,9 @@ csp cases report as not-checked either way.`
       'Inputs:\n' +
       `profileType: ${profileType || '(every type)'}\n` +
       (runAllTestCases ? 'Run all tests: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
-      `baseModel: ${baseModel}\n` +
+      `LLM model used: ${baseModel}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
+      `Using smaller response shape: ${testLighterResponse}\n` +
       `verbose: ${verbose}\n` +
       '----------'
     );
