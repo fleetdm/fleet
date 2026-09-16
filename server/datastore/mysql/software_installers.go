@@ -69,7 +69,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
-    hsi.patch_when_closed AS patch_when_closed,
+    -- Live-read (not the hsi snapshot): fleetd uses this on in-flight installs,
+    -- so admin's current intent must govern. Snapshot is for post-hoc classification.
+    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -78,6 +80,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON hsi.software_installer_id = si.id
+  LEFT OUTER JOIN
+    policies p
+    ON p.id = hsi.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id

@@ -691,7 +691,6 @@ export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_uninstall", // Uninstall attempt failed
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run
-  "skipped_install", // Patch-when-closed skip: target app was open; deferred, not a failure
 ] as const;
 export type HostSoftwareUiErrorStatus = typeof HOST_SOFTWARE_UI_ERROR_STATUSES[number];
 export const isSoftwareErrorStatus = (
