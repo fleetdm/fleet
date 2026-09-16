@@ -1,10 +1,9 @@
 import React from "react";
 
-import mdmAPI from "services/entities/mdm";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
 
 interface DeleteAutoEnrollProfileProps {
   currentTeamId: number;

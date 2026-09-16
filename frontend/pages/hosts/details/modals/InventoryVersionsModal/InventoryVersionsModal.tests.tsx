@@ -1,7 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
+
 import InventoryVersionsModal from "./InventoryVersionsModal";
 
 // Mock current time for time stamp test

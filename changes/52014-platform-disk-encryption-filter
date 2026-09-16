@@ -1,0 +1,1 @@
+- Added the ability to filter hosts by platform label and disk encryption status at the same time; disk encryption status rows on Controls > OS settings now link to the host list filtered by both.

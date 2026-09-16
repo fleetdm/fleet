@@ -6272,6 +6272,31 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, sw, 1)
 	assert.Equal(t, icon.IconUrl(), *sw[0].IconUrl)
+
+	// Before a schedule exists, the fields marshal as nil.
+	require.Nil(t, sw[0].AutoUpdateEnabled)
+	require.Nil(t, sw[0].AutoUpdateStartTime)
+	require.Nil(t, sw[0].AutoUpdateEndTime)
+
+	// Enable auto-updates for the VPP title and confirm hydration surfaces the
+	// window on the host-software list. This is the plumbing that lets the
+	// FE host software / device software tables render the auto-update icon.
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, va1.TitleID, tm.ID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("02:00"),
+		AutoUpdateEndTime:   new("04:00"),
+	})
+	require.NoError(t, err)
+
+	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	require.NotNil(t, sw[0].AutoUpdateEnabled)
+	assert.True(t, *sw[0].AutoUpdateEnabled)
+	require.NotNil(t, sw[0].AutoUpdateStartTime)
+	assert.Equal(t, "02:00", *sw[0].AutoUpdateStartTime)
+	require.NotNil(t, sw[0].AutoUpdateEndTime)
+	assert.Equal(t, "04:00", *sw[0].AutoUpdateEndTime)
 }
 
 func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
@@ -7481,6 +7506,7 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	var brave003 uint
 	var opera003 uint
 	var ie003 uint
+	var netscape003 uint
 	for s := range sw.Inserted {
 		switch {
 		case sw.Inserted[s].Name == "chrome" && sw.Inserted[s].Version == "0.0.1":
@@ -7497,6 +7523,8 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			opera003 = sw.Inserted[s].ID
 		case sw.Inserted[s].Name == "internet explorer" && sw.Inserted[s].Version == "0.0.3":
 			ie003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "netscape" && sw.Inserted[s].Version == "0.0.3":
+			netscape003 = sw.Inserted[s].ID
 		}
 	}
 
@@ -7533,6 +7561,11 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 		SoftwareID: ie003,
 		CVE:        "CVE-2024-1240",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: netscape003,
+		CVE:        "CVE-2024-1241",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
@@ -7573,6 +7606,12 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			CVE:              "CVE-2024-1240",
 			CVSSScore:        nil,
 			CISAKnownExploit: nil,
+		},
+		{
+			// netscape: the only score below 7.5, so minimum-bound filters must exclude it
+			CVE:              "CVE-2024-1241",
+			CVSSScore:        new(4.0),
+			CISAKnownExploit: new(false),
 		},
 	})
 	require.NoError(t, err)
@@ -7616,6 +7655,10 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				},
 				{
 					Name:    "internet explorer",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "netscape",
 					Version: "0.0.3",
 				},
 				{
@@ -7755,6 +7798,10 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 					Version: "0.0.1",
 				},
 				{
+					Name:    "netscape",
+					Version: "0.0.3",
+				},
+				{
 					Name:    "safari",
 					Version: "0.0.1",
 				},
@@ -7772,6 +7819,10 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				{
 					Name:    "chrome",
 					Version: "0.0.1",
+				},
+				{
+					Name:    "netscape",
+					Version: "0.0.3",
 				},
 				{
 					Name:    "safari",
@@ -7805,6 +7856,38 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				MaximumCVSS:      8.0,
 			},
 			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "edge",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "safari",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 5.0 and maximum cvss 10.0",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      5.0,
+				MaximumCVSS:      10.0,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
 				{
 					Name:    "chrome",
 					Version: "0.0.1",

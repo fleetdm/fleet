@@ -1,14 +1,13 @@
-import PATHS from "router/paths";
-
 import { InjectedRouter } from "react-router";
 
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
+import PATHS from "router/paths";
 
-import Users from "./cards/Users/Users";
 import BootstrapPackage from "./cards/BootstrapPackage";
-import SetupAssistant from "./cards/SetupAssistant";
 import InstallSoftware from "./cards/InstallSoftware";
 import RunScript from "./cards/RunScript";
+import SetupAssistant from "./cards/SetupAssistant";
+import Users from "./cards/Users/Users";
 
 export interface ISetupExperienceCardProps {
   currentTeamId: number;

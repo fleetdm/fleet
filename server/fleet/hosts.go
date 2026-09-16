@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -30,6 +31,9 @@ const (
 	// StatusMissing means the host is missing for 30 days. It is identical
 	// with StatusMIA, but StatusMIA is deprecated.
 	StatusMissing = HostStatus("missing")
+	// StatusEnrolled is a filter-only value (never a host's computed status): every host
+	// except those pending MDM enrollment, which exist in Fleet before they enroll.
+	StatusEnrolled = HostStatus("enrolled")
 
 	// NewDuration if a host has been created within this time period it's
 	// considered new.
@@ -44,6 +48,23 @@ const (
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
 
+	// MobileRefetchInterval is the ListIOSAndIPadOSToRefetch cadence: mobile
+	// hosts are queued for a refetch this often (see fleet.RefetchIOSHostInterval).
+	MobileRefetchInterval = time.Hour
+
+	// MobileCronTickPeriod is the apple_mdm_iphone_ipad_refetcher cron tick.
+	// A refetch queued at t may not be dispatched until the next tick, so the
+	// online window must cover a full tick of dispatch latency on top of the
+	// refetch interval.
+	MobileCronTickPeriod = 10 * time.Minute
+
+	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
+	// count as online. Sized to cover the worst-case gap between refetcher
+	// bumps (refetch interval + cron tick + network buffer). Duplicated in the
+	// chart context (mobileOnlineWindowSeconds) which can't import
+	// server/fleet — update both together.
+	MobileOnlineWindow = MobileRefetchInterval + MobileCronTickPeriod + time.Duration(OnlineIntervalBuffer)*time.Second
+
 	// HostIdentiferNotFound is the error message returned when a search for a host by its
 	// identifier (hostname, UUID, or serial number) does not return any results.
 	HostIdentiferNotFound = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
@@ -51,7 +72,7 @@ const (
 
 func (s HostStatus) IsValid() bool {
 	switch s {
-	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA, StatusEnrolled:
 		return true
 	default:
 		return false
@@ -346,17 +367,21 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    *string   `json:"-" db:"osquery_host_id" csv:"-"`
-	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
-	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
-	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
-	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
-	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
-	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
-	NodeKey          *string   `json:"-" db:"node_key" csv:"-"`
-	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
-	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
-	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
+	OsqueryHostID   *string   `json:"-" db:"osquery_host_id" csv:"-"`
+	DetailUpdatedAt time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt  time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
+	PolicyUpdatedAt time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
+	LastEnrolledAt  time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
+	SeenTime        time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
+	// LastMDMCheckedInAt is nano_seen_times.seen_time for active Apple
+	// enrollments; nil elsewhere. Feeds Host.Status()'s mobile branch. No
+	// omitempty: HostDetail already serialized this as null when absent.
+	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at" db:"last_mdm_checked_in_at" csv:"-"`
+	RefetchRequested   bool       `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
+	NodeKey            *string    `json:"-" db:"node_key" csv:"-"`
+	OrbitNodeKey       *string    `json:"-" db:"orbit_node_key" csv:"-"`
+	Hostname           string     `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
+	UUID               string     `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
 	Platform       string        `json:"platform" csv:"platform"`
 	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`
@@ -427,8 +452,10 @@ type Host struct {
 	// populated by loaders that perform it.
 	// BitLockerProtectionStatus is 0 off, 1 on, nil for unknown or never reported.
 	BitLockerProtectionStatus *int `json:"-" db:"bitlocker_protection_status" csv:"-"`
-	// TPMPINSet is only maintained on teams with windows_require_bitlocker_pin.
+	// TPMPINSet is maintained wherever Windows disk encryption is enforced, and only acted on where a PIN is required.
 	TPMPINSet bool `json:"-" db:"tpm_pin_set" csv:"-"`
+	// BitLockerBootProtectorSet reports whether a protector able to release the volume master key at boot is present.
+	BitLockerBootProtectorSet *bool `json:"-" db:"bitlocker_boot_protector_set" csv:"-"`
 
 	// DiskEncryptionKeyEscrowed is set to signal that a FileVault disk encryption key was escrowed.
 	// We need this because the escrow process for macOS is driven by detail queries
@@ -793,6 +820,16 @@ type HostMDMDiskEncryption struct {
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
 	// macos_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
+	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
+	// the PIN form rather than the Manage BitLocker instructions.
+	FleetdCanSetPIN *bool `json:"fleetd_can_set_pin,omitempty" db:"-" csv:"-"`
+	// PINRequest is the state of the end user's PIN submission, while one exists. It never carries the PIN.
+	PINRequest *HostBitLockerPINRequest `json:"pin_request,omitempty" db:"-" csv:"-"`
+}
+
+// NeedsBitLockerPIN reports whether the end user is being asked to create a startup PIN.
+func (d *HostMDMDiskEncryption) NeedsBitLockerPIN() bool {
+	return d != nil && d.ActionRequired != nil && *d.ActionRequired == ActionRequiredCreatePIN
 }
 
 type HostMDMRecoveryLockPassword struct {
@@ -959,6 +996,9 @@ type ActionRequiredState string
 const (
 	ActionRequiredLogOut    ActionRequiredState = "log_out"
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+	// ActionRequiredTurnOnEncryption is macOS-only: the fleet escrows keys without enforcing FileVault and the disk is
+	// not encrypted, so there is no key to rotate until the end user turns FileVault on.
+	ActionRequiredTurnOnEncryption ActionRequiredState = "turn_on_encryption"
 	// ActionRequiredCreatePIN is Windows-only: BitLocker policy requires a startup PIN and the end user has not set one.
 	ActionRequiredCreatePIN ActionRequiredState = "create_pin"
 	// ActionRequiredRestart is Windows-only: BitLocker protection is off and the agent is waiting for a staged restart
@@ -1045,9 +1085,14 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				// logging out lets the deferred FileVault enablement run; rotating
 				// produces a key Fleet can escrow
 				actionRequired := ActionRequiredRotateKey
-				if cfg.MacOSEnforceOnly() {
+				switch {
+				case cfg.MacOSEnforceOnly():
 					verification = diskVerification(diskEncrypted)
 					actionRequired = ActionRequiredLogOut
+				case cfg.MacOSEscrowEnabled && !cfg.MacOSEnabled && diskVerification(diskEncrypted) == fileVaultVerificationNotConfirmed:
+					// nothing enforces FileVault, so there is no key to rotate
+					// until the end user turns it on
+					actionRequired = ActionRequiredTurnOnEncryption
 				}
 
 				switch verification {
@@ -1247,8 +1292,10 @@ type HostDetail struct {
 
 	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
 
-	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
-	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+	LastMDMEnrolledAt *time.Time `json:"last_mdm_enrolled_at"`
+	// LastMDMCheckedInAt is defined on the embedded Host so list-hosts loaders can
+	// populate it too. HostDetail's service layer still writes to h.LastMDMCheckedInAt
+	// on the way out.
 	// LastMDMEnrollmentType is the MDM enrollment channel reported by the device,
 	// e.g. "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven
 	// User Enrollment both report the "On (manual - personal)" status, so this is
@@ -1316,11 +1363,34 @@ type HostSummaryPlatform struct {
 	HostsCount uint   `json:"hosts_count" db:"total"`
 }
 
-// Status calculates the online status of the host
+// neverTimestampParsed parses server.NeverTimestamp once so mobileStatus can
+// compare against it as a time.Time. Panics on parse failure so a format
+// drift can't silently degrade to zero-time and false-online every
+// never-checked-in mobile host.
+var neverTimestampParsed = mustParseNeverTimestamp()
+
+func mustParseNeverTimestamp() time.Time {
+	t, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+	if err != nil {
+		panic("fleet: neverTimestampParsed: " + err.Error())
+	}
+	return t
+}
+
+// Status calculates the online status of the host. Must stay in sync with
+// filterHostsByStatus, GenerateHostStatusStatistics, and CountHostsInTargets
+// in server/datastore/mysql for both desktop and mobile predicates.
+//
+// The mobile branch reads LastMDMCheckedInAt; minimal-Host{} callers
+// (live_queries, scripts, calendar_cron) don't populate it, but those paths
+// only apply to osquery-capable hosts so the mobile branch never fires there.
+//
+// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 func (h *Host) Status(now time.Time) HostStatus {
-	// The logic in this function should remain synchronized with
-	// GenerateHostStatusStatistics and CountHostsInTargets - it can't stay in sync for MDM join, since that attribute is not available.
-	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
+	if IsMobilePlatform(h.Platform) {
+		return h.mobileStatus(now)
+	}
+
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
 		onlineInterval = h.DistributedInterval
@@ -1335,6 +1405,38 @@ func (h *Host) Status(now time.Time) HostStatus {
 	default:
 		return StatusOnline
 	}
+}
+
+// mobileStatus is the iOS/iPadOS/Android branch of Status. Takes the freshest
+// of LastMDMCheckedInAt and non-sentinel LabelUpdatedAt against
+// MobileOnlineWindow; no created_at fallback so never-checked-in devices stay
+// offline. SeenTime is skipped: the list loader coalesces hst.seen_time with
+// h.created_at before we see it, which would false-online fresh enrollments.
+// DetailUpdatedAt is skipped for Android because AMAPI stamps it with the
+// device's own status-report time (not when Fleet ingested the Pub/Sub
+// event), so it can lag by delivery latency; LabelUpdatedAt is Fleet-authored
+// on every check-in path (Apple MDM, Android Pub/Sub, osquery labels) and
+// gives a truer "last time we heard from this device" signal.
+//
+// LabelUpdatedAt is NOT gated on enrollment state. The enabled = 1 filter on
+// nesm only screens the MDM signal, so a device that checked out with a fresh
+// label_updated_at still reads online for up to MobileOnlineWindow after.
+// Intentional: the device was genuinely active recently.
+func (h *Host) mobileStatus(now time.Time) HostStatus {
+	var latest time.Time
+	if h.LastMDMCheckedInAt != nil {
+		latest = *h.LastMDMCheckedInAt
+	}
+	if h.LabelUpdatedAt.After(latest) {
+		latest = h.LabelUpdatedAt
+	}
+	if latest.IsZero() {
+		return StatusOffline
+	}
+	if latest.Add(MobileOnlineWindow).After(now) {
+		return StatusOnline
+	}
+	return StatusOffline
 }
 
 func (h *Host) IsNew(now time.Time) bool {
@@ -1401,6 +1503,7 @@ var HostLinuxOSs = []string{
 	"coreos",
 	"cachyos",
 	"omarchy",
+	"amd-ryzen-ai-developer-platform",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1421,15 +1524,16 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
 var HostDebPackageOSs = map[string]struct{}{
-	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
-	"ubuntu":    {},
-	"zorin":     {},
-	"debian":    {},
-	"kali":      {},
-	"pop":       {},
-	"linuxmint": {},
-	"tuxedo":    {},
-	"neon":      {},
+	"linux":                           {}, // let DEBs through if we're looking at a generic Linux host
+	"ubuntu":                          {},
+	"zorin":                           {},
+	"debian":                          {},
+	"kali":                            {},
+	"pop":                             {},
+	"linuxmint":                       {},
+	"tuxedo":                          {},
+	"neon":                            {},
+	"amd-ryzen-ai-developer-platform": {},
 }
 
 // HostRpmPackageOSs are the list of known Linux platforms that support RPM packages
@@ -1462,6 +1566,13 @@ func IsAppleMobilePlatform(hostPlatform string) bool {
 
 func IsAndroidPlatform(hostPlatform string) bool {
 	return hostPlatform == "android"
+}
+
+// IsMobilePlatform reports whether the platform is iOS, iPadOS, or Android.
+// These platforms don't run osquery and have no check-in interval, so status
+// computations must fall back to MDM activity signals instead.
+func IsMobilePlatform(hostPlatform string) bool {
+	return IsAppleMobilePlatform(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 func IsWindowsPlatform(hostPlatform string) bool {
@@ -1895,6 +2006,27 @@ type HostMDMCheckinInfo struct {
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
+}
+
+// HostEscrowState is where a Linux host's LUKS escrow request stands.
+type HostEscrowState struct {
+	// Pending is true while a request is queued and not yet delivered to the agent.
+	Pending bool
+	// SinceLastActivity is how long ago the agent last showed activity on the request (hand-off or
+	// progress report), on the database clock. Nil when no request is in flight.
+	SinceLastActivity *time.Duration
+}
+
+// InFlightRemaining returns how long the request stays in flight if the agent sends nothing
+// further within window, or zero when it is not in flight.
+func (s *HostEscrowState) InFlightRemaining(window time.Duration) time.Duration {
+	if s == nil || s.SinceLastActivity == nil || *s.SinceLastActivity >= window {
+		return 0
+	}
+	if *s.SinceLastActivity < 0 {
+		return window
+	}
+	return window - *s.SinceLastActivity
 }
 
 type HostDiskEncryptionKey struct {

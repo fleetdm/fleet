@@ -179,10 +179,21 @@ type ActivityTypeResetPolicy struct {
 	Name     string  `json:"policy_name"`
 	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
 	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	// HostID and HostDisplayName are set only when the reset was scoped to a single host.
+	HostID          *uint   `json:"host_id,omitempty"`
+	HostDisplayName *string `json:"host_display_name,omitempty"`
 }
 
 func (a ActivityTypeResetPolicy) ActivityName() string {
 	return "reset_policy"
+}
+
+// HostIDs links a host-scoped reset to that host so it shows in the host's activity feed.
+func (a ActivityTypeResetPolicy) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
 }
 
 type ActivityTypeAppliedSpecPolicy struct {
@@ -408,6 +419,7 @@ type ActivityTypeChangedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	Role      string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserGlobalRole) ActivityName() string {
@@ -419,6 +431,7 @@ type ActivityTypeDeletedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	OldRole   string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserGlobalRole) ActivityName() string {
@@ -432,6 +445,7 @@ type ActivityTypeChangedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
@@ -445,6 +459,7 @@ type ActivityTypeDeletedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
@@ -767,6 +782,20 @@ func (a ActivityTypeCreatedManagedLocalAccount) HostIDs() []uint {
 
 func (a ActivityTypeCreatedManagedLocalAccount) WasFromAutomation() bool {
 	return true
+}
+
+// ActivityTypeCreatedDiskEncryptionPIN records that the person at the keyboard set the host's BitLocker startup PIN.
+type ActivityTypeCreatedDiskEncryptionPIN struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCreatedDiskEncryptionPIN) ActivityName() string {
+	return "created_disk_encryption_pin"
+}
+
+func (a ActivityTypeCreatedDiskEncryptionPIN) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 type ActivityTypeViewedManagedLocalAccount struct {
@@ -1163,14 +1192,14 @@ func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool
 	return a.FleetInitiated
 }
 
-// ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
-// to rotate the managed local account password (the device acked the
-// SetAutoAdminPassword command with an error or command-format error). Always
-// attributed to Fleet — the failure is detected at ack time, outside any user
-// context, regardless of who originally initiated the rotation.
+// ActivityTypeFailedToRotateManagedLocalAccountPassword records that the device reported it could not rotate the
+// password. Always attributed to Fleet: the failure arrives from the device outside any user context.
 type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	// Detail is the reason the device reported, when it sent one. Only Windows reports one today: the macOS ack
+	// carries no reason beyond the command status, so the field is absent there rather than filled with a placeholder.
+	Detail string `json:"detail,omitempty"`
 }
 
 func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) ActivityName() string {
@@ -1444,8 +1473,9 @@ func (a ActivityTypeDeletedOrgLogo) ActivityName() string {
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
+// If jit is true, the activities are marked as originating from JIT (just-in-time) SSO provisioning.
 func LogRoleChangeActivities(
-	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User, jit bool,
 ) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
 		if err := svc.NewActivity(
@@ -1456,6 +1486,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				Role:      *user.GlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1470,6 +1501,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				OldRole:   *oldGlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1497,6 +1529,7 @@ func LogRoleChangeActivities(
 				Role:      t.Role,
 				TeamID:    t.ID,
 				TeamName:  t.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1516,6 +1549,7 @@ func LogRoleChangeActivities(
 				Role:      o.Role,
 				TeamID:    o.ID,
 				TeamName:  o.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err

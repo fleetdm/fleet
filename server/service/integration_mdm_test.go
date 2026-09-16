@@ -40,6 +40,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
+
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/docker/go-units"
@@ -950,6 +952,11 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{} // Reset end user auth
 
+	// abm_tokens is truncated below, so the app config entries referencing them
+	// must go too, otherwise the next test's config PATCH fails validation with
+	// "token with organization name X doesn't exist"
+	appCfg.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
+
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
@@ -1072,6 +1079,10 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	})
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_enrollments")
+		return err
+	})
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_seen_times")
 		return err
 	})
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1485,6 +1496,83 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	assert.Equal(t, team.ID, tokensResp.Tokens[0].IOSTeam.ID)
 }
 
+func (s *integrationMDMTestSuite) TestABMTokenDefault() {
+	t := s.T()
+
+	orgA := t.Name() + "-org-a"
+	orgB := t.Name() + "-org-b"
+	s.enableABM(orgA)
+	s.enableABM(orgB)
+
+	tokensResp := listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+	require.Len(t, tokensResp.Tokens, 2)
+	tokA := s.getABMTokenByName(orgA, tokensResp.Tokens)
+	tokB := s.getABMTokenByName(orgB, tokensResp.Tokens)
+
+	// the first token became the default when it was the only one
+	require.True(t, tokA.IsDefault)
+	require.False(t, tokB.IsDefault)
+
+	countDefaults := func() (n int, defaultOrg string) {
+		s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+		for _, tok := range tokensResp.Tokens {
+			if tok.IsDefault {
+				n++
+				defaultOrg = tok.OrganizationName
+			}
+		}
+		return n, defaultOrg
+	}
+	appCfgDefaults := func() map[string]bool {
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		m := make(map[string]bool)
+		for _, e := range acResp.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	// setting B as default moves it off A in one call
+	var setResp setABMTokenDefaultResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": true}`), http.StatusOK, &setResp)
+	require.NotNil(t, setResp.ABMToken)
+	assert.True(t, setResp.ABMToken.IsDefault)
+	n, defaultOrg := countDefaults()
+	assert.Equal(t, 1, n)
+	assert.Equal(t, orgB, defaultOrg)
+	// GET /config mirrors it on B's entry and drops it from A's
+	cfgDefaults := appCfgDefaults()
+	assert.True(t, cfgDefaults[orgB])
+	assert.False(t, cfgDefaults[orgA])
+
+	// unsetting the default clears it everywhere
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+	n, _ = countDefaults()
+	assert.Equal(t, 0, n)
+	cfgDefaults = appCfgDefaults()
+	assert.False(t, cfgDefaults[orgA])
+	assert.False(t, cfgDefaults[orgB])
+
+	// unsetting a non-default token is a no-op
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+
+	// unknown token id
+	s.Do("PATCH", "/api/latest/fleet/ab_tokens/999999/default",
+		json.RawMessage(`{"default": true}`), http.StatusNotFound)
+
+	// omitting "default" is rejected instead of silently clearing the default
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
+}
+
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	t := s.T()
 
@@ -1693,6 +1781,8 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform
 	require.NoError(t, err)
 	require.Equal(t, dbZeroTime, fleetHost.LastEnrolledAt)
 
+	s.createDEPAssignmentForHost(t, fleetHost)
+
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serial, model)
 	mdmDevice.SerialNumber = serial
@@ -1700,6 +1790,19 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform
 	require.NoError(t, err)
 
 	return fleetHost, mdmDevice
+}
+
+// createDEPAssignmentForHost records the host as DEP-assigned to Fleet, as the
+// DEP sync would, so it can enroll through the automatic enrollment endpoint.
+func (s *integrationMDMTestSuite) createDEPAssignmentForHost(t *testing.T, host *fleet.Host) {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `
+			INSERT INTO host_dep_assignments (host_id, hardware_serial)
+			VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE deleted_at = NULL, hardware_serial = VALUES(hardware_serial)`,
+			host.ID, host.HardwareSerial)
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
@@ -3060,17 +3163,18 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName(),
 		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
 
-	// update the key to blank with a client error
+	// Report a client error with no key. The error is recorded and the stored key is kept, because a failure on a host
+	// that is still encrypted arrives when the admin most needs that key.
 	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue) // old key is pulled from the archive
+	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 
 	detailsResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &detailsResp)
-	require.False(t, detailsResp.Host.MDM.EncryptionKeyAvailable)
+	require.True(t, detailsResp.Host.MDM.EncryptionKeyAvailable, "an error report must not take the key away")
 	require.NotNil(t, detailsResp.Host.MDM.EncryptionKeyArchived)
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
 }
@@ -6382,20 +6486,16 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm2.ID, tm2.Name, tm2.ID, tm2.Name), 0)
 
-	// Try with a team that has no relevant ABM tokens
+	// Try with a team that has no relevant ABM tokens. Even with a second, unrelated
+	// token present (so there is no single obvious token to use), validation succeeds
+	// using any token.
 	teamNoABM, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name:        t.Name() + "no_abm",
 		Description: "no abm",
 	})
 	require.NoError(t, err)
-	// Adding another, unrelated token to the DB means that this team (which has no hosts and is not
-	// a default team for any token) will not have any relevant tokens and thus we don't know which
-	// token to use to hit the Apple APIs.
 	otherOrg := t.Name() + "some_other_org"
 	s.enableABM(otherOrg)
-	// mysqltest.CreateABMKeyCertIfNotExists(t, s.ds)
-	// mysqltest.CreateAndSetABMToken(t, s.ds, "nurv")
-	// err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
 	s.mockDEPResponse(otherOrg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
@@ -6409,12 +6509,40 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		}
 	}))
 	require.NoError(t, err)
-	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+	var noABMResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &teamNoABM.ID,
 		Name:              "profile_name_missing",
 		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm")),
+	}, http.StatusOK, &noABMResp)
+
+	// With every token invalid or terms-expired, adding a setup assistant fails with
+	// an actionable message instead of a cryptic Apple error.
+	allToks, err := s.ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range allToks {
+		_, err = s.ds.SetABMTokenTermsExpiredForOrgName(ctx, tok.OrganizationName, true)
+		require.NoError(t, err)
+	}
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamNoABM.ID,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_usable_tokens")),
 	}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+	require.Contains(t, extractServerErrorText(r.Body), "All Apple Business Manager (ABM) tokens are invalid or have expired terms")
+
+	// With no ABM token at all, adding a setup assistant is rejected with a clear message.
+	allToks, err = s.ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range allToks {
+		require.NoError(t, s.ds.DeleteABMToken(ctx, tok.ID))
+	}
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamNoABM.ID,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm_at_all")),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "No Apple Business Manager (ABM) token found")
 }
 
 // only asserts the profile identifier, status and operation (per host)
@@ -9447,7 +9575,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -10952,10 +11080,12 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		ClientError:  "fail",
 	}, http.StatusNoContent)
 
+	// The error is recorded, but the stored key and its decryptable flag are kept.
 	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	require.NoError(t, err)
-	require.Nil(t, hdek.Decryptable)
-	require.Empty(t, hdek.Base64Encrypted)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+	require.NotEmpty(t, hdek.Base64Encrypted)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request
@@ -16781,8 +16911,9 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	})
 	require.NoError(t, err)
 
+	s.createDEPAssignmentForHost(t, host)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial:                 uuid.New().String(),
+		Serial:                 host.HardwareSerial,
 		UDID:                   host.UUID,
 		Product:                "Mac13,1",
 		SoftwareUpdateDeviceID: "bogus-update-id",
@@ -17033,7 +17164,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpUUID(uuid.New().String()),
+				mdmtest.WithOTAIdpSession(s.mustBYODIdPSession(t, uuid.New().String())),
 			)
 			err := mdmDevice.Enroll()
 			require.Error(t, err)
@@ -17127,7 +17258,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 		})
 
-		t.Run("ota enrollment if idp_uuid is not set does not associate host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment without an idp session does not associate host with idp account", func(t *testing.T) {
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
@@ -17145,7 +17276,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Nil(t, account) // We do not fail but return nil for both if not found, and we do not expect an entry here.
 		})
 
-		t.Run("ota enrollment if idp_uuid is set associates host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment with an idp session associates host with idp account", func(t *testing.T) {
 			idpEmail := "test@example.com"
 			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
 				Username: "test",
@@ -17154,13 +17285,14 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.NoError(t, err)
 			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
 			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
 
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpUUID(idpAccount.UUID),
+				mdmtest.WithOTAIdpSession(sessionID),
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
@@ -17169,6 +17301,52 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
+
+			// the session is single-use: enrolling burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
+			// a second device presenting the same session enrolls without an account
+			secondDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			require.NoError(t, secondDevice.Enroll())
+			s.awaitRunAppleMDMWorkerSchedule()
+			resp = verifySuccessfulOTAEnrollment(secondDevice, hwModel, "darwin", enrollTime)
+			hostToIdpMap, err := s.ds.GetMDMIdPAccountsByHostUUIDs(context.Background(), []string{resp.Host.UUID})
+			require.NoError(t, err)
+			require.Nil(t, hostToIdpMap[resp.Host.UUID])
+		})
+
+		t.Run("ota enrollment with a used idp session is refused where authentication is required", func(t *testing.T) {
+			idpEmail := "used@example.com"
+			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
+				Username: "used",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
+			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
+			require.NoError(t, shared_mdm.ConsumeBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID))
+
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret_used_session"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				teamSecret,
+				"MacBookPro16,1",
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			err = mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "403 Forbidden")
 		})
 	})
 }
@@ -22358,20 +22536,24 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, "/enroll")) // expect to be redirect from /enroll page for BYOD
 
-	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
-	// still redirects to the SSO login if the cookie value does not match the
-	// enrollment reference query string.
+	var byodSession string
+	for _, c := range res.Cookies() {
+		if c.Name == shared_mdm.BYODIdpCookieName {
+			byodSession = c.Value
+		}
+	}
+	require.NotEmpty(t, byodSession)
+
+	// a cookie that merely matches the enrollment reference in the query string
+	// is not an authenticated session and still redirects to the SSO login.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusSeeOther,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "not_matching!")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
 	location = res.Header.Get("Location")
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, testSAMLIDPBaseURL+"/simplesaml/"))
 
-	// requesting the /enroll page again and simulating the BYOD IdP cookie being
-	// set renders the download profile page when there is a matching enrollment
-	// reference.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusOK,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=" + byodSession}, "enroll_secret", "idp")
 	page, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(page), "How to enroll your Android device to Fleet")
@@ -22425,8 +22607,17 @@ func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
 	// The callback should redirect back to the /enroll page (not to ?error=true).
 	require.True(t, strings.HasPrefix(u.Path, "/enroll"), "expected redirect to /enroll, got: %s", location)
 	require.Empty(t, u.Query().Get("error"), "expected no error in redirect, got: %s", location)
-	require.NotEmpty(t, u.Query().Get("enrollment_reference"), "expected enrollment_reference in redirect")
+	require.Empty(t, u.Query().Get("enrollment_reference"), "expected no enrollment_reference in redirect, got: %s", location)
 	require.Equal(t, fleet.SSOInitiatorOTAEnroll, u.Query().Get("initiator"))
+	var byodCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == shared_mdm.BYODIdpCookieName {
+			byodCookie = c
+		}
+	}
+	require.NotNil(t, byodCookie, "expected BYOD IdP session cookie")
+	require.NotEmpty(t, byodCookie.Value)
+	require.Equal(t, int(shared_mdm.BYODIdPSessionTTL.Seconds()), byodCookie.MaxAge)
 }
 
 func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
@@ -24796,11 +24987,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host from a team the technician does not manage to
-	// a team they do manage (no team -> t1), should fail.
+	// a team they do manage (no team -> t1), should fail. The technician can't
+	// read the "No team" host, so it's reported as not found rather than
+	// forbidden to avoid confirming its existence.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &t1.ID,
 		HostIDs: []uint{globalHost.ID},
-	}, http.StatusForbidden, &addHostsToTeamResponse{})
+	}, http.StatusNotFound, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host out of a team the technician manages to
 	// "No team" (a team they do not manage), should fail.
@@ -26783,8 +26976,12 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 			return err
 		})
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1, ?)`,
-				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID, time.Now())
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1)`,
+				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?)`, host.UUID, time.Now())
 			return err
 		})
 		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "Fleet", "", false))
@@ -28419,6 +28616,67 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
 }
 
+// TestAndroidCustomCommandRejectedOnPersonallyOwnedHost covers the symptom reported in #53151: REBOOT on a BYOD work
+// profile used to return 200 and record a "ran REBOOT" activity because AMAPI reports the operation as done with no
+// error while the device ignores it. The command must now be refused outright, so no activity claims it ran.
+func (s *integrationMDMTestSuite) TestAndroidCustomCommandRejectedOnPersonallyOwnedHost() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	enterprise := android.Enterprise{ID: enterpriseID, EnterpriseID: "byod-cmd-fake"}
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  enterprise,
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	var issueCalls atomic.Int32
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		return &androidmanagement.Operation{Name: fmt.Sprintf("%s/operations/byod-op-%d", deviceName, issueCalls.Add(1))}, nil
+	}
+
+	byodHostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byodHostID), nil, http.StatusOK, &hostResp)
+	hostUUID := hostResp.Host.UUID
+	require.True(t, hostResp.Host.MDM.IsPersonalEnrollment)
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	res := s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body),
+		"REBOOT is not supported for personally-owned Android hosts.")
+
+	// Nothing reached AMAPI, so nothing can come back acknowledged.
+	require.Zero(t, issueCalls.Load())
+
+	// No command row, so the command does not show up as pending or ran for this host.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s", hostUUID), nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Results)
+
+	// The reported symptom: no activity may claim the command ran. Asserting the newest activity is unchanged
+	// also catches an activity written before the command is issued.
+	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0))
+
+	// A command type AMAPI does support on a work profile is still issued, so the check is not over-broad.
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"CLEAR_APP_DATA","clearAppsDataParams":{"packageNames":["com.example.app"]}}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusOK, &runResp)
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, int32(1), issueCalls.Load())
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), "", 0)
+}
+
 // fileVaultStatusHelpers returns helpers to drive the host's FileVault profile
 // status and assert the derived disk encryption status through the API.
 func (s *integrationMDMTestSuite) fileVaultStatusHelpers(ctx context.Context, host *fleet.Host) (
@@ -28521,7 +28779,8 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 }
 
 // Escrow without enforcement: status follows the escrowed key, not the disk
-// state — action required (rotate key) → verifying → verified.
+// state — action required (turn on encryption while the disk is off, rotate
+// key once it is on) → verifying → verified.
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 	t := s.T()
 	ctx := context.Background()
@@ -28542,13 +28801,20 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 
 	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
 	rotateKey := fleet.ActionRequiredRotateKey
+	turnOnEncryption := fleet.ActionRequiredTurnOnEncryption
 
 	setProfileStatus(fleet.MDMDeliveryPending)
 	checkHost(fleet.DiskEncryptionEnforcing, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
 
-	// profile installed, disk encrypted by a third party, no key escrowed yet
+	// profile installed, nothing enforces FileVault and the disk is still off
 	setProfileStatus(fleet.MDMDeliveryVerified)
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &turnOnEncryption)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// disk encrypted by a third party, no key escrowed yet
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
 	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
@@ -28626,4 +28892,164 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
 	checkHost(fleet.DiskEncryptionVerified, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}
+
+// mustBYODIdPSession mints the session the IdP callback would have, so a test can
+// present a valid BYOD cookie without driving the SAML flow.
+func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUID string) string {
+	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, idpAccountUUID)
+	require.NoError(t, err)
+	return sessionID
+}
+
+// TestBitLockerPINHandoff drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to
+// collect it on its next config poll, collects it exactly once, reports success, and the host comes out the other side
+// with its PIN recorded, an activity written, and the notification gone.
+func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
+	t := s.T()
+	ctx := t.Context()
+
+	// The Windows enrollment row is what carries both the capability and the pending flag.
+	host, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	deviceToken := "bitlocker-pin-handoff-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceToken))
+
+	// Require a PIN, then put the host in the one state where only the end user can act: encrypted, key escrowed and
+	// decryptable, protection on, and no PIN yet.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "enable_disk_encryption": true, "windows_require_bitlocker_pin": true } }`),
+		http.StatusOK, &acResp)
+	protectionOn := fleet.BitLockerProtectionStatusOn
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, &protectionOn))
+	_, err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", new(true))
+	require.NoError(t, err)
+	// The volume has a TPM protector but no PIN, the only state in which Windows offers PIN setup.
+	require.NoError(t, s.ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, false))
+
+	orbitConfig := func(caps string) fleet.OrbitGetConfigResponse {
+		headers := map[string]string{}
+		if caps != "" {
+			headers[fleet.CapabilitiesHeader] = caps
+		}
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, headers)
+		var resp fleet.OrbitGetConfigResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+	deviceHost := func() getDeviceHostResponse {
+		var resp getDeviceHostResponse
+		s.DoJSON("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK, &resp)
+		return resp
+	}
+	submitPIN := func(pin string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{"pin": pin})
+		require.NoError(t, err)
+		s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin", json.RawMessage(body), wantStatus)
+	}
+	collectPIN := func(wantStatus int) fleet.OrbitGetDiskEncryptionPINDetailsResponse {
+		var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+		s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), wantStatus, &resp)
+		return resp
+	}
+	reportOutcome := func(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{
+			"orbit_node_key": *host.OrbitNodeKey, "request_uuid": requestUUID, "outcome": string(outcome), "client_error": clientError,
+		})
+		require.NoError(t, err)
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result", json.RawMessage(body), wantStatus)
+	}
+
+	// An agent that has not advertised the capability is treated as unable to apply a PIN, so the page keeps the old
+	// instructions modal and a submission is refused.
+	orbitConfig("")
+	resp := deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredCreatePIN, *resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	require.False(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	submitPIN("123456", http.StatusBadRequest)
+
+	// The agent advertises that it can apply a PIN; the server persists that on the enrollment row.
+	caps := fleet.CapabilityMap{fleet.CapabilityWindowsBitLockerPIN: struct{}{}}
+	capsHeader := caps.String()
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	require.True(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+
+	// A PIN that Windows would reject is refused with a validation error before anything is stored.
+	submitPIN("12ab", http.StatusUnprocessableEntity)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// The end user submits a valid PIN, and the agent's next poll is told to collect it.
+	submitPIN("123456", http.StatusNoContent)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestPending, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// Collecting returns the PIN in the clear, exactly once.
+	pinResp := collectPIN(http.StatusOK)
+	require.Equal(t, "123456", pinResp.PIN)
+	firstRequestUUID := pinResp.RequestUUID
+
+	// An outcome that names no collected submission is refused.
+	reportOutcome("not-a-real-request", fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+
+	// A replayed collect gets nothing, and the notification is already gone.
+	collectPIN(http.StatusNotFound)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// A failure is reported back to the waiting page.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestFailed, "PIN already set", http.StatusNoContent)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestFailed, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.Equal(t, "PIN already set", resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Error)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+
+	// The end user retries with an enhanced PIN, the agent collects it, and this time it works.
+	submitPIN(`Fl"eet 2026!`, http.StatusNoContent)
+	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+	pinResp = collectPIN(http.StatusOK)
+	require.Equal(t, `Fl"eet 2026!`, pinResp.PIN)
+	require.NotEqual(t, firstRequestUUID, pinResp.RequestUUID, "each submission gets its own id")
+
+	// A late outcome for the superseded submission must not be recorded against this one.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+	reportOutcome(pinResp.RequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNoContent)
+
+	// The PIN is recorded, so the end user's banner clears without them pressing Refetch.
+	resp = deviceHost()
+	require.Nil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestSet, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// Success asks the host to refetch so osquery confirms the protector list, and is recorded for the admin with no
+	// actor, because the end user chose the PIN rather than Fleet applying one of its own.
+	refetched, err := s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, refetched.RefetchRequested)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedDiskEncryptionPIN{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()),
+		0,
+	)
+
+	// The PIN fields are Windows-only.
+	macHost := createOrbitEnrolledHost(t, "darwin", t.Name()+"-mac", s.ds)
+	macToken := "bitlocker-pin-handoff-mac-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, macHost.ID, macToken))
+	macRes := s.DoRaw("GET", "/api/latest/fleet/device/"+macToken, nil, http.StatusOK)
+	macBody, err := io.ReadAll(macRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, macRes.Body.Close())
+	require.Contains(t, string(macBody), `"os_settings"`, "precondition: os_settings is present, so the checks below mean something")
+	require.NotContains(t, string(macBody), "fleetd_can_set_pin")
+	require.NotContains(t, string(macBody), "pin_request")
 }

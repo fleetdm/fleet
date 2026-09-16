@@ -1,17 +1,18 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { snakeCase, reduce } from "lodash";
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
-import { QueryablePlatform } from "interfaces/platform";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =

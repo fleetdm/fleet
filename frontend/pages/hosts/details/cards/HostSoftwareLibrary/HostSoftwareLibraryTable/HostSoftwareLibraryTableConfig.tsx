@@ -2,6 +2,12 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   IHostSoftwareWithUiStatus,
   IHostAppStoreApp,
@@ -9,21 +15,14 @@ import {
   IVPPHostSoftware,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
+import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
-import HostInstallerActionCell from "../HostInstallerActionCell";
-import InstallStatusCell from "../../Software/InstallStatusCell";
 import { installStatusSortType } from "../../Software/helpers";
+import InstallStatusCell from "../../Software/InstallStatusCell";
+import HostInstallerActionCell from "../HostInstallerActionCell";
 
 type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
@@ -102,6 +101,9 @@ export const generateHostSWLibraryTableHeaders = ({
           icon_url,
           app_store_app,
           software_package,
+          auto_update_enabled,
+          auto_update_window_start,
+          auto_update_window_end,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -134,6 +136,10 @@ export const generateHostSWLibraryTableHeaders = ({
             pageContext="hostDetailsLibrary"
             isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!app_store_app}
+            autoUpdateEnabled={auto_update_enabled}
+            autoUpdateWindowStart={auto_update_window_start}
+            autoUpdateWindowEnd={auto_update_window_end}
           />
         );
       },

@@ -1,7 +1,8 @@
-import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import CommandPalette from "./CommandPalette";
 

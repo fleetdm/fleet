@@ -11,25 +11,20 @@ import React, {
 } from "react";
 import { SingleValue } from "react-select-5";
 
-import { AppContext } from "context/app";
-import { IConfig } from "interfaces/config";
-import { IPolicy } from "interfaces/policy";
-import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
-import { QueryablePlatform } from "interfaces/platform";
-import { ProfilePlatform } from "interfaces/mdm";
-
-import permissions from "utilities/permissions";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
-
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IConfig } from "interfaces/config";
+import { ProfilePlatform } from "interfaces/mdm";
+import { QueryablePlatform } from "interfaces/platform";
+import { IPolicy } from "interfaces/policy";
+import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
 import {
   findFirstAddedPackage,
   generateSoftwareOptionHelpText,
@@ -37,18 +32,19 @@ import {
   getTicketOrWebhookInfo,
   getTicketOrWebhookLabel,
 } from "pages/policies/helpers";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-import { PatchOption } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
-
 import { IPolicyAutomationUpdate } from "pages/policies/hooks";
+import { PatchOption } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import permissions from "utilities/permissions";
 
-import { IAutomationCheckboxRow } from "./types";
-import { useProfiles, useScripts, useSoftwareTitles } from "./hooks";
 import {
   filterValidProfiles,
   rewriteProfilePlatform,
   VALID_PROFILE_PLATFORMS,
 } from "./helpers";
+import { useProfiles, useScripts, useSoftwareTitles } from "./hooks";
+import { IAutomationCheckboxRow } from "./types";
 
 const baseClass = "policy-automations-fields";
 
@@ -514,6 +510,7 @@ const PolicyAutomationsFields = forwardRef<
               <div className={`${baseClass}__software-pickers`}>
                 <DropdownWrapper
                   name="software-title"
+                  isSearchable
                   className={`${baseClass}__row-picker`}
                   isDisabled={gitOpsModeEnabled}
                   value={
@@ -564,6 +561,7 @@ const PolicyAutomationsFields = forwardRef<
           picker: runScript ? (
             <DropdownWrapper
               name="script"
+              isSearchable
               className={`${baseClass}__row-picker`}
               isDisabled={gitOpsModeEnabled}
               value={
@@ -594,6 +592,7 @@ const PolicyAutomationsFields = forwardRef<
           picker: resendConfigProfile ? (
             <DropdownWrapper
               name="profile"
+              isSearchable
               className={`${baseClass}__row-picker`}
               isDisabled={gitOpsModeEnabled}
               value={

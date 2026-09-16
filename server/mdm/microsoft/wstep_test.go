@@ -7,9 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -18,6 +20,7 @@ import (
 	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
@@ -466,4 +469,48 @@ func TestGetAzureAuthTokenClaims(t *testing.T) {
 		_, err = m.GetAzureAuthTokenClaims(ctx, tampered)
 		require.Error(t, err)
 	})
+}
+
+func TestPopulateClientCertValidityAndNotBefore(t *testing.T) {
+	issuerCert, err := cryptoutil.DecodePEMCertificate(testCert)
+	require.NoError(t, err)
+
+	sn := big.NewInt(12345)
+	subject := "test-device-uuid"
+	csr := &x509.CertificateRequest{
+		Version: 1,
+	}
+
+	beforeCall := time.Now()
+	cert, err := populateClientCert(sn, subject, issuerCert, csr)
+	afterCall := time.Now()
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	// NotBefore is backdated only by the clock-skew allowance, not by the 180-day renewal period (#52601)
+	expectedNotBeforeMin := beforeCall.Add(-clientCertClockSkewAllowance - 5*time.Second)
+	expectedNotBeforeMax := afterCall.Add(-clientCertClockSkewAllowance + 5*time.Second)
+	require.True(t, cert.NotBefore.After(expectedNotBeforeMin) && cert.NotBefore.Before(expectedNotBeforeMax),
+		"NotBefore should be ~%v in the past (clock-skew), got %v", clientCertClockSkewAllowance, cert.NotBefore)
+	require.Equal(t, 24*time.Hour, clientCertClockSkewAllowance, "clock-skew allowance must remain one day")
+
+	// NotAfter should be derived from syncml.PolicyCertValidityPeriodInSecs
+	validitySecs, err := strconv.ParseInt(syncml.PolicyCertValidityPeriodInSecs, 10, 64)
+	require.NoError(t, err)
+	expectedValidity := time.Duration(validitySecs) * time.Second
+
+	expectedNotAfterMin := beforeCall.Add(expectedValidity - 5*time.Second)
+	expectedNotAfterMax := afterCall.Add(expectedValidity + 5*time.Second)
+	require.True(t, cert.NotAfter.After(expectedNotAfterMin) && cert.NotAfter.Before(expectedNotAfterMax),
+		"NotAfter should match PolicyCertValidityPeriodInSecs from now, got %v", cert.NotAfter)
+
+	// The effective remaining validity from issuance time must closely track PolicyCertValidityPeriodInSecs
+	validityFromNow := time.Until(cert.NotAfter)
+	require.Greater(t, validityFromNow, expectedValidity-24*time.Hour, "validity must match policy period, not halved by renewal backdating")
+
+	// Verify WstepCertRenewalPeriodInDays matches PolicyCertRenewalPeriodInSecs converted to days
+	renewalSecs, err := strconv.ParseInt(syncml.PolicyCertRenewalPeriodInSecs, 10, 64)
+	require.NoError(t, err)
+	expectedRenewalDays := fmt.Sprintf("%d", renewalSecs/(24*60*60))
+	require.Equal(t, expectedRenewalDays, syncml.WstepCertRenewalPeriodInDays)
 }

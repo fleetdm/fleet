@@ -130,6 +130,9 @@ Anti-pattern:
 <span className={`${baseClass}__row-name`}>{item.name}</span>
 ```
 
+## Tooltips
+Arrowless `TooltipWrapper` is `bottom-start` with left-aligned bubble text. Only override `position` or `text-align` when the anchor uses `showArrow` (pointed callout).
+
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)

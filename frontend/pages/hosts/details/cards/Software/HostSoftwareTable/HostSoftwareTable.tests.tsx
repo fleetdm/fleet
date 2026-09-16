@@ -1,14 +1,15 @@
-import React from "react";
 import { screen, fireEvent } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { noop } from "lodash";
-import { HostPlatform } from "interfaces/platform";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import {
   createMockGetHostSoftwareResponse,
   createMockHostSoftware,
 } from "__mocks__/hostMock";
+import createMockUser from "__mocks__/userMock";
+import { HostPlatform } from "interfaces/platform";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import HostSoftwareTable from "./HostSoftwareTable";
 
 const mockRouter = createMockRouter();

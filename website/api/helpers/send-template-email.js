@@ -118,6 +118,12 @@ module.exports = {
       defaultsTo: [],
     },
 
+    categories: {
+      description: 'The SendGrid categories this email belongs to',
+      example: ['marketing-emails'],
+      type: ['string'],
+    }
+
   },
 
 
@@ -134,7 +140,7 @@ module.exports = {
   },
 
 
-  fn: async function({template, templateData, to, toName, subject, from, fromName, layout, replyTo, ensureAck, bcc, attachments}) {
+  fn: async function({template, templateData, to, toName, subject, from, fromName, layout, replyTo, ensureAck, bcc, attachments, categories}) {
 
     var path = require('path');
     var url = require('url');
@@ -260,10 +266,84 @@ module.exports = {
         from: from,
         fromName: fromName,
         replyTo: replyTo,
-        attachments
+        attachments,
+        categories,
       };
+      // Note: this is a lightly modified inline version of sails.helpers.sendgrid.sendHtmlEmail helper, with support added for categories.
+      var deferred = sails.helpers.flow.build(async ()=>{
+        var personalization = {
+          subject: messageData.subject,
+          to: [
+            { email: messageData.to, name: messageData.toName }
+          ],
+        };
+        if(messageData.bcc && messageData.bcc.length > 0) {
+          _.extend(personalization, {
+            bcc: bcc.map((emailAddress)=>{
+              return {email: emailAddress};
+            })
+          });
+        }
 
-      var deferred = sails.helpers.sendgrid.sendHtmlEmail.with(messageData);
+        let replyToAddress;
+        if(messageData.replyTo){ // [?]: https://www.twilio.com/docs/sendgrid/api-reference/mail-send/mail-send#request-body
+          if(!messageData.replyTo.name){
+            throw new Error('Usage error! When specifying a replyTo address, a "name" is required ex: { name: \'Anne M. Martin\', emailAddress: \'anne.m.martin@example.com\' }');
+          }
+          if(!messageData.replyTo.emailAddress){
+            throw new Error('Usage error! When specifying a replyTo address, an "emailAddress" is required ex: { emailAddress: \'anne.m.martin@example.com\', name: \'Anne M. Martin\'}');
+          }
+          replyToAddress = {
+            name: messageData.replyTo.name,
+            email: messageData.replyTo.emailAddress
+          };
+        }
+        let uniqueCategories;
+        if(messageData.categories && messageData.categories.length > 0){
+          uniqueCategories = _.uniq(messageData.categories);
+        }
+
+        var formattedAttachments;
+        if(messageData.attachments && messageData.attachments.length > 0) {
+          formattedAttachments = messageData.attachments.map((attachmentData)=>{
+            return {
+              content: attachmentData.contentBytes,
+              filename: attachmentData.name,
+              type: attachmentData.type,
+            };
+          });
+        }
+
+        var data = {
+          from: {
+            email: messageData.from,
+            name: messageData.fromName
+          },
+          reply_to: replyToAddress,// eslint-disable-line camelcase
+          personalizations: [personalization],
+          attachments: formattedAttachments,
+          categories: uniqueCategories,
+          content: [{
+            type: 'text/html',
+            value: messageData.htmlMessage
+          }]
+        };
+
+
+        var response = await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
+          url: `/mail/send`,
+          baseUrl: `https://api.sendgrid.com/v3`,
+          body: data,
+          enctype: 'application/json',
+          headers: {
+            'Authorization': `Bearer ${sails.config.custom.sendgridSecret}`
+          }
+        });
+
+        var messageId = response.headers['x-message-id'];
+        return messageId;
+      });
       if (ensureAck) {
         await deferred;
       } else {

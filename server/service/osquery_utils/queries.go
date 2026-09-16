@@ -1247,19 +1247,30 @@ var scheduledQueryStats = DetailQuery{
 	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
+// softwareLinuxPacman splits pacman's "[epoch:]pkgver-pkgrel" version the way
+// rpm_packages already arrives: the epoch is dropped and pkgrel goes in release,
+// so version holds the upstream version the NVD knows about. pkgver can contain
+// neither ':' nor '-', so the first of each is the separator.
 var softwareLinuxPacman = DetailQuery{
 	Query: `
+WITH packages AS (
+  SELECT
+    name,
+    arch,
+    CASE WHEN instr(version, ':') > 0 THEN substr(version, instr(version, ':') + 1) ELSE version END AS version_release
+  FROM fleetd_pacman_packages
+)
 SELECT
   name AS name,
-  version AS version,
+  CASE WHEN instr(version_release, '-') > 0 THEN substr(version_release, 1, instr(version_release, '-') - 1) ELSE version_release END AS version,
   '' AS extension_id,
   '' AS extension_for,
   'pacman_packages' AS source,
-  '' AS release,
+  CASE WHEN instr(version_release, '-') > 0 THEN substr(version_release, instr(version_release, '-') + 1) ELSE '' END AS release,
   '' AS vendor,
   arch AS arch,
   '' AS installed_path
-FROM fleetd_pacman_packages`,
+FROM packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
@@ -2432,7 +2443,12 @@ var (
 	// dotted-numeric run so a future build metadata suffix (e.g.
 	// "v2.0.11.1-beta") doesn't end up in the ingested version, which
 	// version_compare can't order.
-	rpiImagerVersion   = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
+	rpiImagerVersion = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
+	// rAppVersionFormat extracts the R version from R.app's
+	// CFBundleShortVersionString. The "R" name is duplicated in some builds
+	// and not others, e.g. "R 4.5.1 GUI 1.82 High Sierra build" -> "4.5.1" and
+	// "R R 4.6.1 GUI 1.83 High Sierra build" -> "4.6.1".
+	rAppVersionFormat  = regexp.MustCompile(`^R (?:R )?(\d+(?:\.\d+)+) GUI`)
 	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
@@ -2538,6 +2554,14 @@ var (
 			matchBundleIdentifier: "com.raspberrypi.rpi-imager",
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if versionMatches := rpiImagerVersion.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "org.R-project.R",
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if versionMatches := rAppVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
 					s.Version = versionMatches[1]
 				}
 			},
@@ -3591,6 +3615,20 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
+// bitLockerPresent matches a host where BitLocker can be used at all: it is either built in, and so never appears as
+// an optional feature, or it appears and is enabled. Every BitLocker discovery clause starts from this. osquery enumerates
+// all of Win32_OptionalFeature, which has one row per name, each time the table is referenced, so it is referenced once.
+const bitLockerPresent = `NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state IS NOT 1)`
+
+// bitLockerPresentDiscovery is the complete discovery clause for a query whose only precondition is that BitLocker is
+// usable on the host.
+var bitLockerPresentDiscovery = fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				%s
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent)
+
 // bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
 var bitlockerPolicyQueries = map[string]DetailQuery{
 	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
@@ -3600,19 +3638,17 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
-		// - And the volume is fully encrypted with protection off, the only state this repairs.
-		Discovery: `
+		// - And the volume is fully encrypted, whether or not protection is currently on.
+		Discovery: fmt.Sprintf(`
 			WITH should_run(yes) AS (
 			SELECT
-				(
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,4,5,6))
-				-- Volume is encrypted with protection off
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 0 AND conversion_status = 1)
+				%s
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
+				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
+				-- Volume is fully encrypted.
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
 			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
 		DirectIngestFunc: func(
 			ctx context.Context,
@@ -3655,27 +3691,58 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
 		},
 	},
+	// Protectors can be deleted while BitLocker protection stays on. This also records whether a startup PIN is set, which
+	// only matters where a PIN is required but is read from the same table. bitlocker_key_protectors runs PowerShell on every
+	// scan, so both answers come from a single aggregate scan rather than one EXISTS per column.
+	"bitlocker_key_protectors_verify": {
+		Platforms: []string{"windows"},
+		Discovery: bitLockerPresentDiscovery,
+		Query: `
+			SELECT
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
+				COALESCE(MAX(key_protector_type IN (1,2,4,5,6)), 0) AS boot_protector_set,
+				-- 4: TPM And PIN. 6: TPM And PIN And Startup key.
+				COALESCE(MAX(key_protector_type IN (4,6)), 0) AS tpm_pin_set
+			FROM bitlocker_key_protectors
+			WHERE drive_letter = 'C:'`,
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger *slog.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_key_protectors_verify")
+				return nil
+			}
+			// Anything other than the single expected row means the answer is unknown. Leave the columns alone: a NULL boot
+			// protector already reads as "nothing to act on" everywhere downstream.
+			if len(rows) != 1 {
+				logger.DebugContext(ctx, "Ingestion not run, unexpected row count",
+					"query", "bitlocker_key_protectors_verify", "rows", len(rows))
+				return nil
+			}
+			return ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID,
+				rows[0]["boot_protector_set"] == "1", rows[0]["tpm_pin_set"] == "1")
+		},
+	},
 }
 
 var tpmPINQueries = map[string]DetailQuery{
-	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host has the proper
-	// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
-	// configuration is enforced via an MDM command.
+	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host's BitLocker policies allow
+	// the PIN Fleet's flow sets: a TPM PIN protector, enhanced PIN characters, the minimum PIN length Fleet validates, and
+	// standard users changing their own PIN. If any is off, one MDM command sets all of them.
 	"tpm_pin_config_verify": {
 		Platforms: []string{"windows"},
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And a TPM PIN is not yet set.
 		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-		Discovery: `
+		Discovery: fmt.Sprintf(`
 			WITH should_run(yes) AS (
 			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
+				%s
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
@@ -3683,8 +3750,9 @@ var tpmPINQueries = map[string]DetailQuery{
 				-- Volume is encrypted
 				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
 			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
-		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+		// Every value under the policy key, matched by name in Go because registry value names are case-insensitive.
+		Query: "SELECT name, data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE'",
 		DirectIngestFunc: func(
 			ctx context.Context,
 			logger *slog.Logger,
@@ -3697,24 +3765,30 @@ var tpmPINQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if len(rows) > 1 {
-				return ctxerr.Errorf(
-					ctx,
-					"tpm_pin_config_verify query: invalid number of rows: %d", len(rows),
-				)
+			values := make(map[string]string, len(rows))
+			for _, row := range rows {
+				values[strings.ToLower(row["name"])] = strings.TrimSpace(row["data"])
 			}
+			useTPMPIN := values["usetpmpin"]
+			minimumPIN, minimumPINSet := values["minimumpin"]
+			disallowPINChange, disallowPINChangeSet := values["disallowstandarduserpinreset"]
 
-			// If no results are returned, then the policy setting is in a 'Not Configured' state.
-			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
-			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+			// Only a required or optional UseTPMPIN permits a PIN protector. An unset UseEnhancedPin does not permit enhanced characters. An
+			// unset MinimumPIN or DisallowStandardUserPINReset is Windows' default, which is already what Fleet wants.
+			if (useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired) &&
+				useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)) ||
+				values["useenhancedpin"] != "1" ||
+				(minimumPINSet && minimumPIN != strconv.Itoa(microsoft_mdm.BitLockerPINMinLength)) ||
+				(disallowPINChangeSet && disallowPINChange != "0") {
 				logger.InfoContext(ctx, "Updating TPM PIN protector configuration via MDM",
 					"query", "tpm_pin_config_verify",
 					"host_id", host.ID)
 				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
 					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
-						CmdUUID:      uuid.NewString(),
-						Enabled:      true,
-						ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+						CmdUUID:              uuid.NewString(),
+						Enabled:              true,
+						ConfigurePIN:         new(uint(microsoft_mdm.PolicyOptDropdownOptional)),
+						ConfigurePINPolicies: true,
 					},
 				)
 				if err != nil {
@@ -3725,48 +3799,9 @@ var tpmPINQueries = map[string]DetailQuery{
 			return nil
 		},
 	},
-	"tpm_pin_set_verify": {
-		Platforms: []string{"windows"},
-		// We only want to run this query iff:
-		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
-		Discovery: `
-			WITH should_run(yes) AS (
-			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
-		Query: `
-			SELECT EXISTS(
-				SELECT 1
-				FROM bitlocker_key_protectors
-				-- 4: TPM And PIN.
-				-- 6: TPM And PIN And Startup key.
-				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
-				LIMIT 1
-			) AS criteria
-			WHERE criteria = 1`,
-		DirectIngestFunc: func(
-			ctx context.Context,
-			logger *slog.Logger,
-			host *fleet.Host,
-			ds fleet.Datastore,
-			rows []map[string]string,
-		) error {
-			if host == nil || host.UUID == "" {
-				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "tpm_pin_set_verify")
-				return nil
-			}
-			return ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, len(rows) > 0)
-		},
-	},
 }
 
-//go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Contributing/host-vitals/understanding-host-vitals.md"
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool
