@@ -4264,9 +4264,11 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 	}
 
-	// Track rows added and rejections per query for batched Redis updates after the loop.
+	// Track rows added, rejections and newly admitted hosts per query for batched Redis
+	// updates after the loop.
 	rowsAddedByQuery := make(map[uint]int)
 	clippedTTLByQuery := make(map[uint]time.Duration)
+	var admittedQueryIDs []uint
 
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
@@ -4295,17 +4297,18 @@ func (svc *Service) saveResultLogsToQueryReports(
 		// for hosts already in it.
 		currentCount := queryResultCounts[dbQuery.ID]
 
-		rowsAdded, rejected, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
+		res, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
-		if rejected {
+		switch {
+		case res.Rejected:
 			clippedTTLByQuery[dbQuery.ID] = queryReportClippedTTL(dbQuery)
+		case res.NewHost:
+			admittedQueryIDs = append(admittedQueryIDs, dbQuery.ID)
 		}
-
-		// Track rows added for batched Redis increment
-		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+		rowsAddedByQuery[dbQuery.ID] += res.RowsAdded
 	}
 
 	// Batch increment Redis counters after all successful inserts
@@ -4321,6 +4324,14 @@ func (svc *Service) saveResultLogsToQueryReports(
 	if svc.liveQueryStore != nil && len(clippedTTLByQuery) > 0 {
 		if err := svc.liveQueryStore.MarkQueryReportsClipped(clippedTTLByQuery); err != nil {
 			svc.logger.DebugContext(ctx, "mark query reports clipped in redis", "err", err)
+		}
+	}
+
+	// A report that admitted a host it didn't cover yet has room again (more hosts, a higher
+	// cap, or shrunken results), so it is no longer clipped until the next rejection.
+	if svc.liveQueryStore != nil && len(admittedQueryIDs) > 0 {
+		if err := svc.liveQueryStore.ClearQueryReportsClipped(admittedQueryIDs); err != nil {
+			svc.logger.DebugContext(ctx, "clear query reports clipped in redis", "err", err)
 		}
 	}
 }
@@ -4451,7 +4462,7 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (rowsAdded int, rejected bool, err error) {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 	fetchTime := time.Now()
 
 	snapshot := result.Snapshot
@@ -4483,16 +4494,17 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	rowsAdded, rejected, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
+	res, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
 	if err != nil {
-		return 0, false, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+		return fleet.QueryReportWriteResult{}, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	return rowsAdded, rejected, nil
+	return res, nil
 }
 
-// minQueryReportClippedTTL is the shortest time a clipped marker lives. It is raised to twice
-// the query interval so reports that run less often than daily stay flagged between runs.
-const minQueryReportClippedTTL = 24 * time.Hour
+// minQueryReportClippedTTL is the shortest time a clipped marker lives. Rejections recur every
+// report interval while a report is clipped, so the marker lives twice the interval and the
+// floor only covers reports with short or unset intervals.
+const minQueryReportClippedTTL = time.Hour
 
 func queryReportClippedTTL(query *fleet.Query) time.Duration {
 	if ttl := 2 * time.Duration(query.Interval) * time.Second; ttl > minQueryReportClippedTTL { //nolint:gosec // dismiss G115

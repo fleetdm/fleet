@@ -1066,13 +1066,29 @@ func (r *redisLiveQuery) collectBatchClipped(keys []string, keyToID map[string]u
 	return nil
 }
 
-// ClearQueryReportClipped removes the clipped marker for a query.
-func (r *redisLiveQuery) ClearQueryReportClipped(queryID uint) error {
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
+// ClearQueryReportsClipped removes the clipped marker for the given queries.
+func (r *redisLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
+	if len(queryIDs) == 0 {
+		return nil
+	}
 
-	if _, err := conn.Do("DEL", queryReportClippedKey(queryID)); err != nil {
-		return fmt.Errorf("clear query report clipped: %w", err)
+	keys := make([]string, 0, len(queryIDs))
+	for _, queryID := range queryIDs {
+		keys = append(keys, queryReportClippedKey(queryID))
+	}
+
+	// Keys have no hash tag, so DEL them one slot at a time.
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+		args := make([]any, 0, len(slotKeys))
+		for _, key := range slotKeys {
+			args = append(args, key)
+		}
+		_, err := conn.Do("DEL", args...)
+		conn.Close()
+		if err != nil {
+			return fmt.Errorf("clear query reports clipped: %w", err)
+		}
 	}
 
 	return nil

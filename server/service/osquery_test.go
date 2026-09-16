@@ -81,8 +81,8 @@ func setUpBatchResultLogsTest(t *testing.T) (*Service, context.Context, *mock.St
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return nil, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
-		return len(rows), false, nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 	}
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 	serv.osqueryLogWriter = &OsqueryLogger{Result: &testJSONLogger{}}
@@ -167,8 +167,8 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 			return out, nil
 		}
 		ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) { return nil, nil }
-		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m, currentCount int) (int, bool, error) {
-			return len(rows), false, nil
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, m, currentCount int) (fleet.QueryReportWriteResult, error) {
+			return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 		}
 		logDest := &testJSONLogger{}
 		serv := ((svc.(validationMiddleware)).Service).(*Service)
@@ -1188,9 +1188,9 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		}, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		if len(rows) == 0 {
-			return 0, false, nil
+			return fleet.QueryReportWriteResult{}, nil
 		}
 		if rows[0].QueryID == 777 {
 			require.Len(t, rows, 3)
@@ -1231,7 +1231,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			require.NotZero(t, rows[1].LastFetched)
 			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
-		return 0, false, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	// Hack to get at the service internals and modify the writer
@@ -1386,8 +1386,8 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
-		return 0, false, nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		return fleet.QueryReportWriteResult{}, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
@@ -1424,10 +1424,10 @@ func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 	}
 	// The datastore decides whether the host's rows fit under the cap, so it must
 	// receive the cap and the current count even when the report is full.
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Equal(t, fleet.DefaultMaxQueryReportRows, maxQueryReportRows)
 		require.Equal(t, 1101, currentCount)
-		return 0, false, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
@@ -1459,19 +1459,26 @@ func TestSaveResultLogsToQueryReportsMarksClipped(t *testing.T) {
 			Snapshot:      []*json.RawMessage{new(json.RawMessage(`{"v":"c"}`))},
 			UnixTime:      1484078931,
 		},
+		{
+			QueryName:     "pack/Global/Fast",
+			OsqueryHostID: "1379f59d98f4",
+			Snapshot:      []*json.RawMessage{new(json.RawMessage(`{"v":"d"}`))},
+			UnixTime:      1484078931,
+		},
 	}
 	queries := map[string]*fleet.Query{
 		"pack/Global/Hourly": {ID: 1, Interval: 3600, Logging: fleet.LoggingSnapshot},
+		"pack/Global/Fast":   {ID: 4, Interval: 60, Logging: fleet.LoggingSnapshot},
 		"pack/Global/Weekly": {ID: 2, Interval: 7 * 24 * 3600, Logging: fleet.LoggingSnapshot},
 		"pack/Global/Fits":   {ID: 3, Interval: 3600, Logging: fleet.LoggingSnapshot},
 	}
 
-	// The report is full for queries 1 and 2 but not 3.
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
+	// The report is full for every query but 3, which admits the host for the first time.
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		if rows[0].QueryID == 3 {
-			return len(rows), false, nil
+			return fleet.QueryReportWriteResult{RowsAdded: len(rows), NewHost: true}, nil
 		}
-		return 0, true, nil
+		return fleet.QueryReportWriteResult{Rejected: true}, nil
 	}
 	var marked map[uint]time.Duration
 	markCalls := 0
@@ -1480,16 +1487,25 @@ func TestSaveResultLogsToQueryReportsMarksClipped(t *testing.T) {
 		marked = ttlByQueryID
 		return nil
 	}
+	var cleared []uint
+	liveQueryStore.ClearQueryReportsClippedOverride = func(queryIDs []uint) error {
+		cleared = queryIDs
+		return nil
+	}
 
 	serv.saveResultLogsToQueryReports(ctx, results, queries, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
-	// Rejected queries are marked in one call; the marker outlives at least two runs of infrequent reports.
+	// Rejected queries are marked in one call; the marker outlives two runs of each report.
 	require.Equal(t, 1, markCalls)
 	require.Equal(t, map[uint]time.Duration{
-		1: 24 * time.Hour,
+		1: 2 * time.Hour,
 		2: 14 * 24 * time.Hour,
+		4: time.Hour,
 	}, marked)
+
+	// Admitting a host the report didn't cover yet clears its marker.
+	require.Equal(t, []uint{3}, cleared)
 }
 
 func TestSaveResultLogsToQueryReportsSnapshotTooLarge(t *testing.T) {
@@ -1519,7 +1535,7 @@ func TestSaveResultLogsToQueryReportsSnapshotTooLarge(t *testing.T) {
 	}
 
 	var savedRows []*fleet.ScheduledQueryResultRow
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		savedRows = rows
 		dataRows := 0
 		for _, row := range rows {
@@ -1527,7 +1543,7 @@ func TestSaveResultLogsToQueryReportsSnapshotTooLarge(t *testing.T) {
 				dataRows++
 			}
 		}
-		return dataRows, false, nil
+		return fleet.QueryReportWriteResult{RowsAdded: dataRows}, nil
 	}
 	var incremented map[uint]int
 	liveQueryStore.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
@@ -1592,12 +1608,12 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return []uint{1}, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return 0, false, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -1644,12 +1660,12 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return []uint{1}, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
 		require.Nil(t, rows[0].Data)
-		return 0, false, nil
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	err = svc.SubmitResultLogs(ctx, results)
@@ -1696,8 +1712,8 @@ func TestSubmitResultLogsQueryNotScheduledForHost(t *testing.T) {
 			}
 			return []uint{reportQueryID}, nil
 		}
-		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
-			return len(rows), false, nil
+		ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+			return fleet.QueryReportWriteResult{RowsAdded: len(rows)}, nil
 		}
 
 		logDestination := &testJSONLogger{}
@@ -1835,8 +1851,8 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
-		return 0, false, nil
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
+		return fleet.QueryReportWriteResult{}, nil
 	}
 
 	// Expect an error when unable to write to logging destination.

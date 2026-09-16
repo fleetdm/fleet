@@ -21,7 +21,7 @@ type MockLiveQuery struct {
 	GetQueryReportsHostCountOverride func() (int, error)
 	MarkQueryReportsClippedOverride  func(ttlByQueryID map[uint]time.Duration) error
 	QueryReportsClippedOverride      func(queryIDs []uint) (map[uint]bool, error)
-	ClearQueryReportClippedOverride  func(queryID uint) error
+	ClearQueryReportsClippedOverride func(queryIDs []uint) error
 }
 
 var _ fleet.LiveQueryStore = (*MockLiveQuery)(nil)
@@ -136,10 +136,10 @@ func (m *MockLiveQuery) QueryReportsClipped(queryIDs []uint) (map[uint]bool, err
 	return map[uint]bool{}, nil
 }
 
-// ClearQueryReportClipped mocks the live query store ClearQueryReportClipped method.
-func (m *MockLiveQuery) ClearQueryReportClipped(queryID uint) error {
-	if m.ClearQueryReportClippedOverride != nil {
-		return m.ClearQueryReportClippedOverride(queryID)
+// ClearQueryReportsClipped mocks the live query store ClearQueryReportsClipped method.
+func (m *MockLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
+	if m.ClearQueryReportsClippedOverride != nil {
+		return m.ClearQueryReportsClippedOverride(queryIDs)
 	}
 	return nil
 }

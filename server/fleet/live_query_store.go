@@ -54,7 +54,8 @@ type LiveQueryStore interface {
 	MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error
 	// QueryReportsClipped returns which of the given queries have a clipped marker set.
 	QueryReportsClipped(queryIDs []uint) (map[uint]bool, error)
-	// ClearQueryReportClipped removes the clipped marker for a query. Used when the query's
-	// results are discarded or the query is deleted.
-	ClearQueryReportClipped(queryID uint) error
+	// ClearQueryReportsClipped removes the clipped marker for the given queries. Used when a
+	// report admits a host it didn't cover yet, when its results are discarded, and when the query
+	// is deleted.
+	ClearQueryReportsClipped(queryIDs []uint) error
 }

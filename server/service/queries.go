@@ -273,7 +273,7 @@ func (svc *Service) clearQueryReportState(ctx context.Context, queryID uint, del
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to reset query results count", "err", err, "query_id", queryID)
 	}
-	if err := svc.liveQueryStore.ClearQueryReportClipped(queryID); err != nil {
+	if err := svc.liveQueryStore.ClearQueryReportsClipped([]uint{queryID}); err != nil {
 		svc.logger.ErrorContext(ctx, "failed to clear query report clipped", "err", err, "query_id", queryID)
 	}
 }

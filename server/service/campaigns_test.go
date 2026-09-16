@@ -73,7 +73,7 @@ func (q nopLiveQuery) QueryReportsClipped([]uint) (map[uint]bool, error) {
 	return map[uint]bool{}, nil
 }
 
-func (q nopLiveQuery) ClearQueryReportClipped(uint) error {
+func (q nopLiveQuery) ClearQueryReportsClipped([]uint) error {
 	return nil
 }
 

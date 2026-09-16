@@ -986,8 +986,8 @@ func TestDeleteQueryClearsReportState(t *testing.T) {
 		deletedCounts = append(deletedCounts, queryID)
 		return nil
 	}
-	lq.ClearQueryReportClippedOverride = func(queryID uint) error {
-		clearedMarkers = append(clearedMarkers, queryID)
+	lq.ClearQueryReportsClippedOverride = func(queryIDs []uint) error {
+		clearedMarkers = append(clearedMarkers, queryIDs...)
 		return nil
 	}
 
@@ -1102,7 +1102,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 	host1Row := []*fleet.ScheduledQueryResultRow{
 		{
@@ -1112,7 +1112,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	team2Admin := &fleet.User{

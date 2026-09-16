@@ -69,7 +69,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err := ds.OverwriteQueryResultRows(context.Background(), query1Rows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err := ds.OverwriteQueryResultRows(context.Background(), query1Rows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert Result Row for different Scheduled Query
@@ -83,7 +83,7 @@ func testGetQueryResultRows(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), query2Rows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), query2Rows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	results, _, _, err := ds.QueryResultRows(context.Background(), query.ID, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
@@ -132,7 +132,7 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
-	_, _, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert 1 Result Row for Query1 Host2
@@ -144,7 +144,7 @@ func testGetQueryResultRowsForHost(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 2 results for Host1
@@ -222,7 +222,7 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), globalRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), globalRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	teamRow := []*fleet.ScheduledQueryResultRow{
@@ -236,7 +236,7 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), teamRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), teamRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	observerTeamRow := []*fleet.ScheduledQueryResultRow{
@@ -250,7 +250,7 @@ func testQueryResultRowsTeamFilter(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), observerTeamRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), observerTeamRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	filter := fleet.TeamFilter{
@@ -293,7 +293,7 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert Nil Result Row for Query1, nil data rows are not counted
@@ -305,7 +305,7 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 			Data:        nil,
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert 5 Result Rows for Query2
@@ -324,7 +324,7 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 		resultRows = append(resultRows, resultRow2)
 	}
 
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), resultRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), resultRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Assert that the result count is 1
@@ -370,7 +370,7 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	host1Query2 := []*fleet.ScheduledQueryResultRow{
@@ -384,7 +384,7 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), host1Query2, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), host1Query2, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	host2ResultRow := []*fleet.ScheduledQueryResultRow{
@@ -398,7 +398,7 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 			}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	host3ResultRow := []*fleet.ScheduledQueryResultRow{
@@ -409,7 +409,7 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 			Data:        nil,
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), host3ResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), host3ResultRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Assert that Query1 returns 2
@@ -455,9 +455,9 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	rowsAdded, _, err := ds.OverwriteQueryResultRows(context.Background(), initialRow, fleet.DefaultMaxQueryReportRows, 0)
+	res, err := ds.OverwriteQueryResultRows(context.Background(), initialRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
-	require.Equal(t, 1, rowsAdded)
+	require.Equal(t, 1, res.RowsAdded)
 
 	// Overwrite Result Rows with new data
 	newMockTime := mockTime.Add(2 * time.Minute)
@@ -470,10 +470,10 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	rowsAdded, _, err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
+	res, err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
-	// rowsAdded is zero here because we deleted one row and inserted one.
-	require.Equal(t, 0, rowsAdded)
+	// RowsAdded is zero here because we deleted one row and inserted one.
+	require.Equal(t, 0, res.RowsAdded)
 
 	// Assert that we get the overwritten data (1 result with USB Mouse data)
 	results, err := ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
@@ -493,9 +493,9 @@ func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
-	rowsAdded, _, err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
+	res, err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
-	require.Equal(t, 1, rowsAdded)
+	require.Equal(t, 1, res.RowsAdded)
 
 	// Assert that the data has not changed
 	results, err = ds.QueryResultRowsForHost(context.Background(), overwriteRows[0].QueryID, overwriteRows[0].HostID)
@@ -527,16 +527,16 @@ func testQueryResultRowsListOptions(t *testing.T, ds *Datastore) {
 			Data: new(json.RawMessage(`{"model": "` + model + `", "vendor": "` + vendor + `"}`)),
 		}
 	}
-	_, _, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		row(hostA, base.Add(-2*time.Hour), "USB Keyboard", "Apple"),
 		row(hostA, base.Add(-2*time.Hour), "USB Mouse", "Logitech"),
 	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
-	_, _, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		row(hostB, base.Add(-1*time.Hour), "Webcam", "Logitech"),
 	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
-	_, _, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		row(hostC, base, "Display Audio", "Apple"),
 		row(hostC, base, "Hub", "Anker"),
 	}, fleet.DefaultMaxQueryReportRows, 0)
@@ -625,7 +625,7 @@ func testQueryResultRowsListOptions(t *testing.T, ds *Datastore) {
 	require.Equal(t, 5, count)
 
 	// A column name that collides with a built-in key sorts by the built-in key.
-	_, _, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: query.ID, HostID: hostB.ID, LastFetched: base.Add(-1 * time.Hour), Data: new(json.RawMessage(`{"model": "Webcam", "vendor": "Logitech", "host_name": "aaa"}`))},
 	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
@@ -641,7 +641,7 @@ func testQueryResultRowsListOptions(t *testing.T, ds *Datastore) {
 	hostD.HardwareModel = "MacBook Pro"
 	hostD.HardwareSerial = "C02DELTA"
 	require.NoError(t, ds.UpdateHost(ctx, hostD))
-	_, _, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		row(hostD, base, "Trackpad", "Apple"),
 	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
@@ -696,48 +696,54 @@ func testOverwriteQueryResultRowsRespectsCap(t *testing.T, ds *Datastore) {
 	}
 
 	// Fill the report up to the cap, one row per host.
-	added, rejected, err := ds.OverwriteQueryResultRows(ctx, rowsFor(host1, "a"), maxRows, 0)
+	res, err := ds.OverwriteQueryResultRows(ctx, rowsFor(host1, "a"), maxRows, 0)
 	require.NoError(t, err)
-	require.Equal(t, 1, added)
-	require.False(t, rejected)
-	added, rejected, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host2, "b"), maxRows, 1)
+	require.Equal(t, 1, res.RowsAdded)
+	require.False(t, res.Rejected)
+	require.True(t, res.NewHost)
+	res, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host2, "b"), maxRows, 1)
 	require.NoError(t, err)
-	require.Equal(t, 1, added)
-	require.False(t, rejected)
+	require.Equal(t, 1, res.RowsAdded)
+	require.False(t, res.Rejected)
+	require.True(t, res.NewHost)
 
 	// A host not yet in the full report is rejected.
-	added, rejected, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host3, "c"), maxRows, 2)
+	res, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host3, "c"), maxRows, 2)
 	require.NoError(t, err)
-	require.Equal(t, 0, added)
-	require.True(t, rejected)
+	require.Equal(t, 0, res.RowsAdded)
+	require.True(t, res.Rejected)
+	require.False(t, res.NewHost)
 	require.Empty(t, hostValues(host3))
 
 	// A host already in the full report keeps updating when its row count doesn't grow.
-	added, rejected, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host1, "a2"), maxRows, 2)
+	res, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host1, "a2"), maxRows, 2)
 	require.NoError(t, err)
-	require.Equal(t, 0, added)
-	require.False(t, rejected)
+	require.Equal(t, 0, res.RowsAdded)
+	require.False(t, res.Rejected)
+	require.False(t, res.NewHost)
 	require.Equal(t, []string{"a2"}, hostValues(host1))
 
 	// A host already in the full report is rejected when its row count would grow, keeping its old rows.
-	added, rejected, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host1, "x", "y"), maxRows, 2)
+	res, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host1, "x", "y"), maxRows, 2)
 	require.NoError(t, err)
-	require.Equal(t, 0, added)
-	require.True(t, rejected)
+	require.Equal(t, 0, res.RowsAdded)
+	require.True(t, res.Rejected)
 	require.Equal(t, []string{"a2"}, hostValues(host1))
 
 	// Shrinking is always allowed and reports the net change, including down to an empty result.
-	added, rejected, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host1), maxRows, 2)
+	res, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host1), maxRows, 2)
 	require.NoError(t, err)
-	require.Equal(t, -1, added)
-	require.False(t, rejected)
+	require.Equal(t, -1, res.RowsAdded)
+	require.False(t, res.Rejected)
+	require.False(t, res.NewHost)
 	require.Empty(t, hostValues(host1))
 
 	// The freed slot can be taken by another host.
-	added, rejected, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host3, "c"), maxRows, 1)
+	res, err = ds.OverwriteQueryResultRows(ctx, rowsFor(host3, "c"), maxRows, 1)
 	require.NoError(t, err)
-	require.Equal(t, 1, added)
-	require.False(t, rejected)
+	require.Equal(t, 1, res.RowsAdded)
+	require.False(t, res.Rejected)
+	require.True(t, res.NewHost)
 	require.Equal(t, []string{"c"}, hostValues(host3))
 
 	count := resultCountForQuery(t, ds, query.ID)
@@ -767,7 +773,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		}
 	}
-	_, _, err := ds.OverwriteQueryResultRows(context.Background(), maxRowsBatch, fleet.DefaultMaxQueryReportRows, 0)
+	_, err := ds.OverwriteQueryResultRows(context.Background(), maxRowsBatch, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Verify that exactly 1000 rows were stored (1000 is the limit for a single submission)
@@ -785,7 +791,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		}
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), largeBatchRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), largeBatchRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Confirm NO rows are stored when > 1000 rows in a single submission (we bail early)
@@ -802,7 +808,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), smallBatch, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), smallBatch, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Verify the small batch was stored
@@ -825,7 +831,7 @@ func testQueryResultRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Logitech"}`)),
 		},
 	}
-	_, _, err := ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err := ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	filter := fleet.TeamFilter{User: user, IncludeObserver: true}
@@ -861,7 +867,7 @@ func testCleanupQueryResultRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "Keyboard", "vendor": "Microsoft"}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), rows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), rows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Call OverwriteQueryResultRows again with different rows
@@ -879,7 +885,7 @@ func testCleanupQueryResultRows(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"model": "Speakers", "vendor": "Bose"}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(context.Background(), overwriteRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Cleanup query result rows
@@ -932,11 +938,11 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 			LastFetched: mockTime.Add(time.Duration(i) * time.Minute),
 			Data:        dataForQuery3,
 		}}
-		_, _, err := ds.OverwriteQueryResultRows(context.Background(), rowsForQuery1, fleet.DefaultMaxQueryReportRows, 0)
+		_, err := ds.OverwriteQueryResultRows(context.Background(), rowsForQuery1, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
-		_, _, err = ds.OverwriteQueryResultRows(context.Background(), rowsForQuery2, fleet.DefaultMaxQueryReportRows, 0)
+		_, err = ds.OverwriteQueryResultRows(context.Background(), rowsForQuery2, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
-		_, _, err = ds.OverwriteQueryResultRows(context.Background(), rowsForQuery3, fleet.DefaultMaxQueryReportRows, 0)
+		_, err = ds.OverwriteQueryResultRows(context.Background(), rowsForQuery3, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
 	}
 
@@ -1102,7 +1108,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"col":"row2"}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(ctx, rows1, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(ctx, rows1, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// qSave2 has no results yet (should still be returned when SaveResults=true).
@@ -1116,7 +1122,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			Data:        ptr.RawMessage([]byte(`{"col":"discarded"}`)),
 		},
 	}
-	_, _, err = ds.OverwriteQueryResultRows(ctx, rowsDiscard, fleet.DefaultMaxQueryReportRows, 0)
+	_, err = ds.OverwriteQueryResultRows(ctx, rowsDiscard, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	t.Run("default_excludes_dont_store_results_queries", func(t *testing.T) {

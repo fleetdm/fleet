@@ -955,8 +955,10 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
 		return clipped, nil
 	}
-	s.lq.ClearQueryReportClippedOverride = func(queryID uint) error {
-		delete(clipped, queryID)
+	s.lq.ClearQueryReportsClippedOverride = func(queryIDs []uint) error {
+		for _, queryID := range queryIDs {
+			delete(clipped, queryID)
+		}
 		return nil
 	}
 	defer func() {
@@ -966,7 +968,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		s.lq.DeleteQueryResultsCountOverride = nil
 		s.lq.MarkQueryReportsClippedOverride = nil
 		s.lq.QueryReportsClippedOverride = nil
-		s.lq.ClearQueryReportClippedOverride = nil
+		s.lq.ClearQueryReportsClippedOverride = nil
 	}()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -1788,12 +1790,12 @@ func (s *integrationTestSuite) TestQueryReports() {
 	submitRows(host2Global, fleet.DefaultMaxQueryReportRows)
 	checkReport(500, true)
 	require.True(t, clipped[osqueryInfoQuery.ID])
-	delete(clipped, osqueryInfoQuery.ID)
-	checkReport(500, false)
 
-	// ...but 500 rows fit exactly, filling the report again without clipping it.
+	// ...but 500 rows fit exactly. Admitting a host the report didn't cover yet clears the marker,
+	// even though the report is now full again.
 	submitRows(host2Global, 500)
 	checkReport(fleet.DefaultMaxQueryReportRows, false)
+	require.False(t, clipped[osqueryInfoQuery.ID])
 
 	// Hosts already in the full report keep updating as long as their row count doesn't grow.
 	submitRows(host2Global, 500)

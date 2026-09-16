@@ -355,9 +355,7 @@ func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {
 func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {
 	// Keys are not covered by the test cleanup key prefix, so clear them after the test.
 	t.Cleanup(func() {
-		for _, id := range []uint{1, 2, 3} {
-			require.NoError(t, store.ClearQueryReportClipped(id))
-		}
+		require.NoError(t, store.ClearQueryReportsClipped([]uint{1, 2, 3}))
 	})
 
 	clipped, err := store.QueryReportsClipped(nil)
@@ -374,7 +372,8 @@ func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {
 	require.NoError(t, err)
 	require.Equal(t, map[uint]bool{1: true, 3: true}, clipped)
 
-	require.NoError(t, store.ClearQueryReportClipped(1))
+	require.NoError(t, store.ClearQueryReportsClipped(nil))
+	require.NoError(t, store.ClearQueryReportsClipped([]uint{1}))
 	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
 	require.NoError(t, err)
 	require.Equal(t, map[uint]bool{3: true}, clipped)

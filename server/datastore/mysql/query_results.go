@@ -21,14 +21,14 @@ import (
 // If replacing the host's rows would push the query's total above maxQueryReportRows, nothing is
 // changed: hosts already in the report keep updating, hosts not yet in it are skipped once it's full.
 // Excess rows across all hosts are cleaned up by a separate cron job.
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (rowsAdded int, rejected bool, err error) {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (res fleet.QueryReportWriteResult, err error) {
 	if len(rows) == 0 {
-		return 0, false, nil
+		return res, nil
 	}
 
 	// Bail early if the incoming result set is too large (more than the row limit from a single host)
 	if len(rows) > 1000 {
-		return 0, false, nil
+		return res, nil
 	}
 
 	newDataRows := 0
@@ -49,7 +49,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 			return ctxerr.Wrap(ctx, err, "counting existing query results for host")
 		}
 		if currentCount-existingDataRows+newDataRows > maxQueryReportRows {
-			rejected = true
+			res.Rejected = true
 			return nil
 		}
 
@@ -76,11 +76,12 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 			return ctxerr.Wrap(ctx, err, "inserting new rows")
 		}
 
-		rowsAdded = newDataRows - existingDataRows
+		res.RowsAdded = newDataRows - existingDataRows
+		res.NewHost = existingDataRows == 0 && newDataRows > 0
 		return nil
 	})
 
-	return rowsAdded, rejected, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	return res, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 }
 
 // queryResultHostDisplayNameExpr mirrors fleet.HostDisplayName so sorting and
