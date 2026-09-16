@@ -2901,6 +2901,44 @@ This activity contains the following fields:
 }
 ```
 
+## bound_host_to_idp_account
+
+Generated when an end user signs in with the identity provider (IdP) during the Linux or Windows setup experience and Fleet links the host to that IdP account. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host. The host may not exist in Fleet yet, because the link is made before enrollment completes.
+- "idp_email": Email of the IdP account the host is now linked to.
+- "replaced_idp_email": Email of the IdP account the host was linked to before. Only present when the host was already linked to a different account, for example when the end user signed in again with another account before the host finished enrolling; omitted otherwise.
+
+#### Example
+
+```json
+{
+	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+	"idp_email": "ana.torres@example.com",
+	"replaced_idp_email": "ben.ito@example.com"
+}
+```
+
+## refused_host_idp_account_change
+
+Generated when an IdP sign-in from the Linux or Windows setup experience completes after the host has already enrolled and would have replaced the IdP account the host is linked to. Fleet keeps the existing link and records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account that signed in and was not linked.
+- "existing_idp_email": Email of the IdP account the host stays linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+	"idp_email": "mallory@example.com",
+	"existing_idp_email": "ana.torres@example.com"
+}
+```
+
 ## created_custom_variable
 
 Generated when custom variable is added.
