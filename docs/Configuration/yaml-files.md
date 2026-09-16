@@ -449,6 +449,8 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/ddm.json
+        name: Passcode Settings
+        description: Enforces passcode requirements for macOS hosts
         labels_include_any:
           - Engineering
         activation: ../lib/macos/activations/activation.json
@@ -458,6 +460,8 @@ controls:
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
+        name: Windows Firewall
+        description: Configures firewall rules
         labels_include_any:
           - Engineering
     enable_managed_local_account: true   
@@ -515,6 +519,8 @@ controls:
 - `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `setup_experience.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 - `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`). Currently Windows only. macOS is [coming soon](https://github.com/fleetdm/fleet/issues/50084).
 - `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
+- `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
+- `description` specifies an optional description for the profile.
 
 Each entry can use either `path:` or `paths:`:
 
@@ -533,6 +539,8 @@ In addition to configuration profiles, you can upload **assets** which are `.jso
 ### android_settings
 
 - `android_settings.configuration_profiles` is a list of Android configuration profiles (.json).
+- `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
+- `description` specifies an optional description for the profile.
 
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
