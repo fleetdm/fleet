@@ -17,6 +17,10 @@ type CreateNotificationFunc func(ctx context.Context, notification *notification
 
 type NotificationAwaitingDisplayFunc func(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error)
 
+type SetNotificationStatusFunc func(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+
+type FailNotificationsForHostFunc func(ctx context.Context, hostID uint, reason string) error
+
 var NoopRecordOutcomeFunc RecordOutcomeFunc = func(_ context.Context, _ string, _ int64, _ string) error {
 	return nil
 }
@@ -43,6 +47,12 @@ type MockNotificationsService struct {
 
 	NotificationAwaitingDisplayFunc        NotificationAwaitingDisplayFunc
 	NotificationAwaitingDisplayFuncInvoked bool
+
+	SetNotificationStatusFunc        SetNotificationStatusFunc
+	SetNotificationStatusFuncInvoked bool
+
+	FailNotificationsForHostFunc        FailNotificationsForHostFunc
+	FailNotificationsForHostFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -89,6 +99,26 @@ func (m *MockNotificationsService) NotificationAwaitingDisplay(ctx context.Conte
 		return nil, nil
 	}
 	return m.NotificationAwaitingDisplayFunc(ctx, hostID, kind)
+}
+
+func (m *MockNotificationsService) SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
+	m.mu.Lock()
+	m.SetNotificationStatusFuncInvoked = true
+	m.mu.Unlock()
+	if m.SetNotificationStatusFunc == nil {
+		return nil
+	}
+	return m.SetNotificationStatusFunc(ctx, notificationUUID, status, reason, whereStatusIn)
+}
+
+func (m *MockNotificationsService) FailNotificationsForHost(ctx context.Context, hostID uint, reason string) error {
+	m.mu.Lock()
+	m.FailNotificationsForHostFuncInvoked = true
+	m.mu.Unlock()
+	if m.FailNotificationsForHostFunc == nil {
+		return nil
+	}
+	return m.FailNotificationsForHostFunc(ctx, hostID, reason)
 }
 
 type notFoundError struct{}
