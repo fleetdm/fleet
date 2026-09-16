@@ -317,13 +317,13 @@ helper the public endpoint calls, so there is nothing to keep in sync -- only th
 
 Examples:
   sails run test-llm-generated-configuration-profile --profileType=csp --naturalLanguageInstructions="Require a device password"
-  sails run test-llm-generated-configuration-profile --all
-  sails run test-llm-generated-configuration-profile --all --profileType=mobileconfig --verbose
-  sails run test-llm-generated-configuration-profile --all --profileType=csp --baseModel=claude-haiku-4-5
-  sails run test-llm-generated-configuration-profile --all --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
+  sails run test-llm-generated-configuration-profile
+  sails run test-llm-generated-configuration-profile --profileType=mobileconfig --verbose
+  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-4-5
+  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
   sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
-  sails run test-llm-generated-configuration-profile --all --profileType=csp --parallelTests=5`,
+  sails run test-llm-generated-configuration-profile --profileType=csp --parallelTests=5`,
 
 
   inputs: {
@@ -331,18 +331,12 @@ Examples:
     profileType: {
       type: 'string',
       isIn: ['mobileconfig', 'csp', 'ddm'],
-      description: 'Generate one profile of this type, or with --all, run only this type\'s cases.'
+      description: 'Generate one profile of this type, or with, run only this type\'s cases.'
     },
 
     naturalLanguageInstructions: {
       type: 'string',
-      description: 'The instructions to generate from.  Required unless --all is set.'
-    },
-
-    all: {
-      type: 'boolean',
-      defaultsTo: true,
-      description: 'Run every case defined at the top of this script.'
+      description: 'The instructions to generate a configuration profile for.'
     },
 
     baseModel: {
@@ -369,7 +363,7 @@ only sometimes.  Ids are unique and carry their profile type as a prefix, so --p
       type: 'number',
       defaultsTo: 1,
       description: 'Run each case this many times, to see how often it passes rather than whether it passed once.',
-      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId or --all.  The repeats of one case
+      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId or.  The repeats of one case
 go out together and the cases stay sequential, so at most this many requests are ever in flight -- launching every case
 at once would say more about rate limits than about the prompt.  Results are reported per case as a fail rate, because
 a case failing 2 of 5 is a different problem from one failing 5 of 5.`
@@ -394,15 +388,16 @@ csp cases report as not-checked either way.`
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, all, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse}) {
 
     let path = require('path');
     let util = require('util');
 
     const MAX_ELAPSED_MS = 10000;
 
+    let runAllTestCases = true;
     if(naturalLanguageInstructions || caseId) {
-      all = false;
+      runAllTestCases = false;
     }
     if(naturalLanguageInstructions && !profileType){
       throw new Error(`A profileType is required to run this script with a naturalLanguageInstructions input, please run this script again with a --profileType input set to the type of profile you want to test generating. (example: --profileType=ddm)`);
@@ -422,7 +417,7 @@ csp cases report as not-checked either way.`
         });
         throw new Error(
           `No case with the id "${caseId}".` +
-          (nearMisses.length > 0 ? `\nDid you mean one of:\n  ${nearMisses.join('\n  ')}` : `\nRun with --all to see every case, or check the ids at the top of this script.`)
+          (nearMisses.length > 0 ? `\nDid you mean one of:\n  ${nearMisses.join('\n  ')}` : `\nRun without a caseId flag to see every case, or check the ids at the top of this script.`)
         );
       }
       if(profileType && profileType !== chosenCase.profileType) {
@@ -490,7 +485,7 @@ csp cases report as not-checked either way.`
     report(
       'Inputs:\n' +
       `profileType: ${profileType || '(every type)'}\n` +
-      (all ? 'all: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
+      (runAllTestCases ? 'runAllTestCases: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
       `baseModel: ${baseModel}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `verbose: ${verbose}\n` +
@@ -498,7 +493,7 @@ csp cases report as not-checked either way.`
     );
 
     let cases;
-    if(all) {
+    if(runAllTestCases) {
       cases = _.filter(TEST_CASES, (testCase)=>{
         return !profileType || testCase.profileType === profileType;
       });
@@ -685,7 +680,7 @@ csp cases report as not-checked either way.`
           }
           // A focused run -- one case, named or ad-hoc -- prints its detail regardless: it is the only
           // thing there is to look at, and with --parallelTests the variance is read by comparing them.
-          let isAdHocRun = !all;
+          let isAdHocRun = !runAllTestCases;
           let writeDetailLine = (verbose || testCase.canary || checkFailures.length > 0 || isAdHocRun) ? report : reportToTranscriptOnly;
           for (let detailLine of caseDetailLines) {
             writeDetailLine(detailLine);
