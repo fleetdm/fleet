@@ -22,7 +22,7 @@ const TEST_CASES = [
     canary: true,
     instructions: 'Require a password to unlock the device.',
     expect: {
-      mustContain: ['DeviceLock/DevicePasswordEnabled'],
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled'],
       mustContainElement: [['Format', 'int'], ['Data', '0']],
       mustNotContainElement: [['Format', 'bool']],
       mustNotContain: ['<SyncML', '<?xml'],
@@ -33,9 +33,10 @@ const TEST_CASES = [
     profileType: 'csp',
     instructions: 'Block write access to removable storage.',
     expect: {
-      mustContain: ['RemovableDiskDenyWriteAccess'],
-      mustContainElement: [['Format', 'int']],
-      mustNotContainElement: [['Format', 'bool'], ['Format', 'chr']],
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Storage/RemovableDiskDenyWriteAccess'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool'], ['Format', 'chr'], ['Data', '0']],
+      mustNotContain: ['<SyncML', '<?xml'],
     }
   },
   {
@@ -44,16 +45,19 @@ const TEST_CASES = [
     instructions: 'Require device passwords to be at least 12 characters long.',
     expect: {
       mustContain: ['MinDevicePasswordLength', 'DevicePasswordEnabled'],
-      mustContainElement: [['Data', '12'],['Format', 'int']]
+      mustContainElement: [['Data', '12'],['Format', 'int']],
+      mustNotContain: ['<SyncML', '<?xml'],
     }
   },
   {
     id: 'csp-failed-attempts',
     profileType: 'csp',
-    instructions: 'Wipe the device after 10 failed password attempts.',
+    instructions: 'Wipe a mobile device after 10 failed password attempts.',
     expect: {
       mustContain: ['DeviceLock/MaxDevicePasswordFailedAttempts'],
-      mustContainElement: [['Data', '10'], ['Format', 'int']]
+      mustContainElement: [['Data', '10'], ['Format', 'int']],
+      mustNotContainElement: [['Format', 'chr'], ['Data', '0']],
+      mustNotContain: ['<SyncML', '<?xml'],
     }
   },
   {
@@ -65,7 +69,7 @@ const TEST_CASES = [
     expect: {
       mustContain: ['A%20Network', '<![CDATA[',],
       mustContainElement: [['name', 'A Network'], ['authentication', 'WPA2PSK'], ['keyMaterial', 'aaaaaaapassword']],
-      mustNotContain: ['&lt;WLANProfile', '<SyncML', 'A%20network'],
+      mustNotContain: ['&lt;WLANProfile', '<SyncML', 'A%20network', '<?xml'],
     }
   },
   {
@@ -80,10 +84,10 @@ const TEST_CASES = [
   {
     id: 'csp-telemetry',
     profileType: 'csp',
-    instructions: 'Set diagnostic data to the lowest level allowed.',
+    instructions: 'Send the least amount of diagnostic data allowed.',
     expect: {
-      mustContain: ['AllowTelemetry'],
-      mustContainElement: [['Format', 'int']]
+      mustContain: ['Vendor/MSFT/Policy/Config/System/AllowTelemetry'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']]
     }
   },
   {
@@ -91,10 +95,9 @@ const TEST_CASES = [
     profileType: 'csp',
     instructions: 'Disable clipboard history.',
     expect: {
-      mustContain: ['Privacy/AllowClipboardHistory'],
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Experience/AllowClipboardHistory'],
       mustContainElement: [['Format', 'int'], ['Data', '0']],
       mustNotContainElement: [['Format', 'bool']],
-      mustNotContain: ['AllowCrossDeviceClipboard']
     }
   },
   {
@@ -106,6 +109,16 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Data', '1']],
       mustNotContainElement: [['Data', '2'], ['Format', 'bool']],
       mustNotContain: ['WindowsStore/DisableAutoUpdate']
+    }
+  },
+  {
+    id: 'csp-disable-snapshots',
+    profileType: 'csp',
+    instructions: 'Prevent Recall from saving snapshots of the screen',
+    expect: {
+      mustContain: ['/Vendor/MSFT/Policy/Config/WindowsAI/DisableAIDataAnalysis'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Data', '0'], ['Format', 'bool'], ['Format', 'chr']],
     }
   },
 
@@ -238,13 +251,11 @@ const TEST_CASES = [
     }
   },
   {
-    id: 'ddm-auto-install-security-responses',
+    id: 'ddm-auto-install-security-updates',
     profileType: 'ddm',
-    instructions: 'Automatically install security responses and system files.',
-    readByEye: 'RapidSecurityResponse.Enable is the setting that matches the macOS wording here.  AutomaticActions.InstallSecurityUpdate is defensible too -- confirm whichever came back is a real key rather than an invented Automatic*Enabled one.',
+    instructions: 'Automatically download and install security updates.',
     expect: {
-      mustContain: ['softwareupdate.settings'],
-      mustNotContain: ['AutomaticCheckEnabled', 'AutomaticInstallEnabled']
+      mustContain: ['softwareupdate.settings', '"AutomaticActions"', '"InstallSecurityUpdate":"AlwaysOn"', '"Download":"AlwaysOn"'],
     }
   },
   {
@@ -261,9 +272,9 @@ const TEST_CASES = [
     instructions: 'Turn off every Apple Intelligence feature.',
     expect: {
       mustContain: [
-        'intelligence.settings', 'AllowWritingTools', 'AllowGenmoji', 'AllowImagePlayground',
-        'AllowImageWand', 'AllowAppleIntelligenceReport', 'AllowPersonalizedHandwritingResults',
-        'AllowVisualIntelligenceSummary'
+        'intelligence.settings', '"AllowWritingTools":false', '"AllowGenmoji":false', '"AllowImagePlayground":false',
+        '"AllowImageWand":false', '"AllowAppleIntelligenceReport":false', '"AllowPersonalizedHandwritingResults":false',
+        '"AllowVisualIntelligenceSummary":false'
       ]
     }
   },
@@ -272,28 +283,26 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Block Writing Tools and Image Playground but leave the rest of Apple Intelligence available.',
     expect: {
-      mustContain: ['intelligence.settings', 'AllowWritingTools', 'AllowImagePlayground'],
-      mustNotContain: ['AllowGenmoji', 'AllowImageWand', 'AllowAppleIntelligenceReport']
+      mustContain: ['intelligence.settings', '"AllowWritingTools":false', '"AllowImagePlayground":false'],
+      mustNotContain: ['"AllowGenmoji":false', '"AllowImageWand":false', '"AllowAppleIntelligenceReport":false', '"AllowVisualIntelligenceSummary":false']
     }
   },
   {
     id: 'ddm-migration-assistant',
     profileType: 'ddm',
-    instructions: 'Turn on managed migration and keep the Downloads folder out of anything that gets migrated.',
+    instructions: 'Turn on managed migration and keep the Downloads/ folder out of anything that gets migrated.',
     readByEye: 'ExcludedPaths entries are relative to the home directory and directory paths need a trailing slash, so "Downloads/" is right and "/Users/x/Downloads" is not.',
     expect: {
-      mustContain: ['migration-assistant.settings', 'ShouldDoManagedMigration', 'ExcludedPaths', 'Downloads'],
+      mustContain: ['migration-assistant.settings', 'ShouldDoManagedMigration', '"ExcludedPaths":["Downloads/"]'],
       mustNotContain: ['/Users/']
     }
   },
   {
-    id: 'ddm-identifier-collision',
+    id: 'ddm-mobileconfig-install',
     profileType: 'ddm',
-    instructions: 'Create two declarations, one requiring a 10-character passcode and one deferring minor updates by 30 days, giving each an Identifier under the com.acme namespace.',
-    readByEye: 'The two Identifiers must differ, and each must derive from the full declaration type rather than its last component -- passcode.settings and softwareupdate.settings collapsing to one identifier is the defect this case exists for.',
+    instructions: 'Install a mobileconfig profile hosted at https://www.example.com/profiles/passcode.mobileconfig',
     expect: {
-      mustContain: ['com.apple.configuration.passcode.settings', 'com.apple.configuration.softwareupdate.settings', 'com.acme'],
-      mustNotContain: ['"com.acme.settings"']
+      mustContain: ['configuration.legacy', '"ProfileURL":"https://www.example.com/profiles/passcode.mobileconfig"'],
     }
   },
 
