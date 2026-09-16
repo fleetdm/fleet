@@ -485,7 +485,7 @@ csp cases report as not-checked either way.`
     report(
       'Inputs:\n' +
       `profileType: ${profileType || '(every type)'}\n` +
-      (runAllTestCases ? 'runAllTestCases: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
+      (runAllTestCases ? 'Run all tests: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
       `baseModel: ${baseModel}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `verbose: ${verbose}\n` +
