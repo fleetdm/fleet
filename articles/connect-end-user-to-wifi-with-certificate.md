@@ -54,7 +54,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
   - Possible values:
     - 1024 (default), 2048, 4096
 - For the `CN` key / value, what's added depends on what the certificate will be used for.
-  - Using variables means that the certificates can be unique per host (see example below and Apple's [Use payload variables...](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation).
+  - Using variables means that the certificates can be unique per host (see example below and Apple's [Use payload variables](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation).
 - For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 - For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
 
@@ -125,7 +125,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
 ```
 
 2. In Fleet, go to **Controls > OS settings > Configuration profiles** to upload the .mobileconfig file you've created.
-3. Verify the profile. When it is delivered to your hosts, Fleet replaces the variables with the specified values. If something fails, errors appear on each host's **Host details > OS settings**.
+3. Verify the profile. When it is delivered to your hosts, Fleet replaces the variables with the specified values. If something fails, errors appear on each host's **Host details > OS settings** page.
 4. A valid Configuration Profile will deploy certificates from the Okta CA to your hosts in the System keychain. On macOS, use Spotlight to search for "Keychain Access" to check.
 
 ## DigiCert
