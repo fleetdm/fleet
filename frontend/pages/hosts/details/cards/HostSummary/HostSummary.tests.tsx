@@ -180,7 +180,10 @@ describe("Host Summary section", () => {
       "wraps the status pill in a clickable button for %s when toggleOnlineHistoryModal is provided",
       async (_label, platform) => {
         const toggleOnlineHistoryModal = jest.fn();
-        const summaryData = createMockHostSummary({ platform });
+        const summaryData = createMockHostSummary({
+          platform,
+          status: "online",
+        });
 
         const { user } = renderWithSetup(
           <HostSummary
@@ -189,13 +192,24 @@ describe("Host Summary section", () => {
           />
         );
 
-        const button = screen.getByRole("button", {
-          name: /view online history/i,
-        });
-        await user.click(button);
+        await user.click(screen.getByRole("button", { name: /online/i }));
         expect(toggleOnlineHistoryModal).toHaveBeenCalled();
       }
     );
+
+    it("renders the status pill as plain text when toggleOnlineHistoryModal is not provided (e.g., My device page)", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        status: "online",
+      });
+
+      renderWithSetup(<HostSummary summaryData={summaryData} />);
+
+      expect(screen.getByText("Online")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /online/i })
+      ).not.toBeInTheDocument();
+    });
   });
 
   describe("Bootstrap package data", () => {

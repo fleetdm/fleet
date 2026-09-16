@@ -1,23 +1,21 @@
+import { format, parseISO } from "date-fns";
 import React, { useMemo } from "react";
 import { useQuery } from "react-query";
-import { format, parseISO } from "date-fns";
 
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
+import { DATASET_LABEL, IFormattedDataPoint } from "interfaces/charts";
+import CheckerboardViz from "pages/DashboardPage/cards/ChartCard/CheckerboardViz";
+import DataCollectionDisabledState from "pages/DashboardPage/cards/ChartCard/DataCollectionDisabledState";
 import chartsAPI, {
   IChartResponse,
   IChartApiParams,
   IChartQueryKey,
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { DATASET_LABEL, IFormattedDataPoint } from "interfaces/charts";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-
-import CheckerboardViz from "pages/DashboardPage/cards/ChartCard/CheckerboardViz";
-import DataCollectionDisabledState from "pages/DashboardPage/cards/ChartCard/DataCollectionDisabledState";
 
 const baseClass = "host-online-history-modal";
 

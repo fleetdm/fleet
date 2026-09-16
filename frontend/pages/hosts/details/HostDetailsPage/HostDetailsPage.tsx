@@ -715,9 +715,8 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  const teamHistoricalData = host?.team_id
-    ? teams?.find((t) => t.id === host.team_id)?.features?.historical_data
-    : undefined;
+  const teamHistoricalData = teams?.find((t) => t.id === host?.team_id)
+    ?.features?.historical_data;
   const globalHistoricalData = config?.features?.historical_data;
   const uptimeCollectionEnabled =
     (globalHistoricalData?.uptime ?? true) &&

@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-empty-function, class-methods-use-this */
-import React from "react";
+
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
 import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
 import HostOnlineHistoryModal from "./HostOnlineHistoryModal";
 

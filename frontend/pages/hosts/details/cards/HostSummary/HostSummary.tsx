@@ -2,6 +2,7 @@ import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
 import React from "react";
 
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
@@ -92,14 +93,9 @@ const HostSummary = ({
         title="Status"
         value={
           toggleOnlineHistoryModal ? (
-            <button
-              type="button"
-              className={`${baseClass}__status-button`}
-              onClick={toggleOnlineHistoryModal}
-              aria-label="View online history"
-            >
+            <Button variant="link" onClick={toggleOnlineHistoryModal}>
               {indicator}
-            </button>
+            </Button>
           ) : (
             indicator
           )
