@@ -7,6 +7,7 @@ parasails.registerPage('email-preview', {
     preview: 'Responsive',
     showNewsletterButtons: false,
     syncing: false,
+    cloudError: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -32,15 +33,30 @@ parasails.registerPage('email-preview', {
 
     clickSendTestNewsletter: async function() {
       this.syncing = true;
-      await Cloud.deliverNewsletterEmails.with({emailTemplateName: this.template, sendToAllSubscribers: false});
-      this.syncing = false;
+      await Cloud.deliverNewsletterEmails.with({
+        emailTemplateName: this.template, sendToAllSubscribers: false
+      }).tolerate((err)=>{
+        this.cloudError = err;
+        this.syncing = false;
+      });
+      if(!this.cloudError) {
+        this.syncing = false;
+      }
     },
 
     clickSendNewsletterToSubscribers: async function() {
       this.syncing = true;
-      let numberOfEmailsSent = await Cloud.deliverNewsletterEmails.with({emailTemplateName: this.template, sendToAllSubscribers: true});
-      this.syncing = false;
-      window.alert(`Newsletter emails have been sent to ${numberOfEmailsSent} subscribers.`);
+      let numberOfEmailsSent = await Cloud.deliverNewsletterEmails.with({
+        emailTemplateName: this.template,
+        sendToAllSubscribers: true
+      }).tolerate((err)=>{
+        this.cloudError = err;
+        this.syncing = false;
+      });
+      if(!this.cloudError) {
+        this.syncing = false;
+        window.alert(`Newsletter emails have been sent to ${numberOfEmailsSent} subscribers.`);
+      }
     }
   }
 });

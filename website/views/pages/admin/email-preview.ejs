@@ -24,6 +24,7 @@
         <% if(isTemplateLatestNewsletter) {%>
         <ajax-button :syncing="syncing" @click="clickSendNewsletterToSubscribers()" class="mt-3">Send to newsletter subscribers</ajax-button>
         <% } %>
+        <cloud-error v-if="cloudError"></cloud-error>
       </div>
     </div>
   </div>
