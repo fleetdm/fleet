@@ -1,22 +1,25 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { snakeCase, reduce } from "lodash";
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
-import { QueryablePlatform } from "interfaces/platform";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
 import { GlobalPoliciesAutomationType } from "./global_policies";
 
 export type AutomationType =
   | "software"
+  | "patch"
   | "scripts"
+  | "profiles"
   | "calendar"
   | "conditional_access"
   | "other";
@@ -131,8 +134,9 @@ export default {
       patch_when_closed,
       notify_before_patching,
       software_title_id,
-      software_installer_id,
+      software_package_id,
       script_id,
+      profile_uuid,
       labels_include_any,
       labels_include_all,
       labels_exclude_any,
@@ -154,8 +158,9 @@ export default {
       patch_when_closed,
       notify_before_patching,
       software_title_id,
-      software_installer_id,
+      software_package_id,
       script_id,
+      profile_uuid,
       labels_include_any,
       labels_include_all,
       labels_exclude_any,

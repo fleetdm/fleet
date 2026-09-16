@@ -1,13 +1,13 @@
+import { SEVERITY_SCORE_RANGE_ERROR } from "components/SeverityFilter";
+
 import {
   EPSS_RANGE_HELP,
-  EPSS_RANGE_HELP_MSG,
   EPSS_RANGE_INVALID_MSG,
   getEpssError,
-  getSoftwareFilterApplyError,
-  hasEpssErrors,
   isEpssActive,
   isEpssRangeInvalid,
   NO_CATEGORIES_MSG,
+  validateSoftwareFilters,
 } from "./helpers";
 
 describe("SoftwareFilters helpers", () => {
@@ -43,19 +43,6 @@ describe("SoftwareFilters helpers", () => {
     });
   });
 
-  describe("hasEpssErrors", () => {
-    it("is true for any field error or inverted range", () => {
-      expect(hasEpssErrors("-1", "")).toBe(true);
-      expect(hasEpssErrors("", "200")).toBe(true);
-      expect(hasEpssErrors("10", "5")).toBe(true);
-    });
-
-    it("is false for valid/empty input", () => {
-      expect(hasEpssErrors("", "")).toBe(false);
-      expect(hasEpssErrors("5", "90")).toBe(false);
-    });
-  });
-
   describe("isEpssActive", () => {
     it("treats empty or the full 0–100 range as inactive", () => {
       expect(isEpssActive("", "")).toBe(false);
@@ -68,29 +55,83 @@ describe("SoftwareFilters helpers", () => {
     });
   });
 
-  describe("getSoftwareFilterApplyError", () => {
-    it("blocks Apply when no category is selected", () => {
-      expect(getSoftwareFilterApplyError([], "", "")).toBe(NO_CATEGORIES_MSG);
-      // The category error takes precedence over EPSS errors.
-      expect(getSoftwareFilterApplyError([], "10", "5")).toBe(
-        NO_CATEGORIES_MSG
-      );
-    });
+  describe("validateSoftwareFilters", () => {
+    const valid = {
+      categories: ["os"],
+      epssMin: "",
+      epssMax: "",
+      minScore: "",
+      maxScore: "",
+    };
 
-    it("returns null when at least one category is selected and EPSS is valid", () => {
-      expect(getSoftwareFilterApplyError(["os"], "", "")).toBeNull();
+    it("reports nothing when every field is valid or unset", () => {
+      expect(validateSoftwareFilters(valid)).toEqual({});
       expect(
-        getSoftwareFilterApplyError(["os", "adobe"], "5", "90")
-      ).toBeNull();
+        validateSoftwareFilters({
+          ...valid,
+          categories: ["os", "adobe"],
+          epssMin: "5",
+          epssMax: "90",
+          minScore: "0.1",
+          maxScore: "9.9",
+        })
+      ).toEqual({});
     });
 
-    it("surfaces EPSS errors once a category is selected", () => {
-      expect(getSoftwareFilterApplyError(["os"], "10", "5")).toBe(
-        EPSS_RANGE_INVALID_MSG
-      );
-      expect(getSoftwareFilterApplyError(["os"], "-1", "")).toBe(
-        EPSS_RANGE_HELP_MSG
-      );
+    it("reports an empty category selection", () => {
+      expect(validateSoftwareFilters({ ...valid, categories: [] })).toEqual({
+        categories: NO_CATEGORIES_MSG,
+      });
+    });
+
+    it("reports out-of-range EPSS values per field", () => {
+      expect(
+        validateSoftwareFilters({ ...valid, epssMin: "-1", epssMax: "200" })
+      ).toEqual({
+        epssMin: EPSS_RANGE_HELP,
+        epssMax: EPSS_RANGE_HELP,
+      });
+    });
+
+    it("attaches an inverted EPSS range to the maximum, the dependent field", () => {
+      expect(
+        validateSoftwareFilters({ ...valid, epssMin: "10", epssMax: "5" })
+      ).toEqual({ epssMax: EPSS_RANGE_INVALID_MSG });
+    });
+
+    it("prefers an EPSS field's own format error over the range check", () => {
+      // Showing "maximum at or above the minimum" for an unparseable bound
+      // would describe the wrong problem.
+      expect(
+        validateSoftwareFilters({ ...valid, epssMin: "abc", epssMax: "5" })
+      ).toEqual({ epssMin: EPSS_RANGE_HELP });
+    });
+
+    // The CVSS rules belong to validateSeverityScores. All this module does is
+    // rename its two fields, so one case pins that.
+    it("renames the severity errors to the Software tab's field names", () => {
+      expect(
+        validateSoftwareFilters({ ...valid, minScore: "11", maxScore: "5.55" })
+      ).toEqual({
+        cvssMin: SEVERITY_SCORE_RANGE_ERROR,
+        cvssMax: SEVERITY_SCORE_RANGE_ERROR,
+      });
+    });
+
+    it("reports every invalid field at once, for the submit checkpoint", () => {
+      expect(
+        validateSoftwareFilters({
+          categories: [],
+          epssMin: "-1",
+          epssMax: "",
+          minScore: "11",
+          maxScore: "",
+        })
+      ).toEqual({
+        categories: NO_CATEGORIES_MSG,
+        epssMin: EPSS_RANGE_HELP,
+        cvssMin: SEVERITY_SCORE_RANGE_ERROR,
+      });
     });
   });
 });

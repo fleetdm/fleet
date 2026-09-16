@@ -4,9 +4,9 @@ import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 // TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
 // TableContainer. Disambiguate these names or combine into a single abstraction.
@@ -64,6 +64,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                       variant={action.buttonVariant}
                       onClick={action.onClick}
                       disabled={disableChildren}
+                      icon={action.iconName}
                     >
                       {action.label}
                     </Button>
@@ -72,7 +73,11 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
               );
             }
             return (
-              <Button variant={action.buttonVariant} onClick={action.onClick}>
+              <Button
+                variant={action.buttonVariant}
+                onClick={action.onClick}
+                icon={action.iconName}
+              >
                 {action.label}
               </Button>
             );

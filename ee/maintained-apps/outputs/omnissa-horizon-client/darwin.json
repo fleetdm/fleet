@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.18.0",
+      "version": "8.19.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac' AND version_compare(bundle_short_version, '8.18.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.omnissa.horizon.client.mac');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac' AND version_compare(bundle_short_version, '8.19.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.omnissa.horizon.client.mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download3.omnissa.com/software/CART27FQ1_MAC_2603/Omnissa-Horizon-Client-2603-8.18.0-24230061568.dmg",
+      "installer_url": "https://download3.omnissa.com/software/CART27FQ2_MAC_2606/Omnissa-Horizon-Client-2606-8.19.0-32216012208.dmg",
       "install_script_ref": "bc7a1a69",
       "uninstall_script_ref": "9ced4cfc",
-      "sha256": "303f3f302cfdad7765d6534ab00b557bb791f5bd3ee0c8e0352e72922cace75f",
+      "sha256": "decc052f456ba0909724c5e33c78f6fb9cc7d25adfd188af95c2993d46226c3f",
       "default_categories": [
         "Productivity"
       ]

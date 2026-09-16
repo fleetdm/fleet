@@ -2,18 +2,17 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import configAPI from "services/entities/config";
-import mdmAPI from "services/entities/mdm";
-import teamsAPI from "services/entities/teams";
-import { notify } from "components/ToastNotification";
-import { AppContext } from "context/app";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { EndUserLocalAccountType } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import configAPI from "services/entities/config";
+import mdmAPI from "services/entities/mdm";
+import teamsAPI from "services/entities/teams";
 
 import EndUserAuthSection from "./components/EndUserAuthSection";
 import LocalAccountSection, {
@@ -146,9 +145,8 @@ const UsersForm = ({
       if (isWindowsMdmEnabledAndConfigured) {
         const mdmUpdate = {
           windows_settings: {
-            managed_local_account_settings: {
-              enabled: formData.enableManagedLocalAccountWindows,
-            },
+            enable_managed_local_account:
+              formData.enableManagedLocalAccountWindows,
           },
         };
         if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {

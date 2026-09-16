@@ -1,18 +1,18 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
+import policiesAPI from "services/entities/policies";
 import { createCustomRenderer } from "test/test-utils";
 
-import policiesAPI from "services/entities/policies";
-
-import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable";
 import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
   getDetailOutputText,
 } from "./helpers";
+import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable";
 
 jest.mock("services/entities/policies");
 
@@ -275,6 +275,23 @@ describe("getDetailOutputText for notify rows", () => {
         })
       )
     ).toBe("screen was locked");
+  });
+});
+
+describe("getDetailOutputText", () => {
+  it("explains a patch-when-closed skip rather than returning empty text", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DETAILS);
   });
 });
 

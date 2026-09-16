@@ -1,43 +1,22 @@
-import React from "react";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
-import {
-  IHostMdmProfile,
-  BootstrapPackageStatus,
-  isEnrolledInMdm,
-  isWindowsDiskEncryptionStatus,
-  isLinuxDiskEncryptionStatus,
-} from "interfaces/mdm";
-import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
-import {
-  isAndroid,
-  isIPadOrIPhone,
-  isDiskEncryptionSupportedLinuxPlatform,
-  isOsSettingsDisplayPlatform,
-} from "interfaces/platform";
+import React from "react";
 
-import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
-
-import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHostMaintenanceWindow } from "interfaces/host";
+import { BootstrapPackageStatus } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
-
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
 
-import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
-
-import {
-  generateHostNameSettingIfEligible,
-  generateLinuxDiskEncryptionSetting,
-  generateRecoveryLockPasswordSetting,
-  generateWinDiskEncryptionSetting,
-} from "../../helpers";
 
 const baseClass = "host-summary-card";
 
@@ -50,10 +29,7 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
-  toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostSettings?: IHostMdmProfile[];
-  osSettings?: IOSSettings;
   className?: string;
 }
 
@@ -61,19 +37,12 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
-  toggleOSSettingsModal,
   toggleBootstrapPackageModal,
-  hostSettings,
-  osSettings,
   className,
 }: IHostSummaryProps): JSX.Element | null => {
   const classNames = classnames(baseClass, className);
 
-  const { status, platform, os_version, mdm } = summaryData;
-
-  // Derive a local copy so we can append the synthetic disk-encryption,
-  // recovery-lock, and host-name rows without mutating the hostSettings prop.
-  let derivedHostSettings = hostSettings;
+  const { status, platform, mdm } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
@@ -145,72 +114,8 @@ const HostSummary = ({
     );
   };
 
-  // for windows and linux hosts we have to manually add a profile for disk encryption
-  // as this is not currently included in the `profiles` value from the API
-  // response for windows and linux hosts.
-  if (
-    platform === "windows" &&
-    osSettings?.disk_encryption?.status &&
-    isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
-  ) {
-    const winDiskEncryptionSetting: IHostMdmProfile = generateWinDiskEncryptionSetting(
-      osSettings.disk_encryption.status,
-      osSettings.disk_encryption.detail
-    );
-    derivedHostSettings = derivedHostSettings
-      ? [...derivedHostSettings, winDiskEncryptionSetting]
-      : [winDiskEncryptionSetting];
-  }
-
-  if (
-    isDiskEncryptionSupportedLinuxPlatform(platform, os_version) &&
-    osSettings?.disk_encryption?.status &&
-    isLinuxDiskEncryptionStatus(osSettings.disk_encryption.status)
-  ) {
-    const linuxDiskEncryptionSetting: IHostMdmProfile = generateLinuxDiskEncryptionSetting(
-      osSettings.disk_encryption.status,
-      osSettings.disk_encryption.detail
-    );
-    derivedHostSettings = derivedHostSettings
-      ? [...derivedHostSettings, linuxDiskEncryptionSetting]
-      : [linuxDiskEncryptionSetting];
-  }
-
-  if (
-    platform === "darwin" &&
-    isEnrolledInMdm(mdm?.enrollment_status ?? null) &&
-    osSettings?.recovery_lock_password?.status
-  ) {
-    const recoveryLockSetting = generateRecoveryLockPasswordSetting(
-      osSettings.recovery_lock_password.status,
-      osSettings.recovery_lock_password.detail
-    );
-    derivedHostSettings = derivedHostSettings
-      ? [...derivedHostSettings, recoveryLockSetting]
-      : [recoveryLockSetting];
-  }
-
-  // The host name template row (macOS/iOS/iPadOS) is synthetic like the rows
-  // above, so it must be added here too — otherwise a host whose only OS setting
-  // is the host name wouldn't surface the "OS settings" indicator that opens the
-  // modal.
-  const hostNameSetting = generateHostNameSettingIfEligible(
-    platform,
-    mdm?.enrollment_status ?? null,
-    osSettings
-  );
-  if (hostNameSetting) {
-    derivedHostSettings = derivedHostSettings
-      ? [...derivedHostSettings, hostNameSetting]
-      : [hostNameSetting];
-  }
-
   const showStatus = !isIosOrIpadosHost && !isAndroidHost;
   const showTeam = !!isPremiumTier;
-  const showOsSettings =
-    isOsSettingsDisplayPlatform(platform, os_version) &&
-    !!derivedHostSettings &&
-    derivedHostSettings.length > 0;
   const showIssues =
     summaryData.issues?.total_issues_count > 0 &&
     !isIosOrIpadosHost &&
@@ -223,13 +128,11 @@ const HostSummary = ({
     !!summaryData.maintenance_window &&
     summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
 
-  // Hide the card entirely when nothing inside it would render (e.g. Free tier
-  // Android host with no OS settings) — otherwise an empty card sits above the
-  // Vitals section.
+  // Hide the card entirely when nothing inside it would render (e.g. a Free
+  // tier Android host) — otherwise an empty card sits above the Vitals section.
   if (
     !showStatus &&
     !showTeam &&
-    !showOsSettings &&
     !showIssues &&
     !showBootstrapPackage &&
     !showMaintenanceWindow
@@ -251,7 +154,8 @@ const HostSummary = ({
               value={getHostStatus(status, mdm?.enrollment_status)}
               tooltip={{
                 tooltipText: getHostStatusTooltipText(
-                  getHostStatus(status, mdm?.enrollment_status)
+                  getHostStatus(status, mdm?.enrollment_status),
+                  platform
                 ),
                 position: "bottom",
               }}
@@ -260,18 +164,6 @@ const HostSummary = ({
         />
       )}
       {showTeam && renderHostTeam()}
-      {showOsSettings && derivedHostSettings && (
-        <DataSet
-          className={`${baseClass}__os-settings`}
-          title="OS settings"
-          value={
-            <OSSettingsIndicator
-              profiles={derivedHostSettings}
-              onClick={toggleOSSettingsModal}
-            />
-          }
-        />
-      )}
       {showIssues && renderIssues()}
       {showBootstrapPackage && bootstrapPackageData?.status && (
         <DataSet

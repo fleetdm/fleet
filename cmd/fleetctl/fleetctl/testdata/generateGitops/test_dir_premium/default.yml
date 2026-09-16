@@ -94,11 +94,15 @@ org_settings:
       vulnerabilities: true
   fleet_desktop:
     alternative_browser_host: musica.alternativa
+    sso_enabled: false
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 59995
   integrations:
+    certificates_disable_host_end_user_binding:
+    certificates_idp_client_ids:
+    certificates_idp_introspection_urls:
     conditional_access_enabled: true
     google_calendar:
     - api_key_json: # TODO: Add your Google Calendar API key JSON here
@@ -143,7 +147,7 @@ org_settings:
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
       location: Fleet Device Management Inc.
-    windows_enrollment:
+    windows_automatic_enrollment:
       default_fleet: "💻 Workstations"
   org_info:
     contact_url: https://fleetdm.com/company/contact

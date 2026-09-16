@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 )
 
 // InstallerTimeout is the timeout duration for downloading and adding a maintained app.
@@ -32,6 +33,9 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
 	}
+	// Some vendor CDNs (e.g. Cloudflare-fronted hosts) reject Go's default
+	// "Go-http-client" User-Agent with a 403 while accepting any other client.
+	req.Header.Set("User-Agent", installerUserAgent())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -60,6 +64,10 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	}
 
 	return tfr, FilenameFromResponse(resp), nil
+}
+
+func installerUserAgent() string {
+	return "fleet/" + version.Version().Version
 }
 
 func FilenameFromResponse(resp *http.Response) string {

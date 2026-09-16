@@ -1,20 +1,32 @@
-import React, { ReactNode } from "react";
-
 import classnames from "classnames";
+import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
+
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/mode-xml";
+import "ace-builds/src-noconflict/mode-json";
+
 import { Ace } from "ace-builds";
 
-import TooltipWrapper from "components/TooltipWrapper";
 import CopyButton from "components/buttons/CopyButton";
+import TooltipWrapper from "components/TooltipWrapper";
 import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
+
+import "utilities/ace_theme";
 
 const baseClass = "editor";
 
-interface IEditorProps {
+export type EditorMode =
+  | "sh"
+  | "powershell"
+  | "python"
+  | "xml"
+  | "json"
+  | "text";
+
+export interface IEditorProps {
   focus?: boolean;
   label?: string;
   labelTooltip?: string | JSX.Element;
@@ -44,7 +56,7 @@ interface IEditorProps {
   name?: string;
   /** The syntax highlighting mode to use.
    */
-  mode?: string;
+  mode?: EditorMode;
   /** Include correct styles as a form field.
    * @default true
    */
@@ -76,7 +88,7 @@ const Editor = ({
   enableCopy = false,
   wrapEnabled = false,
   name = "editor",
-  mode,
+  mode = "text",
   isFormField = true,
   maxLines = 20,
   className,

@@ -17,11 +17,13 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -855,6 +857,46 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	manifest, err = svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
+}
+
+// The device fetches the manifest and then the .ipa named inside it, so on a
+// split-hostname deploy both URLs have to be the one Apple devices reach Fleet on.
+func TestGetInHouseAppManifestAppleServerURL(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	const validToken = "00000000-0000-0000-0000-000000000003"
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://admin.example.com"},
+			MDM:            fleet.MDM{AppleServerURL: "https://devices.example.com"},
+		}, nil
+	}
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		return &fleet.InHouseAppInstallTokenMetadata{
+			Token:           validToken,
+			SoftwareTitleID: 1,
+			TeamID:          0,
+			HostID:          7,
+			ExpiresAt:       time.Now().Add(time.Hour),
+		}, nil
+	}
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			BundleIdentifier: "com.foo.bar",
+			Version:          "1.2.3",
+			SoftwareTitle:    "test in-house app",
+			StorageID:        "123storageid",
+		}, nil
+	}
+
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, validToken)
+	require.NoError(t, err)
+	assert.Contains(t, string(manifest),
+		"<string>https://devices.example.com/api/latest/fleet/software/titles/1/in_house_app/"+validToken+"</string>")
+	assert.NotContains(t, string(manifest), "admin.example.com")
 }
 
 func TestGetInHouseAppPackageTokenAuth(t *testing.T) {
@@ -2291,6 +2333,127 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
+// .py packages are stored with platform='linux'. The uninstall gate has to
+// honour the same unix-like exception as the install gate, or a package that
+// installed fine on a darwin host can never be removed through Fleet.
+func TestUninstallPyScriptOnUnixLike(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"linux", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           1,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     platform,
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return nil, nil
+			}
+
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{
+					InstallerID:              10,
+					Name:                     "script.py",
+					Extension:                "py",
+					Platform:                 "linux",
+					TeamID:                   new(uint(1)),
+					TitleID:                  new(uint(100)),
+					UninstallScriptContentID: 20,
+				}, nil
+			}
+			mockSoftwarePackagesFromMetadata(ds)
+
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return true, nil
+			}
+
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+
+			ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("script"), nil
+			}
+
+			ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
+				return nil
+			}
+
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+				User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			})
+
+			err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+			require.NoError(t, err, ".py uninstall on %s should succeed", platform)
+			require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should be created")
+		})
+	}
+}
+
+// The unix-like exception must not loosen the gate for platforms a script
+// package genuinely can't run on.
+func TestUninstallPyScriptOnWindowsFails(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:              10,
+			Name:                     "script.py",
+			Extension:                "py",
+			Platform:                 "linux",
+			TeamID:                   new(uint(1)),
+			TitleID:                  new(uint(100)),
+			UninstallScriptContentID: 20,
+		}, nil
+	}
+	mockSoftwarePackagesFromMetadata(ds)
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+	require.Error(t, err, ".py uninstall on windows should fail")
+
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
+	require.NotNil(t, bre)
+	// The message has to name both platforms, the way the install path does.
+	require.Contains(t, bre.Message, "can be uninstalled only on macOS and Linux hosts")
+	require.False(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should not be created")
+}
+
 // .py packages are stored with platform='linux'; the self-service install path
 // must still allow them on darwin hosts via the unix-like exception.
 func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
@@ -2886,6 +3049,158 @@ func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testin
 	}
 }
 
+func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
+	t.Parallel()
+
+	const (
+		teamID         = uint(1)
+		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
+		otherHash      = "2222222222222222222222222222222222222222222222222222222222222222"
+		installerBytes = "installer bytes"
+	)
+	downloadedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(installerBytes)))
+
+	cases := []struct {
+		name          string
+		manifestHash  string
+		versionExists bool
+		cachedHash    string
+		bytesInStore  bool
+		wantDownload  bool
+		wantStorageID string
+	}{
+		{
+			name:          "hashless manifest reuses the cached version",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			bytesInStore:  true,
+			wantStorageID: cachedHash,
+		},
+		{
+			name:          "hashless manifest downloads when the cached bytes are gone",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashless manifest never adopts a sentinel storage id",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			cachedHash:    noCheckHash,
+			bytesInStore:  true,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashless manifest never adopts an empty storage id",
+			manifestHash:  noCheckHash,
+			versionExists: true,
+			bytesInStore:  true,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashless manifest downloads an uncached version",
+			manifestHash:  noCheckHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
+			name:          "hashed manifest reuses the cached version",
+			manifestHash:  cachedHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			wantStorageID: cachedHash,
+		},
+		{
+			name:          "hashed manifest downloads a rebuilt version",
+			manifestHash:  otherHash,
+			versionExists: true,
+			cachedHash:    cachedHash,
+			wantDownload:  true,
+			wantStorageID: otherHash,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			var downloads atomic.Int32
+			installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				downloads.Add(1)
+				_, _ = w.Write([]byte(installerBytes))
+			}))
+			t.Cleanup(installerSrv.Close)
+
+			ds := new(mock.Store)
+			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tmID}, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
+			ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+				return c.versionExists, c.cachedHash, nil
+			}
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, tmID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
+			ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+				return nil, nil
+			}
+			var applied []*fleet.UploadSoftwareInstallerPayload
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				applied = installers
+				return nil, nil
+			}
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+			svc := newTestService(t, ds)
+			kvs, _ := inMemoryKeyValueStore()
+			svc.keyValueStore = kvs
+			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+				ExistsFunc: func(ctx context.Context, id string) (bool, error) {
+					return id == c.cachedHash && c.bytesInStore, nil
+				},
+				PutFunc: func(context.Context, string, io.ReadSeeker) error { return nil },
+			}
+
+			payload := &fleet.SoftwareInstallerPayload{
+				Slug: new("zoom/darwin"),
+				URL:  installerSrv.URL + "/zoom.pkg",
+				MaintainedApp: &fleet.MaintainedApp{
+					ID:               7,
+					Name:             "Zoom",
+					Platform:         "darwin",
+					UniqueIdentifier: "us.zoom.xos",
+					Version:          "1.0",
+					InstallerURL:     installerSrv.URL + "/zoom.pkg",
+					SHA256:           c.manifestHash,
+					InstallScript:    "echo install",
+					UninstallScript:  "echo uninstall",
+				},
+			}
+			if c.manifestHash != noCheckHash {
+				payload.SHA256 = c.manifestHash
+			}
+
+			svc.softwareBatchUpload("req-uuid", new(teamID), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
+
+			require.Equal(t, c.wantDownload, downloads.Load() > 0, "installer download")
+			require.Len(t, applied, 1)
+			require.Equal(t, c.wantStorageID, applied[0].StorageID)
+			require.Equal(t, !c.wantDownload, applied[0].FMAVersionCached)
+		})
+	}
+}
+
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 	t.Parallel()
 
@@ -3266,4 +3581,172 @@ func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
 		err := validateFleetVariablesOnInstallerScripts(freeCtx, &plain, nil, &good)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
+}
+
+func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
+	const (
+		titleID         = uint(42)
+		installerID     = uint(7)
+		storedInstall   = "#!/bin/sh\ninstall\n"
+		storedUninstall = "#!/bin/sh\nuninstall\n"
+	)
+
+	// setup returns the service plus a reader for whatever payload reached the
+	// datastore, which is where the computed flags land.
+	setup := func(t *testing.T, installEdited bool, uninstallEdited bool) (*Service, context.Context, func() *fleet.UpdateSoftwareInstallerPayload) {
+		t.Helper()
+		ds := new(mock.Store)
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		teamID := uint(0)
+		fmaID := uint(3)
+		installer := &fleet.SoftwareInstaller{
+			TeamID:                &teamID,
+			TitleID:               new(titleID),
+			InstallerID:           installerID,
+			Name:                  "app.pkg",
+			Extension:             "pkg",
+			Version:               "1.0",
+			Platform:              "darwin",
+			PackageIDList:         "com.example.app",
+			FleetMaintainedAppID:  &fmaID,
+			InstallScript:         storedInstall,
+			UninstallScript:       storedUninstall,
+			InstallScriptEdited:   installEdited,
+			UninstallScriptEdited: uninstallEdited,
+		}
+
+		ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+		ds.ValidateReferencedCustomHostVitalsFunc = func(context.Context, []string) error { return nil }
+		ds.SoftwareTitleByIDFunc = func(context.Context, uint, *uint, fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			return &fleet.SoftwareTitle{ID: titleID, Name: "App", SoftwareInstallersCount: 1}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(context.Context, *uint, uint, bool) (*fleet.SoftwareInstaller, error) {
+			return installer, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(context.Context, *uint, uint, uint, bool) (*fleet.SoftwareInstaller, error) {
+			return installer, nil
+		}
+		ds.GetPatchPolicyFunc = func(context.Context, *uint, uint) (*fleet.PatchPolicyData, error) {
+			return nil, &notFoundError{}
+		}
+		ds.ProcessInstallerUpdateSideEffectsFunc = func(context.Context, uint, bool, bool) error { return nil }
+		ds.GetSummaryHostSoftwareInstallsFunc = func(context.Context, uint) (*fleet.SoftwareInstallerStatusSummary, error) {
+			return nil, nil
+		}
+		baseSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
+
+		var saved *fleet.UpdateSoftwareInstallerPayload
+		ds.SaveInstallerUpdatesFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
+			saved = payload
+			return nil
+		}
+
+		ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+		return svc, ctx, func() *fleet.UpdateSoftwareInstallerPayload { return saved }
+	}
+
+	update := func(t *testing.T, svc *Service, ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) {
+		t.Helper()
+		teamID := uint(0)
+		payload.TitleID = titleID
+		payload.TeamID = &teamID
+		_, err := svc.UpdateSoftwareInstaller(ctx, payload)
+		require.NoError(t, err)
+	}
+
+	t.Run("editing the install script marks only the install script", func(t *testing.T) {
+		svc, ctx, saved := setup(t, false, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: new("#!/bin/sh\necho custom\n"),
+		})
+
+		require.NotNil(t, saved())
+		require.True(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("editing the uninstall script marks only the uninstall script", func(t *testing.T) {
+		svc, ctx, saved := setup(t, false, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			UninstallScript: new("#!/bin/sh\necho custom uninstall\n"),
+		})
+
+		require.NotNil(t, saved())
+		require.False(t, saved().InstallScriptEdited)
+		require.True(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("resubmitting the stored script is not an edit", func(t *testing.T) {
+		svc, ctx, saved := setup(t, false, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript:   new(storedInstall),
+			PreInstallQuery: new("SELECT 1"),
+		})
+
+		require.NotNil(t, saved())
+		require.False(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("an existing edit survives an update that leaves the scripts alone", func(t *testing.T) {
+		svc, ctx, saved := setup(t, true, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			PreInstallQuery: new("SELECT 1"),
+		})
+
+		require.NotNil(t, saved())
+		require.True(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+}
+
+// Not parallel: the blocking mode is process-global, so this must not overlap
+// with other outbound requests in the package.
+func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		_, _ = io.WriteString(w, "#!/bin/sh\ninternal\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+
+	tests := []struct {
+		name      string
+		mode      fleethttp.NetworkBlockingMode
+		wantReach bool
+	}{
+		{"disabled", fleethttp.BlockingDisabled, true},
+		{"bypass all", fleethttp.BlockingBypassAll, true},
+		{"full", fleethttp.BlockingFull, false},
+		{"private allowed", fleethttp.BlockingPrivateAllowed, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fleethttp.SetNetworkBlockingMode(tt.mode)
+			t.Cleanup(func() { fleethttp.SetNetworkBlockingMode(fleethttp.BlockingDisabled) })
+
+			before := hits.Load()
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", maxSize)
+			if tfr != nil {
+				t.Cleanup(func() { tfr.Close() })
+			}
+			if tt.wantReach {
+				require.NoError(t, err)
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+			} else {
+				require.ErrorIs(t, err, fleethttp.ErrPrivateNetworkBlocked)
+			}
+			// Assert on the connection, not just the error: the reachable rows
+			// prove the listener is up.
+			require.Equal(t, tt.wantReach, hits.Load() > before)
+		})
+	}
 }

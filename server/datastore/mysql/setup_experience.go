@@ -202,6 +202,7 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	NULL AS in_house_app_id,
 	-- policy_gated: true when the installer has at least one policy whose install-software automation points at it (a gating policy
 	-- used as a gate during setup experience). A policy's software_installer_id already uniquely identifies the installer (and its
 	-- team), so no team check is needed; only gate on Windows/Linux. The specific policy ids are derived from the installer at
@@ -267,6 +268,7 @@ SELECT
 	'pending' AS status,
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
+	NULL AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
 	st.id AS software_title_id
@@ -303,6 +305,7 @@ SELECT
 	'pending' AS status,
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
+	NULL AS in_house_app_id,
 	FALSE AS policy_gated,
 	COALESCE(stdn.display_name, st.name) AS sort_name,
 	st.id AS software_title_id
@@ -330,6 +333,43 @@ AND %s`
 		}
 	}
 
+	// In-house apps (.ipa) install during setup on iOS/iPadOS only. Deliberately
+	// no in_house_app_labels join: labels don't apply during setup (see the
+	// comment on the INSERT below), and a freshly-enrolled host has no computed
+	// label membership yet anyway.
+	if fleetPlatform == "ios" || fleetPlatform == "ipados" {
+		inHouseSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	NULL AS software_installer_id,
+	NULL AS vpp_app_team_id,
+	iha.id AS in_house_app_id,
+	FALSE AS policy_gated,
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
+FROM in_house_apps iha
+INNER JOIN software_titles st
+	ON iha.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
+WHERE iha.install_during_setup = true
+AND iha.global_or_team_id = ?
+AND iha.platform = ?
+AND %s`
+		if resetFailedSetupSteps {
+			inHouseSelect = fmt.Sprintf(inHouseSelect, "iha.id NOT IN (SELECT in_house_app_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND in_house_app_id IS NOT NULL)")
+		} else {
+			inHouseSelect = fmt.Sprintf(inHouseSelect, "TRUE")
+		}
+		softwareUnionParts = append(softwareUnionParts, inHouseSelect)
+		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform)
+		if resetFailedSetupSteps {
+			softwareArgs = append(softwareArgs, hostUUID)
+		}
+	}
+
 	var stmtSoftwareCombined string
 	if len(softwareUnionParts) > 0 {
 		// A title can now hold several packages, and more than one can be flagged for setup. Queue only
@@ -342,9 +382,10 @@ INSERT INTO setup_experience_status_results (
 	status,
 	software_installer_id,
 	vpp_app_team_id,
+	in_house_app_id,
 	policy_gated
 )
-SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, in_house_app_id, policy_gated FROM (
 	SELECT combined.*, ROW_NUMBER() OVER (
 		PARTITION BY software_title_id
 		ORDER BY (software_installer_id IS NULL), software_installer_id ASC
@@ -353,7 +394,7 @@ SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_g
 	) AS combined
 ) AS deduped
 WHERE software_installer_id IS NULL OR first_added_rank = 1
-ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
+ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, in_house_app_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
 	stmtSetupScripts := `
@@ -820,16 +861,18 @@ SELECT
 	sesr.host_software_installs_execution_id,
 	sesr.vpp_app_team_id,
 	sesr.nano_command_uuid,
+	sesr.in_house_app_id,
 	sesr.setup_experience_script_id,
 	sesr.script_execution_id,
 	sesr.policy_gated,
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	ses.script_content_id,
-	COALESCE(si.title_id, COALESCE(va.title_id, NULL)) AS software_title_id,
+	COALESCE(si.title_id, va.title_id, iha.title_id) AS software_title_id,
 	COALESCE(
 		(SELECT source FROM software_titles WHERE id = si.title_id),
-		(SELECT source FROM software_titles WHERE id = va.title_id)
+		(SELECT source FROM software_titles WHERE id = va.title_id),
+		(SELECT source FROM software_titles WHERE id = iha.title_id)
 	) AS source,
     CASE
         WHEN hsi.execution_status = 'failed_install' THEN
@@ -849,6 +892,7 @@ LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_in
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
 LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
+LEFT JOIN in_house_apps iha ON iha.id = sesr.in_house_app_id
 WHERE host_uuid = ?
 ORDER BY sesr.id
 	`

@@ -638,7 +638,7 @@ Google Workspace makes it easy for users to add tools to their workflows while h
 
 This level of security allows users to authenticate to web applications with their Google accounts. This exposes little information beyond what they would provide in a form to create an account, and it protects confidential data while keeping everything managed.
 
->To get an application added to Fleet's Google Workspace security configuration, create an issue and assign it to the security team in [this repository](https://github.com/fleetdm/confidential/issues). You'll need to include: the client ID in text (not a screenshot) in your issue. This is processed quickly (about 1-2 days) by the Head of Security. The Head of Security will do the research on permissions the app is requesting and determine approval for the app.
+>To get an application added to Fleet's Google Workspace security configuration, create an issue with the :help-it label so it lands on the :globe_with_meridians: IT kanban board. You'll need to include the client ID in text (not a screenshot), the name of the app, and what you'll use it for. IT reviews the OAuth scopes the app is requesting, grants the least privilege needed, and approves or denies the request. This is processed quickly (about 1-2 business days).
 
 We mark every Google Service as *restricted* and recommend that anyone using Google Workspace mark at least the following as restricted in *Security/API Control/Google Services*:
 * Google Drive
@@ -1268,8 +1268,8 @@ This process is followed when offboarding a customer and deleting all of the pro
 | Question | Answer                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet have a cryptographic key management process (generation, exchange, storage, safeguards, use, vetting, and replacement), that is documented and currently implemented, for all system components? (e.g. database, system, web, etc.)   | All data is encrypted at rest using methods appropriate for the system (ie KMS for AWS based resources). Data going over the internet is encrypted using TLS or other appropiate transport security. |
-| Does Fleet allow customers to bring and their own encryption keys? | By default, Fleet does not allow for this, but if absolutely required, Fleet can accommodate this request. |
-| Does Fleet have policy regarding key rotation ? Does rotation happens after every fixed time period or only when there is evidence of key leak ?  | TLS certificates are managed by AWS Certificate Manager and are rotated automatically annually.  |
+| Does Fleet allow customers to bring and use their own encryption keys? | By default, Fleet does not allow for this, but if absolutely required, Fleet can accommodate this request. |
+| Does Fleet have policy regarding key rotation ? Does a rotation happen after every fixed time period or only when there is evidence of key leak ?  | TLS certificates are managed by AWS Certificate Manager and are rotated automatically annually.  |
 
 
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_

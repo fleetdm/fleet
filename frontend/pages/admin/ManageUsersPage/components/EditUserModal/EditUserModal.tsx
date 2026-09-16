@@ -1,8 +1,10 @@
 import React from "react";
 
-import { ITeam } from "interfaces/team";
-import { IUserFormErrors, UserRole } from "interfaces/user";
 import Modal from "components/Modal";
+import { IFormErrors } from "hooks/useFormValidation";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+
 import UserForm from "../UserForm";
 import { IUserFormData } from "../UserForm/UserForm";
 
@@ -23,7 +25,7 @@ interface IEditUserModalProps {
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
   isMfaEnabled?: boolean; // corresponds to whether MFA is enabled for the individual user
   isApiOnly?: boolean;
-  editUserErrors: IUserFormErrors;
+  editUserErrors: IFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
   isUpdatingUsers: boolean;
@@ -60,7 +62,7 @@ const EditUserModal = ({
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
-        ancestorErrors={editUserErrors}
+        serverErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}

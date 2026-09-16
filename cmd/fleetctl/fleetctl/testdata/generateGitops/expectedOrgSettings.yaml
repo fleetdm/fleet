@@ -52,11 +52,15 @@ features:
     vulnerabilities: true
 fleet_desktop:
   alternative_browser_host: musica.alternativa
+  sso_enabled: false
   transparency_url: https://fleetdm.com/transparency
 host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
 integrations:
+  certificates_disable_host_end_user_binding:
+  certificates_idp_client_ids:
+  certificates_idp_introspection_urls:
   conditional_access_enabled: true
   google_calendar:
     - api_key_json: ___GITOPS_COMMENT_0___
@@ -101,7 +105,7 @@ mdm:
         - "\U0001F4BB\U0001F423 Workstations (canary)"
         - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
         - "\U0001F4F1\U0001F510 Personal mobile devices"
-  windows_enrollment:
+  windows_automatic_enrollment:
     default_fleet: "\U0001F4BB Workstations"
 org_info:
   contact_url: https://fleetdm.com/company/contact

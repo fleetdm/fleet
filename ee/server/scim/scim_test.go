@@ -2,6 +2,12 @@ package scim
 
 import (
 	"bytes"
+	"context"
+	scimerrors "github.com/elimity-com/scim/errors"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"io"
 	"log/slog"
 	"net/http"
@@ -162,4 +168,37 @@ func TestDebugPayloadDumpMiddleware(t *testing.T) {
 		out := buf.String()
 		assert.Contains(t, out, tailMarker, "log must include the full body, including bytes past any head buffer")
 	})
+}
+
+func TestLastRequestMiddlewareKeepsRealDetail(t *testing.T) {
+	const realDetail = "batch insert scim group users: Error 1452 fk fails"
+
+	ds := new(mock.Store)
+	var recorded string
+	ds.UpdateScimLastRequestFunc = func(ctx context.Context, lr *fleet.ScimLastRequest) error {
+		recorded = lr.Details
+		return nil
+	}
+
+	// stands in for the sanitizing handler
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h := scimDetailFromContext(r.Context()); h != nil {
+			h.detail = realDetail
+		}
+		w.Header().Set("Content-Type", "application/scim+json")
+		w.WriteHeader(http.StatusInternalServerError)
+		body, _ := scimerrors.ScimError{Status: http.StatusInternalServerError, Detail: platform_http.GenericErrorMessage}.MarshalJSON()
+		_, _ = w.Write(body)
+	})
+
+	h := LastRequestMiddleware(ds, slog.New(slog.DiscardHandler), inner)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/latest/fleet/scim/Users", nil).
+		WithContext(logging.NewContext(context.Background(), &logging.LoggingContext{}))
+	h.ServeHTTP(rec, req)
+
+	require.True(t, ds.UpdateScimLastRequestFuncInvoked)
+	require.Equal(t, realDetail, recorded)
+	require.Contains(t, rec.Body.String(), platform_http.GenericErrorMessage)
+	require.NotContains(t, rec.Body.String(), "1452")
 }

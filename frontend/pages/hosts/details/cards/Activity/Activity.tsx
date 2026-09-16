@@ -1,7 +1,14 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostPastActivitiesResponse,
@@ -9,19 +16,14 @@ import {
 } from "services/entities/activities";
 import { IGetCommandsResponse } from "services/entities/command";
 
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-
+import CommandFeed from "./CommandFeed";
+import {
+  CancelCommandHandler,
+  ShowCommandDetailsHandler,
+} from "./CommandItem/CommandItem";
+import MDMCommandsToggle from "./MDMCommandsToggle";
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
-import MDMCommandsToggle from "./MDMCommandsToggle";
-import CommandFeed from "./CommandFeed";
-import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 
 const baseClass = "host-activity-card";
 
@@ -62,6 +64,9 @@ interface IActivityProps {
   onShowDetails: ShowActivityDetailsHandler;
   onShowCommandDetails: ShowCommandDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
+  /** When provided, cancelable pending MDM commands in the Upcoming tab
+   * render a cancel button. */
+  onCancelCommand?: CancelCommandHandler;
   onShowMDMCommands: () => void;
   onHideMDMCommands: () => void;
 }
@@ -84,6 +89,7 @@ const Activity = ({
   onShowDetails,
   onShowCommandDetails,
   onCancel,
+  onCancelCommand,
   onShowMDMCommands,
   onHideMDMCommands,
 }: IActivityProps) => {
@@ -175,6 +181,7 @@ const Activity = ({
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
+                onCancelCommand={onCancelCommand}
               />
             ) : (
               <UpcomingActivityFeed

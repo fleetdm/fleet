@@ -23,7 +23,7 @@ const MaxAppleProfileRetries = 3
 
 // MaxWindowsProfileRetries is the maximum number of times a Windows install profile command may be retried after the
 // initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
-const MaxWindowsProfileRetries = 1
+const MaxWindowsProfileRetries = 3
 
 // DecryptBase64CMS decrypts a base64 encoded pkcs7-encrypted value using the
 // provided certificate and private key.

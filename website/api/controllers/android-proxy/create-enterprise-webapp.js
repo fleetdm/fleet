@@ -78,6 +78,7 @@ module.exports = {
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Webapps.html#create
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = (sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] || 0) + 1;// Count this request for the per-enterprise-per-minute total logged in api/hooks/custom/index.js.
       let createWebAppResponse = await androidManagementConnection.enterprises.webApps.create({
         parent: `enterprises/${androidEnterpriseId}`,
         requestBody: {

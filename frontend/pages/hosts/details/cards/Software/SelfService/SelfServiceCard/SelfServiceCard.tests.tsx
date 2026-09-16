@@ -1,18 +1,17 @@
 // State is passed in through tableConfig which is tested in the parent component's tests (SelfService.tests.tsx)
 
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { baseUrl } from "test/default-handlers";
-import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { SoftwareCategory } from "interfaces/software";
+import { baseUrl } from "test/default-handlers";
+import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SelfServiceCard, {
   SelfServiceQueryParams,
@@ -592,7 +591,6 @@ describe("SelfServiceCard", () => {
 
   it("renders empty search state when the search query yields no rows", () => {
     const props = createTestProps({
-      enhancedSoftware: [],
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
     });
     const render = createCustomRenderer({ withBackendMock: true });
@@ -612,6 +610,46 @@ describe("SelfServiceCard", () => {
       name: /Reach out to IT/i,
     });
     expect(contactLink[0]).toHaveAttribute("href", props.contactUrl);
+  });
+
+  it("removes the empty search state immediately when search is cleared", async () => {
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "installed",
+          software_package: browserPackage,
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { rerender } = render(<SelfServiceCard {...props} />);
+
+    expect(
+      await screen.findByText("No items match your search")
+    ).toBeInTheDocument();
+    // Ensure the categories request has settled before exercising the update.
+    // Trigger renders the current selection label ("All" when none is picked).
+    await screen.findByRole("button", { name: /^All$/i });
+
+    rerender(
+      <SelfServiceCard
+        {...props}
+        queryParams={{ ...DEFAULT_QUERY_PARAMS, query: "" }}
+      />
+    );
+
+    expect(
+      screen.queryByText("No items match your search")
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("browser")).toBeInTheDocument();
   });
 
   it("renders empty-category state when the category filter yields no rows", async () => {

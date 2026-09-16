@@ -56,6 +56,9 @@ type WindowsAutopilotDevice struct {
 	ID           string `json:"id"`
 	SerialNumber string `json:"serialNumber"`
 	GroupTag     string `json:"groupTag"`
+	// Model and Manufacturer are what Autopilot recorded for the hardware.
+	Model        string `json:"model"`
+	Manufacturer string `json:"manufacturer"`
 	// The JSON tag is Graph's and must stay as-is: Microsoft rebranded Azure AD to Entra ID but never renamed this API field.
 	EntraDeviceID string `json:"azureActiveDirectoryDeviceId"`
 }

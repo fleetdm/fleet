@@ -334,8 +334,8 @@ func liveQueryDeadline() time.Duration {
 		return 25 * time.Second
 	}
 	d, err := time.ParseDuration(period)
-	if err != nil {
-		logrus.Warnf("invalid FLEET_LIVE_QUERY_REST_PERIOD %q, defaulting to 25s: %v", period, err)
+	if err != nil || d <= 0 {
+		logrus.Warnf("invalid FLEET_LIVE_QUERY_REST_PERIOD %q, defaulting to 25s", period)
 		return 25 * time.Second
 	}
 	return d

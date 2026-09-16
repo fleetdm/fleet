@@ -96,6 +96,7 @@ module "loadtest" {
   fleet_config = {
     image               = local.fleet_image
     family              = local.customer
+    command             = ["fleet", "serve", "--dev"]
     mem                 = var.fleet_task_memory
     cpu                 = var.fleet_task_cpu
     security_group_name = local.customer

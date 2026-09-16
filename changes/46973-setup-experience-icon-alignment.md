@@ -1,1 +1,0 @@
-- Fixed misaligned app icons on the macOS setup experience "Setting up your device" screen.

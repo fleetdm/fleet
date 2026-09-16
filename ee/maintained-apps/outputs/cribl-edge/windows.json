@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.19.0",
+      "version": "4.19.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cribl Edge' AND publisher = 'Cribl, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cribl Edge' AND publisher = 'Cribl, Inc.' AND version_compare(version, '4.19.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cribl Edge' AND publisher = 'Cribl, Inc.' AND version_compare(version, '4.19.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cribl edge.exe');"
       },
-      "installer_url": "https://cdn.cribl.io/dl/4.19.0/cribl-4.19.0-0fbd6d34-win32-x64.msi",
+      "installer_url": "https://cdn.cribl.io/dl/4.19.2/cribl-4.19.2-89cac507-win32-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "00e56c03",
-      "sha256": "dbdd46c9bab205ec6d4ba79336010d2a2a443d0cbcf0d7fc656d035642acf7e1",
+      "sha256": "a16ade6c4efce166a677cc94a9e4feac07e37d92eae4066bd28c37569f8c1363",
       "default_categories": [
         "Developer tools"
       ],

@@ -177,7 +177,29 @@ The CMO is the DRI for deploying Fleet's outward-facing content. The content sch
   - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Content Specialist  to review and settle the proposed content.
 
+To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/projects/114) project board, add the `content-planning` label to the issue.
+
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
+
+
+### Localize content
+
+To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+
+- 🇮🇳 Hindi (Delhi, Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
+- 🇷🇺 Russian (Russia) (while Fleet is unable to advertise or do business with organizations in Russia, Belarus, and other markets with export controls, Fleet still advertises to native speakers of every supported language in every market where Fleet can do business, around the world)
+- 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- ळ Marathi (Maharashtra)
+- ಠ Kannada (Karnataka)
+- 🇲🇾 Malay (Malaysia)
+- 🇷🇴 Romanian (Romania, Moldova)
+- 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
+- 🇸🇪 Swedish (Sweden)
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark)
 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
@@ -401,7 +423,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
 1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
-2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivalent
 3. Title the file with the slug version of your blog title, ending in `.md`
 4. First line should be the Title of the blog with H1 markdown (`#`)
 5. Put in your article, using markdown to format it

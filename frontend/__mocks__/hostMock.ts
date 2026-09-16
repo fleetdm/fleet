@@ -1,15 +1,15 @@
-import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
-import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
-import { normalizeEmptyValues } from "utilities/helpers";
-import { HOST_SUMMARY_DATA } from "utilities/constants";
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
+import { IHostMdmProfile } from "interfaces/mdm";
 import {
   IHostAppStoreApp,
   IHostSoftware,
   IHostSoftwarePackage,
 } from "interfaces/software";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { HOST_SUMMARY_DATA } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -40,6 +40,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",
   last_mdm_enrolled_at: "2022-01-02T12:00:00Z",
+  last_mdm_checked_in_at: "",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
@@ -185,6 +186,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     installed_at: "2022-01-01T12:00:00Z",
   },
   last_uninstall: null,
+  has_uninstall_script: true,
 };
 
 export const createMockHostSoftwarePackage = (

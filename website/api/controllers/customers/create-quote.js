@@ -49,12 +49,16 @@ module.exports = {
 
 
   exits: {
-
+    success: {description: 'A Fleet premium quote was successfully created.'},
+    invalidNumberOfHosts: { description: 'A quote could not be created.', responseType: 'badRequest'},
   },
 
 
   fn: async function (inputs) {
     let numberOfHosts = _.sum(_.values(inputs));
+    if(numberOfHosts < 1) {
+      throw 'invalidNumberOfHosts';
+    }
     // Determine the price, 7 dollars * host * month (Billed anually)
     let price = 7.00 * numberOfHosts * 12;
 

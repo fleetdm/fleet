@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
-import Spinner from "components/Spinner/Spinner";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 
 const baseClass = "run-script-details-modal";
 
@@ -122,28 +121,37 @@ const ScriptOutput = ({
   output,
   hostname,
   wasAdHoc = false,
-}: IScriptOutputProps) => (
-  <div className={`${baseClass}__script-result`}>
-    <Textarea
-      label={
-        <>
-          The{" "}
-          <TooltipWrapper
-            tipContent="Fleet records the last 10,000 characters to prevent downtime."
-            tooltipClass={`${baseClass}__output-tooltip`}
-            delayInMs={500}
-          >
-            output recorded
-          </TooltipWrapper>{" "}
-          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
-        </>
-      }
-      variant="code"
-    >
-      {output}
-    </Textarea>
-  </div>
-);
+}: IScriptOutputProps) => {
+  const content =
+    output.trim().length === 0 ? (
+      <span>
+        No output captured when <b>{hostname}</b> ran the script
+        {wasAdHoc && " above"}.
+      </span>
+    ) : (
+      <Textarea
+        label={
+          <>
+            The{" "}
+            <TooltipWrapper
+              tipContent="Fleet records the last 10,000 characters to prevent downtime."
+              tooltipClass={`${baseClass}__output-tooltip`}
+              delayInMs={500}
+            >
+              output recorded
+            </TooltipWrapper>{" "}
+            when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
+          </>
+        }
+        variant="code"
+      >
+        {output}
+      </Textarea>
+    );
+
+  return <div className={`${baseClass}__script-result`}>{content}</div>;
+};
+
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;

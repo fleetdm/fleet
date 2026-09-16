@@ -138,6 +138,9 @@ type Options struct {
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// CPUQuota is the systemd CPUQuota percentage applied to the orbit service
+	// (Linux only). Zero means the default of 20%.
+	CPUQuota uint
 	// Architecture that the package is being built for. (amd64, arm64)
 	Architecture string
 	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin
@@ -362,16 +365,11 @@ func writeMacOSSecret(opt Options, orbitRoot string) error {
 }
 
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, "osquery.flags")
-
 	if opt.OsqueryFlagfile == "" {
-		// Write empty flagfile
-		if err := os.WriteFile(path, []byte(""), constant.DefaultFileMode); err != nil {
-			return fmt.Errorf("write empty flagfile: %w", err)
-		}
-
 		return nil
 	}
+
+	path := filepath.Join(orbitRoot, "osquery.flags")
 
 	if err := file.Copy(opt.OsqueryFlagfile, path, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("copy flagfile: %w", err)

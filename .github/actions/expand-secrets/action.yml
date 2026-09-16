@@ -1,0 +1,50 @@
+name: Expand JSON secret bundle
+description: >
+  Parse a JSON object secret ({"NAME": "value", ...}) and export each key as a
+  masked environment variable for all subsequent steps in the job. Used to
+  consolidate groups of secrets into a single bundle secret to stay under
+  GitHub's 100-secret-per-repo limit. See README.md for how to build and
+  rotate a bundle.
+# Schema: https://json.schemastore.org/github-action.json
+
+inputs:
+  secrets-json:
+    description: 'JSON object mapping env var names to string values, e.g. {"SECRET_NAME": "value"}'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Expand secrets into environment
+      shell: bash
+      env:
+        SECRETS_JSON: ${{ inputs.secrets-json }}
+      run: |
+        if [ -z "$SECRETS_JSON" ]; then
+          echo "::notice::secrets-json is empty; nothing to expand. Secrets are unavailable on pull requests from forks."
+          exit 0
+        fi
+        if ! printf '%s' "$SECRETS_JSON" | jq -e 'type == "object"' > /dev/null 2>&1; then
+          echo "::error::secrets-json is not a valid JSON object."
+          exit 1
+        fi
+        while IFS= read -r key; do
+          if ! printf '%s' "$key" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*$'; then
+            echo "::error::Invalid environment variable name in secrets-json: '$key'"
+            exit 1
+          fi
+          value=$(printf '%s' "$SECRETS_JSON" | jq -r --arg k "$key" '.[$k]')
+          : # GitHub only auto-masks the bundle as a whole, so mask each extracted
+          : # value. add-mask is per-line and some values are multi-line (certs, XML).
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::add-mask::$line"
+          done <<< "$value"
+          : # Random heredoc delimiter so a value can never terminate its own block.
+          delimiter="EOF_$(head -c 16 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+          {
+            echo "${key}<<${delimiter}"
+            printf '%s\n' "$value"
+            echo "${delimiter}"
+          } >> "$GITHUB_ENV"
+          echo "Exported ${key}"
+        done < <(printf '%s' "$SECRETS_JSON" | jq -r 'keys[]')

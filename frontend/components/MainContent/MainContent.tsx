@@ -1,16 +1,16 @@
-import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
+import React, { ReactNode, useContext } from "react";
 
-import { hasLicenseExpired } from "utilities/helpers";
-import { AppContext } from "context/app";
-
+import LicenseExpirationBanner from "components/LicenseExpirationBanner";
+import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
+import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
 import AppleBMTokenInvalidMessage from "components/MDM/AppleBMTokenInvalidMessage";
-import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
-import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
-import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
+import { AppContext } from "context/app";
+import { hasLicenseExpired } from "utilities/helpers";
 
+import MicrosoftGraphCredentialInvalidMessage from "./banners/MicrosoftGraphCredentialInvalidMessage";
 import VppRenewalMessage from "./banners/VppRenewalMessage";
 
 export interface IMainContentConfig {
@@ -77,6 +77,8 @@ const MainContent = ({
         );
       } else if (isVppExpired || willVppExpire) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
+      } else if (config?.mdm.microsoft_graph_credential_invalid) {
+        banner = <MicrosoftGraphCredentialInvalidMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
       }

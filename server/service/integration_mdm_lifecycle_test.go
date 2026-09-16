@@ -640,10 +640,11 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		false,
 	)
 
-	// enable disk encryption
+	// enable disk encryption on every platform (the deprecated flat toggle
+	// fans out to all per-platform settings)
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
+	  "mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
@@ -1577,18 +1578,14 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	}`), http.StatusNoContent)
 
 	// Check that FileVault profile exists in the database
-	var initialProfileID uint
-	var initialTimestamp time.Time
+	var initialProfileUUID, initialChecksum string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
-			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
+			`SELECT profile_uuid, HEX(checksum) FROM mdm_apple_configuration_profiles
 			 WHERE identifier = ? AND team_id = 0`,
-			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&initialProfileID, &initialTimestamp)
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&initialProfileUUID, &initialChecksum)
 	})
-	require.NotZero(t, initialProfileID, "FileVault profile should exist in database after enabling disk encryption")
-
-	// Wait a moment to ensure timestamp difference will be detectable
-	time.Sleep(100 * time.Millisecond)
+	require.NotEmpty(t, initialProfileUUID, "FileVault profile should exist in database after enabling disk encryption")
 
 	// Turn off Apple MDM
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
@@ -1597,21 +1594,25 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	s.appleCoreCertsSetup()
 
 	// Check that FileVault profile still exists and has been updated
-	var updatedProfileID uint
-	var updatedTimestamp time.Time
+	var updatedProfileUUID, updatedChecksum string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
-			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
+			`SELECT profile_uuid, HEX(checksum) FROM mdm_apple_configuration_profiles
 			 WHERE identifier = ? AND team_id = 0`,
-			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&updatedProfileID, &updatedTimestamp)
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&updatedProfileUUID, &updatedChecksum)
 	})
-	require.NotZero(t, updatedProfileID, "FileVault profile should exist in database after re-enabling MDM")
+	require.NotEmpty(t, updatedProfileUUID, "FileVault profile should exist in database after re-enabling MDM")
 
-	// Verify the profile has been updated (newer timestamp or different profile ID)
-	profileWasUpdated := updatedTimestamp.After(initialTimestamp) || updatedProfileID != initialProfileID
-	require.True(t, profileWasUpdated,
-		"FileVault profile should have been updated when MDM was re-enabled. Initial ID: %d (time: %v), Updated ID: %d (time: %v)",
-		initialProfileID, initialTimestamp, updatedProfileID, updatedTimestamp)
+	// Re-enabling Apple MDM mints a new CA, and a key escrowed against the old
+	// one can no longer be decrypted, so the profile must carry the new
+	// certificate. The checksum is what drives the re-push to every host —
+	// asserting on it rather than on uploaded_at, which has second granularity.
+	require.NotEqual(t, initialChecksum, updatedChecksum,
+		"FileVault profile should carry the new CA certificate after MDM was re-enabled")
+	// the profile is updated in place, so hosts see changed payloads rather than
+	// a different profile
+	require.Equal(t, initialProfileUUID, updatedProfileUUID,
+		"FileVault profile should keep its identity across the MDM toggle")
 
 	// Disable MDM and remove filevault profile, then re-enable
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
@@ -1626,14 +1627,14 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	// Turn back on MDM, and see it succesfully creates the profile without fail
 	s.appleCoreCertsSetup()
 
-	var finalProfileID uint
+	var finalProfileUUID string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
-			`SELECT profile_id FROM mdm_apple_configuration_profiles 
+			`SELECT profile_uuid FROM mdm_apple_configuration_profiles
 			 WHERE identifier = ? AND team_id = 0`,
-			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&finalProfileID)
+			mobileconfig.FleetFileVaultPayloadIdentifier).Scan(&finalProfileUUID)
 	})
-	require.NotZero(t, finalProfileID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
+	require.NotEmpty(t, finalProfileUUID, "FileVault profile should exist in database after re-enabling MDM when it was previously deleted")
 }
 
 // TestSCEPRenewalVsFreshEnrollment verifies the fresh-enrollment-vs-SCEP-renewal disambiguation end to
@@ -1800,4 +1801,98 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared for a fresh ACME re-enrollment")
 		require.Greater(t, lastEnrolledActivityID(), firstEnrollID, "a fresh ACME re-enrollment must emit a new mdm_enrolled activity")
 	})
+}
+
+// Flipping either Apple Business enrollment restriction changes which hosts may
+// renew over SCEP, so saving the app config must drop the stored exclusions and
+// cancel in-flight renewals, letting the next cron run re-evaluate every host.
+func (s *integrationMDMTestSuite) TestAppleBusinessEnrollmentTogglesResetCertRenewals() {
+	t := s.T()
+	ctx := t.Context()
+
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	// the device is manually enrolled, so it has no ABM assignment
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE nano_cert_auth_associations SET cert_not_valid_after = ? WHERE id = ?`,
+			time.Now().AddDate(-1, 0, 0), mdmDevice.UUID)
+		return err
+	})
+
+	setABMOnly := func(enabled bool) {
+		s.Do("PATCH", "/api/latest/fleet/config",
+			json.RawMessage(fmt.Sprintf(`{"mdm":{"only_allow_apple_business_enrollment":%t}}`, enabled)),
+			http.StatusOK)
+	}
+
+	renewalState := func() (renewCmdUUID *string, excludedAt *time.Time) {
+		var row struct {
+			RenewCommandUUID  *string    `db:"renew_command_uuid"`
+			RenewalExcludedAt *time.Time `db:"renewal_excluded_at"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT renew_command_uuid, renewal_excluded_at FROM nano_cert_auth_associations WHERE id = ?`,
+				mdmDevice.UUID)
+		})
+		return row.RenewCommandUUID, row.RenewalExcludedAt
+	}
+
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	runRenewals := func() {
+		require.NoError(t, RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc))
+	}
+
+	// with no restrictions, the expiring cert renews over SCEP and the
+	// association is marked with the renewal command.
+	runRenewals()
+	renewCmdUUID, excludedAt := renewalState()
+	require.NotNil(t, renewCmdUUID)
+	require.Nil(t, excludedAt)
+
+	// turning the restriction on cancels that in-flight renewal
+	setABMOnly(true)
+	renewCmdUUID, excludedAt = renewalState()
+	require.Nil(t, renewCmdUUID)
+	require.Nil(t, excludedAt)
+	var queueActive int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queueActive,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND active = 1`, mdmDevice.UUID)
+	})
+	require.Zero(t, queueActive)
+
+	// the next run re-evaluates the host and, since it isn't in ABM, excludes it
+	runRenewals()
+	renewCmdUUID, excludedAt = renewalState()
+	require.Nil(t, renewCmdUUID)
+	require.NotNil(t, excludedAt)
+
+	// while excluded it stays out of the renewal window
+	assocs, err := s.ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Empty(t, assocs)
+
+	// turning the restriction back off clears the exclusion so the host is
+	// eligible again
+	setABMOnly(false)
+	renewCmdUUID, excludedAt = renewalState()
+	require.Nil(t, renewCmdUUID)
+	require.Nil(t, excludedAt)
+
+	assocs, err = s.ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 1)
+	require.Equal(t, mdmDevice.UUID, assocs[0].HostUUID)
+	require.False(t, assocs[0].DEPAssignedToFleet)
 }

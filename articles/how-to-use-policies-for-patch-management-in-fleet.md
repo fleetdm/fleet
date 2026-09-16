@@ -31,19 +31,24 @@ A patch policy automatically checks whether a Fleet-maintained app is up to date
 Key benefits:
 - **Automatic query generation** — Fleet creates the correct query for the app and platform.
 - **Fail only if outdated** — The policy only fails if the app IS installed AND running an older version. Hosts without the app installed pass the policy.
+- **Install only if app is closed** — If enabled, the policy automation skips the install if the app is currently running. 
 
 ### In the Fleet UI
 
 1. Navigate to **Software** and select your fleet.
 2. Click on a Fleet-maintained app to open its details.
-3. From the **Actions** dropdown, select **Patch**.
-4. Click **Add** in the confirmation modal.
+3. From the **Actions** dropdown, select **Deploy** and enable **Patch**.
+4. Select an option and click **Save** in the confirmation modal.
 
-To automatically install updates when the policy fails, navigate to **Policies > Manage automations > Install software** and enable the automation for the new patch policy.
+- **Patch when app is closed**: Automatically installs updates when the policy fails. If the app is currently running on a host, the installation skips, and Fleet only retries once the policy runs again. Manual, self-service, and setup experience installs still force installation whether the app is running or not.
+- **Force patch**: Automatically installs updates when the policy fails, whether the app is running or not.
+- **End user initiated (manual)**: Creates a patch policy that fails if the installed app is outdated, without installing a new version.
+
+Change this option later at **Actions > Deploy** or by navigating to **Policies > [policy] > Edit policy > Patch**.
 
 ### Via GitOps
 
-Add a policy with `type: patch` and specify the `fleet_maintained_app_slug`. With GitOps, the patch policy query automatically updates to include the latest version each time specs are applied:
+Add a policy with `type: patch` and specify the `fleet_maintained_app_slug`. The patch policy query automatically updates to include the latest version each time specs are applied:
 
 ```yaml
 policies:
@@ -94,7 +99,7 @@ And that’s it! Policies are evaluated across all online hosts every hour, or w
 | --- | --- | --- |
 | **Best for** | Fleet-maintained apps | Custom packages, VPP apps |
 | **Query management** | Automatic | You write and maintain the query |
-| **Version updates** | Automatic with GitOps; re-create via UI for new versions | Manual |
+| **Version updates** | Automatic | Manual |
 | **Behavior when app is missing** | Policy passes | Depends on your query |
 | **Platforms** | macOS, Windows | macOS, Windows, Linux |
 
@@ -125,7 +130,7 @@ See the [Upload software](https://fleetdm.com/docs/rest-api/rest-api#add-package
 
 Fleet's flexible API and support for a GitOps life cycle means this entire process can be stored and managed in code, further unlocking audibility, collaboration, and security. Know who made changes, when, and why—without being tied to vendor-specific methods. 
 
-For manual policies, nest an **install_software** block in the policy you want to automate and ensure the path to the software matches the same path referenced in the fleet configuration file under the software block. For patch policies, set `type` to `patch` and specify `fleet_maintained_app_slug`. Check out the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for more details.
+For manual policies, nest an **install_software** block in the policy you want to automate and ensure the path to the software matches the same path referenced in the fleet configuration file under the software block. For patch policies, set `type` to `patch` and specify `fleet_maintained_app_slug`. To enable the install automation, set `install_software` to `true`. Check out the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for more details.
 
 ## Want to know more?
 

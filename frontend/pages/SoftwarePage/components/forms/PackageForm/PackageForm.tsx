@@ -1,9 +1,35 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useState, useEffect, useCallback, useContext } from "react";
-import classnames from "classnames";
 
+import classnames from "classnames";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
+import InfoBanner from "components/InfoBanner";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import { isScriptOnlyPackageType } from "interfaces/package_type";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  SoftwareCategory,
+} from "interfaces/software";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
+import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
+import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
+import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   formatFileSize,
@@ -12,41 +38,15 @@ import {
 } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
-import { ILabelSummary } from "interfaces/label";
-
-import {
-  IAppStoreApp,
-  ISoftwarePackage,
-  SoftwareCategory,
-} from "interfaces/software";
-import { isScriptOnlyPackageType } from "interfaces/package_type";
-
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import FileUploader from "components/FileUploader";
-import {
-  CUSTOM_TARGET_OPTIONS,
-  generateHelpText,
-  generateSelectedLabels,
-  getCustomTarget,
-  getTargetType,
-} from "pages/SoftwarePage/helpers";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
-import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
-import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
+
 import {
   createTooltipContent,
   estimateUploadSize,
   generateFormValidation,
 } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -221,6 +221,32 @@ const PackageForm = ({
     software: { isValid: false },
   });
 
+  // GitOps mode hides the target selector, so a "Custom" target with no labels
+  // can never be satisfied: the picker that would fix it isn't rendered, and
+  // Save stays disabled with nothing on screen to explain why. Targeting comes
+  // from YAML in that mode, so normalize to the default instead.
+  //
+  // This runs as an effect rather than in the initial state because `config`
+  // loads asynchronously — GitOps mode often isn't known yet on first render.
+  // Rows that already carry labels (the edit flow) are left alone so their
+  // targeting isn't silently dropped.
+  useEffect(() => {
+    if (!gitOpsModeEnabled) {
+      return;
+    }
+    const hasLabelTargets = Object.values(formData.labelTargets).some(Boolean);
+    if (formData.targetType !== "Custom" || hasLabelTargets) {
+      return;
+    }
+    const normalized = { ...formData, targetType: "All hosts" };
+    setFormData(normalized);
+    // Validation is held in state and only recomputed on change handlers, so
+    // it has to be refreshed here too — otherwise a file chosen before config
+    // resolved leaves behind a failure for the target we just normalized away,
+    // and Save stays disabled.
+    setFormValidation(generateFormValidation(normalized));
+  }, [gitOpsModeEnabled, formData]);
+
   const notifyTooLarge = () => {
     const errorPrefix = isEditingSoftware
       ? EDIT_SOFTWARE_ERROR_PREFIX
@@ -256,7 +282,13 @@ const PackageForm = ({
         try {
           newDefaultInstallScript = getDefaultInstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 
@@ -264,7 +296,13 @@ const PackageForm = ({
         try {
           newDefaultUninstallScript = getDefaultUninstallScript(file.name);
         } catch (e) {
-          notify.error(`${e}`, { response: e });
+          notify.error(ADD_SOFTWARE_ERROR_PREFIX, {
+            response: {
+              data: {
+                message: e instanceof Error ? e.message : String(e),
+              },
+            },
+          });
           return;
         }
 

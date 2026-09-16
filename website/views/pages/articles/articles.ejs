@@ -10,22 +10,21 @@
             <div class="d-flex flex-column align-self-md-end" v-if="category === 'releases'">
               <a purpose="changelog-button" href="https://github.com/fleetdm/fleet/releases" target="_blank" no-icon><img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png"/>View changelog</a>
             </div>
-            <div purpose="search" id="docsearch-query" v-if="['articles', 'announcements', 'guides', 'releases'].includes(category)">
-              <div purpose="disabled-search" class="d-flex w-100">
-                <div class="input-group">
+            <form purpose="google-search" id="docs-nav-search-form">
+              <div purpose="searchbar" class="d-flex" v-if="['articles', 'announcements', 'guides', 'releases'].includes(category)">
+                <div class="input-group d-flex flex-nowrap">
                   <div class="input-group-prepend">
-                    <span class="input-group-text border-0 bg-transparent pl-3" >
+                    <span class="input-group-text border-0 bg-transparent pr-0" >
                       <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
                     </span>
                   </div>
-                  <div class="form-control border-0 ">
-                  <input class="docsearch-input pr-1"
-                    placeholder="Search" aria-label="Search"
-                    />
+                  <div class="form-control">
+                    <input id="article-search" placeholder="Search" aria-label="Search"/>
                   </div>
+                  <button type="submit" form="docs-nav-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">⏎</button>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>
@@ -33,13 +32,12 @@
     <div purpose="sidebar-and-articles">
       <div purpose="sidebar">
         <div purpose="nav-links">
-          <a href="/articles">All</a>
-          <a href="/announcements">News</a>
-          <a href="/customers">Case studies</a>
-          <a href="/guides">Guides</a>
-          <a href="/whitepapers">Whitepapers</a>
-          <a href="/webinars">Webinars</a>
+          <a href="/announcements">Roadmap</a>
           <a href="/releases">Releases</a>
+          <a href="/guides">Guides</a>
+          <a href="/customers">Case studies</a>
+          <a href="/webinars">Webinars</a>
+          <a href="/articles">All</a>
         </div>
       </div>
       <div purpose="article-rows">
@@ -49,7 +47,7 @@
               <p purpose="article-name">{{article.meta.articleTitle}}</p>
             </div>
             <div purpose="article-description" v-if="article.meta.description"><p>{{article.meta.description}}</p></div>
-            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp><span purpose="updated-timestamp" v-if="article.showUpdatedTimestamp">Updated <js-timestamp format="billing" :at="article.lastModifiedAt"></js-timestamp></span></div>
+            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></div>
 
           </div>
           <div class="d-flex flex-column justify-content-center">

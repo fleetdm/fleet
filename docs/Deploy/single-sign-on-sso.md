@@ -6,6 +6,8 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 > JIT SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
 
+> If you're configuring SSO for both Fleet users (i.e., IT admins who have access to the Fleet console) and end users (to use with [end user authentication](https://fleetdm.com/guides/end-user-authentication)), then create two separate apps in your IdP. The main differences between them will be the name (your choice on that) and the `callback` URL, listed below.
+
 
 ## Okta
 
@@ -292,6 +294,12 @@ Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes
 If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Authentication (SSO)** is enabled.
 
 No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
+
+Fleet deletes the account instead of marking it inactive. Fleet has no deactivated user state, so a deprovisioned user no longer appears in **Settings > Users** or in the response from the [list users](https://fleetdm.com/docs/rest-api/rest-api#list-users) endpoint.
+
+Fleet records each deprovisioning as a `deleted_user` activity in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs). Fleet is the author of this activity, not the admin who configured SCIM.
+
+Using a compliance tool that reviews access by reading Fleet's user list? Treat a user's absence from the list as deprovisioning. The audit log has the record of when it happened.
 
 
 ## Email two-factor authentication (2FA)

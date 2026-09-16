@@ -55,9 +55,13 @@ const (
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
-	yaraRuleCachePrefix                = "YaraRuleByName:"
-	yaraRuleByNameKey                  = yaraRuleCachePrefix + "%s"
-	defaultYaraRuleByNameExpiration    = 1 * time.Minute
+	// The host's team is part of the key so that a transferred host never reads the
+	// schedule of its previous team.
+	queriesPerHostKey               = "QueriesPerHost:host:%d:team:%d"
+	defaultQueriesPerHostExpiration = 1 * time.Minute
+	yaraRuleCachePrefix             = "YaraRuleByName:"
+	yaraRuleByNameKey               = yaraRuleCachePrefix + "%s"
+	defaultYaraRuleByNameExpiration = 1 * time.Minute
 	// NOTE: MDM assets are cached using their checksum as well, as it's
 	// important for them to always be fresh if they changed (see cachedi
 	// mplementation below for details)
@@ -73,6 +77,21 @@ const (
 	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
 )
+
+// MaxConfigInputTTL is the longest default expiration among the cached items
+// that feed the osquery config build: app config, team agent options, the
+// host's packs, and a pack's scheduled queries. The osquery config ETag write
+// fence must outlive it, so that a config assembled from a stale in-memory
+// read can never be published as the current validator. See
+// redis_config_etag.DefaultFenceTTL.
+func MaxConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultPacksExpiration,
+		defaultScheduledQueriesExpiration,
+		defaultTeamAgentOptionsExpiration,
+	)
+}
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
 type cloneCache struct {
@@ -130,6 +149,7 @@ type cachedMysql struct {
 	defaultTeamConfigExp    time.Duration
 	queryByNameExp          time.Duration
 	queryResultsCountExp    time.Duration
+	queriesPerHostExp       time.Duration
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
 	fmaNamesByIdentifierExp time.Duration
@@ -185,6 +205,12 @@ func WithQueryResultsCountExpiration(d time.Duration) Option {
 	}
 }
 
+func WithQueriesPerHostExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.queriesPerHostExp = d
+	}
+}
+
 func WithYaraRuleByNameExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.yaraRuleByNameExp = d
@@ -222,6 +248,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		defaultTeamConfigExp:    defaultDefaultTeamConfigExpiration,
 		queryByNameExp:          defaultQueryByNameExpiration,
 		queryResultsCountExp:    defaultQueryResultsCountExpiration,
+		queriesPerHostExp:       defaultQueriesPerHostExpiration,
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
 		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
@@ -447,6 +474,12 @@ func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name strin
 	return query, nil
 }
 
+// QueriesByName delegates straight to the underlying store: a batch lookup is
+// already a single round-trip, so there is nothing for the per-name cache to add.
+func (ds *cachedMysql) QueriesByName(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	return ds.Datastore.QueriesByName(ctx, names)
+}
+
 func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	key := fmt.Sprintf(queryResultsCountKey, queryID)
 
@@ -464,6 +497,29 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 	ds.c.Set(ctx, key, integer(count), ds.queryResultsCountExp)
 
 	return count, nil
+}
+
+func (ds *cachedMysql) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+	teamID_ := uint(0) // global team is 0
+	if teamID != nil {
+		teamID_ = *teamID
+	}
+	key := fmt.Sprintf(queriesPerHostKey, hostID, teamID_)
+
+	if x, found := ds.c.Get(ctx, key); found {
+		if queryIDs, ok := x.(queryIDList); ok {
+			return queryIDs, nil
+		}
+	}
+
+	queryIDs, err := ds.Datastore.QueriesPerHost(ctx, hostID, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, queryIDList(queryIDs), ds.queriesPerHostExp)
+
+	return queryIDs, nil
 }
 
 func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,

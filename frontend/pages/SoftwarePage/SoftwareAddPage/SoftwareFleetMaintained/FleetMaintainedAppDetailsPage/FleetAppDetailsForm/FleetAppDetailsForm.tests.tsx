@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import labelsAPI from "services/entities/labels";
 import { ILabelSummary } from "interfaces/label";
+import labelsAPI from "services/entities/labels";
+import { createCustomRenderer } from "test/test-utils";
 
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 

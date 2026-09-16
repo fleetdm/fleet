@@ -1,0 +1,37 @@
+.controls-card {
+  .data-table-block .data-table {
+    &__wrapper {
+      width: initial;
+    }
+
+    // Name and Status hug their content so Details gets the remaining width.
+    &__table {
+      table-layout: fixed;
+    }
+
+    th.name__header {
+      width: 32%;
+    }
+
+    th.status__header {
+      width: 200px;
+    }
+
+    th.actions__header {
+      width: 140px;
+      border-left: none;
+    }
+
+    td.details__cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .statusText {
+    &__cell {
+      white-space: nowrap;
+    }
+  }
+}

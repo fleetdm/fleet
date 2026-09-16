@@ -100,11 +100,26 @@ type DeviceDetails struct {
 	ResponseStatus string `json:"response_status"`
 }
 
-// GetDevicesDetails uses the Apple "Get Device Details" API endpoint to
+// GetDeviceDetails uses the Apple "Get Device Details" API endpoint to
 // retrieve the details (such as its assigned enrollment profile UUID) for the
 // specified device, identified by its serial number.
 // See https://developer.apple.com/documentation/devicemanagement/get_device_details
 func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string) (*DeviceDetails, error) {
+	devices, err := c.GetDevicesDetails(ctx, name, serialNumber)
+	if err != nil {
+		return nil, err
+	}
+	return devices[serialNumber], nil
+}
+
+// GetDevicesDetails is the multi-device form of GetDeviceDetails. Apple keys the
+// response by serial number and omits serials it has no record of, so callers
+// must not assume every requested serial comes back.
+//
+// Apple caps how many devices one request may carry; callers are responsible for
+// chunking (see apple_mdm.DEPSyncLimit).
+// See https://developer.apple.com/documentation/devicemanagement/get_device_details
+func (c *Client) GetDevicesDetails(ctx context.Context, name string, serialNumbers ...string) (map[string]*DeviceDetails, error) {
 	type request struct {
 		Devices []string `json:"devices"`
 	}
@@ -113,11 +128,11 @@ func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string
 	}
 	resp := new(response)
 	if err := c.doWithAfterHook(ctx, name, http.MethodPost, "/devices", request{
-		Devices: []string{serialNumber},
+		Devices: serialNumbers,
 	}, resp); err != nil {
 		return nil, err
 	}
-	return resp.Devices[serialNumber], nil
+	return resp.Devices, nil
 }
 
 type DeviceStatusResponse struct {

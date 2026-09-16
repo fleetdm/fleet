@@ -19,12 +19,11 @@ func IsValidEntraGUID(s string) bool {
 	return entraGUIDRegex.MatchString(s)
 }
 
-// MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft Graph.
-type MicrosoftGraphCredential struct {
+// MicrosoftGraphCredentialMetadata is a stored credential without its client secret. This is what the read endpoint
+// serializes, so it must never gain a secret field.
+type MicrosoftGraphCredentialMetadata struct {
 	TenantID string `json:"tenant_id" db:"tenant_id"`
 	ClientID string `json:"client_id" db:"client_id"`
-	// ClientSecret is write-only. Omitting it on a write means "keep the stored secret".
-	ClientSecret string `json:"client_secret,omitempty" db:"-"`
 
 	// CredentialInvalid is set by the sync when the credential fails to authenticate or is denied, and cleared on the
 	// next successful sync.
@@ -32,6 +31,19 @@ type MicrosoftGraphCredential struct {
 	// LastSyncedAt and LastSyncError report the outcome of the most recent sync for this tenant.
 	LastSyncedAt  *time.Time `json:"last_synced_at" db:"last_synced_at"`
 	LastSyncError *string    `json:"last_sync_error" db:"last_sync_error"`
+}
+
+// MicrosoftGraphCredential is the Entra app-registration credential Fleet authenticates with when calling Microsoft
+// Graph: the metadata plus the secret.
+type MicrosoftGraphCredential struct {
+	MicrosoftGraphCredentialMetadata
+
+	// ClientSecret is write-only. Omitting it on a write means "keep the stored secret".
+	ClientSecret string `json:"client_secret,omitempty" db:"-"`
+}
+
+func (c MicrosoftGraphCredential) AuthzType() string {
+	return "microsoft_graph_credential"
 }
 
 // Configured reports whether the credential carries everything needed to mint a token.
@@ -55,6 +67,10 @@ type HostAutopilotDevice struct {
 	GroupTag          string `db:"group_tag" json:"group_tag"`
 	HardwareSerial    string `db:"hardware_serial" json:"hardware_serial"`
 	TenantID          string `db:"tenant_id" json:"tenant_id"`
+	// HardwareModel and HardwareVendor seed the host row when a pending host is created and are deliberately not
+	// columns on host_autopilot_devices.
+	HardwareModel  string `db:"-" json:"-"`
+	HardwareVendor string `db:"-" json:"-"`
 }
 
 // ParseMicrosoftGraphCredentials decodes the raw GitOps `org_settings.microsoft_graph_credentials` value into a typed list.

@@ -26,13 +26,13 @@ const (
 	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
 	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
 	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
+	CronMicrosoftAutopilotSync       CronScheduleName = "microsoft_autopilot_sync"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"
 	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
-	CronSoftwareChecksumMigration    CronScheduleName = "software_checksum_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
 	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
 	// name embeds the version onto the title owned by the Fleet-maintained app's
@@ -44,12 +44,16 @@ const (
 	CronMaintainedAppsAutoUpdate CronScheduleName = "maintained_apps_auto_update"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
-	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
-	CronAppleMDMIPhoneIPadReviver      CronScheduleName = "apple_mdm_iphone_ipad_reviver"
-	CronUpcomingActivitiesMaintenance  CronScheduleName = "upcoming_activities_maintenance"
-	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
-	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
-	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	CronRefreshVPPAppVersions         CronScheduleName = "refresh_vpp_app_versions"
+	CronAppleMDMIPhoneIPadReviver     CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronUpcomingActivitiesMaintenance CronScheduleName = "upcoming_activities_maintenance"
+	// CronFleetInitiatedActivitiesRelease activates deferred fleet-initiated
+	// upcoming activities (policy-automation installs/scripts) within the
+	// activity.fleet_initiated_release_per_minute budget. Runs every 1 minute.
+	CronFleetInitiatedActivitiesRelease CronScheduleName = "fleet_initiated_activities_release"
+	CronHostVitalsLabelMembership       CronScheduleName = "host_vitals_label_membership"
+	CronBatchActivityCompletionChecker  CronScheduleName = "batch_activity_completion_checker"
+	CronScheduledBatchActivities        CronScheduleName = "scheduled_batch_activities"
 	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
 	// This job only runs once after upgrading to v4.76.0.
 	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"
@@ -73,6 +77,10 @@ const (
 	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
 	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
 	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
+	// CronAppleMDMAPNsSweep walks enabled Apple MDM enrollments in daily laps
+	// and re-pushes any that have been silent for more than a day, so offline
+	// devices always have a stored push waiting at APNs.
+	CronAppleMDMAPNsSweep CronScheduleName = "apple_mdm_apns_sweep"
 	// CronEndUserNotifications queues end user notifications that are due and gives up on expired
 	// ones. Runs every 1 minute, which is what a reminder timed to the minute needs.
 	CronEndUserNotifications CronScheduleName = "end_user_notifications"

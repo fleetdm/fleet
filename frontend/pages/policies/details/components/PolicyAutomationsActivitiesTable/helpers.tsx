@@ -1,8 +1,8 @@
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import { getAutomationNotifiedMessage } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { Colors } from "styles/var/colors";
-
-import { getAutomationNotifiedMessage } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
@@ -58,6 +58,10 @@ export const getAutomationRunDisplayName = (
       return "Ticket queued";
     case ActivityType.FailedAutomationTicket:
       return "Ticket failed";
+    case ActivityType.ResentConfigurationProfile:
+      // A resend is only recorded once the profile is queued for redelivery, so this row is
+      // always a success; whether the profile then verifies shows on the host, not here.
+      return withName("Configuration profile resent", details?.profile_name);
     default:
       return failed ? "Automation failed" : "Automation ran";
   }
@@ -82,7 +86,11 @@ export const getAutomationStatusIcon = (
     : { name: "success-outline" };
 };
 
-/** Text for the "Details" column preview. */
+/**
+ * Text shown in the "Details" column: the explanation for a deferred patch, the
+ * remote error response for failures, or the script/install output for the task
+ * activities. Empty when none apply.
+ */
 export const getDetailOutputText = (
   activity: IPolicyAutomationActivity
 ): string => {
@@ -92,6 +100,9 @@ export const getDetailOutputText = (
     activity.status === "success"
   ) {
     return getAutomationNotifiedMessage(activity.details?.time_before);
+  }
+  if (activity.details?.skipped_install) {
+    return SKIPPED_INSTALL_DETAILS;
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;

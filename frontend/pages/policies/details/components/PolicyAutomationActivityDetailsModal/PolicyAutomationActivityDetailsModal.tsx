@@ -1,23 +1,8 @@
-import React, { useState } from "react";
 import { AxiosError } from "axios";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import { ActivityType } from "interfaces/activity";
-import { IPolicyAutomationActivity } from "interfaces/policy";
-import PATHS from "router/paths";
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import RevealButton from "components/buttons/RevealButton";
-import CopyButton from "components/buttons/CopyButton";
-import CustomLink from "components/CustomLink";
-import DataSet from "components/DataSet";
-import Textarea from "components/Textarea";
-import Icon from "components/Icon";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-
+import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
 import {
   getCaveatMessage,
   getAutomationNotifiedMessage,
@@ -27,6 +12,20 @@ import {
   PATCHING_END_USER_EXPERIENCE_URL,
   retryUnless404,
 } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import Modal from "components/Modal";
+import Textarea from "components/Textarea";
+import { ActivityType } from "interfaces/activity";
+import { IPolicyAutomationActivity } from "interfaces/policy";
+import PATHS from "router/paths";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
   getAutomationRunDisplayName,
@@ -178,7 +177,9 @@ const PolicyAutomationActivityDetailsModal = ({
         <>
           {renderOutputSection(
             "Pre-install query output",
-            activity.pre_install_output
+            activity.details?.skipped_install
+              ? SKIPPED_PRE_INSTALL_OUTPUT
+              : activity.pre_install_output
           )}
           {renderOutputSection("Details", activity.output)}
           {renderOutputSection(

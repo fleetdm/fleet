@@ -1,0 +1,48 @@
+- name: Operating system up to date (Linux)
+  query: |
+    WITH os AS (
+      -- Ubuntu only exposes its point release in VERSION ("24.04.5 LTS (Noble Numbat)"), so keep the leading number.
+      SELECT *, TRIM(SUBSTR(version, 1, INSTR(version || ' ', ' ') - 1)) AS release FROM os_version
+    )
+    SELECT 1 FROM os WHERE
+      CASE
+        WHEN platform = 'ubuntu' THEN (
+          (major = 24 AND minor = 4 AND version_compare(release, '24.04.5') >= 0)
+          OR (major = 26 AND minor = 4 AND version_compare(release, '26.04.1') >= 0)
+        )
+        -- Debian's os-release stops at the major; base-files carries the point release (13.8+deb13u7 is Debian 13.7).
+        WHEN platform = 'debian' THEN EXISTS (
+          SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '13.8+deb13u7', 'DPKG') >= 0
+        )
+        -- AMD's Debian-based platform stays at VERSION_ID 1 and ships platform updates through its own base-files (debs.ryai.dev).
+        WHEN platform = 'amd-ryzen-ai-developer-platform' THEN (major >= 1 AND EXISTS (
+          SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '2026.06bvdebian13.1', 'DPKG') >= 0
+        ))
+        -- Fedora reports platform 'rhel' because /etc/redhat-release exists, so match on name.
+        WHEN name = 'Fedora Linux' THEN major >= 44
+        WHEN name IN ('Red Hat Enterprise Linux', 'Rocky Linux', 'AlmaLinux') THEN (
+          major > 10 OR (major = 10 AND minor >= 2) OR (major = 9 AND minor >= 8)
+        )
+        WHEN platform = 'nixos' THEN (major > 26 OR (major = 26 AND minor >= 5))
+        WHEN platform = 'opensuse-leap' THEN (major > 16 OR (major = 16 AND minor >= 0))
+        -- Rolling releases and distributions without a rule above are not evaluated.
+        ELSE 1
+      END;
+  critical: true
+  description: >-
+    Checks that this Linux host is on the latest release of its distribution, as pinned in the policy query:
+    Ubuntu LTS point releases, Debian point releases (via base-files), AMD Ryzen AI Developer Platform (via its base-files),
+    Fedora, RHEL/Rocky Linux/AlmaLinux, NixOS, and openSUSE Leap. Rolling-release distributions and distributions without a
+    rule are not evaluated. Running an outdated Linux release risks exposure to security vulnerabilities and potential
+    system instability. The pinned versions in the query need a bump whenever upstream ships a new release.
+  resolution: |-
+    Install all available operating system updates, then restart:
+
+    - Ubuntu, Debian, and AMD Ryzen AI Developer Platform: `sudo apt update && sudo apt full-upgrade`
+    - Fedora, RHEL, Rocky Linux, and AlmaLinux: `sudo dnf upgrade --refresh`. Fedora also has to be on the current release: `sudo dnf system-upgrade download --releasever=<latest> && sudo dnf system-upgrade reboot`
+    - NixOS: switch to the current stable channel, then `sudo nixos-rebuild switch --upgrade`
+    - openSUSE Leap: `sudo zypper update`, or migrate to the current Leap release
+
+    If you are still failing after Refetch completes, drop a note in #help-it.
+  platform: linux
+  calendar_events_enabled: false

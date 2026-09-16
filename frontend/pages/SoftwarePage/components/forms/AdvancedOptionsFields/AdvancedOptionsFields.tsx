@@ -1,9 +1,9 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
+import React, { ReactNode } from "react";
 
+import Button from "components/buttons/Button";
 import Editor from "components/Editor";
 import SQLEditor from "components/SQLEditor";
-import Button from "components/buttons/Button";
 
 const baseClass = "advanced-options-fields";
 

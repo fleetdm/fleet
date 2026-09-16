@@ -1,5 +1,5 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
 import { createMockFleetMaintainedAppDetails } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";

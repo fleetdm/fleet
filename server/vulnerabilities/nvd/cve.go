@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
@@ -272,61 +271,34 @@ func TranslateCPEToCVE(
 		return nil, err
 	}
 
-	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
-	// NVD feed file.
-	softwareVulns := make(map[string]fleet.SoftwareVulnerability)
-	osVulns := make(map[string]fleet.OSVulnerability)
+	sink := newVulnSink(ds, logger, collectVulns)
+	var feedErr error
 	for _, file := range files {
-
-		foundSoftwareVulns, foundOSVulns, err := checkCVEs(
+		if err := checkCVEs(
 			ctx,
 			logger,
 			interfaceParsed,
 			file,
 			knownNVDBugRules,
-		)
-		if err != nil {
-			return nil, err
+			sink,
+		); err != nil {
+			// Keep scanning the remaining files: earlier chunks are already
+			// committed, so aborting would drop their collected results and
+			// suppress their automations forever (the next run's inserts
+			// would classify them as already known).
+			logger.ErrorContext(ctx, "error checking cves", "file", file, "err", err)
+			if feedErr == nil {
+				feedErr = ctxerr.Wrap(ctx, err, "checking cves")
+			}
 		}
-
-		for _, e := range foundSoftwareVulns {
-			softwareVulns[e.Key()] = e
-		}
-		for _, e := range foundOSVulns {
-			osVulns[e.Key()] = e
-		}
 	}
-
-	// Batch insert software vulnerabilities.
-	allSoftwareVulns := make([]fleet.SoftwareVulnerability, 0, len(softwareVulns))
-	for _, vuln := range softwareVulns {
-		allSoftwareVulns = append(allSoftwareVulns, vuln)
-	}
-
-	newVulns, softwareInsertErr := ds.InsertSoftwareVulnerabilities(ctx, allSoftwareVulns, fleet.NVDSource)
-	if softwareInsertErr != nil {
-		logger.ErrorContext(ctx, "cpe processing error", "err", softwareInsertErr)
-	}
-	if !collectVulns {
-		newVulns = nil
-	}
-
-	// Batch insert OS vulnerabilities.
-	allOSVulns := make([]fleet.OSVulnerability, 0, len(osVulns))
-	for _, vuln := range osVulns {
-		allOSVulns = append(allOSVulns, vuln)
-	}
-	osInsertErr := false
-	if _, err := ds.InsertOSVulnerabilities(ctx, allOSVulns, fleet.NVDSource); err != nil {
-		logger.ErrorContext(ctx, "cpe processing error", "err", err)
-		osInsertErr = true
-	}
+	res := sink.flush(ctx)
 
 	// Detect corrupted/empty CVE feeds. If we had CPE/OS inputs to match against but produced
 	// zero results across every feed file, the feed is almost certainly empty or corrupted
 	// (e.g., a failed/corrupted artifact from GitHub) — skip the deletes so we don't wipe
 	// legitimate existing software_cve rows that will be re-matched on the next good sync.
-	feedProducedNoData := len(allSoftwareVulns) == 0 && len(allOSVulns) == 0
+	feedProducedNoData := res.totalSoftware == 0 && res.totalOS == 0
 
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
 	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
@@ -334,12 +306,14 @@ func TranslateCPEToCVE(
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as vulnerabilities.
 	// Skip cleanup when the corresponding insert failed to avoid deleting data with nothing to replace it.
-	if softwareInsertErr == nil && !feedProducedNoData {
+	// With part of the corpus unread (feedErr), rows not re-matched this run
+	// can't be assumed stale, so skip the deletes entirely.
+	if feedErr == nil && res.softwareErr == nil && !feedProducedNoData {
 		if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 			logger.ErrorContext(ctx, "error deleting out of date vulnerabilities", "err", err)
 		}
 	}
-	if !osInsertErr && !feedProducedNoData {
+	if feedErr == nil && res.osErr == nil && !feedProducedNoData {
 		if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 			logger.ErrorContext(ctx, "error deleting out of date OS vulnerabilities", "err", err)
 		}
@@ -349,7 +323,141 @@ func TranslateCPEToCVE(
 			"software_cpes", len(parsed), "os_cpes", len(cpes), "feed_files", len(files))
 	}
 
-	return newVulns, nil
+	return res.collected, feedErr
+}
+
+// matchFlushSize is the default for how many buffered matches trigger a
+// datastore flush. A var so tests can lower it.
+var matchFlushSize = 100_000
+
+// vulnSink receives matched vulnerabilities from the checkCVEs workers and
+// flushes them to the datastore in bounded chunks, so matches never accumulate
+// in memory.
+// Duplicates are deduped within each chunk and in the collected results;
+// across chunks the inserts are upserts on the unique key. Insert errors are
+// logged and sticky so callers can skip the stale-row deletes for the cycle.
+type vulnSink struct {
+	// mu guards every field below and is held for the datastore flush itself.
+	// This is intentional backpressure so matcher workers block while a
+	// chunk is being written instead of buffering ahead of a slow insert.
+	mu        sync.Mutex
+	ds        fleet.Datastore
+	logger    *slog.Logger
+	collect   bool
+	flushSize int
+
+	softwareBuf []fleet.SoftwareVulnerability
+	osBuf       []fleet.OSVulnerability
+
+	collectedSeen map[string]struct{}
+	res           vulnSinkResult
+}
+
+type vulnSinkResult struct {
+	// collected is only complete for a single successful process lifetime: if
+	// a previous run was killed after a chunk was inserted but before it
+	// returned, that chunk's pairs are already in the datastore and will be
+	// classified as not-new on the next run, so their automations are never
+	// retried. Same tradeoff as a mid-corpus feed error, just with no error to
+	// react to — accepted as out of scope for this run-scoped sink.
+	collected     []fleet.SoftwareVulnerability
+	totalSoftware int
+	totalOS       int
+	softwareErr   error
+	osErr         error
+}
+
+func newVulnSink(ds fleet.Datastore, logger *slog.Logger, collect bool) *vulnSink {
+	s := &vulnSink{ds: ds, logger: logger, collect: collect, flushSize: matchFlushSize}
+	if collect {
+		s.collectedSeen = make(map[string]struct{})
+	}
+	return s
+}
+
+func (s *vulnSink) addSoftware(ctx context.Context, v fleet.SoftwareVulnerability) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.softwareBuf = append(s.softwareBuf, v)
+	s.res.totalSoftware++
+	if len(s.softwareBuf) >= s.flushSize {
+		s.flushSoftwareLocked(ctx)
+	}
+}
+
+func (s *vulnSink) addOS(ctx context.Context, v fleet.OSVulnerability) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.osBuf = append(s.osBuf, v)
+	s.res.totalOS++
+	if len(s.osBuf) >= s.flushSize {
+		s.flushOSLocked(ctx)
+	}
+}
+
+func (s *vulnSink) flush(ctx context.Context) vulnSinkResult {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.flushSoftwareLocked(ctx)
+	s.flushOSLocked(ctx)
+	return s.res
+}
+
+func (s *vulnSink) flushSoftwareLocked(ctx context.Context) {
+	if len(s.softwareBuf) == 0 {
+		return
+	}
+	// Dedupe in place: a pair can be matched by more than one rule.
+	seen := make(map[string]struct{}, len(s.softwareBuf))
+	batch := s.softwareBuf[:0]
+	for _, v := range s.softwareBuf {
+		if _, ok := seen[v.Key()]; ok {
+			continue
+		}
+		seen[v.Key()] = struct{}{}
+		batch = append(batch, v)
+	}
+	s.softwareBuf = s.softwareBuf[:0]
+
+	newVulns, err := s.ds.InsertSoftwareVulnerabilities(ctx, batch, fleet.NVDSource)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "cpe processing error", "err", err)
+		s.res.softwareErr = err
+		return
+	}
+	if s.collect {
+		// The datastore's existence check reads from the replica, so a pair
+		// straddling a flush boundary can be reported as new twice under
+		// replication lag; collectedSeen keeps the collected results unique.
+		for _, v := range newVulns {
+			if _, ok := s.collectedSeen[v.Key()]; ok {
+				continue
+			}
+			s.collectedSeen[v.Key()] = struct{}{}
+			s.res.collected = append(s.res.collected, v)
+		}
+	}
+}
+
+func (s *vulnSink) flushOSLocked(ctx context.Context) {
+	if len(s.osBuf) == 0 {
+		return
+	}
+	seen := make(map[string]struct{}, len(s.osBuf))
+	batch := s.osBuf[:0]
+	for _, v := range s.osBuf {
+		if _, ok := seen[v.Key()]; ok {
+			continue
+		}
+		seen[v.Key()] = struct{}{}
+		batch = append(batch, v)
+	}
+	s.osBuf = s.osBuf[:0]
+
+	if _, err := s.ds.InsertOSVulnerabilities(ctx, batch, fleet.NVDSource); err != nil {
+		s.logger.ErrorContext(ctx, "cpe processing error", "err", err)
+		s.res.osErr = err
+	}
 }
 
 // GetMacOSCPEs translates all found macOS Operating Systems to CPEs.
@@ -419,10 +527,11 @@ func checkCVEs(
 	cpeItems []itemWithNVDMeta,
 	jsonFile string,
 	knownNVDBugRules CPEMatchingRules,
-) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
+	sink *vulnSink,
+) error {
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	// Group dictionary by vendor using a map.
@@ -452,12 +561,8 @@ func checkCVEs(
 	}
 
 	CPEItemCh := make(chan itemWithNVDMeta)
-	var foundSoftwareVulns []fleet.SoftwareVulnerability
-	var foundOSVulns []fleet.OSVulnerability
 
 	var wg sync.WaitGroup
-	var softwareMu sync.Mutex
-	var osMu sync.Mutex
 
 	logger = logger.With("json_file", jsonFile)
 
@@ -523,26 +628,17 @@ func checkCVEs(
 							}
 
 							if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
-								vuln := fleet.SoftwareVulnerability{
+								sink.addSoftware(ctx, fleet.SoftwareVulnerability{
 									SoftwareID:        CPEItem.GetID(),
 									CVE:               matches.CVE.ID(),
-									ResolvedInVersion: ptr.String(resolvedVersion),
-								}
-
-								softwareMu.Lock()
-								foundSoftwareVulns = append(foundSoftwareVulns, vuln)
-								softwareMu.Unlock()
+									ResolvedInVersion: &resolvedVersion,
+								})
 							} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
-
-								vuln := fleet.OSVulnerability{
+								sink.addOS(ctx, fleet.OSVulnerability{
 									OSID:              CPEItem.GetID(),
 									CVE:               matches.CVE.ID(),
-									ResolvedInVersion: ptr.String(resolvedVersion),
-								}
-
-								osMu.Lock()
-								foundOSVulns = append(foundOSVulns, vuln)
-								osMu.Unlock()
+									ResolvedInVersion: &resolvedVersion,
+								})
 							}
 
 						}
@@ -564,7 +660,7 @@ func checkCVEs(
 	logger.DebugContext(ctx, "cpes pushed")
 	wg.Wait()
 
-	return foundSoftwareVulns, foundOSVulns, nil
+	return nil
 }
 
 var pythonVersionWithUpdate = regexp.MustCompile(`(alpha|beta|rc)(\d+)`)

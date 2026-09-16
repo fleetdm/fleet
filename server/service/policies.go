@@ -58,11 +58,11 @@ func (svc Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Pol
 
 func resetPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ResetPolicyRequest)
-	err := svc.ResetPolicy(ctx, req.PolicyID)
+	err := svc.ResetPolicy(ctx, req.PolicyID, req.HostID)
 	return fleet.ResetPolicyResponse{Err: err}, nil
 }
 
-func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	// Load first to authorize against the policy's actual team.
 	policy, err := svc.ds.Policy(ctx, policyID)
 	if err != nil {
@@ -73,7 +73,30 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 		return err
 	}
 
-	if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
+	var activityHostID *uint
+	var activityHostName *string
+	if hostID != nil {
+		host, err := svc.ds.HostLite(ctx, *hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load host for policy reset")
+		}
+		// A team policy only applies to hosts on that team. Treat other hosts as not
+		// found so a team-scoped caller cannot probe host IDs outside their team.
+		if policy.TeamID != nil {
+			hostTeamID := uint(0)
+			if host.TeamID != nil {
+				hostTeamID = *host.TeamID
+			}
+			if hostTeamID != *policy.TeamID {
+				return ctxerr.Wrap(ctx, newNotFoundError(), "host is not in the policy's fleet")
+			}
+		}
+		if err := svc.ds.ResetPolicyForHost(ctx, host.ID, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy for host")
+		}
+		activityHostID = &host.ID
+		activityHostName = new(host.DisplayName())
+	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
 		return ctxerr.Wrap(ctx, err, "reset policy")
 	}
 
@@ -99,10 +122,12 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint) error {
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetPolicy{
-		ID:       policy.ID,
-		Name:     policy.Name,
-		TeamID:   activityTeamID,
-		TeamName: teamName,
+		ID:              policy.ID,
+		Name:            policy.Name,
+		TeamID:          activityTeamID,
+		TeamName:        teamName,
+		HostID:          activityHostID,
+		HostDisplayName: activityHostName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for policy reset")
 	}
@@ -168,6 +193,20 @@ func (svc Service) ListPolicyAutomationActivities(ctx context.Context, policyID 
 	activities, meta, err := svc.ds.ListPolicyAutomationActivities(ctx, policyID, filter, opts, status)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list policy automation activities")
+	}
+
+	// A pre-install-query failure is stored as an empty (non-null)
+	// pre_install_query_output, which the modal and table drop as no-output.
+	// Substitute the same copy /software_install_results uses via
+	// HostSoftwareInstallerResult.EnhanceOutputDetails.
+	for _, a := range activities {
+		if a.Type == "installed_software" && a.Status == "error" &&
+			a.PreInstallOutput != nil && *a.PreInstallOutput == "" {
+			// Rebind rather than mutating through the pointer: the caller may
+			// share the underlying string across rows.
+			out := fleet.SoftwareInstallerQueryFailCopy
+			a.PreInstallOutput = &out
+		}
 	}
 	return activities, meta, nil
 }

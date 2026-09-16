@@ -2,7 +2,7 @@
   "name": "Camunda Modeler",
   "unique_identifier": "com.camunda.CamundaModeler",
   "token": "camunda-modeler",
-  "installer_format": "zip",
+  "installer_format": "dmg",
   "slug": "camunda-modeler/darwin",
   "default_categories": [
     "Productivity"

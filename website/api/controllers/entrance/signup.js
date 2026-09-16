@@ -145,9 +145,9 @@ the account verification message.)`,
       isIcpUser = true;
     }//ﬁ
 
-    if(emailDomain === 'fleetdm.com') {
-      fleetPremiumTrialType = 'render trial';
-    }//ﬁ
+    // if(emailDomain === 'fleetdm.com') {
+    //   fleetPremiumTrialType = 'render trial';
+    // }//ﬁ
 
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
     let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({

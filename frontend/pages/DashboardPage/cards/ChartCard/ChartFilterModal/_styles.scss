@@ -12,9 +12,12 @@
     align-items: center;
   }
 
-  &__btn-actions {
-    display: flex;
-    gap: $pad-small;
+  // The shared modal action-button styles, minus the standalone spacing they
+  // assume: this row already sits at the bottom of the modal and holds Clear all
+  // opposite the actions.
+  .modal-cta-wrap {
+    margin-top: 0;
+    align-self: auto;
     margin-left: auto;
   }
 

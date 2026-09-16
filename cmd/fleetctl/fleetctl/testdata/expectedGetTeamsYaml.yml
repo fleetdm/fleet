@@ -13,60 +13,65 @@ spec:
       host_expiry_enabled: false
       host_expiry_window: 0
     integrations:
-      google_calendar: null
       conditional_access_enabled: null
+      google_calendar: null
     mdm:
+      android_settings:
+        certificates: null
+        configuration_profiles: null
+      apple_settings:
+        configuration_profiles: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
       enable_recovery_lock_password: false
-      name_template: null
-      windows_require_bitlocker_pin: null
-      macos_updates:
-        update_new_hosts: null
-        minimum_version: null
-        deadline: null
-        deadline_days: null
       ios_updates:
-        update_new_hosts: null
-        minimum_version: null
         deadline: null
         deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
       ipados_updates:
-        update_new_hosts: null
-        minimum_version: null
         deadline: null
         deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
+      macos_updates:
+        deadline: null
+        deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
+      name_template: null
+      setup_experience:
+        apple_enable_release_device_manually: false
+        apple_setup_assistant: null
+        enable_create_local_admin_account: false
+        enable_end_user_authentication: false
+        end_user_local_account_type: admin
+        lock_end_user_info: false
+        macos_bootstrap_package: null
+        macos_manual_agent_install: null
+        macos_script: null
+        require_all_software_macos: false
+        require_all_software_windows: false
+        software: null
+      windows_require_bitlocker_pin: null
+      windows_settings:
+        configuration_profiles: null
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
       windows_updates:
         deadline_days: null
         grace_period_days: null
-      apple_settings:
-        configuration_profiles: null
-      windows_settings:
-        configuration_profiles: null
-        managed_local_account_settings:
-          enabled: false
-      android_settings:
-        configuration_profiles: null
-        certificates: null
-      setup_experience:
-        macos_bootstrap_package:
-        enable_create_local_admin_account: false
-        enable_end_user_authentication: false
-        apple_enable_release_device_manually: false
-        end_user_local_account_type: admin
-        lock_end_user_info: false
-        apple_setup_assistant:
-        macos_manual_agent_install:
-        require_all_software_macos: false
-        require_all_software_windows: false
-        macos_script:
-        software:
+    name: team1
     scripts: null
     secrets: null
     webhook_settings:
-      host_status_webhook: null
       failing_policies_webhook: null
       host_activities_webhook: null
-    name: team1
+      host_status_webhook: null
   team:
     features:
       enable_host_users: true
@@ -78,60 +83,65 @@ spec:
       host_expiry_enabled: false
       host_expiry_window: 0
     integrations:
-      google_calendar: null
       conditional_access_enabled: null
+      google_calendar: null
     mdm:
+      android_settings:
+        certificates: null
+        custom_settings: null
       enable_disk_encryption: false
       enable_recovery_lock_password: false
-      name_template: null
-      windows_require_bitlocker_pin: null
-      macos_updates:
-        update_new_hosts: null
-        minimum_version: null
-        deadline: null
-        deadline_days: null
       ios_updates:
-        update_new_hosts: null
-        minimum_version: null
         deadline: null
         deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
       ipados_updates:
-        update_new_hosts: null
-        minimum_version: null
         deadline: null
         deadline_days: null
-      windows_updates:
-        deadline_days: null
-        grace_period_days: null
+        minimum_version: null
+        update_new_hosts: null
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       macos_settings:
         custom_settings: null
-      windows_settings:
-        custom_settings: null
-        managed_local_account_settings:
-          enabled: false
-      android_settings:
-        custom_settings: null
-        certificates: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       macos_setup:
-        bootstrap_package:
+        bootstrap_package: null
         enable_end_user_authentication: false
         enable_managed_local_account: false
         enable_release_device_manually: false
         end_user_local_account_type: admin
         lock_end_user_info: false
-        macos_setup_assistant:
-        manual_agent_install:
+        macos_setup_assistant: null
+        manual_agent_install: null
         require_all_software_macos: false
         require_all_software_windows: false
-        script:
-        software:
+        script: null
+        software: null
+      macos_updates:
+        deadline: null
+        deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
+      name_template: null
+      windows_require_bitlocker_pin: null
+      windows_settings:
+        custom_settings: null
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+    name: team1
     scripts: null
     secrets: null
     webhook_settings:
-      host_status_webhook: null
       failing_policies_webhook: null
       host_activities_webhook: null
-    name: team1
+      host_status_webhook: null
 ---
 apiVersion: v1
 kind: fleet
@@ -156,48 +166,65 @@ spec:
       host_expiry_enabled: true
       host_expiry_window: 15
     integrations:
-      google_calendar: null
       conditional_access_enabled: null
+      google_calendar: null
     mdm:
+      android_settings:
+        certificates: null
+        configuration_profiles: null
+      apple_settings:
+        configuration_profiles: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
       enable_recovery_lock_password: true
-      name_template: null
-      windows_require_bitlocker_pin: null
       ios_updates:
-        minimum_version: "17.5"
-        deadline: "2022-11-15"
+        deadline: null
         deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
+      ipados_updates:
+        deadline: null
+        deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       macos_updates:
-        minimum_version: "18.0"
-        deadline: "2023-01-01"
+        deadline: "2021-12-14"
         deadline_days: null
+        minimum_version: 12.3.1
+        update_new_hosts: null
+      name_template: null
+      setup_experience:
+        apple_enable_release_device_manually: false
+        apple_setup_assistant: null
+        enable_create_local_admin_account: false
+        enable_end_user_authentication: false
+        end_user_local_account_type: admin
+        lock_end_user_info: false
+        macos_bootstrap_package: null
+        macos_manual_agent_install: null
+        macos_script: null
+        require_all_software_macos: false
+        require_all_software_windows: false
+        software: null
+      windows_require_bitlocker_pin: null
+      windows_settings:
+        configuration_profiles: null
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
-      apple_settings:
-        configuration_profiles:
-      windows_settings:
-        configuration_profiles:
-      android_settings:
-        configuration_profiles:
-        certificates:
-      setup_experience:
-        macos_bootstrap_package:
-        enable_create_local_admin_account: false
-        enable_end_user_authentication: false
-        apple_enable_release_device_manually: false
-        end_user_local_account_type: admin
-        lock_end_user_info: false
-        apple_setup_assistant:
-        macos_manual_agent_install:
-        require_all_software_macos: false
-        require_all_software_windows: false
-        macos_script:
-        software:
-    scripts: null
-    webhook_settings:
-      host_status_webhook: null
     name: team2
+    scripts: null
+    secrets: null
+    webhook_settings:
+      failing_policies_webhook: null
+      host_activities_webhook: null
+      host_status_webhook: null
   team:
     agent_options:
       config:
@@ -218,45 +245,62 @@ spec:
       host_expiry_enabled: true
       host_expiry_window: 15
     integrations:
-      google_calendar: null
       conditional_access_enabled: null
+      google_calendar: null
     mdm:
+      android_settings:
+        certificates: null
+        custom_settings: null
       enable_disk_encryption: false
       enable_recovery_lock_password: true
-      name_template: null
-      windows_require_bitlocker_pin: null
       ios_updates:
-        minimum_version: "17.5"
-        deadline: "2022-11-15"
+        deadline: null
         deadline_days: null
-      macos_updates:
-        minimum_version: "18.0"
-        deadline: "2023-01-01"
+        minimum_version: null
+        update_new_hosts: null
+      ipados_updates:
+        deadline: null
         deadline_days: null
-      windows_updates:
-        deadline_days: 7
-        grace_period_days: 3
+        minimum_version: null
+        update_new_hosts: null
+      linux_settings:
+        enable_escrow_disk_encryption_key: false
       macos_settings:
-        custom_settings:
-      windows_settings:
-        custom_settings:
-      android_settings:
-        custom_settings:
-        certificates:
+        custom_settings: null
+        enable_disk_encryption: false
+        enable_escrow_disk_encryption_key: false
       macos_setup:
-        bootstrap_package:
+        bootstrap_package: null
         enable_end_user_authentication: false
         enable_managed_local_account: false
         enable_release_device_manually: false
         end_user_local_account_type: admin
         lock_end_user_info: false
-        macos_setup_assistant:
-        manual_agent_install:
+        macos_setup_assistant: null
+        manual_agent_install: null
         require_all_software_macos: false
         require_all_software_windows: false
-        script:
-        software:
-    scripts: null
-    webhook_settings:
-      host_status_webhook: null
+        script: null
+        software: null
+      macos_updates:
+        deadline: "2021-12-14"
+        deadline_days: null
+        minimum_version: 12.3.1
+        update_new_hosts: null
+      name_template: null
+      windows_require_bitlocker_pin: null
+      windows_settings:
+        custom_settings: null
+        enable_disk_encryption: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
+      windows_updates:
+        deadline_days: 7
+        grace_period_days: 3
     name: team2
+    scripts: null
+    secrets: null
+    webhook_settings:
+      failing_policies_webhook: null
+      host_activities_webhook: null
+      host_status_webhook: null

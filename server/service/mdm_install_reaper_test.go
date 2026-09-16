@@ -104,7 +104,7 @@ func TestReapStuckMDMInstalls(t *testing.T) {
 		assert.True(t, act.FromSetupExperience)
 	})
 
-	t.Run("in-house installs skip the setup experience update", func(t *testing.T) {
+	t.Run("in-house installs fail the setup experience step and flag the activity", func(t *testing.T) {
 		ds := setupMockDS()
 		ds.ReapStuckActivatedMDMInstallsFunc = func(_ context.Context, _ time.Duration, _ int) ([]fleet.ReapedMDMInstall, error) {
 			return []fleet.ReapedMDMInstall{{
@@ -114,6 +114,23 @@ func TestReapStuckMDMInstalls(t *testing.T) {
 				InHouseActivity: &fleet.ActivityTypeInstalledSoftware{HostID: hostID, CommandUUID: commandUUID},
 			}}, nil
 		}
+		// In-house apps install during iOS/iPadOS setup experience; a reaped one must fail its
+		// step or the row stays running for good (the queue row is gone, so no command result
+		// will ever flip it).
+		var gotHostUUID, gotCmdUUID string
+		var gotStatus fleet.SetupExperienceStatusResultStatus
+		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, hUUID, cmdUUID string,
+			status fleet.SetupExperienceStatusResultStatus,
+		) (bool, error) {
+			gotHostUUID, gotCmdUUID, gotStatus = hUUID, cmdUUID, status
+			return true, nil
+		}
+		ds.HostByIdentifierFunc = func(_ context.Context, _ string) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "ios"}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(_ context.Context, _ string, _ uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
 
 		var gotActivity fleet.ActivityDetails
 		newActivityFn := func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
@@ -122,10 +139,13 @@ func TestReapStuckMDMInstalls(t *testing.T) {
 		}
 
 		require.NoError(t, ReapStuckMDMInstalls(ctx, ds, logger, newActivityFn, 24*time.Hour, 500))
-		_, ok := gotActivity.(*fleet.ActivityTypeInstalledSoftware)
+		assert.Equal(t, hostUUID, gotHostUUID)
+		assert.Equal(t, commandUUID, gotCmdUUID)
+		assert.Equal(t, fleet.SetupExperienceStatusFailure, gotStatus)
+
+		act, ok := gotActivity.(*fleet.ActivityTypeInstalledSoftware)
 		require.True(t, ok)
-		assert.False(t, ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked,
-			"in-house apps cannot be part of the setup experience")
+		assert.True(t, act.FromSetupExperience)
 	})
 
 	t.Run("records the installs a partially failed run did reap", func(t *testing.T) {

@@ -1,0 +1,1 @@
+- Fixed an issue where deleting an ADE device after turning off Apple Business, could leave orphaned rows.

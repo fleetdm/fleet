@@ -1,40 +1,38 @@
+import classnames from "classnames";
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "react-query";
-import classnames from "classnames";
 
+import FileProgressModal from "components/FileProgressModal";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import useBlockNavigation from "hooks/useBlockNavigation";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import {
   IAppStoreApp,
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import useBlockNavigation from "hooks/useBlockNavigation";
-import useGitOpsMode from "hooks/useGitOpsMode";
-import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import deepDifference from "utilities/deep_difference";
-import { getFileDetails } from "utilities/file/fileUtils";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import FileProgressModal from "components/FileProgressModal";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import SoftwareVppForm from "pages/SoftwarePage/components/forms/SoftwareVppForm";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import {
   generateSelectedLabels,
   getCustomTarget,
   getInstallType,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import deepDifference from "utilities/deep_difference";
+import { getFileDetails } from "utilities/file/fileUtils";
+
+import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 import { getErrorMessage } from "./helpers";
-import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "edit-software-modal";
 

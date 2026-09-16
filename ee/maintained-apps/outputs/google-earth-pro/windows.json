@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.3.7.1155",
+      "version": "7.3.7.1327",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google' AND version_compare(version, '7.3.7.1155') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Earth Pro' AND publisher = 'Google' AND version_compare(version, '7.3.7.1327') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'google earth pro.exe');"
       },
-      "installer_url": "https://dl.google.com/release2/Earth/duhweelqjwtdslrbgzm7ehfkc4_7.3.7.1155/googleearth-win-pro-7.3.7.1155-x64.exe",
+      "installer_url": "https://dl.google.com/release2/Earth/fnndz6bt2usy3ez2s7f3i6aq6i_7.3.7.1327/googleearth-win-pro-7.3.7.1327-x64.exe",
       "install_script_ref": "8916df19",
       "uninstall_script_ref": "afe76f36",
-      "sha256": "d58f4db230805387ecad5bedff5e373a803b410ef1f995a6660e92ef9d7f429e",
+      "sha256": "12955495fb4357c88d18b2665513a5adadda0724152147529ca853c80354422b",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "02.08.02.60",
+      "version": "02.08.02.61",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio' AND version_compare(bundle_short_version, '02.08.02.60') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.bambulab.bambu-studio');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bambulab.bambu-studio' AND version_compare(bundle_short_version, '02.08.02.61') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bambulab.bambu-studio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/bambulab/BambuStudio/releases/download/v02.08.02.60/Bambu_Studio_mac-v02.08.02.60-20260814163036.dmg",
+      "installer_url": "https://github.com/bambulab/BambuStudio/releases/download/v02.08.02.61/Bambu_Studio_mac-v02.08.02.61-20260820225108.dmg",
       "install_script_ref": "747183ad",
       "uninstall_script_ref": "012866aa",
-      "sha256": "4dd0b5ec41b3a21f0a42c76e5719a61bd5ec0202185ed662b14635bd3a1398ca",
+      "sha256": "cf648a95858fb630e1353c4987038df60d6caab693f18411fb95fb809f2d6926",
       "default_categories": [
         "Productivity"
       ]

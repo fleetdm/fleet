@@ -1,7 +1,10 @@
 // TooltipWrapper.test.tsx
-import React from "react";
+
 import { render, screen, waitFor } from "@testing-library/react";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
+
 import TooltipWrapper from "./TooltipWrapper";
 
 describe("TooltipWrapper", () => {
@@ -17,6 +20,25 @@ describe("TooltipWrapper", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Tooltip text")).toBeInTheDocument();
+    });
+  });
+
+  it("does not render tooltip when tipContent is empty", async () => {
+    // Guarantees callers can pass a conditional/empty tipContent without
+    // the tooltip's empty background flashing on hover.
+    const { user } = renderWithSetup(
+      <TooltipWrapper tipContent="">
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+
+    const anchor = screen.getByText("Hover me");
+    await user.hover(anchor);
+
+    // The tooltip's root gets role="tooltip"; hovering an empty-content wrapper
+    // must not mount one.
+    await waitFor(() => {
+      expect(screen.queryByRole("tooltip")).toBeNull();
     });
   });
 
@@ -47,6 +69,26 @@ describe("TooltipWrapper", () => {
     expect(element).toHaveClass("component__tooltip-wrapper__underline");
   });
 
+  it("does not apply underline class when tipContent is empty", () => {
+    render(
+      <TooltipWrapper tipContent="">
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+    const element = screen.getByText("Hover me").parentElement;
+    expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
+  });
+
+  it("does not apply underline class when disableTooltip is true", () => {
+    render(
+      <TooltipWrapper tipContent="Tooltip text" disableTooltip>
+        <span>Hover me</span>
+      </TooltipWrapper>
+    );
+    const element = screen.getByText("Hover me").parentElement;
+    expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
+  });
+
   it("does not apply underline class when underline is false", () => {
     render(
       <TooltipWrapper tipContent="Tooltip text" underline={false}>
@@ -57,7 +99,7 @@ describe("TooltipWrapper", () => {
     expect(element).not.toHaveClass("component__tooltip-wrapper__underline");
   });
 
-  it("wraps tipContent in a display:contents span by default (textBalanced)", async () => {
+  it("wraps tipContent in an inline-block balance wrapper by default (textBalanced)", async () => {
     const { user } = renderWithSetup(
       <TooltipWrapper tipContent="Balanced tooltip">
         <span>Hover me</span>
@@ -68,9 +110,11 @@ describe("TooltipWrapper", () => {
 
     await waitFor(() => {
       const tipText = screen.getByText("Balanced tooltip");
-      // BalancedTipContent wraps content in a span with display:contents so
-      // measurement can find the tooltip root via el.parentElement.
-      const balancedWrapper = tipText.closest('span[style*="contents"]');
+      // BalancedTipContent wraps content in an inline-block div with
+      // text-wrap: balance so measurement can set width on the wrapper
+      // (react-tooltip-5 rewrites the outer tooltip element's style on
+      // every position update, so we can't set width there).
+      const balancedWrapper = tipText.closest('div[style*="balance"]');
       expect(balancedWrapper).not.toBeNull();
     });
   });
@@ -86,9 +130,9 @@ describe("TooltipWrapper", () => {
 
     await waitFor(() => {
       const tipText = screen.getByText("Unbalanced tooltip");
-      // Opt-out skips the BalancedTipContent span entirely — no display:contents
-      // wrapper should exist anywhere in the tooltip's DOM.
-      expect(tipText.closest('span[style*="contents"]')).toBeNull();
+      // Opt-out skips the BalancedTipContent wrapper entirely — no
+      // text-wrap: balance styled wrapper should exist in the tooltip DOM.
+      expect(tipText.closest('div[style*="balance"]')).toBeNull();
     });
   });
 

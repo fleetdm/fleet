@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.0",
+      "version": "4.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.usebruno.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.usebruno.app' AND version_compare(bundle_short_version, '4.0.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.usebruno.app');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.usebruno.app' AND version_compare(bundle_short_version, '4.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.usebruno.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/usebruno/bruno/releases/download/v4.0.0/bruno_4.0.0_arm64_mac.dmg",
+      "installer_url": "https://github.com/usebruno/bruno/releases/download/v4.1.0/bruno_4.1.0_arm64_mac.dmg",
       "install_script_ref": "c3c853d8",
       "uninstall_script_ref": "14f6d5fd",
-      "sha256": "533d435d1760f8ccdb98db24605335716710d346181659fb60956a7e4d529407",
+      "sha256": "31af43035099556492ce2196a87e88234caafdc897ccc2c9bfa62a321fc5df8e",
       "default_categories": [
         "Developer tools"
       ]

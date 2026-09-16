@@ -133,11 +133,12 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
-		installerID, err := strconv.ParseUint(idVal[0], 10, 32)
+		parsedInstallerID, err := strconv.ParseUint(idVal[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid installer_id: %s", idVal[0])}
 		}
-		decoded.InstallerID = new(uint(installerID))
+		installerID := uint(parsedInstallerID)
+		decoded.InstallerID = &installerID
 	}
 
 	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
@@ -402,11 +403,12 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	if v, ok := r.MultipartForm.Value["software_title_id"]; ok && len(v) > 0 && v[0] != "" {
-		id, err := strconv.ParseUint(v[0], 10, 32)
+		parsedTitleID, err := strconv.ParseUint(v[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid software_title_id: %s", v[0])}
 		}
-		decoded.TitleID = new(uint(id))
+		titleID := uint(parsedTitleID)
+		decoded.TitleID = &titleID
 	}
 
 	val, ok = r.MultipartForm.Value["install_script"]
@@ -763,6 +765,10 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
+func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Uninstall software
 ////////////////////////////////////////////////////////////////////////////////
@@ -1014,8 +1020,9 @@ type fleetSelfServiceSoftwareInstallAllRequest struct {
 	Token      string `url:"token"`
 	CategoryID *uint  `query:"category_id,optional"`
 	// Query mirrors the `query` param on the self-service list endpoint. When
-	// set, only titles whose name matches are queued — so the button installs
-	// exactly what the user sees on screen.
+	// set, only titles whose name, bundle_identifier, or custom display_name
+	// matches are queued, so the button installs exactly what the user sees
+	// on screen.
 	Query string `query:"query,optional"`
 }
 
@@ -1086,7 +1093,6 @@ func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc
 
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
 	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL)
 	if !alreadyAuthenticated {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {

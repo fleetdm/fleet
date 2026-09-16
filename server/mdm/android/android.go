@@ -113,6 +113,11 @@ const (
 	MDMAndroidCommandTypeWipe          MDMAndroidCommandType = "WIPE"
 )
 
+// AndroidMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
+// run-command when a Premium license is required for an Android command. Keep in sync
+// with the androidMDMPremiumCommands set in server/service/mdm.go.
+const AndroidMDMRequiresPremiumCmdMessage = "Missing or invalid license. LOCK and RESET_PASSWORD commands are available in Fleet Premium only."
+
 // MDMAndroidCommandStatus is the lifecycle state of an MDMAndroidCommand row.
 type MDMAndroidCommandStatus string
 

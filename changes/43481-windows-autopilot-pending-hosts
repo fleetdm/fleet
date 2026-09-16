@@ -1,0 +1,1 @@
+- Windows devices registered in a connected Microsoft Entra tenant's Autopilot registry now appear in Fleet as pending hosts before they enroll, and become regular hosts on enrollment without creating a duplicate.

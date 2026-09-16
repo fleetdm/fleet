@@ -1,7 +1,8 @@
 import { http, HttpResponse } from "msw";
-import { baseUrl } from "test/test-utils";
-import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
+
 import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
+import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
+import { baseUrl } from "test/test-utils";
 
 // ---- Software Install Handlers ----
 
@@ -155,6 +156,23 @@ export const getSoftwareInstallHandlerWithHash = http.get(
         status: "installed",
         hash_sha256:
           "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad",
+      }),
+    });
+  }
+);
+
+// Failed install on the end-user (device_user) path — mirrors the admin
+// getSoftwareInstallHandlerOnlyPreInstallOutput but on the token-scoped route.
+export const getDeviceSoftwareInstallHandlerFailedWithPreInstall = http.get(
+  baseUrl("/device/:token/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "failed_install",
+        output: "",
+        post_install_script_output: "",
+        pre_install_query_output: "Pre-install only",
       }),
     });
   }

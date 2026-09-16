@@ -3,6 +3,7 @@ package cached_mysql
 import (
 	"encoding/json"
 	"maps"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -39,6 +40,12 @@ type integer int
 
 func (i integer) Clone() (fleet.Cloner, error) {
 	return i, nil
+}
+
+type queryIDList []uint
+
+func (ql queryIDList) Clone() (fleet.Cloner, error) {
+	return slices.Clone(ql), nil
 }
 
 // fmaNameMap is a map of unique_identifier -> canonical FMA name.

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.11.2",
+      "version": "0.11.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.gephi';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gephi' AND version_compare(bundle_short_version, '0.11.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.gephi');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gephi' AND version_compare(bundle_short_version, '0.11.3') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.gephi' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.2/gephi-0.11.2-macos-aarch64.dmg",
+      "installer_url": "https://github.com/gephi/gephi/releases/download/v0.11.3/gephi-0.11.3-macos-aarch64.dmg",
       "install_script_ref": "df5fb828",
       "uninstall_script_ref": "e43a470b",
-      "sha256": "c5ab54d387386f568b400c03d6918a7a99232de828e29f6eb36c79d86f435fa8",
+      "sha256": "4210bef140f5c8d4d5e1c66d6f664ca23d563b9901f91a140374305db6e7e2b1",
       "default_categories": [
         "Productivity"
       ]

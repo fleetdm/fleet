@@ -1,15 +1,15 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import {
   createMockFleetMaintainedAppDetails,
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import { notify } from "components/ToastNotification";
 import softwareAPI from "services/entities/software";
 import teamPoliciesAPI from "services/entities/team_policies";
-import { notify } from "components/ToastNotification";
 import { createCustomRenderer } from "test/test-utils";
 
 import DeployModal from "./DeployModal";

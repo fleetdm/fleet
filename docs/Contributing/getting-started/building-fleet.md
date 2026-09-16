@@ -112,11 +112,6 @@ To generate all necessary code (bundling JavaScript into Go, etc.), run the foll
 make generate
 ```
 
-If you are using a Mac computer with Apple Silicon and have not installed Rosetta 2, you will need to do so before running `make generate`. Otherwise, you may see the following error: `Unknown system error -86`
-
-```sh
-/usr/sbin/softwareupdate --install-rosetta --agree-to-license
-```
 
 #### Automatic rebuilding of the JavaScript bundle
 

@@ -55,6 +55,23 @@ func (c *Client) CountABMTokens() (int, error) {
 	return responseBody.Count, err
 }
 
+// ListABMTokens retrieves the ABM tokens with their default fleet assignments.
+func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
+	verb, path := "GET", "/api/latest/fleet/ab_tokens"
+	var responseBody listABMTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
+}
+
+// CountHosts returns the number of hosts matching the given raw query string
+// (e.g. "team_id=1&mdm_enrollment_status=pending").
+func (c *Client) CountHosts(query string) (int, error) {
+	verb, path := "GET", "/api/latest/fleet/hosts/count"
+	var responseBody countHostsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	return responseBody.Count, err
+}
+
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {
@@ -341,8 +358,11 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 		prepareFn = c.prepareAppleMDMCommand
 	case "windows":
 		prepareFn = c.prepareWindowsMDMCommand
+	case "android":
+		// Android commands are JSON; base64-encode as-is (no XML preparation needed).
+		prepareFn = func(b []byte) ([]byte, error) { return b, nil }
 	default:
-		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows or Apple hosts.", forPlatform)
+		return nil, fmt.Errorf("Invalid platform %q. You can only run MDM commands on Windows, Apple, or Android hosts.", forPlatform)
 	}
 
 	rawCmd, err := prepareFn(rawCmd)

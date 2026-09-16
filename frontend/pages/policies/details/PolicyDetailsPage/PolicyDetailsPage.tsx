@@ -1,52 +1,53 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useErrorHandler } from "react-error-boundary";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import {
-  IPolicy,
-  IStoredPolicyResponse,
-  OtherAutomationType,
-} from "interfaces/policy";
-import { ILabelPolicy } from "interfaces/label";
-import {
-  API_NO_TEAM_ID,
-  APP_CONTEXT_ALL_TEAMS_SUMMARY,
-  APP_CONTEXT_NO_TEAM_SUMMARY,
-} from "interfaces/team";
-import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
-import policiesAPI from "services/entities/policies";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { addGravatarUrlToResource } from "utilities/helpers";
-import {
-  DEFAULT_EMPTY_CELL_VALUE,
-  DOCUMENT_TITLE_SUFFIX,
-} from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
+import Avatar from "components/Avatar";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import TruncatedTextList from "components/TruncatedTextList";
-import Avatar from "components/Avatar";
-import ShowQueryModal from "components/modals/ShowQueryModal";
+import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { ILabelPolicy } from "interfaces/label";
+import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
+import {
+  IPolicy,
+  IStoredPolicyResponse,
+  OtherAutomationType,
+} from "interfaces/policy";
+import {
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
+import { mapAutomationRows } from "pages/policies/components";
 import { getTicketOrWebhookInfo } from "pages/policies/helpers";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { mapAutomationRows } from "pages/policies/components";
+import PATHS from "router/paths";
+import policiesAPI from "services/entities/policies";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  DOCUMENT_TITLE_SUFFIX,
+} from "utilities/constants";
+import { addGravatarUrlToResource } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+
+import PolicyAutomationsActivitiesTable from "../components/PolicyAutomationsActivitiesTable";
+import PolicyAutomationsModal from "../components/PolicyAutomationsModal";
 import PolicyLabelModal, {
   IPolicyLabelModalProps,
 } from "../components/PolicyLabelModal";
-import PolicyAutomationsModal from "../components/PolicyAutomationsModal";
-import PolicyAutomationsActivitiesTable from "../components/PolicyAutomationsActivitiesTable";
 
 type ILabelModalData = Pick<
   IPolicyLabelModalProps,
@@ -358,7 +359,8 @@ const PolicyDetailsPage = ({
                   name={firstAutomation.graphicName}
                   className={
                     firstAutomation.graphicName === "file-sh" ||
-                    firstAutomation.graphicName === "file-ps1"
+                    firstAutomation.graphicName === "file-ps1" ||
+                    firstAutomation.graphicName === "file-configuration-profile"
                       ? "scale-40-24"
                       : ""
                   }

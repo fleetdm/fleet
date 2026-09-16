@@ -1,35 +1,35 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React from "react";
-import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
+
 import classnames from "classnames";
+import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
+import React from "react";
+
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Graphic from "components/Graphic";
+import Icon from "components/Icon";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
-import Graphic from "components/Graphic";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
   CommaSeparatedPlatformString,
   isQueryablePlatform,
 } from "interfaces/platform";
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
-import sortUtils from "utilities/sort";
 import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
-
-import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import Tag from "components/Tag";
-import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
-import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import sortUtils from "utilities/sort";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { getAutomationsForPolicy, IAutomationData } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
@@ -97,6 +97,9 @@ const AUTOMATION_ICON_RENDERERS: Record<
       name={name.endsWith(".sh") ? "file-sh" : "file-ps1"}
       className="scale-40-24"
     />
+  ),
+  profile: () => (
+    <Graphic name="file-configuration-profile" className="scale-40-24" />
   ),
   calendar: () => <Graphic name="calendar" />,
   conditional_access: () => <Graphic name="lock" />,

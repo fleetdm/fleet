@@ -356,6 +356,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_updates not found")
 				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
 				assert.True(t, ok, "apple_require_hardware_attestation not found")
+				_, ok = gitops.Controls.OnlyAllowAppleBusinessEnrollment.(bool)
+				assert.True(t, ok, "only_allow_apple_business_enrollment not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
 				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_LENGTH"])
@@ -2016,7 +2018,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug")
+	require.ErrorContains(t, err, "install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -2110,7 +2112,8 @@ software:
 	)
 	require.NoError(t, err)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	require.ErrorContains(
+		t, err,
 		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
 	)
 
@@ -2171,7 +2174,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "contains multiple packages, so cannot be used as a target for policy automation")
+	assert.ErrorContains(t, err, "contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files")
 }
 
 func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
@@ -2239,7 +2242,8 @@ controls:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	assert.ErrorContains(
+		t, err,
 		"was not defined in controls for TeamName",
 	)
 }
@@ -2309,7 +2313,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	}
 
 	t.Run("happy path keeps per-package fields and inherits fleet-level setup_experience", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      setup_experience: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2337,7 +2342,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// self_service and categories set once at the fleet level apply to every package
 	// that omits them.
 	t.Run("fleet-level self_service and categories inherit to all packages", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      self_service: true\n      categories: [\"Productivity\"]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -2419,7 +2425,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// multiple packages. A single package can set setup_experience in the file and
 	// inherit labels from the fleet-level entry.
 	t.Run("single package may set setup_experience and inherit fleet-level labels", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
   setup_experience: true
@@ -2447,7 +2454,8 @@ labels_include_all: [macOS]
 
 	// A hash-only package (no URL) is identified by its hash, not an empty string.
 	t.Run("conflict error identifies a hash-only package by its hash", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2462,7 +2470,8 @@ labels_include_all: [macOS]
 	// When a package has neither url nor hash, it is identified by the package file path
 	// rather than an empty string (url/hash are required but validated later).
 	t.Run("conflict error falls back to the file path when url and hash are absent", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- self_service: true
 - hash_sha256: %s
@@ -2476,7 +2485,8 @@ labels_include_all: [macOS]
 	// The fleet-level labels rule is file-scope, so it reports once regardless of how
 	// many packages the file lists.
 	t.Run("labels error is reported once for multiple packages", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -3503,9 +3513,9 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3591,8 +3601,8 @@ func TestGitOpsGlobProfiles(t *testing.T) {
 		dir := t.TempDir()
 		profilesDir := filepath.Join(dir, "profiles")
 		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte(emptyMCProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -3687,7 +3697,7 @@ func TestGitOpsOSUpdatesProfileConflict(t *testing.T) {
 	t.Run("macos updates configured with non-conflicting profile is allowed", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "plain.mobileconfig"), []byte(emptyMCProfile), 0o644))
 
 		config := getGlobalConfig([]string{"controls"})
 		config += `controls:
@@ -4282,7 +4292,7 @@ func TestControlsNewKeyNames(t *testing.T) {
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -4350,7 +4360,7 @@ org_settings:
 		dir := t.TempDir()
 		profileDir := filepath.Join(dir, "lib")
 		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "macos-password.mobileconfig"), []byte(emptyMCProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "windows-screenlock.xml"), []byte("<xml/>"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(profileDir, "collect-fleetd-logs.sh"), []byte("#!/bin/bash"), 0o644))
 
@@ -5147,7 +5157,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "install_software must have only one of")
+		assert.Contains(t, errs[0].Error(), "install_software must have only one of package_path, app_store_id, hash_sha256, or fleet_maintained_app_slug")
 	})
 
 	t.Run("fleet_maintained_app_slug on global policy errors", func(t *testing.T) {
@@ -5211,6 +5221,105 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		require.Nil(t, errs)
 		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
 		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
+	})
+
+	// Helpers for the multi-package sub-selector tests.
+	// Hashes intentionally include hex letters — an all-digit value would parse
+	// as a YAML number and never reach the SHA-string field.
+	sha1 := "aaaa111111111111111111111111111111111111111111111111111111111111"
+	sha2 := "bbbb222222222222222222222222222222222222222222222222222222222222"
+	url1 := "https://example.com/pkg-a.pkg"
+	url2 := "https://example.com/pkg-b.pkg"
+	writeMultiPackageFile := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		content := fmt.Sprintf(
+			"- url: %s\n  hash_sha256: %s\n- url: %s\n  hash_sha256: %s\n",
+			url1, sha1, url2, sha2,
+		)
+		path := filepath.Join(dir, "multi.yml")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+		return path
+	}
+	t.Run("bare hash_sha256 resolves against the team's packages", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{HashSHA256: sha2}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "multi hash policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		packages := []*fleet.SoftwarePackageSpec{
+			{URL: url1, SHA256: sha1},
+			{URL: url2, SHA256: sha2},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
+		require.Nil(t, errs)
+		assert.Equal(t, url2, policy.InstallSoftwareURL)
+		assert.Equal(t, sha2, policy.InstallSoftware.Other.HashSHA256)
+	})
+
+	t.Run("bare hash_sha256 not found on team errors", func(t *testing.T) {
+		t.Parallel()
+
+		bogusSHA := "cccc999999999999999999999999999999999999999999999999999999999999"
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{HashSHA256: bogusSHA}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "stale hash policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		packages := []*fleet.SoftwarePackageSpec{{URL: url1, SHA256: sha1}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on team", bogusSHA))
+	})
+
+	t.Run("package_path pointing at a multi-package file errors with hash_sha256 hint", func(t *testing.T) {
+		t.Parallel()
+
+		path := writeMultiPackageFile(t)
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "multi package_path policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files")
+	})
+
+	t.Run("package_path combined with hash_sha256 errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			PackagePath: "./whatever.yml",
+			HashSHA256:  sha1,
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "combo policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software.package_path and install_software.hash_sha256 are alternatives. Use hash_sha256 alone to pin a package by hash, or split the multi-package YAML into single-package YAML files and use package_path.")
 	})
 }
 
@@ -5888,3 +5997,158 @@ controls:
 		require.Contains(t, err.Error(), "failed to read activation file")
 	})
 }
+
+func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
+	//nolint:gosec // G101: test fixture, not a real credential.
+	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Password policy</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.password</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`
+
+	// certProfile substitutes base64 data through an env var and a Fleet secret,
+	// neither of which is expanded on disk.
+	const certProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Cert profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.cert</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8F</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.pkcs12</string>
+			<key>PayloadContent</key>
+			<data>$CERT_B64</data>
+			<key>Password</key>
+			<string>$FLEET_SECRET_CERT_PASSWORD</string>
+		</dict>
+	</array>
+</dict>
+</plist>
+`
+
+	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
+	// then appends the given policies section to a team (or global) config.
+	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		// t.Setenv restores the previous value on cleanup, but it rules out t.Parallel.
+		for k, v := range map[string]string{"CERT_B64": "aGVsbG8gd29ybGQ=", "FLEET_SECRET_CERT_PASSWORD": "p4ssw0rd"} {
+			t.Setenv(k, v)
+		}
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "cert.mobileconfig"), []byte(certProfile), 0o644))
+
+		exclude := []string{"controls", "policies"}
+		config := getTeamConfig(exclude)
+		if global {
+			config = getGlobalConfig(exclude)
+		}
+		config += `
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./lib/password.MOBILECoNFIG
+      - path: ./lib/cert.mobileconfig
+  windows_settings:
+    custom_settings:
+      - path: ./lib/screenlock.XmL
+` + policies
+
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+		return GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+	}
+
+	t.Run("resolves macOS and Windows profile names defined in controls", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Password policy
+- name: Windows policy
+  query: SELECT 1;
+  resend_configuration_profile: screenlock
+- name: No resend policy
+  query: SELECT 1;
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 3)
+		require.Equal(t, "Password policy", got.Policies[0].ResendConfigurationProfile)
+		require.Equal(t, "screenlock", got.Policies[1].ResendConfigurationProfile)
+		// Policies without the key get an empty name so the server unsets any existing profile.
+		require.Empty(t, got.Policies[2].ResendConfigurationProfile)
+	})
+
+	t.Run("resolves a profile with variables substituted into a data payload", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Cert profile
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 1)
+		require.Equal(t, "Cert profile", got.Policies[0].ResendConfigurationProfile)
+	})
+
+	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {
+		_, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Not a profile
+`)
+		require.ErrorContains(t, err, `configuration profile "Not a profile" was not defined in controls`)
+	})
+
+	t.Run("errors on global policies", func(t *testing.T) {
+		_, err := writeConfig(t, true, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Password policy
+`)
+		require.ErrorContains(t, err, "resend_configuration_profile can only be set on team policies")
+	})
+}
+
+const emptyMCProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Empty Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>empty-profile-identifier</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+</dict>
+</plist>`

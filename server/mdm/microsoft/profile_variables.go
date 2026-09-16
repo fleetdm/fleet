@@ -43,6 +43,16 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 	return e.message
 }
 
+// MicrosoftProfileTransientError indicates that preprocessing (substituting this host's Fleet variables into the
+// profile) could not complete for a reason that clears on its own.
+type MicrosoftProfileTransientError struct {
+	message string
+}
+
+func (e *MicrosoftProfileTransientError) Error() string {
+	return e.message
+}
+
 type ProfilePreprocessDependencies struct {
 	Context                    context.Context
 	Logger                     *slog.Logger
@@ -54,6 +64,10 @@ type ProfilePreprocessDependencies struct {
 	NDESConfig                 *fleet.NDESSCEPProxyCA
 	GetNDESSCEPChallenge       func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
 	NDESChallengeErrorToDetail func(err error) string
+	// NDESChallengeErrorIsTerminal reports whether a challenge-fetch failure needs someone to act before Fleet could
+	// succeed. Required whenever the profile can carry an NDES challenge. Injected rather than called directly to keep
+	// the ee SCEP package out of this one's imports.
+	NDESChallengeErrorIsTerminal func(err error) bool
 }
 
 type ProfilePreprocessParams struct {
@@ -98,8 +112,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		return profileContents, nil
 	}
 
-	// Process each Fleet variable
-	result := profileContents
+	// Quote the SCEP SubjectName values about to be substituted, while the attribute boundaries are
+	// still the admin's own. The pass after substitution doubles any quote that arrived inside them.
+	result := transformSCEPSubjectNameData(profileContents, quoteAttributeValue)
 	for _, fleetVar := range fleetVars {
 		switch {
 		case fleetVar == string(fleet.FleetVarHostUUID):
@@ -187,6 +202,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			deps.Logger.DebugContext(deps.Context, "fetching NDES challenge", "host_uuid", params.HostUUID, "profile_uuid", params.ProfileUUID)
 			challenge, err := deps.GetNDESSCEPChallenge(deps.Context, *deps.NDESConfig)
 			if err != nil {
+				if !deps.NDESChallengeErrorIsTerminal(err) {
+					return profileContents, &MicrosoftProfileTransientError{message: deps.NDESChallengeErrorToDetail(err)}
+				}
 				return profileContents, &MicrosoftProfileProcessingError{message: deps.NDESChallengeErrorToDetail(err)}
 			}
 			payload := &fleet.MDMManagedCertificate{
@@ -224,6 +242,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		}
 		result = expanded
 	}
+
+	// Last, so every value that landed inside the quotes added above has been substituted by now.
+	result = transformSCEPSubjectNameData(result, doubleAttributeQuotes)
 
 	return result, nil
 }

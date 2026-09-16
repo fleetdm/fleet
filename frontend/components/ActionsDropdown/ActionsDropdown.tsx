@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useContext, useEffect, useRef, useState } from "react";
 import Select, {
   components,
@@ -7,17 +8,14 @@ import Select, {
   StylesConfig,
 } from "react-select-5";
 
-import { PADDING } from "styles/var/padding";
-import { COLORS } from "styles/var/colors";
-import classnames from "classnames";
-
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { IconNames } from "components/icons";
-
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import TableLayoutContext from "components/TableContainer/TableLayoutContext";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
 
 const baseClass = "actions-dropdown";
 
@@ -357,6 +355,21 @@ const ActionsDropdown = ({
         opacity: 0.5,
       }),
     }),
+    // With the Control nulled out, react-select's container collapses to 0x0
+    // and, as a flex item, sits vertically centered against the trigger button
+    // — so the menu's `top: 100%` lands mid-button.
+    // Stretch the container over the button instead, so the menu hangs off the button's
+    // edge in either placement.
+    // Pointer events are off so the overlay can't swallow the trigger's clicks;
+    // the menu turns them back on.
+    container: (provided) => ({
+      ...provided,
+      ...(hasIconTrigger && {
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+      }),
+    }),
     menu: (provided) => ({
       ...provided,
       backgroundColor: COLORS["core-fleet-white"],
@@ -372,7 +385,11 @@ const ActionsDropdown = ({
       left: getLeftMenuAlign(menuAlign),
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
-      ...(hasIconTrigger && { marginTop: "4px" }),
+      ...(hasIconTrigger && {
+        marginTop: "1px",
+        marginBottom: "1px",
+        pointerEvents: "auto",
+      }),
     }),
     // zIndex 999 (document-portal tier) so the portaled menu clears
     // .site-nav-container and Modal — ActionsDropdown can render inside a
@@ -416,8 +433,12 @@ const ActionsDropdown = ({
     }),
   };
 
+  const wrapperClassnames = classnames(`${baseClass}__wrapper`, {
+    [`${baseClass}__wrapper--icon-trigger`]: hasIconTrigger,
+  });
+
   return (
-    <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
+    <div className={wrapperClassnames} ref={wrapperRef}>
       {isPrimary && renderPrimaryButton()}
       {hasIconTrigger && renderIconTriggerButton()}
       <Select<IDropdownOption, false>

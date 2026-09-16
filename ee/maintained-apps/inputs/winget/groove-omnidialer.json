@@ -3,6 +3,7 @@
   "slug": "groove-omnidialer/windows",
   "package_identifier": "GrooveLabs.OmniDialer",
   "unique_identifier": "Groove OmniDialer",
+  "fuzzy_match_name": true,
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Groove OmniDialer %' AND name NOT LIKE 'Groove OmniDialer Enterprise%' AND publisher = 'Groove Labs, Inc.';",
   "installer_arch": "x64",
   "installer_type": "exe",

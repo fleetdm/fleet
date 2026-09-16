@@ -1,12 +1,10 @@
 /** software/titles/:id > First section */
 
 import React, { useContext, useMemo, useState } from "react";
-
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { pluralize } from "utilities/strings/stringUtils";
+import Card from "components/Card";
+import Chip from "components/Chip";
 import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
@@ -15,20 +13,22 @@ import {
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
 } from "interfaces/software";
-
+import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import {
   getDisplayedSoftwareName,
   getSelfServiceTooltip,
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
-import Card from "components/Card";
-import Chip from "components/Chip";
-import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
+import PATHS from "router/paths";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
+
+import DeployModal from "../DeployModal";
+import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
+import EditConfigurationModal from "../EditConfigurationModal";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
-import EditConfigurationModal from "../EditConfigurationModal";
-import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
-import DeployModal from "../DeployModal";
 import PoliciesModal from "../PoliciesModal";
 
 interface ISoftwareSummaryCard {
@@ -99,6 +99,8 @@ const SoftwareSummaryCard = ({
   const isFleetMaintainedApp = !!installerResult?.meta.isFleetMaintainedApp;
   const isAndroidPlayStoreApp = !!installerResult?.meta.isAndroidPlayStoreApp;
   const isCustomPackage = !!installerResult?.meta.isCustomPackage;
+  const isIosOrIpadosApp = !!installerResult?.meta.isIosOrIpadosApp;
+  const canManageSoftware = !!installerResult?.meta.canManageSoftware;
 
   // Depend on the optional-chained sources directly so the memo's cache hits
   // when both are nullish — `?? []` would mint a fresh array literal each
@@ -162,9 +164,22 @@ const SoftwareSummaryCard = ({
   // chips since they're single-package — the flag is owned by the page.
   const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
   const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
+  // Gates on `app_store_app` directly since `isAppleVpp` flips false when
+  // a co-existing custom package hides the VPP installer.
+  const showAutoUpdateChip =
+    !!softwareTitle.app_store_app &&
+    isIosOrIpadosApp &&
+    !!softwareTitle.auto_update_enabled &&
+    !!softwareTitle.auto_update_window_start &&
+    !!softwareTitle.auto_update_window_end;
+  const canEditAutoUpdateConfig =
+    !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
   const showHeaderPills =
-    !!installerKindLabel || showSelfServiceChip || showAutoInstallChip;
+    !!installerKindLabel ||
+    showSelfServiceChip ||
+    showAutoInstallChip ||
+    showAutoUpdateChip;
 
   const headerPills = useMemo(() => {
     if (!showHeaderPills) {
@@ -181,6 +196,7 @@ const SoftwareSummaryCard = ({
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
               isAndroidSoftwareSource(softwareTitle.source)
             )}
+            tooltipTextBalanced={false}
           />
         )}
         {showAutoInstallChip && (
@@ -207,6 +223,30 @@ const SoftwareSummaryCard = ({
             )}
           />
         )}
+        {showAutoUpdateChip && (
+          <Chip
+            icon="refresh"
+            text="Auto updates"
+            onClick={
+              canEditAutoUpdateConfig
+                ? () => setShowEditAutoUpdateConfigModal(true)
+                : undefined
+            }
+            tooltip={
+              <>
+                Between{" "}
+                {internationalTimeOnlyFormat(
+                  softwareTitle.auto_update_window_start ?? ""
+                )}{" "}
+                and{" "}
+                {internationalTimeOnlyFormat(
+                  softwareTitle.auto_update_window_end ?? ""
+                )}{" "}
+                (host local time).
+              </>
+            }
+          />
+        )}
       </>
     );
   }, [
@@ -217,6 +257,10 @@ const SoftwareSummaryCard = ({
     isPatchPolicyOnly,
     mergedPolicies,
     softwareTitle.source,
+    showAutoUpdateChip,
+    canEditAutoUpdateConfig,
+    softwareTitle.auto_update_window_start,
+    softwareTitle.auto_update_window_end,
     router,
     teamId,
   ]);
@@ -252,12 +296,7 @@ const SoftwareSummaryCard = ({
     );
   }
 
-  const {
-    softwareInstaller,
-    isIosOrIpadosApp,
-    isAndroidPlayStoreWebApp,
-    canManageSoftware,
-  } = installerResult.meta;
+  const { softwareInstaller, isAndroidPlayStoreWebApp } = installerResult.meta;
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
@@ -273,9 +312,6 @@ const SoftwareSummaryCard = ({
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
-
-  const canEditAutoUpdateConfig =
-    softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
