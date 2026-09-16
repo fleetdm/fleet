@@ -15,8 +15,7 @@ import (
 const (
 	bitLockerPINToastTag   = "bitlocker-pin"
 	bitLockerPINToastGroup = "fleet-desktop"
-	// bitLockerPINToastLifetime clears an ignored toast from Notification Center before its link stops working. The server
-	// accepts a device token until an hour after it is rotated, and the toast is re-posted with the new token.
+	// bitLockerPINToastLifetime clears an ignored toast from Notification Center before its link stops working.
 	bitLockerPINToastLifetime = time.Hour
 
 	bitLockerPINToastTitle  = "Set your BitLocker PIN to protect this device"
@@ -42,8 +41,7 @@ type bitLockerPINToast struct {
 
 	mu       sync.Mutex
 	poppedUp bool
-	// attemptedURL is the link of the last post attempt. A failed post is retried only when the link changes, so a host
-	// that blocks PowerShell does not start it on every summary poll.
+	// attemptedURL is the link of the last post attempt.
 	attemptedURL string
 	// posted is whether a toast may be in Notification Center, so hosts that never showed one never start PowerShell.
 	posted bool
@@ -56,7 +54,7 @@ func newBitLockerPINToast(markerPath, loginID string) *bitLockerPINToast {
 	}
 	if marker, err := os.ReadFile(markerPath); err == nil {
 		t.posted = true
-		// An unreadable login pops up again, because a missed prompt is worse than a repeated one.
+		// An unreadable login pops up the toast again
 		t.poppedUp = loginID != "" && string(marker) == loginID
 	}
 	return t
@@ -76,8 +74,7 @@ func (t *bitLockerPINToast) submit(needsPIN bool, deviceURL string) {
 	}()
 }
 
-// reconcile brings the toast in line with a summary. The caller holds mu. deviceURL carries the device token, so it is never
-// logged.
+// reconcile brings the toast in line with a summary. The caller holds lock. deviceURL carries the device token.
 func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 	if !needsPIN {
 		t.attemptedURL = ""
@@ -114,11 +111,11 @@ func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 		SuppressPopup: !popup,
 	})
 	if err != nil {
-		// An orbit too old to register the notification identity is expected during an upgrade, and it registers on its next start.
+		// An orbit too old to register the notification identity may happen during an upgrade, and it registers on its next start.
 		if errors.Is(err, toast.ErrAppIDNotRegistered) {
-			log.Debug().Msg("skipped the BitLocker PIN toast, orbit has not registered the notification identity")
+			log.Warn().Msg("skipped the BitLocker PIN toast, orbit has not registered the notification identity")
 		} else {
-			log.Warn().Err(err).Msg("could not show the BitLocker PIN toast")
+			log.Error().Err(err).Msg("could not show the BitLocker PIN toast")
 		}
 		return
 	}

@@ -39,34 +39,62 @@ func TestNotificationXML(t *testing.T) {
 	require.Equal(t, []toastAction{{Content: n.ButtonLabel, ActivationType: "protocol", Arguments: n.URL}}, parsed.Actions)
 }
 
+// validNotification is a notification Windows accepts, for tests that change one thing about it.
+var validNotification = Notification{
+	Tag:         "bitlocker-pin",
+	Group:       "fleet",
+	Title:       "Title",
+	Body:        "Body",
+	ButtonLabel: "Create PIN",
+	URL:         "https://fleet.example.com/device/token?create_pin=1",
+}
+
+// with returns a copy of the notification with set applied.
+func with(n Notification, set func(*Notification)) Notification {
+	set(&n)
+	return n
+}
+
 func TestShowScriptEnv(t *testing.T) {
 	t.Parallel()
 
-	n := Notification{
-		Tag:           "bitlocker-pin",
-		Group:         "fleet",
-		Title:         "Title",
-		Body:          "Body",
-		ButtonLabel:   "Create PIN",
-		URL:           "https://fleet.example.com/device/token?create_pin=1",
-		ExpiresIn:     time.Hour,
-		SuppressPopup: true,
-	}
-	env, err := showScriptEnv(n)
-	require.NoError(t, err)
-	vars := envMap(t, env)
+	for _, tc := range []struct {
+		name                        string
+		n                           Notification
+		wantExpires, wantSuppressed string
+	}{
+		{
+			name:           "expires in an hour, posted silently",
+			n:              with(validNotification, func(n *Notification) { n.ExpiresIn = time.Hour; n.SuppressPopup = true }),
+			wantExpires:    "3600",
+			wantSuppressed: "true",
+		},
+		{
+			// The script leaves the expiration alone for zero, so an unset one does not make the toast arrive expired.
+			name:           "no expiration, pops up",
+			n:              validNotification,
+			wantExpires:    "0",
+			wantSuppressed: "false",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env, err := showScriptEnv(tc.n)
+			require.NoError(t, err)
+			vars := envMap(t, env)
 
-	wantXML, err := n.xml()
-	require.NoError(t, err)
-	require.Equal(t, map[string]string{
-		"FLEET_TOAST_XML":             wantXML,
-		"FLEET_TOAST_TAG":             "bitlocker-pin",
-		"FLEET_TOAST_GROUP":           "fleet",
-		"FLEET_TOAST_EXPIRES_SECONDS": "3600",
-		"FLEET_TOAST_SUPPRESS_POPUP":  "true",
-		"FLEET_TOAST_APP_ID":          FleetDesktopAppID,
-	}, vars)
-	requireScriptReadsEnv(t, showScript, vars)
+			wantXML, err := tc.n.xml()
+			require.NoError(t, err)
+			require.Equal(t, map[string]string{
+				"FLEET_TOAST_XML":             wantXML,
+				"FLEET_TOAST_TAG":             tc.n.Tag,
+				"FLEET_TOAST_GROUP":           tc.n.Group,
+				"FLEET_TOAST_EXPIRES_SECONDS": tc.wantExpires,
+				"FLEET_TOAST_SUPPRESS_POPUP":  tc.wantSuppressed,
+				"FLEET_TOAST_APP_ID":          FleetDesktopAppID,
+			}, vars)
+			requireScriptReadsEnv(t, showScript, vars)
+		})
+	}
 }
 
 func TestRemoveScriptEnv(t *testing.T) {
@@ -119,33 +147,26 @@ func requireScriptReadsEnv(t *testing.T, script string, vars map[string]string) 
 func TestNotificationValidate(t *testing.T) {
 	t.Parallel()
 
-	valid := Notification{Tag: "bitlocker-pin", Group: "fleet", Title: "Title", Body: "Body", ButtonLabel: "Create PIN", URL: "https://fleet.example.com"}
-	blank := func(set func(*Notification)) Notification {
-		n := valid
-		set(&n)
-		return n
-	}
-
 	for _, tc := range []struct {
 		name    string
 		n       Notification
 		wantErr string
 	}{
-		{name: "valid", n: valid},
-		{name: "no title", n: blank(func(n *Notification) { n.Title = "" }), wantErr: "toast title is empty"},
-		{name: "no body", n: blank(func(n *Notification) { n.Body = "" }), wantErr: "toast body is empty"},
-		{name: "no button label", n: blank(func(n *Notification) { n.ButtonLabel = "" }), wantErr: "toast button label is empty"},
-		{name: "no URL", n: blank(func(n *Notification) { n.URL = "" }), wantErr: "toast URL is empty"},
-		{name: "no tag", n: blank(func(n *Notification) { n.Tag = "" }), wantErr: "toast tag is empty"},
+		{name: "valid", n: validNotification},
+		{name: "no title", n: with(validNotification, func(n *Notification) { n.Title = "" }), wantErr: "toast title is empty"},
+		{name: "no body", n: with(validNotification, func(n *Notification) { n.Body = "" }), wantErr: "toast body is empty"},
+		{name: "no button label", n: with(validNotification, func(n *Notification) { n.ButtonLabel = "" }), wantErr: "toast button label is empty"},
+		{name: "no URL", n: with(validNotification, func(n *Notification) { n.URL = "" }), wantErr: "toast URL is empty"},
+		{name: "no tag", n: with(validNotification, func(n *Notification) { n.Tag = "" }), wantErr: "toast tag is empty"},
 		// Windows throws on a longer tag or group, which would surface as an opaque PowerShell failure.
 		{
 			name:    "group Windows would reject",
-			n:       blank(func(n *Notification) { n.Group = strings.Repeat("g", maxTagLength+1) }),
+			n:       with(validNotification, func(n *Notification) { n.Group = strings.Repeat("g", maxTagLength+1) }),
 			wantErr: "toast group is longer than the 64 characters Windows accepts",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := showScriptEnv(tc.n)
+			err := tc.n.validate()
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 				return
