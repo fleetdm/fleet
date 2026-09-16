@@ -383,12 +383,18 @@ a case failing 2 of 5 is a different problem from one failing 5 of 5.`
 Passing it without contour installed is an error rather than a silent skip -- a run that quietly validated nothing
 looks exactly like a run where everything was valid.  Apple formats only: contour has no Windows CSP validator, so
 csp cases report as not-checked either way.`
+    },
+
+    testLighterResponse: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not to run the tests with a smaller response shape.'
     }
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, all, baseModel, verbose, validateWithContour, parallelTests, caseId}) {
+  fn: async function ({profileType, naturalLanguageInstructions, all, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse}) {
 
     let path = require('path');
     let util = require('util');
@@ -509,6 +515,7 @@ csp cases report as not-checked either way.`
           let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
             profileType: testCase.profileType,
             naturalLanguageInstructions: testCase.instructions,
+            useLighterResponseShape: testLighterResponse,
           });
           let rawResult = await sails.helpers.ai.prompt.with({
             systemPrompt: generatorConfiguration.systemPrompt,

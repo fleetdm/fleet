@@ -22,6 +22,11 @@ module.exports = {
       type: 'string',
       required: true,
       description: 'What the IT admin asked for, in their own words.'
+    },
+
+    useLighterResponseShape: {
+      type: 'boolean',
+      description: 'Whether or not to request less information back with the generated profile.'
     }
   },
 
@@ -35,7 +40,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape}) {
 
     // Apple's published DDM configuration declarations, pruned to what a generator must not get wrong:
     // exact key name, type, and whatever constrains the value.  Titles, prose and per-OS availability are
@@ -115,41 +120,66 @@ module.exports = {
 
 
     // The tail of the system prompt.
-    const RESPONSE_SHAPE = `Respond in JSON with this data shape:
-    {
-      "configurationProfile": "TODO",
-      "profileFilename": "TODO",
-      // Things the admin must do or decide that are not visible in the profile itself.
-      // Empty string when there is nothing exceptional, which is the common case.
-      "deliveryNotes": "",
-      "settingsEnforced": [// For each setting enforced by the configuration profile.
-        {
-          // The name (key) of the setting that is enforced. e.g., LoginwindowText
-          name: "TODO",
-          // The value of the setting that is enforced
-          value: "TODO",
-          // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
-          schemaReference: "TODO",
-          // The documented range, enum, or type this setting accepts, including the declared format.
-          allowedValues: "TODO",
-          // What the value above actually does, in words. e.g., "0 = a password is required"
-          valueMeaning: "TODO",
-          // The Apple or Microsoft reference page for this setting.
-          documentationUrl: "TODO",
-          // Applicability, dependencies, and any condition under which this setting deploys but does nothing. Empty string if there are none.
-          caveats: "TODO"
-        },
-        {...}
-      ]
-    }
+    let RESPONSE_SHAPE;
+    if(!useLighterResponseShape) {
 
-    If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
-    {
-      "couldNotGenerateProfile": true,
-      // Explain why a profile could not be generated, naming the specific setting, node, or key that could not be confirmed. The tone should be informational and brief.
-      "reasonWhyAProfileCouldNotBeGenerated": TODO
+      RESPONSE_SHAPE = `Respond in JSON with this data shape:
+      {
+        "configurationProfile": "TODO",
+        "profileFilename": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
+        "settingsEnforced": [// For each setting enforced by the configuration profile.
+          {
+            // The name (key) of the setting that is enforced. e.g., LoginwindowText
+            name: "TODO",
+            // The value of the setting that is enforced
+            value: "TODO",
+            // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
+            schemaReference: "TODO",
+            // The documented range, enum, or type this setting accepts, including the declared format.
+            allowedValues: "TODO",
+            // What the value above actually does, in words. e.g., "0 = a password is required"
+            valueMeaning: "TODO",
+            // The Apple or Microsoft reference page for this setting.
+            documentationUrl: "TODO",
+            // Applicability, dependencies, and any condition under which this setting deploys but does nothing. Empty string if there are none.
+            caveats: "TODO"
+          },
+          {...}
+        ]
+      }
+
+      If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
+      {
+        "couldNotGenerateProfile": true,
+        // Explain why a profile could not be generated, naming the specific setting, node, or key that could not be confirmed. The tone should be informational and brief.
+        "reasonWhyAProfileCouldNotBeGenerated": TODO
+      }
+      `;
+    } else {
+      RESPONSE_SHAPE = `Respond in JSON with this data shape:
+      {
+        "configurationProfile": "TODO",
+        "profileFilename": "TODO",
+        "settingsEnforced": [// For each setting enforced by the configuration profile.
+          {
+            name: "TODO",
+            value: "TODO",
+          },
+          {...}
+        ]
+      }
+
+      If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
+      {
+        "couldNotGenerateProfile": true,
+        // Explain why a profile could not be generated, naming the specific setting, node, or key that could not be confirmed. The tone should be informational and brief.
+        "reasonWhyAProfileCouldNotBeGenerated": TODO
+      }
+      `;
     }
-    `;
 
     // Rules that apply to every profile type.  Ordered by consequence: a violation of an early rule produces a profile that deploys cleanly and does nothing.
     let sharedRules = [
