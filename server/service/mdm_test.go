@@ -5429,6 +5429,114 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
 	})
+
+	// Wipe is COBO-only. The dedicated wipe endpoint refuses personally-owned hosts, so the
+	// custom command path must refuse them too, with the same error.
+	setupWipeDS := func(t *testing.T, enrollmentStatus string) *mock.Store {
+		ds := setupDS(t)
+		// ListHostsLiteByUUIDs does not populate host.MDM, so the host the wipe validation
+		// sees must come from a separate load.
+		hostWithMDM := *androidHost
+		hostWithMDM.MDM = fleet.MDMHostData{EnrollmentStatus: new(enrollmentStatus)}
+		ds.HostFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			require.Equal(t, androidHost.ID, id)
+			return &hostWithMDM, nil
+		}
+		return ds
+	}
+
+	t.Run("rejects WIPE on personally-owned host", func(t *testing.T) {
+		for _, rawType := range []string{"WIPE", "wipe", " Wipe "} {
+			t.Run(rawType, func(t *testing.T) {
+				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
+				androidMock := &mockAndroidService{
+					IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+						t.Fatal("wipe must not reach AMAPI for a personally-owned host")
+						return nil, nil
+					},
+				}
+				opts := &TestServerOpts{
+					SkipCreateTestUsers: true,
+					AndroidModule:       androidMock,
+					License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
+				}
+				svc, ctx := newTestService(t, ds, nil, nil, opts)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+					t.Fatal("no activity must be recorded for a refused wipe")
+					return nil
+				}
+
+				cmd := fmt.Sprintf(`{"type":%q,"wipeParams":{}}`, rawType)
+				encoded := base64.StdEncoding.EncodeToString([]byte(cmd))
+				_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+				require.Error(t, err)
+				// same message the dedicated POST /hosts/{id}/wipe endpoint returns
+				require.ErrorContains(t, err, "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.")
+				var badRequestErr *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequestErr)
+			})
+		}
+	})
+
+	t.Run("allows WIPE on company-owned host", func(t *testing.T) {
+		ds := setupWipeDS(t, fleet.MDMEnrollmentStatusAutomatic)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, hostID uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				require.Equal(t, androidHost.ID, hostID)
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-wipe",
+					CommandType: "WIPE",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		var capturedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			capturedActivity = act
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"WIPE","wipeParams":{}}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "WIPE", result.RequestType)
+		require.NotNil(t, capturedActivity)
+	})
+
+	t.Run("non-WIPE command skips the wipe validation", func(t *testing.T) {
+		ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-reboot",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.False(t, ds.HostFuncInvoked, "only WIPE should pay for the extra host load")
+	})
 }
 
 func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {

@@ -40,6 +40,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -668,6 +669,20 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 	}
 
 	host := hosts[0]
+
+	// Wipe is COBO-only, so a custom WIPE command must clear the same validation as the
+	// dedicated wipe endpoint. hosts came from ListHostsLiteByUUIDs, which leaves host.MDM
+	// empty, so reload the host to get its enrollment status.
+	if cmdType == string(android.MDMAndroidCommandTypeWipe) {
+		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host")
+		}
+		if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, hostWithMDM); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate android wipe request")
+		}
+	}
+
 	cmd, err := svc.androidSvc.IssueCustomCommand(ctx, host.ID, rawJSON)
 	if err != nil {
 		return nil, err
