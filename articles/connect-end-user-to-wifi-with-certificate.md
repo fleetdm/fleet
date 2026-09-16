@@ -19,7 +19,7 @@ To deploy certificates on a self-hosted Fleet instance, you'll need to configure
 
 ## Okta
 
-The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
+The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA).
 
 The steps below are for generating a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
 
@@ -39,99 +39,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
 1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. (Okta uses NDES under the hood.)
 3. Enter the **SCEP URL**, **Admin URL** (The Okta label for **Admin URL** is **Challenge URL**), **Username**, and **Password** into the labeled fields. (The Username should have been generated in Okta during Step 1.)
-4. Select **Add CA** - the Okta CA named **"NDES"** will appear in a table in Fleet. (Values can be edited by clicking the pencil icon if needed.)
-
-### Step 3: Add SCEP configuration profile to Fleet
-
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload:
-
-- For the `Challenge` key / value, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. (See: Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables))
-- Key usage determines the certificate type:
-  - Per [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/scep/payloadcontent-data.dictionary), this value can be set to either:
-    - 1 = signature
-    - 4 = encryption
-    - but not both "signature & encryption" (i.e., 5)
-    - For this particular use case, a value of 1 is correct.
-- Key size determines the length of the encryption key:
-  - Possible values:
-    - 1024 (default), 2048, 4096
-- For the `CN` key / value, what's added is dependent on what the certificate will be used for.
-  - Using variables means that the certificates can be unique per host (see example below and Apple's [Use payload variables...](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation).
-- For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
-- For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
-
-Example:
-
-```
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>PayloadContent</key>
-    <array>
-        <dict>
-            <key>PayloadContent</key>
-            <dict>
-                <key>AllowAllAppsAccess</key>
-                <true/>
-                <key>Challenge</key>
-                <string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>
-                <key>KeyUsage</key>
-                <integer>4</integer>
-                <key>Keysize</key>
-                <integer>2048</integer>
-                <key>Subject</key>
-                <array>
-                    <array>
-                        <array>
-                            <string>CN</string>
-                            <string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME %HardwareUUID%</string>
-                        </array>
-                    </array>
-                    <array>
-                        <array>
-                            <string>OU</string>
-                            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
-                        </array>
-                    </array>
-                </array>
-                <key>URL</key>
-                <string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string>
-            </dict>
-            <key>PayloadDisplayName</key>
-            <string>SCEP</string>
-            <key>PayloadIdentifier</key>
-            <string>com.apple.security.scep.ZZZZZZZZ-CEF2-43D9-XXXX-42FC2FE9CF3D</string>
-            <key>PayloadType</key>
-            <string>com.apple.security.scep</string>
-            <key>PayloadUUID</key>
-            <string>ZZZZZZZZ-CEF2-43D9-XXXX-42FC2FE9CF3D</strin
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-        </dict>
-    </array>
-    <key>PayloadDisplayName</key>
-    <string>Okta CA SCEP (Dynamic)</string>
-    <key>PayloadIdentifier</key>
-    <string>com.okta.device.access.dynamic.YYYYYYYY-A4FD-4B06-B
-    <key>PayloadRemovalDisallowed</key>
-    <true/>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>YYYYYYYY-A4FD-4B06-BBBB-556CCE0914C5</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
-</dict>
-</plist>
-```
-
-2. In Fleet, head to Controls > OS settings > Configuration profiles to add the configuration profile and deploy certificates to your hosts.
-✻ Worked for 2s
-
-※ recap: You've been proofreading the Okta SCEP guide for typos and formatting issues. I just showed you how to fix the indentation on Step 1, item 3's sub-bullets; next is applying that fix and any other flagged corrections to the doc. (disable recaps in /config)
-
-❯ Can you just print your version of Step 3 please?
+4. Select **Add CA**: the Okta CA named **"NDES"** will appear in a table in the Fleet UI. (Values can be edited by clicking the pencil icon if needed.)
 
 ### Step 3: Add SCEP configuration profile to Fleet
 
@@ -139,10 +47,9 @@ Example:
 
 - For the `Challenge` key / value, use `$FLEET_VAR_NDES_SCEP_CHALLENGE` (See: Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables)).
 - Key usage determines the certificate type:
-  - Per [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/scep/payloadcontent-data.dictionary), this value can be set to either:
-    - 1 = signature
-    - 4 = encryption
-  - but not both "signature & encryption" (i.e., 5). For this particular use case, a value of 1 is correct.
+  - Per [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/scep/payloadcontent-data.dictionary), this value **can** be set to:
+    - 1 (signature), 4 (encryption), but **not** 5 (signature & encryption).
+    - For this use case, the value should be set to 1.
 - Key size determines the length of the encryption key:
   - Possible values:
     - 1024 (default), 2048, 4096
@@ -151,8 +58,9 @@ Example:
 - For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 - For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
 
-Example:
+#### Example configuration profile
 
+```
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -166,7 +74,7 @@ Example:
                 <true/>
                 <key>Challenge</key>
                 <string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>
-                <key>KeyUsage</key>
+                <key>Key Usage</key>
                 <integer>1</integer>
                 <key>Keysize</key>
                 <integer>2048</integer>
@@ -216,8 +124,9 @@ Example:
 </plist>
 ```
 
-2. In Fleet, head to **Controls > OS settings > Configuration profiles** to upload the configuration profile and deploy certificates to your hosts.
-3. Verify the profile: when it is delivered to your hosts, Fleet replaces the variables. If something fails, errors appear on each host's **Host details > OS settings**.
+2. In Fleet, go to **Controls > OS settings > Configuration profiles** to upload the .mobileconfig file you've created.
+3. Verify the profile. When it is delivered to your hosts, Fleet replaces the variables with the specified values. If something fails, errors appear on each host's **Host details > OS settings**.
+4. A valid Configuration Profile will deploy certificates from the Okta CA to your hosts in the System keychain. On macOS, use Spotlight to search for "Keychain Access" to check.
 
 ## DigiCert
 
@@ -784,7 +693,6 @@ Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If e
 
 ### Step 4: Create a custom policy
 
-
 1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence and if it expires in the next 30 days:
 
 ```sql
@@ -1044,7 +952,6 @@ If something goes wrong, errors will appear on each host's **Host details > OS s
 How does this work? Fleet installs the "Fleet" Android app on each host. Every 15 minutes, the app checks for new certificates, retrieves any from the custom SCEP CA, and installs them in the [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
 > For additional data on the device itself, open the Fleet Android app, and select **App version** 8 times. The first time a toast will appear saying, "Fleet Agent version copied", but after the eighth time it's selected, a debug information screen will appear. Here you can see information about the certificates and their states, the last error, and logs. To view logs, select the menu icon near the copy icon in the upper right. On the Logs screen, select "Info" in the upper right to change the log level that's displayed.
-
 
 ## Any EST (Enrollment over Secure Transport) CA
 
