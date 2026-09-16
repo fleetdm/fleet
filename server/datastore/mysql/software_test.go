@@ -6272,6 +6272,31 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, sw, 1)
 	assert.Equal(t, icon.IconUrl(), *sw[0].IconUrl)
+
+	// Before a schedule exists, the fields marshal as nil.
+	require.Nil(t, sw[0].AutoUpdateEnabled)
+	require.Nil(t, sw[0].AutoUpdateStartTime)
+	require.Nil(t, sw[0].AutoUpdateEndTime)
+
+	// Enable auto-updates for the VPP title and confirm hydration surfaces the
+	// window on the host-software list. This is the plumbing that lets the
+	// FE host software / device software tables render the auto-update icon.
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, va1.TitleID, tm.ID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("02:00"),
+		AutoUpdateEndTime:   new("04:00"),
+	})
+	require.NoError(t, err)
+
+	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	require.NotNil(t, sw[0].AutoUpdateEnabled)
+	assert.True(t, *sw[0].AutoUpdateEnabled)
+	require.NotNil(t, sw[0].AutoUpdateStartTime)
+	assert.Equal(t, "02:00", *sw[0].AutoUpdateStartTime)
+	require.NotNil(t, sw[0].AutoUpdateEndTime)
+	assert.Equal(t, "04:00", *sw[0].AutoUpdateEndTime)
 }
 
 func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {

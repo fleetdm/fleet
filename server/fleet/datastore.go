@@ -1371,7 +1371,9 @@ type Datastore interface {
 	LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *Host) error
 
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
-	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
+	// SetOrUpdateHostDiskBitLockerProtectors records whether the volume has a key protector able to release the volume master key
+	// at boot, and whether it has a TPM PIN protector.
+	SetOrUpdateHostDiskBitLockerProtectors(ctx context.Context, hostID uint, bootProtectorSet, tpmPINSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host, returns whether the current key was archived or not due to the current one being updated/replaced.

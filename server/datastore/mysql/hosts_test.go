@@ -205,7 +205,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostEmails", testGetHostEmails},
 		{"GetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
-		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
+		{"SetOrUpdateHostDiskBitLockerProtectors", testSetOrUpdateHostDiskBitLockerProtectors},
 		{"MaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
 		{"ScimUserAssociationViaHostEmails", testScimUserAssociationViaHostEmails},
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
@@ -14056,58 +14056,22 @@ func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testSetOrUpdateHostDiskTpmPIN(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func testSetOrUpdateHostDiskBitLockerProtectors(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "foo.local", "192.168.1.1", "1", "1", time.Now())
 
-	var hosts []*fleet.Host
-	for _, id := range []string{"1", "2"} {
-		host, err := ds.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         ptr.String(id),
-			UUID:            id,
-			OsqueryHostID:   ptr.String(id),
-			Hostname:        fmt.Sprintf("foo.local.%s", id),
-			PrimaryIP:       fmt.Sprintf("192.168.1.%s", id),
-			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-1%s", id),
-		})
-		require.NoError(t, err)
-		hosts = append(hosts, host)
-	}
-
-	testCases := map[uint]bool{
-		hosts[0].ID: true,
-		hosts[1].ID: false,
-	}
-
-	for hostID, expected := range testCases {
-		require.NoError(t, ds.SetOrUpdateHostDiskTpmPIN(ctx, hostID, expected))
-
-		var tpmPINSet bool
-
-		require.NoError(t,
-			sqlx.GetContext(
-				ctx,
-				ds.writer(ctx),
-				&tpmPINSet,
-				`SELECT tpm_pin_set FROM host_disks WHERE host_id = ?`, hostID,
-			),
-		)
-		require.Equal(t, expected, tpmPINSet)
-
-		require.NoError(t, ds.SetOrUpdateHostDiskTpmPIN(ctx, hostID, !expected))
-
-		require.NoError(t,
-			sqlx.GetContext(
-				ctx,
-				ds.writer(ctx),
-				&tpmPINSet,
-				`SELECT tpm_pin_set FROM host_disks WHERE host_id = ?`, hostID,
-			),
-		)
-		require.NotEqual(t, expected, tpmPINSet)
+	// The first write inserts the host_disks row and the second updates it. The columns always differ and both flip, so a
+	// write that swaps or drops either one fails.
+	for _, want := range []struct{ bootProtectorSet, tpmPINSet bool }{{true, false}, {false, true}} {
+		require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, want.bootProtectorSet, want.tpmPINSet))
+		var got struct {
+			BootProtectorSet bool `db:"bitlocker_boot_protector_set"`
+			TPMPINSet        bool `db:"tpm_pin_set"`
+		}
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &got,
+			`SELECT bitlocker_boot_protector_set, tpm_pin_set FROM host_disks WHERE host_id = ?`, host.ID))
+		require.Equal(t, want.bootProtectorSet, got.BootProtectorSet)
+		require.Equal(t, want.tpmPINSet, got.TPMPINSet)
 	}
 }
 

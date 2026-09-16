@@ -1933,8 +1933,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
 		hostDetailQueryPrefix + "certificates_windows":                    {},
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
-		hostDetailQueryPrefix + "tpm_pin_set_verify":                      {},
 		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":          {},
+		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":         {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -2054,8 +2054,9 @@ func TestHostDetailQueries(t *testing.T) {
 func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
 	pinQueryNames := []string{
 		hostDetailQueryPrefix + "tpm_pin_config_verify",
-		hostDetailQueryPrefix + "tpm_pin_set_verify",
 	}
+	// Also records whether a PIN is set, so it runs wherever disk encryption is enforced, PIN or not.
+	keyProtectorsQueryName := hostDetailQueryPrefix + "bitlocker_key_protectors_verify"
 
 	globalRequiresPIN := false
 	teamMDMConfig := fleet.TeamMDM{EnableDiskEncryption: true, WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)}, RequireBitLockerPIN: true}
@@ -2101,6 +2102,7 @@ func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
 	for _, queryName := range pinQueryNames {
 		assert.Contains(t, queries, queryName)
 	}
+	assert.Contains(t, queries, keyProtectorsQueryName)
 
 	// The reverse: the global config requiring a PIN must not leak to a host whose team does not.
 	globalRequiresPIN = true
@@ -2110,6 +2112,7 @@ func TestHostDetailQueriesTeamBitLockerPIN(t *testing.T) {
 	for _, queryName := range pinQueryNames {
 		assert.NotContains(t, queries, queryName)
 	}
+	assert.Contains(t, queries, keyProtectorsQueryName)
 }
 
 func TestQueriesAndHostFeatures(t *testing.T) {
