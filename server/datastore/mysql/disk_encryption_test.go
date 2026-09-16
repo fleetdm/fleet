@@ -401,6 +401,10 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, justExpired, "encrypted-pin"))
 	ageBitLockerPINRequest(t, ds, justExpired.ID, "created_at", fleet.BitLockerPINRequestTTL+time.Minute)
 
+	// Still within its TTL, so the agent can still collect it and the flag must survive the run.
+	stillPending := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, stillPending, "encrypted-pin"))
+
 	require.NoError(t, ds.CleanupExpiredBitLockerPINRequests(ctx))
 
 	require.False(t, exists(t, oldSet.ID), "a set row past retention is reaped")
@@ -422,4 +426,8 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	// Still refused once the cron has retired it, so orbit drops the outcome. osquery still shows whether the PIN was set.
 	err = ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")
 	require.True(t, fleet.IsNotFound(err))
+
+	// The enrollment flag is what the config poll reads, so retiring a submission has to clear it.
+	require.False(t, bitLockerPINPending(t, ds, justExpired.UUID), "expiring a submission clears the enrollment flag")
+	require.True(t, bitLockerPINPending(t, ds, stillPending.UUID), "a collectable submission keeps the enrollment flag")
 }

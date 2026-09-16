@@ -1457,6 +1457,12 @@ type fmaTestState struct {
 	installScript string
 	// installerDelay holds each installer download for this long, standing in for a slow but reachable CDN.
 	installerDelay time.Duration
+	// noCheckSHA publishes Homebrew's no_check sentinel instead of the computed
+	// digest, the way a cask without a hash does. sha256 still holds the real
+	// digest of installerBytes so assertions can compare against it.
+	noCheckSHA bool
+	// contentDisposition stands in for a vendor whose download URL carries no filename.
+	contentDisposition string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1465,7 +1471,10 @@ func (s *fmaTestState) ComputeSHA(b []byte) {
 	s.sha256 = hex.EncodeToString(h.Sum(nil))
 }
 
-func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
+// startFMAServers returns a func reporting how many installer downloads have
+// been served for an installerPath, so a test can assert that a re-apply moved
+// no bytes.
+func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) func(installerPath string) int {
 	if len(states) == 0 {
 		states = make(map[string]*fmaTestState, 1)
 		states["/zoom/windows.json"] = &fmaTestState{
@@ -1479,6 +1488,7 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		state.ComputeSHA(state.installerBytes)
 	}
 	var downloadMu sync.Mutex
+	downloads := make(map[string]int)
 
 	// Mock installer server — routes by path to serve per-FMA bytes. The lookup
 	// happens per request so a test can change a state's installerPath or bytes
@@ -1489,6 +1499,10 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		for _, state := range states {
 			if state.installerPath == r.URL.Path {
+				downloads[r.URL.Path]++
+				if state.contentDisposition != "" {
+					w.Header().Set("Content-Disposition", state.contentDisposition)
+				}
 				if state.installerDelay > 0 {
 					select {
 					case <-time.After(state.installerDelay):
@@ -1529,6 +1543,11 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 			return
 		}
 
+		manifestSHA := state.sha256
+		if state.noCheckSHA {
+			manifestSHA = "no_check"
+		}
+
 		versions := []*ma.FMAManifestApp{
 			{
 				Version: state.version,
@@ -1539,7 +1558,7 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",
-				SHA256:             state.sha256,
+				SHA256:             manifestSHA,
 				DefaultCategories:  []string{"Productivity"},
 			},
 		}
@@ -1561,6 +1580,12 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
 
 	require.NoError(t, maintained_apps.SyncAppsList(t.Context(), ds))
+
+	return func(installerPath string) int {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+		return downloads[installerPath]
+	}
 }
 
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.

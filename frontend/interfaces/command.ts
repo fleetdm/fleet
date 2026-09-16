@@ -48,10 +48,13 @@ export interface ICommandResult {
   updated_at: string;
   request_type: string;
   hostname: string;
-  /** Base64-encoded string containing the MDM command request */
-  payload: string;
-  /** Base64-encoded string containing the MDM command response */
-  result: string;
+  /** Base64-encoded string containing the MDM command request. Null when the
+   * command has no stored request body (mdm_android_commands.raw_command is
+   * nullable). */
+  payload: string | null;
+  /** Base64-encoded string containing the MDM command response. Null when the
+   * command hasn't run on the host yet (e.g. a pending Android command). */
+  result: string | null;
   name: string | null; // Profile name when command is for installing/removing a macOS profile
   /** ResultsMetadata contains command-specific metadata.
    * VPP install commands include a "software_installed" boolean and

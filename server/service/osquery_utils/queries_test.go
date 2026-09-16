@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -4144,6 +4146,46 @@ func selectedColumns(t *testing.T, query string) []string {
 	}
 	require.NotEmpty(t, columns, "no columns parsed out of query")
 	return columns
+}
+
+// TestSoftwareLinuxPacmanVersion runs the pacman software query against sqlite,
+// which osquery embeds, to check the epoch is dropped and pkgrel becomes release.
+func TestSoftwareLinuxPacmanVersion(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE fleetd_pacman_packages (name TEXT, version TEXT, arch TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO fleetd_pacman_packages VALUES
+		('ffmpeg', '2:9.0.1-4', 'x86_64'),
+		('curl', '8.16.0-1', 'x86_64'),
+		('linux-omarchy', '6.17.1.arch1-2', 'x86_64'),
+		('some-split', '1:2.0-3.1', 'any'),
+		('no-release', '1.2.3', 'any')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareLinuxPacman.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type pkg struct{ name, version, release, source, arch string }
+	var got []pkg
+	for rows.Next() {
+		var p pkg
+		var extensionID, extensionFor, vendor, installedPath string
+		require.NoError(t, rows.Scan(&p.name, &p.version, &extensionID, &extensionFor, &p.source, &p.release, &vendor, &p.arch, &installedPath))
+		got = append(got, p)
+	}
+	require.NoError(t, rows.Err())
+
+	require.Equal(t, []pkg{
+		{name: "ffmpeg", version: "9.0.1", release: "4", source: "pacman_packages", arch: "x86_64"},
+		{name: "curl", version: "8.16.0", release: "1", source: "pacman_packages", arch: "x86_64"},
+		{name: "linux-omarchy", version: "6.17.1.arch1", release: "2", source: "pacman_packages", arch: "x86_64"},
+		{name: "some-split", version: "2.0", release: "3.1", source: "pacman_packages", arch: "any"},
+		{name: "no-release", version: "1.2.3", release: "", source: "pacman_packages", arch: "any"},
+	}, got)
 }
 
 func TestSoftwareAdobePlugins(t *testing.T) {

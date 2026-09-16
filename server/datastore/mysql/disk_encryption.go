@@ -608,7 +608,8 @@ WHERE host_id = ? AND request_uuid = ? AND status = ?
 const bitLockerPINRequestRetention = 24 * time.Hour
 
 // CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected, and
-// ones it collected but never reported on. It also deletes finished submissions a day after they finish.
+// ones it collected but never reported on, and clears the enrollment flag that pointed at them. It also deletes finished
+// submissions a day after they finish.
 func (ds *Datastore) CleanupExpiredBitLockerPINRequests(ctx context.Context) error {
 	// Collecting a PIN sets status to delivered, which moves updated_at to the collection time.
 	const expireStmt = `
@@ -620,6 +621,18 @@ WHERE (status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))
 		fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds()),
 		fleet.BitLockerPINRequestDelivered, int(fleet.BitLockerPINResultTimeout.Seconds())); err != nil {
 		return ctxerr.Wrap(ctx, err, "expire unfinished bitlocker pin requests")
+	}
+
+	// Retiring a submission above does not touch the enrollment row, so clear the flag for any host whose submission is no
+	// longer collectable.
+	const clearFlagStmt = `
+UPDATE host_bitlocker_pin_requests r
+JOIN hosts h ON h.id = r.host_id
+JOIN mdm_windows_enrollments e ON e.host_uuid = h.uuid
+SET e.bitlocker_pin_request_pending = 0
+WHERE r.status != ? AND e.bitlocker_pin_request_pending = 1`
+	if _, err := ds.writer(ctx).ExecContext(ctx, clearFlagStmt, fleet.BitLockerPINRequestPending); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear stale bitlocker pin pending flags")
 	}
 
 	const reapStmt = `

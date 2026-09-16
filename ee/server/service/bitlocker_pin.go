@@ -26,6 +26,35 @@ const (
 	bitLockerPINUnreadableError    = "Fleet could not read the submitted PIN. Try again."
 )
 
+// bitLockerPINAgentState is whether a host has an agent that could apply an end-user-chosen startup PIN.
+type bitLockerPINAgentState int
+
+const (
+	// bitLockerPINAgentNotEligible means the host is not Windows, or is not enrolled in Windows MDM, so no agent could apply a PIN.
+	bitLockerPINAgentNotEligible bitLockerPINAgentState = iota
+	// bitLockerPINAgentTooOld means the host is enrolled, but its fleetd predates the BitLocker PIN capability.
+	bitLockerPINAgentTooOld
+	bitLockerPINAgentCapable
+)
+
+// bitLockerPINAgent reports whether this host's agent could apply an end-user-chosen BitLocker startup PIN.
+func (svc *Service) bitLockerPINAgent(ctx context.Context, host *fleet.Host) (bitLockerPINAgentState, error) {
+	if host.FleetPlatform() != "windows" {
+		return bitLockerPINAgentNotEligible, nil
+	}
+
+	state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+	switch {
+	case fleet.IsNotFound(err):
+		return bitLockerPINAgentNotEligible, nil
+	case err != nil:
+		return bitLockerPINAgentNotEligible, ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin")
+	case !state.FleetdBitLockerPINCapable:
+		return bitLockerPINAgentTooOld, nil
+	}
+	return bitLockerPINAgentCapable, nil
+}
+
 func (svc *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pin string) error {
 	// The device auth token in the URL is the authorization for this endpoint; there is no Fleet user.
 	svc.authz.SkipAuthorization(ctx)
@@ -38,16 +67,13 @@ func (svc *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pi
 	// fleet stopped requiring a PIN, or whose PIN another session already set. The capability is checked first because
 	// it comes off a cheap row, and an agent that can't apply a PIN makes the BitLocker status irrelevant.
 	notNeeded := &fleet.BadRequestError{Message: bitLockerPINNotNeededMessage}
-	if host.FleetPlatform() != "windows" {
-		return notNeeded
-	}
-	state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+	agent, err := svc.bitLockerPINAgent(ctx, host)
 	switch {
-	case fleet.IsNotFound(err):
-		return notNeeded
 	case err != nil:
-		return ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin")
-	case !state.FleetdBitLockerPINCapable:
+		return err
+	case agent == bitLockerPINAgentNotEligible:
+		return notNeeded
+	case agent == bitLockerPINAgentTooOld:
 		return &fleet.BadRequestError{Message: bitLockerPINAgentTooOldMessage}
 	}
 	de, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
@@ -77,20 +103,11 @@ func (svc *Service) BitLockerPINStateForDevice(
 	// Device-authenticated.
 	svc.authz.SkipAuthorization(ctx)
 
-	if host.FleetPlatform() != "windows" {
-		return false, nil, nil
-	}
-
-	state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
-	switch {
-	case fleet.IsNotFound(err):
-		// Not enrolled in Windows MDM, so there is no agent that could apply a PIN.
-		return false, nil, nil
-	case err != nil:
-		return false, nil, ctxerr.Wrap(ctx, err, "get windows mdm config state for bitlocker pin")
-	}
-	if !state.FleetdBitLockerPINCapable {
-		return false, nil, nil
+	// Unlike the submit path, this deliberately does not check whether the host still needs a PIN: the page has to be able to
+	// show the outcome of a submission even after the PIN is applied and the host no longer needs one.
+	agent, err := svc.bitLockerPINAgent(ctx, host)
+	if err != nil || agent != bitLockerPINAgentCapable {
+		return false, nil, err
 	}
 
 	req, err := svc.ds.GetBitLockerPINRequest(ctx, host.ID)
@@ -198,7 +215,8 @@ func (svc *Service) SetBitLockerPINOutcome(
 		}
 
 	default:
-		return &fleet.BadRequestError{Message: "unknown outcome " + string(outcome)}
+		// The outcome is untrusted input from fleetd, so it is truncated rather than echoed whole into the error and the logs.
+		return &fleet.BadRequestError{Message: "unknown outcome " + str.TruncateRunes(string(outcome), 32)}
 	}
 
 	return nil

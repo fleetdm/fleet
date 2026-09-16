@@ -1496,6 +1496,83 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	assert.Equal(t, team.ID, tokensResp.Tokens[0].IOSTeam.ID)
 }
 
+func (s *integrationMDMTestSuite) TestABMTokenDefault() {
+	t := s.T()
+
+	orgA := t.Name() + "-org-a"
+	orgB := t.Name() + "-org-b"
+	s.enableABM(orgA)
+	s.enableABM(orgB)
+
+	tokensResp := listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+	require.Len(t, tokensResp.Tokens, 2)
+	tokA := s.getABMTokenByName(orgA, tokensResp.Tokens)
+	tokB := s.getABMTokenByName(orgB, tokensResp.Tokens)
+
+	// the first token became the default when it was the only one
+	require.True(t, tokA.IsDefault)
+	require.False(t, tokB.IsDefault)
+
+	countDefaults := func() (n int, defaultOrg string) {
+		s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+		for _, tok := range tokensResp.Tokens {
+			if tok.IsDefault {
+				n++
+				defaultOrg = tok.OrganizationName
+			}
+		}
+		return n, defaultOrg
+	}
+	appCfgDefaults := func() map[string]bool {
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		m := make(map[string]bool)
+		for _, e := range acResp.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	// setting B as default moves it off A in one call
+	var setResp setABMTokenDefaultResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": true}`), http.StatusOK, &setResp)
+	require.NotNil(t, setResp.ABMToken)
+	assert.True(t, setResp.ABMToken.IsDefault)
+	n, defaultOrg := countDefaults()
+	assert.Equal(t, 1, n)
+	assert.Equal(t, orgB, defaultOrg)
+	// GET /config mirrors it on B's entry and drops it from A's
+	cfgDefaults := appCfgDefaults()
+	assert.True(t, cfgDefaults[orgB])
+	assert.False(t, cfgDefaults[orgA])
+
+	// unsetting the default clears it everywhere
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+	n, _ = countDefaults()
+	assert.Equal(t, 0, n)
+	cfgDefaults = appCfgDefaults()
+	assert.False(t, cfgDefaults[orgA])
+	assert.False(t, cfgDefaults[orgB])
+
+	// unsetting a non-default token is a no-op
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+
+	// unknown token id
+	s.Do("PATCH", "/api/latest/fleet/ab_tokens/999999/default",
+		json.RawMessage(`{"default": true}`), http.StatusNotFound)
+
+	// omitting "default" is rejected instead of silently clearing the default
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
+}
+
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	t := s.T()
 
@@ -24910,11 +24987,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host from a team the technician does not manage to
-	// a team they do manage (no team -> t1), should fail.
+	// a team they do manage (no team -> t1), should fail. The technician can't
+	// read the "No team" host, so it's reported as not found rather than
+	// forbidden to avoid confirming its existence.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &t1.ID,
 		HostIDs: []uint{globalHost.ID},
-	}, http.StatusForbidden, &addHostsToTeamResponse{})
+	}, http.StatusNotFound, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host out of a team the technician manages to
 	// "No team" (a team they do not manage), should fail.
@@ -28639,7 +28718,8 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 }
 
 // Escrow without enforcement: status follows the escrowed key, not the disk
-// state — action required (rotate key) → verifying → verified.
+// state — action required (turn on encryption while the disk is off, rotate
+// key once it is on) → verifying → verified.
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 	t := s.T()
 	ctx := context.Background()
@@ -28660,13 +28740,20 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 
 	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
 	rotateKey := fleet.ActionRequiredRotateKey
+	turnOnEncryption := fleet.ActionRequiredTurnOnEncryption
 
 	setProfileStatus(fleet.MDMDeliveryPending)
 	checkHost(fleet.DiskEncryptionEnforcing, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
 
-	// profile installed, disk encrypted by a third party, no key escrowed yet
+	// profile installed, nothing enforces FileVault and the disk is still off
 	setProfileStatus(fleet.MDMDeliveryVerified)
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &turnOnEncryption)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// disk encrypted by a third party, no key escrowed yet
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
 	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
