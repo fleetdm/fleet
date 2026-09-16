@@ -477,9 +477,12 @@ func TestHostDetailsMDMAppleDiskEncryptionPerPlatformSettings(t *testing.T) {
 		{"enforce only, verifying profile, disk encrypted, undecryptable key", enforceOnly, new(0), new(true), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
 		{"enforce only, verifying profile, disk not encrypted, decryptable key", enforceOnly, new(1), new(false), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredLogOut, fleet.MDMDeliveryPending},
 		{"enforce only, pending profile, disk encrypted", enforceOnly, new(-1), new(true), installed(fleet.MDMDeliveryPending), fleet.DiskEncryptionEnforcing, "", fleet.MDMDeliveryPending},
-		// escrow (with or without enforce) follows the key, the disk state is irrelevant
+		// escrow (with or without enforce) follows the key; the disk state only picks the reason when nothing enforces
 		{"escrow only, verified profile, decryptable key, disk not encrypted", escrowOnly, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
 		{"escrow only, verified profile, no key, disk encrypted", escrowOnly, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"escrow only, verified profile, no key, disk not encrypted", escrowOnly, new(-1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredTurnOnEncryption, fleet.MDMDeliveryPending},
+		{"escrow only, verified profile, no key, disk state unknown", escrowOnly, new(-1), nil, installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"both on, verified profile, no key, disk not encrypted", bothOn, new(-1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
 		{"escrow only, verified profile, unchecked key", escrowOnly, nil, new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
 		{"both on, verified profile, no key, disk encrypted", bothOn, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
 		{"both on, verified profile, decryptable key, disk not encrypted", bothOn, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},

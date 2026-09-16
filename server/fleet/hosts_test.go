@@ -692,8 +692,12 @@ func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
 				for keyName, key := range keySignals {
 					for diskName, disk := range diskSignals {
 						exp := delivered.keyBasedWant[keyName]
-						if !combo.keyBased {
+						switch {
+						case !combo.keyBased:
 							exp = delivered.diskBasedWant[diskName]
+						case combo.cfg.MacOSEscrowEnabled && !combo.cfg.MacOSEnabled && diskName == "unencrypted" && exp.action == ActionRequiredRotateKey:
+							// without enforcement there is no key to rotate until the disk is encrypted
+							exp.action = ActionRequiredTurnOnEncryption
 						}
 						t.Run(fmt.Sprintf("%s install/key=%s/disk=%s", delivered.status, keyName, diskName), func(t *testing.T) {
 							status := delivered.status

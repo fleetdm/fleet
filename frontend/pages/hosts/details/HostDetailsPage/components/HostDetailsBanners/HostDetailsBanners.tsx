@@ -1,13 +1,8 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
 import { addHours, isPast } from "date-fns";
-
-import {
-  DiskEncryptionStatus,
-  MdmEnrollmentStatus,
-  isAutomaticDeviceEnrollment,
-} from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import { IOSSettings, MacDiskEncryptionActionRequired } from "interfaces/host";
+import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isDiskEncryptionSupportedLinuxPlatform,
@@ -24,6 +19,8 @@ const baseClass = "host-details-banners";
 
 export interface IHostBannersBaseProps {
   macDiskEncryptionStatus: DiskEncryptionStatus | null | undefined;
+  /** Why the macOS disk encryption status is action_required, if it is */
+  diskEncryptionActionRequired?: MacDiskEncryptionActionRequired | null;
   mdmEnrollmentStatus: MdmEnrollmentStatus | null;
   connectedToFleetMdm?: boolean;
   hostPlatform?: HostPlatform;
@@ -49,6 +46,7 @@ const HostDetailsBanners = ({
   hostOsVersion,
   connectedToFleetMdm,
   macDiskEncryptionStatus,
+  diskEncryptionActionRequired,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
@@ -79,11 +77,6 @@ const HostDetailsBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     !isNewMdmEnrollment;
 
-  // ADE-enrolled hosts escrow their FileVault key automatically, so the end user
-  // doesn't need to log out. Manually-enrolled hosts only get a new key at next
-  // login, so they keep the log-out instruction.
-  const isAdeEnrolled = isAutomaticDeviceEnrollment(mdmEnrollmentStatus);
-
   const actionRequiredBanner = (
     <div className={baseClass}>
       <InfoBanner color="yellow">
@@ -109,10 +102,11 @@ const HostDetailsBanners = ({
     return (
       <div className={baseClass}>
         <InfoBanner color="yellow">
-          {isAdeEnrolled ? (
+          {diskEncryptionActionRequired === "turn_on_encryption" ? (
             <>
-              Disk encryption: FileVault key will be escrowed automatically on
-              this host&apos;s next refetch.
+              Disk encryption: Disk encryption is off, and this host&apos;s
+              fleet doesn&apos;t enforce it. Fleet will store the recovery key
+              when the end user turns on FileVault.
             </>
           ) : (
             <>

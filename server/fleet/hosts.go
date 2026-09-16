@@ -956,6 +956,9 @@ type ActionRequiredState string
 const (
 	ActionRequiredLogOut    ActionRequiredState = "log_out"
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+	// ActionRequiredTurnOnEncryption is macOS-only: the fleet escrows keys without enforcing FileVault and the disk is
+	// not encrypted, so there is no key to rotate until the end user turns FileVault on.
+	ActionRequiredTurnOnEncryption ActionRequiredState = "turn_on_encryption"
 	// ActionRequiredCreatePIN is Windows-only: BitLocker policy requires a startup PIN and the end user has not set one.
 	ActionRequiredCreatePIN ActionRequiredState = "create_pin"
 	// ActionRequiredRestart is Windows-only: BitLocker protection is off and the agent is waiting for a staged restart
@@ -1042,9 +1045,14 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				// logging out lets the deferred FileVault enablement run; rotating
 				// produces a key Fleet can escrow
 				actionRequired := ActionRequiredRotateKey
-				if cfg.MacOSEnforceOnly() {
+				switch {
+				case cfg.MacOSEnforceOnly():
 					verification = diskVerification(diskEncrypted)
 					actionRequired = ActionRequiredLogOut
+				case cfg.MacOSEscrowEnabled && !cfg.MacOSEnabled && diskVerification(diskEncrypted) == fileVaultVerificationNotConfirmed:
+					// nothing enforces FileVault, so there is no key to rotate
+					// until the end user turns it on
+					actionRequired = ActionRequiredTurnOnEncryption
 				}
 
 				switch verification {
