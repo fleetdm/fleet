@@ -15,6 +15,8 @@ import (
 const (
 	bitLockerPINToastTag   = "bitlocker-pin"
 	bitLockerPINToastGroup = "fleet-desktop"
+	// createPINQuery is what tells the My device page to open the Create PIN modal.
+	createPINQuery = "?create_pin=1"
 	// bitLockerPINToastLifetime clears an ignored toast from Notification Center before its link stops working.
 	bitLockerPINToastLifetime = time.Hour
 
@@ -94,7 +96,7 @@ func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 		return
 	}
 
-	link := deviceURL + "?create_pin=1"
+	link := deviceURL + createPINQuery
 	if link == t.attemptedURL {
 		return
 	}

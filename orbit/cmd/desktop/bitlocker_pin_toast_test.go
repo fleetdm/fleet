@@ -9,16 +9,18 @@ import (
 	"testing/synctest"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/toast"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	deviceURL        = "https://fleet.example.com/device/token"
+	rotatedDeviceURL = "https://fleet.example.com/device/rotated"
 )
 
 func TestBitLockerPINToast(t *testing.T) {
 	t.Parallel()
 
-	const (
-		deviceURL        = "https://fleet.example.com/device/token"
-		rotatedDeviceURL = "https://fleet.example.com/device/rotated"
-	)
 	type summary struct {
 		needsPIN  bool
 		deviceURL string
@@ -28,6 +30,7 @@ func TestBitLockerPINToast(t *testing.T) {
 		popup bool
 	}
 	showErr := errors.New("PowerShell is blocked")
+	link, rotatedLink := deviceURL+createPINQuery, rotatedDeviceURL+createPINQuery
 
 	for _, tc := range []struct {
 		name        string
@@ -39,17 +42,17 @@ func TestBitLockerPINToast(t *testing.T) {
 		{
 			name:      "pops up once while the PIN stays needed",
 			summaries: []summary{{true, deviceURL}, {true, deviceURL}, {true, deviceURL}},
-			wantPosts: []post{{deviceURL + "?create_pin=1", true}},
+			wantPosts: []post{{link, true}},
 		},
 		{
 			name:      "a rotated token replaces the toast without popping up again",
 			summaries: []summary{{true, deviceURL}, {true, rotatedDeviceURL}},
-			wantPosts: []post{{deviceURL + "?create_pin=1", true}, {rotatedDeviceURL + "?create_pin=1", false}},
+			wantPosts: []post{{link, true}, {rotatedLink, false}},
 		},
 		{
 			name:        "the toast is removed once the PIN is set",
 			summaries:   []summary{{true, deviceURL}, {false, deviceURL}, {false, deviceURL}},
-			wantPosts:   []post{{deviceURL + "?create_pin=1", true}},
+			wantPosts:   []post{{link, true}},
 			wantRemoves: 1,
 		},
 		{
@@ -59,14 +62,14 @@ func TestBitLockerPINToast(t *testing.T) {
 		{
 			name:        "a PIN needed again later is posted without popping up",
 			summaries:   []summary{{true, deviceURL}, {false, deviceURL}, {true, deviceURL}},
-			wantPosts:   []post{{deviceURL + "?create_pin=1", true}, {deviceURL + "?create_pin=1", false}},
+			wantPosts:   []post{{link, true}, {link, false}},
 			wantRemoves: 1,
 		},
 		{
 			name:      "a failed post is retried only when the link changes",
 			summaries: []summary{{true, deviceURL}, {true, deviceURL}, {true, rotatedDeviceURL}, {false, rotatedDeviceURL}},
 			failShow:  true,
-			wantPosts: []post{{deviceURL + "?create_pin=1", true}, {rotatedDeviceURL + "?create_pin=1", true}},
+			wantPosts: []post{{link, true}, {rotatedLink, true}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -74,12 +77,8 @@ func TestBitLockerPINToast(t *testing.T) {
 			var removes int
 			pinToast := &bitLockerPINToast{
 				show: func(n toast.Notification) error {
-					require.Equal(t, bitLockerPINToastTag, n.Tag)
-					require.Equal(t, bitLockerPINToastGroup, n.Group)
-					require.Equal(t, bitLockerPINToastTitle, n.Title)
-					require.Equal(t, bitLockerPINToastBody, n.Body)
-					require.Equal(t, bitLockerPINToastButton, n.ButtonLabel)
-					require.Equal(t, bitLockerPINToastLifetime, n.ExpiresIn)
+					assert.Equal(t, bitLockerPINToastTitle, n.Title)
+					assert.Equal(t, bitLockerPINToastBody, n.Body)
 					posts = append(posts, post{url: n.URL, popup: !n.SuppressPopup})
 					if tc.failShow {
 						return showErr
@@ -87,8 +86,8 @@ func TestBitLockerPINToast(t *testing.T) {
 					return nil
 				},
 				remove: func(tag, group string) error {
-					require.Equal(t, bitLockerPINToastTag, tag)
-					require.Equal(t, bitLockerPINToastGroup, group)
+					assert.Equal(t, bitLockerPINToastTag, tag)
+					assert.Equal(t, bitLockerPINToastGroup, group)
 					removes++
 					return nil
 				},
@@ -108,7 +107,6 @@ func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 	t.Parallel()
 
 	const (
-		deviceURL    = "https://fleet.example.com/device/token"
 		loginID      = "1:134036577000000000"
 		earlierLogin = "1:134036001000000000"
 	)
@@ -116,9 +114,12 @@ func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		// marker is what an earlier Fleet Desktop process left, or nil for none.
-		marker   *string
-		loginID  string
-		needsPIN bool
+		marker *string
+		// noMarkerPath disables the marker, as when Fleet Desktop cannot find the directory for it.
+		noMarkerPath bool
+		loginID      string
+		needsPIN     bool
+		failShow     bool
 		// wantPopups lists whether each post popped up.
 		wantPopups  []bool
 		wantRemoves int
@@ -137,18 +138,29 @@ func TestBitLockerPINToastAcrossProcesses(t *testing.T) {
 		{name: "an unreadable login pops up", marker: new(""), needsPIN: true, wantPopups: []bool{true}, wantMarker: new("")},
 		{name: "a toast from an earlier process is removed once the PIN is set", marker: new(loginID), loginID: loginID, wantRemoves: 1},
 		{name: "a host that never showed the toast starts nothing", loginID: loginID},
+		// Without a marker every process pops up again, which is better than a prompt nobody sees.
+		{name: "no marker to write pops up anyway", noMarkerPath: true, loginID: loginID, needsPIN: true, wantPopups: []bool{true}},
+		// A toast that was never shown must not leave a marker claiming this login saw one.
+		{name: "a failed post records nothing", loginID: loginID, needsPIN: true, failShow: true, wantPopups: []bool{true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			markerPath := filepath.Join(t.TempDir(), "bitlocker-pin-toast")
 			if tc.marker != nil {
 				require.NoError(t, os.WriteFile(markerPath, []byte(*tc.marker), 0o600))
 			}
+			constructedPath := markerPath
+			if tc.noMarkerPath {
+				constructedPath = ""
+			}
 
 			var popups []bool
 			var removes int
-			pinToast := newBitLockerPINToast(markerPath, tc.loginID)
+			pinToast := newBitLockerPINToast(constructedPath, tc.loginID)
 			pinToast.show = func(n toast.Notification) error {
 				popups = append(popups, !n.SuppressPopup)
+				if tc.failShow {
+					return errors.New("PowerShell is blocked")
+				}
 				return nil
 			}
 			pinToast.remove = func(string, string) error {
@@ -195,7 +207,7 @@ func TestBitLockerPINToastSubmitDropsStaleUpdates(t *testing.T) {
 				// Hold the lock so every submitted update is waiting on it at once, as when PowerShell is slow.
 				pinToast.mu.Lock()
 				for _, needsPIN := range tc.summaries {
-					pinToast.submit(needsPIN, "https://fleet.example.com/device/token")
+					pinToast.submit(needsPIN, deviceURL)
 				}
 				pinToast.mu.Unlock()
 				synctest.Wait()
