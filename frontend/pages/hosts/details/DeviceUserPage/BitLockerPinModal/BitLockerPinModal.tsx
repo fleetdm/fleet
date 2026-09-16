@@ -198,7 +198,7 @@ const BitLockerPinModal = ({
             enableShowSecret
             blockAutoComplete
             autofocus
-            helpText={`Must be ${PIN_MIN_LENGTH} to ${PIN_MAX_LENGTH} characters. This PIN isn't kept by Fleet or your IT team.`}
+            helpText={`Must be ${PIN_MIN_LENGTH}–${PIN_MAX_LENGTH} characters. Keep it somewhere safe. This PIN isn't kept by Fleet or your IT team.`}
           />
           <InputField
             label="Confirm PIN"
