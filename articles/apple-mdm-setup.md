@@ -90,7 +90,7 @@ When one of your uploaded AB tokens has expired or is within 30 days of expiring
 
 ### Restrict Apple Account sign-in (Managed Apple Accounts)
 
-Apple Business has settings that restrict which Apple Accounts can sign in on your organization's devices. Apple documents them [here](https://support.apple.com/guide/business/customize-user-access-to-apps-and-services-axm53xk34bq/web).
+Apple Business has settings that restrict which Apple Accounts can sign in on your organization's devices. Read more about [Apple user access](https://support.apple.com/guide/business/customize-user-access-to-apps-and-services-axm53xk34bq/web).
 
 Of the restrictions Apple lists, only the ones that mention the MDM `Get Token` message involve Fleet. All the others are enforced entirely by Apple Business and work without any Fleet involvement.
 
