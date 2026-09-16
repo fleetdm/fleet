@@ -23,7 +23,7 @@ The following steps show how to deploy SCEP certificates from Okta's certificate
 
 The steps below are for generating a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
 
-### Step 1: Get Okta credentials
+### Step 1: Create the Okta CA and collect configuration details
 
 1. In Okta, head to **Security > Device integrations** and on the **Endpoint management** tab, select **Add platform**.
 2. Select **Desktop (Windows and macOS only)** and then select **Next**.
@@ -31,8 +31,9 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
 - **Use Okta as Certificate Authority**.
 - **Dynamic SCEP URL** and verify that **Generic** is selected.
 4. Select **Generate**.
-5. Copy the **Password** and save it in a secure location (i.e., 1Password or some other secure secrets vault) then select **Save**.
-  
+5. Copy the **Password** to a secure location (i.e., 1Password or some other secure secrets vault) then select **Save**.
+6. Copy the **URLs** and the the **username** as well. (You will be pasting them into the Fleet CA congfiguration.)
+
 ### Step 2: Connect Fleet to Okta's CA
 
 1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
