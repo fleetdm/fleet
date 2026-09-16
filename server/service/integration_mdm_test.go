@@ -198,6 +198,20 @@ var defaultVPPAssetList = []vpp.Asset{
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
+// requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
+// the given refetch command types, each recording the full prefixed UUID of
+// the command it tracks (the exact UUIDs are random).
+func requireTrackedRefetchCommands(t *testing.T, commands []fleet.HostMDMCommand, hostID uint, commandTypes ...string) {
+	gotTypes := make([]string, 0, len(commands))
+	for _, c := range commands {
+		assert.Equal(t, hostID, c.HostID)
+		assert.Truef(t, strings.HasPrefix(c.CommandUUID, c.CommandType),
+			"tracking row for %s must record its full prefixed command UUID, got %q", c.CommandType, c.CommandUUID)
+		gotTypes = append(gotTypes, c.CommandType)
+	}
+	assert.ElementsMatch(t, commandTypes, gotTypes)
+}
+
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
@@ -14326,11 +14340,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSent)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, host.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
@@ -14445,11 +14456,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostIPod.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSentPerRefetch)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostIPod.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostIPod.ID), nil, http.StatusOK)
@@ -23591,11 +23599,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err := s.ds.GetHostMDMCommands(ctx, hostBYOD.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostBYOD.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
 		var installedAppListCount int
@@ -23638,11 +23643,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err = s.ds.GetHostMDMCommands(ctx, hostDEP.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostDEP.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
