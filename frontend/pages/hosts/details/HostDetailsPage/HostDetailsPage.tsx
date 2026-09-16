@@ -1446,7 +1446,9 @@ const HostDetailsPage = ({
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
   // no Fleet Desktop (so no token, and no page to load) or wiped.
-  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
+  const canViewMyDeviceLink =
+    isGlobalAdmin &&
+    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
