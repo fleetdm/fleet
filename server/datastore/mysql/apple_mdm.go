@@ -4763,12 +4763,16 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
-			// TODO: confirm approach with Victor
-			if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
-			}
-			if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+			// Without an IdP account (manual enrollment, or IdP user set by an admin)
+			// there is nothing to rebuild the SCIM link from, so keep the existing one.
+			// This check-in may be a SCEP renewal rather than a real re-enrollment.
+			if idp != nil {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
+				}
+				if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
+					return ctxerr.Wrap(ctx, err, "re-associating host with scim user from mdm idp account")
+				}
 			}
 		}
 

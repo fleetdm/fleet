@@ -85,6 +85,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		{"TestMDMAppleResetEnrollmentScimLink", testMDMAppleResetEnrollmentScimLink},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
@@ -13491,4 +13492,110 @@ FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
 			mobileconfig.FleetFileVaultPayloadIdentifier)
 	})
 	require.Equal(t, 2, count)
+}
+
+func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newDarwinHost := func(t *testing.T, uuid string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      uuid + "-hostname",
+			UUID:          uuid,
+			Platform:      "darwin",
+			NodeKey:       new(uuid + "-key"),
+			OsqueryHostID: new(uuid + "-osquery"),
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		return h
+	}
+
+	newScimUser := func(t *testing.T, userName string) uint {
+		id, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName:   userName,
+			GivenName:  new("Given"),
+			FamilyName: new("Family"),
+			Active:     new(true),
+			Emails:     []fleet.ScimUserEmail{{Email: userName, Primary: new(true), Type: new("work")}},
+		})
+		require.NoError(t, err)
+		return id
+	}
+
+	// Datastore-level equivalent of the SSO callback plus Authenticate: the IdP account
+	// is stored and attached to the host. The real flow is covered by the MDM integration
+	// suite (TestSSOWithSCIM, TestReenrollKeepsManuallyMappedIdPUser).
+	associateIdPAccount := func(t *testing.T, host *fleet.Host, email string) {
+		require.NoError(t, ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Username: email, Fullname: "Given Family", Email: email}))
+		acct, err := ds.GetMDMIdPAccountByEmail(ctx, email)
+		require.NoError(t, err)
+		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID))
+
+		attached, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, attached)
+		require.Equal(t, email, attached.Email)
+	}
+
+	requireNoIdPAccount := func(t *testing.T, host *fleet.Host) {
+		acct, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Nil(t, acct, "manual mapping must not create an IdP account")
+	}
+
+	requireLinkedTo := func(t *testing.T, host *fleet.Host, scimUserID uint) {
+		linked, err := ds.ScimUserByHostID(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, scimUserID, linked.ID)
+	}
+
+	for _, scepRenewal := range []bool{true, false} {
+		name := "re-enrollment"
+		if scepRenewal {
+			name = "SCEP renewal"
+		}
+
+		t.Run("manual IdP mapping survives "+name, func(t *testing.T) {
+			email := fmt.Sprintf("manual-%v@example.com", scepRenewal)
+			host := newDarwinHost(t, "uuid-manual-"+name)
+			scimUserID := newScimUser(t, email)
+
+			// What PUT /hosts/:id/device_mapping {source: idp} does at the datastore layer.
+			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, email))
+			_, err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+			require.NoError(t, err)
+			requireLinkedTo(t, host, scimUserID)
+			requireNoIdPAccount(t, host)
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+			requireLinkedTo(t, host, scimUserID)
+		})
+
+		t.Run("ADE IdP mapping is rebuilt on "+name, func(t *testing.T) {
+			email := fmt.Sprintf("ade-%v@example.com", scepRenewal)
+			host := newDarwinHost(t, "uuid-ade-"+name)
+			scimUserID := newScimUser(t, email)
+
+			associateIdPAccount(t, host, email)
+			require.NoError(t, ds.MaybeAssociateHostWithScimUser(ctx, host.ID))
+			requireLinkedTo(t, host, scimUserID)
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+			requireLinkedTo(t, host, scimUserID)
+		})
+	}
+
+	t.Run("ADE re-enrollment by a different user re-points the link", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-ade-handoff")
+		firstUserID := newScimUser(t, "first@example.com")
+		secondUserID := newScimUser(t, "second@example.com")
+
+		associateIdPAccount(t, host, "first@example.com")
+		require.NoError(t, ds.MaybeAssociateHostWithScimUser(ctx, host.ID))
+		requireLinkedTo(t, host, firstUserID)
+
+		associateIdPAccount(t, host, "second@example.com")
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+		requireLinkedTo(t, host, secondUserID)
+	})
 }
