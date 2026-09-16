@@ -1,6 +1,9 @@
 package fleet
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // LiveQueryStore defines an interface for storing and retrieving the status of
 // live queries in the Fleet system.
@@ -45,4 +48,13 @@ type LiveQueryStore interface {
 	// GetQueryReportsHostCount returns the host count stored by
 	// SetQueryReportsHostCount, or 0 if it has not been set yet.
 	GetQueryReportsHostCount() (int, error)
+
+	// MarkQueryReportsClipped records that a host's results for each query were rejected because of
+	// the report cap. Each marker expires after its ttl so it clears itself once rejections stop.
+	MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error
+	// QueryReportsClipped returns which of the given queries have a clipped marker set.
+	QueryReportsClipped(queryIDs []uint) (map[uint]bool, error)
+	// ClearQueryReportClipped removes the clipped marker for a query. Used when the query's
+	// results are discarded or the query is deleted.
+	ClearQueryReportClipped(queryID uint) error
 }

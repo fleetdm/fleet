@@ -6967,7 +6967,7 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
-	rowsAdded, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	rowsAdded, _, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows, 0)
 	require.Equal(t, 2, rowsAdded)
 	require.NoError(t, err)
 
@@ -7265,7 +7265,7 @@ func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 	require.Len(t, packStats[0].QueryStats, 1)
 
 	// record query results
-	_, err = ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{{
+	_, _, err = ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{{
 		QueryID: query.ID,
 		HostID:  host.ID,
 		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
@@ -13515,7 +13515,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		h4Global0Results,
 		h4Query1Results,
 	} {
-		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows, 0)
+		_, _, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
 	}
 

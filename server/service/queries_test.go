@@ -985,6 +985,57 @@ func TestQueryReportIsClipped(t *testing.T) {
 	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
 	require.NoError(t, err)
 	require.False(t, isClipped)
+
+	// A report below the cap is clipped if Redis says a host's results were rejected.
+	var askedIDs []uint
+	lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
+		askedIDs = queryIDs
+		return map[uint]bool{1: true}, nil
+	}
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.True(t, isClipped)
+	require.Equal(t, []uint{1}, askedIDs)
+
+	lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
+		return map[uint]bool{}, nil
+	}
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.False(t, isClipped)
+}
+
+func TestDeleteQueryClearsReportState(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, lq, opts)
+	opts.ActivityMock.NewActivityFunc = func(context.Context, *activity_api.User, activity_api.ActivityDetails) error { return nil }
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	query := &fleet.Query{ID: 7, Name: "q"}
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) { return query, nil }
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) { return query, nil }
+	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error { return nil }
+	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) { return uint(len(ids)), nil }
+
+	var deletedCounts, clearedMarkers []uint
+	lq.DeleteQueryResultsCountOverride = func(queryID uint) error {
+		deletedCounts = append(deletedCounts, queryID)
+		return nil
+	}
+	lq.ClearQueryReportClippedOverride = func(queryID uint) error {
+		clearedMarkers = append(clearedMarkers, queryID)
+		return nil
+	}
+
+	require.NoError(t, svc.DeleteQuery(ctx, nil, query.Name))
+	require.NoError(t, svc.DeleteQueryByID(ctx, query.ID))
+	_, err := svc.DeleteQueries(ctx, []uint{query.ID, 8})
+	require.NoError(t, err)
+
+	require.Equal(t, []uint{7, 7, 7, 8}, deletedCounts)
+	require.Equal(t, deletedCounts, clearedMarkers)
 }
 
 func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
@@ -1089,7 +1140,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
-	_, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows, 0)
+	_, _, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 	host1Row := []*fleet.ScheduledQueryResultRow{
 		{
@@ -1099,7 +1150,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
 		},
 	}
-	_, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows, 0)
+	_, _, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	team2Admin := &fleet.User{

@@ -22,6 +22,7 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQuerySetBitOnlyIfKeyExists,
 	testLiveQueryResultsCounts,
 	testLiveQueryReportsHostCount,
+	testLiveQueryReportClipped,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -349,4 +350,39 @@ func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {
 	count, err = store.GetQueryReportsHostCount()
 	require.NoError(t, err)
 	require.Equal(t, 7, count)
+}
+
+func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {
+	// Keys are not covered by the test cleanup key prefix, so clear them after the test.
+	t.Cleanup(func() {
+		for _, id := range []uint{1, 2, 3} {
+			require.NoError(t, store.ClearQueryReportClipped(id))
+		}
+	})
+
+	clipped, err := store.QueryReportsClipped(nil)
+	require.NoError(t, err)
+	require.Empty(t, clipped)
+
+	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
+	require.NoError(t, err)
+	require.Empty(t, clipped)
+
+	require.NoError(t, store.MarkQueryReportsClipped(nil))
+	require.NoError(t, store.MarkQueryReportsClipped(map[uint]time.Duration{1: time.Hour, 3: time.Hour}))
+	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, map[uint]bool{1: true, 3: true}, clipped)
+
+	require.NoError(t, store.ClearQueryReportClipped(1))
+	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, map[uint]bool{3: true}, clipped)
+
+	// The marker expires on its own.
+	require.NoError(t, store.MarkQueryReportsClipped(map[uint]time.Duration{2: time.Second}))
+	require.Eventually(t, func() bool {
+		clipped, err := store.QueryReportsClipped([]uint{2})
+		return err == nil && !clipped[2]
+	}, 5*time.Second, 100*time.Millisecond)
 }

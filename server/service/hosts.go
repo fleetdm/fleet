@@ -2453,6 +2453,26 @@ func (svc *Service) ListHostReports(
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
 
+	// The datastore flags reports whose stored rows reached the cap; also flag those that
+	// rejected a host's results while staying below it.
+	var unclippedIDs []uint
+	for _, r := range reports {
+		if !r.ReportClipped {
+			unclippedIDs = append(unclippedIDs, r.ReportID)
+		}
+	}
+	if len(unclippedIDs) > 0 {
+		clipped, err := svc.queryReportsClipped(ctx, unclippedIDs)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		for _, r := range reports {
+			if clipped[r.ReportID] {
+				r.ReportClipped = true
+			}
+		}
+	}
+
 	return reports, total, meta, nil
 }
 

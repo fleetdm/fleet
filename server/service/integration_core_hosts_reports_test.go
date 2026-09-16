@@ -2204,14 +2204,14 @@ func (s *integrationTestSuite) TestListHostReports() {
 	require.NoError(t, err)
 
 	// Insert two result rows for qAlpha on the host (to test has_more_results and first_result).
-	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, _, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: new(json.RawMessage(`{"col":"older"}`))},
 		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"newest"}`))},
 	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
-	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+	_, _, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"discarded"}`))},
 	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
@@ -2329,6 +2329,21 @@ func (s *integrationTestSuite) TestListHostReports() {
 		require.Len(t, resp.Reports, 2)
 		assert.True(t, resp.Reports[0].ReportClipped)  // qAlpha has 2 rows == cap of 2
 		assert.False(t, resp.Reports[1].ReportClipped) // qBeta has 0 rows
+	})
+
+	t.Run("report_clipped when a host's results were rejected below the cap", func(t *testing.T) {
+		s.lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
+			assert.ElementsMatch(t, []uint{qAlpha.ID, qBeta.ID}, queryIDs)
+			return map[uint]bool{qBeta.ID: true}, nil
+		}
+		t.Cleanup(func() { s.lq.QueryReportsClippedOverride = nil })
+
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.False(t, resp.Reports[0].ReportClipped)
+		assert.True(t, resp.Reports[1].ReportClipped)
 	})
 
 	t.Run("name search", func(t *testing.T) {

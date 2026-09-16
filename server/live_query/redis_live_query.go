@@ -88,6 +88,7 @@ const (
 	queryExpiration          = 7 * 24 * time.Hour
 	queryResultsCountPrefix  = "query_results_count:"
 	queryReportsHostCountKey = "query_reports_host_count"
+	queryReportClippedPrefix = "query_report_clipped:"
 )
 
 type redisLiveQuery struct {
@@ -958,4 +959,121 @@ func (r *redisLiveQuery) GetQueryReportsHostCount() (int, error) {
 	}
 
 	return count, nil
+}
+
+func queryReportClippedKey(queryID uint) string {
+	return fmt.Sprintf("%s%d", queryReportClippedPrefix, queryID)
+}
+
+// MarkQueryReportsClipped sets the clipped marker for each query, refreshing its expiration.
+func (r *redisLiveQuery) MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error {
+	if len(ttlByQueryID) == 0 {
+		return nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the result counts.
+	keys := make([]string, 0, len(ttlByQueryID))
+	ttlByKey := make(map[string]time.Duration, len(ttlByQueryID))
+	for queryID, ttl := range ttlByQueryID {
+		key := queryReportClippedKey(queryID)
+		keys = append(keys, key)
+		ttlByKey[key] = ttl
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.markBatchClipped(slotKeys, ttlByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) markBatchClipped(keys []string, ttlByKey map[string]time.Duration) error {
+	// Plain connection: redis.ConfigureDoer wraps it in a redisc.RetryConn whose Send is unsupported.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("SET", key, 1, "EX", int(ttlByKey[key].Seconds())); err != nil {
+			return fmt.Errorf("send set query report clipped: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for range keys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive set query report clipped: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// QueryReportsClipped returns which of the given queries currently have a clipped marker.
+// Queries without a marker are absent from the returned map.
+func (r *redisLiveQuery) QueryReportsClipped(queryIDs []uint) (map[uint]bool, error) {
+	clipped := make(map[uint]bool, len(queryIDs))
+	if len(queryIDs) == 0 {
+		return clipped, nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the result counts.
+	keys := make([]string, 0, len(queryIDs))
+	keyToID := make(map[string]uint, len(queryIDs))
+	for _, queryID := range queryIDs {
+		key := queryReportClippedKey(queryID)
+		keys = append(keys, key)
+		keyToID[key] = queryID
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.collectBatchClipped(slotKeys, keyToID, clipped); err != nil {
+			return nil, err
+		}
+	}
+
+	return clipped, nil
+}
+
+func (r *redisLiveQuery) collectBatchClipped(keys []string, keyToID map[string]uint, clipped map[uint]bool) error {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("EXISTS", key); err != nil {
+			return fmt.Errorf("send exists query report clipped: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, key := range keys {
+		exists, err := redigo.Bool(conn.Receive())
+		if err != nil {
+			return fmt.Errorf("receive query report clipped: %w", err)
+		}
+		if exists {
+			clipped[keyToID[key]] = true
+		}
+	}
+
+	return nil
+}
+
+// ClearQueryReportClipped removes the clipped marker for a query.
+func (r *redisLiveQuery) ClearQueryReportClipped(queryID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("DEL", queryReportClippedKey(queryID)); err != nil {
+		return fmt.Errorf("clear query report clipped: %w", err)
+	}
+
+	return nil
 }

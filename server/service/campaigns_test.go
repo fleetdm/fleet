@@ -65,6 +65,18 @@ func (q nopLiveQuery) GetQueryReportsHostCount() (int, error) {
 	return 0, nil
 }
 
+func (q nopLiveQuery) MarkQueryReportsClipped(map[uint]time.Duration) error {
+	return nil
+}
+
+func (q nopLiveQuery) QueryReportsClipped([]uint) (map[uint]bool, error) {
+	return map[uint]bool{}, nil
+}
+
+func (q nopLiveQuery) ClearQueryReportClipped(uint) error {
+	return nil
+}
+
 func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
 	return q
 }

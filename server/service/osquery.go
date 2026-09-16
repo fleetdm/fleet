@@ -4264,8 +4264,9 @@ func (svc *Service) saveResultLogsToQueryReports(
 		}
 	}
 
-	// Track rows added per query for batched Redis increment
+	// Track rows added and rejections per query for batched Redis updates after the loop.
 	rowsAddedByQuery := make(map[uint]int)
+	clippedTTLByQuery := make(map[uint]time.Duration)
 
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
@@ -4294,11 +4295,13 @@ func (svc *Service) saveResultLogsToQueryReports(
 		// for hosts already in it.
 		currentCount := queryResultCounts[dbQuery.ID]
 
-		var rowsAdded int
-		var err error
-		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount); err != nil {
+		rowsAdded, rejected, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
+		}
+		if rejected {
+			clippedTTLByQuery[dbQuery.ID] = queryReportClippedTTL(dbQuery)
 		}
 
 		// Track rows added for batched Redis increment
@@ -4310,6 +4313,14 @@ func (svc *Service) saveResultLogsToQueryReports(
 		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
 			// Log but don't fail - the inserts succeeded, counter is just a heuristic
 			svc.logger.DebugContext(ctx, "incr query results counts in redis", "err", err)
+		}
+	}
+
+	// Flag reports that rejected this host's results: the stored row count alone can't tell,
+	// since a rejected write leaves it below the cap.
+	if svc.liveQueryStore != nil && len(clippedTTLByQuery) > 0 {
+		if err := svc.liveQueryStore.MarkQueryReportsClipped(clippedTTLByQuery); err != nil {
+			svc.logger.DebugContext(ctx, "mark query reports clipped in redis", "err", err)
 		}
 	}
 }
@@ -4440,7 +4451,7 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (int, error) {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (rowsAdded int, rejected bool, err error) {
 	fetchTime := time.Now()
 
 	snapshot := result.Snapshot
@@ -4472,11 +4483,22 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	rowsAdded, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
+	rowsAdded, rejected, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
 	if err != nil {
-		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+		return 0, false, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	return rowsAdded, nil
+	return rowsAdded, rejected, nil
+}
+
+// minQueryReportClippedTTL is the shortest time a clipped marker lives. It is raised to twice
+// the query interval so reports that run less often than daily stay flagged between runs.
+const minQueryReportClippedTTL = 24 * time.Hour
+
+func queryReportClippedTTL(query *fleet.Query) time.Duration {
+	if ttl := 2 * time.Duration(query.Interval) * time.Second; ttl > minQueryReportClippedTTL { //nolint:gosec // dismiss G115
+		return ttl
+	}
+	return minQueryReportClippedTTL
 }
 
 // maxQueryReportSnapshotBytes bounds the serialized size of one host's result

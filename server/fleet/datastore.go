@@ -717,8 +717,9 @@ type Datastore interface {
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	// OverwriteQueryResultRows replaces the stored rows of a host for a query. currentCount is the
 	// (approximate) number of rows stored for the query across all hosts; if the replacement would
-	// push it above maxQueryReportRows nothing is changed. Returns the net change in rows with data.
-	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, error)
+	// push it above maxQueryReportRows nothing is changed and rejected is true. Returns the net
+	// change in rows with data.
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (rowsAdded int, rejected bool, err error)
 	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.

@@ -945,11 +945,28 @@ func (s *integrationTestSuite) TestQueryReports() {
 		delete(counts, queryID)
 		return nil
 	}
+	clipped := make(map[uint]bool)
+	s.lq.MarkQueryReportsClippedOverride = func(ttlByQueryID map[uint]time.Duration) error {
+		for queryID := range ttlByQueryID {
+			clipped[queryID] = true
+		}
+		return nil
+	}
+	s.lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
+		return clipped, nil
+	}
+	s.lq.ClearQueryReportClippedOverride = func(queryID uint) error {
+		delete(clipped, queryID)
+		return nil
+	}
 	defer func() {
 		s.lq.GetQueryResultsCountsOverride = nil
 		s.lq.SetQueryResultsCountOverride = nil
 		s.lq.IncrQueryResultsCountsOverride = nil
 		s.lq.DeleteQueryResultsCountOverride = nil
+		s.lq.MarkQueryReportsClippedOverride = nil
+		s.lq.QueryReportsClippedOverride = nil
+		s.lq.ClearQueryReportClippedOverride = nil
 	}()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -1593,6 +1610,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		Logging:            osqueryInfoQuery.Logging,
 		DiscardData:        osqueryInfoQuery.DiscardData,
 	}
+	clipped[osqueryInfoQuery.ID] = true
 	osqueryInfoQuerySpec.MinOsqueryVersion = "5.12.0"
 	var applyResp fleet.ApplyQuerySpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
@@ -1602,6 +1620,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Empty(t, gqrr.Results)
 	require.False(t, gqrr.ReportClipped)
 	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after min_osquery_version change
+	require.False(t, clipped[osqueryInfoQuery.ID])
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -1620,6 +1639,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.False(t, gqrr.ReportClipped)
 
 	// now update the platform and results should be deleted.
+	clipped[osqueryInfoQuery.ID] = true
 	osqueryInfoQuerySpec.Platform = "darwin"
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
 		Specs: []*fleet.QuerySpec{osqueryInfoQuerySpec},
@@ -1628,14 +1648,17 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Empty(t, gqrr.Results)
 	require.False(t, gqrr.ReportClipped)
 	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after platform change
+	require.False(t, clipped[osqueryInfoQuery.ID])
 
 	// Update logging type, which should cause results deletion
+	clipped[usbDevicesQuery.ID] = true
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", usbDevicesQuery.ID), fleet.ModifyQueryRequest{ID: usbDevicesQuery.ID, QueryPayload: fleet.QueryPayload{Logging: &fleet.LoggingDifferential}}, http.StatusOK, &modifyQueryResp)
 	require.Equal(t, fleet.LoggingDifferential, modifyQueryResp.Query.Logging)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Empty(t, gqrr.Results)
 	require.False(t, gqrr.ReportClipped)
 	require.Equal(t, 0, counts[usbDevicesQuery.ID]) // counter reset after logging type change
+	require.False(t, clipped[usbDevicesQuery.ID])
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -1645,6 +1668,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.False(t, gqrr.ReportClipped)
 	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
+	clipped[osqueryInfoQuery.ID] = true
 	discardData := true
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), fleet.ModifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
 	require.True(t, modifyQueryResp.Query.DiscardData)
@@ -1652,6 +1676,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Empty(t, gqrr.Results)
 	require.False(t, gqrr.ReportClipped)
 	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after discardData=true
+	require.False(t, clipped[osqueryInfoQuery.ID])
 
 	// check that now that discardData is set, we don't add new results
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -1744,16 +1769,25 @@ func (s *integrationTestSuite) TestQueryReports() {
 		require.Equal(t, wantRows, counts[osqueryInfoQuery.ID])
 	}
 
-	// Host2 submits 1000 rows. The report is full and host2 isn't in it, so nothing is stored.
+	// Host2 submits 1000 rows. The report is full and host2 isn't in it, so nothing is stored
+	// and the rejection is recorded.
+	require.False(t, clipped[osqueryInfoQuery.ID])
 	submitRows(host2Global, fleet.DefaultMaxQueryReportRows)
 	checkReport(fleet.DefaultMaxQueryReportRows, true)
+	require.True(t, clipped[osqueryInfoQuery.ID])
 
-	// Host1 is already in the full report, so it can shrink its result set.
+	// Host1 is already in the full report, so it can shrink its result set. Simulate the
+	// rejection marker expiring so the count alone decides.
+	delete(clipped, osqueryInfoQuery.ID)
 	submitRows(host1Global, 500)
 	checkReport(500, false)
 
-	// Host2 still doesn't fit (500 + 1000 > 1000)...
+	// Host2 still doesn't fit (500 + 1000 > 1000). The count stays below the cap, so only the
+	// rejection marker reports the report as clipped.
 	submitRows(host2Global, fleet.DefaultMaxQueryReportRows)
+	checkReport(500, true)
+	require.True(t, clipped[osqueryInfoQuery.ID])
+	delete(clipped, osqueryInfoQuery.ID)
 	checkReport(500, false)
 
 	// ...but 500 rows fit exactly, filling the report again.
