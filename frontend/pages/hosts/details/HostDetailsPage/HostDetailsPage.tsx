@@ -2278,7 +2278,13 @@ const HostDetailsPage = ({
             platform={host.platform}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             connectedToFleet={host.mdm.connected_to_fleet}
-            onSuccessfulCheckIn={refetchHostDetails}
+            onSuccessfulCheckIn={() => {
+              // Delay the refetch of the host details
+              // so the device have time to check in.
+              setTimeout(() => {
+                refetchHostDetails();
+              }, 5000);
+            }}
             user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}
