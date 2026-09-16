@@ -4341,4 +4341,17 @@ func testRetryVPPInstallMovesSetupExperienceStep(t *testing.T, ds *Datastore) {
 	updated, err := ds.MaybeUpdateSetupExperienceVPPStatus(ctx, host.UUID, newCmdUUID, fleet.SetupExperienceStatusFailure)
 	require.NoError(t, err)
 	require.True(t, updated)
+
+	// Check a retry arriving after the step is already resolved leaves it pointing at the command
+	// that resolved it, rather than re-pointing a finished result at an unrelated command
+	install, err = ds.GetHostVPPInstallByCommandUUID(ctx, newCmdUUID)
+	require.NoError(t, err)
+	require.NoError(t, ds.RetryVPPInstall(ctx, install))
+
+	var resolvedStepCmdUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &resolvedStepCmdUUID,
+			`SELECT nano_command_uuid FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID)
+	})
+	require.Equal(t, newCmdUUID, resolvedStepCmdUUID)
 }
