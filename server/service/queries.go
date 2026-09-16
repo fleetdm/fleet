@@ -236,17 +236,6 @@ func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (boo
 		return false, err
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get app config")
-	}
-	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
-	if err != nil {
-		return false, err
-	}
-	if count >= svc.queryReportCap(ctx, appConfig.ServerSettings) {
-		return true, nil
-	}
 	clipped, err := svc.queryReportsClipped(ctx, []uint{queryID})
 	if err != nil {
 		return false, err
@@ -255,7 +244,8 @@ func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (boo
 }
 
 // queryReportsClipped returns the reports flagged as clipped in Redis because a host's results
-// were rejected by the cap (see markQueryReportClipped).
+// were rejected by the cap (see saveResultLogsToQueryReports). A report whose stored rows merely
+// reach the cap is not clipped: nothing has been dropped yet.
 func (svc *Service) queryReportsClipped(ctx context.Context, queryIDs []uint) (map[uint]bool, error) {
 	if svc.liveQueryStore == nil {
 		return nil, nil

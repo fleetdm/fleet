@@ -1187,9 +1187,6 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			123, 444, 555, 777, 1234,
 		}, nil
 	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
-	}
 	teamQueryResultsStored := false
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
 		if len(rows) == 0 {
@@ -1595,10 +1592,6 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return []uint{1}, nil
 	}
 
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
-	}
-
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
@@ -1649,10 +1642,6 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
-	}
-
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
 	}
 
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
@@ -1845,9 +1834,6 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.QueriesByNameFunc = queriesByNameFromQueryByName(ds.QueryByNameFunc)
 	ds.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
 		return []uint{1}, nil
-	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
 	}
 	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (int, bool, error) {
 		return 0, false, nil

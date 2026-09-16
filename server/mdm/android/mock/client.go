@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 var _ androidmgmt.Client = (*Client)(nil)

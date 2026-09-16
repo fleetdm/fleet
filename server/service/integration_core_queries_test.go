@@ -1725,14 +1725,16 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), fleet.GetQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
-	require.True(t, gqrr.ReportClipped)
+	// Reaching the cap alone doesn't clip the report: nothing has been rejected yet.
+	require.False(t, gqrr.ReportClipped)
+	require.False(t, clipped[osqueryInfoQuery.ID])
 	require.Equal(t, fleet.DefaultMaxQueryReportRows, counts[osqueryInfoQuery.ID]) // counter unchanged after overwrite
 
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
 	require.NoError(t, ghqrr.Err)
 	require.Len(t, ghqrr.Results, fleet.DefaultMaxQueryReportRows)
-	require.True(t, ghqrr.ReportClipped)
+	require.False(t, ghqrr.ReportClipped)
 
 	submitRows := func(host *fleet.Host, n int) {
 		slreq = submitLogsRequest{
@@ -1782,26 +1784,25 @@ func (s *integrationTestSuite) TestQueryReports() {
 	submitRows(host1Global, 500)
 	checkReport(500, false)
 
-	// Host2 still doesn't fit (500 + 1000 > 1000). The count stays below the cap, so only the
-	// rejection marker reports the report as clipped.
+	// Host2 still doesn't fit (500 + 1000 > 1000); the rejection marks the report as clipped.
 	submitRows(host2Global, fleet.DefaultMaxQueryReportRows)
 	checkReport(500, true)
 	require.True(t, clipped[osqueryInfoQuery.ID])
 	delete(clipped, osqueryInfoQuery.ID)
 	checkReport(500, false)
 
-	// ...but 500 rows fit exactly, filling the report again.
+	// ...but 500 rows fit exactly, filling the report again without clipping it.
 	submitRows(host2Global, 500)
-	checkReport(fleet.DefaultMaxQueryReportRows, true)
+	checkReport(fleet.DefaultMaxQueryReportRows, false)
 
 	// Hosts already in the full report keep updating as long as their row count doesn't grow.
 	submitRows(host2Global, 500)
-	checkReport(fleet.DefaultMaxQueryReportRows, true)
+	checkReport(fleet.DefaultMaxQueryReportRows, false)
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host2Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
 	require.NoError(t, ghqrr.Err)
 	require.Len(t, ghqrr.Results, 500)
-	require.True(t, ghqrr.ReportClipped)
+	require.False(t, ghqrr.ReportClipped)
 
 	// Increase the limit so we can test further submissions
 	appConfigSpec := map[string]map[string]int{
@@ -1809,7 +1810,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	}
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 
-	// With limit 3000, we have 1000 rows, which is below the limit, so not clipped
+	// With limit 3000, we have 1000 rows, which is below the limit.
 	checkReport(fleet.DefaultMaxQueryReportRows, false)
 
 	// Now host2 can grow its result set since we're under the new limit.

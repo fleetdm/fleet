@@ -327,19 +327,16 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	_, _, err = ds.OverwriteQueryResultRows(context.Background(), resultRows, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
-	// Assert that ResultCountForQuery returns 1
-	count, err := ds.ResultCountForQuery(context.Background(), query1.ID)
-	require.NoError(t, err)
+	// Assert that the result count is 1
+	count := resultCountForQuery(t, ds, query1.ID)
 	require.Equal(t, 1, count)
 
-	// Assert that ResultCountForQuery returns 5
-	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
-	require.NoError(t, err)
+	// Assert that the result count is 5
+	count = resultCountForQuery(t, ds, query2.ID)
 	require.Equal(t, 5, count)
 
 	// Returns 0 when no results are found
-	count, err = ds.ResultCountForQuery(context.Background(), 999)
-	require.NoError(t, err)
+	count = resultCountForQuery(t, ds, 999)
 	require.Equal(t, 0, count)
 }
 
@@ -420,7 +417,7 @@ func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
 
-	// Assert that ResultCountForQuery returns 1
+	// Assert that the result count is 1
 	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
@@ -743,8 +740,7 @@ func testOverwriteQueryResultRowsRespectsCap(t *testing.T, ds *Datastore) {
 	require.False(t, rejected)
 	require.Equal(t, []string{"c"}, hostValues(host3))
 
-	count, err := ds.ResultCountForQuery(ctx, query.ID)
-	require.NoError(t, err)
+	count := resultCountForQuery(t, ds, query.ID)
 	require.Equal(t, maxRows, count)
 }
 
@@ -775,8 +771,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify that exactly 1000 rows were stored (1000 is the limit for a single submission)
-	count, err := ds.ResultCountForQuery(context.Background(), query.ID)
-	require.NoError(t, err)
+	count := resultCountForQuery(t, ds, query.ID)
 	require.Equal(t, fleet.DefaultMaxQueryReportRows, count)
 
 	// Generate more than max rows (1001+) for a single host submission - should bail early
@@ -946,18 +941,15 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	}
 
 	// Verify we have 25 rows for the data query
-	count, err := ds.ResultCountForQuery(context.Background(), query.ID)
-	require.NoError(t, err)
+	count := resultCountForQuery(t, ds, query.ID)
 	require.Equal(t, 25, count)
 
 	// Verify we have 0 rows for the non-data query
-	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
-	require.NoError(t, err)
+	count = resultCountForQuery(t, ds, query2.ID)
 	require.Equal(t, 0, count)
 
 	// Verify we have 13 rows for the some-data query
-	count, err = ds.ResultCountForQuery(context.Background(), query3.ID)
-	require.NoError(t, err)
+	count = resultCountForQuery(t, ds, query3.ID)
 	require.Equal(t, 13, count)
 
 	// Run cleanup with maxRows = 10, using a small batch size to test batching
@@ -972,8 +964,7 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Equal(t, maxRows, queryCounts[query3.ID])
 
 	// Verify only 10 rows remain for query1
-	count, err = ds.ResultCountForQuery(context.Background(), query.ID)
-	require.NoError(t, err)
+	count = resultCountForQuery(t, ds, query.ID)
 	require.Equal(t, maxRows, count)
 
 	// Verify the most recent rows were kept
@@ -982,8 +973,7 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	require.Len(t, results, maxRows)
 
 	// Verify 0 rows remain for query2
-	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
-	require.NoError(t, err)
+	count = resultCountForQuery(t, ds, query2.ID)
 	require.Equal(t, 0, count)
 
 	// Check that no rows were actually deleted for query2
@@ -996,8 +986,7 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 	})
 
 	// Verify 10 rows remain for query3
-	count, err = ds.ResultCountForQuery(context.Background(), query2.ID)
-	require.NoError(t, err)
+	count = resultCountForQuery(t, ds, query2.ID)
 	require.Equal(t, 0, count)
 
 	// Check that we actually have 22 rows (the 10 with data, and the 12 without data)
@@ -1135,7 +1124,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			// IncludeReportsDontStoreResults defaults to false: only include discard_data=0 AND logging_type='snapshot'.
 			ListOptions: fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
 		}
-		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		// Should get qSave1 and qSave2 but NOT qDiscard (doesn't satisfy discard_data=0 AND logging_type='snapshot').
 		assert.Equal(t, 2, total)
@@ -1151,7 +1140,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			IncludeReportsDontStoreResults: true,
 			ListOptions:                    fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		// All 4 queries are returned including both don't-store-results variants.
 		assert.Equal(t, 4, total)
@@ -1170,7 +1159,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			IncludeReportsDontStoreResults: true,
 			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		require.Len(t, reports, 4)
 
@@ -1196,7 +1185,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 
@@ -1215,7 +1204,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 
@@ -1234,7 +1223,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 				MatchQuery: "Alpha",
 			},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		assert.Equal(t, 1, total)
 		require.Len(t, reports, 1)
@@ -1252,7 +1241,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 				OrderDirection: fleet.OrderAscending,
 			},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 		assert.Equal(t, "Save Query Alpha", reports[0].Name) // has results
@@ -1260,7 +1249,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 		// DESC: non-null values first (newest to oldest), NULLs at bottom.
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
-		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 		assert.Equal(t, "Save Query Alpha", reports[0].Name) // has results
@@ -1277,7 +1266,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 				IncludeMetadata: true,
 			},
 		}
-		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, total)
 		require.Len(t, reports, 1)
@@ -1287,7 +1276,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 		// Second page.
 		opts.ListOptions.Page = 1
-		reports2, total2, meta2, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports2, total2, meta2, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		assert.Equal(t, 2, total2)
 		require.Len(t, reports2, 1)
@@ -1314,7 +1303,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		// Team-Only query should not appear because host has no team.
 		assert.Equal(t, 2, total)
@@ -1337,7 +1326,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, teamHost.ID, &team.ID, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, teamHost.ID, &team.ID, "", opts)
 		require.NoError(t, err)
 		// Should see the 2 global save queries plus the team-scoped query.
 		assert.Equal(t, 3, total)
@@ -1348,40 +1337,6 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		assert.Contains(t, names, "Save Query Alpha")
 		assert.Contains(t, names, "Save Query Beta")
 		assert.Contains(t, names, "Team Query Zeta")
-	})
-
-	t.Run("report_clipped_when_total_results_reach_cap", func(t *testing.T) {
-		// Insert exactly maxQueryReportRows results for qSave1 across multiple hosts
-		// so that n_query_results >= capacity, making report_clipped=true.
-		capacity := 3
-		extraHost := test.NewHost(t, ds, "extra-host", "192.168.2.1", "key2", "serial2", time.Now())
-		t.Cleanup(func() {
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `DELETE FROM query_results WHERE host_id = ?`, extraHost.ID)
-				return err
-			})
-		})
-		_, _, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
-			{QueryID: qSave1.ID, HostID: extraHost.ID, LastFetched: now, Data: ptr.RawMessage([]byte(`{"col":"extra"}`))},
-		}, fleet.DefaultMaxQueryReportRows, 0)
-		require.NoError(t, err)
-		// At this point qSave1 has 2 rows on host + 1 on extraHost = 3 total, which equals cap.
-
-		opts := fleet.ListHostReportsOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "name"},
-		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, capacity)
-		require.NoError(t, err)
-		require.Len(t, reports, 2)
-
-		alpha := reports[0]
-		assert.Equal(t, "Save Query Alpha", alpha.Name)
-		assert.True(t, alpha.ReportClipped)
-
-		// qSave2 has no results, so it should not be clipped.
-		beta := reports[1]
-		assert.Equal(t, "Save Query Beta", beta.Name)
-		assert.False(t, beta.ReportClipped)
 	})
 
 	t.Run("platform_filtering", func(t *testing.T) {
@@ -1419,7 +1374,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
 		}
 
-		reports, _, _, err := ds.ListHostReports(ctx, darwinHost.ID, nil, "darwin", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, darwinHost.ID, nil, "darwin", opts)
 		require.NoError(t, err)
 		names := make([]string, 0, len(reports))
 		for _, r := range reports {
@@ -1453,7 +1408,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		}
 
 		// host is NOT a member of the label — labeled query must be excluded.
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		names := make([]string, 0, len(reports))
 		for _, r := range reports {
@@ -1466,7 +1421,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// host IS now a member of the label — labeled query must be included.
-		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, "", opts)
 		require.NoError(t, err)
 		names = names[:0]
 		for _, r := range reports {
@@ -1514,7 +1469,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 		hasReport := func(hostID uint) bool {
 			t.Helper()
-			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", opts)
 			require.NoError(t, err)
 			for _, r := range reports {
 				if r.Name == qIncludeAll.Name {
@@ -1534,7 +1489,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		excludeOpts.ExcludeIncludeAllQueries = true
 		hasReportExcluded := func(hostID uint) bool {
 			t.Helper()
-			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", excludeOpts, fleet.DefaultMaxQueryReportRows)
+			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", excludeOpts)
 			require.NoError(t, err)
 			for _, r := range reports {
 				if r.Name == qIncludeAll.Name {
@@ -1615,7 +1570,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
 		}
 		// host has no team → pass nil teamID; PlatformFromHost("ubuntu") = "linux"
-		reports, _, _, err := ds.ListHostReports(ctx, linuxHost.ID, nil, "linux", opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, linuxHost.ID, nil, "linux", opts)
 		require.NoError(t, err)
 
 		names := make(map[string]bool, len(reports))
@@ -1634,4 +1589,13 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		assert.False(t, names["combined-qDarwinLabelA"], "wrong platform must exclude even if label matches")
 		assert.False(t, names["combined-qLinuxLabelB"], "non-member label must exclude even if platform matches")
 	})
+}
+
+// resultCountForQuery counts the stored rows with data for a query across all hosts.
+func resultCountForQuery(t *testing.T, ds *Datastore, queryID uint) int {
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND has_data = 1`, queryID)
+	})
+	return count
 }

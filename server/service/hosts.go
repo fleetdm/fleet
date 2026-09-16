@@ -2416,12 +2416,6 @@ func (svc *Service) ListHostReports(
 		return nil, 0, nil, err
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
-	}
-	maxQueryReportRows := svc.queryReportCap(ctx, appConfig.ServerSettings)
-
 	// This end-point is always paginated; metadata is required for HasNextResults.
 	opts.ListOptions.IncludeMetadata = true
 	// Default page size for this endpoint is 50 (not the global default).
@@ -2448,28 +2442,22 @@ func (svc *Service) ListHostReports(
 	// labels_include_all is a premium-only feature only
 	opts.ExcludeIncludeAllQueries = !license.IsPremium(ctx)
 
-	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
 	}
 
-	// The datastore flags reports whose stored rows reached the cap; also flag those that
-	// rejected a host's results while staying below it.
-	var unclippedIDs []uint
-	for _, r := range reports {
-		if !r.ReportClipped {
-			unclippedIDs = append(unclippedIDs, r.ReportID)
+	if len(reports) > 0 {
+		reportIDs := make([]uint, 0, len(reports))
+		for _, r := range reports {
+			reportIDs = append(reportIDs, r.ReportID)
 		}
-	}
-	if len(unclippedIDs) > 0 {
-		clipped, err := svc.queryReportsClipped(ctx, unclippedIDs)
+		clipped, err := svc.queryReportsClipped(ctx, reportIDs)
 		if err != nil {
 			return nil, 0, nil, err
 		}
 		for _, r := range reports {
-			if clipped[r.ReportID] {
-				r.ReportClipped = true
-			}
+			r.ReportClipped = clipped[r.ReportID]
 		}
 	}
 

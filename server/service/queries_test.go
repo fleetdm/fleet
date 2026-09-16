@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -582,10 +583,6 @@ func TestQueryAuth(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
-	}
-
 	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
 		return nil
 	}
@@ -935,74 +932,39 @@ func TestQueryResponsesFilterUnauthorizedPacks(t *testing.T) {
 func TestQueryReportIsClipped(t *testing.T) {
 	ds := new(mock.Store)
 	lq := live_query_mock.New(t)
-	hostCount := 0
-	lq.GetQueryReportsHostCountOverride = func() (int, error) { return hostCount, nil }
 	svc, ctx := newTestService(t, ds, nil, lq)
 	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 		ID:         1,
-		GlobalRole: ptr.String(fleet.RoleAdmin),
+		GlobalRole: new(fleet.RoleAdmin),
 	}})
 
 	ds.QueryFunc = func(ctx context.Context, queryID uint) (*fleet.Query, error) {
 		return &fleet.Query{}, nil
 	}
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return 0, nil
-	}
 
-	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1)
-	require.NoError(t, err)
-	require.False(t, isClipped)
-
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return fleet.DefaultMaxQueryReportRows, nil
-	}
-
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
-	require.NoError(t, err)
-	require.True(t, isClipped)
-
-	// The cap is raised to the host count when there are more hosts than the configured cap.
-	hostCount = fleet.DefaultMaxQueryReportRows + 1
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
-	require.NoError(t, err)
-	require.False(t, isClipped)
-
-	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return hostCount, nil
-	}
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
-	require.NoError(t, err)
-	require.True(t, isClipped)
-
-	// A configured cap above the host count still applies.
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{QueryReportCap: hostCount + 1}}, nil
-	}
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
-	require.NoError(t, err)
-	require.False(t, isClipped)
-
-	// A report below the cap is clipped if Redis says a host's results were rejected.
+	// Only the Redis rejection marker decides; the stored row count is not consulted.
 	var askedIDs []uint
 	lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
 		askedIDs = queryIDs
+		return map[uint]bool{}, nil
+	}
+	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1)
+	require.NoError(t, err)
+	require.False(t, isClipped)
+	require.Equal(t, []uint{1}, askedIDs)
+
+	lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
 		return map[uint]bool{1: true}, nil
 	}
 	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
 	require.NoError(t, err)
 	require.True(t, isClipped)
-	require.Equal(t, []uint{1}, askedIDs)
 
 	lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
-		return map[uint]bool{}, nil
+		return nil, errors.New("redis down")
 	}
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
-	require.NoError(t, err)
-	require.False(t, isClipped)
+	_, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	require.ErrorContains(t, err, "redis down")
 }
 
 func TestDeleteQueryClearsReportState(t *testing.T) {

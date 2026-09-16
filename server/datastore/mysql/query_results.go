@@ -196,18 +196,6 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 	return results, total, metadata, nil
 }
 
-// ResultCountForQuery counts the query report rows for a given query
-// excluding rows with null data
-func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
-	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND has_data = 1`, queryID)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "counting query results for query")
-	}
-
-	return count, nil
-}
-
 // ResultCountForQueryAndHost counts the query report rows for a given query and host
 // excluding rows with null data
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
@@ -391,16 +379,14 @@ type hostReportRow struct {
 }
 
 // ListHostReports returns reports associated with a host, applying
-// the provided filtering, sorting, and pagination options. maxQueryReportRows
-// is the configured report cap; a query whose total result count (across all
-// hosts) meets or exceeds this value is considered clipped.
+// the provided filtering, sorting, and pagination options. ReportClipped is
+// left for the service layer to fill in.
 func (ds *Datastore) ListHostReports(
 	ctx context.Context,
 	hostID uint,
 	teamID *uint,
 	hostPlatform string,
 	opts fleet.ListHostReportsOptions,
-	maxQueryReportRows int,
 ) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 	// We only care about saved queries
 	whereClause := "WHERE q.saved = 1"
@@ -510,30 +496,6 @@ func (ds *Datastore) ListHostReports(
 		queryIDs = append(queryIDs, r.QueryID)
 	}
 
-	// Fetch the total non-null result count per query across all hosts, used to
-	// determine report_clipped.
-	type totalCountRow struct {
-		QueryID       uint `db:"query_id"`
-		NQueryResults int  `db:"n_query_results"`
-	}
-	totalStmt, totalArgs, err := sqlx.In(`
-		SELECT query_id, COUNT(*) AS n_query_results
-		FROM query_results
-		WHERE query_id IN (?) AND has_data = 1
-		GROUP BY query_id
-	`, queryIDs)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building total count query for host reports")
-	}
-	var totalCountRows []totalCountRow
-	if err := sqlx.SelectContext(ctx, dbReader, &totalCountRows, dbReader.Rebind(totalStmt), totalArgs...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "fetching total result counts for host reports")
-	}
-	nQueryResultsByID := make(map[uint]int, len(totalCountRows))
-	for _, r := range totalCountRows {
-		nQueryResultsByID[r.QueryID] = r.NQueryResults
-	}
-
 	// Fetch the host-specific result count per query, used to populate
 	// NHostResults.
 	type hostCountRow struct {
@@ -603,7 +565,6 @@ func (ds *Datastore) ListHostReports(
 			r.LastFetched = &t
 		}
 		r.NHostResults = nHostResultsByID[qr.QueryID]
-		r.ReportClipped = nQueryResultsByID[qr.QueryID] >= maxQueryReportRows
 		if data, ok := firstDataByQueryID[qr.QueryID]; ok {
 			var cols map[string]string
 			if err := json.Unmarshal(*data, &cols); err != nil {

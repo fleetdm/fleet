@@ -2309,7 +2309,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, discard.StoreResults)
 	})
 
-	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
+	t.Run("report_clipped is not set just because results reach the cap", func(t *testing.T) {
 		// Save the current cap before mutating.
 		var originalConfig fleet.AppConfig
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
@@ -2327,7 +2327,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
 		require.NoError(t, resp.Err)
 		require.Len(t, resp.Reports, 2)
-		assert.True(t, resp.Reports[0].ReportClipped)  // qAlpha has 2 rows == cap of 2
+		assert.False(t, resp.Reports[0].ReportClipped) // qAlpha has 2 rows == cap of 2, but nothing was rejected
 		assert.False(t, resp.Reports[1].ReportClipped) // qBeta has 0 rows
 	})
 

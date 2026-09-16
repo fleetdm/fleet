@@ -404,9 +404,9 @@ type Service interface {
 	GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts ListOptions) (results []HostQueryResultRow, count int, meta *PaginationMetadata, reportClipped bool, err error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
-	// QueryReportIsClipped returns true if the number of stored report rows has reached the
-	// effective report cap (see ServerSettings.GetEffectiveQueryReportCap) or if a host's results
-	// were recently rejected because they would have exceeded it.
+	// QueryReportIsClipped returns true if a host's results for the report were recently rejected
+	// because storing them would have exceeded the effective report cap (see
+	// ServerSettings.GetEffectiveQueryReportCap). Merely reaching the cap does not clip a report.
 	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
 	// sorted, and paginated according to opts.
