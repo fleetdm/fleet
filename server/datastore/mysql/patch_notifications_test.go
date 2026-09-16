@@ -23,6 +23,7 @@ func TestPatchNotifications(t *testing.T) {
 		{"ExistsForApp", testPatchNotificationExistsForApp},
 		{"DisplayedExistsForApp", testPatchNotificationDisplayedExistsForApp},
 		{"AddAndListApps", testPatchNotificationAddAndListApps},
+		{"AppInstallStatuses", testPatchNotificationAppInstallStatuses},
 		{"ListAppsForNotifications", testPatchNotificationListAppsForNotifications},
 		{"DeleteApps", testPatchNotificationDeleteApps},
 		{"InstallAt", testPatchNotificationInstallAt},
@@ -516,4 +517,101 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	limited, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 1)
 	require.NoError(t, err)
 	require.Len(t, limited, 1)
+}
+
+func testPatchNotificationAppInstallStatuses(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "statuses-host", "", "statuses-key", "statuses-uuid", time.Now())
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "patch-notification-statuses-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name: "Admin", Password: []byte("p4ssw0rd.123"), Email: "patch-notification-statuses@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+
+	newInstaller := func(filename string) (uint, uint) {
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: filename, StorageID: uuid.NewString(),
+			Title: "Statuses App", Version: "1.0.0", Source: "apps", Platform: "darwin",
+			UserID: user.ID, TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		var titleID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		})
+		return installerID, titleID
+	}
+
+	// A second upload adds another installer for the same title rather than overwriting the first.
+	firstInstallerID, titleID := newInstaller("app.pkg")
+	secondInstallerID, secondTitleID := newInstaller("app-v2.pkg")
+	require.Equal(t, titleID, secondTitleID, "both uploads are the same software title")
+
+	// status is a generated column, so the exit code that produces it is what gets written
+	addInstall := func(installerID uint, installScriptExitCode *int, updatedAt time.Time, canceled bool) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs
+					(execution_id, host_id, software_installer_id, install_script_exit_code, canceled, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				uuid.NewString(), host.ID, installerID, installScriptExitCode, canceled, updatedAt, updatedAt)
+			return err
+		})
+	}
+	installed, failed := new(0), new(1)
+
+	notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationActed, 1)
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+		SoftwareTitleID: titleID, SoftwareInstallerID: &firstInstallerID,
+	}))
+
+	var appJoinedAt time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &appJoinedAt,
+			`SELECT created_at FROM patch_notification_apps WHERE notification_uuid = ?`, notificationUUID)
+	})
+
+	// an app Fleet has not recorded an install for reports nothing
+	statuses, err := ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Empty(t, statuses)
+
+	// an install that finished before the app joined belongs to an earlier patch
+	addInstall(firstInstallerID, installed, appJoinedAt.Add(-time.Minute), false)
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Empty(t, statuses)
+
+	// the install this notification queued reports its status
+	addInstall(firstInstallerID, failed, appJoinedAt.Add(time.Minute), false)
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstallFailed}, statuses)
+
+	// an install against a different installer id for the title still patched the same app
+	addInstall(secondInstallerID, installed, appJoinedAt.Add(2*time.Minute), false)
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstalled}, statuses)
+
+	// a cancelled install is reported so the app stops waiting on it
+	addInstall(secondInstallerID, nil, appJoinedAt.Add(3*time.Minute), true)
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
+
+	// uninstalling the app marks its installs removed, which nulls host_software_installs.status,
+	// so the patch's own outcome has to keep reporting from execution_status
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_software_installs SET removed = 1 WHERE host_id = ?`, host.ID)
+		return err
+	})
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
 }

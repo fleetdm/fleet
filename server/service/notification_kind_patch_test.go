@@ -247,6 +247,8 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		wantErr       bool
 		wantInstalls  int
 		wantActionTry bool
+		// the status shown against the app in the returned view, "Installing..." when empty
+		wantItemStatus string
 	}{
 		{
 			name:          "Update now queues an install per app and acts on the notification",
@@ -273,6 +275,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			lastInstalledAt: new(appJoinedAt.Add(time.Minute)),
 			wantInstalls:    0,
 			wantActionTry:   true,
+			wantItemStatus:  "Installed",
 		},
 		{
 			name:            "an app last updated before it joined the notification is still installed",
@@ -287,11 +290,12 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		},
 		{
 			// the installer was deleted, so software_installer_id is null
-			name:          "an app whose installer was deleted is skipped and the action still succeeds",
-			status:        notifications_api.EndUserNotificationDispatched,
-			noInstaller:   true,
-			wantInstalls:  0,
-			wantActionTry: true,
+			name:           "an app whose installer was deleted is skipped and the action still succeeds",
+			status:         notifications_api.EndUserNotificationDispatched,
+			noInstaller:    true,
+			wantInstalls:   0,
+			wantActionTry:  true,
+			wantItemStatus: "Failed",
 		},
 		{
 			name:          "a queueing failure puts the notification back to dispatched",
@@ -333,6 +337,14 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 						[]*fleet.HostLastInstallData{lastInstall}
 				}
 				return byTitle, nil
+			}
+			// the view update now returns reports the app's own install, which is already
+			// installed when Fleet found a newer install than the app's row
+			ds.ListPatchNotificationAppInstallStatusesFunc = func(_ context.Context, _ string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+				if c.lastInstalledAt == nil || !c.lastInstalledAt.After(appJoinedAt) {
+					return nil, nil
+				}
+				return map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstalled}, nil
 			}
 			ds.SetPatchNotificationAppsQueuedFunc = func(_ context.Context, _ string, _ []uint) error { return nil }
 			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
@@ -395,7 +407,11 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			// the returned view is what the end user sees without a second request
 			require.NotNil(t, view)
 			require.Len(t, view.Items, 1)
-			require.Equal(t, "Installing...", view.Items[0].Status)
+			wantItemStatus := c.wantItemStatus
+			if wantItemStatus == "" {
+				wantItemStatus = "Installing..."
+			}
+			require.Equal(t, wantItemStatus, view.Items[0].Status)
 			require.Equal(t, []notifications_api.NotificationAction{
 				{ID: patchNotificationActionDismiss, Label: "Hide"},
 			}, view.Actions, "the apps are already installing, so only Hide is offered")
@@ -418,6 +434,9 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 		ds: ds, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
 	}
 
+	ds.ListPatchNotificationAppInstallStatusesFunc = func(_ context.Context, _ string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+		return nil, nil
+	}
 	queued := map[uint]struct{}{}
 	ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
 		apps := []fleet.PatchNotificationAppDetail{
@@ -484,6 +503,118 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 		"the first app is not queued a second time")
 	require.True(t, notificationSvc.actInvoked)
 	require.Empty(t, notificationSvc.setStatus)
+}
+
+// Once the installs are out the toast polls Render, so each app reports where its own install got
+// to rather than every app reading "Installing..." until the toast is closed.
+func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
+	const (
+		hostID  = uint(1)
+		titleID = uint(10)
+	)
+	appJoinedAt := time.Now().UTC().Add(-time.Hour)
+
+	cases := []struct {
+		name string
+		// the notification's status, which is what says the end user pressed Update now
+		notificationStatus string
+		// the status the datastore reports for the app's install, nil when it has none to report
+		installStatus *fleet.SoftwareInstallerStatus
+		// software_installers row is gone, so the app can never be queued
+		noInstaller bool
+
+		wantStatus        string
+		wantInstallStatus string
+	}{
+		{
+			name:               "an app on a notification the end user has not acted on shows no status",
+			notificationStatus: notifications_api.EndUserNotificationDispatched,
+			wantStatus:         "",
+			wantInstallStatus:  "",
+		},
+		{
+			name:               "an app whose install is still queued shows installing",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			installStatus:      new(fleet.SoftwareInstallPending),
+			wantStatus:         "Installing...",
+			wantInstallStatus:  "pending_install",
+		},
+		{
+			name:               "an app Fleet has no install record for yet shows installing",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			wantStatus:         "Installing...",
+			wantInstallStatus:  "pending_install",
+		},
+		{
+			name:               "an app whose install finished shows installed",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			installStatus:      new(fleet.SoftwareInstalled),
+			wantStatus:         "Installed",
+			wantInstallStatus:  "installed",
+		},
+		{
+			name:               "an app whose install failed shows failed",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			installStatus:      new(fleet.SoftwareInstallFailed),
+			wantStatus:         "Failed",
+			wantInstallStatus:  "failed_install",
+		},
+		{
+			name:               "an app whose install was cancelled shows failed rather than installing forever",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			installStatus:      new(fleet.SoftwareInstallerStatus("canceled_install")),
+			wantStatus:         "Failed",
+			wantInstallStatus:  "failed_install",
+		},
+		{
+			name:               "an app whose installer was deleted shows failed rather than installing forever",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			noInstaller:        true,
+			wantStatus:         "Failed",
+			wantInstallStatus:  "failed_install",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			kind := &patchNotificationKind{
+				ds: ds, notificationSvc: &stubNotificationService{acts: true}, logger: slog.New(slog.DiscardHandler),
+			}
+			ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+				app := fleet.PatchNotificationAppDetail{
+					SoftwareTitleID:     titleID,
+					SoftwareInstallerID: new(uint(20)),
+					Name:                "1Password",
+					CreatedAt:           appJoinedAt,
+				}
+				if c.noInstaller {
+					app.SoftwareInstallerID = nil
+				}
+				return []fleet.PatchNotificationAppDetail{app}, nil
+			}
+			ds.ListPatchNotificationAppInstallStatusesFunc = func(_ context.Context, _ string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+				if c.installStatus == nil {
+					return nil, nil
+				}
+				return map[uint]fleet.SoftwareInstallerStatus{titleID: *c.installStatus}, nil
+			}
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
+				return "device-token", nil
+			}
+
+			view, err := kind.Render(context.Background(), &notifications_api.EndUserNotification{
+				UUID: "notification-uuid", HostID: hostID,
+				Status:  c.notificationStatus,
+				Payload: patchNotificationFirstNoticePayload,
+			})
+			require.NoError(t, err)
+			require.Len(t, view.Items, 1)
+			require.Equal(t, c.wantStatus, view.Items[0].Status)
+			require.Equal(t, c.wantInstallStatus, view.Items[0].InstallStatus)
+		})
+	}
 }
 
 // A notification whose apps are gone, after an admin deletes the title, fails rather than retrying.

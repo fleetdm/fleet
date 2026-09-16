@@ -1,3 +1,5 @@
+import { SoftwareInstallStatus } from "interfaces/software";
+
 export interface INotificationItem {
   software_title_id: number;
   /** Icon URL if present; <SoftwareIcon> falls back to `name` when null. */
@@ -7,7 +9,12 @@ export interface INotificationItem {
   display_name?: string;
   /** Optional right-aligned status label, e.g. "Installing…". */
   status?: string;
+  install_status?: SoftwareInstallStatus;
 }
+
+/** An item Fleet is still waiting on, and so a reason to keep polling. */
+export const isNotificationItemInstalling = (item: INotificationItem) =>
+  item.install_status === "pending_install";
 
 /** Server-declared actions rendered bottom-right. The last action is primary. */
 export interface INotificationAction {

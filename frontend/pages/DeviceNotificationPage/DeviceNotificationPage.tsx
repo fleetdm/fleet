@@ -3,20 +3,21 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import List from "components/List";
+import Icon from "components/Icon";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import List from "components/List";
+import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import deviceNotificationsAPI from "services/entities/device_notifications";
 import {
   INotificationAction,
   INotificationItem,
   INotificationView,
+  isNotificationItemInstalling,
 } from "interfaces/device_notification";
-
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import deviceNotificationsAPI from "services/entities/device_notifications";
 import { isDarkMode } from "utilities/theme";
 
 import { postBridgeMessage } from "./fleetDesktopBridge";
@@ -46,6 +47,39 @@ const renderBoldMarkup = (text: string): React.ReactNode => {
   });
 };
 
+// Status treatment follows the self-service tiles: spinner while Fleet is still
+// waiting on the install, error icon once it has failed.
+const renderNotificationItemStatus = (item: INotificationItem) => {
+  if (!item.status) {
+    return null;
+  }
+  if (isNotificationItemInstalling(item)) {
+    return (
+      <span className={`${baseClass}__item-status`}>
+        <Spinner size="x-small" centered={false} delay={0} />
+        {item.status}
+      </span>
+    );
+  }
+  if (item.install_status === "failed_install") {
+    return (
+      <span className={`${baseClass}__item-status`}>
+        <Icon name="error" />
+        {item.status}
+      </span>
+    );
+  }
+  if (item.install_status === "installed") {
+    return (
+      <span className={`${baseClass}__item-status`}>
+        <Icon name="success" />
+        {item.status}
+      </span>
+    );
+  }
+  return <span className={`${baseClass}__item-status`}>{item.status}</span>;
+};
+
 const renderNotificationItemRow = (item: INotificationItem) => (
   <>
     <span className={`${baseClass}__item-left`}>
@@ -56,9 +90,7 @@ const renderNotificationItemRow = (item: INotificationItem) => (
         />
       </span>
     </span>
-    {item.status && (
-      <span className={`${baseClass}__item-status`}>{item.status}</span>
-    )}
+    {renderNotificationItemStatus(item)}
   </>
 );
 
@@ -98,6 +130,11 @@ const DeviceNotificationPage = ({
       retry: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
+      // Only poll while an install is outstanding, and keep polling in the
+      // background because the toast window is rarely the focused one.
+      refetchInterval: (view) =>
+        view?.items.some(isNotificationItemInstalling) ? 5000 : false,
+      refetchIntervalInBackground: true,
     }
   );
 

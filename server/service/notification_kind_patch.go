@@ -205,6 +205,16 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
 
+	// Read each app's own install so an item shows where that install got to, not the notification's single acted flag.
+	// Skip it until the installs are out, because nothing has been queued to report before then.
+	var installStatusesByTitle map[uint]fleet.SoftwareInstallerStatus
+	if installsQueued {
+		installStatusesByTitle, err = k.ds.ListPatchNotificationAppInstallStatuses(ctx, notification.UUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list patch notification app install statuses")
+		}
+	}
+
 	items := make([]notifications_api.NotificationItem, 0, len(apps))
 	for _, app := range apps {
 		item := notifications_api.NotificationItem{
@@ -218,7 +228,21 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			item.IconURL = &iconURL
 		}
 		if installsQueued {
-			item.Status = "Installing..."
+			installStatus := installStatusesByTitle[app.SoftwareTitleID]
+			// Fail an app whose installer was deleted, because no install was ever queued for it.
+			if app.SoftwareInstallerID == nil {
+				installStatus = fleet.SoftwareInstallFailed
+			}
+			switch installStatus {
+			case fleet.SoftwareInstalled:
+				item.InstallStatus, item.Status = string(fleet.SoftwareInstalled), "Installed"
+			// Treat an app with no install to report as still waiting on the host.
+			case "", fleet.SoftwareInstallPending:
+				item.InstallStatus, item.Status = string(fleet.SoftwareInstallPending), "Installing..."
+			// Fail on cancelled, failed, or whatever else the install ended as, which all leave the app unpatched.
+			default:
+				item.InstallStatus, item.Status = string(fleet.SoftwareInstallFailed), "Failed"
+			}
 		}
 		items = append(items, item)
 	}

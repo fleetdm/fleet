@@ -236,6 +236,43 @@ ORDER BY display_name, pna.software_title_id
 	return apps, nil
 }
 
+func (ds *Datastore) ListPatchNotificationAppInstallStatuses(ctx context.Context, notificationUUID string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+	// Match every installer the title has, not the nullable host_software_installs.software_title_id,
+	// so an install recorded against a different installer id for the title still reports. Skip installs
+	// older than the app's row, which patched an earlier version. Read execution_status rather than
+	// status, which nulls out once the app leaves the host's inventory, so uninstalling a patched app
+	// does not put its row back to installing.
+	const selectStmt = `
+SELECT
+	pna.software_title_id,
+	hsi.execution_status AS status
+FROM patch_notification_apps pna
+	JOIN notifications_end_user neu ON neu.uuid = pna.notification_uuid
+	JOIN software_installers si ON si.title_id = pna.software_title_id
+	JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
+		AND hsi.host_id = neu.host_id
+		AND hsi.updated_at > pna.created_at
+		AND hsi.execution_status IS NOT NULL
+WHERE pna.notification_uuid = ?
+ORDER BY hsi.id
+`
+
+	var rows []struct {
+		SoftwareTitleID uint                          `db:"software_title_id"`
+		Status          fleet.SoftwareInstallerStatus `db:"status"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt, notificationUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list patch notification app install statuses")
+	}
+
+	// Keep the newest install for each title, which the oldest-first ordering leaves last in the map.
+	statuses := make(map[uint]fleet.SoftwareInstallerStatus, len(rows))
+	for _, row := range rows {
+		statuses[row.SoftwareTitleID] = row.Status
+	}
+	return statuses, nil
+}
+
 // ListPatchNotificationAppsForNotifications leaves out the names and icons the toast is built from,
 // because RemindAndInstallDuePatches matches versions and queues installs without displaying anything.
 func (ds *Datastore) ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
