@@ -6078,7 +6078,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallAppleServerError(
 	require.Contains(t, enrollCommands, "InstallEnterpriseApplication")
 
 	// simulate fleetd being installed and the host being orbit-enrolled now
-	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.OsqueryHostID = new(mdmDevice.UUID)
 	enrolledHost.UUID = mdmDevice.UUID
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey

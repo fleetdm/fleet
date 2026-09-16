@@ -4279,13 +4279,9 @@ func testRetryVPPInstallMovesSetupExperienceStep(t *testing.T, ds *Datastore) {
 
 	adamID := "adam_vpp_setup_experience"
 	vpp := &fleet.VPPApp{
-		Name: "setup experience app",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   adamID,
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		Name:             "setup experience app",
+		AdamID:           adamID,
+		Platform:         fleet.MacOSPlatform,
 		BundleIdentifier: adamID,
 	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
