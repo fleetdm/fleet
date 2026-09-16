@@ -351,6 +351,9 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [refetchTimeout, setRefetchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const queryClient = useQueryClient();
 
   const [
@@ -731,6 +734,14 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
+    };
+  }, [refetchTimeout]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -2278,7 +2289,14 @@ const HostDetailsPage = ({
             platform={host.platform}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             connectedToFleet={host.mdm.connected_to_fleet}
-            onSuccessfulCheckIn={refetchHostDetails}
+            onSuccessfulCheckIn={() => {
+              // Delay the refetch of the host details
+              // so the device has time to check in.
+              const timeout = setTimeout(() => {
+                refetchHostDetails();
+              }, 5000);
+              setRefetchTimeout(timeout);
+            }}
             user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}
