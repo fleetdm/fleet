@@ -21,7 +21,10 @@ const powerShellTimeout = 30 * time.Second
 
 // Show posts the toast for the logged-in user. It must run in the user's session, so Fleet Desktop calls it, not orbit.
 func Show(n Notification) error {
-	env, err := showEnv(n, appID())
+	if !appIDRegistered() {
+		return ErrAppIDNotRegistered
+	}
+	env, err := showEnv(n)
 	if err != nil {
 		return err
 	}
@@ -30,6 +33,10 @@ func Show(n Notification) error {
 
 // Remove clears the toast with this tag and group from Notification Center.
 func Remove(tag, group string) error {
+	if !appIDRegistered() {
+		// Nothing was ever posted, because Show refuses without the identity.
+		return nil
+	}
 	return runPowerShell(removeScript, removeEnv(tag, group))
 }
 
@@ -65,15 +72,15 @@ func RegisterFleetDesktopAppID(iconPath string, icon []byte) error {
 
 const appIDKeyPath = `Software\Classes\AppUserModelId\` + FleetDesktopAppID
 
-// appID picks Fleet Desktop's AppUserModelID when orbit has registered it. A toast posted under an AppUserModelID Windows
-// does not know may never appear, so the fallback is one that always exists.
-func appID() string {
+// appIDRegistered reports whether orbit has registered Fleet Desktop's AppUserModelID. An orbit without
+// RegisterFleetDesktopAppID can run next to a Fleet Desktop that has it, because the two update independently.
+func appIDRegistered() bool {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, appIDKeyPath, registry.QUERY_VALUE)
 	if err != nil {
-		return powerShellAppID
+		return false
 	}
 	k.Close()
-	return FleetDesktopAppID
+	return true
 }
 
 func runPowerShell(script string, env []string) error {

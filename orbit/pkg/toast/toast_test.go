@@ -52,7 +52,7 @@ func TestShowEnv(t *testing.T) {
 		ExpiresIn:     time.Hour,
 		SuppressPopup: true,
 	}
-	env, err := showEnv(n, FleetDesktopAppID)
+	env, err := showEnv(n)
 	require.NoError(t, err)
 	vars := envMap(t, env)
 
@@ -74,10 +74,9 @@ func TestRemoveEnv(t *testing.T) {
 
 	vars := envMap(t, removeEnv("bitlocker-pin", "fleet"))
 	require.Equal(t, map[string]string{
-		"FLEET_TOAST_TAG":             "bitlocker-pin",
-		"FLEET_TOAST_GROUP":           "fleet",
-		"FLEET_TOAST_APP_ID":          FleetDesktopAppID,
-		"FLEET_TOAST_FALLBACK_APP_ID": powerShellAppID,
+		"FLEET_TOAST_TAG":    "bitlocker-pin",
+		"FLEET_TOAST_GROUP":  "fleet",
+		"FLEET_TOAST_APP_ID": FleetDesktopAppID,
 	}, vars)
 	requireScriptReadsEnv(t, removeScript, vars)
 }

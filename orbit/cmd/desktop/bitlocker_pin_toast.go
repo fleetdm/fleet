@@ -114,7 +114,12 @@ func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 		SuppressPopup: !popup,
 	})
 	if err != nil {
-		log.Warn().Err(err).Msg("could not show the BitLocker PIN toast")
+		// An orbit too old to register the notification identity is expected during an upgrade, and it registers on its next start.
+		if errors.Is(err, toast.ErrAppIDNotRegistered) {
+			log.Debug().Msg("skipped the BitLocker PIN toast, orbit has not registered the notification identity")
+		} else {
+			log.Warn().Err(err).Msg("could not show the BitLocker PIN toast")
+		}
 		return
 	}
 	log.Info().Bool("popup", popup).Msg("posted the BitLocker PIN toast")

@@ -5,18 +5,19 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 	"unicode/utf16"
 )
 
-const (
-	// FleetDesktopAppID is the AppUserModelID orbit registers so toasts are labelled "Fleet Desktop" with its icon.
-	FleetDesktopAppID = "FleetDM.FleetDesktop"
-	// powerShellAppID is the built-in Windows PowerShell AppUserModelID, used when Fleet Desktop's is not registered.
-	powerShellAppID = `{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe`
-)
+// FleetDesktopAppID is the AppUserModelID orbit registers so toasts are labelled "Fleet Desktop" with its icon.
+const FleetDesktopAppID = "FleetDM.FleetDesktop"
+
+// ErrAppIDNotRegistered means orbit has not registered Fleet Desktop's AppUserModelID. Windows drops a toast posted under
+// one it does not know, and posting under another app's identity would attribute Fleet's prompt to that app.
+var ErrAppIDNotRegistered = errors.New("the Fleet Desktop notification identity is not registered")
 
 // Notification is a toast with a heading, a body, and one button that opens a URL.
 type Notification struct {
@@ -81,15 +82,12 @@ $toast.ExpirationTime = [DateTimeOffset]::Now.AddSeconds([int]$env:FLEET_TOAST_E
 $toast.SuppressPopup = $env:FLEET_TOAST_SUPPRESS_POPUP -eq 'true'
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:FLEET_TOAST_APP_ID).Show($toast)
 `
-	// removeScript clears the toast under both AppUserModelIDs, because orbit may have registered Fleet Desktop's
-	// between posting the toast and removing it.
-	removeScript = loadToastTypes + `$history = [Windows.UI.Notifications.ToastNotificationManager]::History
-$history.Remove($env:FLEET_TOAST_TAG, $env:FLEET_TOAST_GROUP, $env:FLEET_TOAST_APP_ID)
-$history.Remove($env:FLEET_TOAST_TAG, $env:FLEET_TOAST_GROUP, $env:FLEET_TOAST_FALLBACK_APP_ID)
+	removeScript = loadToastTypes + `[Windows.UI.Notifications.ToastNotificationManager]::History.Remove(
+	$env:FLEET_TOAST_TAG, $env:FLEET_TOAST_GROUP, $env:FLEET_TOAST_APP_ID)
 `
 )
 
-func showEnv(n Notification, appID string) ([]string, error) {
+func showEnv(n Notification) ([]string, error) {
 	payload, err := n.xml()
 	if err != nil {
 		return nil, err
@@ -100,7 +98,7 @@ func showEnv(n Notification, appID string) ([]string, error) {
 		"FLEET_TOAST_GROUP=" + n.Group,
 		"FLEET_TOAST_EXPIRES_SECONDS=" + strconv.Itoa(int(n.ExpiresIn.Seconds())),
 		"FLEET_TOAST_SUPPRESS_POPUP=" + strconv.FormatBool(n.SuppressPopup),
-		"FLEET_TOAST_APP_ID=" + appID,
+		"FLEET_TOAST_APP_ID=" + FleetDesktopAppID,
 	}, nil
 }
 
@@ -109,7 +107,6 @@ func removeEnv(tag, group string) []string {
 		"FLEET_TOAST_TAG=" + tag,
 		"FLEET_TOAST_GROUP=" + group,
 		"FLEET_TOAST_APP_ID=" + FleetDesktopAppID,
-		"FLEET_TOAST_FALLBACK_APP_ID=" + powerShellAppID,
 	}
 }
 
