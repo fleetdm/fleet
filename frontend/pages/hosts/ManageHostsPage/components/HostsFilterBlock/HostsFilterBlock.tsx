@@ -698,7 +698,8 @@ const HostsFilterBlock = ({
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
-        // (label + mdm solution) OR (label + mdm enrollment status)
+        // (label + mdm solution) OR (label + mdm enrollment status) OR
+        // (label + os settings) OR (label + disk encryption)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -722,6 +723,12 @@ const HostsFilterBlock = ({
           return (
             <>
               {renderLabelFilterPill()} {renderOsSettingsBlock()}
+            </>
+          );
+        case showSelectedLabel && !!diskEncryptionStatus:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
             </>
           );
         case showSelectedLabel:

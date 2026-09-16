@@ -87,6 +87,7 @@ import {
   isIPhone,
   isIPad,
   isRecentlyEnrolled,
+  isMismatchedSSOUserError,
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
@@ -1058,6 +1059,11 @@ const DeviceUserPage = ({
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
+          ssoError={
+            isMismatchedSSOUserError(dupDetailsError)
+              ? "mismatched_sso_user"
+              : undefined
+          }
         />
       );
     }

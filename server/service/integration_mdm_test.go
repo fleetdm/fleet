@@ -24910,11 +24910,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host from a team the technician does not manage to
-	// a team they do manage (no team -> t1), should fail.
+	// a team they do manage (no team -> t1), should fail. The technician can't
+	// read the "No team" host, so it's reported as not found rather than
+	// forbidden to avoid confirming its existence.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &t1.ID,
 		HostIDs: []uint{globalHost.ID},
-	}, http.StatusForbidden, &addHostsToTeamResponse{})
+	}, http.StatusNotFound, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host out of a team the technician manages to
 	// "No team" (a team they do not manage), should fail.

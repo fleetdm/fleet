@@ -19,7 +19,7 @@ type PaddingSize =
 
 interface ICardProps {
   children?: React.ReactNode;
-  /** The size of the border radius. Defaults to `small`.
+  /** The size of the border radius. Defaults to `large`.
    *
    * These correspond to the border radius in the design system. Look at
    * `var/_global.scss` for values */
@@ -49,7 +49,7 @@ interface ICardProps {
  */
 const Card = ({
   children,
-  borderRadiusSize = "small",
+  borderRadiusSize = "large",
   includeShadow = false,
   color = "white",
   className,

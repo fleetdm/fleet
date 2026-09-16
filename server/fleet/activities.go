@@ -419,6 +419,7 @@ type ActivityTypeChangedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	Role      string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserGlobalRole) ActivityName() string {
@@ -430,6 +431,7 @@ type ActivityTypeDeletedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	OldRole   string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserGlobalRole) ActivityName() string {
@@ -443,6 +445,7 @@ type ActivityTypeChangedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
@@ -456,6 +459,7 @@ type ActivityTypeDeletedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
@@ -1455,8 +1459,9 @@ func (a ActivityTypeDeletedOrgLogo) ActivityName() string {
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
+// If jit is true, the activities are marked as originating from JIT (just-in-time) SSO provisioning.
 func LogRoleChangeActivities(
-	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User, jit bool,
 ) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
 		if err := svc.NewActivity(
@@ -1467,6 +1472,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				Role:      *user.GlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1481,6 +1487,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				OldRole:   *oldGlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1508,6 +1515,7 @@ func LogRoleChangeActivities(
 				Role:      t.Role,
 				TeamID:    t.ID,
 				TeamName:  t.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1527,6 +1535,7 @@ func LogRoleChangeActivities(
 				Role:      o.Role,
 				TeamID:    o.ID,
 				TeamName:  o.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
