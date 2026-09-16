@@ -728,6 +728,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Appends rather than returning early; errors surface at the validation gate below.
+	validateCertificateRequestIdentityControlsLicense(newAppConfig.Integrations, lic, invalid)
+
 	// Google Workspace IdP is a premium-only feature.
 	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
 		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
@@ -1081,6 +1084,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
 	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
+	fleet.ValidateCertIdPIntrospectionAllowlists(&appConfig.Integrations, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -1973,6 +1977,21 @@ func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesk
 		return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 	}
 	return nil
+}
+
+// validateCertificateRequestIdentityControlsLicense premium-gates the request_certificate IdP
+// allowlists, consistently with the endpoint itself. Disabling the host binding is a relaxation,
+// not a licensed feature, so it is not gated.
+func validateCertificateRequestIdentityControlsLicense(intgs fleet.Integrations, lic *fleet.LicenseInfo, invalid *fleet.InvalidArgumentError) {
+	if lic.IsPremium() {
+		return
+	}
+	if len(intgs.CertificatesIdPIntrospectionURLs.Value) > 0 {
+		invalid.Append("integrations.certificates_idp_introspection_urls", ErrMissingLicense.Error())
+	}
+	if len(intgs.CertificatesIdPClientIDs.Value) > 0 {
+		invalid.Append("integrations.certificates_idp_client_ids", ErrMissingLicense.Error())
+	}
 }
 
 func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
