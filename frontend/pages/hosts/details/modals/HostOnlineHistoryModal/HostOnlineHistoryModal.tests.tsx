@@ -163,7 +163,7 @@ describe("HostOnlineHistoryModal", () => {
       />
     );
 
-    await screen.findByText("No chart data available yet.");
+    await screen.findByText("No online history yet.");
   });
 
   it("shows a data error when the request fails", async () => {

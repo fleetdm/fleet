@@ -94,9 +94,7 @@ const HostOnlineHistoryModal = ({
     }
     if (!formattedData.length) {
       return (
-        <div className={`${baseClass}__no-data`}>
-          No chart data available yet.
-        </div>
+        <div className={`${baseClass}__no-data`}>No online history yet.</div>
       );
     }
     return (
