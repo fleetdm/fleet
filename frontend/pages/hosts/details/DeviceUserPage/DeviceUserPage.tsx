@@ -410,11 +410,12 @@ const DeviceUserPage = ({
   // closing the modal and reloading does not reopen it.
   const hasHandledCreatePINParam = useRef(false);
   useEffect(() => {
-    if (
-      !location.query.create_pin ||
-      !host ||
-      hasHandledCreatePINParam.current
-    ) {
+    if (!location.query.create_pin) {
+      // Removing the parameter below reruns this effect, and the guard has to lift so a later link is not ignored.
+      hasHandledCreatePINParam.current = false;
+      return;
+    }
+    if (!host || hasHandledCreatePINParam.current) {
       return;
     }
     hasHandledCreatePINParam.current = true;
@@ -430,7 +431,13 @@ const DeviceUserPage = ({
   }, [host, needsBitLockerPIN, location, router]);
 
   const pollHostDetails = useCallback(async () => {
-    return (await refetchDupDetails()).data;
+    // A failed refetch resolves rather than rejects, and leaves the last good data in place. Without this the caller
+    // would read a stale response as if it were fresh.
+    const { data, error } = await refetchDupDetails();
+    if (error) {
+      throw error;
+    }
+    return data;
   }, [refetchDupDetails]);
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";

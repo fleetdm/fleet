@@ -4,7 +4,7 @@ import React from "react";
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
-import { IDUPDetails, IHostDevice } from "interfaces/host";
+import { IDUPDetails, IHostDevice, IOSSettings } from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import deviceUserAPI, {
@@ -1014,5 +1014,85 @@ describe("Device User Page - Linux disk encryption key escrow", () => {
     });
     expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
     expect(screen.queryByText(/already asking/i)).toBeNull();
+  });
+});
+
+describe("BitLocker PIN deep link", () => {
+  const windowsHostNeedingPIN = (
+    diskEncryption: IOSSettings["disk_encryption"]
+  ) => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "windows";
+    host.mdm.enrollment_status = "On (manual)";
+    host.mdm.connected_to_fleet = true;
+    host.mdm.os_settings = {
+      certificates: [],
+      disk_encryption: diskEncryption,
+    };
+    return host;
+  };
+
+  const renderWithCreatePINLink = async (host: IHostDevice) => {
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={router}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: "/device/testToken",
+          query: { ...mockLocation.query, create_pin: "1" },
+        }}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    return router;
+  };
+
+  it("opens the Create PIN form and drops only its own parameter", async () => {
+    const router = await renderWithCreatePINLink(
+      windowsHostNeedingPIN({
+        status: "action_required",
+        detail: "",
+        action_required: "create_pin",
+        fleetd_can_set_pin: true,
+      })
+    );
+
+    expect(await screen.findByLabelText("BitLocker PIN")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith("/device/testToken");
+    });
+  });
+
+  it("opens the instructions when the host's fleetd cannot be handed a PIN", async () => {
+    await renderWithCreatePINLink(
+      windowsHostNeedingPIN({
+        status: "action_required",
+        detail: "",
+        action_required: "create_pin",
+        fleetd_can_set_pin: false,
+      })
+    );
+
+    expect(
+      await screen.findByText(/Type .Manage BitLocker. and launch/)
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
+  });
+
+  it("ignores the parameter when the host does not need a PIN", async () => {
+    await renderWithCreatePINLink(
+      windowsHostNeedingPIN({ status: "verified", detail: "" })
+    );
+
+    expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
+    expect(screen.queryByText(/Type .Manage BitLocker. and launch/)).toBeNull();
   });
 });
