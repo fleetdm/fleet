@@ -45,16 +45,16 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload:
 
-- For the `Challenge` key / value, use `$FLEET_VAR_NDES_SCEP_CHALLENGE` (See: Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables))
+- For the `Challenge` key / value, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. (See: Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables))
 - Key usage & size: (See: Apple's [SCEP.PayloadContent](https://developer.apple.com/documentation/devicemanagement/scep/payloadcontent-data.dictionary))
   - determine the type of certificate delivered
     - 1 = digital signature
     - 4 = encryption
     - 5 = both
   - determine the length of the encryption key
-- For the `CN` key / value, what's added is dependent on what the certificate will be used for. Using variables means that the certificates can be unique per host (See example below and Apple's [Use payload variables...](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation
-- For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
+- For the `CN` key / value, what's added is dependent on what the certificate will be used for. Using variables means that the certificates can be unique per host (See example below and Apple's [Use payload variables...](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation.
+- For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
+- For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
 
 Example:
 
@@ -126,7 +126,7 @@ Example:
 
 ### Step 4: Manage the CA configuration with GitOps
 
-1. In GitHub, open your Fleet GitOps repository, then go to to **Settings > Secrets and variables > Actions** then click the "New Repository Secret" button
+1. In GitHub, open your Fleet GitOps repository, then go to to **Settings > Secrets and variables > Actions** then click the "New Repository Secret" button.
 
 2. Populate the Name field with your variable name, e.g., FLEET_OKTA_CA_NDES_PASSWORD and populate the Secret field with the Okta CA password created in Step 1.
 
