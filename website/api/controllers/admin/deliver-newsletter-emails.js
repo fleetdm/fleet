@@ -67,6 +67,7 @@ module.exports = {
           subject: emailSubject,
           layout: 'layout-email-newsletter',
           template: emailTemplateName,
+          categories: ['newsletter'],
           templateData: {
             emailAddress: newsletterSubscriber.emailAddress,// Used to build the unsubscribe link.
           },
@@ -92,6 +93,7 @@ module.exports = {
         fromName: 'Fleet newsletter',
         subject: emailSubject,
         layout: 'layout-email-newsletter',
+        categories: ['newsletter'],
         template: emailTemplateName,
         templateData: {
           emailAddress: this.req.me.emailAddress,// Used to build the unsubscribe link.
@@ -99,7 +101,6 @@ module.exports = {
         ensureAck: true,
       });
     }
-    // }
 
 
     // All done.
