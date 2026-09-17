@@ -1,4 +1,6 @@
 import createMockUser from "__mocks__/userMock";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import { IEndUserAuthentication } from "interfaces/config";
 
 import permissions from ".";
 
@@ -234,5 +236,50 @@ describe("permissions - canDownloadSoftwareInstaller", () => {
       teams: [{ id: TEAM_ID, name: "Team 1", role }],
     });
     expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+});
+
+describe("permissions - isEndUserIdPConfigured", () => {
+  const configWithIdP = (idp?: Partial<IEndUserAuthentication>) =>
+    createMockConfig({
+      mdm: createMockMdmConfig({
+        end_user_authentication: {
+          entity_id: "https://fleet.example.com",
+          idp_name: "Okta",
+          metadata: "",
+          metadata_url: "https://idp.example.com/metadata",
+          issuer_uri: "",
+          ...idp,
+        },
+      }),
+    });
+
+  it("accepts an IdP with a metadata URL", () => {
+    expect(permissions.isEndUserIdPConfigured(configWithIdP())).toBe(true);
+  });
+
+  it("accepts an IdP with inline metadata instead of a URL", () => {
+    expect(
+      permissions.isEndUserIdPConfigured(
+        configWithIdP({ metadata: "<EntityDescriptor />", metadata_url: "" })
+      )
+    ).toBe(true);
+  });
+
+  it.each([
+    ["neither metadata nor a metadata URL", { metadata: "", metadata_url: "" }],
+    ["no entity ID", { entity_id: "" }],
+    ["no IdP name", { idp_name: "" }],
+  ] as [string, Partial<IEndUserAuthentication>][])(
+    "rejects an IdP with %s",
+    (_label, idp) => {
+      expect(permissions.isEndUserIdPConfigured(configWithIdP(idp))).toBe(
+        false
+      );
+    }
+  );
+
+  it("rejects an unconfigured IdP", () => {
+    expect(permissions.isEndUserIdPConfigured(createMockConfig())).toBe(false);
   });
 });

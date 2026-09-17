@@ -4,12 +4,11 @@ import { IMunkiIssue } from "interfaces/host";
 
 import TableContainer from "components/TableContainer";
 import EmptyState from "components/EmptyState";
-import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 
 import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
-const baseClass = "munki-issues-card";
+const baseClass = "munki-issues-section";
 
 interface IMunkiIssuesTableProps {
   isLoading: boolean;
@@ -23,7 +22,7 @@ const MunkiIssuesTable = ({
   deviceType,
 }: IMunkiIssuesTableProps): JSX.Element => {
   return (
-    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+    <div className={baseClass}>
       <CardHeader header="Munki issues" />
       <div className={deviceType || ""}>
         <TableContainer
@@ -44,7 +43,7 @@ const MunkiIssuesTable = ({
           isClientSidePagination
         />
       </div>
-    </Card>
+    </div>
   );
 };
 export default MunkiIssuesTable;

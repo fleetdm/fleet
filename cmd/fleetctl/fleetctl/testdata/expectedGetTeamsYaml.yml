@@ -60,8 +60,8 @@ spec:
       windows_settings:
         configuration_profiles: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -130,8 +130,8 @@ spec:
       windows_settings:
         custom_settings: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -213,8 +213,8 @@ spec:
       windows_settings:
         configuration_profiles: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
@@ -292,8 +292,8 @@ spec:
       windows_settings:
         custom_settings: null
         enable_disk_encryption: false
-        managed_local_account_settings:
-          enabled: false
+        enable_managed_local_account: false
+        require_bitlocker_pin: false
       windows_updates:
         deadline_days: 7
         grace_period_days: 3

@@ -1,0 +1,1 @@
+- Added a QR code for the enrollment link on the Android and iOS/iPadOS tabs of the **Add hosts** modal, so the enrollment flow can be started by scanning instead of copying the link to a device.

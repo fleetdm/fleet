@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
@@ -47,6 +48,10 @@ const EmptyUsersTable = () => (
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
 );
+
+interface IRowProps extends Row {
+  original: IUserTableData;
+}
 
 interface IUsersTableProps {
   router: InjectedRouter; // v3
@@ -121,16 +126,27 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
+  const goToEditUser = useCallback(
+    (user: IUserTableData) => {
+      if (user.type === "user" && user.apiId === currentUser?.id) {
+        router.push(PATHS.ACCOUNT);
+        return;
+      }
+      const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
+      router.push(
+        user.type === "invite" ? `${editPath}?type=invite` : editPath
+      );
+    },
+    [router, currentUser?.id]
+  );
+
   const onActionSelect = useCallback(
     (value: string, user: IUserTableData) => {
       switch (value) {
-        case "edit": {
-          const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
-          router.push(
-            user.type === "invite" ? `${editPath}?type=invite` : editPath
-          );
+        case "edit":
+        case "editMyAccount":
+          goToEditUser(user);
           break;
-        }
         case "delete":
           toggleDeleteUserModal(user);
           break;
@@ -140,16 +156,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         case "resetSessions":
           toggleResetSessionsUserModal(user);
           break;
-        case "editMyAccount":
-          router.push(PATHS.ACCOUNT);
-          break;
         default:
           return null;
       }
       return null;
     },
     [
-      router,
+      goToEditUser,
       toggleDeleteUserModal,
       toggleResetPasswordUserModal,
       toggleResetSessionsUserModal,
@@ -347,6 +360,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           isAllPagesSelected={false}
           isClientSidePagination
           renderCount={renderUsersCount}
+          disableMultiRowSelect
+          onClickRow={(row: IRowProps) => goToEditUser(row.original)}
         />
       )}
       {showDeleteUserModal && renderDeleteUserModal()}

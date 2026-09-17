@@ -1,0 +1,1 @@
+- Fixed the error toast shown when selecting a custom package with an unsupported extension so the friendly message stays on the main line and the extension reason appears in the expandable raw-response panel.

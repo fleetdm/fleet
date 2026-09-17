@@ -1,1 +1,0 @@
-* Reduced database load when software installed-path updates hit lock contention: the transaction now fails fast instead of retrying, and the host's next software report reconciles the paths.

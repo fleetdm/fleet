@@ -17,7 +17,7 @@ import LastUpdatedText from "components/LastUpdatedText";
 
 import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig";
 
-const DEFAULT_SORT_HEADER = "version";
+const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_PAGE_SIZE = 10;
 

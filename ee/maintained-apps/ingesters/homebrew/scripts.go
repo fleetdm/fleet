@@ -180,6 +180,8 @@ const (
 // higher priority
 func uninstallArtifactOrder(artifact *brewUninstall) int {
 	switch {
+	case len(artifact.EarlyScript.String)+len(artifact.EarlyScript.Other) > 0:
+		return PriorityEarlyScript
 	case len(artifact.LaunchCtl.String)+len(artifact.LaunchCtl.Other) > 0:
 		return PriorityLaunchctl
 	case len(artifact.Quit.String)+len(artifact.Quit.Other) > 0:
@@ -290,6 +292,90 @@ func heredocInert(s string) bool {
 	return !slices.Contains(strings.Split(s, "\n"), "EOF")
 }
 
+// processScript writes a cask "script"/"early_script" uninstall directive. Both
+// take the same shape, so they share this; the caller decides the order.
+func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, addUserVar func()) {
+	if script.IsOther {
+		// for supported FMAs, this is a map with "executable" as the script path,
+		// optional "args" array, optional "sudo" boolean, and optional "must_succeed" boolean
+		executable, ok := script.Other["executable"].(string)
+		if !ok {
+			panic("executable not found or not a string in script")
+		}
+
+		// Build the command with arguments if present
+		var cmdParts []string
+		cmdParts = append(cmdParts, shellSingleQuote(executable))
+
+		// Handle args if present
+		if argsVal, hasArgs := script.Other["args"]; hasArgs {
+			args, ok := argsVal.([]interface{})
+			if !ok {
+				panic("args must be an array in script")
+			}
+			for _, arg := range args {
+				argStr, ok := arg.(string)
+				if !ok {
+					panic("all args must be strings")
+				}
+				cmdParts = append(cmdParts, shellSingleQuote(argStr))
+			}
+		}
+
+		// Paths under the Caskroom only exist where Homebrew installed the app, so
+		// the directive can't do anything on a Fleet-managed host (same reason the
+		// binary artifact skips them).
+		if strings.Contains(executable, "$HOMEBREW_PREFIX") ||
+			slices.ContainsFunc(cmdParts, func(p string) bool { return strings.Contains(p, "$HOMEBREW_PREFIX") }) {
+			return
+		}
+
+		addUserVar()
+
+		cmd := strings.Join(cmdParts, " ")
+
+		// Handle must_succeed - if false, we can ignore errors
+		mustSucceed := true
+		if mustSucceedVal, hasMustSucceed := script.Other["must_succeed"]; hasMustSucceed {
+			if ms, ok := mustSucceedVal.(bool); ok {
+				mustSucceed = ms
+			}
+		}
+
+		// Handle sudo - check if sudo is required (defaults to false if not specified)
+		needsSudo := false
+		if sudoVal, hasSudo := script.Other["sudo"]; hasSudo {
+			if sudo, ok := sudoVal.(bool); ok && sudo {
+				needsSudo = true
+			}
+		}
+
+		// Build the command execution
+		if needsSudo {
+			if mustSucceed {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s)`, cmd)
+			} else {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s) || true`, cmd)
+			}
+		} else {
+			if mustSucceed {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s)`, cmd)
+			} else {
+				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s) || true`, cmd)
+			}
+		}
+	} else if len(script.String) > 0 {
+		if strings.Contains(script.String, "$HOMEBREW_PREFIX") {
+			return
+		}
+		addUserVar()
+		// Quote via shellSingleQuote rather than a bare '%s': the cask-controlled
+		// value could otherwise close the quote with an embedded apostrophe and
+		// inject commands.
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" %s)`, shellSingleQuote(script.String))
+	}
+}
+
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
@@ -326,73 +412,10 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		sb.Writef(`send_signal %s %s "$LOGGED_IN_USER"`, shellSingleQuote(u.Signal.Other[0]), shellSingleQuote(u.Signal.Other[1]))
 	}
 
-	if u.Script.IsOther {
-		// for supported FMAs, this is a map with "executable" as the script path,
-		// optional "args" array, optional "sudo" boolean, and optional "must_succeed" boolean
-		addUserVar()
-		executable, ok := u.Script.Other["executable"].(string)
-		if !ok {
-			panic("executable not found or not a string in script")
-		}
-
-		// Build the command with arguments if present
-		var cmdParts []string
-		cmdParts = append(cmdParts, shellSingleQuote(executable))
-
-		// Handle args if present
-		if argsVal, hasArgs := u.Script.Other["args"]; hasArgs {
-			args, ok := argsVal.([]interface{})
-			if !ok {
-				panic("args must be an array in script")
-			}
-			for _, arg := range args {
-				argStr, ok := arg.(string)
-				if !ok {
-					panic("all args must be strings")
-				}
-				cmdParts = append(cmdParts, shellSingleQuote(argStr))
-			}
-		}
-
-		cmd := strings.Join(cmdParts, " ")
-
-		// Handle must_succeed - if false, we can ignore errors
-		mustSucceed := true
-		if mustSucceedVal, hasMustSucceed := u.Script.Other["must_succeed"]; hasMustSucceed {
-			if ms, ok := mustSucceedVal.(bool); ok {
-				mustSucceed = ms
-			}
-		}
-
-		// Handle sudo - check if sudo is required (defaults to false if not specified)
-		needsSudo := false
-		if sudoVal, hasSudo := u.Script.Other["sudo"]; hasSudo {
-			if sudo, ok := sudoVal.(bool); ok && sudo {
-				needsSudo = true
-			}
-		}
-
-		// Build the command execution
-		if needsSudo {
-			if mustSucceed {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s)`, cmd)
-			} else {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s) || true`, cmd)
-			}
-		} else {
-			if mustSucceed {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s)`, cmd)
-			} else {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s) || true`, cmd)
-			}
-		}
-	} else if len(u.Script.String) > 0 {
-		addUserVar()
-		// Quote via shellSingleQuote rather than a bare '%s': the cask-controlled
-		// value could otherwise close the quote with an embedded apostrophe and
-		// inject commands.
-		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" %s)`, shellSingleQuote(u.Script.String))
-	}
+	// brew runs early_script ahead of every other directive; keep that order so
+	// the commands that make removal possible run before anything is removed.
+	processScript(u.EarlyScript, sb, addUserVar)
+	processScript(u.Script, sb, addUserVar)
 
 	process(u.PkgUtil, func(pkgID string) {
 		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)

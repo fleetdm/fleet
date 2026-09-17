@@ -140,13 +140,15 @@ const EmptyState = ({
       </div>
       <div className={`${baseClass}__content-wrapper`}>
         <div className={`${baseClass}__content`}>
-          {header && <h3>{header}</h3>}
-          {info && <div className={`${baseClass}__info`}>{info}</div>}
-          {additionalInfo && (
-            <div className={`${baseClass}__additional-info`}>
-              {additionalInfo}
-            </div>
-          )}
+          <div className={`${baseClass}__content-text`}>
+            {header && <h3>{header}</h3>}
+            {info && <div className={`${baseClass}__info`}>{info}</div>}
+            {additionalInfo && (
+              <div className={`${baseClass}__additional-info`}>
+                {additionalInfo}
+              </div>
+            )}
+          </div>
           {(primaryButton || secondaryButton) && (
             <div className={`${baseClass}__cta-buttons`}>
               {primaryButton}

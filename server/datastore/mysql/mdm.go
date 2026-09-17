@@ -1133,16 +1133,40 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 
 	switch {
 	case len(hostUUIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE uuid IN (?)`
-		args = append(args, hostUUIDs)
+		// Batched: a team transfer or bulk operation can pass more host
+		// identifiers than MySQL allows placeholders for in one statement. No
+		// dedupe needed here: a repeated identifier only costs a duplicate entry
+		// in androidHosts below, which the caller uses solely as a non-empty check.
+		if err := common_mysql.BatchProcessSimple(hostUUIDs, hostIDsFanoutBatchSize, func(batch []string) error {
+			inStmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE uuid IN (?)`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			var batchHosts []fleet.Host
+			if err := sqlx.SelectContext(ctx, tx, &batchHosts, inStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+			hosts = append(hosts, batchHosts...)
+			return nil
+		}); err != nil {
+			return updates, err
+		}
 
 	case len(hostIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE id IN (?)`
-		args = append(args, hostIDs)
+		if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+			inStmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE id IN (?)`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			var batchHosts []fleet.Host
+			if err := sqlx.SelectContext(ctx, tx, &batchHosts, inStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+			hosts = append(hosts, batchHosts...)
+			return nil
+		}); err != nil {
+			return updates, err
+		}
 
 	case len(teamIDs) > 0:
 		// TODO: if a very large number (~65K) of team IDs was provided, could
@@ -2060,15 +2084,12 @@ func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
 }
 
 func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityAssociation, error) {
-	// TODO(roberto): this is not good because we don't have any indexes on
-	// h.uuid, due to time constraints, I'm assuming that this
-	// function is called with a relatively low amount of shas
-	//
 	// Note that we use GROUP BY because we can't guarantee unique entries
 	// based on uuid in the hosts table.
 	stmt, args, err := sqlx.In(`
 SELECT
     h.uuid AS host_uuid,
+	hda.host_id IS NOT NULL AS dep_assigned_to_fleet,
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
     ne.enrolled_from_migration,
@@ -2079,7 +2100,8 @@ FROM (
         n1.id,
 	n1.sha256,
 	n1.cert_not_valid_after,
-	n1.renew_command_uuid
+	n1.renew_command_uuid,
+	n1.renewal_excluded_at
     FROM
         nano_cert_auth_associations n1
     WHERE
@@ -2102,12 +2124,15 @@ LEFT JOIN
     host_mdm hm ON hm.host_id = h.id
 LEFT JOIN
     nano_enrollments ne ON ne.id = ncaa.id
+LEFT JOIN
+	host_dep_assignments hda ON hda.host_id = h.id AND hda.deleted_at IS NULL
 WHERE
     ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
     AND ncaa.renew_command_uuid IS NULL
+    AND ncaa.renewal_excluded_at IS NULL
     AND ne.enabled = 1
 GROUP BY
-    host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
+    host_uuid, dep_assigned_to_fleet, ncaa.sha256, ncaa.cert_not_valid_after
 ORDER BY
     cert_not_valid_after ASC
 LIMIT ?`, expiryDays, limit)
@@ -2130,9 +2155,6 @@ func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs 
 		return []fleet.DeviceInfoForACMERenewal{}, nil
 	}
 
-	// TODO(mna): anyone knows what those TODOs (from Sarah's PRs) were for?
-	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
-	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information
 	stmt := `
 SELECT
 	h.uuid AS host_uuid,
@@ -2147,7 +2169,7 @@ FROM
 WHERE
 	h.uuid IN(?)
 	AND hda.deleted_at IS NULL
-	AND os.name = 'macOS'`
+	AND os.name IN ('macOS', 'iOS', 'iPadOS')`
 
 	stmt, args, err := sqlx.In(stmt, hostUUIDs)
 	if err != nil {

@@ -475,3 +475,25 @@ func TestValidateTitlePackages(t *testing.T) {
 		})
 	}
 }
+
+func TestHostSoftwareInstallOptionsIsFleetInitiated(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc string
+		opts HostSoftwareInstallOptions
+		want bool
+	}{
+		{"user-initiated", HostSoftwareInstallOptions{}, false},
+		{"self-service", HostSoftwareInstallOptions{SelfService: true}, false},
+		{"policy automation", HostSoftwareInstallOptions{PolicyID: new(uint(1))}, true},
+		{"scheduled updates", HostSoftwareInstallOptions{ForScheduledUpdates: true}, true},
+		{"setup experience", HostSoftwareInstallOptions{ForSetupExperience: true}, true},
+		{"self-service wins over setup experience", HostSoftwareInstallOptions{ForSetupExperience: true, SelfService: true}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			require.Equal(t, c.want, c.opts.IsFleetInitiated())
+		})
+	}
+}

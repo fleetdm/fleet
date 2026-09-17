@@ -564,7 +564,7 @@ const EditQueryForm = ({
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
             className="live-query-button-tooltip"
-            tipContent="Live reports are disabled in organization settings"
+            tipContent="Live reports are disabled in organization settings."
             disableTooltip={!disabledLiveQuery}
             position="top"
             showArrow
@@ -856,7 +856,7 @@ const EditQueryForm = ({
             )}
             <TooltipWrapper
               className="live-query-button-tooltip"
-              tipContent="Live reports are disabled in organization settings"
+              tipContent="Live reports are disabled in organization settings."
               disableTooltip={!disabledLiveQuery}
               position="top"
               showArrow

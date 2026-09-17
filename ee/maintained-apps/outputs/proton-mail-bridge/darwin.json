@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.25.0",
+      "version": "3.26.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.protonmail.bridge';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.protonmail.bridge' AND version_compare(bundle_short_version, '3.25.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.protonmail.bridge');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.protonmail.bridge' AND version_compare(bundle_short_version, '3.26.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.protonmail.bridge' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/ProtonMail/proton-bridge/releases/download/v3.25.0/Bridge-Installer.dmg",
+      "installer_url": "https://github.com/ProtonMail/proton-bridge/releases/download/v3.26.0/Bridge-Installer.dmg",
       "install_script_ref": "810c8aa5",
       "uninstall_script_ref": "c044941d",
-      "sha256": "fee7461131ab331f02106207a790044d356154f3c911e83746320d82f88be91a",
+      "sha256": "9f47cedf1e5a239c1c97083723a2b704677410719bc0c82f75e227fe89953884",
       "default_categories": [
         "Communication"
       ]

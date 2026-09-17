@@ -74,6 +74,26 @@ func (d *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 	return nil
 }
 
+// SetOrUpdateHostDisksEncryption invalidates by host ID after the inner write.
+func (d *Datastore) SetOrUpdateHostDisksEncryption(
+	ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int,
+) error {
+	if err := d.Datastore.SetOrUpdateHostDisksEncryption(ctx, hostID, encrypted, bitlockerProtectionStatus); err != nil {
+		return err
+	}
+	d.hostCacheDeleteByID(ctx, hostID, "update")
+	return nil
+}
+
+// SetOrUpdateHostDiskTpmPIN invalidates by host ID after the inner write.
+func (d *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
+	if err := d.Datastore.SetOrUpdateHostDiskTpmPIN(ctx, hostID, pinSet); err != nil {
+		return err
+	}
+	d.hostCacheDeleteByID(ctx, hostID, "update")
+	return nil
+}
+
 // EnrollOrbit invalidates for the returned host on successful enrollment. Orbit enrollment may create a new
 // hosts row or update an existing one's orbit_node_key + team_id; in either case the cached snapshot is stale.
 //
@@ -102,19 +122,31 @@ func (d *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnro
 	return host, nil
 }
 
-// AddHostsToTeam invalidates every host in the batch after a successful team
-// reassignment. Uses the pipelined batch invalidator (one MGET + one DEL per
-// Redis slot, chunked) rather than calling hostCacheDeleteByID in a loop —
-// that naive approach takes ~8 sequential Redis round-trips per host and at
-// 10k hosts × ~1 ms RTT adds ~80 s to the API call. The batched version is
-// O(slots × chunks) and stays synchronous on return.
+// AddHostsToTeam patches team_id on every cached host in the batch after a
+// successful team reassignment, keeping each entry's existing expiry (see
+// rewriteTeamOnHostIDs for why patching beats invalidating here).
 func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	if err := d.Datastore.AddHostsToTeam(ctx, params); err != nil {
 		return err
 	}
 	if params != nil {
-		d.invalidateHostIDs(ctx, params.HostIDs, "team")
+		d.rewriteTeamOnHostIDs(ctx, params.HostIDs, params.TeamID)
 	}
+	return nil
+}
+
+// DeleteTeam collects the team's host IDs before the inner delete (which
+// NULLs hosts.team_id via FK cascade), then invalidates their cached
+// snapshots so subsequent config requests load from MySQL.
+func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
+	hostIDs, err := d.Datastore.HostIDsByTeamID(ctx, tid)
+	if err != nil {
+		return err
+	}
+	if err := d.Datastore.DeleteTeam(ctx, tid); err != nil {
+		return err
+	}
+	d.invalidateHostIDs(ctx, hostIDs, "team")
 	return nil
 }
 

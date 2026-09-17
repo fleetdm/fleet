@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -275,6 +276,56 @@ func HostUUIDForSetupExperience(host *Host) (string, error) {
 		return "", errors.New("missing osquery_host_id")
 	}
 	return *host.OsqueryHostID, nil
+}
+
+// HostIsInSetupExperience reports whether the host is still working through
+// setup experience.
+func HostIsInSetupExperience(ctx context.Context, ds Datastore, host *Host) (bool, error) {
+	switch {
+	case host.Platform == string(MacOSPlatform):
+		inSetupExperience, err := ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+		if err != nil && !IsNotFound(err) {
+			return false, fmt.Errorf("check if host is in setup experience: %w", err)
+		}
+		return inSetupExperience, nil
+
+	case IsLinux(host.Platform) || host.Platform == "windows":
+		hostUUID, err := HostUUIDForSetupExperience(host)
+		if err != nil {
+			return false, fmt.Errorf("get host's UUID for the setup experience: %w", err)
+		}
+		var teamID uint
+		if host.TeamID != nil {
+			teamID = *host.TeamID
+		}
+		inSetupExperience, err := hasSetupExperiencePendingOrRunningItems(ctx, ds, hostUUID, teamID)
+		if err != nil && !IsNotFound(err) {
+			return false, fmt.Errorf("check setup experience pending or running items: %w", err)
+		}
+		return inSetupExperience, nil
+
+	default:
+		return false, nil
+	}
+}
+
+func hasSetupExperiencePendingOrRunningItems(ctx context.Context, ds Datastore, hostUUID string, teamID uint) (bool, error) {
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
+	if err != nil {
+		return false, fmt.Errorf("retrieving setup experience results: %w", err)
+	}
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return false, fmt.Errorf("invalid row: %w", err)
+		}
+
+		switch status.Status {
+		case SetupExperienceStatusPending, SetupExperienceStatusRunning:
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 type SetupExperienceCount struct {

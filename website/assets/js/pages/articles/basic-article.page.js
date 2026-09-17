@@ -103,11 +103,17 @@ parasails.registerPage('basic-article', {
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
         container: '#docsearch-query',
-        placeholder: 'Search',
+        placeholder: 'Search articles',
         debug: false,
         clickAnalytics: true,
         searchParameters: {
           facetFilters: ['section:articles']
+        },
+        translations: {
+          button: {
+            buttonText: 'Search articles',
+            buttonAriaLabel: 'Search articles',
+          },
         },
       });
       // For mobile search
@@ -116,11 +122,17 @@ parasails.registerPage('basic-article', {
         apiKey: this.algoliaPublicKey,
         indexName: 'fleetdm',
         container: '#mobile-docsearch',
-        placeholder: 'Search',
+        placeholder: 'Search articles',
         debug: false,
         clickAnalytics: true,
         searchParameters: {
           facetFilters: ['section:articles']
+        },
+        translations: {
+          button: {
+            buttonText: 'Search articles',
+            buttonAriaLabel: 'Search articles',
+          },
         },
       });
     }

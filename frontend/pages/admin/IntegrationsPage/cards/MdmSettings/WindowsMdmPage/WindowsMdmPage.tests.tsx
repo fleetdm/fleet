@@ -82,7 +82,7 @@ describe("WindowsMdmPage", () => {
       windows_enabled_and_configured: true,
       enable_turn_on_windows_mdm_manually: false,
       windows_entra_tenant_ids: ["tenant-1"],
-      windows_enrollment: { default_fleet: "Workstations" },
+      windows_automatic_enrollment: { default_fleet: "Workstations" },
     });
 
     // Turning programmatic enrollment off also forces auto migration off.
@@ -94,7 +94,7 @@ describe("WindowsMdmPage", () => {
         windows_enabled_and_configured: true,
         enable_turn_on_windows_mdm_manually: true,
         windows_migration_enabled: false,
-        windows_enrollment: { default_fleet: "Workstations" },
+        windows_automatic_enrollment: { default_fleet: "Workstations" },
       },
       true
     );

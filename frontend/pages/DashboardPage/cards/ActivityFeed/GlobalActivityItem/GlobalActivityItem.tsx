@@ -415,11 +415,27 @@ const TAGGED_TEMPLATES = {
     const { mdm_platform, platform = "", host_display_name, host_serial } =
       activity.details || {};
 
+    const enrollmentTypeText = activity.details?.installed_from_dep
+      ? "automatic"
+      : "manual";
+    // Skip the serial suffix if the display name already ends with " (serial)"
+    // (the "Model (Serial)" fallback format from fleet.HostDisplayName).
+    const showSerial =
+      !!host_display_name &&
+      !!host_serial &&
+      !host_display_name.endsWith(`(${host_serial})`);
+    const serialSuffix = showSerial ? ` (${host_serial})` : "";
+
     if (mdm_platform === "microsoft") {
       return (
         <>
           <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
-          turned on for <b>{activity.details?.host_display_name} (manual)</b>.
+          turned on for{" "}
+          <b>
+            {host_display_name || host_serial || "a host"}
+            {serialSuffix} ({enrollmentTypeText})
+          </b>
+          .
         </>
       );
     }
@@ -434,24 +450,10 @@ const TAGGED_TEMPLATES = {
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
-    let enrollmentTypeText = "";
-    if (activity.details?.installed_from_dep) {
-      enrollmentTypeText = "automatic";
-    } else {
-      enrollmentTypeText = "manual";
-    }
-
     const hostDisplayText = host_display_name || host_serial;
     const hostDisplayPrefixText = host_display_name
       ? ""
       : "a host with serial number ";
-    // Skip the serial suffix if the display name already ends with " (serial)"
-    // (the "Model (Serial)" fallback format from fleet.HostDisplayName).
-    const showSerial =
-      !!host_display_name &&
-      !!host_serial &&
-      !host_display_name.endsWith(`(${host_serial})`);
-    const serialSuffix = showSerial ? ` (${host_serial})` : "";
 
     return (
       <>
@@ -911,6 +913,27 @@ const TAGGED_TEMPLATES = {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
+  editedDiskEncryptionSettings: (activity: IActivity) => {
+    // this activity's platform detail is "macos" | "windows" | "linux" — the
+    // settings-key naming, not the osquery-style "darwin" of other activities
+    const platform = activity.details?.platform as string | undefined;
+    const displayNames: Record<string, string> = {
+      macos: "macOS",
+      windows: "Windows",
+      linux: "Linux",
+    };
+    // an unexpected value renders as-is and a missing one as "unknown", so
+    // either degrades visibly rather than leaving a gap in the sentence
+    const platformDisplay = platform
+      ? displayNames[platform] ?? platform
+      : "unknown";
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
+    return (
+      <>
+        edited disk encryption settings for {platformDisplay} hosts{suffix}.
+      </>
+    );
+  },
   enabledRecoveryLockPasswords: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
@@ -1102,6 +1125,8 @@ const TAGGED_TEMPLATES = {
   },
   enabledGitOpsMode: () => "enabled GitOps mode in the UI.",
   disabledGitOpsMode: () => "disabled GitOps mode in the UI.",
+  ssoFleetDesktop: (state: string) =>
+    `${state} single sign-on (SSO) for Fleet Desktop.`,
   enabledGitOpsException: (activity: IActivity) => {
     const exception = activity.details?.exception ?? "";
     return `enabled the ${exception} exception for GitOps.`;
@@ -2033,6 +2058,48 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resetPolicy: (activity: IActivity) => {
+    // A host-scoped reset is described by the host; the policy's fleet scope
+    // ("globally", "on the X fleet") would read as if all hosts were reset.
+    if (activity.details?.host_display_name) {
+      return (
+        <>
+          {" "}
+          reset the policy <b>{activity.details.policy_name}</b> for host{" "}
+          <b>{activity.details.host_display_name}</b>.
+        </>
+      );
+    }
+
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>Unassigned</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> fleet
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        reset the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
   escrowedDiskEncryptionKey: (activity: IActivity) => {
     return (
       <>
@@ -2268,7 +2335,7 @@ const TAGGED_TEMPLATES = {
     ) : (
       <></>
     );
-    return <>edited enroll secret{postFix}.</>;
+    return <>edited enroll secrets{postFix}.</>;
   },
   addedMicrosoftEntraTenant: (activity: IActivity) => {
     const tenantId = activity.details?.tenant_id;
@@ -2331,6 +2398,12 @@ const TAGGED_TEMPLATES = {
         Business.
       </>
     );
+  },
+  enabledOnlyAppleBusinessEnrollment: () => {
+    return <>enabled Apple Business only enrollment for Apple hosts.</>;
+  },
+  disabledOnlyAppleBusinessEnrollment: () => {
+    return <>disabled Apple Business only enrollment for Apple hosts.</>;
   },
 };
 
@@ -2524,6 +2597,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
+    case ActivityType.EditedDiskEncryptionSettings: {
+      return TAGGED_TEMPLATES.editedDiskEncryptionSettings(activity);
+    }
     case ActivityType.EnabledRecoveryLockPasswords: {
       return TAGGED_TEMPLATES.enabledRecoveryLockPasswords(activity);
     }
@@ -2568,6 +2644,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledGitOpsMode: {
       return TAGGED_TEMPLATES.disabledGitOpsMode();
+    }
+    case ActivityType.EnabledSSOFleetDesktop: {
+      return TAGGED_TEMPLATES.ssoFleetDesktop("enabled");
+    }
+    case ActivityType.DisabledSSOFleetDesktop: {
+      return TAGGED_TEMPLATES.ssoFleetDesktop("disabled");
     }
     case ActivityType.EnabledGitOpsException: {
       return TAGGED_TEMPLATES.enabledGitOpsException(activity);
@@ -2777,6 +2859,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
+    case ActivityType.ResetPolicy: {
+      return TAGGED_TEMPLATES.resetPolicy(activity);
+    }
     case ActivityType.CreatedLabel: {
       return TAGGED_TEMPLATES.createdLabel(activity);
     }
@@ -2858,6 +2943,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
+    case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
+      return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
+    }
+    case ActivityType.DisabledAppleBusinessOnlyEnrollment: {
+      return TAGGED_TEMPLATES.disabledOnlyAppleBusinessEnrollment();
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -2901,7 +2992,17 @@ const GlobalActivityItem = ({
         // Self-service activities render as a passive-voice sentence in the
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
-        return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+        if (activity.details?.self_service) return null;
+        // Auto-update installs are Fleet-initiated even if the stored actor
+        // says otherwise (e.g. legacy rows written before the fleet_initiated
+        // flag was wired up).
+        if (activity.details?.from_auto_update) return <b>Fleet </b>;
+        // A missing actor here means the initiating admin has been deleted
+        // since the install was queued (the LEFT JOIN on users returns nil).
+        // Trim so whitespace-only names also count as missing. Fall back to
+        // Fleet so the sentence doesn't render as a blank actor.
+        if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
+        return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.
         return null;

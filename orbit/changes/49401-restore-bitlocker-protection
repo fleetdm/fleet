@@ -1,0 +1,1 @@
+- fleetd now restores BitLocker protection on Windows hosts whose volume is already encrypted but whose protection is off. When the volume has no TPM protector, fleetd adds one before turning protection back on. fleetd waits while a restart is pending, and reports the reason to Fleet when it cannot restore protection.

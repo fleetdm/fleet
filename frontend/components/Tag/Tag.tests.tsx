@@ -24,6 +24,12 @@ describe("Tag", () => {
     expect(screen.getByText("Inherited")).toHaveClass("tag--small");
   });
 
+  it("adds the xsmall modifier class when size is set to xsmall", () => {
+    render(<Tag size="xsmall">Inherited</Tag>);
+
+    expect(screen.getByText("Inherited")).toHaveClass("tag--xsmall");
+  });
+
   it("does not wrap the tag in a tooltip when tooltip is omitted", () => {
     const { container } = render(<Tag>Inherited</Tag>);
 

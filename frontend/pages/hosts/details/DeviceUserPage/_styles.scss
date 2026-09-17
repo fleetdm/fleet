@@ -17,6 +17,16 @@
   }
 }
 
+.device-user__sso-redirect {
+  @include vertical-page-layout;
+
+  align-items: center;
+  margin: $pad-xxxlarge 0;
+  color: $core-fleet-black;
+  font-size: $x-small;
+  text-align: center;
+}
+
 // styles specific to DeviceUserPage
 // for styles that should apply to both DeviceUserPage and HostDetailsPage (most of them),
 // update frontend/pages/hosts/details/_styles.scss/ `.host-details, .device-user {...}`

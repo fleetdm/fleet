@@ -36,8 +36,19 @@ const ServerAuthenticationSection = ({
             parseTarget
             error={formErrors.ssoUserURL}
             tooltip={
-              !disableChildren &&
-              "Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance."
+              !disableChildren && (
+                // Manual break: too long for `text-wrap: balance` (~6-line cap).
+                <>
+                  Update this URL if you want your Fleet users (admins,
+                  maintainers, observers) to login via SSO using a URL
+                  that&apos;s different than the base URL of your Fleet
+                  instance.
+                  <br />
+                  <br />
+                  If not configured, login via SSO will use the base URL of the
+                  Fleet instance.
+                </>
+              )
             }
           />
         )}

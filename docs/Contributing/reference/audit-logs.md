@@ -130,6 +130,33 @@ This activity contains the following fields:
 }
 ```
 
+## reset_policy
+
+Generated when resetting a policy's results, either for all hosts or for a single host.
+
+This activity contains the following fields:
+- "policy_id": the ID of the reset policy.
+- "policy_name": the name of the reset policy.
+- "fleet_id": the ID of the fleet the policy belongs to. Use -1 for global policies, 0 for "no fleet" policies.
+- "fleet_name": the name of the fleet the policy belongs to. null for global policies and "no fleet" policies.
+- "host_id": the ID of the host whose result was reset. Only present when the reset was scoped to a single host.
+- "host_display_name": the display name of the host whose result was reset. Only present when the reset was scoped to a single host.
+
+#### Example
+
+```json
+{
+	"policy_id": 123,
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations",
+	"host_id": 42,
+	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## applied_spec_policy
 
 Generated when applying policy specs.
@@ -485,7 +512,7 @@ This activity contains the following fields:
 
 ## deleted_user
 
-Generated when a user is deleted.
+Generated when a user is deleted. An admin can delete the user, or SCIM can deprovision one that was deleted or deactivated in the IdP. For a SCIM deprovisioning, Fleet is the author of the activity rather than a Fleet user.
 
 This activity contains the following fields:
 - "user_id": Unique ID of the deleted user in Fleet.
@@ -499,6 +526,23 @@ This activity contains the following fields:
 	"user_id": 42,
 	"user_name": "Foo",
 	"user_email": "foo@example.com"
+}
+```
+
+## scim_user_deprovision_skipped
+
+Generated when a SCIM user is deactivated or deleted but Fleet cannot determine which Fleet user to deprovision. This can indicate the SCIM user's identifiers were modified before deactivation; verify that no corresponding Fleet account remains active.
+
+This activity contains the following fields:
+- "scim_user_id": Unique ID of the SCIM user in Fleet.
+- "scim_user_name": The SCIM user's userName at the time of deprovisioning.
+
+#### Example
+
+```json
+{
+	"scim_user_id": 42,
+	"scim_user_name": "nondomain_user"
 }
 ```
 
@@ -534,6 +578,7 @@ This activity contains the following fields:
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
 - "role": New global role of the edited user.
+- "jit": Whether the role was assigned via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -555,6 +600,7 @@ This activity contains the following fields:
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
 - "role": Deleted global role of the edited user.
+- "jit": Whether the role was removed via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -578,6 +624,7 @@ This activity contains the following fields:
 - "role": Fleet role set to the edited user.
 - "fleet_id": Unique ID of the fleet of the changed role.
 - "fleet_name": Name of the fleet of the changed role.
+- "jit": Whether the role was assigned via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -605,6 +652,7 @@ This activity contains the following fields:
 - "role": Fleet role deleted from the edited user.
 - "fleet_id": Unique ID of the fleet of the deleted role.
 - "fleet_name": Name of the fleet of the deleted role.
+- "jit": Whether the role was removed via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -645,17 +693,21 @@ This activity contains the following fields:
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
+- "host_id": ID of the host. Omitted from activities generated before Fleet added this field.
+- "host_serial": Serial number of the host. For Apple BYOD (account-driven user) enrollments, which have no serial number, this is the enrollment ID instead. `null` if the serial number is unknown.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
+- "installed_from_dep": Whether the host was enrolled automatically. `true` for Apple hosts enrolled via DEP, and for Windows hosts enrolled through Microsoft Entra ID during the out-of-box experience (OOBE), such as Windows Autopilot.
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 - "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
 - "platform": The enrolled host's platform
+
+Windows hosts that enroll automatically through Microsoft Entra ID get this activity once it matches the enrollment to a host. This is usually within a minute of the device enrolling, but can be later if the host has not run Fleet's agent (fleetd) yet.
 
 #### Example
 
 ```json
 {
+  "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
@@ -1199,6 +1251,18 @@ Generated when a user disables automatic MDM migration for Windows hosts, if Win
 
 This activity does not contain any detail fields.
 
+## enabled_apple_business_only_enrollment
+
+Generated when a user enables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
+## disabled_apple_business_only_enrollment
+
+Generated when a user disables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
 ## ran_script
 
 Generated when a script is sent to be run for a host.
@@ -1606,6 +1670,7 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
 - "profile_name": The name of the configuration profile.
+- "profile_uuid": The UUID of the configuration profile.
 
 #### Example
 
@@ -1613,7 +1678,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
-  "profile_name": "Passcode requirements"
+  "profile_name": "Passcode requirements",
+  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab"
 }
 ```
 
@@ -1623,6 +1689,7 @@ Generated when a user resends a configuration profile to a batch of hosts.
 
 This activity contains the following fields:
 - "profile_name": The name of the configuration profile.
+- "profile_uuid": The UUID of the configuration profile.
 - "host_count": Number of hosts in the batch.
 
 #### Example
@@ -1630,6 +1697,7 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Passcode requirements",
+  "profile_uuid": "a1234567-1234-1234-1234-1234567890ab",
   "host_count": 3
 }
 ```
@@ -1652,7 +1720,7 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
-
+- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when `patch_when_closed` is set. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
 
 #### Example
 
@@ -2411,6 +2479,164 @@ Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
+## ran_automation_webhook
+
+Generated when a failing-policy webhook automation batch is accepted by the destination server. One activity is recorded per successful batch POST and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "status_code": 200
+}
+```
+
+## failed_automation_webhook
+
+Generated when a failing-policy webhook automation batch is rejected by the destination server. One activity is recorded per failed batch POST and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the destination.
+- "error_response": Error returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "status_code": 500,
+  "error_response": "Internal Server Error"
+}
+```
+
+## ran_automation_ticket
+
+Generated when a failing-policy ticket automation (Jira or Zendesk) creates a ticket. One activity is recorded per created ticket and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "type": Ticket destination ("jira" or "zendesk").
+- "ticket_key": (Optional) Key of the created ticket.
+- "ticket_id": (Optional) ID of the created ticket.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "type": "jira",
+  "ticket_key": "ABC-123"
+}
+```
+
+## failed_automation_ticket
+
+Generated when a failing-policy ticket automation (Jira or Zendesk) fails to create a ticket. One activity is recorded per failed attempt and is associated with every host in that batch.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the hosts in the batch. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "type": Ticket destination ("jira" or "zendesk").
+- "error_response": Error returned by the destination.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1, 2, 3],
+  "type": "jira",
+  "error_response": "401 Unauthorized"
+}
+```
+
+## ran_automation_calendar_event
+
+Generated when a failing calendar policy results in a calendar event. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1]
+}
+```
+
+## failed_automation_calendar_event
+
+Generated when a failing-calendar-policy automation fails. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the calendar provider.
+- "error_response": Error details.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1],
+  "error_response": "calendar API error"
+}
+```
+
+## ran_automation_conditional_access
+
+Generated when a failing-policy conditional access automation pushes a host's compliance status to the provider as non-compliant. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1]
+}
+```
+
+## failed_automation_conditional_access
+
+Generated when a failing-policy conditional access automation fails to push a host's compliance status to the provider. The activity is associated with the affected host.
+
+This activity contains the following fields:
+- "policy_id": ID of the failing policy.
+- "host_ids": IDs of the affected hosts. Included in [host activities webhook](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook) payloads only; not stored in the activity, so it's not returned by the activities API.
+- "status_code": (Optional) HTTP status code returned by the provider.
+- "error_response": Error returned by the provider.
+
+#### Example
+
+```json
+{
+  "policy_id": 123,
+  "host_ids": [1],
+  "status_code": 403,
+  "error_response": "Forbidden"
+}
+```
+
 ## canceled_run_script
 
 Generated when upcoming activity `ran_script` is canceled.
@@ -2672,6 +2898,44 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## bound_host_to_idp_account
+
+Generated when an end user signs in with the identity provider (IdP) during the Linux or Windows setup experience and Fleet links the host to that IdP account. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host. The host may not exist in Fleet yet, because the link is made before enrollment completes.
+- "idp_email": Email of the IdP account the host is now linked to.
+- "replaced_idp_email": Email of the IdP account the host was linked to before. Only present when the host was already linked to a different account, for example when the end user signed in again with another account before the host finished enrolling; omitted otherwise.
+
+#### Example
+
+```json
+{
+	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+	"idp_email": "ana.torres@example.com",
+	"replaced_idp_email": "ben.ito@example.com"
+}
+```
+
+## refused_host_idp_account_change
+
+Generated when an IdP sign-in from the Linux or Windows setup experience completes after the host has already enrolled and would have replaced the IdP account the host is linked to. Fleet keeps the existing link and records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account that signed in and was not linked.
+- "existing_idp_email": Email of the IdP account the host stays linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+	"idp_email": "mallory@example.com",
+	"existing_idp_email": "ana.torres@example.com"
 }
 ```
 
@@ -2946,6 +3210,25 @@ This activity contains the following fields:
 }
 ```
 
+## failed_to_rotate_managed_local_account_password
+
+Generated when a host reports that it could not rotate its managed local account password. Attributed to Fleet, because the failure arrives from the device outside any user's request.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": The reason the host reported, if it sent one. Only Windows hosts report a reason today, so the field is omitted for macOS.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "DESKTOP-ABC123",
+  "detail": "Resetting password for _fleetadmin failed: The password does not meet the password policy requirements."
+}
+```
+
 ## enabled_managed_local_account
 
 Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
@@ -2953,13 +3236,15 @@ Generated when a user turns on create managed local account for a fleet (or unas
 This activity contains the following fields:
 - "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "platform": The platform of the fleet that create managed local account applies to.
 
 #### Example
 
 ```json
 {
   "fleet_id": 123,
-  "fleet_name": "Workstations"
+  "fleet_name": "Workstations",
+  "platform": "windows"
 }
 ```
 
@@ -2970,13 +3255,15 @@ Generated when a user turns off create managed local account for a fleet (or una
 This activity contains the following fields:
 - "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "platform": The platform of the fleet that create managed local account applies to.
 
 #### Example
 
 ```json
 {
   "fleet_id": 123,
-  "fleet_name": "Workstations"
+  "fleet_name": "Workstations",
+  "platform": "windows"
 }
 ```
 
@@ -3108,6 +3395,8 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 
+#### Example
+
 ```json
 {
   "host_id": 1,
@@ -3150,6 +3439,23 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## edited_windows_enrollment_default_fleet
+
+Generated when the default fleet for new MDM enrolled Windows hosts is edited.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the default fleet for new MDM enrolled Windows hosts, `null` if set to no fleet.
+- "fleet_name": The name of the default fleet for new MDM enrolled Windows hosts, `null` if set to no fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -3234,6 +3540,25 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "label_id": 42,
   "label_name": "Engineering"
+}
+```
+
+## released_from_ab
+
+Generated when a host has been released from Apple Business (AB).
+
+This activity contains the following fields:
+- "host_id": ID of the host being released from AB.
+- "host_display_name": Display name of the host being released from AB.
+- "host_serial": Hardware serial number of the host being released from AB.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_serial": "ABC123"
 }
 ```
 

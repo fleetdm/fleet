@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1",
+      "version": "3.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tapbots.Pastebot2Mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tapbots.Pastebot2Mac' AND version_compare(bundle_short_version, '3.1') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.tapbots.Pastebot2Mac');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tapbots.Pastebot2Mac' AND version_compare(bundle_short_version, '3.1.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.tapbots.Pastebot2Mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://tapbots.net/pastebot3/Pastebot.31000.dmg",
+      "installer_url": "https://tapbots.net/pastebot3/Pastebot.31100.dmg",
       "install_script_ref": "0c5e941b",
       "uninstall_script_ref": "85f0a84b",
-      "sha256": "7142a6644756cde5c7cca2b83585c13225cc0756ad2a3bc020ea2dbace85cd02",
+      "sha256": "0480a08259564dce5e6c580511c01c25670040df1cca6021ad0970c2e9fbc23c",
       "default_categories": [
         "Productivity"
       ]

@@ -69,9 +69,9 @@ The following steps show how to deploy DigiCert certificates.
 4. Select **REST API** from **Enrollment method**. Then select **3rd party app** from the **Authentication method** dropdown and select **Next**.
 5. Configure the certificate expiration. At most organizations, this is set to 90 days.
 6. In the **Flow options** section, make sure that **Allow duplicate certificates** is checked.
-7. In the **Subject DN and SAN fields** section, add **Common name**. **Other name (UPN)** is optional.
+7. In the **Subject DN and SAN fields** section, add **Common name** and **Other name (UPN)**. Fleet checks the UPN in every certificate request, so the CSR must include one.
    - For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. 
-   - If you use **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. 
+   - For **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. 
    - Organizations usually use the device's serial number or the user's email. Fleet variables (covered in the next step) can be used to replace these variables with the actual values before the certificate is delivered to a device.
 8. Click **Next** and leave the default options.
 
@@ -611,7 +611,9 @@ TOKEN="<End-user-OAuth-IdP-token>"
 CLIENT_ID="<OAuth-IdP-client-ID>"
 ```
 
-Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e. if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com")
+Before running this script, add your IdP's introspection URL to `integrations.certificates_idp_introspection_urls` in Fleet's [configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) (Fleet Premium). Fleet only contacts endpoints on that list, and once it has entries, every request to the "Request certificate" endpoint must include `idp_oauth_url`, `idp_token`, and `idp_client_id`. To also restrict the client ID, set `integrations.certificates_idp_client_ids`.
+
+The CSR must include exactly 1 email which matches the IdP username and exactly 1 UPN attribute which is either the IdP username itself or the part before the "@" (for example, if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com"). The comparison is case-insensitive.
 
 ### Step 4: Create a custom policy
 
@@ -953,7 +955,9 @@ TOKEN="<End-user-OAuth-IdP-token>"
 CLIENT_ID="<OAuth-IdP-client-ID>"
 ```
 
-Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e., if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com").
+Before running this script, add your IdP's introspection URL to `integrations.certificates_idp_introspection_urls` in Fleet's [configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) (Fleet Premium). Fleet only contacts endpoints on that list, and once it has entries, every request to the "Request certificate" endpoint must include `idp_oauth_url`, `idp_token`, and `idp_client_id`. To also restrict the client ID, set `integrations.certificates_idp_client_ids`.
+
+The CSR must include exactly 1 email which matches the IdP username and exactly 1 UPN attribute which is either the IdP username itself or the part before the "@" (for example, if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com"). The comparison is case-insensitive.
 
 ### Step 4: Create a custom policy
 
@@ -1010,6 +1014,8 @@ When you edit a certificate configuration profile for Apple hosts, via GitOps, a
 If you're deploying certificates from an [EST](#any-est-enrollment-over-secure-transport-ca) certificate authority, you can use HTTP signatures instead of a Fleet API token to authenticate requests to Fleet's ["Request certificate" endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
 This is only supported on Linux hosts with TPM (Trusted Platform Module) hardware that enroll to Fleet using a Fleet agent generated (`fleetctl package`) with the `--fleet-managed-host-identity-certificate` flag.
+
+A host can only request a certificate for its own end user. Fleet rejects HTTP signature requests whose CSR email and UPN don't match the end user recorded for the host, and rejects requests from hosts that have no recorded end user. The end user comes from SCIM or from end user authentication during enrollment, so make sure `$USERNAME` in the script below is that same identity. To turn this check off, set `integrations.certificates_disable_host_end_user_binding` to `true` in Fleet's [configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration).
 
 This method also requires a means of signing the HTTP request using the TPM key. Fleet has provided a reference implementation written in Go in the Fleet repository under [/orbit/cmd/fetch_cert/](https://github.com/fleetdm/fleet/blob/main/orbit/cmd/fetch_cert/main.go). 
 

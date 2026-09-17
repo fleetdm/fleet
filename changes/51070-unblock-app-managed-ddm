@@ -1,0 +1,1 @@
+- Fixed an issue where com.apple.configuration.app.managed became blocked while it previously was not.

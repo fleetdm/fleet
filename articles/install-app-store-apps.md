@@ -96,9 +96,11 @@ Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
-##### Example (Zoom)
+New or updated configuration isn't applied until the end user fully quits and reopens the app.
 
-This configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
+
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
 
 ```xml
 <dict>

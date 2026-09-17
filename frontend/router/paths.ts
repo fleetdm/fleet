@@ -1,4 +1,7 @@
-import { SetupExperiencePlatform } from "interfaces/platform";
+import {
+  DiskEncryptionSettingsPlatform,
+  SetupExperiencePlatform,
+} from "interfaces/platform";
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
@@ -15,6 +18,9 @@ export default {
   CONTROLS_ASSETS: `${URL_PREFIX}/controls/os-settings/assets`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
+  CONTROLS_DISK_ENCRYPTION_PLATFORM: (
+    platform: DiskEncryptionSettingsPlatform
+  ) => `${URL_PREFIX}/controls/os-settings/disk-encryption/${platform}`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_HOST_NAME_TEMPLATE: `${URL_PREFIX}/controls/os-settings/host-name-template`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,

@@ -1,0 +1,2 @@
+* Fixed editing a Windows configuration profile so that uploading a replacement file with a different name updates the profile's name.
+* Fixed uploading a Windows configuration profile with a file name longer than 255 characters returning a database error.

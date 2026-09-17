@@ -15,6 +15,7 @@ export enum ActivityType {
   CreatedPolicy = "created_policy",
   DeletedPolicy = "deleted_policy",
   EditedPolicy = "edited_policy",
+  ResetPolicy = "reset_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
   DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
@@ -89,10 +90,14 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Note: This activity is generated for all platforms.
+  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
+  // historical activities still render. Was generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: This activity is generated for all platforms.
+  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
+  // historical activities still render. Was generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
+  // Generated once per platform whose disk encryption settings changed.
+  EditedDiskEncryptionSettings = "edited_disk_encryption_settings",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
   ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
@@ -104,6 +109,8 @@ export enum ActivityType {
   DisabledWindowsMdm = "disabled_windows_mdm",
   EnabledGitOpsMode = "enabled_gitops_mode",
   DisabledGitOpsMode = "disabled_gitops_mode",
+  EnabledSSOFleetDesktop = "enabled_sso_fleet_desktop",
+  DisabledSSOFleetDesktop = "disabled_sso_fleet_desktop",
   EnabledGitOpsException = "enabled_gitops_exception",
   DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
@@ -211,6 +218,8 @@ export enum ActivityType {
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
+  EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
+  DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -256,7 +265,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
   | ActivityType.ReleasedDeviceFromAB
-  | ActivityType.ResentConfigurationProfile;
+  | ActivityType.ResentConfigurationProfile
+  | ActivityType.ResetPolicy;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -487,6 +497,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
   disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
+  disabled_sso_fleet_desktop: "Disabled single sign-on (SSO) for Fleet Desktop",
   disabled_vpp: "Disabled Volume Purchasing Program (VPP)",
   disabled_windows_mdm: "Turned off Windows MDM",
   disabled_windows_mdm_migration: "Turned off Windows MDM migration",
@@ -497,6 +508,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
+  edited_disk_encryption_settings: "Edited disk encryption settings",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
@@ -522,6 +534,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
   enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
+  enabled_sso_fleet_desktop: "Enabled single sign-on (SSO) for Fleet Desktop",
   enabled_vpp: "Enabled Volume Purchasing Program (VPP)",
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",
@@ -548,6 +561,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
   resent_configuration_profile_batch: "Bulk resent configuration profile",
+  reset_policy: "Reset policy",
   transferred_hosts: "Transferred hosts",
   uninstalled_software: "Uninstall software",
   unlocked_host: "Unlocked host",
@@ -647,4 +661,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
+  [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
+    "Enabled Apple Business only enrollment",
+  [ActivityType.DisabledAppleBusinessOnlyEnrollment]:
+    "Disabled Apple Business only enrollment",
 };

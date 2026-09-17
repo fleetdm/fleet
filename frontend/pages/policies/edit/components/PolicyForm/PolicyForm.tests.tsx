@@ -13,6 +13,7 @@ import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ILabelSummary } from "interfaces/label";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
+import { expectedSelectErr } from "components/forms/validators/validate_query";
 import PolicyForm from "./PolicyForm";
 
 const baseUrl = (path: string) => {
@@ -354,9 +355,7 @@ describe("PolicyForm - component", () => {
       // Wait past the 500ms debounce so the SQL validator runs and flags the
       // syntax error. The error surfaces as SQLEditor's label text.
       await waitFor(() => {
-        expect(
-          screen.getByText("Syntax error. Please review before saving.")
-        ).toBeInTheDocument();
+        expect(screen.getByText(expectedSelectErr(1))).toBeInTheDocument();
       });
 
       const saveButton = screen.getByRole("button", { name: "Save" });

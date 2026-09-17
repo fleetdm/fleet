@@ -75,7 +75,7 @@ module.exports = {
       'mna',
       'eashaw',
       'lucasmrod',
-      'ksatter',
+      'rynsatterlee',
       'hollidayn',
       'rfairburn',
       'zayhanlon',

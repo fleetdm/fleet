@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "140.14.0",
+      "version": "140.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '140.14.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.mozilla.firefox');"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '140.15.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.mozilla.firefox' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.14.0esr/mac/en-US/Firefox%20140.14.0esr.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.15.0esr/mac/en-US/Firefox%20140.15.0esr.dmg",
       "install_script_ref": "f4a36f7d",
       "uninstall_script_ref": "cc27bc9d",
-      "sha256": "445e1beb50889621775c1e4780e44abc5de4ebf963906b62fee5356f96fb4b21",
+      "sha256": "198885db6add8d2a42a21f9debe2fa66a12c032f0aaae308a336921d7ae3aa79",
       "default_categories": [
         "Browsers"
       ]

@@ -815,6 +815,20 @@ server:
   allow_private_network_integrations: true
 ```
 
+### server_allow_request_certificate_any_idp
+
+Turns off the identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. When set, requests authenticated with an HTTP signature don't have to name the end user recorded for the host, and IdP credentials are accepted for any introspection endpoint, not only those listed in `integrations.certificates_idp_introspection_urls`.
+
+This restores the behavior of Fleet versions that predate these checks. Use it while you migrate, then configure the `integrations.certificates_*` settings and turn it off.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_REQUEST_CERTIFICATE_ANY_IDP`
+- Config file format:
+```yaml
+server:
+  allow_request_certificate_any_idp: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
@@ -919,6 +933,17 @@ Enable this to significantly reduce the outbound bandwidth from the Fleet server
   server:
     gzip_responses: true
   ```
+
+### fleet_server_enable_csp
+
+When set to `1` or `true`, the Fleet server adds a `Content-Security-Policy` header to responses for the Fleet UI, API, and static assets. The policy restricts where the browser can load scripts, styles, images, fonts, and network connections from.
+
+The policy allows resources from the Fleet server, images from `www.gravatar.com` and any HTTPS origin (for custom logos), and WebSocket connections. Inline scripts and styles are allowed only when they carry a per-response nonce that the server injects into the UI.
+
+This is only supported as an environment variable.
+
+- Default value: not set (no `Content-Security-Policy` header is sent)
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
 
 ## Auth
 
@@ -1449,6 +1474,22 @@ Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#k
   ```yaml
   activity:
     audit_log_plugin: firehose
+  ```
+
+### activity_fleet_initiated_release_per_minute
+
+Maximum number of hosts whose Fleet-initiated activities (policy automation software installs and script runs, and iOS/iPadOS scheduled app updates) are released for execution per minute. Fleet-initiated activities are queued immediately, but hosts start executing them at this rate, spreading out the software install and script result load when a policy automation fires for many hosts at once (for example, after a policy's query or software is edited). User-initiated activities (self-service installs, admin-run scripts, setup experience) are not affected.
+
+The limit paces how many *idle* hosts start Fleet-initiated work each minute. A host that is already working through its activity queue continues to its next queued activity as each one completes, without waiting for the next release window — including a host a user just acted on (for example, running a script), since a person acting on a host takes precedence over pacing.
+
+Tune this down during recovery or heavy GitOps pushes, or up where rollout speed matters more than load smoothing. Set to `0` to disable the limit and start Fleet-initiated activities immediately.
+
+- Default value: `1000`
+- Environment variable: `FLEET_ACTIVITY_FLEET_INITIATED_RELEASE_PER_MINUTE`
+- Config file format:
+  ```yaml
+  activity:
+    fleet_initiated_release_per_minute: 500
   ```
 
 ## Logging (Fleet server logging)
@@ -2986,6 +3027,24 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
       7473e62c7aed...
   ```
 
+### s3_software_installers_gcs_signed_url
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) that embed a cryptographic key in the download URL that is used by the Fleet agent to download the installer to the host. This enables download of large packages (over 50MB), which is a [limitation of the HTTP 1 protocol](https://github.com/fleetdm/fleet/issues/37352). Uploads of large packages are only supported via [YAML](https://fleetdm.com/docs/configuration/yaml-files). Fleet UI support is [coming soon](https://github.com/fleetdm/fleet/issues/49554).
+
+This option doesn't work when `s3_carves_gcs_iam_auth` is enabled. Please configure HMAC credentials (`s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`) instead. 
+
+Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcS_signed_url: true
+  ```
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
@@ -3631,6 +3690,64 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
     apple_dep_sync_periodicity: 10m
   ```
 
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
+  ```
+
 ### mdm.windows_wstep_identity_cert_bytes
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
@@ -3645,7 +3762,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
+Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a team with disk encryption turned off, then move them back.
 
 ### mdm.windows_wstep_identity_key_bytes
 
@@ -3720,6 +3837,8 @@ For Windows, allows users to add custom Windows profiles for BitLocker.
 
 > Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
 
+See the [Custom disk encryption profiles guide](https://fleetdm.com/guides/custom-disk-encryption-profiles) for step-by-step instructions.
+
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
 - Config file format:
@@ -3730,7 +3849,7 @@ For Windows, allows users to add custom Windows profiles for BitLocker.
 
 ### mdm.allow_all_declarations
 
-> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations require [`mdm.allow_custom_activations`](#mdm-allow-custom-activations).
 
 If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
@@ -3744,6 +3863,24 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
   ```yaml
   mdm:
     allow_all_declarations: true
+  ```
+
+### mdm.allow_custom_activations
+
+*Available in Fleet Premium.*
+
+> On macOS 26.5, an invalid predicate can leave a host unmanageable, and you can't recover it remotely. Apple tracks this as FB24193230. Test each predicate on one host before you add the profile to more hosts.
+
+Allows users to add custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to Apple configuration declarations (DDM profiles), using the API or GitOps. Apple defines predicate syntax, so Fleet can't check a predicate before it reaches a host.
+
+You can remove an activation you already added, whether or not this setting is turned on.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_custom_activations: true
   ```
 
 ### mdm.allow_orbit_end_user_auth_bypass

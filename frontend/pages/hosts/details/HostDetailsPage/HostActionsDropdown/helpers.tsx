@@ -113,7 +113,8 @@ interface IHostActionConfigOptions {
   isAppleBusinessEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   isAndroidMdmEnabledAndConfigured: boolean;
-  doesStoreEncryptionKey: boolean;
+  isEncryptionKeyAvailable: boolean;
+  isEncryptionKeyArchived: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
   scriptsGloballyDisabled: boolean | undefined;
@@ -348,7 +349,8 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    doesStoreEncryptionKey,
+    isEncryptionKeyAvailable,
+    isEncryptionKeyArchived,
     hostPlatform,
   } = config;
   if (!isPremiumTier) {
@@ -361,7 +363,12 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
     return false;
   }
-  return doesStoreEncryptionKey;
+  // Fleet never serves a Linux host's archived key: the current key is only
+  // removed once its LUKS slot is proven gone, so the archived one is dead.
+  if (isLinuxLike(hostPlatform)) {
+    return isEncryptionKeyAvailable;
+  }
+  return isEncryptionKeyAvailable || isEncryptionKeyArchived;
 };
 
 const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
@@ -474,20 +481,21 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     config.isGlobalMaintainer ||
     config.isTeamAdmin ||
     config.isTeamMaintainer;
-  if (!isAdminOrMaintainer) {
-    return false;
-  }
-
-  // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
-  if (
-    isAndroid(config.hostPlatform) &&
-    config.hostMdmDeviceStatus &&
-    config.hostMdmDeviceStatus !== "unlocked"
-  ) {
-    return false;
-  }
 
   if (isAndroid(config.hostPlatform)) {
+    // Android clear passcode stays admin/maintainer-only.
+    if (!isAdminOrMaintainer) {
+      return false;
+    }
+
+    // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
+    if (
+      config.hostMdmDeviceStatus &&
+      config.hostMdmDeviceStatus !== "unlocked"
+    ) {
+      return false;
+    }
+
     return (
       config.isAndroidMdmEnabledAndConfigured &&
       config.isEnrolledInMdm &&
@@ -495,7 +503,15 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     );
   }
 
-  // iOS / iPadOS — existing behavior unchanged.
+  // iOS / iPadOS — technicians can also clear passcodes.
+  if (
+    !isAdminOrMaintainer &&
+    !config.isGlobalTechnician &&
+    !config.isTeamTechnician
+  ) {
+    return false;
+  }
+
   if (!isIPadOrIPhone(config.hostPlatform)) {
     return false;
   }

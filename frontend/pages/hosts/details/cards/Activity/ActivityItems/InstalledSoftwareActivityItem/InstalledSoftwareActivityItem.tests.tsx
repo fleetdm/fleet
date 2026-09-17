@@ -51,4 +51,31 @@ describe("InstalledSoftwareActivityItem", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
     expect(screen.queryByText(/skipped install/)).not.toBeInTheDocument();
   });
+
+  it("attributes VPP auto-update installs to Fleet even when the payload carries a stale actor", () => {
+    const activity = createMockHostPastActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Some Admin",
+      fleet_initiated: false,
+      details: {
+        software_title: "Google Meet",
+        host_display_name: "iPad",
+        source: "ipados_apps",
+        status: "installed",
+        command_uuid: "cmd-1",
+        from_auto_update: true,
+      },
+    });
+
+    render(
+      <InstalledSoftwareActivityItem
+        activity={activity}
+        tab="past"
+        onShowDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.queryByText("Some Admin")).not.toBeInTheDocument();
+  });
 });

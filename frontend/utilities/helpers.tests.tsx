@@ -52,43 +52,6 @@ describe("helpers utilities", () => {
       expect(compareVersions("14.3", "14.3.0")).toEqual(0);
       expect(compareVersions("14", "14.0.0")).toEqual(0);
     });
-
-    it("compares segments numerically instead of lexically, regardless of digit count", () => {
-      expect(compareVersions("26.6", "26.10")).toEqual(-1);
-      expect(compareVersions("26.10", "26.6")).toEqual(1);
-      expect(compareVersions("150.0.7871.213", "150.0.7871.185")).toEqual(1);
-      expect(compareVersions("10.0.26200.8875", "10.0.9200.100")).toEqual(1);
-    });
-
-    it("treats a version with a non-numeric first segment as older than any comparable version", () => {
-      expect(compareVersions("rolling", "26.6")).toEqual(-1);
-      expect(compareVersions("26.6", "rolling")).toEqual(1);
-      expect(compareVersions("rolling", "rolling")).toEqual(0);
-      // Narrow case that a whole-segment-count-matching NaN tie used to get wrong:
-      // a single bare numeric segment vs. a single non-numeric one.
-      expect(compareVersions("rolling", "14")).toEqual(-1);
-      expect(compareVersions("14", "rolling")).toEqual(1);
-    });
-
-    it("compares Windows feature-update codenames by year and half", () => {
-      expect(compareVersions("21H2", "22H1")).toEqual(-1);
-      expect(compareVersions("22H1", "21H2")).toEqual(1);
-      expect(compareVersions("22H1", "22H2")).toEqual(-1);
-      expect(compareVersions("23H1", "21H2")).toEqual(1);
-      expect(compareVersions("21H2", "21H2")).toEqual(0);
-    });
-
-    it("leaves suffixed Fleet-maintained-app versions with a numeric first segment unchanged", () => {
-      // A non-numeric trailing segment (e.g. a Homebrew revision suffix) is
-      // coerced to 0 by the `|| 0` fallback below, same as a missing
-      // segment — this is pre-existing behavior this change doesn't alter,
-      // since only the *first* segment's numeric-ness is checked up front.
-      expect(compareVersions("2.26.7_1", "2.26.7")).toEqual(-1);
-      expect(compareVersions("114.0.4-release", "114.0.4")).toEqual(-1);
-      // A differing leading numeric segment still compares correctly even
-      // with a non-numeric suffix present.
-      expect(compareVersions("2.27.0_1", "2.26.7_1")).toEqual(1);
-    });
   });
 
   describe("willExpireWithinXDays function", () => {

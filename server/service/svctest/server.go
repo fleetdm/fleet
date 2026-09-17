@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
+
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
@@ -180,10 +182,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-			checkInAndCommand := service.NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity)
+			checkInAndCommand := service.NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
-			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, svc.NewActivity))
+			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, commander))
+			checkInAndCommand.RegisterResultsHandler(fleet.VerifyRecoveryLockCmdName, service.NewVerifyRecoveryLockResultsHandler(ds, logger, commander, svc.NewActivity))
 			err := service.RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -193,9 +197,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				checkInAndCommand,
 				service.NewMDMAppleDDMService(ds, logger),
 				commander,
+				service.NewMDMAppleGetTokenService(ds, logger),
 				"https://test-url.com",
 				cfg,
 				svc,
+				ds,
 			)
 			require.NoError(t, err)
 		}
@@ -259,9 +265,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := service.MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := service.MakeDebugHandler(svc, cfg, logger, errHandler, ds, nil)
 	rootMux.Handle("/debug/", debugHandler)
-	rootMux.Handle("/enroll", service.ServeEndUserEnrollOTA(svc, "", ds, logger, false))
+	rootMux.Handle("/enroll", service.ServeEndUserEnrollOTA(svc, "", ds, redis_key_value.New(redisPool), clock.C, logger, false))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))

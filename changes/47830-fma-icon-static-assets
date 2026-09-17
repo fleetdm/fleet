@@ -1,0 +1,1 @@
+* Reduced the size of the Fleet UI JavaScript bundle by ~89% (14.9 MB to 1.6 MB gzipped) by serving Fleet-maintained app icons as individual static files instead of embedding all ~1,100 of them in the bundle downloaded on every page load.

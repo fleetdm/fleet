@@ -42,6 +42,7 @@ import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustom
 import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
 import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
+import ResetPolicyActivityItem from "./ActivityItems/ResetPolicyActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -111,6 +112,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
   [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
   [ActivityType.ResentConfigurationProfile]: ResentConfigurationProfileActivityItem,
+  [ActivityType.ResetPolicy]: ResetPolicyActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

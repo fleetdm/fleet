@@ -8,6 +8,7 @@ import {
   ProfileOperationType,
   RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
+import { isDDMProfile } from "services/entities/mdm";
 
 import { IconNames } from "components/icons";
 
@@ -15,6 +16,10 @@ import {
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+import {
+  getAndroidCertificateRetryMessage,
+  isRetryingAndroidCertificate,
+} from "./detailFormatting";
 import {
   IHostMdmProfileWithAddedStatus,
   OsSettingsTableStatusValue,
@@ -33,6 +38,11 @@ export interface IControlMessageProps {
   isDiskEncryptionProfile: boolean;
   /** True on the My device page, where the end user reads the message. */
   isDeviceUser: boolean;
+  /** Fleet setting for macOS: disk encryption enforced without key escrow.
+   * Disk encryption messages drop their key phrasing. */
+  isMacOSDiskEncryptionEnforceOnly?: boolean;
+  /** UUID of the profile associated with the control. Can be used with prefix checks to determine the type of profile. */
+  profileUUID: string;
 }
 
 export type ControlMessage =
@@ -85,20 +95,27 @@ type OperationTypeOption = Record<ProfileStatus, ProfileDisplayOption>;
 
 type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
 
-const diskEncryptionVerifiedMessage: ControlMessage = ({ hostDisplayName }) => (
+const diskEncryptionVerifiedMessage: ControlMessage = ({
+  hostDisplayName,
+  isMacOSDiskEncryptionEnforceOnly,
+}) => (
   <>
-    <b>{hostDisplayName}</b> turned disk encryption on and sent the key to
-    Fleet. Fleet verified.
+    <b>{hostDisplayName}</b> turned disk encryption on
+    {!isMacOSDiskEncryptionEnforceOnly && " and sent the key to Fleet"}. Fleet
+    verified.
   </>
 );
 
 const diskEncryptionVerifyingMessage: ControlMessage = ({
   hostDisplayName,
+  isMacOSDiskEncryptionEnforceOnly,
 }) => (
   <>
     <b>{hostDisplayName}</b> acknowledged the MDM command to turn on disk
-    encryption. Fleet is verifying with osquery and retrieving the disk
-    encryption key. This may take up to one hour.
+    encryption. Fleet is verifying with osquery
+    {!isMacOSDiskEncryptionEnforceOnly &&
+      " and retrieving the disk encryption key"}
+    . This may take up to one hour.
   </>
 );
 
@@ -141,7 +158,10 @@ const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
     ) : (
       <>
         <b>{props.hostDisplayName}</b> acknowledged the MDM command to apply{" "}
-        <b>{props.settingName}</b>. Fleet is verifying with osquery.
+        <b>{props.settingName}</b>.
+        {!isDDMProfile({ profile_uuid: props.profileUUID }) && (
+          <> Fleet is verifying with osquery.</>
+        )}
       </>
     ),
 };
@@ -256,11 +276,11 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
   action_required: {
     statusText: "Action required",
     iconName: "pending-outline",
-    // Windows-specific: the end user sets the PIN during encryption.
+    // Defensive fallback only. The server always sends a reason for this status and the details modal prefers it, so
+    // this renders only if that reason is ever missing.
     message: ({ hostDisplayName }) => (
       <>
-        Disk encryption is on, but the end user hasn&apos;t set a BitLocker PIN
-        on <b>{hostDisplayName}</b> yet.
+        Disk encryption on <b>{hostDisplayName}</b> needs attention.
       </>
     ),
   },
@@ -384,10 +404,30 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
   },
 };
 
+export const ANDROID_CERT_RETRYING_DISPLAY_CONFIG: ProfileDisplayOption = {
+  statusText: "Retrying",
+  // Deliberately the same icon the in-progress statuses use, rather than a warning icon: a retry
+  // is still in flight, and a new status icon would have to be introduced across the rest of the
+  // controls UI. The status text and message carry the difference.
+  iconName: "pending-outline",
+  // Filled in per row, see getAndroidCertificateRetryMessage.
+  message: null,
+};
+
 const getAndroidCertificateDisplayOption = (
+  row: IHostMdmProfileWithAddedStatus,
   status: OsSettingsTableStatusValue,
   operationType: ProfileOperationType | null
 ): ProfileDisplayOption => {
+  // A retry keeps an in-progress status while carrying the failed attempt's detail, so it has to
+  // be checked ahead of the statuses below rather than folded into them.
+  if (isRetryingAndroidCertificate(row)) {
+    return {
+      ...ANDROID_CERT_RETRYING_DISPLAY_CONFIG,
+      message: getAndroidCertificateRetryMessage(row),
+    };
+  }
+
   switch (status) {
     case "pending":
     case "delivering":
@@ -468,7 +508,7 @@ export const getControlDisplayOption = (
     platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
   ) {
-    return getAndroidCertificateDisplayOption(status, operationType);
+    return getAndroidCertificateDisplayOption(row, status, operationType);
   }
 
   // The synthesized Windows disk encryption row has no operation type.

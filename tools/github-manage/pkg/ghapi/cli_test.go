@@ -64,15 +64,15 @@ func TestRunCommandAndReturnOutput(t *testing.T) {
 }
 
 func TestRunCommandAndReturnOutput_ErrorHandling(t *testing.T) {
-	// Test that stderr is captured when command fails
+	// Captured output must be returned on failure so retry logic can inspect it.
 	output, err := RunCommandAndReturnOutput("bash -c 'echo error >&2; exit 1'")
 
 	if err == nil {
 		t.Error("Expected error for failing command")
 	}
 
-	if output != nil {
-		t.Error("Expected nil output for failing command")
+	if !strings.Contains(string(output), "error") {
+		t.Errorf("Expected captured stderr in output, got %q", output)
 	}
 }
 

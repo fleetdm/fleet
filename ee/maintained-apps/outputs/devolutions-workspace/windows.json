@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2.0",
+      "version": "2026.2.3.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Devolutions Password Manager' AND publisher = 'Devolutions Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Devolutions Password Manager' AND publisher = 'Devolutions Inc.' AND version_compare(version, '2026.2.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Devolutions Password Manager' AND publisher = 'Devolutions Inc.' AND version_compare(version, '2026.2.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'devolutions workspace.exe');"
       },
-      "installer_url": "https://cdn.devolutions.net/download/Devolutions.PasswordManager.2026.2.2.0-x64.msi",
+      "installer_url": "https://cdn.devolutions.net/download/Devolutions.PasswordManager.2026.2.3.0-x64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "6b837909",
-      "sha256": "092941a3aa56412f27dcc931e272417ff9dfcd6b39b5116236aa3f8c095c7285",
+      "sha256": "30ae529f01880a1aec849a2097cea2809aca2cec9eaf2adb3a3415ad12efc02e",
       "default_categories": [
         "Productivity"
       ],
