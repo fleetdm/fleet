@@ -1,7 +1,6 @@
 """Unit tests for the calendar sync script (fleet + fleetd)."""
 
 import datetime as dt
-import pytest
 import sync
 
 
@@ -202,3 +201,22 @@ class TestPlanActions:
         creates = [a for a in actions if a.kind == "create"]
         fleetd_creates = [a for a in creates if "fleetd" in (a.new_summary or "")]
         assert len(fleetd_creates) == 3  # release day + rc + develop
+
+    def test_existing_fleetd_develop_matches(self):
+        """An existing fleetd Develop event should match its milestone and not create a duplicate."""
+        due = dt.date(2026, 10, 2)
+        milestones = [
+            sync.Milestone(1, "fleetd-v1.62.0", due, product="fleetd"),
+        ]
+        develop_end = due - dt.timedelta(days=sync.DEVELOP_END_TO_DUE_TARGET_DAYS - 1)
+        develop_start = develop_end - dt.timedelta(days=sync.DEVELOP_SPAN_DAYS + 1)
+        existing_develop = sync.CalEvent(
+            id="ev_dev",
+            summary="Develop (fleetd next release - fleetd-v1.62.0)",
+            start=develop_start,
+            end=develop_end,
+            raw={"start": {"date": develop_start.isoformat()}, "end": {"date": develop_end.isoformat()}},
+        )
+        actions = sync.plan_actions(milestones, [existing_develop], dt.date(2026, 9, 15))
+        develop_creates = [a for a in actions if a.kind == "create" and "Develop" in (a.new_summary or "") and "fleetd" in (a.new_summary or "")]
+        assert len(develop_creates) == 0, "Should not create a duplicate fleetd Develop event"
