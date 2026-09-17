@@ -521,6 +521,33 @@ func TestGenerateSkipsUnreadableFile(t *testing.T) {
 	require.Equal(t, sha256Hex(content), rows[0][colExecHash])
 }
 
+// A bundle whose executable exists but cannot be read keeps its row with an empty hash, and
+// does not abort the rest of the batch. This is the bundle counterpart of the file case above.
+func TestGenerateBundleWithUnreadableExecutable(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root, every file is readable")
+	}
+	resetHashState(t)
+	dir := t.TempDir()
+
+	goodContent := []byte("readable bundle executable")
+	goodPath, goodExec := writeBundle(t, dir, "Good", "Good", goodContent)
+	badPath, badExec := writeBundle(t, dir, "Bad", "Bad", []byte("unreadable bundle executable"))
+	require.NoError(t, os.Chmod(badExec, 0o000))
+
+	rows := generateLike(t, filepath.Join(dir, "%.app"))
+	require.Len(t, rows, 2)
+
+	byPath := rowsByPath(rows)
+	require.Equal(t, goodExec, byPath[goodPath][colExecPath])
+	require.Equal(t, sha256Hex(goodContent), byPath[goodPath][colExecHash])
+	require.Equal(t, pathTypeBundle, byPath[goodPath][colPathType])
+
+	require.Equal(t, badExec, byPath[badPath][colExecPath])
+	require.Empty(t, byPath[badPath][colExecHash])
+	require.Equal(t, pathTypeBundle, byPath[badPath][colPathType])
+}
+
 func TestGenerateWithExactPathToFile(t *testing.T) {
 	resetHashState(t)
 	dir := t.TempDir()
@@ -572,6 +599,38 @@ func TestHashCacheHitAndInvalidation(t *testing.T) {
 	rows = generateLike(t, filepath.Join(dir, "%"))
 	require.Len(t, rows, 1)
 	require.Equal(t, sha256Hex(updated), rows[0][colExecHash])
+}
+
+func TestHashCacheClearedWhenFull(t *testing.T) {
+	resetHashState(t)
+	fileHashCache = newHashCache(2)
+	dir := t.TempDir()
+
+	expected := make(map[string]string, 3)
+	for _, name := range []string{"a", "b", "c"} {
+		path := filepath.Join(dir, name)
+		expected[path] = sha256Hex(writeFixture(t, path, machOHeader, "content "+name))
+	}
+
+	assertRows := func() {
+		t.Helper()
+		rows := generateLike(t, filepath.Join(dir, "%"))
+		require.Len(t, rows, 3)
+		for _, row := range rows {
+			require.Equal(t, expected[row[colPath]], row[colExecHash])
+		}
+	}
+
+	// The third insertion finds the cache full and clears both indexes before adding, so only
+	// the last file is left cached. Every row is still returned with the right hash.
+	assertRows()
+	require.Len(t, fileHashCache.entries, 1)
+	require.Len(t, fileHashCache.byIdentity, 1)
+
+	// Cleared files are rehashed on the next call; the cache stays bounded.
+	assertRows()
+	require.LessOrEqual(t, len(fileHashCache.entries), fileHashCache.max)
+	require.LessOrEqual(t, len(fileHashCache.byIdentity), fileHashCache.max)
 }
 
 func TestHashCacheFollowsSymlinkRetarget(t *testing.T) {

@@ -180,9 +180,16 @@ func processMachOFile(path string, stat os.FileInfo, budget *hashBudget) (fileIn
 type hashStatus int
 
 const (
-	hashOK          hashStatus = iota
-	hashUnavailable            // unreadable, or not Mach-O when one was required
-	hashDeferred               // this run's byte budget is spent; a later run hashes the file
+	hashOK hashStatus = iota
+	// hashUnavailable: unreadable, or not Mach-O when one was required.
+	hashUnavailable
+	// hashDeferred: this run's byte budget is spent; a later run hashes the file. A deferred file
+	// yields no row, not a row with an empty hash. Omission is the signal the server keys on: for
+	// a keg it still sees, it keeps stored executables a run doesn't report, and treats the same
+	// path reported with a different hash as a rebuild in place. An empty hash would take the
+	// rebuild branch and delete the known-good hash. Bundles get no such tolerance, so they never
+	// defer.
+	hashDeferred
 )
 
 // hashCached returns the hashed path and SHA-256 of the file at path. File rows resolve
@@ -342,8 +349,11 @@ func (b *hashBudget) charge(size int64) bool {
 	return true
 }
 
-// hashCacheMaxEntries covers any realistic Cellar. A full cache is cleared outright: a
-// working set past the bound would churn FIFO or LRU on every call anyway.
+// hashCacheMaxEntries is a safety bound, not a working size. The live set is a few thousand
+// entries (every executable the apps and Homebrew queries touch), and dead keys left by upgrades
+// accumulate far more slowly than orbit restarts reset the cache. A wide ad hoc query is the one
+// realistic way to reach it, so a full cache is simply cleared: the next runs rehash under the
+// byte budget, and the server keeps the stored rows meanwhile.
 const hashCacheMaxEntries = 10000
 
 var fileHashCache = newHashCache(hashCacheMaxEntries)
