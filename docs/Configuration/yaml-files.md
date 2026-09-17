@@ -1475,6 +1475,22 @@ org_settings:
     end_user_license_agreement: ./lib/eula.pdf
 ```
 
+##### windows_eula
+
+You can set a custom end user license agreement (EULA) file for your end users on Windows. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
+
+- `windows_eula` is the path to the markdown file.
+
+Can only be configured for "All fleets" (`org_settings`).
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    windows_eula: ./lib/toc.md
+```
+
 ##### apple_server_url
 
 Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
