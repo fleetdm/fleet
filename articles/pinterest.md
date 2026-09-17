@@ -126,6 +126,7 @@ IT Platform Engineer, Pinterest
 <meta name="authorGitHubUsername" value="n/a">
 <meta name="authorFullName" value="Fleetdm">
 
+<meta name="companyLogoFilename" value="pinterest-logo-40x40@2x.png">
 <meta name="quoteAuthorImageFilename" value="dustin-davis-120x120@2x.png">
 <meta name="quoteAuthorName" value="Dustin Davis">
 <meta name="quoteAuthorJobTitle" value="Sr. Manager, IT Platform Engineering, Pinterest">
