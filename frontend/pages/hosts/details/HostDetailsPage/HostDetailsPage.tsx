@@ -715,9 +715,15 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  const uptimeCollectionEnabled =
-    (config?.features?.historical_data?.uptime ?? true) &&
-    (featuresConfig?.historical_data?.uptime ?? true);
+  // undefined = still resolving (featuresConfig is undefined until config
+  // loads, and for a teamed host until `teams` loads too). The modal treats
+  // undefined as loading and defers the chart query; treating it as `true`
+  // would fire the query before we know the team-level uptime setting.
+  const uptimeCollectionEnabled: boolean | undefined =
+    featuresConfig === undefined
+      ? undefined
+      : (config?.features?.historical_data?.uptime ?? true) &&
+        (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
     setUsersState(() => {

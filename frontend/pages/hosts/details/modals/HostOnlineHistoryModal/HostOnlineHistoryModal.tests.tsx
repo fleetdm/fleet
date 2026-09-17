@@ -183,6 +183,26 @@ describe("HostOnlineHistoryModal", () => {
     });
   });
 
+  it("shows a spinner and does not fire the chart query while uptimeCollectionEnabled is undefined", async () => {
+    const chartRequest = jest.fn(() =>
+      HttpResponse.json(generateMockChartResponse(31))
+    );
+    mockServer.use(http.get(baseUrl("/charts/uptime"), chartRequest));
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <HostOnlineHistoryModal
+        hostId={42}
+        fleetId={1}
+        uptimeCollectionEnabled={undefined}
+        onExit={jest.fn()}
+      />
+    );
+
+    // Spinner has a 250ms visibility delay to avoid flash on fast loads.
+    await screen.findByTestId("spinner");
+    expect(chartRequest).not.toHaveBeenCalled();
+  });
+
   it("calls onExit when Done is clicked", async () => {
     mockServer.use(chartHandler);
     const onExit = jest.fn();

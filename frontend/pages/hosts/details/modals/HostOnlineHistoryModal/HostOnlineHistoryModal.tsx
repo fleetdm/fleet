@@ -27,7 +27,10 @@ const tooltipFormatter = ({ value }: { value: number }): string =>
 interface IHostOnlineHistoryModalProps {
   hostId: number;
   fleetId?: number;
-  uptimeCollectionEnabled: boolean;
+  // undefined = still resolving (parent hasn't yet loaded the team-level
+  // setting for a teamed host). Modal shows a spinner and defers the chart
+  // query until the effective value is known.
+  uptimeCollectionEnabled: boolean | undefined;
   onExit: () => void;
 }
 
@@ -58,7 +61,7 @@ const HostOnlineHistoryModal = ({
     () => chartsAPI.getChartData("uptime", queryParams),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: uptimeCollectionEnabled,
+      enabled: uptimeCollectionEnabled === true,
       staleTime: 300000, // 5 minutes
     }
   );
@@ -78,6 +81,9 @@ const HostOnlineHistoryModal = ({
   }, [chartData]);
 
   const renderChart = () => {
+    if (uptimeCollectionEnabled === undefined) {
+      return <Spinner verticalPadding="small" />;
+    }
     if (!uptimeCollectionEnabled) {
       return (
         <DataCollectionDisabledState
