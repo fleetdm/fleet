@@ -15074,7 +15074,7 @@ _Available in Fleet Premium._
 
 Modify an Apple App Store (VPP) or a Google Play app's options.
 
-A software title can have more than one version of the same App Store app on a fleet. Use `app_store_app_id` to select which version to update — the version's `name` is a mutable field, not its identifier. This mirrors `installer_id` on [Update package](#update-package).
+A software title can have more than one version of the same App Store app on a fleet. Use `app_store_app_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
