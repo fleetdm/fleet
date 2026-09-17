@@ -429,9 +429,9 @@ func TestStepOutputs(t *testing.T) {
 
 		outputs, closeOutputs, err := stepOutputs()
 		require.NoError(t, err)
-		defer closeOutputs()
 
 		require.Equal(t, io.Discard, outputs)
+		require.NoError(t, closeOutputs())
 	})
 
 	t.Run("appends to GITHUB_OUTPUT", func(t *testing.T) {
@@ -442,7 +442,7 @@ func TestStepOutputs(t *testing.T) {
 		outputs, closeOutputs, err := stepOutputs()
 		require.NoError(t, err)
 		emit(outputs, "skipped", "false")
-		closeOutputs()
+		require.NoError(t, closeOutputs())
 
 		written, err := os.ReadFile(path)
 		require.NoError(t, err)

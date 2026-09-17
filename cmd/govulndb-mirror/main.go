@@ -73,7 +73,15 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.timeout)
 	code := execute(ctx, cfg, log.New(os.Stdout, "", log.LstdFlags|log.LUTC), outputs)
 	cancel()
-	closeOutputs()
+
+	// The workflow reads skipped/reason from this file; if it did not make it to disk the
+	// alert and release steps run on stale outputs, which is a local failure, not upstream's.
+	if err := closeOutputs(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		if code == 0 {
+			code = 1
+		}
+	}
 	os.Exit(code)
 }
 
@@ -171,16 +179,22 @@ func run(ctx context.Context, cfg config, logger *log.Logger) (string, error) {
 
 // stepOutputs opens the file GitHub Actions reads step outputs from, or discards them when the
 // command runs outside a workflow.
-func stepOutputs() (io.Writer, func(), error) {
+func stepOutputs() (io.Writer, func() error, error) {
 	path := os.Getenv("GITHUB_OUTPUT")
 	if path == "" {
-		return io.Discard, func() {}, nil
+		return io.Discard, func() error { return nil }, nil
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
+	// The runner creates this file before the step starts; the mode only applies if it did not.
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening GITHUB_OUTPUT: %w", err)
 	}
-	return f, func() { f.Close() }, nil
+	return f, func() error {
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("closing GITHUB_OUTPUT: %w", err)
+		}
+		return nil
+	}, nil
 }
 
 func emit(outputs io.Writer, key, value string) {
