@@ -11,6 +11,7 @@ import commandApi, {
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
 import decodeBase64Utf8 from "utilities/base64";
+import formatJsonForDisplay from "utilities/json_format";
 
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
@@ -218,7 +219,7 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={result.payload}
+          value={formatJsonForDisplay(result.payload)}
           readOnly
           enableCopy
         />
@@ -231,7 +232,7 @@ export const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
-          value={result.result}
+          value={formatJsonForDisplay(result.result)}
           readOnly
           enableCopy
         />
