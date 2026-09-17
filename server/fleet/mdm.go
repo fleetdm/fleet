@@ -1398,6 +1398,11 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
