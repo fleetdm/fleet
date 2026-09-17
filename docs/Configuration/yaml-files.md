@@ -828,13 +828,12 @@ software:
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
-- `setup_experience` installs the app when hosts enroll (default: `false`). It's defined for the app, not per version.
-- `versions` is a list of one or more versions of the app. Fleet always installs the latest version available in the App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings, which lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
+- `setup_experience` installs the app when hosts enroll (default: `false`). It's defined for the app, not per version. Currently, custom targets (labels) don't apply during setup experience, so first added version will be always installed.
+- `versions` is a list of one or more versions (instances) of the app. Fleet always installs the latest version available in the App Store or Google Play. Each version carries its own settings, which lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
   - `name` identifies the version in Fleet (e.g. `Production`). It must be unique for the app on the fleet.
   - `self_service`, `categories`, `display_name`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration` are defined per version. See [self_service, labels, categories, setup_experience, and display_name](#self_service-labels-categories-setup_experience-and-display_name) for the shared fields.
-  - Up to 10 versions are supported per app (same limit as [multiple versions of the same software](#packages)).
-  - If a host is in scope for more than one version, Fleet installs the one that was added first (same precedence rule as [multiple versions of the same software](#packages)). Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
-  - If `versions` is omitted, settings can be defined directly on the app, which is equivalent to a single unnamed version.
+  - Up to 10 versions are supported per app.
+  - If a host is in scope for more than one version, Fleet installs the one that was added first. Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
 - `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<Dict></Dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
   - Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
@@ -866,20 +865,19 @@ Currently, labels aren't evaluated during the setup experience on iOS and iPadOS
 ```yaml
 software:
   app_store_apps:
-    - app_store_id: "546505307"
+    - app_store_id: "6443476492"
       platform: ios
       versions:
         - name: Production
-          labels_include_any:
-            - Product
-            - Marketing
+          labels_exclude_any:
+            - Test
           configuration:
-            path: ../lib/software/zoom-config-production.xml
+            path: ../lib/software/ios-cloudflare-one-agent-config-production.xml
         - name: Test
           labels_include_any:
-            - IT test team
+            - IT team
           configuration:
-            path: ../lib/software/zoom-config-test.xml
+            path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
 ```
 
 ### fleet_maintained_apps
