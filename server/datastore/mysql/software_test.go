@@ -3852,21 +3852,27 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		)
 	})
 
-	t.Run("several executables share one installed path", func(t *testing.T) {
+	t.Run("homebrew keg", func(t *testing.T) {
 		// A Homebrew keg reports one row per Mach-O executable, all with the keg as their
-		// installed path, so the delta has to key on the executable as well as on the path.
+		// installed path. The fleetd table hashes a bounded number of bytes per run and defers
+		// the rest, so a report can miss executables of a keg that is still installed. A keg is
+		// immutable per version, so an unreported executable of a still-present keg is kept.
 		keg := fleet.Software{ID: 6, Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
 		const kegPath = "/opt/homebrew/Cellar/git"
+		logger := slog.New(slog.DiscardHandler)
+		hostSoftware := []fleet.Software{keg}
 
 		execPath := func(binary string) string { return kegPath + "/2.46.0/bin/" + binary }
-		execHash := func(binary string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(binary))) }
-		reportedKey := func(binary string) string {
+		execHash := func(seed string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(seed))) }
+		key := func(s fleet.Software, installedPath, hash, path string) string {
 			return fmt.Sprintf(
 				"%s%s%s%s%s%s%s%s%s%s%s",
-				kegPath, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, execHash(binary), fleet.SoftwareFieldSeparator, execPath(binary), fleet.SoftwareFieldSeparator, keg.ToUniqueStr(),
+				installedPath, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hash, fleet.SoftwareFieldSeparator, path, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 		}
-		storedRow := func(id uint, binary string) fleet.HostSoftwareInstalledPath {
+		hashedKey := func(binary string) string { return key(keg, kegPath, execHash(binary), execPath(binary)) }
+		plainKey := key(keg, kegPath, "", "")
+		hashedRow := func(id uint, binary string) fleet.HostSoftwareInstalledPath {
 			return fleet.HostSoftwareInstalledPath{
 				ID:               id,
 				HostID:           host.ID,
@@ -3876,35 +3882,98 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 				ExecutablePath:   new(execPath(binary)),
 			}
 		}
+		reported := func(keys ...string) map[string]struct{} {
+			m := make(map[string]struct{}, len(keys))
+			for _, k := range keys {
+				m[k] = struct{}{}
+			}
+			return m
+		}
 
-		stored := []fleet.HostSoftwareInstalledPath{storedRow(1, "git"), storedRow(2, "git-shell")}
-		hostSoftware := []fleet.Software{keg}
+		t.Run("unreported executable is kept", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git")), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+		})
 
-		toI, toD, err := hostSoftwareInstalledPathsDelta(
-			t.Context(), host.ID,
-			map[string]struct{}{reportedKey("git"): {}, reportedKey("git-upload-pack"): {}},
-			stored, hostSoftware, slog.New(slog.DiscardHandler),
-		)
-		require.NoError(t, err)
+		t.Run("new executable is inserted without deleting the rest", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git")}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-upload-pack")), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toD)
+			require.Len(t, toI, 1)
+			require.Equal(t, keg.ID, toI[0].SoftwareID)
+			require.Equal(t, kegPath, toI[0].InstalledPath)
+			require.Equal(t, execPath("git-upload-pack"), *toI[0].ExecutablePath)
+			require.Equal(t, execHash("git-upload-pack"), *toI[0].ExecutableSHA256)
+		})
 
-		// The executable that is gone is deleted, the new one is inserted, the unchanged one is
-		// left alone.
-		require.Equal(t, []uint{stored[1].ID}, toD)
-		require.Len(t, toI, 1)
-		require.Equal(t, keg.ID, toI[0].SoftwareID)
-		require.Equal(t, kegPath, toI[0].InstalledPath)
-		require.Equal(t, execPath("git-upload-pack"), *toI[0].ExecutablePath)
-		require.Equal(t, execHash("git-upload-pack"), *toI[0].ExecutableSHA256)
+		t.Run("executable rebuilt in place is replaced", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
+			rebuilt := key(keg, kegPath, execHash("git-rebuilt"), execPath("git"))
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(rebuilt, hashedKey("git-shell")), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Equal(t, []uint{stored[0].ID}, toD)
+			require.Len(t, toI, 1)
+			require.Equal(t, execPath("git"), *toI[0].ExecutablePath)
+			require.Equal(t, execHash("git-rebuilt"), *toI[0].ExecutableSHA256)
+		})
 
-		// Reporting the same keg again is a no-op.
-		toI, toD, err = hostSoftwareInstalledPathsDelta(
-			t.Context(), host.ID,
-			map[string]struct{}{reportedKey("git"): {}, reportedKey("git-shell"): {}},
-			stored, hostSoftware, slog.New(slog.DiscardHandler),
-		)
-		require.NoError(t, err)
-		require.Empty(t, toI)
-		require.Empty(t, toD)
+		t.Run("uninstalled keg rows are deleted", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, stored, []fleet.Software{software[0]}, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.ElementsMatch(t, []uint{stored[0].ID, stored[1].ID}, toD)
+		})
+
+		t.Run("plain row is not inserted while hashed rows are kept", func(t *testing.T) {
+			// Every executable was deferred this run, so the merge emitted the keg's plain row.
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(plainKey), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+		})
+
+		t.Run("hashed rows replace a plain row", func(t *testing.T) {
+			// The first report with hashes, after an all-deferred run or an older fleetd.
+			stored := []fleet.HostSoftwareInstalledPath{{ID: 1, HostID: host.ID, SoftwareID: keg.ID, InstalledPath: kegPath}}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-shell")), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Equal(t, []uint{stored[0].ID}, toD)
+			require.Len(t, toI, 2)
+		})
+
+		t.Run("same report is a no-op", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-shell")), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+		})
+
+		t.Run("other sources still delete unreported executables", func(t *testing.T) {
+			app := fleet.Software{ID: 7, Name: "Foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.foo"}
+			appRow := func(id uint, bundle string) fleet.HostSoftwareInstalledPath {
+				return fleet.HostSoftwareInstalledPath{
+					ID:               id,
+					HostID:           host.ID,
+					SoftwareID:       app.ID,
+					InstalledPath:    bundle,
+					ExecutableSHA256: new(execHash(bundle)),
+					ExecutablePath:   new(bundle + "/Contents/MacOS/Foo"),
+				}
+			}
+			stored := []fleet.HostSoftwareInstalledPath{appRow(1, "/Applications/Foo.app"), appRow(2, "/Users/me/Applications/Foo.app")}
+			reportedApp := key(app, "/Applications/Foo.app", execHash("/Applications/Foo.app"), "/Applications/Foo.app/Contents/MacOS/Foo")
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(reportedApp), stored, []fleet.Software{app}, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Equal(t, []uint{stored[1].ID}, toD)
+		})
 	})
 }
 

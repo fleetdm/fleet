@@ -300,6 +300,23 @@ func hostSoftwareInstalledPathsDelta(
 		sUnqStrLook[s.ToUniqueStr()] = s
 	}
 
+	// Executable paths reported per Homebrew software, to tell a deferred executable from one
+	// rebuilt in place.
+	reportedExecPaths := make(map[uint]map[string]struct{})
+	for key := range reported {
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 6)
+		s, ok := sUnqStrLook[parts[5]]
+		if !ok || s.Source != "homebrew_packages" || parts[4] == "" {
+			continue
+		}
+		if reportedExecPaths[s.ID] == nil {
+			reportedExecPaths[s.ID] = make(map[string]struct{})
+		}
+		reportedExecPaths[s.ID][parts[4]] = struct{}{}
+	}
+	// Software IDs that keep at least one stored row with an executable hash after this delta.
+	retainsHashedRow := make(map[uint]struct{})
+
 	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
 	for _, iP := range stored {
 		s, ok := sIDLookup[iP.SoftwareID]
@@ -324,9 +341,14 @@ func hostSoftwareInstalledPathsDelta(
 		)
 		iSPathLookup[key] = iP
 
-		// Anything stored but not reported should be deleted
-		if _, ok := reported[key]; !ok {
+		// Anything stored but not reported should be deleted, unless it is a Homebrew
+		// executable the fleetd table deferred hashing this run.
+		if _, ok := reported[key]; !ok && !isDeferredHomebrewExecutable(s, execPath, reportedExecPaths) {
 			toDelete = append(toDelete, iP.ID)
+			continue
+		}
+		if execHashSHA256 != "" {
+			retainsHashedRow[s.ID] = struct{}{}
 		}
 	}
 
@@ -344,6 +366,12 @@ func hostSoftwareInstalledPathsDelta(
 
 		if _, ok := iSPathLookup[key]; ok {
 			// Nothing to do
+			continue
+		}
+
+		if _, ok := retainsHashedRow[s.ID]; ok && execHash == "" && s.Source == "homebrew_packages" {
+			// Every executable of the keg was deferred this run, so the merge reported the keg
+			// without a hash. The retained hashed rows already cover it.
 			continue
 		}
 
@@ -370,6 +398,19 @@ func hostSoftwareInstalledPathsDelta(
 	}
 
 	return
+}
+
+// isDeferredHomebrewExecutable reports whether a stored Homebrew executable row absent from the
+// report should be kept. The fleetd executable_hashes table caps the bytes it hashes per run, so
+// after a restart a large Cellar reports only part of a keg's executables for a while. A keg is
+// immutable for a given version, so an unreported executable of a still-installed keg is a
+// deferral, not a removal. The same path reported with a different hash was rebuilt in place.
+func isDeferredHomebrewExecutable(s fleet.Software, execPath string, reportedExecPaths map[uint]map[string]struct{}) bool {
+	if s.Source != "homebrew_packages" || execPath == "" {
+		return false
+	}
+	_, reported := reportedExecPaths[s.ID][execPath]
+	return !reported
 }
 
 func deleteHostSoftwareInstalledPaths(
