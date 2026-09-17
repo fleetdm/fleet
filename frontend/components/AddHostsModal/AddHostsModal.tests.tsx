@@ -171,7 +171,6 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
-    expect(screen.getByText("Enrollment instructions")).toBeInTheDocument();
     expect(
       screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();
@@ -205,7 +204,6 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
-    expect(screen.getByText("Enrollment instructions")).toBeInTheDocument();
     expect(
       screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();

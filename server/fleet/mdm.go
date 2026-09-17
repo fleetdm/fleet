@@ -1398,6 +1398,11 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
@@ -1477,6 +1482,9 @@ type NanoMDMEnrollmentDetails struct {
 	// Enrollment both produce the "On (manual - personal)" status, so the channel
 	// is the only way to tell them apart.
 	EnrollmentType string `db:"enrollment_type"`
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
+	Enabled bool `db:"enabled"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

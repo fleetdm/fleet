@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.0",
+      "version": "12.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'Jellyfin.Server';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Jellyfin.Server' AND version_compare(bundle_short_version, '12.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Jellyfin.Server' AND version_compare(bundle_short_version, '12.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'Jellyfin.Server' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://repo.jellyfin.org/files/server/macos/stable/v12.0/arm64/jellyfin_12.0-arm64.dmg",
+      "installer_url": "https://repo.jellyfin.org/files/server/macos/stable/v12.1/arm64/jellyfin_12.1-arm64.dmg",
       "install_script_ref": "386ec6ab",
       "uninstall_script_ref": "a429b39d",
-      "sha256": "5c6611e8b20c5a0ff9738c8ac18e7d0f02e77f02092a0e715e634ad8b2be4010",
+      "sha256": "0665f45616463ed22c6c2ea71c9be3827454308848a574073ef60f025d0939da",
       "default_categories": [
         "Productivity"
       ]
