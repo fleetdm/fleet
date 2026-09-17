@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useMutation } from "react-query";
 
-import { hasStatusKey } from "interfaces/errors";
-import customHostVitalsAPI from "services/entities/custom_host_vitals";
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { hasStatusKey } from "interfaces/errors";
+import customHostVitalsAPI from "services/entities/custom_host_vitals";
 
 import {
   validateFormData,

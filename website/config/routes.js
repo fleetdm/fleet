@@ -301,7 +301,6 @@ module.exports.routes = {
     }
   },// handles /engineering/foo
 
-
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
@@ -696,6 +695,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /omarchy': {
+    action: 'view-omarchy',
+    locals: {
+      pageTitleForMeta: 'Omarchy management',
+      pageDescriptionForMeta: 'Manage Omarchy like you manage macOS and Windows. Give employees the distro they want without losing compliance and control.',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
@@ -967,7 +974,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/downgrading-fleet': (req, res) => { return res.redirect(301, '/guides/downgrade-fleet'); },
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
   'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
-  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/understanding-host-vitals.md'); },
+  'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/host-vitals/understanding-host-vitals.md'); },
   'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
   'GET /docs/using-fleet/log-destinations': (req, res) => { return res.redirect(301, '/guides/log-destinations'); },
@@ -1538,6 +1545,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
   'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
+  'POST /api/v1/admin/deliver-newsletter-emails': { action: 'admin/deliver-newsletter-emails' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

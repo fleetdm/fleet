@@ -1,0 +1,2 @@
+* Fixed the **My device > Self-service** list sorting by the software's underlying name (package identifier or script filename) instead of its display name.
+* Fixed the software list in **Controls > Setup experience > Install software** sorting by the software's underlying name instead of its display name, and made its search match the display name as well as the underlying name.

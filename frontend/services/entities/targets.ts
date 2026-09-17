@@ -1,9 +1,10 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
+
 import { IHost } from "interfaces/host";
 import { ISelectedTargetsForApi, ITargetsAPIResponse } from "interfaces/target";
-import endpoints from "utilities/endpoints";
+import sendRequest from "services";
 import appendTargetTypeToTargets from "utilities/append_target_type_to_targets";
+import endpoints from "utilities/endpoints";
 
 interface ITargetsProps {
   query?: string;

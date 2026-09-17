@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -210,6 +211,16 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	}
 
+	// Fleet Desktop prompts the end user to create a BitLocker startup PIN, but only when this host's fleetd can
+	// actually apply one.
+	if host.FleetPlatform() == "windows" {
+		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host, appCfg)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "checking whether to prompt for a bitlocker pin")
+		}
+		sum.Notifications.NeedsBitLockerPIN = needsPIN
+	}
+
 	// organization information
 	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
 	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
@@ -224,6 +235,33 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.AlternativeBrowserHost = appCfg.FleetDesktop.AlternativeBrowserHost
 
 	return sum, nil
+}
+
+// hostNeedsBitLockerPINPrompt reports whether Fleet Desktop should prompt this Windows host's end user to create a
+// BitLocker startup PIN.
+func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (bool, error) {
+	cfg := appCfg.MDM.DiskEncryptionConfig()
+	if host.TeamID != nil && *host.TeamID > 0 {
+		teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get team mdm config for bitlocker pin prompt")
+		}
+		cfg = teamMDM.DiskEncryptionConfig()
+	}
+	if !cfg.WindowsEnabled || !cfg.BitLockerPINRequired || host.TPMPINSet {
+		return false, nil
+	}
+
+	agent, err := svc.bitLockerPINAgent(ctx, host)
+	if err != nil || agent != bitLockerPINAgentCapable {
+		return false, err
+	}
+
+	diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get bitlocker status for pin prompt")
+	}
+	return diskEncryption.NeedsBitLockerPIN(), nil
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
@@ -380,8 +418,10 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 // My Device SSO Flow
 /////////////////////////////////////////////////////////////////////////////////
 
-const deviceSSOSessionKeyPrefix = "device_sso_session:"
-const deviceSSOSessionIDLength = 24
+const (
+	deviceSSOSessionKeyPrefix = "device_sso_session:"
+	deviceSSOSessionIDLength  = 24
+)
 
 // createDeviceSSOSession mints a new device SSO session for host.
 func (svc *Service) createDeviceSSOSession(ctx context.Context, host *fleet.Host, idpAccountUUID string) (sessionID string, ttl time.Duration, err error) {
@@ -467,7 +507,58 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 		svc.logger.WarnContext(ctx, "device sso session belongs to another host",
 			"host_id", host.ID, "session_host_id", session.HostID)
 	default:
-		return nil
+		if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
+			// only run the IDP account check for iOS/iPadOS UUID device authentications
+			return nil
+		}
+
+		// Require primary read for SSO/Auth allow decisions
+		ctx = ctxdb.RequirePrimary(ctx, true)
+
+		// The session is valid for this host, so it also has to belong to the
+		// host's IdP end user. A host with no IdP mapping has nothing to compare
+		// against (ADE-enrolled iPhones never get one), so it passes rather than
+		// locking the end user out of their own device page, which is accepted fleetdm/security#38
+		deviceMappings, err := svc.ds.ListHostDeviceMapping(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing host device mappings")
+		}
+
+		if len(deviceMappings) == 0 {
+			return nil
+		}
+
+		var mdmIdpMappings []*fleet.HostDeviceMapping
+		for _, mapping := range deviceMappings {
+			if mapping.Source == fleet.DeviceMappingMDMIdpAccounts {
+				mdmIdpMappings = append(mdmIdpMappings, mapping)
+			}
+		}
+
+		// no mdm_idp_account mapping is treated as none.
+		if len(mdmIdpMappings) == 0 {
+			return nil
+		}
+
+		for _, mapping := range mdmIdpMappings {
+			// first we have to lookup email -> mdm_idp_account UUID to correlate to the session IDP account UUID
+			idpAccount, err := svc.ds.GetMDMIdPAccountByEmail(ctx, mapping.Email)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "getting MDM IdP account by email")
+			} else if idpAccount == nil {
+				// not found should not happen, but no-op on it, and fall through to deny after all mappings
+				continue
+			}
+
+			if idpAccount.UUID == session.IdPAccountUUID {
+				// found a matching IdP account, no need to check further
+				return nil
+			}
+
+			// try the next, if none match we fall through to the error outside.
+		}
+
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "mismatched SSO user for this device"})
 	}
 
 	return ctxerr.Wrap(ctx, fleet.NewDeviceSSORequiredError("no device sso session"), "require device sso session")
@@ -529,7 +620,8 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 	}
 
 	sessionDuration := svc.config.Auth.SsoSessionValidityPeriod
-	sessionID, idpURL, err := sso.CreateAuthorizationRequest(ctx,
+	sessionID, idpURL, err := sso.CreateAuthorizationRequest(
+		ctx,
 		samlProvider,
 		svc.ssoSessionStore,
 		sso.URLWithPrefix(browserBase, svc.config.Server.URLPrefix, deviceURL).String(),

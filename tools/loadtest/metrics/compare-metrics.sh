@@ -228,6 +228,14 @@ REDIS_DEFS=(
   ".redis[0].memory_utilization.Average|Redis Memory|%|15|30|false|lt|70||5"
 )
 
+# Fleet server container network traffic (Container Insights). Average is
+# bytes/sec, so runs with different intervals stay comparable (Sum scales with
+# the window). A TX jump at the same load usually means a response payload grew.
+NETWORK_DEFS=(
+  ".network.network_rx_bytes.Average|Fleet Network RX|bytes/s|50|100|false||"
+  ".network.network_tx_bytes.Average|Fleet Network TX|bytes/s|50|100|false||"
+)
+
 # apple-apns-mock (MDM runs only). Absent from non-MDM runs; compare_metric_set
 # drops any def that is null in the last two files and suppresses the whole
 # section when nothing has data, so no extra guard is needed here.
@@ -239,7 +247,8 @@ APNS_MOCK_DEFS=(
   ".apns_mock.per_task.cpu.max_pct|apns-mock CPU (hottest task)|%|20|40|false|lt|95||"
   ".apns_mock.per_task.memory.max_pct|apns-mock Memory (hottest task)|%|20|40|false|lt|90||"
   ".apns_mock.task_counts.runningCount|apns-mock Containers||0|0|false||||"
-  ".apns_mock.network.network_tx_bytes.Sum|apns-mock Network TX|bytes|50|100|false||||"
+  ".apns_mock.network.network_rx_bytes.Average|apns-mock Network RX|bytes/s|50|100|false||||"
+  ".apns_mock.network.network_tx_bytes.Average|apns-mock Network TX|bytes/s|50|100|false||||"
   ".apns_mock.container_health.abnormal_stops|apns-mock Stops||0|0|true|eq|0||"
 )
 
@@ -330,13 +339,15 @@ fmt_val() {
     return
   fi
   case "$unit" in
-    bytes)
+    bytes|bytes/s)
       # Convert to human-readable
-      echo "$val" | awk '{
-        if ($1 >= 1073741824) printf "%.1fGB", $1/1073741824
-        else if ($1 >= 1048576) printf "%.1fMB", $1/1048576
-        else if ($1 >= 1024) printf "%.1fKB", $1/1024
-        else printf "%d B", $1
+      local suffix=""
+      [[ "$unit" == "bytes/s" ]] && suffix="/s"
+      echo "$val" | awk -v sfx="$suffix" '{
+        if ($1 >= 1073741824) printf "%.1fGB%s", $1/1073741824, sfx
+        else if ($1 >= 1048576) printf "%.1fMB%s", $1/1048576, sfx
+        else if ($1 >= 1024) printf "%.1fKB%s", $1/1024, sfx
+        else printf "%d B%s", $1, sfx
       }'
       ;;
     %)  printf "%.1f%%" "$val" ;;
@@ -619,6 +630,7 @@ for (( i=0; i < ${#header}; i++ )); do separator+="-"; done
 echo "$separator"
 
 compare_metric_set "Fleet Server" "${FLEET_DEFS[@]}"
+compare_metric_set "Fleet Server Network" "${NETWORK_DEFS[@]}"
 compare_metric_set "Loadtest Containers" "${LOADTEST_DEFS[@]}"
 compare_metric_set "RDS Writer" "${RDS_WRITER_DEFS[@]}"
 compare_metric_set "Redis" "${REDIS_DEFS[@]}"

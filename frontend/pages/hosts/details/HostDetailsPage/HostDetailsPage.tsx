@@ -1,3 +1,4 @@
+import { pick } from "lodash";
 import React, {
   useContext,
   useState,
@@ -5,67 +6,58 @@ import React, {
   useMemo,
   useEffect,
 } from "react";
-import { timeAgo } from "utilities/date_format";
-import { Params, InjectedRouter } from "react-router/lib/Router";
-import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery, useQueryClient } from "react-query";
+import { Params, InjectedRouter } from "react-router/lib/Router";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { pick } from "lodash";
 
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-
-import activitiesAPI, {
-  IHostPastActivitiesResponse,
-  IHostUpcomingActivitiesResponse,
-} from "services/entities/activities";
-import hostAPI, {
-  IGetHostCertificatesResponse,
-  IGetHostCertsApiParams,
-} from "services/entities/hosts";
-import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import commandAPI from "services/entities/command";
-
-import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
-import { IHostCustomVital } from "interfaces/custom_host_vitals";
-import { ILabel } from "interfaces/label";
-import { IListSort } from "interfaces/list_options";
-import { IHostPolicy } from "interfaces/policy";
+import CertificateInstallDetailsModal, {
+  ICertificateInstallDetails,
+} from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
 import {
-  IHostSoftware,
-  resolveUninstallStatus,
-  SCRIPT_PACKAGE_SOURCES,
-  SoftwareInstallUninstallStatus,
-} from "interfaces/software";
-import { ITeam } from "interfaces/team";
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import {
+  SoftwareIpaInstallDetailsModal,
+  ISoftwareIpaInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import {
+  VppInstallDetailsModal,
+  IVppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import BackButton from "components/BackButton";
+import CustomLink from "components/CustomLink/CustomLink";
+import EmptyState from "components/EmptyState";
+import IconStatusMessage from "components/IconStatusMessage";
+import MainContent, { IMainContentConfig } from "components/MainContent";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
+import { ICommand } from "interfaces/command";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
+import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { IListSort } from "interfaces/list_options";
 import {
   canTriggerAPNSPing,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
 } from "interfaces/mdm";
-import { ICommand } from "interfaces/command";
-
-import {
-  formatMdmCommandNameForActivityItem,
-  getMdmCommandDisplayName,
-} from "utilities/activityHelpers";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
-import permissions from "utilities/permissions";
-import local from "utilities/local";
-import {
-  DOCUMENT_TITLE_SUFFIX,
-  HOST_SUMMARY_DATA,
-  HOST_VITALS_DATA,
-  HOST_OSQUERY_DATA,
-  DEFAULT_USE_QUERY_OPTIONS,
-} from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-
 import {
   isAppleDevice,
   isMacOS,
@@ -74,111 +66,111 @@ import {
   isLinuxLike,
   isWindows,
 } from "interfaces/platform";
-
-import { notify } from "components/ToastNotification";
-import Spinner from "components/Spinner";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import MainContent, { IMainContentConfig } from "components/MainContent";
-import BackButton from "components/BackButton";
-import CustomLink from "components/CustomLink/CustomLink";
-import EmptyState from "components/EmptyState";
-
+import { IHostPolicy } from "interfaces/policy";
+import {
+  IHostSoftware,
+  resolveUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
+import { ITeam } from "interfaces/team";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
-import {
-  VppInstallDetailsModal,
-  IVppInstallDetails,
-} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
-import {
-  SoftwareInstallDetailsModal,
-  IPackageInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
-import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
-import {
-  SoftwareIpaInstallDetailsModal,
-  ISoftwareIpaInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
-import CertificateInstallDetailsModal, {
-  ICertificateInstallDetails,
-} from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
 import CommandResultsModal, {
   getIconName,
   getVerbForCommandStatus,
 } from "pages/hosts/components/CommandDetailsModal";
-import IconStatusMessage from "components/IconStatusMessage";
-import FailedEnrollmentProfileModal, {
-  IFailedEnrollmentProfileModalProps,
-} from "components/modals/FailedEnrollmentProfileModal";
-
 import {
   getDiskEncryptionSettings,
   isMacOSDiskEncryptionEnforceOnly,
 } from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
-import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
-import UserCard from "../cards/User";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import PATHS from "router/paths";
+import activitiesAPI, {
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
+} from "services/entities/activities";
+import commandAPI from "services/entities/command";
+import hostAPI, {
+  IGetHostCertificatesResponse,
+  IGetHostCertsApiParams,
+} from "services/entities/hosts";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_SUMMARY_DATA,
+  HOST_VITALS_DATA,
+  HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
+} from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import local from "utilities/local";
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
+import DeleteHostModal from "../../components/DeleteHostModal";
+import TransferHostModal from "../../components/TransferHostModal";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
-import LabelsCard from "../cards/Labels";
-import MunkiIssuesCard from "../cards/MunkiIssues";
-import SoftwareInventoryCard from "../cards/Software";
-import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
-import LocalUserAccountsCard from "../cards/LocalUserAccounts";
-import PoliciesCard from "../cards/Policies";
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import HostReportsTab from "../HostReportsTab";
 import CertificatesCard from "../cards/Certificates";
-
-import TransferHostModal from "../../components/TransferHostModal";
-import DeleteHostModal from "../../components/DeleteHostModal";
-
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
-import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
-import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
-import ManagedAccountModal from "./modals/ManagedAccountModal";
-import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
-import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
 import {
   countFailedControls,
   generateTableData,
 } from "../cards/Controls/OSSettingsTableConfig";
-import BootstrapPackageModal from "./modals/BootstrapPackageModal";
-import ScriptModalGroup from "./modals/ScriptModalGroup";
-import SelectReportModal from "./modals/SelectReportModal";
-import HostDetailsBanners from "./components/HostDetailsBanners";
-import LockModal from "./modals/LockModal";
-import UnlockModal from "./modals/UnlockModal";
+import HostHeader from "../cards/HostHeader";
+import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
+import HostSummaryCard from "../cards/HostSummary";
+import LabelsCard from "../cards/Labels";
+import LocalUserAccountsCard from "../cards/LocalUserAccounts";
+import MunkiIssuesCard from "../cards/MunkiIssues";
+import PoliciesCard from "../cards/Policies";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import SoftwareInventoryCard from "../cards/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import UserCard from "../cards/User";
+import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import VitalsCard from "../cards/Vitals";
 import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
 } from "../helpers";
-import WipeModal from "./modals/WipeModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import HostReportsTab from "../HostReportsTab";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import EditHostVitalModal from "../modals/EditHostVitalModal";
+import HostOnlineHistoryModal from "../modals/HostOnlineHistoryModal";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import LocationModal from "../modals/LocationModal";
+import MDMStatusModal from "../modals/MDMStatusModal";
+import VitalsModal from "../modals/VitalsModal";
+
+import HostDetailsBanners from "./components/HostDetailsBanners";
+import ReleaseFromABModal from "./components/ReleaseFromABModal";
 import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
 } from "./helpers";
+import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CancelCommandModal from "./modals/CancelCommandModal";
-import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import HostHeader from "../cards/HostHeader";
-import InventoryVersionsModal from "../modals/InventoryVersionsModal";
-import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
-import LocationModal from "../modals/LocationModal";
-import VitalsModal from "../modals/VitalsModal";
-import EditHostVitalModal from "../modals/EditHostVitalModal";
-import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
-import ReleaseFromABModal from "./components/ReleaseFromABModal";
+import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import LockModal from "./modals/LockModal";
+import ManagedAccountModal from "./modals/ManagedAccountModal";
+import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
+import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
+import ScriptModalGroup from "./modals/ScriptModalGroup";
+import SelectReportModal from "./modals/SelectReportModal";
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import UnlockModal from "./modals/UnlockModal";
+import WipeModal from "./modals/WipeModal";
 
 const baseClass = "host-details";
 
@@ -287,6 +279,7 @@ const HostDetailsPage = ({
     location.query.show_mdm_status === "true"
   );
   const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showOnlineHistoryModal, setShowOnlineHistoryModal] = useState(false);
   // Sync MDM status modal state when the query param changes while mounted
   // (e.g., browser back/forward navigation).
   useEffect(() => {
@@ -360,6 +353,9 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [refetchTimeout, setRefetchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const queryClient = useQueryClient();
 
   const [
@@ -408,15 +404,15 @@ const HostDetailsPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    "teams",
-    () => teamAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL && !!isPremiumTier,
-      retry: false,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isError: isTeamsError } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >("teams", () => teamAPI.loadAll(), {
+    enabled: !!hostIdFromURL && !!isPremiumTier,
+    retry: false,
+    select: (data: ILoadTeamsResponse) => data.teams,
+  });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
@@ -719,6 +715,18 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
+  // undefined = still resolving. Global config must be loaded, and for a
+  // teamed host the teams query must have either succeeded or errored. A
+  // teams-load failure falls back to the global setting rather than spinning
+  // forever; a missing team-level override is treated as "not disabled".
+  const teamFeaturesResolved =
+    !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeCollectionEnabled: boolean | undefined =
+    config?.features === undefined || !teamFeaturesResolved
+      ? undefined
+      : (config.features.historical_data?.uptime ?? true) &&
+        (featuresConfig?.historical_data?.uptime ?? true);
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -740,6 +748,14 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
+    };
+  }, [refetchTimeout]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -766,6 +782,10 @@ const HostDetailsPage = ({
   const toggleVitalsModal = useCallback(() => {
     setShowVitalsModal(!showVitalsModal);
   }, [showVitalsModal, setShowVitalsModal]);
+
+  const toggleOnlineHistoryModal = useCallback(() => {
+    setShowOnlineHistoryModal((prev) => !prev);
+  }, []);
 
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal((prev) => {
@@ -1477,7 +1497,9 @@ const HostDetailsPage = ({
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
   // no Fleet Desktop (so no token, and no page to load) or wiped.
-  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
+  const canViewMyDeviceLink =
+    isGlobalAdmin &&
+    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
@@ -1616,6 +1638,9 @@ const HostDetailsPage = ({
               macDiskEncryptionStatus={
                 host?.mdm.apple_settings?.disk_encryption
               }
+              diskEncryptionActionRequired={
+                host?.mdm.apple_settings?.action_required
+              }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
               diskIsEncrypted={host?.disk_encryption_enabled}
@@ -1673,6 +1698,7 @@ const HostDetailsPage = ({
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                  toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
@@ -1962,7 +1988,6 @@ const HostDetailsPage = ({
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
-              lastMdmEnrollmentType={host.last_mdm_enrollment_type}
               onlyAllowAppleBusinessEnrollment={
                 config?.mdm.only_allow_apple_business_enrollment || false
               }
@@ -2266,6 +2291,14 @@ const HostDetailsPage = ({
             onExit={toggleVitalsModal}
           />
         )}
+        {showOnlineHistoryModal && (
+          <HostOnlineHistoryModal
+            hostId={host.id}
+            fleetId={host.team_id ?? undefined}
+            uptimeCollectionEnabled={uptimeCollectionEnabled}
+            onExit={toggleOnlineHistoryModal}
+          />
+        )}
         {editingCustomHostVital && (
           <EditHostVitalModal
             hostId={host.id}
@@ -2288,7 +2321,14 @@ const HostDetailsPage = ({
             platform={host.platform}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             connectedToFleet={host.mdm.connected_to_fleet}
-            onSuccessfulCheckIn={refetchHostDetails}
+            onSuccessfulCheckIn={() => {
+              // Delay the refetch of the host details
+              // so the device has time to check in.
+              const timeout = setTimeout(() => {
+                refetchHostDetails();
+              }, 5000);
+              setRefetchTimeout(timeout);
+            }}
             user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}

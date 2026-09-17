@@ -1,8 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import AddHostsModal from "./AddHostsModal";
 
@@ -170,7 +171,6 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
-    expect(screen.getByText("Enrollment instructions")).toBeInTheDocument();
     expect(
       screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();
@@ -204,7 +204,6 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
-    expect(screen.getByText("Enrollment instructions")).toBeInTheDocument();
     expect(
       screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();

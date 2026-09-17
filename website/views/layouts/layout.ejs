@@ -208,8 +208,23 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
-                    <div purpose="mobile-search" id="mobile-docsearch" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
-                    </div>
+                    <form purpose="google-search" id="mobile-article-search-form">
+                      <div purpose="mobile-search" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
+                        <label for="mobile-search" purpose="mobile-search-container" class="input-group d-flex flex-nowrap mb-0">
+                          <div class="input-group-prepend">
+                            <span class="input-group-text border-0 bg-transparent" >
+                              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                            </span>
+                          </div>
+                          <div purpose="inner-search-input" class="form-control border-0">
+                            <input class="docsearch-input pr-1" id="mobile-search" placeholder="Search" aria-label="Search"/>
+                          </div>
+                          <button type="submit" form="mobile-article-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">
+                            ⏎
+                          </button>
+                        </label>
+                      </div>
+                    </form>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
                       <div><p>Solutions</p></div>
                       <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
@@ -987,6 +1002,7 @@
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
+    <script src="/js/pages/omarchy.page.js"></script>
     <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
@@ -1140,6 +1156,18 @@
             });
           }
         }
+      });
+    </script>
+    <script>
+      // Sends search queries to a scoped Google search.
+      document.addEventListener('submit', function(event) {
+        var form = event.target.closest('form[purpose="google-search"]');
+        if (!form) { return; }
+        event.preventDefault();
+        var input = form.querySelector('input');
+        var searchQuery = (input ? input.value : '').trim();
+        if (!searchQuery) { return; }
+        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery), '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>

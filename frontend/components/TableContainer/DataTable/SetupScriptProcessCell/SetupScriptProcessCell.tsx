@@ -1,5 +1,6 @@
-import Graphic from "components/Graphic/Graphic";
 import React from "react";
+
+import Graphic from "components/Graphic/Graphic";
 
 const baseClass = "setup-script-process-cell";
 

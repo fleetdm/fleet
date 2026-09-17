@@ -118,6 +118,8 @@ func TestMDMApple(t *testing.T) {
 		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
+		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
+		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
@@ -127,7 +129,6 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
-		{"GetNanoMDMEnrollmentDetailsEnrollmentType", testGetNanoMDMEnrollmentDetailsEnrollmentType},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -10011,6 +10012,152 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, orgNames[0], "org3")
 }
 
+func testCleanupHostMDMCommandsQueueAware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// small batches so the stale rows below span more than one delete
+	hostMDMCommandsBatchSizeOrig := hostMDMCommandsBatchSize
+	hostMDMCommandsBatchSize = 2
+	t.Cleanup(func() {
+		hostMDMCommandsBatchSize = hostMDMCommandsBatchSizeOrig
+	})
+	host := test.NewHost(t, ds, "cleanup-queue-aware.local", "1.1.1.1", "cqa-osquery-id", "cqa-node-key", time.Now())
+	nanoEnroll(t, ds, host, true)
+	userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnrollment)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+
+	track := func(commandType, commandUUID string, age time.Duration) {
+		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+			{HostID: host.ID, CommandType: commandType, CommandUUID: commandUUID},
+		}))
+		// updated_at auto-updates on write, so set the age explicitly after
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_commands SET updated_at = NOW() - INTERVAL ? SECOND WHERE host_id = ? AND command_type = ?`,
+			int(age.Seconds()), host.ID, commandType)
+		require.NoError(t, err)
+	}
+	enqueue := func(enrollmentID string) string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{enrollmentID}, createRawAppleCmd("DeviceInformation", cmdUUID)))
+		return cmdUUID
+	}
+	report := func(enrollmentID, cmdUUID, status string) {
+		// the table requires a plist-looking result body
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml version="1.0"?><plist/>')`,
+			enrollmentID, cmdUUID, status)
+		require.NoError(t, err)
+	}
+
+	const day = 24 * time.Hour
+
+	// the command still waits in the queue: the row survives well past the
+	// old 24h wipe, which is what stops the daily duplicate enqueues
+	track("live", enqueue(host.UUID), 2*day)
+	// a NotNow is not an answer, the command is still outstanding
+	notNow := enqueue(host.UUID)
+	report(host.UUID, notNow, "NotNow")
+	track("not-now", notNow, 2*day)
+	// a command queued on the user channel is found through the device
+	track("user-channel", enqueue(userEnrollment.ID), 2*day)
+	// answered: the ack handler normally clears this, the cleanup is the backstop
+	acked := enqueue(host.UUID)
+	report(host.UUID, acked, "Acknowledged")
+	track("acked", acked, 2*time.Hour)
+	// cleared from the queue (re-enrollment, SCEP renewal, wipe)
+	cleared := enqueue(host.UUID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, cleared)
+	require.NoError(t, err)
+	track("cleared", cleared, 2*time.Hour)
+	// never made it into the queue: orphaned only once past the grace window
+	track("orphan-fresh", "REFETCH-never-queued-1", 0)
+	track("orphan-old", "REFETCH-never-queued-2", 2*time.Hour)
+	// pre-UUID rows keep the day-based rule
+	track("legacy-fresh", "", 0)
+	track("legacy-old", "", 2*day)
+
+	require.NoError(t, ds.CleanupHostMDMCommands(ctx))
+
+	commands, err := ds.GetHostMDMCommands(ctx, host.ID)
+	require.NoError(t, err)
+	remaining := make([]string, 0, len(commands))
+	for _, c := range commands {
+		remaining = append(remaining, c.CommandType)
+	}
+	require.ElementsMatch(t, []string{"live", "not-now", "user-channel", "orphan-fresh", "legacy-fresh"}, remaining)
+}
+
+func testHostMDMCommandsUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("host-mdm-cmd-uuid-osquery-id"),
+		NodeKey:         new("host-mdm-cmd-uuid-node-key"),
+		UUID:            "host-mdm-cmd-uuid",
+		Hostname:        "host-mdm-cmd-uuid",
+	})
+	require.NoError(t, err)
+
+	get := func() []fleet.HostMDMCommand {
+		commands, err := ds.GetHostMDMCommands(ctx, h.ID)
+		require.NoError(t, err)
+		return commands
+	}
+
+	tracked := fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t", CommandUUID: "refetch-t-uuid-new"}
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// an ack of a stale duplicate must not clear the tracking row
+	stale := tracked
+	stale.CommandUUID = "refetch-t-uuid-old"
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, stale))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// the ack of the tracked command clears it
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, tracked))
+	require.Empty(t, get())
+
+	// a pre-UUID row (no recorded UUID) is cleared by any ack of its type
+	legacy := fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t"}
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID: h.ID, CommandType: "refetch-t", CommandUUID: "any-uuid",
+	}))
+	require.Empty(t, get())
+
+	// a UUID-less remove keeps the pre-UUID semantics: the row goes regardless
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t"}))
+	require.Empty(t, get())
+
+	// re-tracking an existing row updates its UUID to the newest command
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// a UUID-less re-track must not downgrade a recorded UUID: that would
+	// strip the row of its ack-matching protection
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// batch remove with a UUID only clears rows tracking that command...
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID}, "refetch-t", "some-other-uuid"))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID}, "refetch-t", tracked.CommandUUID))
+	require.Empty(t, get())
+
+	// ...and pre-UUID rows, which any batch remove clears
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID}, "refetch-t", "any-uuid"))
+	require.Empty(t, get())
+}
+
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -10101,12 +10248,12 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// No-op on an empty host list.
-	require.NoError(t, ds.RemoveHostMDMCommands(ctx, nil, "command-2"))
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, nil, "command-2", ""))
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, hostCommands[1:], commands)
 
-	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID, h2.ID, badHostID}, "command-2"))
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID, h2.ID, badHostID}, "command-2", ""))
 
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
@@ -13492,37 +13639,4 @@ FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
 			mobileconfig.FleetFileVaultPayloadIdentifier)
 	})
 	require.Equal(t, 2, count)
-}
-
-// Manual BYOD and Account-Driven User Enrollment both report the
-// "On (manual - personal)" status, so the enrollment channel is the only way to
-// tell them apart. See #50868.
-func testGetNanoMDMEnrollmentDetailsEnrollmentType(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	newHost := func(suffix string) *fleet.Host {
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "adue-host-" + suffix,
-			OsqueryHostID: new("adue-osq-" + suffix),
-			NodeKey:       new("adue-key-" + suffix),
-			UUID:          "adue-uuid-" + suffix,
-			Platform:      "ios",
-		})
-		require.NoError(t, err)
-		return h
-	}
-
-	manualBYOD := newHost("manual")
-	nanoEnroll(t, ds, manualBYOD, false)
-
-	accountDriven := newHost("account-driven")
-	nanoEnrollUserDevice(t, ds, accountDriven)
-
-	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, manualBYOD.UUID)
-	require.NoError(t, err)
-	require.Equal(t, "Device", details.EnrollmentType)
-
-	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, accountDriven.UUID)
-	require.NoError(t, err)
-	require.Equal(t, "User Enrollment (Device)", details.EnrollmentType)
 }

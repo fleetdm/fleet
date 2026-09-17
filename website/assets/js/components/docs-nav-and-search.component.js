@@ -45,19 +45,20 @@ parasails.registerComponent('docsNavAndSearch', {
         </div>
       </div>
       <div>
-        <div purpose="nav-bar-search" id="docsearch-query" class="d-flex" v-if="algoliaPublicKey">
-          <div purpose="disabled-search" class="d-flex">
+        <div purpose="nav-bar-search" class="d-flex">
+          <div purpose="searchbar" class="d-flex">
             <div class="input-group d-flex flex-nowrap">
               <div class="input-group-prepend">
-                <span class="input-group-text border-0 bg-transparent" >
+                <span class="input-group-text border-0 bg-transparent pr-0" >
                   <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
                 </span>
               </div>
-              <div class="form-control border-0 ">
-              <input class="docsearch-input pr-1"
-                placeholder="Search" aria-label="Search"
-                />
-              </div>
+              <form purpose="google-search" id="docs-nav-search-form">
+                <div class="form-control border-0">
+                  <input id="nav-search-bar" placeholder="Search" aria-label="Search"/>
+                </div>
+              </form>
+              <button type="submit" form="docs-nav-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">⏎</button>
             </div>
           </div>
         </div>
@@ -73,43 +74,44 @@ parasails.registerComponent('docsNavAndSearch', {
     //…
   },
   mounted: async function() {
-    let filterForSearch = {};
-    if(this.searchFilter){
-      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
-      let buttonTextBySearchFilter = {
-        docs: 'Search the docs',
-        software: 'Search software',
-        queries: 'Search reports',
-        vitals: 'Search vitals',
-        policies: 'Search policies',
-        tables: 'Search data tables',
-        controls: 'Search controls'
-      };
-      if(!searchIndexesThatExist.includes(this.searchFilter)){
-        throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
-      }
-      filterForSearch = {
-        'facetFilters': [`section:${this.searchFilter}`]
-      };
-      this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
-    }
-    if(this.algoliaPublicKey) {
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: this.searchBoxLabel,
-        debug: false,
-        searchParameters: filterForSearch,
-        translations: {
-          button: {
-            buttonText: this.searchBoxLabel,
-            buttonAriaLabel: this.searchBoxLabel,
-          },
-        },
-      });
-    }
+    // let filterForSearch = {};
+    // if(this.searchFilter){
+    //   let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'controls'];
+    //   let buttonTextBySearchFilter = {
+    //     docs: 'Search the docs',
+    //     software: 'Search software',
+    //     queries: 'Search reports',
+    //     vitals: 'Search vitals',
+    //     policies: 'Search policies',
+    //     tables: 'Search data tables',
+    //     controls: 'Search controls'
+    //   };
+    //   if(!searchIndexesThatExist.includes(this.searchFilter)){
+    //     throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
+    //   }
+    //   filterForSearch = {
+    //     'facetFilters': [`section:${this.searchFilter}`]
+    //   };
+    //   this.searchBoxLabel = buttonTextBySearchFilter[this.searchFilter];
+    // }
+    // Note: algolia docsearch is disabled while we test sending search queries to google.
+    // if(this.algoliaPublicKey) {
+    //   docsearch({
+    //     appId: 'NZXAYZXDGH',
+    //     apiKey: this.algoliaPublicKey,
+    //     indexName: 'fleetdm',
+    //     container: '#docsearch-query',
+    //     placeholder: this.searchBoxLabel,
+    //     debug: false,
+    //     searchParameters: filterForSearch,
+    //     translations: {
+    //       button: {
+    //         buttonText: this.searchBoxLabel,
+    //         buttonAriaLabel: this.searchBoxLabel,
+    //       },
+    //     },
+    //   });
+    // }
   },
   beforeDestroy: function() {
     //…

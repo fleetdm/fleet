@@ -1667,8 +1667,7 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 			if err != nil {
 				return "", err
 			}
-			local, _, _ := strings.Cut(user.IdpUserName, "@")
-			value = local
+			value = fleet.EmailLocalPart(user.IdpUserName)
 
 		case fleet.FleetVarHostEndUserIDPGroups:
 			user, err := resolveIDPUser(fleetVar)
@@ -5975,9 +5974,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 	}
 
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	// The UUID pins the delete to the acked command: an ack of a stale duplicate must not clear the tracking for the newest one.
 	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
+		CommandUUID: cmdResult.CommandUUID,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
 	}
@@ -6559,9 +6560,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 	}
 
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	// The UUID pins the delete to the acked command: an ack of a stale duplicate must not clear the tracking for the newest one.
 	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+		CommandUUID: cmdResult.CommandUUID,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: remove refetch command")
 	}
@@ -6694,16 +6697,17 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 	// nothing was queued (the nano enqueue is transactional) and the row is
 	// removed again; if only the APNs notification failed the command is
 	// durably queued and the row must stay.
+	cmdUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
 	hostCmd := fleet.HostMDMCommand{
 		HostID:      res.HostID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+		CommandUUID: cmdUUID,
 	}
 	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd}); err != nil {
 		return ctxerr.Wrap(ctx, err, "track refetch certs command")
 	}
 
-	cmdUUID := uuid.NewString()
-	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+	if err := svc.commander.CertificateList(ctx, []string{enrollmentID}, cmdUUID); err != nil {
 		if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 			if rmErr := svc.ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {
 				svc.logger.ErrorContext(ctx, "untrack refetch certs command after enqueue failure",
@@ -6794,9 +6798,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	}
 
 	// We remove pending command first in case there is an error processing the results, so that we don't prevent another refetch.
+	// The UUID pins the delete to the acked command: an ack of a stale duplicate must not clear the tracking for the newest one.
 	if err := svc.ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
 		HostID:      host.ID,
 		CommandType: fleet.RefetchDeviceCommandUUIDPrefix,
+		CommandUUID: cmdResult.CommandUUID,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "remove refetch device command")
 	}
@@ -8558,6 +8564,42 @@ func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Set ABM token default endpoint
+////////////////////////////////////////////////////////////////////////////////
+
+type setABMTokenDefaultRequest struct {
+	TokenID uint `url:"id"`
+	// pointer so an omitted field is rejected instead of silently clearing the default
+	Default *bool `json:"default"`
+}
+
+type setABMTokenDefaultResponse struct {
+	ABMToken *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
+	Err      error           `json:"error,omitempty"`
+}
+
+func (r setABMTokenDefaultResponse) Error() error { return r.Err }
+
+func setABMTokenDefaultEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*setABMTokenDefaultRequest)
+
+	tok, err := svc.SetABMTokenDefault(ctx, req.TokenID, req.Default)
+	if err != nil {
+		return &setABMTokenDefaultResponse{Err: err}, nil
+	}
+
+	return &setABMTokenDefaultResponse{ABMToken: tok}, nil
+}
+
+func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

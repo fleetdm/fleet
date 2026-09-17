@@ -1,20 +1,6 @@
+import { AxiosResponse } from "axios";
 import React, { useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
-
-import PATHS from "router/paths";
-import { notify } from "components/ToastNotification";
-
-import { IApiError } from "interfaces/errors";
-import { ILabelSummary } from "interfaces/label";
-import { IMdmProfile, IProfileLabel } from "interfaces/mdm";
-
-import labelsAPI, {
-  getCustomLabels,
-  listNamesFromSelectedLabels,
-} from "services/entities/labels";
-import mdmAPI, { isDDMProfile } from "services/entities/mdm";
-import useGitOpsMode from "hooks/useGitOpsMode";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -28,6 +14,17 @@ import {
   LabelTargetMode,
   TargetType,
 } from "components/TargetLabelSelector";
+import { notify } from "components/ToastNotification";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IApiError } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
+import { IMdmProfile, IProfileLabel } from "interfaces/mdm";
+import PATHS from "router/paths";
+import labelsAPI, {
+  getCustomLabels,
+  listNamesFromSelectedLabels,
+} from "services/entities/labels";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import {
   generateCustomTargetLabelKey,

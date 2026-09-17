@@ -1,13 +1,12 @@
 import React from "react";
 
-import hostAPI from "services/entities/hosts";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import { isAndroid } from "interfaces/platform";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroid } from "interfaces/platform";
+import hostAPI from "services/entities/hosts";
 
 const baseClass = "clear-passcode-modal";
 
