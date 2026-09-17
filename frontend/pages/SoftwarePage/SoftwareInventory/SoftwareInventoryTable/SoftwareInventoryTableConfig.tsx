@@ -17,7 +17,7 @@ import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import VersionCell from "../../components/tables/VersionCell";
+import { VersionsColumnCell } from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 import { getVulnerabilities } from "./helpers";
@@ -145,9 +145,7 @@ const generateTableHeaders = (
       Header: "Version",
       disableSortBy: true,
       accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",

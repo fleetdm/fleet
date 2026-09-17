@@ -9,6 +9,7 @@ import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   formatSoftwareType,
+  formatSoftwareVersion,
   ISoftwareVersion,
   ISoftwareVulnerability,
 } from "interfaces/software";
@@ -69,7 +70,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell value={formatSoftwareVersion(cellProps.row.original)} />
       ),
     },
     {
