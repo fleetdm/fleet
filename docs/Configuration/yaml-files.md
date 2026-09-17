@@ -651,7 +651,7 @@ software:
           auto_update_window_start: "00:00"
           auto_update_window_end: "04:00"
           configuration:
-            path: ../lib/software/ios-clouflare-one-agent-config-production.xml
+            path: ../lib/software/ios-cloudflare-one-agent-config-production.xml
         - name: Test
           labels_include_any:
             - IT team
@@ -666,13 +666,13 @@ software:
           labels_exclude_any:
             - IT team
           configuration:
-            path: ../lib/software/android-clouflare-one-agent-config-production.json
+            path: ../lib/software/android-cloudflare-one-agent-config-production.json
         - name: Test
           self_service: true
           labels_include_any:
             - IT team
           configuration:
-            path: ../lib/software/android-clouflare-one-agent-config-test.json
+            path: ../lib/software/android-cloudflare-one-agent-config-test.json
   fleet_maintained_apps:
     - slug: slack/darwin
       version: "4.47.65"
