@@ -357,7 +357,7 @@ type Datastore interface {
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
-	CountEnrolledHosts(ctx context.Context) (int, error)
+	CountAllHosts(ctx context.Context) (int, error)
 
 	// TODO(sarah): Reconcile pending mdm hosts feature with original motivation to cleanup "dead incoming host"
 
@@ -709,12 +709,21 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
 
-	// QueryResultRows returns stored results of a query
-	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter) ([]*ScheduledQueryResultRow, error)
+	// QueryResultRows returns stored results of a query along with the total count of rows matching
+	// the filter. opts.OrderKey may be "last_fetched", "host_name", "host_id" or the name of a result
+	// column (built-in keys win over a result column with the same name; values sort as strings);
+	// opts.MatchQuery matches the host display name and any result column value.
+	// Pagination metadata is returned only when opts.IncludeMetadata is set.
+	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter, opts ListOptions) ([]*ScheduledQueryResultRow, int, *PaginationMetadata, error)
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
-	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
-	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
+	// ResultCountsForQueries returns the number of stored rows with data per query. Queries with
+	// no rows are absent from the result.
+	ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error)
+	// OverwriteQueryResultRows replaces the stored rows of a host for a query. currentCount is the
+	// (approximate) number of rows stored for the query across all hosts; if the replacement would
+	// push it above maxQueryReportRows nothing is changed and the result is marked rejected.
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (QueryReportWriteResult, error)
 	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
@@ -726,10 +735,10 @@ type Datastore interface {
 	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 	// ListHostReports returns the queries/reports associated with the given host, applying
 	// the provided options for filtering, sorting, and pagination. teamID is the team of the
-	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
-	// whether each query's report has been clipped. It returns the list of reports, the total
-	// count (without pagination), optional pagination metadata, and any error.
-	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
+	// host (nil for global). ReportClipped is left unset for the service layer to fill in. It
+	// returns the list of reports, the total count (without pagination), optional pagination
+	// metadata, and any error.
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

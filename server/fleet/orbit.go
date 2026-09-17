@@ -152,10 +152,20 @@ type DatastoreEnrollOrbitConfig struct {
 	OrbitNodeKey string
 	TeamID       *uint
 	IdentityCert *types.HostIdentityCertificate
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
 type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithEnrollOrbitCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOrbitCreated(created *bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
 func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {

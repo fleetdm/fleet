@@ -210,6 +210,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("app config load failed")
 	}
 
+	var hostCreated bool
 	host, err := svc.ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
@@ -219,10 +220,19 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
+		fleet.WithEnrollOsqueryCreated(&hostCreated),
 	)
 	if err != nil {
 		recordErrorDetail(ctx, err)
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed")
+	}
+
+	// Raise the report cap for the new host right away so its first results are not rejected
+	// while the cached host count waits for the cleanup cron to refresh it.
+	if hostCreated && svc.liveQueryStore != nil {
+		if err := svc.liveQueryStore.IncrQueryReportsHostCount(1); err != nil {
+			svc.logger.DebugContext(ctx, "incr query reports host count in redis", "err", err, "host_id", host.ID)
+		}
 	}
 
 	features, err := svc.HostFeatures(ctx, host)
@@ -4080,7 +4090,10 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// so that the logs are not lost and osquery retries on its next log interval.
 	//
 
-	var queryReportsDisabled bool
+	var (
+		queryReportsDisabled bool
+		maxQueryReportRows   int
+	)
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "getting app config", "err", err)
@@ -4090,6 +4103,9 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		queryReportsDisabled = true
 	} else {
 		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
+		if !queryReportsDisabled {
+			maxQueryReportRows = svc.queryReportCap(ctx, appConfig.ServerSettings)
+		}
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
@@ -4102,7 +4118,6 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
 
 	if !queryReportsDisabled {
-		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
@@ -4244,7 +4259,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
-	// Batch fetch query result counts from Redis for all queries
+	// Batch fetch query result counts from Redis for all queries, reading any that Redis
+	// doesn't have from the database and seeding them so later requests hit the cache.
 	var queryResultCounts map[uint]int
 	if svc.liveQueryStore != nil {
 		queryIDs := make([]uint, 0, len(queriesDBData))
@@ -4257,10 +4273,34 @@ func (svc *Service) saveResultLogsToQueryReports(
 			svc.logger.ErrorContext(ctx, "get result counts for queries", "err", err)
 			return
 		}
+		var missing []uint
+		for _, id := range queryIDs {
+			if _, ok := queryResultCounts[id]; !ok {
+				missing = append(missing, id)
+			}
+		}
+		if len(missing) > 0 {
+			fromDB, err := svc.ds.ResultCountsForQueries(ctx, missing)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "count results for queries missing from redis", "err", err)
+				return
+			}
+			seed := make(map[uint]int, len(missing))
+			for _, id := range missing {
+				seed[id] = fromDB[id]
+				queryResultCounts[id] = fromDB[id]
+			}
+			if err := svc.liveQueryStore.SetQueryResultsCountsIfAbsent(seed); err != nil {
+				svc.logger.DebugContext(ctx, "seed query results counts in redis", "err", err)
+			}
+		}
 	}
 
-	// Track rows added per query for batched Redis increment
+	// Track rows added, rejections and newly admitted hosts per query for batched Redis
+	// updates after the loop.
 	rowsAddedByQuery := make(map[uint]int)
+	clippedTTLByQuery := make(map[uint]time.Duration)
+	var admittedQueryIDs []uint
 
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
@@ -4284,22 +4324,23 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// Check Redis counter for approximate count (fast, distributed check).
-		if queryResultCounts != nil {
-			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
-				continue
-			}
-		}
+		// Approximate count from Redis; the datastore decides whether replacing
+		// this host's rows fits under the cap, so a full report keeps updating
+		// for hosts already in it.
+		currentCount := queryResultCounts[dbQuery.ID]
 
-		var rowsAdded int
-		var err error
-		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+		res, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
-
-		// Track rows added for batched Redis increment
-		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+		switch {
+		case res.Rejected:
+			clippedTTLByQuery[dbQuery.ID] = queryReportClippedTTL(dbQuery)
+		case res.NewHost:
+			admittedQueryIDs = append(admittedQueryIDs, dbQuery.ID)
+		}
+		rowsAddedByQuery[dbQuery.ID] += res.RowsAdded
 	}
 
 	// Batch increment Redis counters after all successful inserts
@@ -4307,6 +4348,22 @@ func (svc *Service) saveResultLogsToQueryReports(
 		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
 			// Log but don't fail - the inserts succeeded, counter is just a heuristic
 			svc.logger.DebugContext(ctx, "incr query results counts in redis", "err", err)
+		}
+	}
+
+	// Flag reports that rejected this host's results: the stored row count alone can't tell,
+	// since a rejected write leaves it below the cap.
+	if svc.liveQueryStore != nil && len(clippedTTLByQuery) > 0 {
+		if err := svc.liveQueryStore.MarkQueryReportsClipped(clippedTTLByQuery); err != nil {
+			svc.logger.DebugContext(ctx, "mark query reports clipped in redis", "err", err)
+		}
+	}
+
+	// A report that admitted a host it didn't cover yet has room again (more hosts, a higher
+	// cap, or shrunken results), so it is no longer clipped until the next rejection.
+	if svc.liveQueryStore != nil && len(admittedQueryIDs) > 0 {
+		if err := svc.liveQueryStore.ClearQueryReportsClipped(admittedQueryIDs); err != nil {
+			svc.logger.DebugContext(ctx, "clear query reports clipped in redis", "err", err)
 		}
 	}
 }
@@ -4437,14 +4494,20 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 	fetchTime := time.Now()
 
-	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+	snapshot := result.Snapshot
+	if size := snapshotSize(snapshot); size > maxQueryReportSnapshotBytes {
+		svc.logger.DebugContext(ctx, "query report result too large, storing only fetch time", "query_id", queryID, "host_id", hostID, "size", size)
+		snapshot = nil
+	}
+
+	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(snapshot))
 
 	// If the snapshot is empty, we still want to save a row with a null value
 	// to capture LastFetched.
-	if len(result.Snapshot) == 0 {
+	if len(snapshot) == 0 {
 		rows = append(rows, &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
@@ -4453,7 +4516,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		})
 	}
 
-	for _, snapshotItem := range result.Snapshot {
+	for _, snapshotItem := range snapshot {
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
@@ -4463,16 +4526,37 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	var rowsAdded int
-	var err error
-	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
-		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	res, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
+	if err != nil {
+		return fleet.QueryReportWriteResult{}, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	// If we only inserted an error row, don't count it against the limit.
-	if len(result.Snapshot) == 0 {
-		rowsAdded--
+	return res, nil
+}
+
+// minQueryReportClippedTTL is the shortest time a clipped marker lives. Rejections recur every
+// report interval while a report is clipped, so the marker lives twice the interval and the
+// floor only covers reports with short or unset intervals.
+const minQueryReportClippedTTL = time.Hour
+
+func queryReportClippedTTL(query *fleet.Query) time.Duration {
+	if ttl := 2 * time.Duration(query.Interval) * time.Second; ttl > minQueryReportClippedTTL { //nolint:gosec // dismiss G115
+		return ttl
 	}
-	return rowsAdded, nil
+	return minQueryReportClippedTTL
+}
+
+// maxQueryReportSnapshotBytes bounds the serialized size of one host's result
+// for one report, since the row cap alone doesn't bound storage.
+const maxQueryReportSnapshotBytes = 512 << 10 // 512 KiB
+
+func snapshotSize(snapshot []*json.RawMessage) int {
+	size := 0
+	for _, item := range snapshot {
+		if item != nil {
+			size += len(*item)
+		}
+	}
+	return size
 }
 
 // getMostRecentResults returns only the most recent result per query.

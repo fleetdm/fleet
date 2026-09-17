@@ -217,6 +217,7 @@ func TestHosts(t *testing.T) {
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
+		{"CountAllHosts", testCountAllHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2490,24 +2491,30 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range enrollTests {
+		var created bool
 		h, err := ds.EnrollOsquery(context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 			fleet.WithEnrollOsqueryTeamID(&team.ID),
+			fleet.WithEnrollOsqueryCreated(&created),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
+		assert.True(t, created)
 
 		assert.Equal(t, tt.uuid, *h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
+		created = false
 		_, err = ds.EnrollOsquery(context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
+			fleet.WithEnrollOsqueryCreated(&created),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
+		assert.False(t, created)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollOsquery(context.Background(),
@@ -7328,8 +7335,8 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
-	rowsAdded, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows)
-	require.Equal(t, 2, rowsAdded)
+	res, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	require.Equal(t, 2, res.RowsAdded)
 	require.NoError(t, err)
 
 	hostResult, err = ds.Host(context.Background(), host.ID)
@@ -7630,7 +7637,7 @@ func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 		QueryID: query.ID,
 		HostID:  host.ID,
 		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
-	}}, fleet.DefaultMaxQueryReportRows)
+	}}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// host should still see just one stats entry at this point, despite seeing stats from both queries in the UNION
@@ -12429,6 +12436,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with no match, will create a new one
 	newSerial := uuid.NewString()
+	var created bool
 	h, err = ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
@@ -12440,9 +12448,27 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			HardwareModel:  "ABC-3000",
 		}),
 		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitCreated(&created),
 	)
 	require.NoError(t, err)
 	require.Greater(t, h.ID, hBoth.ID)
+	require.True(t, created)
+
+	// re-enrolling the same host doesn't report it as created
+	created = false
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitMDMEnabled(true),
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   h.UUID,
+			HardwareSerial: newSerial,
+			Hostname:       "foo2",
+			Platform:       "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitCreated(&created),
+	)
+	require.NoError(t, err)
+	require.False(t, created)
 	// Hostname and platform values should be set by the Orbit enroll.
 	h, err = ds.Host(ctx, h.ID)
 	require.NoError(t, err)
@@ -13890,7 +13916,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		h4Global0Results,
 		h4Query1Results,
 	} {
-		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows)
+		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
 	}
 
@@ -13900,13 +13926,13 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	rows, err := ds.QueryResultRows(ctx, query0Global.ID, tf)
+	rows, _, _, err := ds.QueryResultRows(ctx, query0Global.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 5)
-	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query1Team1.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
-	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query2Team2.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 
@@ -13921,16 +13947,16 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// No global query results should be deleted
-	rows, err = ds.QueryResultRows(ctx, query0Global.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query0Global.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 5)
 	// Results for h1 should be gone, and results for hostStaticOnTeam1 should be here.
-	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query1Team1.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, hostStaticOnTeam1.ID, rows[0].HostID)
 	// Results for h2 and h3 should be gone.
-	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query2Team2.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, rows)
 
@@ -15570,4 +15596,20 @@ func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
 	require.True(t, got.OrbitDebugUntil.Equal(later))
+}
+
+func testCountAllHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	count, err := ds.CountAllHosts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	test.NewHost(t, ds, "alpha.local", "192.168.1.1", "11111", "UI8XB1221", time.Now())
+	test.NewHost(t, ds, "bravo.local", "192.168.1.2", "22222", "UI8XB1222", time.Now())
+	test.NewHost(t, ds, "charlie.local", "192.168.1.3", "33333", "UI8XB1223", time.Now())
+
+	count, err = ds.CountAllHosts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
 }

@@ -2336,12 +2336,7 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
-	}
-
-	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID, appConfig.ServerSettings.GetQueryReportCap())
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -2468,12 +2463,6 @@ func (svc *Service) ListHostReports(
 		return nil, 0, nil, err
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
-	}
-	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
-
 	// This end-point is always paginated; metadata is required for HasNextResults.
 	opts.ListOptions.IncludeMetadata = true
 	// Default page size for this endpoint is 50 (not the global default).
@@ -2500,9 +2489,23 @@ func (svc *Service) ListHostReports(
 	// labels_include_all is a premium-only feature only
 	opts.ExcludeIncludeAllQueries = !license.IsPremium(ctx)
 
-	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
+	}
+
+	if len(reports) > 0 {
+		reportIDs := make([]uint, 0, len(reports))
+		for _, r := range reports {
+			reportIDs = append(reportIDs, r.ReportID)
+		}
+		clipped, err := svc.queryReportsClipped(ctx, reportIDs)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		for _, r := range reports {
+			r.ReportClipped = clipped[r.ReportID]
+		}
 	}
 
 	return reports, total, meta, nil
