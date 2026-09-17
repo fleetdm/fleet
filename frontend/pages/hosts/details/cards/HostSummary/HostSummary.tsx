@@ -2,6 +2,7 @@ import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
 import React from "react";
 
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
@@ -30,6 +31,7 @@ interface IHostSummaryProps {
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleBootstrapPackageModal?: () => void;
+  toggleOnlineHistoryModal?: () => void;
   className?: string;
 }
 
@@ -38,6 +40,7 @@ const HostSummary = ({
   bootstrapPackageData,
   isPremiumTier,
   toggleBootstrapPackageModal,
+  toggleOnlineHistoryModal,
   className,
 }: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
@@ -79,16 +82,23 @@ const HostSummary = ({
   const renderStatus = () => {
     const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
     const tooltipText = getHostStatusTooltipText(displayedStatus, platform);
+    const indicator = (
+      <StatusIndicator
+        value={displayedStatus}
+        tooltip={tooltipText ? { tooltipText, position: "bottom" } : undefined}
+      />
+    );
     return (
       <DataSet
         title="Status"
         value={
-          <StatusIndicator
-            value={displayedStatus}
-            tooltip={
-              tooltipText ? { tooltipText, position: "bottom" } : undefined
-            }
-          />
+          toggleOnlineHistoryModal ? (
+            <Button variant="link" onClick={toggleOnlineHistoryModal}>
+              {indicator}
+            </Button>
+          ) : (
+            indicator
+          )
         }
       />
     );
