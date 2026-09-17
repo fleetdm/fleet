@@ -51,37 +51,32 @@ describe("getErrorMessage", () => {
     },
   };
 
-  it("passes through an error that merely mentions managedConfiguration on Android", () => {
-    // Only the backend's key-rejection message shape triggers the Android-specific
-    // message; an arbitrary error naming a key must surface its own reason.
-    expect(getErrorMessage(managedConfigErr, false)).toBe(
+  it("passes through an error that merely mentions managedConfiguration", () => {
+    expect(getErrorMessage(managedConfigErr)).toBe(
       "invalid managedConfiguration key"
     );
   });
 
-  it("passes through an error that merely mentions workProfileWidgets on Android", () => {
-    expect(getErrorMessage(workProfileErr, false)).toBe(
+  it("passes through an error that merely mentions workProfileWidgets", () => {
+    expect(getErrorMessage(workProfileErr)).toBe(
       "workProfileWidgets is not supported"
     );
   });
 
-  it("returns Android-specific error for an unsupported top-level key on Android", () => {
+  it("passes through the unsupported top-level key rejection verbatim", () => {
+    // The backend owns this sentence, so the key list users see is asserted in
+    // TestValidateAndroidAppConfiguration. This guards that nothing here
+    // rewrites or truncates it on the way to the UI.
+    const reason =
+      'Couldn\'t update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.';
     const unsupportedKeyErr = {
       response: {
         data: {
-          errors: [
-            {
-              name: "base",
-              reason:
-                'Couldn\'t update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.',
-            },
-          ],
+          errors: [{ name: "base", reason }],
         },
       },
     };
-    const result = getErrorMessage(unsupportedKeyErr, false);
-    expect(result).toBeTruthy();
-    expect(typeof result).not.toBe("string");
+    expect(getErrorMessage(unsupportedKeyErr)).toBe(reason);
   });
 
   it.each([
@@ -93,28 +88,15 @@ describe("getErrorMessage", () => {
       "workProfileWidgets",
       'Couldn\'t update configuration. "WORK_PROFILE_WIDGETS_MAYBE" is not a supported value for "workProfileWidget".',
     ],
-  ])(
-    "passes through the %s value validation error on Android",
-    (_key, reason) => {
-      const badValueErr = {
-        response: {
-          data: {
-            errors: [{ name: "base", reason }],
-          },
+  ])("passes through the %s value validation error", (_key, reason) => {
+    const badValueErr = {
+      response: {
+        data: {
+          errors: [{ name: "base", reason }],
         },
-      };
-      expect(getErrorMessage(badValueErr, false)).toBe(reason);
-    }
-  );
-
-  it("returns raw reason for managedConfiguration on iOS/iPadOS (not Android-specific message)", () => {
-    const result = getErrorMessage(managedConfigErr, true);
-    expect(result).toBe("invalid managedConfiguration key");
-  });
-
-  it("returns raw reason for workProfileWidgets on iOS/iPadOS", () => {
-    const result = getErrorMessage(workProfileErr, true);
-    expect(result).toBe("workProfileWidgets is not supported");
+      },
+    };
+    expect(getErrorMessage(badValueErr)).toBe(reason);
   });
 
   it("returns the reason string for a generic API error", () => {
@@ -125,18 +107,17 @@ describe("getErrorMessage", () => {
         },
       },
     };
-    expect(getErrorMessage(err, false)).toBe("something went wrong");
-    expect(getErrorMessage(err, true)).toBe("something went wrong");
+    expect(getErrorMessage(err)).toBe("something went wrong");
   });
 
   it("returns default message when no reason can be extracted", () => {
-    expect(getErrorMessage({}, false)).toBe(
+    expect(getErrorMessage({})).toBe(
       "Couldn't update configuration. Please try again."
     );
   });
 
   it("returns default message for null input", () => {
-    expect(getErrorMessage(null, false)).toBe(
+    expect(getErrorMessage(null)).toBe(
       "Couldn't update configuration. Please try again."
     );
   });
@@ -154,7 +135,7 @@ describe("getErrorMessage", () => {
         },
       },
     };
-    expect(getErrorMessage(err, true)).toBe(
+    expect(getErrorMessage(err)).toBe(
       `Couldn't edit. Variable "$FLEET_VAR_BLA_BLA" doesn't exist.`
     );
   });
@@ -185,7 +166,7 @@ describe("getErrorMessage", () => {
           },
         },
       };
-      expect(getErrorMessage(err, true)).toBe(
+      expect(getErrorMessage(err)).toBe(
         `Couldn't edit. Variable "$FLEET_VAR_${varSuffix}" isn't supported in managed configuration. It can only be used in configuration profiles.`
       );
     }
@@ -204,7 +185,7 @@ describe("getErrorMessage", () => {
         },
       },
     };
-    expect(getErrorMessage(err, true)).toBe(
+    expect(getErrorMessage(err)).toBe(
       `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_FOO" doesn't exist.`
     );
   });
@@ -223,7 +204,7 @@ describe("getErrorMessage", () => {
         },
       },
     };
-    expect(getErrorMessage(err, true)).toBe(
+    expect(getErrorMessage(err)).toBe(
       `Couldn't edit. Variable "$FLEET_SECRET_BLA_BLA" doesn't exist.`
     );
   });
@@ -242,7 +223,7 @@ describe("getErrorMessage", () => {
         },
       },
     };
-    expect(getErrorMessage(err, true)).toBe(
+    expect(getErrorMessage(err)).toBe(
       `Couldn't edit. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" don't exist.`
     );
   });

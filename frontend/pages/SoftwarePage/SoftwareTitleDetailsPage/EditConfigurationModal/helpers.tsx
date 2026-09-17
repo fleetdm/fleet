@@ -1,5 +1,3 @@
-import React from "react";
-
 import { getErrorReason } from "interfaces/errors";
 
 const DEFAULT_ERROR_MESSAGE =
@@ -53,22 +51,8 @@ const generateMissingSecretErrMsg = (errMsg: string) => {
   return `Couldn't edit. Variable${plural} ${quoted} ${verb} exist.`;
 };
 
-export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
+export const getErrorMessage = (err: unknown) => {
   const reason = getErrorReason(err);
-
-  // Android-specific: backend rejects top-level keys other than these three.
-  // Match the key-rejection message shape only, not key names, so value
-  // validation errors (e.g. an unsupported credentialProviderPolicy value)
-  // pass through unmodified even when they mention a key name.
-  if (!isApplePlatform && reason.includes("supported as top-level keys")) {
-    return (
-      <>
-        Couldn&apos;t update configuration. Only
-        &quot;managedConfiguration&quot;, &quot;workProfileWidgets&quot;, and
-        &quot;credentialProviderPolicy&quot; are supported as top-level keys.
-      </>
-    );
-  }
 
   // Fleet variable ($FLEET_VAR_) unsupported in managed configuration.
   // Note: the backend validates $FLEET_VAR_ variables one at a time and

@@ -4656,6 +4656,23 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	require.Len(t, patchAppsPolicies, 0)
 
+	// set the other two supported top-level keys for app3
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// worker should have:
+	// 1. made the app available with both policies set, not just the managed configuration
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`3`), WorkProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_ALLOWED"}, // #nosec G101 - AMAPI enum value, not a credential
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
 	// patch with a different config just to trigger the worker
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
