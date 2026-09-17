@@ -26,6 +26,10 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
 
 Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. 
 
+The sign-in page only works for a host that Fleet is currently waiting on. If the end user signs in with the wrong account, they can sign in again with the right one until the host finishes enrolling. Enrollment completes within about 30 seconds of a successful sign-in. After that, signing in again from the same page won't change the account linked to the host.
+
+Fleet records every link between a host and an IdP account in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs#bound_host_to_idp_account), including any account it replaced, and records a separate [audit log entry](https://fleetdm.com/docs/using-fleet/audit-logs#refused_host_idp_account_change) when a sign-in that arrives after enrollment is not applied.
+
 If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
 
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
