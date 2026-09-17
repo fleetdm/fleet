@@ -12,7 +12,10 @@ import {
 } from "interfaces/host";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 
-import BitLockerPinModal from "./BitLockerPinModal";
+import BitLockerPinModal, {
+  POLL_INTERVAL_MS,
+  POLL_TIMEOUT_MS,
+} from "./BitLockerPinModal";
 
 jest.mock("services/entities/disk_encryption", () => ({
   __esModule: true,
@@ -24,9 +27,6 @@ jest.mock("components/ToastNotification", () => ({
 }));
 
 const submitBitLockerPIN = diskEncryptionAPI.submitBitLockerPIN as jest.Mock;
-
-const POLL_INTERVAL_MS = 3000;
-const POLL_TIMEOUT_MS = 90000;
 
 /** The modal reads only this one path off the device response. */
 const deviceDetails = (

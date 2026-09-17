@@ -18,8 +18,8 @@ const PIN_MAX_LENGTH = 20;
 const PRINTABLE_ASCII = /^[ -~]+$/;
 
 /** The agent checks in every 30 seconds, so a host that is awake answers well inside this. */
-const POLL_INTERVAL_MS = 3000;
-const POLL_TIMEOUT_MS = 90000;
+export const POLL_INTERVAL_MS = 3000;
+export const POLL_TIMEOUT_MS = 90000;
 
 const CONTACT_ADMIN = "Try again or contact your IT admin.";
 

@@ -1018,13 +1018,21 @@ describe("Device User Page - Linux disk encryption key escrow", () => {
 });
 
 describe("BitLocker PIN deep link", () => {
-  const windowsHostNeedingPIN = (
-    diskEncryption: IOSSettings["disk_encryption"]
-  ) => {
+  const INSTRUCTIONS = /Type .Manage BitLocker. and launch/;
+
+  /** What the device endpoint reports for a Windows host still waiting on a PIN. */
+  const needsPIN = (
+    fleetdCanSetPIN: boolean
+  ): IOSSettings["disk_encryption"] => ({
+    status: "action_required",
+    detail: "",
+    action_required: "create_pin",
+    fleetd_can_set_pin: fleetdCanSetPIN,
+  });
+
+  const windowsHost = (diskEncryption: IOSSettings["disk_encryption"]) => {
     const host = createMockHost() as IHostDevice;
     host.platform = "windows";
-    host.mdm.enrollment_status = "On (manual)";
-    host.mdm.connected_to_fleet = true;
     host.mdm.os_settings = {
       certificates: [],
       disk_encryption: diskEncryption,
@@ -1055,44 +1063,33 @@ describe("BitLocker PIN deep link", () => {
     return router;
   };
 
-  it("opens the Create PIN form and drops only its own parameter", async () => {
-    const router = await renderWithCreatePINLink(
-      windowsHostNeedingPIN({
-        status: "action_required",
-        detail: "",
-        action_required: "create_pin",
-        fleetd_can_set_pin: true,
-      })
-    );
-
-    expect(await screen.findByLabelText("BitLocker PIN")).toBeInTheDocument();
-    await waitFor(() => {
+  /** The parameter is always consumed, so a reload never reopens the modal. */
+  const expectParamDropped = (router: ReturnType<typeof createMockRouter>) =>
+    waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith("/device/testToken");
     });
+
+  it("opens the Create PIN form and drops only its own parameter", async () => {
+    const router = await renderWithCreatePINLink(windowsHost(needsPIN(true)));
+
+    expect(await screen.findByLabelText("BitLocker PIN")).toBeVisible();
+    await expectParamDropped(router);
   });
 
   it("opens the instructions when the host's fleetd cannot be handed a PIN", async () => {
-    await renderWithCreatePINLink(
-      windowsHostNeedingPIN({
-        status: "action_required",
-        detail: "",
-        action_required: "create_pin",
-        fleetd_can_set_pin: false,
-      })
-    );
+    await renderWithCreatePINLink(windowsHost(needsPIN(false)));
 
-    expect(
-      await screen.findByText(/Type .Manage BitLocker. and launch/)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(INSTRUCTIONS)).toBeVisible();
     expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
   });
 
   it("ignores the parameter when the host does not need a PIN", async () => {
-    await renderWithCreatePINLink(
-      windowsHostNeedingPIN({ status: "verified", detail: "" })
+    const router = await renderWithCreatePINLink(
+      windowsHost({ status: "verified", detail: "" })
     );
 
     expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
-    expect(screen.queryByText(/Type .Manage BitLocker. and launch/)).toBeNull();
+    expect(screen.queryByText(INSTRUCTIONS)).toBeNull();
+    await expectParamDropped(router);
   });
 });
