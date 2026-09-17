@@ -1036,15 +1036,12 @@ var windowsEntraIDDetails = DetailQuery{
 
 // windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
 // agent-only Windows hosts get IdP vitals without an end user authentication prompt.
-// The datastore ignores it for hosts enrolled in Fleet MDM: those receive profiles
-// and certificates, which must not be driven by a device-asserted identity.
-// The JoinInfo subkey is named after the device's Entra certificate thumbprint;
-// matching them drops stale keys but is not an integrity control, the value is
-// device-asserted. One row per join record, newest certificate first, so a current
-// record without a user yields an empty user_email rather than an older record's.
-// Registry first with CROSS JOIN: osquery's Windows certificates table enumerates
-// every store regardless of WHERE, so this keeps that scan off hosts that are not
-// Entra-joined.
+// The datastore ignores it for hosts enrolled in Fleet MDM, which receive profiles and
+// certificates that must not follow a device-asserted identity.
+// The JoinInfo subkey is named after the device's certificate thumbprint; matching them
+// drops stale keys but is not an integrity control. Newest certificate first, so a
+// current record without a user yields an empty user_email, not an older record's.
+// Registry first: osquery's certificates table enumerates every store regardless of WHERE.
 var windowsEntraJoinUser = DetailQuery{
 	Query: `SELECT MAX(CASE WHEN r.name = 'UserEmail' THEN r.data END) AS user_email
 FROM registry r
@@ -2256,14 +2253,12 @@ func directIngestEntraJoinUser(
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
-	// the query is only sent to Windows hosts, but results are not filtered by
-	// platform on the way back in
+	// the query is only sent to Windows hosts, but results are not filtered by platform
 	if host.Platform != "windows" {
 		return nil
 	}
-	// Failed queries never reach here, so no rows means not joined, and a row
-	// without a usable user means joined without one (left Entra, pre-provisioned,
-	// or a malformed value): an empty UPN tells the datastore to clear the mapping.
+	// Failed queries never reach here: no rows means not joined, and a row without a
+	// usable user means joined without one. Either way the empty UPN clears the mapping.
 	var upn string
 	if len(rows) > 0 {
 		upn = strings.ToLower(strings.TrimSpace(rows[0]["user_email"]))

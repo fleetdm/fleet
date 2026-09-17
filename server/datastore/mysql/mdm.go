@@ -3063,9 +3063,8 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	}
 	idp := accts[hostID]
 
-	// manual ("idp") and device-reported ("entra_join") mappings are reported under
-	// the same "mdm_idp_accounts" source, so all three are reconciled together to
-	// avoid duplicate device mappings.
+	// manual ("idp") and device-reported ("entra_join") rows are reported under the
+	// same "mdm_idp_accounts" source, so all three reconcile together.
 	var hostEmails []fleet.HostDeviceMapping
 	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
 	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, fleet.DeviceMappingEntraJoin); err != nil {

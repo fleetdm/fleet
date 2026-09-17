@@ -4236,10 +4236,9 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 			return ctxerr.Wrap(ctx, err, "select previous host emails")
 		}
 
-		// an authenticated mapping supersedes the device-reported one, or the API
-		// would report both under the "mdm_idp_accounts" source. Its SCIM link goes
-		// with it in the same transaction: the caller re-links the authenticated user
-		// afterwards, and a device-asserted link must not outlive this on an MDM host.
+		// an authenticated mapping supersedes the device-reported one, which the API
+		// would otherwise report twice. Its SCIM link goes too, in this transaction:
+		// the caller re-links the authenticated user right after.
 		if source == fleet.DeviceMappingMDMIdpAccounts && len(mappings) > 0 {
 			res, err := tx.ExecContext(ctx, `DELETE FROM host_emails WHERE host_id = ? AND source = ?`, hid, fleet.DeviceMappingEntraJoin)
 			if err != nil {
@@ -4356,9 +4355,9 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 	)
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// A device-reported mapping takes its SCIM link with it, or a link the device
-		// asserted would outlive the manual value; the caller links the user matching
-		// the new value. Manual and authenticated rows keep their link, as before.
+		// Only a device-reported mapping takes its SCIM link with it, or the
+		// device-asserted link would outlive the manual value. The caller then
+		// links the user matching the new value.
 		var hadEntraJoin bool
 		if err := sqlx.GetContext(ctx, tx, &hadEntraJoin,
 			`SELECT EXISTS (SELECT 1 FROM host_emails WHERE host_id = ? AND source = ?)`,
@@ -4411,8 +4410,8 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "delete existing IdP device mappings - get mdm IdP rows affected")
 		}
 
-		// delete where source == "entra_join"; the next detail refresh recreates it,
-		// which is how clearing a manual username falls back to the device-reported user
+		// the next detail refresh recreates this row, so clearing a manual username
+		// falls back to the device-reported user
 		entraDelRes, err := tx.ExecContext(ctx, delStmt, id, fleet.DeviceMappingEntraJoin)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing Entra join device mappings")
@@ -4438,10 +4437,9 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 }
 
 func (ds *Datastore) SetOrUpdateEntraJoinHostDeviceMapping(ctx context.Context, hostID uint, upn string) (bool, error) {
-	// Runs on every detail refresh of every Entra-joined host and usually changes
-	// nothing, so decide on a replica read and only open a write transaction when
-	// needed. The transaction re-reads on the primary under lock, so a stale read
-	// can only skip a write until the next refresh, never write the wrong thing.
+	// Runs on every detail refresh and usually changes nothing, so decide on a
+	// replica read and only open a transaction when needed. That transaction
+	// re-reads under lock, so a stale read can only delay a write, never botch one.
 	needsWrite, err := entraJoinHostDeviceMappingDB(ctx, ds.reader(ctx), nil, hostID, upn)
 	if err != nil || !needsWrite {
 		return false, err
@@ -4456,9 +4454,8 @@ func (ds *Datastore) SetOrUpdateEntraJoinHostDeviceMapping(ctx context.Context, 
 }
 
 // entraJoinHostDeviceMappingDB reconciles the host's Entra join mapping and SCIM
-// link with upn (empty: the device reports no join user). A nil tx is a dry run
-// that only reports whether a write is needed; with a tx it writes under a locking
-// read so a concurrent manual or authenticated mapping cannot end up alongside it.
+// link with upn (empty: no join user reported). A nil tx is a dry run reporting
+// only whether a write is needed; with a tx it writes under a locking read.
 func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx sqlx.ExtContext, hostID uint, upn string) (bool, error) {
 	const (
 		selStmt = `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
@@ -4482,10 +4479,9 @@ func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx
 	}
 
 	// One scalar query resolves the SCIM user, the current link and the Fleet MDM
-	// enrollment, so the no-change case stays at two reads. It runs on every call
-	// so a user provisioned later is mapped on the next refresh. userName only:
-	// Entra maps it to the UPN, and the email fallback logs an error on every
-	// refresh when two users share an email.
+	// enrollment, keeping the no-change case at two reads. It runs every time, so a
+	// user provisioned later is mapped on the next refresh. userName only: Entra maps
+	// it to the UPN, and the email fallback errors when two users share an email.
 	var ids struct {
 		ScimUserID       *uint `db:"scim_user_id"`
 		LinkedID         *uint `db:"linked_scim_user_id"`
@@ -4504,14 +4500,13 @@ func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx
 		return false, ctxerr.Wrap(ctx, err, "get scim user, link and MDM enrollment for Entra join device mapping")
 	}
 	// Fleet MDM hosts receive profiles and certificates, which must not follow a
-	// device-asserted identity; their user comes from the enrollment or end user
-	// authentication. Treated as unprovisioned so an earlier mapping is removed.
+	// device-asserted identity. Treated as unprovisioned, so an earlier mapping goes.
 	if upn == "" || ids.FleetMDMEnrolled {
 		ids.ScimUserID = nil
 	}
 	if ids.ScimUserID == nil {
-		// Only provisioned users on agent-only hosts are mapped. Leftover rows and
-		// their link are ours to remove: no higher-priority mapping exists (above).
+		// Leftover rows and their link are ours to remove: no higher-priority
+		// mapping exists, checked above.
 		if len(existing) == 0 {
 			return false, nil
 		}
@@ -4521,8 +4516,8 @@ func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx
 		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingEntraJoin); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "delete Entra join device mappings without scim user")
 		}
-		// Only the link observed above: the link lookup is not locked, so one written
-		// meanwhile (e.g. by SCIM provisioning matching this row) must survive.
+		// Only the link observed above, which was not locked: one written meanwhile
+		// by SCIM provisioning must survive.
 		if ids.LinkedID != nil {
 			if _, err := deleteHostSCIMUserMappingFor(ctx, tx, hostID, ids.LinkedID); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "delete stale host SCIM user mapping for Entra join device mapping")
@@ -4548,9 +4543,8 @@ func entraJoinHostDeviceMappingDB(ctx context.Context, q sqlx.QueryerContext, tx
 		}
 	}
 	if !linkCurrent {
-		// Re-associate only on change: with clientFoundRows the upsert reports a
-		// matched row even when unchanged, which would resend IdP-variable profiles
-		// every refresh.
+		// Re-associate only on change: with clientFoundRows an unchanged upsert still
+		// reports a match, which would resend IdP-variable profiles every refresh.
 		if _, err := associateHostWithScimUser(ctx, tx, hostID, *ids.ScimUserID); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "associate host with scim user for Entra join device mapping")
 		}
@@ -5082,9 +5076,8 @@ WHERE %s`
 		}
 	}
 
-	// No match yet: fall back to host_emails rows set manually (idp) or reported by
-	// an Entra-joined device (entra_join) before the SCIM user existed. Device-reported
-	// rows only match on userName, like the detail query that writes them.
+	// No match yet: fall back to rows written before the SCIM user existed. The
+	// device-reported ones match on userName only, like the query that writes them.
 	// Use DISTINCT to avoid duplicates since host_emails has no uniqueness constraints.
 	if len(hostIDs) == 0 {
 		hostEmailSelectFmt := `SELECT DISTINCT he.host_id FROM host_emails he WHERE he.source IN (?) AND %s ORDER BY he.host_id`
@@ -5253,8 +5246,8 @@ func deleteObservedHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext
 }
 
 // deleteHostSCIMUserMappingFor removes the host's SCIM link. With a non-nil scimUserID
-// only a link to that user is removed, so a link written concurrently by another path
-// (e.g. SCIM provisioning) survives a stale-link cleanup.
+// only a link to that user is removed, so one written concurrently by another path
+// survives a stale-link cleanup.
 func deleteHostSCIMUserMappingFor(ctx context.Context, exec sqlx.ExtContext, hostID uint, scimUserID *uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	stmt := `DELETE FROM host_scim_user WHERE host_id = ?`
 	args := []any{hostID}
