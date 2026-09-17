@@ -2187,3 +2187,32 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
 }
+func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
+	t := s.T()
+
+	hostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	// Nothing ever clears refetch_requested for an Android host, so a request that
+	// will never be acted on must not set it.
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+
+	// The device-authenticated route is rejected too. GET /hosts/:id/device_url no
+	// longer mints a token for Android (#48439), but one issued by an earlier version
+	// still reaches this route.
+	const androidDeviceToken = "android-refetch-device-token" //nolint:gosec // G101 false positive, test fixture value
+	createDeviceTokenForHost(t, s.ds, hostID, androidDeviceToken)
+
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", androidDeviceToken), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+}
