@@ -1400,8 +1400,8 @@ type Datastore interface {
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for the given host ID.
-	// It accepts the archivedFallbackToSerial flag to indicate whether to fall back to using the host's serial number when checking the archived disk encryption key.
-	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host, archivedFallbackToSerial bool) (*HostArchivedDiskEncryptionKey, error)
+	// It accepts the allowArchivedSerialLookup flag to indicate whether to allow falling back to using the host's serial number when checking the archived disk encryption key.
+	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host, allowArchivedSerialLookup bool) (*HostArchivedDiskEncryptionKey, error)
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)

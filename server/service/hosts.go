@@ -3968,9 +3968,9 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 
 type getHostEncryptionKeyRequest struct {
 	ID uint `url:"id"`
-	// ArchivedFallbackToSerial indicates whether to fall back to using the host's serial number
+	// AllowArchivedSerialLookup indicates whether to allow falling back to using the host's serial number
 	// when checking the archived disk encryption key.
-	ArchivedFallbackToSerial bool `query:"archived_fallback_to_serial,optional"`
+	AllowArchivedSerialLookup bool `query:"allow_serial_lookup,optional"`
 }
 
 type getHostEncryptionKeyResponse struct {
@@ -3983,14 +3983,14 @@ func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
 func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
-	key, err := svc.HostEncryptionKey(ctx, req.ID, req.ArchivedFallbackToSerial)
+	key, err := svc.HostEncryptionKey(ctx, req.ID, req.AllowArchivedSerialLookup)
 	if err != nil {
 		return getHostEncryptionKeyResponse{Err: err}, nil
 	}
 	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
 }
 
-func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*fleet.HostDiskEncryptionKey, error) {
+func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -4007,7 +4007,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, archivedFall
 	}
 
 	svc.logger.InfoContext(ctx, "retrieving host disk encryption key", "host_id", host.ID, "host_name", host.DisplayName())
-	key, err := svc.getHostDiskEncryptionKey(ctx, host, archivedFallbackToSerial)
+	key, err := svc.getHostDiskEncryptionKey(ctx, host, allowArchivedSerialLookup)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
@@ -4027,7 +4027,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, archivedFall
 	return key, nil
 }
 
-func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, archivedFallbackToSerial bool) (*fleet.HostDiskEncryptionKey, error) {
+func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	// First, determine the decryption function based on the host platform and configuration.
 	var decryptFn func(b64 string) (string, error)
 	switch {
@@ -4082,9 +4082,9 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
 			// The user can't read hosts without a team-id, global scoped - limit the fallback to only host ID.
 			// We discard the error here to avoid permission oracle probing.
-			archivedFallbackToSerial = false
+			allowArchivedSerialLookup = false
 		}
-		archivedKey, err = svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host, archivedFallbackToSerial)
+		archivedKey, err = svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host, allowArchivedSerialLookup)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "getting host archived disk encryption key")
 		}
