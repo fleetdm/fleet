@@ -131,20 +131,14 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     }
   };
 
-  handleKeyDown = (evt: React.KeyboardEvent<HTMLButtonElement>): void => {
-    const { disabled, onClick } = this.props;
-
-    if (disabled || evt.key !== "Enter") {
-      return;
-    }
-
-    if (onClick) {
-      onClick(evt as any);
-    }
-  };
+  // Intentionally no synthetic Enter→click handler. Native <button> fires
+  // onClick on both Enter (keydown) and Space (keyup); a manual onClick call
+  // on Enter would double-fire, which silently no-ops toggle handlers (open
+  // then immediately close). Callers that need custom key handling pass
+  // customOnKeyDown.
 
   render(): JSX.Element {
-    const { handleClick, handleKeyDown, setRef } = this;
+    const { handleClick, setRef } = this;
     const {
       children,
       className,
@@ -237,7 +231,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         className={fullClassName}
         disabled={disabled}
         onClick={handleClick}
-        onKeyDown={customOnKeyDown || handleKeyDown}
+        onKeyDown={customOnKeyDown}
         tabIndex={tabIndex}
         type={type}
         form={formId}

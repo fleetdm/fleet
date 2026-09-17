@@ -4763,12 +4763,26 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
-			// TODO: confirm approach with Victor
-			if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
+			// An IdP username set by an admin is kept by the reconcile above, so keep the
+			// SCIM link derived from it too: there is no IdP account to rebuild it from and
+			// this check-in may be a SCEP renewal rather than a real re-enrollment.
+			// Without either, drop the link so a host re-enrolled without SSO doesn't keep
+			// showing its previous user.
+			keepManualLink := false
+			if idp == nil {
+				if err := sqlx.GetContext(ctx, tx, &keepManualLink,
+					`SELECT EXISTS (SELECT 1 FROM host_emails WHERE host_id = ? AND source = ?)`,
+					host.ID, fleet.DeviceMappingIDP); err != nil {
+					return ctxerr.Wrap(ctx, err, "checking for manually set idp mapping")
+				}
 			}
-			if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+			if !keepManualLink {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
+				}
+				if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
+					return ctxerr.Wrap(ctx, err, "re-associating host with scim user from mdm idp account")
+				}
 			}
 		}
 
@@ -7189,16 +7203,62 @@ func (ds *Datastore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUI
 }
 
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
-	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
-	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
-	const stmt = `
-		DELETE hmc FROM host_mdm_commands AS hmc
+	// A row with a UUID lives while that command is still outstanding in the nano
+	// queue, using nano's own test (active, no result or only a NotNow) so the two
+	// never disagree; matched on device_id so user-channel commands count. The
+	// 1-hour grace covers a producer writing its row before enqueueing. Rows
+	// without a UUID keep the old 1-day rule.
+	const selectStmt = `
+		SELECT hmc.host_id, hmc.command_type, hmc.command_uuid
+		FROM host_mdm_commands AS hmc
 		LEFT JOIN hosts h ON h.id = hmc.host_id
-		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+		WHERE h.id IS NULL
+		OR (hmc.command_uuid IS NULL AND hmc.updated_at < NOW() - INTERVAL 1 DAY)
+		OR (
+			hmc.command_uuid IS NOT NULL
+			AND hmc.updated_at < NOW() - INTERVAL 1 HOUR
+			AND NOT EXISTS (
+				SELECT 1
+				FROM nano_enrollment_queue neq
+				JOIN nano_enrollments ne ON ne.id = neq.id
+				LEFT JOIN nano_command_results ncr
+					ON ncr.id = neq.id AND ncr.command_uuid = neq.command_uuid
+				WHERE neq.command_uuid = hmc.command_uuid
+					AND ne.device_id = h.uuid
+					AND neq.active = 1
+					AND (ncr.status IS NULL OR ncr.status = 'NotNow')
+			)
+		)
+		LIMIT 50000`
+
+	type staleRow struct {
+		HostID      uint    `db:"host_id"`
+		CommandType string  `db:"command_type"`
+		CommandUUID *string `db:"command_uuid"`
 	}
-	return nil
+	var stale []staleRow
+	// Select from the primary and delete in short batches keyed on the row's full
+	// identity, so a run never holds one long DELETE and a row re-tracked since the
+	// select is left alone. The LIMIT just bounds a run; the next one takes the rest.
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &stale, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "select stale host_mdm_commands")
+	}
+
+	const deleteStmt = `DELETE FROM host_mdm_commands WHERE %s`
+	return common_mysql.BatchProcessSimple(stale, hostMDMCommandsBatchSize, func(batch []staleRow) error {
+		const numberOfArgsPerRow = 3
+		conds := strings.TrimSuffix(
+			strings.Repeat("(host_id = ? AND command_type = ? AND command_uuid <=> ?) OR ", len(batch)), " OR ",
+		)
+		args := make([]any, 0, len(batch)*numberOfArgsPerRow)
+		for _, r := range batch {
+			args = append(args, r.HostID, r.CommandType, r.CommandUUID)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(deleteStmt, conds), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch delete stale host_mdm_commands")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
