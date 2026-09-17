@@ -206,8 +206,7 @@ const DeviceUserBanners = ({
           >
             Disk encryption: Create a BitLocker PIN to protect your data if your
             device is lost or stolen.
-            {/* Fleet clears the banner on its own once its agent applies the PIN, so only an end user setting the PIN
-            themselves has to refetch. */}
+            {/* Fleet clears the banner on its own once its agent applies the PIN. */}
             {!diskEncryptionOSSetting.fleetd_can_set_pin && (
               <>
                 {" "}

@@ -3037,7 +3037,7 @@ const GlobalActivityItem = ({
         // The template carries the "End user" subject for this roll-up.
         return null;
       case ActivityType.CreatedDiskEncryptionPIN:
-        // Nobody is signed in to Fleet when an end user sets their PIN, so the template names them instead.
+        // The template carries the "End user" subject for this roll-up.
         return null;
       case ActivityType.UserMFARequested:
         // The template carries its own "Somebody"/"Somebody using <email>"
