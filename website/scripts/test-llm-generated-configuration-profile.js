@@ -193,9 +193,9 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-diagnostics',
     profileType: 'mobileconfig',
-    instructions: 'Stop sending diagnostic and usage data to Apple.',
+    instructions: 'Don\'t send diagnostic reports to Apple.',
     expect: {
-      mustContain: ['com.apple.SubmitDiagInfo', 'AutoSubmit']
+      mustContain: ['com.apple.applicationaccess', 'allowDiagnosticSubmission', '<false/>'],
     }
   },
   {
