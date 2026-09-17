@@ -10599,6 +10599,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	}})
 	require.NoError(t, err)
 
+	// Insert into host_one_time_enroll_secrets table (no host FK, cleaned up via hostRefs).
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO host_one_time_enroll_secrets (secret, host_id, platform, hardware_uuid, hardware_serial)
+		VALUES (?, ?, 'darwin', ?, ?)`, "delete-host-one-time-secret", host.ID, host.UUID, host.HardwareSerial)
+	require.NoError(t, err)
+
 	pinRequestID := uuid.New()
 	_, err = ds.writer(t.Context()).Exec(
 		`INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted) VALUES (?, ?, ?)`,

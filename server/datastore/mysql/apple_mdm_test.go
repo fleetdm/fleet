@@ -9081,7 +9081,7 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
 		return make(map[string]*string), nil
 	}
-	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0))
+	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0, false))
 
 	profiles, err := ds.GetHostMDMAppleProfiles(ctx, "iOS0_UUID")
 	require.NoError(t, err)
@@ -9153,7 +9153,7 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
 		return make(map[string]*string), nil
 	}
-	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0))
+	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0, false))
 
 	var hostProf struct {
 		Status      *fleet.MDMDeliveryStatus `db:"status"`
