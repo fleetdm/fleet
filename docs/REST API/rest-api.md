@@ -14393,9 +14393,9 @@ For example:
     {
       "id": 41,
       "name": "Production",
-      "app_store_id": "361285480",
-      "platform": "darwin",
-      "version": "15.2.1",
+      "app_store_id": "6443476492",
+      "platform": "ios",
+      "version": "2.6.0",
       "status": {
         "installed": 13,
         "pending": 0,
@@ -14416,17 +14416,17 @@ For example:
       "auto_update_window_end": "04:00",
       "created_at": "2026-01-28T21:49:04.145909Z",
       "categories": [
-        "Productivity"
+        "🔐 Security"
       ],
-      "display_name": "Keynote",
-      "configuration": null
+      "display_name": "Cloudflare One Agent",
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
     },
     {
       "id": 42,
       "name": "Test",
-      "app_store_id": "361285480",
-      "platform": "darwin",
-      "version": "15.2.1",
+      "app_store_id": "6443476492",
+      "platform": "ios",
+      "version": "2.6.0",
       "status": {
         "installed": 2,
         "pending": 1,
@@ -14446,18 +14446,16 @@ For example:
       "auto_update_window_start": null,
       "auto_update_window_end": null,
       "created_at": "2026-02-03T10:14:22.882031Z",
-      "categories": [
-        "Productivity"
-      ],
-      "display_name": "Keynote",
-      "configuration": null
+      "categories": null,
+      "display_name": "Cloudflare One Agent",
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
     }
   ],
   "app_store_app": {
-    "app_store_id": "361285480",
-    "platform": "darwin",
-    "name": "Keynote: Design Presentations",
-    "latest_version": "15.2.1",
+    "app_store_id": "6443476492",
+    "platform": "ios",
+    "name": "Cloudflare One Agent",
+    "latest_version": "2.6.0",
     "status": {
       "installed": 13,
       "pending": 0,
@@ -14475,9 +14473,10 @@ For example:
     "labels_include_all": null,
     "created_at": "2026-01-28T21:49:04.145909Z",
     "categories": [
-      "Productivity"
+      "🔐 Security"
     ],
-    "display_name": "Keynote"
+    "display_name": "Cloudflare One Agent",
+    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
   }
 }
 ```

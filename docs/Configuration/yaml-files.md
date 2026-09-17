@@ -637,14 +637,14 @@ software:
       setup_experience_platform: darwin, linux
     - path: ../lib/software-name2.package.yml
   app_store_apps:
-    - app_store_id: "546505307"
+    - app_store_id: "6443476492"
       platform: ios
       setup_experience: true
       versions:
         - name: Production
           labels_exclude_any:
             - IT team
-          self-service: true  
+          self_service: true
           categories:
             - "👬 Communication"
           auto_update_enabled: true
