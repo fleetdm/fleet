@@ -23,7 +23,9 @@ export interface IGetCommandsResponse {
 }
 
 export interface IGetCommandResultsResponse {
-  results: ICommandResult[];
+  /** Omitted by the API (`json:"results,omitempty"`) when there is nothing to
+   * return, so the response body is `{}` rather than an empty array. */
+  results?: ICommandResult[];
 }
 
 export interface IGetCommandResultsParams {
