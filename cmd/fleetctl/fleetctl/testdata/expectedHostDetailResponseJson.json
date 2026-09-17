@@ -39,6 +39,7 @@
     "last_enrolled_at": "0001-01-01T00:00:00Z",
     "last_mdm_checked_in_at": null,
     "last_mdm_enrolled_at": null,
+    "last_mdm_enrollment_type": null,
     "last_restarted_at": "0001-01-01T00:00:00Z",
     "logger_tls_period": 0,
     "mdm": {
