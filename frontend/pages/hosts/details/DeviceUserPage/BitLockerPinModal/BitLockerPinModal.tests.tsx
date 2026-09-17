@@ -147,6 +147,26 @@ describe("BitLockerPinModal", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
+  it("does not claim success when the host stops asking for a PIN for another reason", async () => {
+    // Protection going off drops action_required while the agent still holds the PIN.
+    const { user, onExit } = renderModal(
+      jest.fn().mockResolvedValue(
+        deviceDetails({
+          status: "action_required",
+          detail: "",
+          pin_request: { status: "delivered", error: "" },
+        })
+      )
+    );
+
+    await submitPIN(user, "123456");
+    await advanceWait();
+
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.getByText("Setting PIN...")).toBeVisible();
+  });
+
   it("closes without claiming failure when the agent has not answered in time", async () => {
     const { user, onExit } = renderModal(
       pollReturning({ status: "delivered", error: "" })

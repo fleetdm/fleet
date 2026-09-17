@@ -133,11 +133,12 @@ const BitLockerPinModal = ({
       if (diskEncryption?.pin_request?.status === "failed") {
         return { status: "failed", error: diskEncryption.pin_request.error };
       }
-      // An osquery report clearing action_required or pin_request.status means success.
+      // Success is the agent's report, or osquery already seeing the PIN.
       if (
         diskEncryption &&
         (diskEncryption.pin_request?.status === "set" ||
-          diskEncryption.action_required !== "create_pin")
+          diskEncryption.status === "verified" ||
+          diskEncryption.status === "verifying")
       ) {
         return { status: "set" };
       }
