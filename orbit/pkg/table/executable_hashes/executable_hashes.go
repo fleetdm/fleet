@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -108,69 +109,72 @@ func processFile(ctx context.Context, path string, wildcard bool) ([]fileInfo, e
 		paths = resolvedPaths
 	}
 
-	budget := newHashBudget()
+	budget := currentHashBudget()
 
 	var output []fileInfo
+	deferred := 0
 	for _, p := range paths {
-		if info, ok := processPath(ctx, p, budget); ok {
+		info, status := processPath(ctx, p, budget)
+		switch status {
+		case hashOK:
 			output = append(output, info)
+		case hashDeferred:
+			deferred++
 		}
 	}
 
-	if budget.deferred > 0 {
-		log.Debug().Int("count", budget.deferred).Msg("byte budget spent, files deferred to a later call")
+	if deferred > 0 {
+		log.Debug().Int("count", deferred).Msg("byte budget spent, files deferred to a later run")
 	}
 
 	return output, nil
 }
 
 // processPath returns the row for a path. Unreadable paths and non-Mach-O files yield no row.
-func processPath(ctx context.Context, path string, budget *hashBudget) (fileInfo, bool) {
+func processPath(ctx context.Context, path string, budget *hashBudget) (fileInfo, hashStatus) {
 	stat, err := os.Stat(path)
 	if err != nil {
 		log.Debug().Err(err).Str("path", path).Msg("skipping path that could not be read")
-		return fileInfo{}, false
+		return fileInfo{}, hashUnavailable
 	}
 
 	if stat.IsDir() {
-		return processBundle(ctx, path, budget)
+		return processBundle(ctx, path), hashOK
 	}
 	if !stat.Mode().IsRegular() {
-		return fileInfo{}, false
+		return fileInfo{}, hashUnavailable
 	}
 	return processMachOFile(path, stat, budget)
 }
 
 // processBundle always returns a row. A bundle with no executable on disk (e.g. Apple's
-// XProtect.bundle) gets an empty hash.
-func processBundle(ctx context.Context, path string, budget *hashBudget) (fileInfo, bool) {
+// XProtect.bundle) gets an empty hash. Bundles never draw from the byte budget: the server has
+// no deferral tolerance for the apps source, so a deferred bundle would drop the app's hash for
+// a run.
+func processBundle(ctx context.Context, path string) fileInfo {
 	row := fileInfo{Path: path, PathType: pathTypeBundle}
 
 	row.ExecPath = getExecutablePath(ctx, path)
 	if row.ExecPath == "" {
-		return row, true
+		return row
 	}
 
 	stat, err := os.Stat(row.ExecPath)
 	if err != nil {
 		log.Debug().Err(err).Str("path", row.ExecPath).Msg("executable could not be read, returning empty hash")
-		return row, true
+		return row
 	}
 
-	_, hash, status := hashCached(row.ExecPath, stat, pathTypeBundle, budget)
-	if status == hashDeferred {
-		return fileInfo{}, false
-	}
-	row.ExecSha256 = hash
-	return row, true
+	_, row.ExecSha256, _ = hashCached(row.ExecPath, stat, pathTypeBundle, nil)
+	return row
 }
 
-func processMachOFile(path string, stat os.FileInfo, budget *hashBudget) (fileInfo, bool) {
+func processMachOFile(path string, stat os.FileInfo, budget *hashBudget) (fileInfo, hashStatus) {
 	execPath, hash, status := hashCached(path, stat, pathTypeFile, budget)
 	if status != hashOK {
-		return fileInfo{}, false
+		return fileInfo{}, status
 	}
-	return fileInfo{Path: path, ExecPath: execPath, ExecSha256: hash, PathType: pathTypeFile}, true
+	return fileInfo{Path: path, ExecPath: execPath, ExecSha256: hash, PathType: pathTypeFile}, hashOK
 }
 
 type hashStatus int
@@ -178,7 +182,7 @@ type hashStatus int
 const (
 	hashOK          hashStatus = iota
 	hashUnavailable            // unreadable, or not Mach-O when one was required
-	hashDeferred               // this call's byte budget is spent; a later call hashes the file
+	hashDeferred               // this run's byte budget is spent; a later run hashes the file
 )
 
 // hashCached returns the hashed path and SHA-256 of the file at path. File rows resolve
@@ -208,54 +212,55 @@ func hashCached(path string, stat os.FileInfo, pathType string, budget *hashBudg
 		return execPath, hash, hashOK
 	}
 
-	var hashed os.FileInfo
+	var hashed fileIdentity
 	hash, hashed, status = hashFile(execPath, requireMachO, budget)
 	if status == hashOK {
 		// Key on the descriptor's own stat, which is exactly what was hashed.
-		fileHashCache.add(newHashCacheKey(path, pathType, hashed), hashCacheEntry{execPath: execPath, hash: hash})
+		fileHashCache.add(hashCacheKey{path: path, pathType: pathType, fileIdentity: hashed}, hashCacheEntry{execPath: execPath, hash: hash})
 	}
 	return execPath, hash, status
 }
 
-// hashFile returns the SHA-256 of the file at path and the stat of the descriptor it hashed.
-// Read failures are skips, not errors, so one unreadable file does not cost the host every
-// other hash in the batch.
-func hashFile(path string, requireMachO bool, budget *hashBudget) (string, os.FileInfo, hashStatus) {
+// hashFile returns the SHA-256 of the file at path and the identity of the descriptor it hashed.
+// A nil budget admits everything. Read failures are skips, not errors, so one unreadable file
+// does not cost the host every other hash in the batch.
+func hashFile(path string, requireMachO bool, budget *hashBudget) (string, fileIdentity, hashStatus) {
 	f, err := os.Open(path)
 	if err != nil {
 		log.Debug().Err(err).Str("path", path).Msg("skipping file that could not be opened")
-		return "", nil, hashUnavailable
+		return "", fileIdentity{}, hashUnavailable
 	}
 	defer f.Close()
 
 	before, err := f.Stat()
 	if err != nil {
 		log.Debug().Err(err).Str("path", path).Msg("skipping file that could not be stat'd")
-		return "", nil, hashUnavailable
+		return "", fileIdentity{}, hashUnavailable
 	}
+	id := newFileIdentity(before)
 
 	if requireMachO && !isMachO(f) {
-		return "", nil, hashUnavailable
+		return "", fileIdentity{}, hashUnavailable
 	}
 
-	if !budget.charge(before.Size()) {
-		return "", nil, hashDeferred
+	if budget != nil && !budget.charge(before.Size()) {
+		return "", fileIdentity{}, hashDeferred
 	}
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		log.Debug().Err(err).Str("path", path).Msg("skipping file that could not be read")
-		return "", nil, hashUnavailable
+		return "", fileIdentity{}, hashUnavailable
 	}
 
 	// A write that lands mid-hash yields a digest of neither version.
 	after, err := f.Stat()
-	if err != nil || newFileIdentity(after) != newFileIdentity(before) {
+	if err != nil || newFileIdentity(after) != id {
 		log.Debug().Err(err).Str("path", path).Msg("skipping file that changed while being hashed")
-		return "", nil, hashUnavailable
+		return "", fileIdentity{}, hashUnavailable
 	}
 
-	return hex.EncodeToString(h.Sum(nil)), before, hashOK
+	return hex.EncodeToString(h.Sum(nil)), id, hashOK
 }
 
 const (
@@ -285,27 +290,51 @@ func isMachO(f *os.File) bool {
 	return false
 }
 
-// hashByteBudget caps bytes hashed per Generate call so a first pass over a large Cellar
-// does not trip osquery's watchdog, which kills the extension. Deferred files are hashed
-// by later calls.
+// hashByteBudget caps bytes hashed per run so a first pass over a large Cellar does not trip
+// osquery's watchdog, which kills the extension. One budget is shared by every Generate call in
+// a run, since a correlated join calls the table once per keg; deferred files are hashed by
+// later runs.
 var hashByteBudget int64 = 2 << 30 // 2 GiB
 
-type hashBudget struct {
-	remaining int64
-	spent     bool
-	deferred  int
+// hashBudgetWindow: Generate calls this close together belong to one run and share a budget.
+// Well below the hourly detail interval, well above the seconds one run's calls span.
+var hashBudgetWindow = 10 * time.Minute
+
+var hashBudgetNow = time.Now
+
+var sharedHashBudget struct {
+	mu      sync.Mutex
+	current *hashBudget
 }
 
-func newHashBudget() *hashBudget {
-	return &hashBudget{remaining: hashByteBudget}
+type hashBudget struct {
+	mu        sync.Mutex
+	createdAt time.Time
+	remaining int64
+	spent     bool
+}
+
+// currentHashBudget returns the run's shared budget, starting a fresh one when the window has
+// passed since the current one was created.
+func currentHashBudget() *hashBudget {
+	sharedHashBudget.mu.Lock()
+	defer sharedHashBudget.mu.Unlock()
+
+	now := hashBudgetNow()
+	if b := sharedHashBudget.current; b == nil || now.Sub(b.createdAt) >= hashBudgetWindow {
+		sharedHashBudget.current = &hashBudget{createdAt: now, remaining: hashByteBudget}
+	}
+	return sharedHashBudget.current
 }
 
 // charge reports whether a file of size bytes may be hashed. A file larger than what remains
-// is admitted only as the first file of a call: it would never fit otherwise, and one such file
-// per call is the bound on the burst.
+// is admitted only as the first file of the run: it would never fit otherwise, and one such
+// file per run is the bound on the burst.
 func (b *hashBudget) charge(size int64) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if size > b.remaining && b.spent {
-		b.deferred++
 		return false
 	}
 	b.remaining -= size

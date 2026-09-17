@@ -366,12 +366,31 @@ func TestIsMachO(t *testing.T) {
 // budget, both of which outlive a single Generate call.
 func resetHashState(t *testing.T) {
 	t.Helper()
-	previousBudget := hashByteBudget
+	previousBudget, previousWindow, previousNow := hashByteBudget, hashBudgetWindow, hashBudgetNow
 	fileHashCache = newHashCache(hashCacheMaxEntries)
+	fakeNow = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	hashBudgetNow = func() time.Time { return fakeNow }
+	resetSharedBudget()
 	t.Cleanup(func() {
-		hashByteBudget = previousBudget
+		hashByteBudget, hashBudgetWindow, hashBudgetNow = previousBudget, previousWindow, previousNow
 		fileHashCache = newHashCache(hashCacheMaxEntries)
+		resetSharedBudget()
 	})
+}
+
+// fakeNow is the clock the budget window reads during tests.
+var fakeNow time.Time
+
+func resetSharedBudget() {
+	sharedHashBudget.mu.Lock()
+	defer sharedHashBudget.mu.Unlock()
+	sharedHashBudget.current = nil
+}
+
+// nextRun moves the clock past the budget window, as the next hourly detail run would.
+func nextRun(t *testing.T) {
+	t.Helper()
+	fakeNow = fakeNow.Add(hashBudgetWindow)
 }
 
 func writeFixture(t *testing.T, path string, header []byte, body string) []byte {
@@ -602,7 +621,9 @@ func TestHashByteBudgetDefersFiles(t *testing.T) {
 	hashByteBudget = size
 
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 1)
+	nextRun(t)
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
+	nextRun(t)
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 3)
 }
 
@@ -655,6 +676,7 @@ func TestHashByteBudgetDefersFileExceedingRemainder(t *testing.T) {
 	require.Len(t, rows, 1)
 	require.Equal(t, filepath.Join(dir, "a-small"), rows[0][colPath])
 
+	nextRun(t)
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
 }
 
@@ -672,6 +694,7 @@ func TestHashByteBudgetAdmitsOversizeFileOnlyFirst(t *testing.T) {
 	require.Len(t, rows, 1)
 	require.Equal(t, filepath.Join(dir, "a"), rows[0][colPath])
 
+	nextRun(t)
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
 }
 
@@ -700,4 +723,52 @@ func TestHashCacheDeduplicatesByIdentity(t *testing.T) {
 	for _, row := range rows {
 		require.Equal(t, sha256Hex(content), row[colExecHash])
 	}
+}
+
+func TestHashByteBudgetSharedWithinWindow(t *testing.T) {
+	resetHashState(t)
+	dirA, dirB := t.TempDir(), t.TempDir()
+	content := writeFixture(t, filepath.Join(dirA, "a"), machOHeader, "same length")
+	writeFixture(t, filepath.Join(dirB, "b"), machOHeader, "same length")
+	hashByteBudget = int64(len(content))
+
+	// One call per keg, as a correlated join issues them. The first spends the cap.
+	require.Len(t, generateExact(t, filepath.Join(dirA, "a")), 1)
+	require.Empty(t, generateExact(t, filepath.Join(dirB, "b")))
+
+	// Still the same run partway through the window.
+	fakeNow = fakeNow.Add(hashBudgetWindow / 2)
+	require.Empty(t, generateExact(t, filepath.Join(dirB, "b")))
+}
+
+func TestHashByteBudgetRenewsAfterWindow(t *testing.T) {
+	resetHashState(t)
+	dirA, dirB := t.TempDir(), t.TempDir()
+	content := writeFixture(t, filepath.Join(dirA, "a"), machOHeader, "same length")
+	b := writeFixture(t, filepath.Join(dirB, "b"), machOHeader, "same length")
+	hashByteBudget = int64(len(content))
+
+	require.Len(t, generateExact(t, filepath.Join(dirA, "a")), 1)
+	require.Empty(t, generateExact(t, filepath.Join(dirB, "b")))
+
+	nextRun(t)
+	rows := generateExact(t, filepath.Join(dirB, "b"))
+	require.Len(t, rows, 1)
+	require.Equal(t, sha256Hex(b), rows[0][colExecHash])
+}
+
+// App bundles never draw from the budget: the server has no deferral tolerance for apps.
+func TestBundleHashedWhenBudgetSpent(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+	content := writeFixture(t, filepath.Join(dir, "tool"), machOHeader, "spend the budget")
+	hashByteBudget = int64(len(content))
+	require.Len(t, generateExact(t, filepath.Join(dir, "tool")), 1)
+
+	bundleContent := []byte("bundle executable content, longer than the whole budget")
+	bundlePath, _ := writeBundle(t, t.TempDir(), "Big", "Big", bundleContent)
+	rows := generateExact(t, bundlePath)
+	require.Len(t, rows, 1)
+	require.Equal(t, sha256Hex(bundleContent), rows[0][colExecHash])
+	require.Equal(t, pathTypeBundle, rows[0][colPathType])
 }
