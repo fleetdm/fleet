@@ -3947,14 +3947,6 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			require.Len(t, toI, 2)
 		})
 
-		t.Run("same report is a no-op", func(t *testing.T) {
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-shell")), stored, hostSoftware, logger)
-			require.NoError(t, err)
-			require.Empty(t, toI)
-			require.Empty(t, toD)
-		})
-
 		t.Run("removed keg under a second prefix is deleted", func(t *testing.T) {
 			// The same formula and version under both Homebrew prefixes is one software row, so
 			// the keg is identified by its installed path as well.

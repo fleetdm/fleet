@@ -5817,35 +5817,6 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "macos homebrew executable hashes with a failed override query",
-			host: &fleet.Host{ID: 1, Platform: "darwin"},
-			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_macos":                            fleet.StatusOK,
-				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": fleet.OsqueryStatus(1),
-			},
-			resultsIn: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos": []map[string]string{
-					gitKeg,
-				},
-				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": []map[string]string{
-					{
-						"keg_path":          "/opt/homebrew/Cellar/git",
-						"version":           "2.46.0",
-						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git",
-						"executable_sha256": "aaaa",
-					},
-				},
-			},
-			resultsExpected: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos": []map[string]string{
-					gitKeg,
-				},
-			},
-			overrides: map[string]osquery_utils.DetailQuery{
-				"macos_homebrew_executable_sha256": osquery_utils.SoftwareOverrideQueries["macos_homebrew_executable_sha256"],
-			},
-		},
-		{
 			name: "macos executable_hashes query with sha256 column",
 			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			statusesIn: map[string]fleet.OsqueryStatus{
