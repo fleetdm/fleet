@@ -646,7 +646,7 @@ software:
             - IT team
           self_service: true
           categories:
-            - "👬 Communication"
+            - "🔐 Security"
           auto_update_enabled: true
           auto_update_window_start: "00:00"
           auto_update_window_end: "04:00"
