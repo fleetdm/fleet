@@ -28370,3 +28370,47 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 	checkHost(fleet.DiskEncryptionVerified, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
 }
+
+func (s *integrationMDMTestSuite) TestReenrollKeepsManuallyMappedIdPUser() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	const userName = "manual.mapped@example.com"
+	var createResp map[string]any
+	s.DoJSON("POST", "/api/latest/fleet/scim/Users", map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": userName,
+		"name":     map[string]any{"givenName": "Manual", "familyName": "Mapped"},
+		"emails":   []map[string]any{{"value": userName, "type": "work", "primary": true}},
+		"active":   true,
+	}, http.StatusCreated, &createResp)
+
+	// Manual enrollment, no end-user authentication: the host has no IdP account.
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	hostID := hostResp.Host.ID
+
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hostID),
+		putHostDeviceMappingRequest{Email: userName, Source: fleet.DeviceMappingIDP}, http.StatusOK, &putResp)
+
+	checkEndUser := func() {
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.Len(t, hostResp.Host.EndUsers, 1)
+		assert.Equal(t, userName, hostResp.Host.EndUsers[0].IdpUserName)
+		assert.Equal(t, "Manual Mapped", hostResp.Host.EndUsers[0].IdpFullName)
+	}
+	checkEndUser()
+
+	// Authenticate + TokenUpdate again, as a SCEP renewal or `profiles renew -type enrollment` does.
+	require.NoError(t, mdmDevice.Reenroll())
+	checkEndUser()
+}
