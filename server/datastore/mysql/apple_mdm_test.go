@@ -119,6 +119,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
 		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
+		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
@@ -10009,6 +10010,83 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	sort.Strings(orgNames)
 	require.Len(t, orgNames, 1)
 	require.Equal(t, orgNames[0], "org3")
+}
+
+func testCleanupHostMDMCommandsQueueAware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// small batches so the stale rows below span more than one delete
+	hostMDMCommandsBatchSizeOrig := hostMDMCommandsBatchSize
+	hostMDMCommandsBatchSize = 2
+	t.Cleanup(func() {
+		hostMDMCommandsBatchSize = hostMDMCommandsBatchSizeOrig
+	})
+	host := test.NewHost(t, ds, "cleanup-queue-aware.local", "1.1.1.1", "cqa-osquery-id", "cqa-node-key", time.Now())
+	nanoEnroll(t, ds, host, true)
+	userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnrollment)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+
+	track := func(commandType, commandUUID string, age time.Duration) {
+		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+			{HostID: host.ID, CommandType: commandType, CommandUUID: commandUUID},
+		}))
+		// updated_at auto-updates on write, so set the age explicitly after
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_commands SET updated_at = NOW() - INTERVAL ? SECOND WHERE host_id = ? AND command_type = ?`,
+			int(age.Seconds()), host.ID, commandType)
+		require.NoError(t, err)
+	}
+	enqueue := func(enrollmentID string) string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{enrollmentID}, createRawAppleCmd("DeviceInformation", cmdUUID)))
+		return cmdUUID
+	}
+	report := func(enrollmentID, cmdUUID, status string) {
+		// the table requires a plist-looking result body
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml version="1.0"?><plist/>')`,
+			enrollmentID, cmdUUID, status)
+		require.NoError(t, err)
+	}
+
+	const day = 24 * time.Hour
+
+	// the command still waits in the queue: the row survives well past the
+	// old 24h wipe, which is what stops the daily duplicate enqueues
+	track("live", enqueue(host.UUID), 2*day)
+	// a NotNow is not an answer, the command is still outstanding
+	notNow := enqueue(host.UUID)
+	report(host.UUID, notNow, "NotNow")
+	track("not-now", notNow, 2*day)
+	// a command queued on the user channel is found through the device
+	track("user-channel", enqueue(userEnrollment.ID), 2*day)
+	// answered: the ack handler normally clears this, the cleanup is the backstop
+	acked := enqueue(host.UUID)
+	report(host.UUID, acked, "Acknowledged")
+	track("acked", acked, 2*time.Hour)
+	// cleared from the queue (re-enrollment, SCEP renewal, wipe)
+	cleared := enqueue(host.UUID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, cleared)
+	require.NoError(t, err)
+	track("cleared", cleared, 2*time.Hour)
+	// never made it into the queue: orphaned only once past the grace window
+	track("orphan-fresh", "REFETCH-never-queued-1", 0)
+	track("orphan-old", "REFETCH-never-queued-2", 2*time.Hour)
+	// pre-UUID rows keep the day-based rule
+	track("legacy-fresh", "", 0)
+	track("legacy-old", "", 2*day)
+
+	require.NoError(t, ds.CleanupHostMDMCommands(ctx))
+
+	commands, err := ds.GetHostMDMCommands(ctx, host.ID)
+	require.NoError(t, err)
+	remaining := make([]string, 0, len(commands))
+	for _, c := range commands {
+		remaining = append(remaining, c.CommandType)
+	}
+	require.ElementsMatch(t, []string{"live", "not-now", "user-channel", "orphan-fresh", "legacy-fresh"}, remaining)
 }
 
 func testHostMDMCommandsUUID(t *testing.T, ds *Datastore) {
