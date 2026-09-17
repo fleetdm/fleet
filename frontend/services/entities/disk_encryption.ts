@@ -59,7 +59,6 @@ const diskEncryptionService = {
       DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW(token)
     );
   },
-  /** Hands the end user's BitLocker PIN to Fleet, which holds it encrypted until the host's agent collects it. */
   submitBitLockerPIN: (token: string, pin: string) => {
     const { DEVICE_DISK_ENCRYPTION_PIN } = endpoints;
     return sendRequest("POST", DEVICE_DISK_ENCRYPTION_PIN(token), { pin });
