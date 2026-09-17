@@ -5638,6 +5638,11 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
+On a Windows host whose fleet requires a BitLocker startup PIN, `mdm.os_settings.disk_encryption` carries two extra fields, and only on this endpoint:
+
+- `fleetd_can_set_pin`: whether the host's fleetd is new enough to be handed a PIN. When it's `false`, the end user has to create the PIN through Windows' **Manage BitLocker** instead.
+- `pin_request`: the end user's most recent BitLocker PIN submission, as `{"status": "pending" | "delivered" | "set" | "failed", "error": ""}`. `error` carries the agent's reason when the status is `failed`. The field is absent when there's no submission.
+
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS/iPadOS, this is the host's hardware UUID.
 
 For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `team_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `device_count` are stripped.
@@ -5850,7 +5855,12 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "disk_encryption": {
           "status": "verified",
           "detail": "",
-          "action_required": null
+          "action_required": null,
+          "fleetd_can_set_pin": true,
+          "pin_request": {
+            "status": "set",
+            "error": ""
+          }
         }
       },
       "profiles": [

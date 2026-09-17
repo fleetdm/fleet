@@ -69,20 +69,19 @@ Fleet supports Linux Unified Key Setup version 2 (LUKS2) for encrypting volumes 
 
 ## Create a BitLocker PIN on Windows
 
-When disk encryption is enforced on Windows hosts with a TPM+PIN configuration, end
-users may be prompted to create a BitLocker PIN. The PIN is required at boot to unlock
-the encrypted disk.
+When a fleet requires a BitLocker PIN, Windows hosts stay in **Action required** until the end user creates one. The PIN is required at startup to unlock the disk, and the end user doesn't need administrator rights to create it.
 
-1. Fleet Desktop displays a notification prompting the end user to create a PIN.
+1. Fleet Desktop shows a notification once per Windows login: "Set your BitLocker PIN to protect this device."
 
-2. The end user enters a PIN in the Fleet Desktop dialog.
+2. Selecting **Create PIN** opens the host's **My device** page. The end user can also get there from the **Disk encryption** banner on that page.
 
-3. Fleet Desktop sends the PIN to a privileged component in fleetd (Fleet's agent),
-   which applies the PIN to the disk. This happens automatically—the end user does
-   not need administrator privileges.
+3. The end user enters the PIN twice and selects **Save**. A PIN is 6 to 20 characters.
 
-4. Once the PIN is set, the host's disk encryption status will update to "Verified" in
-   Fleet.
+4. Fleet stores the PIN encrypted and hands it to fleet's agent (fleetd) the next time the host checks in, which is within 30 seconds. fleetd applies it and Fleet deletes its copy. Fleet never shows the PIN again, to the end user or to an admin.
+
+5. The **My device** page reports the result. Disk encryption moves to **Verified** once the host confirms the PIN.
+
+If the end user's device is running a version of fleetd that's too old to set a PIN, **Create PIN** instead shows instructions for creating one through Windows' **Manage BitLocker**, which does require administrator rights.
 
 ## View disk encryption key
 

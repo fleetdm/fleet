@@ -202,44 +202,70 @@ slate for orbit to attempt to encrypt the disk again:
 
 #### BitLocker PIN entry (TPM+PIN)
 
-When a Windows host has a TPM+PIN protector requirement (configured via MDM profile),
-the end user must create a PIN that is required at boot to unlock the disk. Fleet
-Desktop collects the PIN from the end user and hands it to a privileged fleetd
-component, which applies it to the volume by adding a TPM+PIN protector using the
-[Win32_EncryptableVolume](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume)
-class. The privileged component runs elevated on behalf of the logged-in user,
-regardless of whether the user has local admin rights.
+When a fleet sets `require_bitlocker_pin`, an encrypted Windows host with no TPM+PIN protector reports
+`action_required` with `action_required: "create_pin"`, and only the end user can clear it.
 
-After the PIN is applied, fleetd reports the completion to the server, which generates
-a `created_disk_encryption_pin` audit activity. The server detects whether a TPM+PIN
-protector is set via the `tpm_pin_set_verify` vital query, which checks
-`bitlocker_key_protectors` for protector types 4 (TPM+PIN) and 6 (TPM+PIN+startup key).
+Nothing on the device lets the browser or Fleet Desktop hand a PIN to orbit: Fleet Desktop and the **My device** page
+talk only to the Fleet server, and orbit only polls the server. So the PIN travels through the server rather than over a
+local channel:
+
+1. The end user submits the PIN from the **My device** page
+   (`POST /api/v1/fleet/device/{token}/disk_encryption_pin`).
+2. The server validates it (6 to 20 printable ASCII characters), encrypts it with the server private key, and stores one
+   row per host in `host_bitlocker_pin_requests` with status `pending`.
+3. orbit picks it up on its next config poll, at most 30 seconds later, through
+   `POST /api/fleet/orbit/disk_encryption_pin/details`. That response is the only one that ever carries the PIN. The
+   server clears the ciphertext as it hands it over and marks the row `delivered`.
+4. orbit adds a TPM+PIN protector with `ProtectKeyWithTPMAndPIN` on
+   [Win32_EncryptableVolume](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume),
+   then deletes the TPM-only protectors, because "the presence of the 'TPM' key protector type negates the effects of
+   other TPM-based key protectors". orbit runs as SYSTEM, so this needs no UAC prompt and no admin rights from the end
+   user. If any step after the add fails, orbit restores the TPM-only protector before removing the PIN protector, so the
+   volume never ends up bootable only with the recovery key.
+5. orbit reports the outcome to `POST /api/fleet/orbit/disk_encryption_pin/result`. On success the server records a
+   `created_disk_encryption_pin` activity with a nil user, rendered as "End user", and requests a refetch so osquery
+   confirms the protector list.
+
+The PIN is never logged, never returned by any user-authenticated API, and is stored only for the seconds to minutes
+between submission and delivery. A `pending` row that no agent collects expires after 15 minutes, and a `delivered` row
+the agent never reports on expires after an hour; both are then marked failed rather than left waiting.
+
+Fleet only advertises the request while the host still qualifies, so turning the setting off or moving the host to
+another fleet quietly drops it. Hosts whose fleetd is too old advertise no `windows_bitlocker_pin` capability; the device
+API reports `fleetd_can_set_pin: false` and the **My device** page falls back to instructions for Windows' **Manage
+BitLocker**, which does require admin rights.
+
+Fleet Desktop's only role is the prompt: it posts a Windows toast once per Windows login whose button opens
+`/device/{token}?create_pin=1`. orbit registers Fleet Desktop's AppUserModelID at every start.
+
+The server detects whether a TPM+PIN protector is set via the `tpm_pin_set_verify` vital query, which checks
+`bitlocker_key_protectors` for protector types 4 (TPM+PIN) and 6 (TPM+PIN+startup key). That observation, not the
+agent's report, is what moves the host to **Verified**.
 
 ```mermaid
 sequenceDiagram
-        actor Admin
-        participant fleet as Fleet server
-        participant host as Windows Host
-        participant fleetd as orbit
-        participant desktop as Fleet Desktop
         actor user as End User
-        Admin->>fleet: Enable disk encryption with TPM+PIN
-        host->>fleet: Enroll in Fleet MDM
-        fleet->>host: Orbit/osquery installed
-        fleetd->>fleet: request vitals queries
-        fleet->>fleetd: Return reports including encryption status
-        fleetd->>fleet: return report data (encrypted, no PIN set)
-        fleetd->>desktop: Trigger PIN entry dialog
-        desktop->>user: Prompt user to create PIN
-        user->>desktop: Enter PIN
-        desktop->>fleetd: Send PIN to privileged fleetd component
-        fleetd->>host: Add TPM+PIN protector to volume
-        fleetd->>fleet: Report PIN creation
-        fleet->>fleet: Generate created_disk_encryption_pin activity
-        fleetd->>fleet: request vitals reports
-        fleet->>fleetd: Return vitals reports including tpm_pin_set_verify
-        fleetd->>fleetd: execute reports
-        fleetd->>fleet: return report data (PIN is set)
+        participant desktop as Fleet Desktop
+        participant browser as My device page
+        participant fleet as Fleet server
+        participant fleetd as orbit
+        participant host as Windows volume
+        desktop->>fleet: Desktop summary
+        fleet->>desktop: needs_bitlocker_pin
+        desktop->>user: Toast: set your BitLocker PIN
+        user->>browser: Open My device, enter PIN
+        browser->>fleet: POST /device/{token}/disk_encryption_pin
+        fleet->>fleet: Validate, encrypt, store (pending)
+        fleetd->>fleet: Config poll (every 30s)
+        fleet->>fleetd: PIN request pending
+        fleetd->>fleet: POST /orbit/disk_encryption_pin/details
+        fleet->>fleetd: PIN (once), row cleared and marked delivered
+        fleetd->>host: Add TPM+PIN protector, remove TPM-only
+        fleetd->>fleet: POST /orbit/disk_encryption_pin/result (set or failed)
+        fleet->>fleet: created_disk_encryption_pin activity, request refetch
+        browser->>fleet: Poll device host details
+        fleet->>browser: pin_request.status
+        fleetd->>fleet: tpm_pin_set_verify confirms the protector
 ```
 
 ### LUKS (Linux)

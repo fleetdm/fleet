@@ -3640,6 +3640,44 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 
 ---
 
+### Submit a BitLocker PIN
+
+_Available in Fleet Premium_
+
+Submits the end user's BitLocker startup PIN for a Windows host whose fleet requires one. Fleet stores the PIN
+encrypted, hands it to the host's fleetd on its next config poll, and deletes its copy at that point.
+
+Poll `GET /api/v1/fleet/device/{token}` for the outcome, reading
+`host.mdm.os_settings.disk_encryption.pin_request.status`: `pending`, `delivered`, `set`, or `failed`. When it is
+`failed`, `pin_request.error` carries the agent's reason.
+
+`POST /api/v1/fleet/device/{token}/disk_encryption_pin`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                                          |
+| ----- | ------ | ---- | ---------------------------------------------------- |
+| token | string | path | The device's authentication token.                   |
+| pin   | string | body | **Required.** 6 to 20 printable ASCII characters.    |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/disk_encryption_pin`
+
+##### Request body
+
+```json
+{
+  "pin": "my-pin-1234"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+---
+
 ### Get the setup experience status for the device
 
 _Available in Fleet Premium_
@@ -4041,6 +4079,82 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
   "message": ""
 }
 ```
+
+### Collect the BitLocker startup PIN
+
+Collects the BitLocker startup PIN an end user submitted from the **My device** page, so the agent can apply it to the
+volume.
+
+The response is the only place Fleet ever hands the PIN back out, and it can only be read once: the server deletes its
+encrypted copy as it responds and marks the submission `delivered`. A host with no pending submission gets an empty
+response.
+
+An uncollected submission expires after 15 minutes, and a collected one the agent never reports on expires after an hour.
+
+`POST /api/fleet/orbit/disk_encryption_pin/details`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_pin/details`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "pin": "my-pin-1234",
+  "request_uuid": "006112E7-7383-4F21-999C-8FA74BB3F573"
+}
+```
+
+### Upload the BitLocker startup PIN result
+
+Reports whether the agent applied the PIN it collected.
+
+`POST /api/fleet/orbit/disk_encryption_pin/result`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                           |
+| -------------- | ------ | ---- | ------------------------------------------------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                 |
+| request_uuid   | string | body | The id returned with the PIN the agent collected.                                      |
+| outcome        | string | body | `set` or `failed`.                                                                     |
+| client_error   | string | body | The reason the PIN could not be applied. Required when `outcome` is `failed`.          |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_pin/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "request_uuid": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "outcome": "failed",
+  "client_error": "PIN already set"
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ### Upload Orbit script result
 
