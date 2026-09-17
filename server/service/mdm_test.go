@@ -5563,6 +5563,70 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, ds.HostFuncInvoked, "only WIPE should pay for the extra host load")
 	})
+
+	t.Run("lowercase command type is normalized to uppercase", func(t *testing.T) {
+		ds := setupDS(t)
+		var capturedJSON []byte
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+				capturedJSON = rawJSON
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-lower",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"reboot"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "REBOOT", result.RequestType)
+		assert.Contains(t, string(capturedJSON), `"type":"reboot"`, "original JSON should be passed to IssueCustomCommand")
+	})
+
+	t.Run("lowercase lock is premium gated", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"lock"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("AMAPI error surfaces as bad request not 500", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return nil, &fleet.BadRequestError{Message: "Android Management API rejected the command: Internal Server Error"}
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"NOT_A_REAL_COMMAND"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		assert.Contains(t, badReq.Message, "rejected the command")
+	})
 }
 
 func TestUpdateAppConfigMDMDiskEncryptionPINOnly(t *testing.T) {
