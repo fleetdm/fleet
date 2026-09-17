@@ -11,11 +11,17 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 | Linux apps | ✅ | ✅ | ✅ rpm only | ❌ | ❌ | ❌ | ✅ deb and rpm | ✅ | Apps install as [packages](#packages) on Linux. |
 | Android apps | ✅ | ✅ | ❌ | ✅ Application ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report work profile apps only. Fully-managed hosts report all apps. |
 | iOS and iPadOS apps | ✅ | ✅ | ❌ | ✅ Bundle ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report only the apps Fleet installed. |
-| ChromeOS apps | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet's ChromeOS agent runs as a browser extension, with no API for installed Android apps or progressive web apps (PWAs). |
+| ChromeOS: browser extensions | ✅ | ✅ | ❌ | ✅ Extension ID | ❌ | ❌ | ❌ | ✅ | Collected under [browser extensions](#browser-extensions). |
+| ChromeOS: progressive web apps (PWAs) and Isolated Web Apps (IWAs) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | No extension API returns installed web apps. |
+| ChromeOS: Android apps | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Android apps run in a container the browser can't see. Distinct from the Android apps row above, which covers Android hosts. |
+| ChromeOS: Linux apps and packages (Crostini) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Crostini runs in a separate Linux container, outside the browser. |
+| ChromeOS: Steam games (Borealis) and Parallels Desktop Windows apps | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Both run in separate containers or virtual machines, outside the browser. |
 | Personal-side apps on BYOD hosts | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Apple User Enrollment and Android work profiles don't expose them. |
 
 - Alternative app store and sideloaded apps should appear in the same MDM app lists on fully-managed hosts. Fleet hasn't verified this yet.
 - Native apps on iOS and iPadOS: built-in and user-installed apps aren't included on BYOD hosts. Learn more in [Enrolling BYOD iPad/iOS devices](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts).
+- On ChromeOS, Fleet's agent runs as a browser extension, so it only sees software installed in the browser. Collecting web apps, Android apps, and software in Linux containers would need an integration with Google's [Chrome Management API](https://developers.google.com/chrome/management/guides/reports_api) instead of the agent.
+- Chrome Apps aren't listed above because Google is removing them from ChromeOS. Support for user-installed Chrome Apps ended in July 2025, and kiosk mode ended in July 2026. Learn more in [End of support for Chrome apps](https://support.google.com/chrome/a/answer/15950395).
 
 ## Operating systems
 
