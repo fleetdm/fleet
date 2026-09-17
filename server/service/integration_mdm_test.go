@@ -29015,7 +29015,7 @@ func (s *integrationMDMTestSuite) TestHostEncryptionKeyArchivedSerialFallback() 
 
 		// Asking for the fallback explicitly must not reach the other fleet's key, and
 		// must be indistinguishable from the key simply not existing.
-		s.Do("GET", keyURL+"?archived_fallback_to_serial=true", nil, http.StatusNotFound)
+		s.Do("GET", keyURL+"?allow_serial_lookup=true", nil, http.StatusNotFound)
 		s.Do("GET", keyURL, nil, http.StatusNotFound)
 	})
 
@@ -29025,7 +29025,7 @@ func (s *integrationMDMTestSuite) TestHostEncryptionKeyArchivedSerialFallback() 
 		s.Do("GET", keyURL, nil, http.StatusNotFound)
 
 		var resp getHostEncryptionKeyResponse
-		s.DoJSON("GET", keyURL+"?archived_fallback_to_serial=true", nil, http.StatusOK, &resp)
+		s.DoJSON("GET", keyURL+"?allow_serial_lookup=true", nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.EncryptionKey)
 		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 	})
