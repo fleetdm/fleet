@@ -48,6 +48,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.notice = ""
 		return m, pk.Init()
 
+	case fetchProgressMsg:
+		m.loadProgress = msg.p
+		return m, listenProgressCmd(msg.ch)
+
 	case fetchDoneMsg:
 		if msg.err != nil {
 			m.state = stateError
@@ -99,9 +103,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.focus.Add(msg.issue)
 		_ = m.focus.Save()
 		if msg.statusSet != "" {
-			m.statuses[msg.issue] = msg.statusSet
+			k := m.numKey(msg.issue)
+			m.statuses[k] = msg.statusSet
 			if msg.project != 0 {
-				m.projects[msg.issue] = msg.project
+				m.projects[k] = msg.project
 			}
 		}
 		m.rebuild()
@@ -119,7 +124,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.noticeErr = true
 			return m, nil
 		}
-		m.statuses[msg.issue] = msg.statusSet
+		m.statuses[m.numKey(msg.issue)] = msg.statusSet
 		// Awaiting QA / closed work drops out of focus automatically.
 		if statusHas(msg.statusSet, "await") || statusHas(msg.statusSet, "qa") {
 			m.focus.Remove(msg.issue)
@@ -152,11 +157,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case KindIssue:
-			m.statuses[msg.number] = msg.status
-			if msg.project != 0 {
-				m.projects[msg.number] = msg.project
+			k := ghapi.IssueRefKey(msg.repo, msg.number)
+			if msg.repo == "" {
+				k = m.numKey(msg.number)
 			}
-			m.issueProjects[msg.number] = msg.refs
+			m.statuses[k] = msg.status
+			if msg.project != 0 {
+				m.projects[k] = msg.project
+			}
+			m.issueProjects[k] = msg.refs
 			if msg.closed {
 				// Closed on GitHub → done; hide it.
 				m.triage.Done(m.key(Item{Kind: KindIssue, Number: msg.number}), time.Now())
@@ -328,7 +337,8 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				cmds := []tea.Cmd{refreshIssueCmd(repoOr(w.URL, m.repo), w.Number, w.Project)}
 				switch {
 				case w.PR != nil:
-					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
+					// The linked PR may live in another repo (Development-link discovery).
+					cmds = append(cmds, refreshPRCmd(repoOr(w.PR.URL, m.repo), w.PR.Number))
 				case w.Branch != "":
 					// No PR linked yet — look for one opened/merged since the last full fetch.
 					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch, w.Number))
@@ -345,15 +355,16 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			switch it.Kind {
 			case KindPR:
 				m.notice = fmt.Sprintf("refreshing PR #%d…", it.Number)
-				return m, refreshPRCmd(m.repo, it.Number)
+				return m, refreshPRCmd(repoOr(it.URL, m.repo), it.Number)
 			case KindIssue:
 				m.notice = fmt.Sprintf("refreshing #%d…", it.Number)
-				w := m.workByIssue[it.Number]
+				w := m.workByIssue[m.itemKey(it)]
 				cmds := []tea.Cmd{refreshIssueCmd(repoOr(it.URL, m.repo), it.Number, w.Project)}
 				switch {
 				case w.PR != nil:
 					// Re-fetch the linked PR so its draft/approval/CI state updates too.
-					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
+					// It may live in another repo (Development-link discovery).
+					cmds = append(cmds, refreshPRCmd(repoOr(w.PR.URL, m.repo), w.PR.Number))
 				case w.Branch != "":
 					// No PR linked yet but we know the branch — discover one opened
 					// since the last full fetch and inject it into the board.
@@ -425,7 +436,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		// Otherwise open the selected issue's most recently updated project board.
 		if w, ok := m.currentWork(); ok {
-			if num := m.mostRecentProject(w.Number); num != 0 {
+			if num := m.mostRecentProject(m.workKey(w)); num != 0 {
 				m.notice = fmt.Sprintf("opening #%d's latest project (#%d)", w.Number, num)
 				return m, openURLCmd(m.orgProjectURL(num))
 			}
@@ -942,7 +953,7 @@ func sanitizeCloneName(s string) string {
 // session, honoring any per-role override in config.StartPrompts.
 func (m *Model) startPrompt(issue int) string {
 	data := PromptData{Issue: issue}
-	if w, ok := m.workByIssue[issue]; ok {
+	if w, ok := m.workByNumber(issue); ok {
 		data.Title, data.URL, data.Branch = w.Title, w.URL, w.Branch
 	}
 	return renderStartPrompt(m.config.EffectiveRole(), m.config, data)

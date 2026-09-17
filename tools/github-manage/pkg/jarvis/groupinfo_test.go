@@ -31,16 +31,18 @@ func TestGroupInfo(t *testing.T) {
 		return Item{Kind: KindIssue, Number: num, Issue: &ghapi.Issue{Number: num, Labels: ls}}
 	}
 
-	m := Model{issueProjects: map[int][]ProjectRef{
-		1: {
+	// The test model has no repo and the items no URL, so keys qualify as ""-repo.
+	key := func(n int) string { return ghapi.IssueRefKey("", n) }
+	m := Model{issueProjects: map[string][]ProjectRef{
+		key(1): {
 			{Number: 67, Title: "Drafting", Status: "In review"},
 			{Number: 108, Title: "🍎 #g-apple-at-work", Status: "In progress"},
 		},
-		2: {
+		key(2): {
 			{Number: 109, Title: "❤️‍🩹 #g-auto-patching", Status: "Ready"},
 			{Number: 108, Title: "🍎 #g-apple-at-work", Status: "Settled"},
 		},
-		3: {
+		key(3): {
 			{Number: 87, Title: "🗺️ Release planning", Status: "4.90"},
 		},
 	}}
@@ -73,5 +75,26 @@ func TestGroupInfo(t *testing.T) {
 	emoji, status = m.groupInfo(issueWithLabels(3))
 	if emoji != "" || status != "" {
 		t.Errorf("issue 3 no label: got %q %q", emoji, status)
+	}
+}
+
+func TestGroupInfoDistinguishesSameNumberAcrossRepos(t *testing.T) {
+	issue := func(repo string) Item {
+		return Item{Kind: KindIssue, Number: 123, URL: "https://github.com/" + repo + "/issues/123",
+			Issue: &ghapi.Issue{Number: 123}}
+	}
+	m := Model{repo: "fleetdm/fleet", issueProjects: map[string][]ProjectRef{
+		ghapi.IssueRefKey("fleetdm/fleet", 123): {
+			{Number: 108, Title: "🍎 #g-apple-at-work", Status: "In progress"},
+		},
+		ghapi.IssueRefKey("fleetdm/confidential", 123): {
+			{Number: 109, Title: "❤️‍🩹 #g-auto-patching", Status: "Ready"},
+		},
+	}}
+	if emoji, status := m.groupInfo(issue("fleetdm/fleet")); emoji != "🍎" || status != "In progress" {
+		t.Errorf("fleet#123: got %q %q", emoji, status)
+	}
+	if emoji, status := m.groupInfo(issue("fleetdm/confidential")); emoji != "❤️‍🩹" || status != "Ready" {
+		t.Errorf("confidential#123: got %q %q", emoji, status)
 	}
 }

@@ -55,10 +55,10 @@ of order are moved. Views with an explicit sort applied ignore manual order.`,
 			return
 		}
 
-		labelsByNumber := ghapi.LabelsByNumber(items)
+		labelsByKey := ghapi.LabelsByKey(items)
 		fmt.Printf("Moving %d of %d items...\n", len(moves), len(items))
 		moved, err := ghapi.RankStatusColumnsByPriority(projectID, items, statuses, parents, func(done, totalMoves int, m ghapi.RankMove) {
-			labels := ghapi.EffectiveRankLabels(m.Item, parents, labelsByNumber)
+			labels := ghapi.EffectiveRankLabels(m.Item, parents, labelsByKey)
 			fmt.Printf("[%d/%d] #%d %s (%s)\n", done, totalMoves, m.Item.Content.Number, m.Item.Title, ghapi.HandbookPriorityBucketName(labels))
 		})
 		if err != nil {
@@ -71,12 +71,12 @@ of order are moved. Views with an explicit sort applied ignore manual order.`,
 
 // printRankPlan shows the desired order per column, marking items that would
 // move and nesting sub-issues under their in-column parent.
-func printRankPlan(items []ghapi.ProjectItem, statuses []string, parents map[int]int, moves []ghapi.RankMove) {
+func printRankPlan(items []ghapi.ProjectItem, statuses []string, parents map[string]string, moves []ghapi.RankMove) {
 	moving := make(map[string]bool, len(moves))
 	for _, m := range moves {
 		moving[m.Item.ID] = true
 	}
-	labelsByNumber := ghapi.LabelsByNumber(items)
+	labelsByKey := ghapi.LabelsByKey(items)
 
 	byStatus := make(map[string][]ghapi.ProjectItem)
 	var order []string
@@ -92,11 +92,11 @@ func printRankPlan(items []ghapi.ProjectItem, statuses []string, parents map[int
 
 	for _, status := range order {
 		column := byStatus[status]
-		inColumn := make(map[int]bool, len(column))
+		inColumn := make(map[string]bool, len(column))
 		for _, it := range column {
-			inColumn[it.Content.Number] = true
+			inColumn[it.IssueKey()] = true
 		}
-		desired := ghapi.DesiredColumnOrder(column, parents, labelsByNumber)
+		desired := ghapi.DesiredColumnOrder(column, parents, labelsByKey)
 		name := status
 		if name == "" {
 			name = "(no status)"
@@ -108,10 +108,10 @@ func printRankPlan(items []ghapi.ProjectItem, statuses []string, parents map[int
 				marker = "*"
 			}
 			nest := ""
-			if parentNum, ok := parents[it.Content.Number]; ok && inColumn[parentNum] {
+			if parentKey, ok := parents[it.IssueKey()]; ok && inColumn[parentKey] {
 				nest = "└ "
 			}
-			labels := ghapi.EffectiveRankLabels(it, parents, labelsByNumber)
+			labels := ghapi.EffectiveRankLabels(it, parents, labelsByKey)
 			fmt.Printf("  %s #%-6d %-18s %s%s\n", marker, it.Content.Number, ghapi.HandbookPriorityBucketName(labels), nest, it.Title)
 		}
 	}

@@ -132,70 +132,73 @@ func SortItemsByHandbookPriority(items []ProjectItem) {
 // EffectiveRankLabels returns the labels to rank an item by: its parent
 // issue's labels when the item is a sub-issue whose parent's labels are known
 // (sub-issues inherit their parent's urgency), otherwise its own labels.
-func EffectiveRankLabels(item ProjectItem, parents map[int]int, labelsByNumber map[int][]string) []string {
-	if parentNum, ok := parents[item.Content.Number]; ok {
-		if labels, ok := labelsByNumber[parentNum]; ok {
+// parents and labelsByKey are keyed by IssueRefKey.
+func EffectiveRankLabels(item ProjectItem, parents map[string]string, labelsByKey map[string][]string) []string {
+	if parentKey, ok := parents[item.IssueKey()]; ok {
+		if labels, ok := labelsByKey[parentKey]; ok {
 			return labels
 		}
 	}
 	return item.Labels
 }
 
-// LabelsByNumber indexes fetched project items' labels by issue number, for
-// use with EffectiveRankLabels.
-func LabelsByNumber(items []ProjectItem) map[int][]string {
-	m := make(map[int][]string, len(items))
+// LabelsByKey indexes fetched project items' labels by repo-qualified issue
+// key (IssueRefKey), for use with EffectiveRankLabels.
+func LabelsByKey(items []ProjectItem) map[string][]string {
+	m := make(map[string][]string, len(items))
 	for _, it := range items {
-		if it.Content.Number != 0 {
-			m[it.Content.Number] = it.Labels
+		if k := it.IssueKey(); k != "" {
+			m[k] = it.Labels
 		}
 	}
 	return m
 }
 
 // DesiredColumnOrder returns a column's items in handbook priority order.
-// Sub-issues (per parents, issue number -> parent issue number) whose parent
-// is in the same column are placed directly below their parent, siblings
-// keeping their current relative order. Sub-issues whose parent is elsewhere
-// rank standalone but inherit the parent's labels when known (labelsByNumber
-// should cover all fetched items, not just this column). parents may be nil.
-func DesiredColumnOrder(column []ProjectItem, parents map[int]int, labelsByNumber map[int][]string) []ProjectItem {
-	inColumn := make(map[int]bool, len(column))
+// Sub-issues (per parents, issue key -> parent issue key) whose parent is in
+// the same column are placed directly below their parent, siblings keeping
+// their current relative order. Sub-issues whose parent is elsewhere rank
+// standalone but inherit the parent's labels when known (labelsByKey should
+// cover all fetched items, not just this column). parents may be nil.
+func DesiredColumnOrder(column []ProjectItem, parents map[string]string, labelsByKey map[string][]string) []ProjectItem {
+	inColumn := make(map[string]bool, len(column))
 	for _, it := range column {
-		if it.Content.Number != 0 {
-			inColumn[it.Content.Number] = true
+		if k := it.IssueKey(); k != "" {
+			inColumn[k] = true
 		}
 	}
 
-	childrenOf := make(map[int][]ProjectItem)
+	childrenOf := make(map[string][]ProjectItem)
 	var topLevel []ProjectItem
 	for _, it := range column {
-		if parentNum, ok := parents[it.Content.Number]; ok && inColumn[parentNum] && parentNum != it.Content.Number {
-			childrenOf[parentNum] = append(childrenOf[parentNum], it)
+		key := it.IssueKey()
+		if parentKey, ok := parents[key]; ok && key != "" && inColumn[parentKey] && parentKey != key {
+			childrenOf[parentKey] = append(childrenOf[parentKey], it)
 			continue
 		}
 		topLevel = append(topLevel, it)
 	}
 
 	sort.SliceStable(topLevel, func(i, j int) bool {
-		li := EffectiveRankLabels(topLevel[i], parents, labelsByNumber)
-		lj := EffectiveRankLabels(topLevel[j], parents, labelsByNumber)
+		li := EffectiveRankLabels(topLevel[i], parents, labelsByKey)
+		lj := EffectiveRankLabels(topLevel[j], parents, labelsByKey)
 		return rankLess(makeRankKey(li, topLevel[i].Content.Number),
 			makeRankKey(lj, topLevel[j].Content.Number))
 	})
 
 	desired := make([]ProjectItem, 0, len(column))
-	visited := make(map[int]bool, len(column))
+	visited := make(map[string]bool, len(column))
 	var emit func(it ProjectItem)
 	emit = func(it ProjectItem) {
-		if it.Content.Number != 0 {
-			if visited[it.Content.Number] {
+		key := it.IssueKey()
+		if key != "" {
+			if visited[key] {
 				return
 			}
-			visited[it.Content.Number] = true
+			visited[key] = true
 		}
 		desired = append(desired, it)
-		for _, child := range childrenOf[it.Content.Number] {
+		for _, child := range childrenOf[key] {
 			emit(child)
 		}
 	}
@@ -216,7 +219,7 @@ type RankMove struct {
 // column by handbook priority. items must be in current project order (the
 // order gh project item-list returns). statuses optionally restricts which
 // columns are ranked (case-insensitive substring match); empty means all.
-// parents (issue number -> parent issue number, may be nil) makes sub-issues
+// parents (issue key -> parent issue key, may be nil) makes sub-issues
 // follow their parent per DesiredColumnOrder.
 //
 // A project has one global manual order and each board column renders its
@@ -224,8 +227,8 @@ type RankMove struct {
 // never disturbs another column. Items already in the right relative order
 // (the longest increasing subsequence) are left alone, so re-running on a
 // mostly-sorted project issues few mutations.
-func PlanColumnRanking(items []ProjectItem, statuses []string, parents map[int]int) []RankMove {
-	labelsByNumber := LabelsByNumber(items)
+func PlanColumnRanking(items []ProjectItem, statuses []string, parents map[string]string) []RankMove {
+	labelsByKey := LabelsByKey(items)
 	byStatus := make(map[string][]ProjectItem)
 	var statusOrder []string
 	for _, it := range items {
@@ -241,7 +244,7 @@ func PlanColumnRanking(items []ProjectItem, statuses []string, parents map[int]i
 	var moves []RankMove
 	for _, status := range statusOrder {
 		current := byStatus[status]
-		desired := DesiredColumnOrder(current, parents, labelsByNumber)
+		desired := DesiredColumnOrder(current, parents, labelsByKey)
 
 		// Map each item to its desired index, then find the items already in
 		// desired relative order within the current order.
@@ -334,7 +337,7 @@ func UpdateProjectItemPosition(projectID int, itemID, afterID string) error {
 // items must be in current project order. parents may be nil to skip
 // sub-issue handling. progress, if non-nil, is called after each applied
 // move. Returns the number of items moved.
-func RankStatusColumnsByPriority(projectID int, items []ProjectItem, statuses []string, parents map[int]int, progress func(done, total int, move RankMove)) (int, error) {
+func RankStatusColumnsByPriority(projectID int, items []ProjectItem, statuses []string, parents map[string]string, progress func(done, total int, move RankMove)) (int, error) {
 	moves := PlanColumnRanking(items, statuses, parents)
 	for i, m := range moves {
 		if err := UpdateProjectItemPosition(projectID, m.Item.ID, m.AfterID); err != nil {

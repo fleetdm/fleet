@@ -18,23 +18,25 @@ type SizeSyncPlan struct {
 	Conflicts []SizePair // both set, different values: needs a human decision
 }
 
-// PlanSizeSync matches local items to remote items by issue number and
-// classifies each pair by how their size values need to be reconciled. Local
-// items without a remote counterpart (and vice versa) are ignored.
+// PlanSizeSync matches local items to remote items by repo-qualified issue
+// identity (both boards mix repos, and #N exists in several) and classifies
+// each pair by how their size values need to be reconciled. Local items
+// without a remote counterpart (and vice versa) are ignored.
 func PlanSizeSync(local, remote []ProjectItem) SizeSyncPlan {
-	remoteByNumber := make(map[int]ProjectItem, len(remote))
+	remoteByKey := make(map[string]ProjectItem, len(remote))
 	for _, it := range remote {
-		if it.Content.Number != 0 {
-			remoteByNumber[it.Content.Number] = it
+		if k := it.IssueKey(); k != "" {
+			remoteByKey[k] = it
 		}
 	}
 
 	var plan SizeSyncPlan
 	for _, it := range local {
-		if it.Content.Number == 0 {
+		k := it.IssueKey()
+		if k == "" {
 			continue
 		}
-		rp, ok := remoteByNumber[it.Content.Number]
+		rp, ok := remoteByKey[k]
 		if !ok {
 			continue
 		}

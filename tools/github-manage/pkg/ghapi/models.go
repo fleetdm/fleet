@@ -1,6 +1,9 @@
 package ghapi
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 type Author struct {
 	Login string `json:"login"`
@@ -109,6 +112,53 @@ func (item ProjectItem) SizeValue() string {
 		return item.Size
 	}
 	return item.TShirtSize
+}
+
+// IssueRefKey qualifies an issue number with the repo it lives in
+// ("owner/name#123", lowercased). Issue numbers are only unique per repo and
+// project boards mix repos, so a bare number is an ambiguous identity.
+// Returns "" for number 0 (e.g. draft issues).
+func IssueRefKey(repo string, number int) string {
+	if number == 0 {
+		return ""
+	}
+	return strings.ToLower(repo) + "#" + strconv.Itoa(number)
+}
+
+// RepoFullName returns the "owner/name" repo the item's content lives in,
+// from its content URL or the project's Repository field; "" when unknown.
+func (item ProjectItem) RepoFullName() string {
+	if r := RepoFromURL(item.Content.URL); r != "" {
+		return r
+	}
+	if r := RepoFromURL(item.Repository); r != "" {
+		return r
+	}
+	// The Repository field may already be a bare "owner/name".
+	if i := strings.IndexByte(item.Repository, '/'); i > 0 && !strings.Contains(item.Repository, "://") {
+		return item.Repository
+	}
+	return ""
+}
+
+// IssueKey returns the item's repo-qualified issue identity, "" for items
+// without an issue number.
+func (item ProjectItem) IssueKey() string {
+	return IssueRefKey(item.RepoFullName(), item.Content.Number)
+}
+
+// RepoFromURL extracts "owner/name" from a github.com URL, or "" when it can't.
+func RepoFromURL(url string) string {
+	const host = "github.com/"
+	i := strings.Index(url, host)
+	if i < 0 {
+		return ""
+	}
+	parts := strings.SplitN(url[i+len(host):], "/", 3)
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	return parts[0] + "/" + parts[1]
 }
 
 type ProjectItemsResponse struct {

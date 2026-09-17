@@ -49,6 +49,9 @@ type Model struct {
 	mode    uiMode
 	spinner spinner.Model
 	err     error
+	// loadProgress is the latest loading tick, shown as two bars (overall
+	// phase + progress within it) under the loading spinner.
+	loadProgress FetchProgress
 
 	login    string
 	board    Board // raw, unfiltered
@@ -63,13 +66,15 @@ type Model struct {
 	showHidden bool
 
 	// Issue-centric overlay, rebuilt from the board + stores + cached statuses.
-	statuses      map[int]string
-	projects      map[int]int
-	issueProjects map[int][]ProjectRef       // issue number → projects it's on (+ updatedAt)
+	// The first three maps are keyed by ghapi.IssueRefKey ("owner/name#123") —
+	// boards and notifications mix repos, so a bare number is ambiguous.
+	statuses      map[string]string
+	projects      map[string]int
+	issueProjects map[string][]ProjectRef    // issue key → projects it's on (+ updatedAt)
 	localBranches map[string]string          // branch name → local clone folder that has it
 	mergedPRs     map[int]*ghapi.PullRequest // issue number → merged/closed PR found by branch
 	work          []WorkItem
-	workByIssue   map[int]WorkItem
+	workByIssue   map[string]WorkItem // keyed by workKey (repo-qualified)
 
 	// Focus view: an issue-centric card list of pinned work items.
 	focusView   bool
@@ -158,9 +163,9 @@ func NewModel(repo string, limit int, noCache bool) *Model {
 		commentInput:     ti,
 		startBranchInput: bi,
 		newCloneInput:    ci,
-		statuses:         map[int]string{},
-		projects:         map[int]int{},
-		issueProjects:    map[int][]ProjectRef{},
+		statuses:         map[string]string{},
+		projects:         map[string]int{},
+		issueProjects:    map[string][]ProjectRef{},
 		width:            100,
 		height:           30,
 	}
@@ -196,6 +201,38 @@ func (m *Model) applyFetch(res FetchResult) {
 	}
 	m.autoMarkCompleted()
 	m.rebuild()
+}
+
+// itemKey returns the repo-qualified status-map key for a board item.
+func (m Model) itemKey(it Item) string {
+	return ghapi.IssueRefKey(repoOr(it.URL, m.repo), it.Number)
+}
+
+// workKey returns the repo-qualified status-map key for a work item.
+func (m Model) workKey(w WorkItem) string {
+	return ghapi.IssueRefKey(repoOr(w.URL, m.repo), w.Number)
+}
+
+// numKey returns the status-map key for a bare issue number, recovering the
+// repo from the work overlay when the issue is known, else assuming the
+// dashboard repo.
+func (m Model) numKey(n int) string {
+	if w, ok := m.workByNumber(n); ok {
+		return m.workKey(w)
+	}
+	return ghapi.IssueRefKey(m.repo, n)
+}
+
+// workByNumber finds the work item for a bare issue number, for flows that
+// carry no repo (start-work results, merge follow-ups). First match wins;
+// number-only flows act on the dashboard repo in practice.
+func (m Model) workByNumber(n int) (WorkItem, bool) {
+	for _, w := range m.work {
+		if w.Number == n {
+			return w, true
+		}
+	}
+	return WorkItem{}, false
 }
 
 // key returns the triage-store key for an item, scoped by repo and kind.
@@ -247,11 +284,11 @@ func (m *Model) rebuild() {
 
 	// Rebuild the issue-centric overlay from the raw board + stores + cached
 	// statuses (cheap; no network) so pin/unpin and status writes reflect at once.
-	m.work = BuildWorkItems(m.board, m.links, m.focus, m.statuses, m.projects, m.mergedPRs, m.config.EffectiveRole())
-	m.workByIssue = make(map[int]WorkItem, len(m.work))
+	m.work = BuildWorkItems(m.board, m.repo, m.links, m.focus, m.statuses, m.projects, m.mergedPRs, m.config.EffectiveRole())
+	m.workByIssue = make(map[string]WorkItem, len(m.work))
 	m.focusList = m.focusList[:0]
 	for _, w := range m.work {
-		m.workByIssue[w.Number] = w
+		m.workByIssue[m.workKey(w)] = w
 		if w.Focused {
 			m.focusList = append(m.focusList, w)
 		}
@@ -265,12 +302,13 @@ func (m *Model) rebuild() {
 }
 
 // mostRecentProject returns the number of the most recently updated project the
-// issue belongs to, or 0 if the issue isn't on any known project. Ties (or
-// missing timestamps) break toward the lowest project number for determinism.
-func (m *Model) mostRecentProject(issue int) int {
+// issue (by status-map key) belongs to, or 0 if the issue isn't on any known
+// project. Ties (or missing timestamps) break toward the lowest project number
+// for determinism.
+func (m *Model) mostRecentProject(issueKey string) int {
 	var best int
 	var bestUpdated time.Time
-	for _, ref := range m.issueProjects[issue] {
+	for _, ref := range m.issueProjects[issueKey] {
 		u := parseTime(ref.UpdatedAt)
 		if best == 0 || u.After(bestUpdated) || (u.Equal(bestUpdated) && ref.Number < best) {
 			best, bestUpdated = ref.Number, u
@@ -292,7 +330,7 @@ func (m *Model) orgProjectURL(number int) string {
 // "" (Claude launches in the current directory).
 func (m *Model) cherryPickClone(issue int) string {
 	if issue != 0 {
-		if w, ok := m.workByIssue[issue]; ok && w.ClonePath != "" {
+		if w, ok := m.workByNumber(issue); ok && w.ClonePath != "" {
 			return w.ClonePath
 		}
 	}
@@ -409,7 +447,7 @@ func (m *Model) currentWork() (WorkItem, bool) {
 		return WorkItem{}, false
 	}
 	if it, ok := m.currentItem(); ok && it.Kind == KindIssue {
-		w, ok := m.workByIssue[it.Number]
+		w, ok := m.workByIssue[m.itemKey(it)]
 		return w, ok
 	}
 	return WorkItem{}, false
@@ -459,6 +497,7 @@ type statusWriteMsg struct {
 type itemRefreshedMsg struct {
 	kind     Kind
 	number   int
+	repo     string             // KindIssue: the issue's repo, for status-map keys
 	pr       *ghapi.PullRequest // KindPR
 	status   string             // KindIssue
 	project  int                // KindIssue
@@ -474,8 +513,8 @@ type projectRefreshedMsg struct {
 	title     string
 	header    Item
 	issues    []Item
-	statuses  map[int]string
-	projects  map[int]int
+	statuses  map[string]string // keyed by ghapi.IssueRefKey
+	projects  map[string]int
 	mergedPRs map[int]*ghapi.PullRequest
 	err       error
 }
@@ -486,7 +525,7 @@ type projectRefreshedMsg struct {
 func refreshProjectCmd(repo string, project int, login, role string, branchByIssue map[int]string) tea.Cmd {
 	return func() tea.Msg {
 		owner := repoOwner(repo)
-		pv, statuses, projects := RefreshProjectView(project, owner, login, role)
+		pv, statuses, projects := RefreshProjectView(project, owner, repo, login, role)
 		if !pv.Resolved {
 			return projectRefreshedMsg{project: project, err: fmt.Errorf("could not resolve project %d", project)}
 		}
@@ -530,11 +569,11 @@ func (m *Model) replaceProjectView(msg projectRefreshedMsg) {
 	}
 	m.board.Buckets[BucketPrimary] = out
 
-	for n, s := range msg.statuses {
-		m.statuses[n] = s
+	for k, s := range msg.statuses {
+		m.statuses[k] = s
 	}
-	for n, p := range msg.projects {
-		m.projects[n] = p
+	for k, p := range msg.projects {
+		m.projects[k] = p
 	}
 	if msg.mergedPRs != nil {
 		if m.mergedPRs == nil {
@@ -546,9 +585,9 @@ func (m *Model) replaceProjectView(msg projectRefreshedMsg) {
 	}
 
 	// These issues now live in the Project View; remove any stale copies elsewhere.
-	refreshed := map[int]bool{}
+	refreshed := map[string]bool{}
 	for _, it := range msg.issues {
-		refreshed[it.Number] = true
+		refreshed[m.itemKey(it)] = true
 	}
 	for _, bk := range BucketOrder {
 		if bk == BucketPrimary {
@@ -557,7 +596,7 @@ func (m *Model) replaceProjectView(msg projectRefreshedMsg) {
 		items := m.board.Buckets[bk]
 		kept := items[:0]
 		for _, it := range items {
-			if it.Kind == KindIssue && refreshed[it.Number] {
+			if it.Kind == KindIssue && refreshed[m.itemKey(it)] {
 				continue
 			}
 			kept = append(kept, it)
@@ -580,20 +619,63 @@ func projectPickerCmd(repo string) tea.Cmd {
 	}
 }
 
+// fetchProgressMsg is one loading tick, carrying the channel to re-subscribe
+// on so the listener command chain survives without model state.
+type fetchProgressMsg struct {
+	p  FetchProgress
+	ch <-chan FetchProgress
+}
+
+// listenProgressCmd waits for the next loading tick. Returns nil (no msg) once
+// the fetch closes the channel.
+func listenProgressCmd(ch <-chan FetchProgress) tea.Cmd {
+	return func() tea.Msg {
+		p, ok := <-ch
+		if !ok {
+			return nil
+		}
+		return fetchProgressMsg{p: p, ch: ch}
+	}
+}
+
 func (m *Model) fetchCmd() tea.Cmd {
 	repo, limit := m.repo, m.limit
 	primary := m.config.PrimaryProjects
 	role := m.config.EffectiveRole()
 	baseDirs := m.config.CloneBaseDirs
 	branchByIssue := m.linkBranches()
-	return func() tea.Msg {
-		res, err := Fetch(repo, limit, primary, role)
-		if err == nil {
-			res.LocalBranches = LocalBranchFolders(baseDirs, repo)
-			res.LinkedMergedPRs = linkedMergedPRs(repo, res.Board, branchByIssue)
+	m.loadProgress = FetchProgress{} // a refresh starts from a clean bar
+
+	// Loading ticks stream over a channel: the fetch goroutine sends (dropping
+	// when the buffer is full — it must never block on the UI), the listener
+	// command re-subscribes after each tick, and close() ends the chain.
+	ch := make(chan FetchProgress, 64)
+	send := func(p FetchProgress) {
+		select {
+		case ch <- p:
+		default:
 		}
+	}
+	fetch := func() tea.Msg {
+		res, err := Fetch(repo, limit, primary, role, send)
+		if err == nil {
+			last := len(fetchPhaseNames)
+			step := func(done int) {
+				send(FetchProgress{
+					Phase: last, Phases: last, PhaseName: fetchPhaseNames[last-1],
+					Done: done, Total: 2,
+				})
+			}
+			step(0)
+			res.LocalBranches = LocalBranchFolders(baseDirs, repo)
+			step(1)
+			res.LinkedMergedPRs = linkedMergedPRs(repo, res.Board, branchByIssue)
+			step(2)
+		}
+		close(ch)
 		return fetchDoneMsg{res: res, err: err}
 	}
+	return tea.Batch(fetch, listenProgressCmd(ch))
 }
 
 // linkBranches snapshots the recorded issue → branch map from the link store, so
@@ -749,19 +831,12 @@ func refreshPRByBranchCmd(repo, branch string, issue int) tea.Cmd {
 func refreshPRByIssueCmd(issueRepo string, issue int) tea.Cmd {
 	return func() tea.Msg {
 		refs, err := ghapi.GetIssueClosingPRs(issueRepo, issue)
-		if err != nil || len(refs) == 0 {
+		if err != nil {
 			return nil
 		}
-		// Prefer an open PR (live work), then a merged one (records "ready for QA").
-		pick := refs[0]
-		for _, r := range refs {
-			if r.State == "OPEN" {
-				pick = r
-				break
-			}
-			if r.State == "MERGED" && pick.State != "OPEN" {
-				pick = r
-			}
+		pick := pickClosingPR(refs)
+		if pick == nil {
+			return nil
 		}
 		pr, err := ghapi.GetPullRequest(pick.Repo, pick.Number)
 		if err != nil {
@@ -776,6 +851,25 @@ func refreshPRByIssueCmd(issueRepo string, issue int) tea.Cmd {
 	}
 }
 
+// pickClosingPR selects which linked PR to surface: an open one (live work)
+// first, else a merged one (records "ready for QA"). Closed-unmerged PRs are
+// ignored — nothing shipped, so there is nothing to show. Returns nil when no
+// eligible reference exists.
+func pickClosingPR(refs []ghapi.ClosingPRRef) *ghapi.ClosingPRRef {
+	var merged *ghapi.ClosingPRRef
+	for i := range refs {
+		switch refs[i].State {
+		case "OPEN":
+			return &refs[i]
+		case "MERGED":
+			if merged == nil {
+				merged = &refs[i]
+			}
+		}
+	}
+	return merged
+}
+
 // refreshIssueCmd re-fetches a single issue's project Status + board memberships,
 // and its open/closed state (so a since-closed issue gets marked done). repo must
 // be the ISSUE's repo (boards mix repos, e.g. fleetdm/confidential), not the
@@ -786,7 +880,7 @@ func refreshIssueCmd(repo string, number, project int) tea.Cmd {
 	return func() tea.Msg {
 		found, err := ghapi.GetAllIssueProjectStatuses(repo, number)
 		if err != nil {
-			return itemRefreshedMsg{kind: KindIssue, number: number, err: err}
+			return itemRefreshedMsg{kind: KindIssue, number: number, repo: repo, err: err}
 		}
 		pid, status := project, ""
 		if ps, ok := found[project]; project != 0 && ok && ps.Present {
@@ -804,7 +898,7 @@ func refreshIssueCmd(repo string, number, project int) tea.Cmd {
 		if iss, e := ghapi.GetIssue(repo, number); e == nil {
 			closed = strings.EqualFold(iss.State, "CLOSED")
 		}
-		return itemRefreshedMsg{kind: KindIssue, number: number, status: status, project: pid, refs: refs, closed: closed}
+		return itemRefreshedMsg{kind: KindIssue, number: number, repo: repo, status: status, project: pid, refs: refs, closed: closed}
 	}
 }
 

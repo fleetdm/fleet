@@ -141,17 +141,18 @@ func getTaskListIssueRefs(issueNumber int) []int {
 	return related
 }
 
-// GetProjectItemParents returns a map of issue number -> parent issue number
-// for every project item that is a sub-issue, using the native sub-issues
-// parent link. One paginated query covers the whole project, unlike the
-// per-issue lookups above.
-func GetProjectItemParents(projectID int) (map[int]int, error) {
+// GetProjectItemParents returns a map of issue key -> parent issue key (see
+// IssueRefKey; projects mix repos, so numbers alone would collide) for every
+// project item that is a sub-issue, using the native sub-issues parent link.
+// One paginated query covers the whole project, unlike the per-issue lookups
+// above.
+func GetProjectItemParents(projectID int) (map[string]string, error) {
 	projectNodeID, err := getProjectNodeID(projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project node ID: %v", err)
 	}
 
-	parents := make(map[int]int)
+	parents := make(map[string]string)
 	cursor := ""
 	for {
 		after := ""
@@ -166,7 +167,8 @@ func GetProjectItemParents(projectID int) (map[int]int, error) {
 							content {
 								... on Issue {
 									number
-									parent { number }
+									repository { nameWithOwner }
+									parent { number repository { nameWithOwner } }
 								}
 							}
 						}
@@ -184,16 +186,20 @@ func GetProjectItemParents(projectID int) (map[int]int, error) {
 			return nil, fmt.Errorf("failed to query project item parents: %v", err)
 		}
 
+		type issueRef struct {
+			Number     int `json:"number"`
+			Repository struct {
+				NameWithOwner string `json:"nameWithOwner"`
+			} `json:"repository"`
+		}
 		var resp struct {
 			Data struct {
 				Node struct {
 					Items struct {
 						Nodes []struct {
 							Content struct {
-								Number int `json:"number"`
-								Parent *struct {
-									Number int `json:"number"`
-								} `json:"parent"`
+								issueRef
+								Parent *issueRef `json:"parent"`
 							} `json:"content"`
 						} `json:"nodes"`
 						PageInfo struct {
@@ -210,8 +216,13 @@ func GetProjectItemParents(projectID int) (map[int]int, error) {
 
 		for _, n := range resp.Data.Node.Items.Nodes {
 			c := n.Content
-			if c.Number != 0 && c.Parent != nil && c.Parent.Number != 0 && c.Parent.Number != c.Number {
-				parents[c.Number] = c.Parent.Number
+			key := IssueRefKey(c.Repository.NameWithOwner, c.Number)
+			if key == "" || c.Parent == nil {
+				continue
+			}
+			parentKey := IssueRefKey(c.Parent.Repository.NameWithOwner, c.Parent.Number)
+			if parentKey != "" && parentKey != key {
+				parents[key] = parentKey
 			}
 		}
 		if !resp.Data.Node.Items.PageInfo.HasNextPage {

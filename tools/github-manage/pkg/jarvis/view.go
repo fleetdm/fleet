@@ -26,6 +26,8 @@ var (
 	projectStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#39C5CF"))
 	noticeStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#04B575")).Bold(true)
 	errStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555")).Bold(true)
+	barFillStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4"))
+	barEmptyStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444"))
 )
 
 func (m Model) View() string {
@@ -34,7 +36,7 @@ func (m Model) View() string {
 	}
 	switch m.state {
 	case stateLoading:
-		return fmt.Sprintf("\n  %s Summoning your work from GitHub…\n", m.spinner.View())
+		return m.renderLoading()
 	case stateError:
 		return "\n" + errStyle.Render("  Jarvis hit an error.") + "\n" +
 			fmt.Sprintf("  %v\n\n", m.err) +
@@ -47,6 +49,46 @@ func (m Model) View() string {
 		return m.renderFocus()
 	}
 	return m.renderBoard()
+}
+
+// renderLoading draws the loading screen: the spinner headline plus two
+// progress bars — which fetch phase we're on overall, and how far through the
+// current phase's items we are — so a long pull visibly isn't hung.
+func (m Model) renderLoading() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("\n  %s Summoning your work from GitHub…\n", m.spinner.View()))
+	p := m.loadProgress
+	if p.Phases == 0 {
+		return b.String() // no tick yet
+	}
+	const width = 24
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("  %s  step %d/%d · %s\n",
+		renderBar(p.Phase, p.Phases, width), p.Phase, p.Phases, p.PhaseName))
+	if p.Total > 0 {
+		b.WriteString(fmt.Sprintf("  %s  %d/%d\n",
+			renderBar(p.Done, p.Total, width), p.Done, p.Total))
+	} else {
+		b.WriteString(fmt.Sprintf("  %s  %s\n",
+			renderBar(0, 1, width), dimStyle.Render("working…")))
+	}
+	return b.String()
+}
+
+// renderBar draws a done/total progress bar of the given rune width.
+func renderBar(done, total, width int) string {
+	if total <= 0 {
+		total = 1
+	}
+	if done < 0 {
+		done = 0
+	}
+	if done > total {
+		done = total
+	}
+	fill := done * width / total
+	return barFillStyle.Render(strings.Repeat("█", fill)) +
+		barEmptyStyle.Render(strings.Repeat("░", width-fill))
 }
 
 // renderFocus renders the pinned work items as issue-centric cards: issue +
@@ -271,7 +313,7 @@ func (m Model) groupInfo(it Item) (emoji, status string) {
 	}
 
 	var fallback *ProjectRef
-	refs := m.issueProjects[it.Number]
+	refs := m.issueProjects[m.itemKey(it)]
 	for i, r := range refs {
 		if !strings.Contains(strings.ToLower(r.Title), "#g-") {
 			continue
@@ -396,7 +438,7 @@ func (m Model) projectLine(it Item, selected bool) string {
 // (number, title, project status) and, indented beneath, its linked PR + branch +
 // local clone folder + PR state. The PR/branch line is omitted when there's none.
 func (m Model) projectIssueLines(it Item, selected bool) []string {
-	w := m.workByIssue[it.Number]
+	w := m.workByIssue[m.itemKey(it)]
 	title := truncateTitle(it.Title)
 
 	var line1 string
@@ -476,7 +518,7 @@ func (m Model) issueAnnotation(it Item) (status, prText string, focused bool) {
 	if it.Kind != KindIssue {
 		return "", "", false
 	}
-	w, ok := m.workByIssue[it.Number]
+	w, ok := m.workByIssue[m.itemKey(it)]
 	if !ok {
 		return "", "", false
 	}

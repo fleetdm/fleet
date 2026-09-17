@@ -14,6 +14,9 @@ func mkItem(id string, num int, status string, labels ...string) ProjectItem {
 	}
 }
 
+// tkey is the IssueRefKey of a test item made by mkItem (no repo URL).
+func tkey(num int) string { return IssueRefKey("", num) }
+
 func TestHandbookPriorityBucketOrder(t *testing.T) {
 	cases := []struct {
 		labels []string
@@ -167,8 +170,8 @@ func TestDesiredColumnOrderSubIssuesFollowParent(t *testing.T) {
 		mkItem("story-p1", 10, "Ready", "story", "P1"),
 		mkItem("sub-be", 12, "Ready", "~sub-task", "~backend"),
 	}
-	parents := map[int]int{11: 10, 12: 10}
-	desired := DesiredColumnOrder(column, parents, LabelsByNumber(column))
+	parents := map[string]string{tkey(11): tkey(10), tkey(12): tkey(10)}
+	desired := DesiredColumnOrder(column, parents, LabelsByKey(column))
 	want := []string{"story-p1", "sub-fe", "sub-be", "bug"}
 	for i, w := range want {
 		if desired[i].ID != w {
@@ -185,9 +188,9 @@ func TestDesiredColumnOrderSubIssueInheritsRemoteParentPriority(t *testing.T) {
 		mkItem("bug", 20, "Ready", "bug"),
 		mkItem("sub", 11, "Ready", "~sub-task"),
 	}
-	parents := map[int]int{11: 10}
+	parents := map[string]string{tkey(11): tkey(10)}
 	column := all[1:]
-	desired := DesiredColumnOrder(column, parents, LabelsByNumber(all))
+	desired := DesiredColumnOrder(column, parents, LabelsByKey(all))
 	want := []string{"sub", "bug"}
 	for i, w := range want {
 		if desired[i].ID != w {
@@ -203,8 +206,8 @@ func TestDesiredColumnOrderUnknownParentFallsBackToOwnLabels(t *testing.T) {
 	}
 	// Parent 99 is not among fetched items, so sub ranks by its own labels
 	// (other bucket) below the bug.
-	parents := map[int]int{11: 99}
-	desired := DesiredColumnOrder(column, parents, LabelsByNumber(column))
+	parents := map[string]string{tkey(11): tkey(99)}
+	desired := DesiredColumnOrder(column, parents, LabelsByKey(column))
 	want := []string{"bug", "sub"}
 	for i, w := range want {
 		if desired[i].ID != w {
@@ -220,7 +223,7 @@ func TestPlanColumnRankingWithParents(t *testing.T) {
 		mkItem("sub-fe", 11, "Ready", "~sub-task", "~frontend"),
 		mkItem("bug", 20, "Ready", "bug"),
 	}
-	parents := map[int]int{11: 10}
+	parents := map[string]string{tkey(11): tkey(10)}
 	if moves := PlanColumnRanking(items, nil, parents); len(moves) != 0 {
 		t.Fatalf("expected no moves, got %+v", moves)
 	}
@@ -233,6 +236,30 @@ func TestPlanColumnRankingWithParents(t *testing.T) {
 	moves := PlanColumnRanking(items, nil, parents)
 	if len(moves) != 1 || moves[0].Item.ID != "sub-fe" || moves[0].AfterID != "story-p1" {
 		t.Fatalf("expected sub-fe moved after story-p1, got %+v", moves)
+	}
+}
+
+func TestDesiredColumnOrderDuplicateNumbersAcrossRepos(t *testing.T) {
+	inRepo := func(it ProjectItem, repo string) ProjectItem {
+		it.Content.URL = "https://github.com/" + repo + "/issues/123"
+		return it
+	}
+	// fleet#123 is a sub-issue of the P0 story; confidential#123 is an unrelated
+	// plain story. Neither the parent link nor the labels of one #123 may leak
+	// onto the other, and both must appear in the desired order.
+	column := []ProjectItem{
+		inRepo(mkItem("conf-123", 123, "Ready", "story"), "fleetdm/confidential"),
+		mkItem("bug", 20, "Ready", "bug"),
+		mkItem("story-p0", 10, "Ready", "story", "P0"),
+		inRepo(mkItem("fleet-123", 123, "Ready", "~sub-task"), "fleetdm/fleet"),
+	}
+	parents := map[string]string{IssueRefKey("fleetdm/fleet", 123): tkey(10)}
+	desired := DesiredColumnOrder(column, parents, LabelsByKey(column))
+	want := []string{"story-p0", "fleet-123", "bug", "conf-123"}
+	for i, w := range want {
+		if desired[i].ID != w {
+			t.Fatalf("position %d = %s, want %s (full: %v)", i, desired[i].ID, w, ids(desired))
+		}
 	}
 }
 

@@ -1,6 +1,9 @@
 package ghapi
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func mkSized(id string, num int, size string) ProjectItem {
 	return ProjectItem{ID: id, Title: id, Size: size, Content: ProjectItemContent{Number: num}}
@@ -49,6 +52,30 @@ func TestPlanSizeSync(t *testing.T) {
 	}
 	if len(plan.Conflicts) != 1 || plan.Conflicts[0].Local.ID != "conflict" {
 		t.Fatalf("Conflicts = %+v", plan.Conflicts)
+	}
+}
+
+func TestPlanSizeSyncDuplicateNumbersAcrossRepos(t *testing.T) {
+	withRepo := func(it ProjectItem, repo string, num int) ProjectItem {
+		it.Content.URL = "https://github.com/" + repo + "/issues/" + strconv.Itoa(num)
+		return it
+	}
+	// Both boards contain #123 from two different repos with different sizes;
+	// each must pair with its own repo's counterpart, not the other's.
+	local := []ProjectItem{
+		withRepo(mkSized("fleet-123", 123, "M"), "fleetdm/fleet", 123),
+		withRepo(mkSized("conf-123", 123, ""), "fleetdm/confidential", 123),
+	}
+	remote := []ProjectItem{
+		withRepo(mkTShirtSized("r-fleet-123", 123, "M"), "fleetdm/fleet", 123),
+		withRepo(mkTShirtSized("r-conf-123", 123, "XL"), "fleetdm/confidential", 123),
+	}
+	plan := PlanSizeSync(local, remote)
+	if len(plan.SetRemote)+len(plan.Conflicts) != 0 {
+		t.Fatalf("unexpected writes planned: %+v", plan)
+	}
+	if len(plan.SetLocal) != 1 || plan.SetLocal[0].Local.ID != "conf-123" || plan.SetLocal[0].Remote.ID != "r-conf-123" {
+		t.Fatalf("SetLocal should pair confidential#123 with its own remote item, got %+v", plan.SetLocal)
 	}
 }
 
