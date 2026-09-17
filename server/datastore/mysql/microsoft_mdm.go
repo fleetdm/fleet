@@ -1980,7 +1980,7 @@ AND (
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
-		// Action required means a person has to do something. Two ways to get here:
+		// Action required means a person has to do something. Three ways to get here:
 		// 1. We _would_ be in verified/verifying but a PIN is required and not set, which only the end user can fix, OR
 		// 2. The disk is encrypted with protection off AND the agent reported it cannot restore it, either because
 		//    policy forbids a TPM-only protector, or the TPM is not ready, or it is deferring until a staged restart, OR
