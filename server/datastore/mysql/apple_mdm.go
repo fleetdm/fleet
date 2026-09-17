@@ -7189,26 +7189,11 @@ func (ds *Datastore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUI
 }
 
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
-	// Rows that record which command they track are removed only once that
-	// command is no longer outstanding in the nano queue. "Outstanding" is
-	// nano's own notion: an active queue row with no result yet (or only a
-	// NotNow), the same test RetrieveNextCommand applies; ClearQueue flips
-	// active to 0 on re-enrollment, SCEP renewal and wipe. The enrollment is
-	// matched on device_id so user-channel commands (e.g. the ACME certs
-	// refetch) count too. This keeps an offline device's tracking rows alive
-	// for as long as its commands wait at APNs, instead of wiping them daily
-	// and re-enqueueing duplicates. The predicate also holds if nano's
-	// delete-on-result mode is ever enabled: the queue and result rows go
-	// together, which reads as no longer outstanding.
-	//
-	// The hour of grace on UUID rows covers the window between a producer
-	// writing its tracking row and enqueueing the command: a cleanup landing in
-	// between would otherwise delete a legitimate row and let the next refetch
-	// tick enqueue a duplicate.
-	//
-	// Rows without a UUID (pre-UUID rows and flows that don't record one) keep
-	// the previous rule: gone after a day, in case the command was never sent
-	// or its result never processed, so it can be re-sent the next day.
+	// A row with a UUID lives while that command is still outstanding in the nano
+	// queue, using nano's own test (active, no result or only a NotNow) so the two
+	// never disagree; matched on device_id so user-channel commands count. The
+	// 1-hour grace covers a producer writing its row before enqueueing. Rows
+	// without a UUID keep the old 1-day rule.
 	const selectStmt = `
 		SELECT hmc.host_id, hmc.command_type, hmc.command_uuid
 		FROM host_mdm_commands AS hmc
@@ -7238,19 +7223,13 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 		CommandUUID *string `db:"command_uuid"`
 	}
 	var stale []staleRow
-	// Read from the primary: the deletes below act on exactly what was seen.
-	// The LIMIT bounds one run's memory on a pathological backlog; the
-	// predicate is idempotent, so the next hourly run takes the rest.
+	// Select from the primary and delete in short batches keyed on the row's full
+	// identity, so a run never holds one long DELETE and a row re-tracked since the
+	// select is left alone. The LIMIT just bounds a run; the next one takes the rest.
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &stale, selectStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "select stale host_mdm_commands")
 	}
 
-	// Deleted in batches like AddHostMDMCommands and RemoveHostMDMCommands, each
-	// batch its own short statement, so an hourly run on a large fleet never
-	// holds row locks across one long DELETE; whatever a run doesn't reach, the
-	// next one does. Rows are matched on their full identity, UUID included
-	// (NULL-safe), so a row re-tracked for a new command since the select is
-	// left alone and re-evaluated next run.
 	const deleteStmt = `DELETE FROM host_mdm_commands WHERE %s`
 	return common_mysql.BatchProcessSimple(stale, hostMDMCommandsBatchSize, func(batch []staleRow) error {
 		const numberOfArgsPerRow = 3
