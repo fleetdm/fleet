@@ -1381,6 +1381,14 @@ func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
 	assert.ErrorContains(t, err, "profiles[1]")
 }
 
+func TestSetABMTokenDefaultFreeLicense(t *testing.T) {
+	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	_, err := svc.SetABMTokenDefault(ctx, 1, new(true))
+	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+}
+
 func TestNewMDMAppleDeclarationFreeLicenseTeam(t *testing.T) {
 	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -4176,6 +4184,9 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				removed = true
 				require.Equal(t, hostID, cmd.HostID)
 				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, cmd.CommandType)
+				require.Len(t, addedCommands, 1)
+				require.Equal(t, addedCommands[0].CommandUUID, cmd.CommandUUID,
+					"rollback must target the command it tracked")
 				return nil
 			}
 
@@ -4201,6 +4212,9 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 				enqueued = true
 				require.Equal(t, []string{expectTarget}, id)
 				require.Equal(t, "CertificateList", cmd.Command.Command.RequestType)
+				require.Len(t, addedCommands, 1)
+				require.Equal(t, addedCommands[0].CommandUUID, cmd.CommandUUID,
+					"enqueued command must be the one the tracking row records")
 				return nil, c.enqueueErr
 			}
 			mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
@@ -4358,6 +4372,7 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 			ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 				require.Equal(t, hostID, command.HostID)
 				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, command.CommandType)
+				require.Equal(t, commandUUID, command.CommandUUID, "removal must target the acked command")
 				return nil
 			}
 			nanoShortName, nanoUserID := c.nanoShortName, c.nanoUserID
@@ -7234,6 +7249,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 		assert.Equal(t, hostID, command.HostID)
 		assert.Equal(t, fleet.RefetchDeviceCommandUUIDPrefix, command.CommandType)
+		assert.Equal(t, commandUUID, command.CommandUUID, "removal must target the acked command")
 		return nil
 	}
 	ds.UpdateMDMDataFunc = func(ctx context.Context, incomingHostID uint, enrolled bool) error {
