@@ -14371,10 +14371,88 @@ For Fleet-maintained apps, software package objects include two additional field
 
 For in-house iOS apps, the `software_package` field is populated with package information.
 
-For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_app` is populated with information from the store. For example:
+For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_apps` is populated with information from the store.
+
+A software title can have more than one App Store app on the same fleet. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
+
+Each version's `name` identifies it in Fleet (e.g. `"Production"`) and is unique per software title per fleet. Note that in the `app_store_apps` array, `name` is the version's name. In `app_store_app` (singular), `name` remains the app's name in the store.
+
+`app_store_app` is kept for backwards compatibility and contains the first-added version.
+
+For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
+
+If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
+
+> Install, pending, and failed counts in `app_store_apps.status` are separate for each version.
+
+For example:
 
 ```json
 {
+  "app_store_apps": [
+    {
+      "id": 41,
+      "name": "Production",
+      "app_store_id": "361285480",
+      "platform": "darwin",
+      "version": "15.2.1",
+      "status": {
+        "installed": 13,
+        "pending": 0,
+        "failed": 2
+      },
+      "self_service": true,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": [
+        {
+          "name": "IT team",
+          "id": 12
+        }
+      ],
+      "labels_include_all": null,
+      "auto_update_enabled": true,
+      "auto_update_window_start": "00:00",
+      "auto_update_window_end": "04:00",
+      "created_at": "2026-01-28T21:49:04.145909Z",
+      "categories": [
+        "Productivity"
+      ],
+      "display_name": "Keynote",
+      "configuration": null
+    },
+    {
+      "id": 42,
+      "name": "Test",
+      "app_store_id": "361285480",
+      "platform": "darwin",
+      "version": "15.2.1",
+      "status": {
+        "installed": 2,
+        "pending": 1,
+        "failed": 0
+      },
+      "self_service": false,
+      "automatic_install_policies": null,
+      "labels_include_any": [
+        {
+          "name": "IT team",
+          "id": 12
+        }
+      ],
+      "labels_exclude_any": null,
+      "labels_include_all": null,
+      "auto_update_enabled": false,
+      "auto_update_window_start": null,
+      "auto_update_window_end": null,
+      "created_at": "2026-02-03T10:14:22.882031Z",
+      "categories": [
+        "Productivity"
+      ],
+      "display_name": "Keynote",
+      "configuration": null
+    }
+  ],
   "app_store_app": {
     "app_store_id": "361285480",
     "platform": "darwin",
@@ -14388,119 +14466,18 @@ For Apple App Store and Google Play apps, the `software_package` field is `null`
     "self_service": true,
     "automatic_install_policies": null,
     "labels_include_any": null,
-    "labels_exclude_any": null,
+    "labels_exclude_any": [
+      {
+        "name": "IT team",
+        "id": 12
+      }
+    ],
     "labels_include_all": null,
     "created_at": "2026-01-28T21:49:04.145909Z",
     "categories": [
       "Productivity"
     ],
     "display_name": "Keynote"
-  }
-}
-```
-
-A software title can have more than one App Store app on the same fleet. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
-
-Each version's `name` identifies it in Fleet (e.g. `"Production"`) and is unique per software title per fleet. Note that in the `app_store_apps` array, `name` is the version's name. In `app_store_app` (singular), `name` remains the app's name in the store.
-
-`app_store_app` is kept for backwards compatibility and contains the oldest (first added) version.
-
-For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
-
-If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
-
-> Install, pending, and failed counts in `app_store_apps.status` are separate for each version.
-
-```json
-{
-  "app_store_apps": [
-    {
-      "id": 41,
-      "name": "Production",
-      "app_store_id": "546505307",
-      "platform": "ios",
-      "latest_version": "6.5.7",
-      "status": {
-        "installed": 24,
-        "pending": 1,
-        "failed": 0
-      },
-      "self_service": true,
-      "automatic_install_policies": null,
-      "labels_include_any": [
-        {
-          "name": "Production",
-          "id": 12
-        }
-      ],
-      "labels_exclude_any": null,
-      "labels_include_all": null,
-      "auto_update_enabled": true,
-      "auto_update_window_start": "00:00",
-      "auto_update_window_end": "04:00",
-      "created_at": "2026-08-25T14:19:52.104512Z",
-      "categories": [
-        "Business"
-      ],
-      "display_name": "Zoom",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
-    },
-    {
-      "id": 42,
-      "name": "Test",
-      "app_store_id": "546505307",
-      "platform": "ios",
-      "latest_version": "6.5.7",
-      "status": {
-        "installed": 3,
-        "pending": 0,
-        "failed": 0
-      },
-      "self_service": false,
-      "automatic_install_policies": null,
-      "labels_include_any": [
-        {
-          "name": "Test",
-          "id": 17
-        }
-      ],
-      "labels_exclude_any": null,
-      "labels_include_all": null,
-      "auto_update_enabled": false,
-      "auto_update_window_start": null,
-      "auto_update_window_end": null,
-      "created_at": "2026-08-25T14:22:03Z",
-      "categories": null,
-      "display_name": "Zoom",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
-    }
-  ],
-  "app_store_app": {
-    "app_store_id": "546505307",
-    "platform": "ios",
-    "name": "Zoom Workplace",
-    "latest_version": "6.5.7",
-    "status": {
-      "installed": 24,
-      "pending": 1,
-      "failed": 0
-    },
-    "self_service": true,
-    "automatic_install_policies": null,
-    "labels_include_any": [
-      {
-        "name": "Production",
-        "id": 12
-      }
-    ],
-    "labels_exclude_any": null,
-    "labels_include_all": null,
-    "created_at": "2026-08-25T14:19:52.104512Z",
-    "categories": [
-      "Business"
-    ],
-    "display_name": "Zoom",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
   }
 }
 ```
@@ -15068,6 +15045,7 @@ To add more than one version of the same app, call this endpoint once per versio
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
 }
 ```
+
 ##### Default response
 
 `Status: 200`
@@ -15096,7 +15074,7 @@ _Available in Fleet Premium._
 
 Modify an Apple App Store (VPP) or a Google Play app's options.
 
-A software title can have more than one version of the same App Store app on a fleet. Use `app_store_app_id` to choose which version to update.
+A software title can have more than one version of the same App Store app on a fleet. Use `app_store_app_id` to select which version to update — the version's `name` is a mutable field, not its identifier. This mirrors `installer_id` on [Update package](#update-package).
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -15105,7 +15083,7 @@ A software title can have more than one version of the same App Store app on a f
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
-| app_store_app_id | integer | body | ID of the version of the app to update. If omitted, defaults to the title's first-added version. |
+| app_store_app_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
@@ -15169,7 +15147,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
     "icon_url": null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
-    "latest_version": "2.04",
+    "version": "2.04",
     "self_service": true,
     "labels_include_any": [
       {
