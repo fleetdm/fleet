@@ -139,7 +139,10 @@ describe("BitLockerPinModal", () => {
     await settle();
     await advanceOnePoll();
 
-    expect(screen.getByText("Setting your PIN...")).toBeVisible();
+    // The Save button carries the waiting state, next to a spinner.
+    expect(screen.getByText("Setting PIN...")).toBeVisible();
+    expect(screen.getByTestId("spinner")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(notify.success).not.toHaveBeenCalled();
     expect(notify.error).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
@@ -189,7 +192,9 @@ describe("BitLockerPinModal", () => {
       "Couldn't set PIN. PIN already set. Try again or contact your IT admin."
     );
     expect(onExit).not.toHaveBeenCalled();
-    expect(screen.queryByText("Setting your PIN...")).toBeNull();
+    // Save is offered again, so the button is out of its waiting state.
+    expect(screen.queryByText("Setting PIN...")).toBeNull();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
   it("reports the server's reason for a rejected submission without waiting on the agent", async () => {
