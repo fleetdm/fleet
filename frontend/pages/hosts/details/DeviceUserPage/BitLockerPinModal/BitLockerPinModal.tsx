@@ -28,7 +28,7 @@ const CONTACT_ADMIN = "Try again or contact your IT admin.";
 const STILL_WORKING =
   "PIN submitted but Fleet is still working on it. You’ll see an update when this device responds.";
 
-/** Reasons reach us from the agent and from the server with inconsistent punctuation. */
+/** Fix inconsistent punctuation. */
 const asSentence = (reason: string) =>
   /[.!?]$/.test(reason) ? reason : `${reason}.`;
 
@@ -79,7 +79,7 @@ const BitLockerPinModal = ({
   deviceAuthToken,
   onPollHost,
   onExit,
-}: IBitLockerPinModalProps): JSX.Element => {
+}: IBitLockerPinModalProps) => {
   // The submit button lives in a ModalFooter outside the <form>, so it reaches the form's onSubmit through this id.
   const formId = useId();
 
@@ -130,11 +130,11 @@ const BitLockerPinModal = ({
       }
 
       // The agent's own report is checked first: a host can stop asking for a PIN for reasons unrelated to this
-      // submission, and reading that as success would bury the agent's failure.
+      // submission.
       if (diskEncryption?.pin_request?.status === "failed") {
         return { status: "failed", error: diskEncryption.pin_request.error };
       }
-      // An osquery report can clear action_required before the agent's own report lands, and either one means it worked.
+      // An osquery report clearing action_required or pin_request.status means success.
       if (
         diskEncryption &&
         (diskEncryption.pin_request?.status === "set" ||
@@ -227,7 +227,6 @@ const BitLockerPinModal = ({
               </Button>
               <Button type="submit" formId={formId} disabled={isDisabled}>
                 {isDisabled ? (
-                  // Not the Button's isLoading, which hides the label behind a centered spinner.
                   <span className={`${baseClass}__saving`}>
                     <Spinner size="x-small" centered={false} delay={0} />
                     Setting PIN...

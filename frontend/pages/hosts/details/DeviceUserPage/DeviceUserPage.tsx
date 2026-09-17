@@ -130,6 +130,15 @@ const FREE_TAB_PATHS = [
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
 
+const BITLOCKER_PIN_POLL_INTERVAL = 5000;
+
+/** Whether a submitted BitLocker PIN is still in the agent's hands, so its outcome is still coming. */
+const hasPINRequestInFlight = (data?: IDUPDetails) => {
+  const status =
+    data?.host.mdm.os_settings?.disk_encryption.pin_request?.status;
+  return status === "pending" || status === "delivered";
+};
+
 interface IDeviceUserPageProps {
   location: {
     pathname: string;
@@ -307,6 +316,13 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // A PIN the agent has not reported on yet is the one thing on this page that resolves without the end user
+      // doing anything, so the banner clears itself. The modal polls while it is open, and a backgrounded tab stops,
+      // because refetchIntervalInBackground is left off.
+      refetchInterval: (data) =>
+        !showBitLockerPINModal && hasPINRequestInFlight(data)
+          ? BITLOCKER_PIN_POLL_INTERVAL
+          : false,
       onSuccess: ({ host: responseHost }) => {
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
