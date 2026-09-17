@@ -172,7 +172,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Platform | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | macOS | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| Windows | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Windows | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (Debian) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
