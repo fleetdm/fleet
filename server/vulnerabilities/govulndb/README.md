@@ -47,11 +47,20 @@ NVD has not published yet appears without scores until it catches up.
 
 ## Data flow
 
-Fleet never fetches `vuln.go.dev` directly. A publisher job in
-[fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) pulls the database and
-publishes it as a release asset, which keeps a single egress point for restricted deployments and
-matches how OSV data is mirrored. `Refresh` downloads the newest asset into the server's
-`databases_path`, verifies its digest, and deletes the ones it supersedes.
+Fleet never fetches `vuln.go.dev` directly. A job in
+[fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) runs `cmd/govulndb-mirror`
+from this repository, which pulls the database and writes the artifact the job attaches to a
+release. That keeps a single egress point for restricted deployments and matches how OSV data is
+mirrored. `Refresh` downloads the newest asset into the server's `databases_path`, verifies its
+digest, and deletes the ones it supersedes.
+
+The mirror imports this package's `Artifact` types and exported constants, so the two sides of
+the contract cannot drift apart. It refuses to publish a snapshot that looks wrong (a failed or
+partial download, a report it cannot re-shape without guessing, or a module or advisory count
+that fell more than a few percent below the last published artifact) and exits zero with
+`skipped=true` on its step outputs instead, leaving the last good asset in place. The job has to
+hand it the last *published* artifact through `--previous` on every run but the first, including
+after a skipped day when the latest release carries none.
 
 ## Artifact contract
 

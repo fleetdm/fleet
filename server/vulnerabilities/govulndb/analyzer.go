@@ -50,8 +50,8 @@ func Analyze(
 
 	// Matching nothing would mark every stored Go vulnerability as remediated, so refuse an
 	// unknown schema or an empty module list (a corrupted or partial download).
-	if artifact.SchemaVersion != schemaVersion {
-		return nil, fmt.Errorf("Go vulnerability database artifact has schema version %q, want %q", artifact.SchemaVersion, schemaVersion)
+	if artifact.SchemaVersion != SchemaVersion {
+		return nil, fmt.Errorf("Go vulnerability database artifact has schema version %q, want %q", artifact.SchemaVersion, SchemaVersion)
 	}
 	if len(artifact.Modules) == 0 {
 		return nil, errors.New("Go vulnerability database artifact contains no modules (possible corrupted feed)")
@@ -163,7 +163,7 @@ func matchSoftware(software *fleet.Software, artifact *Artifact) []fleet.Softwar
 	}
 
 	if goVersion, ok := toolchainVersion(software.Release); ok {
-		for _, advisory := range artifact.Modules[stdlibModule] {
+		for _, advisory := range artifact.Modules[StdlibModule] {
 			if _, affected := advisory.affects(goVersion); !affected {
 				continue
 			}
