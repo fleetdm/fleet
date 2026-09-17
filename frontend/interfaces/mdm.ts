@@ -35,6 +35,7 @@ export interface IMdmAbToken {
   renew_date: string;
   terms_expired: boolean;
   token_invalid: boolean;
+  default: boolean;
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;

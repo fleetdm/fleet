@@ -18419,6 +18419,93 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, crossTeam.ID, "sibling.sh")
 	})
 	require.Equal(t, siblingID, crossRows[0].SoftwareInstallerID, "surviving row should be sibling.sh (B)")
+
+	// .py packages are cross-platform on the same terms as .sh.
+	pyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "pycross"})
+	require.NoError(t, err)
+
+	pyCrossScript := "#!/usr/bin/env python3\nprint('cross-platform hello')\n"
+	pyCrossHash := sha256.Sum256([]byte(pyCrossScript))
+	pyPkg := func(platforms *[]string) []*fleet.SoftwareInstallerPayload {
+		return []*fleet.SoftwareInstallerPayload{{
+			URL:                      "script://cross-hello.py",
+			SHA256:                   hex.EncodeToString(pyCrossHash[:]),
+			InstallScript:            pyCrossScript,
+			SetupExperiencePlatforms: platforms,
+		}}
+	}
+	applyPy := func(platforms *[]string) {
+		s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: pyPkg(platforms)},
+			http.StatusAccepted, &batchResp, "team_name", pyTeam.Name)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, pyTeam.Name, batchResp.RequestUUID)
+	}
+	pyState := func() ([]struct {
+		SoftwareInstallerID uint   `db:"software_installer_id"`
+		Platform            string `db:"platform"`
+	}, bool,
+	) {
+		var rows []struct {
+			SoftwareInstallerID uint   `db:"software_installer_id"`
+			Platform            string `db:"platform"`
+		}
+		var duringSetup bool
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.SelectContext(ctx, q, &rows,
+				`SELECT software_installer_id, platform FROM setup_experience_software_installers WHERE global_or_team_id = ?`, pyTeam.ID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &duringSetup,
+				`SELECT install_during_setup FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, pyTeam.ID, "cross-hello.py")
+		})
+		return rows, duringSetup
+	}
+
+	applyPy(&darwinOnly)
+	pyRows, pyDuringSetup := pyState()
+	require.Len(t, pyRows, 1, "expected one cross-platform selection for the .py package")
+	require.Equal(t, "darwin", pyRows[0].Platform)
+	require.False(t, pyDuringSetup, "linux not selected → install_during_setup should stay false")
+
+	var pyStoredShape struct {
+		Platform  string `db:"platform"`
+		Extension string `db:"extension"`
+		Source    string `db:"source"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pyStoredShape,
+			`SELECT si.platform, si.extension, st.source FROM software_installers si
+			 JOIN software_titles st ON st.id = si.title_id
+			 WHERE si.global_or_team_id = ? AND si.filename = ?`, pyTeam.ID, "cross-hello.py")
+	})
+	require.Equal(t, "linux", pyStoredShape.Platform)
+	require.Equal(t, "py", pyStoredShape.Extension)
+	require.Equal(t, "py_packages", pyStoredShape.Source)
+
+	// Omitting the field is a no-op; only an explicit empty value clears.
+	// See reconcileGitOpsSetupExperienceCrossInstallers.
+	applyPy(nil)
+	pyRows, _ = pyState()
+	require.Len(t, pyRows, 1, "omitting the field leaves the prior selection alone")
+
+	applyPy(&emptyPlatforms)
+	pyRows, pyDuringSetup = pyState()
+	require.Empty(t, pyRows, "explicit empty list clears the cross-table row")
+	require.False(t, pyDuringSetup)
+
+	applyPy(&bothPlatforms)
+	pyRows, pyDuringSetup = pyState()
+	require.Len(t, pyRows, 1)
+	require.True(t, pyDuringSetup, "native in list selects the native platform")
+
+	applyPy(&linuxOnly)
+	pyRows, pyDuringSetup = pyState()
+	require.Empty(t, pyRows, "native-only list clears the cross-table")
+	require.True(t, pyDuringSetup)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: pyPkg(&windows)},
+		http.StatusAccepted, &batchResp, "team_name", pyTeam.Name)
+	failure = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, pyTeam.Name, batchResp.RequestUUID)
+	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platform" value for a .py package`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() {
@@ -36737,6 +36824,72 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 	require.Equal(t, "zoom-build-1.0-b.msi", metaB.Name)
 	require.Equal(t, rebuild.sha256, metaB.StorageID)
 	require.Equal(t, "install zoom-build-1.0-b.msi", metaB.InstallScript)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMANoCheckHash() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	state := &fmaTestState{
+		version:            "1.0",
+		installerBytes:     []byte("zoom-1.0"),
+		installerPath:      "/api/desktop.latestRelease",
+		installScript:      "install zoom-1.0.msi",
+		noCheckSHA:         true,
+		contentDisposition: `attachment; filename="zoom-1.0.msi"`,
+	}
+	downloads := startFMAServers(t, s.ds, map[string]*fmaTestState{"/zoom/windows.json": state})
+
+	apply := func() {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp, "team_name", team.Name,
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+
+	apply()
+	require.Equal(t, 1, downloads("/api/desktop.latestRelease"))
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
+	require.Len(t, listResp.SoftwareTitles, 1)
+	titleID := listResp.SoftwareTitles[0].ID
+
+	// Re-applying the cached version must move no bytes, and must leave the
+	// stored digest alone rather than writing the manifest's sentinel.
+	apply()
+	require.Equal(t, 1, downloads("/api/desktop.latestRelease"), "re-apply must not download")
+
+	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", meta.Version)
+	require.Equal(t, state.sha256, meta.StorageID)
+	require.Equal(t, "install zoom-1.0.msi", meta.InstallScript)
+	// The installer URL has no filename of its own, so a re-apply that derived one
+	// from the URL instead of leaving the stored row alone would show up here.
+	require.Equal(t, "zoom-1.0.msi", meta.Name)
+	require.Equal(t, "msi", meta.Extension)
+
+	// A newly published version is still downloaded.
+	state.version = "2.0"
+	state.installerBytes = []byte("zoom-2.0")
+	state.installerPath = "/zoom-2.0.msi"
+	state.installScript = "install zoom-2.0.msi"
+	state.ComputeSHA(state.installerBytes)
+
+	apply()
+	require.Equal(t, 1, downloads("/zoom-2.0.msi"))
+
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "2.0", meta.Version)
+	require.Equal(t, state.sha256, meta.StorageID)
+	require.Equal(t, "install zoom-2.0.msi", meta.InstallScript)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabel() {

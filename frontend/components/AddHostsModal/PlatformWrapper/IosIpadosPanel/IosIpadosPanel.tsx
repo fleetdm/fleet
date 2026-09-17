@@ -78,9 +78,6 @@ const IosIpadosPanel = ({
             onChange={() => setEnrollmentType("companyOwned")}
           />
         </fieldset>
-        <h3 className="platform-wrapper__panel-heading">
-          Enrollment instructions
-        </h3>
         <InputField
           label="Share this link with your end users:"
           enableCopy
@@ -88,6 +85,7 @@ const IosIpadosPanel = ({
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
+          helpText="This link must be opened in Safari. If opened in another browser, end users will have to sign in again using Safari."
         />
         <EnrollQrCode url={url} />
       </form>
