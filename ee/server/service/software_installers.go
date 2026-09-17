@@ -3395,7 +3395,7 @@ func (svc *Service) softwareBatchUpload(
 		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
-	var g errgroup.Group
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
 	// the reason for this struct with extra installers support is that:
@@ -3438,6 +3438,14 @@ func (svc *Service) softwareBatchUpload(
 		i, p := i, p
 
 		g.Go(func() error {
+			// A single failure fails the whole batch, so don't process (and download)
+			// the remaining payloads. With the limit of 1 above, gctx is always
+			// cancelled before the next goroutine starts; in-flight work isn't
+			// interrupted if the limit is raised.
+			if gctx.Err() != nil {
+				return nil
+			}
+
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
 			// readers are collected in toBeClosedTFRs and will have their Close
