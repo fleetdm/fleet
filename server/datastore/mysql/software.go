@@ -300,22 +300,26 @@ func hostSoftwareInstalledPathsDelta(
 		sUnqStrLook[s.ToUniqueStr()] = s
 	}
 
-	// Executable paths reported per Homebrew software, to tell a deferred executable from one
-	// rebuilt in place.
-	reportedExecPaths := make(map[uint]map[string]struct{})
+	// Reported Homebrew kegs and the executable paths reported for each, to tell a deferred
+	// executable from one rebuilt in place or from a keg that is gone. The same formula and
+	// version under both Homebrew prefixes is one software, so the keg path is part of the key.
+	reportedKegs := make(map[homebrewKeg]map[string]struct{})
 	for key := range reported {
 		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 6)
 		s, ok := sUnqStrLook[parts[5]]
-		if !ok || s.Source != "homebrew_packages" || parts[4] == "" {
+		if !ok || s.Source != "homebrew_packages" {
 			continue
 		}
-		if reportedExecPaths[s.ID] == nil {
-			reportedExecPaths[s.ID] = make(map[string]struct{})
+		keg := homebrewKeg{softwareID: s.ID, installedPath: parts[0]}
+		if reportedKegs[keg] == nil {
+			reportedKegs[keg] = make(map[string]struct{})
 		}
-		reportedExecPaths[s.ID][parts[4]] = struct{}{}
+		if parts[4] != "" {
+			reportedKegs[keg][parts[4]] = struct{}{}
+		}
 	}
-	// Software IDs that keep at least one stored row with an executable hash after this delta.
-	retainsHashedRow := make(map[uint]struct{})
+	// Kegs that keep at least one stored row with an executable hash after this delta.
+	retainsHashedRow := make(map[homebrewKeg]struct{})
 
 	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
 	for _, iP := range stored {
@@ -343,12 +347,12 @@ func hostSoftwareInstalledPathsDelta(
 
 		// Anything stored but not reported should be deleted, unless it is a Homebrew
 		// executable the fleetd table deferred hashing this run.
-		if _, ok := reported[key]; !ok && !isDeferredHomebrewExecutable(s, execPath, reportedExecPaths) {
+		if _, ok := reported[key]; !ok && !isDeferredHomebrewExecutable(s, iP.InstalledPath, execPath, reportedKegs) {
 			toDelete = append(toDelete, iP.ID)
 			continue
 		}
 		if execHashSHA256 != "" {
-			retainsHashedRow[s.ID] = struct{}{}
+			retainsHashedRow[homebrewKeg{softwareID: s.ID, installedPath: iP.InstalledPath}] = struct{}{}
 		}
 	}
 
@@ -369,7 +373,7 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
-		if _, ok := retainsHashedRow[s.ID]; ok && execHash == "" && s.Source == "homebrew_packages" {
+		if _, ok := retainsHashedRow[homebrewKeg{softwareID: s.ID, installedPath: installedPath}]; ok && execHash == "" && s.Source == "homebrew_packages" {
 			// Every executable of the keg was deferred this run, so the merge reported the keg
 			// without a hash. The retained hashed rows already cover it.
 			continue
@@ -400,16 +404,27 @@ func hostSoftwareInstalledPathsDelta(
 	return
 }
 
+// homebrewKeg identifies one installed keg: the software plus its Cellar path, since the same
+// formula and version can be installed under both Homebrew prefixes.
+type homebrewKeg struct {
+	softwareID    uint
+	installedPath string
+}
+
 // isDeferredHomebrewExecutable reports whether a stored Homebrew executable row absent from the
 // report should be kept. The fleetd executable_hashes table caps the bytes it hashes per run, so
 // after a restart a large Cellar reports only part of a keg's executables for a while. A keg is
-// immutable for a given version, so an unreported executable of a still-installed keg is a
-// deferral, not a removal. The same path reported with a different hash was rebuilt in place.
-func isDeferredHomebrewExecutable(s fleet.Software, execPath string, reportedExecPaths map[uint]map[string]struct{}) bool {
+// immutable for a given version, so an unreported executable of a keg that is still reported is
+// a deferral, not a removal. The same path reported with a different hash was rebuilt in place.
+func isDeferredHomebrewExecutable(s fleet.Software, installedPath, execPath string, reportedKegs map[homebrewKeg]map[string]struct{}) bool {
 	if s.Source != "homebrew_packages" || execPath == "" {
 		return false
 	}
-	_, reported := reportedExecPaths[s.ID][execPath]
+	reportedExecPaths, kegReported := reportedKegs[homebrewKeg{softwareID: s.ID, installedPath: installedPath}]
+	if !kegReported {
+		return false
+	}
+	_, reported := reportedExecPaths[execPath]
 	return !reported
 }
 

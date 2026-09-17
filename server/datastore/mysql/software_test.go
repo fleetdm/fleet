@@ -3955,6 +3955,39 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			require.Empty(t, toD)
 		})
 
+		t.Run("removed keg under a second prefix is deleted", func(t *testing.T) {
+			// The same formula and version under both Homebrew prefixes is one software row, so
+			// the keg is identified by its installed path as well.
+			const intelKegPath = "/usr/local/Cellar/git"
+			intelRow := func(id uint, binary string) fleet.HostSoftwareInstalledPath {
+				return fleet.HostSoftwareInstalledPath{
+					ID:               id,
+					HostID:           host.ID,
+					SoftwareID:       keg.ID,
+					InstalledPath:    intelKegPath,
+					ExecutableSHA256: new(execHash("intel-" + binary)),
+					ExecutablePath:   new(intelKegPath + "/2.46.0/bin/" + binary),
+				}
+			}
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), intelRow(2, "git"), intelRow(3, "git-shell")}
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git")), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.ElementsMatch(t, []uint{stored[1].ID, stored[2].ID}, toD)
+		})
+
+		t.Run("plain row of a second keg is inserted", func(t *testing.T) {
+			const intelKegPath = "/usr/local/Cellar/git"
+			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
+			intelPlain := key(keg, intelKegPath, "", "")
+			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-shell"), intelPlain), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toD)
+			require.Len(t, toI, 1)
+			require.Equal(t, intelKegPath, toI[0].InstalledPath)
+			require.Nil(t, toI[0].ExecutableSHA256)
+		})
+
 		t.Run("other sources still delete unreported executables", func(t *testing.T) {
 			app := fleet.Software{ID: 7, Name: "Foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.foo"}
 			appRow := func(id uint, bundle string) fleet.HostSoftwareInstalledPath {
