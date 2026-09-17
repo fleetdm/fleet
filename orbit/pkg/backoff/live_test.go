@@ -30,29 +30,23 @@ func TestLiveServerBackoff(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// Use short intervals for test speed. 50ms base, 400ms cap.
+	// Use short intervals for test speed. 50ms base, 400ms baseCap.
 	// With 100% jitter, effective range at cap: 400ms-800ms.
 	base := 50 * time.Millisecond
-	cap := 400 * time.Millisecond
-	tracker := newForTest(base, cap)
+	baseCap := 400 * time.Millisecond
+	tracker := newForTest(base, baseCap)
 
 	client := srv.Client()
-	var intervals []time.Duration
-	var requestTimes []time.Time
 	prev := time.Now()
 
 	// Phase 1: Server is down. Make requests, observe backoff growing.
 	t.Log("Phase 1: Server down, observing backoff...")
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		resp, err := client.Get(srv.URL)
 		require.NoError(t, err)
 		resp.Body.Close()
 
 		now := time.Now()
-		if i > 0 {
-			intervals = append(intervals, now.Sub(prev))
-		}
-		requestTimes = append(requestTimes, now)
 		prev = now
 
 		if resp.StatusCode != http.StatusOK {
@@ -66,22 +60,22 @@ func TestLiveServerBackoff(t *testing.T) {
 			i+1, resp.StatusCode, waitDur, tracker.ConsecutiveFailures())
 		time.Sleep(waitDur)
 	}
+	_ = prev // used only for timing context in logs above
 
 	// Verify intervals grew
 	require.True(t, tracker.InBackoff(), "should be in backoff after failures")
 	require.GreaterOrEqual(t, tracker.ConsecutiveFailures(), 6)
 
 	// Verify that at the cap, jitter provides real spread (not all identical)
-	// Collect several cap-level intervals
-	var capIntervals []time.Duration
-	for i := 0; i < 10; i++ {
-		capIntervals = append(capIntervals, tracker.Interval())
+	capIntervals := make([]time.Duration, 10)
+	for i := range capIntervals {
+		capIntervals[i] = tracker.Interval()
 	}
 	// With 100% jitter on 400ms cap, intervals should be in [400ms, 800ms]
-	var minI, maxI time.Duration = capIntervals[0], capIntervals[0]
+	minI, maxI := capIntervals[0], capIntervals[0]
 	for _, iv := range capIntervals {
-		assert.GreaterOrEqual(t, iv, cap, "interval should be >= cap")
-		assert.LessOrEqual(t, iv, 2*cap, "interval should be <= 2*cap")
+		assert.GreaterOrEqual(t, iv, baseCap, "interval should be >= baseCap")
+		assert.LessOrEqual(t, iv, 2*baseCap, "interval should be <= 2*baseCap")
 		if iv < minI {
 			minI = iv
 		}
@@ -113,7 +107,7 @@ func TestLiveServerBackoff(t *testing.T) {
 
 	// Phase 3: Verify normal operation resumes at base interval.
 	t.Log("Phase 3: Normal operation at base interval...")
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		resp, err := client.Get(srv.URL)
 		require.NoError(t, err)
 		resp.Body.Close()

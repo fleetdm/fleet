@@ -49,8 +49,8 @@ type Options struct {
 	// BackoffBase/BackoffBaseCap bound the reconnection backoff (default 5s/15m).
 	// BackoffBaseCap is the pre-jitter ceiling; with 100% additive jitter the
 	// effective interval at the cap is in [15m, 30m). See #45553.
-	BackoffBase time.Duration
-	BackoffBaseCap  time.Duration
+	BackoffBase    time.Duration
+	BackoffBaseCap time.Duration
 	// ServerPingInterval is the server's keepalive ping cadence, used to size
 	// the read deadline (default 5m; the deadline is twice this).
 	ServerPingInterval time.Duration
