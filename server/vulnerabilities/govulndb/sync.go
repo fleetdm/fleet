@@ -40,7 +40,7 @@ func Refresh(ctx context.Context, vulnPath string) (string, error) {
 // isArtifactAsset reports whether a release asset is a Go vulnerability database artifact; a
 // release carries assets for every mirrored data source.
 func isArtifactAsset(name string) bool {
-	return strings.HasPrefix(name, filePrefix) && strings.HasSuffix(name, fileExt)
+	return strings.HasPrefix(name, FilePrefix) && strings.HasSuffix(name, FileExt)
 }
 
 // newestAsset returns the most recent artifact in a release, or nil if it carries none.

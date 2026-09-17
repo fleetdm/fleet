@@ -40,7 +40,7 @@ func testArtifact() *Artifact {
 					Ranges: []VersionRange{{Introduced: "0"}},
 				},
 			},
-			stdlibModule: {
+			StdlibModule: {
 				{
 					ID:   "GO-2024-2963",
 					CVEs: []string{"CVE-2024-24791"},
