@@ -1073,7 +1073,7 @@ const DeviceUserPage = ({
   };
 
   return (
-    <div className="app-wrap">
+    <div className="app-wrap app-wrap--device-user">
       {shouldShowUnsupportedScreen(location.pathname) && (
         <UnsupportedScreenSize />
       )}
