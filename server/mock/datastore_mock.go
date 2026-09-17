@@ -928,7 +928,7 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
-type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, archivedFallbackToSerial bool) (*fleet.HostArchivedDiskEncryptionKey, error)
+type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error)
 
 type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
 
@@ -9217,11 +9217,11 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host, archivedFallbackToSerial bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 	s.mu.Lock()
 	s.GetHostArchivedDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host, archivedFallbackToSerial)
+	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host, allowArchivedSerialLookup)
 }
 
 func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error) {
