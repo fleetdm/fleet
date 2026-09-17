@@ -3744,6 +3744,7 @@ type hostSoftware struct {
 	BundleIdentifier          *string    `db:"bundle_identifier"`
 	TitleBundleIdentifier     *string    `db:"title_bundle_identifier"`
 	Version                   *string    `db:"version"`
+	SoftwareRelease           *string    `db:"software_release"`
 	SoftwareID                *uint      `db:"software_id"`
 	SoftwareSource            *string    `db:"software_source"`
 	SoftwareExtensionFor      *string    `db:"software_extension_for"`
@@ -3769,6 +3770,7 @@ type hostSoftware struct {
 	SoftwareSourceList        *string `db:"software_source_list"`
 	SoftwareExtensionForList  *string `db:"software_extension_for_list"`
 	VersionList               *string `db:"version_list"`
+	SoftwareReleaseList       *string `db:"software_release_list"`
 	BundleIdentifierList      *string `db:"bundle_identifier_list"`
 	VPPAppSelfServiceList     *string `db:"vpp_app_self_service_list"`
 	VPPAppAdamIDList          *string `db:"vpp_app_adam_id_list"`
@@ -3792,6 +3794,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.extension_for AS software_extension_for,
 			software.version AS version,
+			software.release AS software_release,
 			software.bundle_identifier AS bundle_identifier,
 			software_titles.upgrade_code AS upgrade_code
 		FROM
@@ -4879,6 +4882,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 		softwareTitleRecord.SoftwareSourceList = ptr.String("")
 		softwareTitleRecord.SoftwareExtensionForList = ptr.String("")
 		softwareTitleRecord.VersionList = ptr.String("")
+		softwareTitleRecord.SoftwareReleaseList = new("")
 		softwareTitleRecord.BundleIdentifierList = ptr.String("")
 		seperator = ""
 	}
@@ -4899,6 +4903,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 			*softwareTitleRecord.SoftwareExtensionForList += seperator + *hostInstalledSoftware.SoftwareExtensionFor
 		}
 		*softwareTitleRecord.VersionList += seperator + *hostInstalledSoftware.Version
+		*softwareTitleRecord.SoftwareReleaseList += seperator + *hostInstalledSoftware.SoftwareRelease
 		*softwareTitleRecord.BundleIdentifierList += seperator + *hostInstalledSoftware.BundleIdentifier
 	}
 }
@@ -5184,6 +5189,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
 		softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
 		softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
+		softwareReleaseList := strings.Split(*softwareTitleRecord.SoftwareReleaseList, ",")
 		softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
 
 		for index, softwareIdStr := range softwareIDList {
@@ -5196,6 +5202,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 					version.Version = softwareVersionList[index]
 					version.BundleIdentifier = softwareBundleIdentifierList[index]
 					version.Source = softwareSourceList[index]
+					version.Release = softwareReleaseList[index]
 					version.LastOpenedAt = software.LastOpenedAt
 					version.SoftwareID = softwareId
 					version.SoftwareTitleID = softwareTitleRecord.ID
@@ -7018,6 +7025,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
 					GROUP_CONCAT(software.upgrade_code) AS software_upgrade_code_list,
 					GROUP_CONCAT(software.version) AS version_list,
+					GROUP_CONCAT(software.release) AS software_release_list,
 					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,
@@ -7066,6 +7074,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_extension_for_list,
 					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
+					NULL AS software_release_list,
 					NULL AS bundle_identifier_list,
 					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
 					GROUP_CONCAT(vpp_apps.latest_version) AS vpp_app_version_list,
@@ -7110,6 +7119,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_extension_for_list,
 					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
+					NULL AS software_release_list,
 					NULL AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,
