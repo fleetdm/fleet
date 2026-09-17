@@ -1,14 +1,25 @@
 # Release calendar sync
 
 Keeps the "Fleet releases" Google Calendar in sync with the GitHub milestone
-due dates on `fleetdm/fleet`. For each open milestone with a `X.Y.Z` title, the
-script makes sure the calendar has:
+due dates on `fleetdm/fleet`. The script handles two kinds of milestones:
+
+**Server milestones** (`X.Y.Z`, e.g. `4.93.0`):
 
 - `Release day: minor release - X.Y.Z` (or `patch release` when `Z` is not `0`)
   on the milestone's due date
 - `Release candidate (next release - X.Y.Z)` ending on the milestone's due date
 - `Develop (next release - X.Y.Z)` ending ~2 weeks before the due date
   (skipped for out-of-band patch-like milestones)
+
+**Fleetd milestones** (`fleetd-vX.Y.Z`, e.g. `fleetd-v1.62.0`):
+
+- `Release day: fleetd minor release - fleetd-vX.Y.Z` (or `patch release`)
+- `Release candidate (fleetd next release - fleetd-vX.Y.Z)`
+- `Develop (fleetd next release - fleetd-vX.Y.Z)`
+
+Fleetd milestones follow the same 3-week cadence and the same lifecycle
+(Release day + RC + Develop) as server milestones. Out-of-band detection runs
+independently for each product.
 
 A release day is labeled **`minor release`** when the version ends in `.0` and
 **`patch release`** otherwise (e.g. `4.89.0` is minor, `4.89.1` is a patch).

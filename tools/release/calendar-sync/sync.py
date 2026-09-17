@@ -38,6 +38,7 @@ from googleapiclient.discovery import build
 CALENDAR_ID = "c_v7943deqn1uns488a65v2d94bs@group.calendar.google.com"
 GITHUB_REPO = "fleetdm/fleet"
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+FLEETD_VERSION_RE = re.compile(r"^fleetd-v(\d+\.\d+\.\d+)$")
 
 # A milestone is "out-of-band" if its gap to the previous milestone is shorter
 # than this. Normal cadence is 21 days; out-of-band patches land mid-sprint.
@@ -61,6 +62,10 @@ RELEASE_DAY_RE = re.compile(r"^Release day: (?:minor|patch) release - (\d+\.\d+\
 RC_RE = re.compile(r"^Release candidate \(next release - (\d+\.\d+\.\d+)\)\s*$")
 DEVELOP_RE = re.compile(r"^Develop \(next release - (\d+\.\d+\.\d+)\)\s*$")
 
+FLEETD_RELEASE_DAY_RE = re.compile(r"^Release day: fleetd (?:minor|patch) release - (fleetd-v\d+\.\d+\.\d+)\s*$")
+FLEETD_RC_RE = re.compile(r"^Release candidate \(fleetd next release - (fleetd-v\d+\.\d+\.\d+)\)\s*$")
+FLEETD_DEVELOP_RE = re.compile(r"^Develop \(fleetd next release - (fleetd-v\d+\.\d+\.\d+)\)\s*$")
+
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,9 +76,10 @@ DEFAULT_TOKEN_PATH = os.path.join(SCRIPT_DIR, "token.json")
 @dataclass
 class Milestone:
     number: int
-    title: str   # "4.88.0"
+    title: str   # "4.88.0" or "fleetd-v1.62.0"
     due: dt.date
     out_of_band: bool = False
+    product: str = "fleet"  # "fleet" or "fleetd"
 
 
 @dataclass
@@ -100,13 +106,30 @@ class Action:
     category: Optional[str] = None  # "release_day" | "rc" | "develop" (for create)
 
 
+def _mark_out_of_band(milestones: list[Milestone]) -> None:
+    """A milestone is "out-of-band" only if it has SHORT gaps to BOTH neighbors.
+    That avoids flagging the regular minor that immediately follows an OOB
+    insertion (which has a short prev-gap but a normal next-gap)."""
+    for i, m in enumerate(milestones):
+        prev_gap = (m.due - milestones[i - 1].due).days if i > 0 else None
+        next_gap = (milestones[i + 1].due - m.due).days if i + 1 < len(milestones) else None
+        if (
+            prev_gap is not None
+            and prev_gap < OUT_OF_BAND_GAP_DAYS
+            and next_gap is not None
+            and next_gap < OUT_OF_BAND_GAP_DAYS
+        ):
+            m.out_of_band = True
+
+
 def fetch_milestones() -> list[Milestone]:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     url = f"https://api.github.com/repos/{GITHUB_REPO}/milestones"
-    out: list[Milestone] = []
+    fleet_ms: list[Milestone] = []
+    fleetd_ms: list[Milestone] = []
     page = 1
     while True:
         r = requests.get(
@@ -120,28 +143,25 @@ def fetch_milestones() -> list[Milestone]:
         if not data:
             break
         for m in data:
-            if not m.get("due_on") or not VERSION_RE.match(m["title"]):
+            if not m.get("due_on"):
                 continue
             due = dt.datetime.fromisoformat(m["due_on"].replace("Z", "+00:00")).date()
-            out.append(Milestone(number=m["number"], title=m["title"], due=due))
+            if VERSION_RE.match(m["title"]):
+                fleet_ms.append(Milestone(number=m["number"], title=m["title"], due=due))
+            else:
+                fm = FLEETD_VERSION_RE.match(m["title"])
+                if fm:
+                    fleetd_ms.append(Milestone(
+                        number=m["number"], title=m["title"], due=due, product="fleetd",
+                    ))
         if len(data) < 100:
             break
         page += 1
-    out.sort(key=lambda x: x.due)
-    # A milestone is "out-of-band" only if it has SHORT gaps to BOTH neighbors.
-    # That avoids flagging the regular minor that immediately follows an OOB
-    # insertion (which has a short prev-gap but a normal next-gap).
-    for i, m in enumerate(out):
-        prev_gap = (m.due - out[i - 1].due).days if i > 0 else None
-        next_gap = (out[i + 1].due - m.due).days if i + 1 < len(out) else None
-        if (
-            prev_gap is not None
-            and prev_gap < OUT_OF_BAND_GAP_DAYS
-            and next_gap is not None
-            and next_gap < OUT_OF_BAND_GAP_DAYS
-        ):
-            m.out_of_band = True
-    return out
+    fleet_ms.sort(key=lambda x: x.due)
+    fleetd_ms.sort(key=lambda x: x.due)
+    _mark_out_of_band(fleet_ms)
+    _mark_out_of_band(fleetd_ms)
+    return fleet_ms + fleetd_ms
 
 
 def oauth_credentials(client_secret: str, token_path: str):
@@ -240,6 +260,9 @@ def categorize(event: CalEvent) -> tuple[Optional[str], Optional[str]]:
         ("release_day", RELEASE_DAY_RE),
         ("rc", RC_RE),
         ("develop", DEVELOP_RE),
+        ("release_day", FLEETD_RELEASE_DAY_RE),
+        ("rc", FLEETD_RC_RE),
+        ("develop", FLEETD_DEVELOP_RE),
     ):
         m = regex.match(s)
         if m:
@@ -279,8 +302,22 @@ def release_kind(version: str) -> str:
     return "minor" if version.endswith(".0") else "patch"
 
 
-def release_day_summary(version: str) -> str:
-    return f"Release day: {release_kind(version)} release - {version}"
+def release_day_summary(m: Milestone) -> str:
+    if m.product == "fleetd":
+        return f"Release day: fleetd {release_kind(m.title)} release - {m.title}"
+    return f"Release day: {release_kind(m.title)} release - {m.title}"
+
+
+def _rc_summary(m: Milestone) -> str:
+    if m.product == "fleetd":
+        return f"Release candidate (fleetd next release - {m.title})"
+    return f"Release candidate (next release - {m.title})"
+
+
+def _develop_summary(m: Milestone) -> str:
+    if m.product == "fleetd":
+        return f"Develop (fleetd next release - {m.title})"
+    return f"Develop (next release - {m.title})"
 
 
 def desired_release_day(m: Milestone) -> tuple[dt.date, dt.date]:
@@ -382,7 +419,7 @@ def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
     its milestone. Release day is anchored to the due date; RC and Develop keep
     their existing start and only move their end date."""
     if cat == "release_day":
-        new_summary = release_day_summary(m.title)
+        new_summary = release_day_summary(m)
         new_start, new_end = desired_release_day(m)
         changes = []
         if ev.summary != new_summary:
@@ -392,7 +429,7 @@ def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
                 f"dates {fmt_date(ev.start)}..{fmt_date(ev.end)} -> {fmt_date(new_start)}..{fmt_date(new_end)}"
             )
     elif cat == "rc":
-        new_summary = f"Release candidate (next release - {m.title})"
+        new_summary = _rc_summary(m)
         # Preserve the existing start; only the end tracks the milestone due date.
         new_start, new_end = desired_rc(m, ev.start)
         changes = []
@@ -401,7 +438,7 @@ def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
         if ev.end != new_end:
             changes.append(f"end {fmt_date(ev.end)} -> {fmt_date(new_end)}")
     else:  # develop
-        new_summary = f"Develop (next release - {m.title})"
+        new_summary = _develop_summary(m)
         # Preserve the existing start; only the end tracks the milestone due date.
         new_start, new_end = desired_develop(ev.start, m)
         changes = []
@@ -444,17 +481,22 @@ def plan_actions(
         if cat is None:
             continue
 
+        # Only match against milestones of the same product so fleet and fleetd
+        # events (which share the same due dates) don't cross-match.
+        is_fleetd = ver is not None and ver.startswith("fleetd-v")
+        product_ms = [m for m in milestones if (m.product == "fleetd") == is_fleetd]
+
         if cat == "release_day":
-            m = closest_milestone_by_due(milestones, ev.start, RELEASE_DAY_MATCH_TOLERANCE_DAYS)
+            m = closest_milestone_by_due(product_ms, ev.start, RELEASE_DAY_MATCH_TOLERANCE_DAYS)
             reason = f"no milestone due within {RELEASE_DAY_MATCH_TOLERANCE_DAYS}d"
         elif cat == "rc":
             # Match by event END date (exclusive end - 1 = display end = release day = milestone due).
             target = (ev.end - dt.timedelta(days=1)) if ev.end else ev.start
-            m = closest_milestone_by_due(milestones, target, RC_END_MATCH_TOLERANCE_DAYS)
+            m = closest_milestone_by_due(product_ms, target, RC_END_MATCH_TOLERANCE_DAYS)
             reason = f"no milestone due within {RC_END_MATCH_TOLERANCE_DAYS}d of end {target}"
         else:  # develop
             end_for_match = (ev.end - dt.timedelta(days=1)) if ev.end else ev.start
-            m = match_develop_to_milestone(milestones, end_for_match)
+            m = match_develop_to_milestone(product_ms, end_for_match)
             reason = f"no matching minor milestone (end {end_for_match})"
 
         if not m:
@@ -491,7 +533,7 @@ def plan_actions(
     # 2) Find milestones with no matching events and propose creates.
     for m in milestones:
         if m.number not in matched_milestone_ids["release_day"]:
-            new_summary = release_day_summary(m.title)
+            new_summary = release_day_summary(m)
             new_start, new_end = desired_release_day(m)
             actions.append(
                 Action(
@@ -504,7 +546,7 @@ def plan_actions(
                 )
             )
         if m.number not in matched_milestone_ids["rc"]:
-            new_summary = f"Release candidate (next release - {m.title})"
+            new_summary = _rc_summary(m)
             new_start, new_end = desired_rc(m, None)
             actions.append(
                 Action(
@@ -518,7 +560,7 @@ def plan_actions(
                 )
             )
         if not m.out_of_band and m.number not in matched_milestone_ids["develop"]:
-            new_summary = f"Develop (next release - {m.title})"
+            new_summary = _develop_summary(m)
             new_start, new_end = desired_develop(None, m)
             display_end = new_end - dt.timedelta(days=1)
             if display_end < today:
