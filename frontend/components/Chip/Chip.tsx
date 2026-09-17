@@ -14,6 +14,8 @@ interface IChipProps {
   className?: string;
   onClick?: () => void;
   tooltip?: React.ReactNode;
+  /** Forwarded to TooltipWrapper; set false to opt out of auto-balancing. */
+  tooltipTextBalanced?: boolean;
 }
 
 const Chip = ({
@@ -23,6 +25,7 @@ const Chip = ({
   className,
   onClick,
   tooltip,
+  tooltipTextBalanced,
 }: IChipProps) => {
   const classNames = classnames(
     baseClass,
@@ -61,6 +64,7 @@ const Chip = ({
       underline={false}
       showArrow
       tipOffset={8}
+      textBalanced={tooltipTextBalanced}
     >
       {chip}
     </TooltipWrapper>

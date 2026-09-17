@@ -700,6 +700,24 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			checkExpected(t, nil, expected)
 
+			// A volume that is still encrypting has no PIN to create: Windows only offers PIN setup on a protected
+			// volume, so that host is Fleet's work to finish rather than the end user's.
+			keyUpdatedAt := time.Now().Add(-10 * time.Minute)
+			setKeyUpdatedAt(t, hosts[0].ID, keyUpdatedAt)
+			updateHostDisks(t, hosts[0].ID, false, keyUpdatedAt.Add(5*time.Minute))
+
+			checkExpected(t, nil, hostIDsByDEStatus{
+				fleet.DiskEncryptionFailed: []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing: []uint{
+					hosts[0].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID,
+				},
+			})
+
+			// Back to the encrypted host the rest of this subtest was set up with, confirmed before going on.
+			setKeyUpdatedAt(t, hosts[0].ID, time.Now().Add(-time.Minute))
+			updateHostDisks(t, hosts[0].ID, true, time.Now())
+			checkExpected(t, nil, expected)
+
 			// Set the "tpm_pin_set" to true for the host that would be "verified"
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = true WHERE host_id = ?`, hosts[0].ID)
@@ -920,6 +938,24 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			t.Run("protection_status=NULL treated as on (backward compat)", func(t *testing.T) {
 				setProtectionStatus(t, targetHost.ID, nil)
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
+					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},
+				})
+			})
+
+			t.Run("protection on with nothing able to unseal at boot is enforcing, not verified", func(t *testing.T) {
+				setProtectionStatus(t, targetHost.ID, new(fleet.BitLockerProtectionStatusOn))
+				require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, targetHost.ID, false, false))
+				checkExpected(t, nil, hostIDsByDEStatus{
+					fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+					fleet.DiskEncryptionEnforcing: []uint{targetHost.ID},
+					fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				})
+
+				// hosts[0] never reports the column at all, and stays verified throughout, which is what keeps agents
+				// that do not send it from being marked broken.
+				require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, targetHost.ID, true, false))
 				checkExpected(t, nil, hostIDsByDEStatus{
 					fleet.DiskEncryptionVerified: []uint{hosts[0].ID, targetHost.ID},
 					fleet.DiskEncryptionFailed:   []uint{hosts[1].ID},

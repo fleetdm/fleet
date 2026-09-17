@@ -1427,6 +1427,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"cleanup_expired_bitlocker_pin_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredBitLockerPINRequests(ctx)
+			},
+		),
+		schedule.WithJob(
 			"expired_challenges",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupExpiredChallenges(ctx)
@@ -1437,6 +1443,13 @@ func newCleanupsAndAggregationSchedule(
 			"expired_in_house_app_install_tokens",
 			func(ctx context.Context) error {
 				_, err := ds.DeleteExpiredInHouseAppInstallTokens(ctx)
+				return err
+			},
+		),
+		schedule.WithJob(
+			"cleanup_host_one_time_enroll_secrets",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
 				return err
 			},
 		),
@@ -2000,6 +2013,7 @@ func newAppleMDMProfileManagerSchedule(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -2014,7 +2028,7 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit, useOneTimeEnrollSecrets)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
@@ -2124,20 +2138,42 @@ func newMDMAPNsPusher(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("apns_push_to_pending_hosts", func(ctx context.Context) error {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving app config")
-			}
-
-			if !appCfg.MDM.EnabledAndConfigured {
-				return nil
-			}
-
-			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+			return apnsPusherJob(ctx, ds, commander, logger)
 		}),
 	)
 
 	return s, nil
+}
+
+// apnsMaxRunTime caps one run of either APNs push cron. The schedule context
+// carries no deadline, so without a cap a large backlog against a slow APNs
+// (each request is individually bounded, but there can be many) holds the
+// schedule for hours. Cutting a run short loses nothing: pushes already sent
+// stand, and the rest are picked up on the next tick — the pusher re-queries
+// pending commands and the sweep resumes from its persisted cursor.
+const apnsMaxRunTime = 10 * time.Minute
+
+func apnsPusherJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(ctx, apnsMaxRunTime)
+	defer cancel()
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil
+	}
+
+	return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+}
+
+func apnsSweepJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger *slog.Logger, interval time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, apnsMaxRunTime)
+	defer cancel()
+
+	return apple_mdm.SweepAPNsPushes(ctx, ds, commander, logger, interval)
 }
 
 // newMDMAPNsSweepSchedule runs the APNs sweep: one bounded page of enabled
@@ -2164,7 +2200,7 @@ func newMDMAPNsSweepSchedule(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("apns_sweep", func(ctx context.Context) error {
-			return apple_mdm.SweepAPNsPushes(ctx, ds, commander, logger, interval)
+			return apnsSweepJob(ctx, ds, commander, logger, interval)
 		}),
 	)
 

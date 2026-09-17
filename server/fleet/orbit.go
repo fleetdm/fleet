@@ -52,6 +52,9 @@ type OrbitConfigNotifications struct {
 	// turn protection back on.
 	EnableBitLockerProtection bool `json:"enable_bitlocker_protection,omitempty"`
 
+	// BitLockerPINRequestPending tells fleetd on Windows that the end user has submitted a BitLocker startup PIN.
+	BitLockerPINRequestPending bool `json:"bitlocker_pin_request_pending,omitempty"`
+
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
@@ -149,6 +152,12 @@ type DatastoreEnrollOrbitConfig struct {
 	OrbitNodeKey string
 	TeamID       *uint
 	IdentityCert *types.HostIdentityCertificate
+	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
+	// secret; the enrollment consumes it for the orbit plane.
+	OneTimeEnrollSecretID *uint
+	// RejectSharedSecretForMDMHosts refuses a shared enroll secret that would
+	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
+	RejectSharedSecretForMDMHosts bool
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
@@ -185,6 +194,18 @@ func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IdentityCert = identityCert
+	}
+}
+
+func WithEnrollOrbitOneTimeEnrollSecret(id uint) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.OneTimeEnrollSecretID = &id
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForMDMHosts = reject
 	}
 }
 

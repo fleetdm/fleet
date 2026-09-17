@@ -244,6 +244,22 @@ SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
 ```
 
+## entra_join_user_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT MAX(CASE WHEN r.name = 'UserEmail' THEN r.data END) AS user_email
+FROM registry r
+CROSS JOIN certificates c ON UPPER(c.sha1) = UPPER(SUBSTR(r.key, LENGTH('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\') + 1))
+WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\%'
+  AND c.issuer LIKE 'net + windows + MS-Organization-Access%'
+GROUP BY r.key
+ORDER BY MAX(c.not_valid_after) DESC
+LIMIT 1;
+```
+
 ## google_chrome_profiles
 
 - Platforms: all
@@ -895,17 +911,24 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
+WITH packages AS (
+  SELECT
+    name,
+    arch,
+    CASE WHEN instr(version, ':') > 0 THEN substr(version, instr(version, ':') + 1) ELSE version END AS version_release
+  FROM fleetd_pacman_packages
+)
 SELECT
   name AS name,
-  version AS version,
+  CASE WHEN instr(version_release, '-') > 0 THEN substr(version_release, 1, instr(version_release, '-') - 1) ELSE version_release END AS version,
   '' AS extension_id,
   '' AS extension_for,
   'pacman_packages' AS source,
-  '' AS release,
+  CASE WHEN instr(version_release, '-') > 0 THEN substr(version_release, instr(version_release, '-') + 1) ELSE '' END AS release,
   '' AS vendor,
   arch AS arch,
   '' AS installed_path
-FROM fleetd_pacman_packages
+FROM packages
 ```
 
 ## software_macos

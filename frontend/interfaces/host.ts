@@ -101,7 +101,10 @@ export interface IMunkiData {
   version: string;
 }
 
-export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
+export type MacDiskEncryptionActionRequired =
+  | "log_out"
+  | "rotate_key"
+  | "turn_on_encryption";
 
 /** What the END USER can do about a disk encryption problem. Only set when there is something they can do: a Windows
  * host also reaches action_required when the TPM is not ready or policy forbids a TPM-only protector, and neither is
@@ -464,7 +467,6 @@ export interface IHost {
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
   last_mdm_checked_in_at: string | null;
-  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;

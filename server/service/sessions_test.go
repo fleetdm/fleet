@@ -321,11 +321,20 @@ func (a *testAuth) RawResponse() []byte {
 
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+	opts := &TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-	})
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	var roleActivities []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if isRoleChangeActivity(activity) {
+			roleActivities = append(roleActivities, activity)
+		}
+		return nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -369,6 +378,15 @@ func TestGetSSOUser(t *testing.T) {
 	require.NotNil(t, newUser.GlobalRole)
 	require.Equal(t, "admin", *newUser.GlobalRole)
 	require.Empty(t, newUser.Teams)
+	require.Equal(t, []activity_api.ActivityDetails{
+		fleet.ActivityTypeChangedUserGlobalRole{
+			UserID:    newUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			Role:      "admin",
+			JIT:       true,
+		},
+	}, roleActivities)
 
 	// Test SSO login with the same (now existing) user (should update roles).
 
@@ -389,6 +407,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	// (2) Test SSO login with the same user with roles updated in its attributes.
 
+	roleActivities = nil
 	var savedUser *fleet.User
 	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
 		savedUser = user
@@ -418,6 +437,23 @@ func TestGetSSOUser(t *testing.T) {
 	require.Equal(t, "maintainer", savedUser.Teams[0].Role)
 
 	require.True(t, ds.SaveUserFuncInvoked)
+	require.Equal(t, []activity_api.ActivityDetails{
+		fleet.ActivityTypeDeletedUserGlobalRole{
+			UserID:    savedUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			OldRole:   "admin",
+			JIT:       true,
+		},
+		fleet.ActivityTypeChangedUserTeamRole{
+			UserID:    savedUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			Role:      "maintainer",
+			TeamID:    2,
+			JIT:       true,
+		},
+	}, roleActivities)
 
 	// (3) Test existing user's role is not changed after a new login if EnableJITProvisioning is false.
 

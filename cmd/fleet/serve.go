@@ -353,6 +353,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
 	}
 
+	if config.Auth.UseOneTimeEnrollSecrets && !license.IsPremium() {
+		config.Auth.UseOneTimeEnrollSecrets = false
+		logger.WarnContext(cmd.Context(), "Disabling one-time enroll secrets because Fleet Premium license is not present")
+	}
+
 	apple_mdm.SetMachineInfoVerification(config.MDM.AppleMachineInfoVerify)
 	if !apple_mdm.MachineInfoVerificationEnabled() {
 		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.0.5",
+      "version": "6.0.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macitbetter.betterzip';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macitbetter.betterzip' AND version_compare(bundle_short_version, '6.0.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macitbetter.betterzip' AND version_compare(bundle_short_version, '6.0.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macitbetter.betterzip' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://macitbetter.com/dl/BetterZip-6.0.5.zip",
+      "installer_url": "https://macitbetter.com/dl/BetterZip-6.0.6.zip",
       "install_script_ref": "2872398b",
       "uninstall_script_ref": "e9cb7e5b",
-      "sha256": "79ebb89f9e7d1424feba04e6fa0e2351c25bce4f45759463900232f91652abea",
+      "sha256": "da670bf02cb98344cb58ce041a60344f84930eb24ac17744cbdd0429716e953e",
       "default_categories": [
         "Productivity"
       ]

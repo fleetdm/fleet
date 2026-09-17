@@ -45,6 +45,10 @@ const getInstallerProps = (title: ISoftwareTitle) => {
     isIosOrIpadosApp: isIpadOrIphoneSoftwareSource(title.source),
     isAndroidPlayStoreApp:
       !!title.app_store_app && title.source === "android_apps",
+    isAppStoreApp: !!title.app_store_app,
+    autoUpdateEnabled: title.auto_update_enabled,
+    autoUpdateWindowStart: title.auto_update_window_start,
+    autoUpdateWindowEnd: title.auto_update_window_end,
   };
 };
 

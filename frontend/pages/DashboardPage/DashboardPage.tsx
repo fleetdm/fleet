@@ -30,7 +30,7 @@ import {
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import { IHostSummary } from "interfaces/host_summary";
-import { ILabelSummary } from "interfaces/label";
+import { getBuiltinPlatformLabelId, ILabelSummary } from "interfaces/label";
 import { IMacadminAggregate } from "interfaces/macadmins";
 import {
   IMdmStatusCardData,
@@ -74,11 +74,7 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 import useInfoCard from "./components/InfoCard";
 import MdmSolutionModal from "./components/MdmSolutionModal";
-import {
-  LOW_DISK_SPACE_GB,
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
-} from "./helpers";
+import { LOW_DISK_SPACE_GB, PLATFORM_DROPDOWN_OPTIONS } from "./helpers";
 import MetricsHostCounts from "./sections/MetricsHostCounts";
 
 const baseClass = "dashboard-page";
@@ -514,18 +510,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
     if (labels) {
-      const getLabel = (
-        labelString: string,
-        summaryLabels: ILabelSummary[]
-      ): ILabelSummary | undefined => {
-        return Object.values(summaryLabels).find((label: ILabelSummary) => {
-          return label.label_type === "builtin" && label.name === labelString;
-        });
-      };
-
       if (selectedPlatform !== "all") {
-        const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
-        setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+        setSelectedPlatformLabelId(
+          getBuiltinPlatformLabelId(labels, selectedPlatform)
+        );
       } else {
         setSelectedPlatformLabelId(undefined);
       }
