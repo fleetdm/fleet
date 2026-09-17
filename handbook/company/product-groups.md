@@ -695,11 +695,11 @@ New requests are [triaged daily](https://fleetdm.com/handbook/product-design#tri
 
 To prioritize a new feature, it must meet one of these criteria:
 
-1. Bug
-2. Small UX improvement (`~spiffier` label) that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label)
-4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
-5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
+- Bug
+- Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
+- Contributes to Fleet's [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or [product maturity goals](https://fleetdm.com/handbook/company/product-groups#current-product-groups) goals for the current calendar year (`~product-maturity` label)
+- Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
+- Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
 Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise (`~customer promise` label) or a [high-priority](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) customer request (`P0`, `P1`, or `P2` label).
 
