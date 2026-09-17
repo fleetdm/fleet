@@ -16,12 +16,13 @@ func TestNotificationXML(t *testing.T) {
 	t.Parallel()
 
 	n := Notification{
-		Tag:         "tag",
-		Group:       "group",
-		Title:       `Set <your> "PIN"`,
-		Body:        "Files & folders aren't safe",
-		ButtonLabel: "Create PIN",
-		URL:         `https://fleet.example.com/device/token?create_pin=1&x="<y>"`,
+		Tag:          "tag",
+		Group:        "group",
+		Title:        `Set <your> "PIN"`,
+		Body:         "Files & folders aren't safe",
+		ButtonLabel:  "Create PIN",
+		URL:          `https://fleet.example.com/device/token?create_pin=1&x="<y>"`,
+		StayOnScreen: true,
 	}
 	payload, err := n.xml()
 	require.NoError(t, err)
@@ -33,6 +34,7 @@ func TestNotificationXML(t *testing.T) {
 	var parsed toastXML
 	require.NoError(t, xml.Unmarshal([]byte(payload), &parsed))
 	require.Equal(t, "protocol", parsed.ActivationType)
+	require.Equal(t, "reminder", parsed.Scenario)
 	require.Equal(t, n.URL, parsed.Launch)
 	require.Equal(t, "ToastGeneric", parsed.Binding.Template)
 	require.Equal(t, []string{n.Title, n.Body}, parsed.Binding.Text)

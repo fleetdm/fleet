@@ -111,6 +111,7 @@ func (t *bitLockerPINToast) reconcile(needsPIN bool, deviceURL string) {
 		URL:           link,
 		ExpiresIn:     bitLockerPINToastLifetime,
 		SuppressPopup: !popup,
+		StayOnScreen:  true,
 	})
 	if err != nil {
 		// An orbit too old to register the notification identity may happen during an upgrade, and it registers on its next start.

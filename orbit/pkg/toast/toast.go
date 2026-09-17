@@ -39,12 +39,16 @@ type Notification struct {
 	ExpiresIn time.Duration
 	// SuppressPopup places the toast in Notification Center without showing it on screen.
 	SuppressPopup bool
+	// StayOnScreen keeps the popup up until the end user acts on it or dismisses it, instead of timing out after the few
+	// seconds their Windows settings allow.
+	StayOnScreen bool
 }
 
 type toastXML struct {
 	XMLName        xml.Name `xml:"toast"`
 	Launch         string   `xml:"launch,attr"`
 	ActivationType string   `xml:"activationType,attr"`
+	Scenario       string   `xml:"scenario,attr,omitempty"`
 	Binding        struct {
 		Template string   `xml:"template,attr"`
 		Text     []string `xml:"text"`
@@ -89,6 +93,10 @@ func validateTagAndGroup(tag, group string) error {
 // button opens the browser without any Fleet Desktop code running.
 func (n Notification) xml() (string, error) {
 	payload := toastXML{Launch: n.URL, ActivationType: "protocol"}
+	if n.StayOnScreen {
+		// Windows keeps a reminder on screen, but only when it has a button, which every Notification does.
+		payload.Scenario = "reminder"
+	}
 	payload.Binding.Template = "ToastGeneric"
 	payload.Binding.Text = []string{n.Title, n.Body}
 	payload.Actions = []toastAction{{Content: n.ButtonLabel, ActivationType: "protocol", Arguments: n.URL}}
