@@ -875,7 +875,7 @@ software:
             path: ../lib/software/ios-cloudflare-one-agent-config-production.xml
         - name: Test
           labels_include_any:
-            - IT team
+            - Test
           configuration:
             path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
 ```
