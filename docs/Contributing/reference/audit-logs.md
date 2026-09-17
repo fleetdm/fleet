@@ -3533,21 +3533,6 @@ This activity contains the following fields:
 }
 ```
 
-## edited_end_user_agreement
-
-Generated when a user edits a custom end user agreement (terms and conditions for Windows).
-
-This activity contains the following fields:
-- "platform": the platform of the agreement ("windows").
-
-#### Example
-
-```json
-{
-  "platform": "windows"
-}
-```
-
 ## deleted_end_user_agreement
 
 Generated when a user deletes a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
