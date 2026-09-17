@@ -428,6 +428,13 @@ type Datastore interface {
 	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
 	// DeleteHostIDP deletes an existing host IDP device mapping.
 	DeleteHostIDP(ctx context.Context, id uint) error
+	// SetOrUpdateEntraJoinHostDeviceMapping records the UPN from the device's Entra
+	// join record as the host's IdP username and links the matching SCIM user. Only
+	// SCIM-provisioned UPNs on hosts without a Fleet MDM enrollment are mapped;
+	// anything else removes a previous Entra join mapping. Manual ("idp") and
+	// authenticated ("mdm_idp_accounts") mappings win and make this a no-op.
+	// Returns true when the mapping was created, changed or removed.
+	SetOrUpdateEntraJoinHostDeviceMapping(ctx context.Context, hostID uint, upn string) (bool, error)
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
 	// Returns any resent certificate activities that need to be created.
