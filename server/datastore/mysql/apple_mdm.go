@@ -7070,11 +7070,14 @@ func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.Ho
 		return nil
 	}
 
+	// A UUID-less writer must not downgrade a recorded UUID to NULL: that
+	// would strip the row of its ack-matching protection and reintroduce the
+	// duplicate-enqueue bug for whichever flow recorded it.
 	const baseStmt = `
-		INSERT INTO host_mdm_commands (host_id, command_type)
+		INSERT INTO host_mdm_commands (host_id, command_type, command_uuid)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
-		command_type = VALUES(command_type)`
+		command_uuid = COALESCE(NULLIF(VALUES(command_uuid), ''), command_uuid)`
 
 	// All batches commit together: callers track commands before enqueueing
 	// them, so a partially applied insert would leave rows for commands that
@@ -7084,16 +7087,18 @@ func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.Ho
 			start := i
 			end := min(i+hostMDMCommandsBatchSize, len(commands))
 			totalToProcess := end - start
-			const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
+			const numberOfArgsPerInsert = 3 // number of ? in each VALUES clause
+			// NULLIF keeps rows from non-adopting flows on the legacy NULL
+			// semantics instead of storing an empty string.
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?),", totalToProcess), ",",
+				strings.Repeat("(?,?,NULLIF(?, '')),", totalToProcess), ",",
 			)
 			stmt := fmt.Sprintf(baseStmt, values)
 			args := make([]any, 0, totalToProcess*numberOfArgsPerInsert)
 			for j := start; j < end; j++ {
 				item := commands[j]
 				args = append(
-					args, item.HostID, item.CommandType,
+					args, item.HostID, item.CommandType, item.CommandUUID,
 				)
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -7105,7 +7110,7 @@ func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.Ho
 }
 
 func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (commands []fleet.HostMDMCommand, err error) {
-	const stmt = `SELECT host_id, command_type FROM host_mdm_commands WHERE host_id = ?`
+	const stmt = `SELECT host_id, command_type, COALESCE(command_uuid, '') AS command_uuid FROM host_mdm_commands WHERE host_id = ?`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, stmt, hostID); err != nil {
 		return nil, err
 	}
@@ -7113,25 +7118,50 @@ func (ds *Datastore) GetHostMDMCommands(ctx context.Context, hostID uint) (comma
 }
 
 func (ds *Datastore) RemoveHostMDMCommand(ctx context.Context, command fleet.HostMDMCommand) error {
+	// Without a UUID the caller can't say which command it means, so the row
+	// goes regardless — the pre-UUID semantics, kept for flows that don't
+	// record UUIDs yet.
+	if command.CommandUUID == "" {
+		const stmt = `
+			DELETE FROM host_mdm_commands
+			WHERE host_id = ? AND command_type = ?`
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+		}
+		return nil
+	}
+	// With a UUID, only the matching row is cleared: an ack of a stale
+	// duplicate must not clear the tracking for the newest command still in
+	// the queue. NULL rows predate UUID recording and any ack clears them.
 	const stmt = `
 		DELETE FROM host_mdm_commands
-		WHERE host_id = ? AND command_type = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+		WHERE host_id = ? AND command_type = ? AND (command_uuid = ? OR command_uuid IS NULL)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, command.HostID, command.CommandType, command.CommandUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands by uuid")
 	}
 	return nil
 }
 
-func (ds *Datastore) RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error {
+func (ds *Datastore) RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType, commandUUID string) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 	// Batched so the IN list stays under MySQL's 65,535 placeholder limit.
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return common_mysql.BatchProcessSimple(hostIDs, hostMDMCommandsBatchSize, func(batch []uint) error {
-			stmt, args, err := sqlx.In(`
+			// An empty commandUUID keeps the pre-UUID semantics: rows go
+			// regardless. With a UUID, only rows tracking that command (or
+			// pre-UUID rows) are removed, so a rollback can't delete a row
+			// another flow legitimately tracked in the meantime.
+			query := `
 				DELETE FROM host_mdm_commands
-				WHERE host_id IN (?) AND command_type = ?`, batch, commandType)
+				WHERE host_id IN (?) AND command_type = ?`
+			queryArgs := []any{batch, commandType}
+			if commandUUID != "" {
+				query += ` AND (command_uuid = ? OR command_uuid IS NULL)`
+				queryArgs = append(queryArgs, commandUUID)
+			}
+			stmt, args, err := sqlx.In(query, queryArgs...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build delete from host_mdm_commands")
 			}
@@ -7159,16 +7189,62 @@ func (ds *Datastore) RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUI
 }
 
 func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
-	// Delete commands that don't have a corresponding host or have been sent over 1 day ago.
-	// We are using 1 day instead of 7 days in case MDM commands fail to be sent or fail to process. They can be resent the next day.
-	const stmt = `
-		DELETE hmc FROM host_mdm_commands AS hmc
+	// A row with a UUID lives while that command is still outstanding in the nano
+	// queue, using nano's own test (active, no result or only a NotNow) so the two
+	// never disagree; matched on device_id so user-channel commands count. The
+	// 1-hour grace covers a producer writing its row before enqueueing. Rows
+	// without a UUID keep the old 1-day rule.
+	const selectStmt = `
+		SELECT hmc.host_id, hmc.command_type, hmc.command_uuid
+		FROM host_mdm_commands AS hmc
 		LEFT JOIN hosts h ON h.id = hmc.host_id
-		WHERE h.id IS NULL OR hmc.updated_at < NOW() - INTERVAL 1 DAY`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete from host_mdm_commands")
+		WHERE h.id IS NULL
+		OR (hmc.command_uuid IS NULL AND hmc.updated_at < NOW() - INTERVAL 1 DAY)
+		OR (
+			hmc.command_uuid IS NOT NULL
+			AND hmc.updated_at < NOW() - INTERVAL 1 HOUR
+			AND NOT EXISTS (
+				SELECT 1
+				FROM nano_enrollment_queue neq
+				JOIN nano_enrollments ne ON ne.id = neq.id
+				LEFT JOIN nano_command_results ncr
+					ON ncr.id = neq.id AND ncr.command_uuid = neq.command_uuid
+				WHERE neq.command_uuid = hmc.command_uuid
+					AND ne.device_id = h.uuid
+					AND neq.active = 1
+					AND (ncr.status IS NULL OR ncr.status = 'NotNow')
+			)
+		)
+		LIMIT 50000`
+
+	type staleRow struct {
+		HostID      uint    `db:"host_id"`
+		CommandType string  `db:"command_type"`
+		CommandUUID *string `db:"command_uuid"`
 	}
-	return nil
+	var stale []staleRow
+	// Select from the primary and delete in short batches keyed on the row's full
+	// identity, so a run never holds one long DELETE and a row re-tracked since the
+	// select is left alone. The LIMIT just bounds a run; the next one takes the rest.
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &stale, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "select stale host_mdm_commands")
+	}
+
+	const deleteStmt = `DELETE FROM host_mdm_commands WHERE %s`
+	return common_mysql.BatchProcessSimple(stale, hostMDMCommandsBatchSize, func(batch []staleRow) error {
+		const numberOfArgsPerRow = 3
+		conds := strings.TrimSuffix(
+			strings.Repeat("(host_id = ? AND command_type = ? AND command_uuid <=> ?) OR ", len(batch)), " OR ",
+		)
+		args := make([]any, 0, len(batch)*numberOfArgsPerRow)
+		for _, r := range batch {
+			args = append(args, r.HostID, r.CommandType, r.CommandUUID)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(deleteStmt, conds), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch delete stale host_mdm_commands")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
@@ -7639,7 +7715,6 @@ LIMIT ?
 }
 
 func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
-	res := []*fleet.NanoMDMEnrollmentDetails{}
 	// We are specifically only looking at the singular device enrollment row and not the
 	// potentially many user enrollment rows that will exist for a given device. The device
 	// enrollment row is the only one that gets regularly updated with the last seen time. Along
@@ -7647,20 +7722,22 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
 	query := `
 	SELECT nd.authenticate_at, nst.seen_time AS last_seen_at, ne.hardware_attested, nd.unlock_token,
-	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed
+	  nd.bootstrap_token_b64 IS NOT NULL AS bootstrap_token_escrowed,
+	  ne.type AS enrollment_type,
+	  ne.enabled
 	FROM nano_devices nd
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	  LEFT JOIN nano_seen_times nst ON nst.id = ne.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
-
-	if err == sql.ErrNoRows || len(res) == 0 {
+	var res fleet.NanoMDMEnrollmentDetails
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+	if err == sql.ErrNoRows {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
 	}
-	return res[0], nil
+	return &res, nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error {

@@ -3,7 +3,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-import Icon from "components/Icon/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "device-user-error";
 
@@ -14,11 +14,13 @@ export type DeviceSSOErrorReason =
   | "callback_failed"
   /** Fleet couldn't start the flow, or the round trip finished and still left
    * no session behind. The end user acts on both the same way. */
-  | "sign_in_failed";
+  | "sign_in_failed"
+  /** The device has an IDP mapping, and the logged in user does not match the IDP mapped user. */
+  | "mismatched_sso_user";
 
 const SSO_ERROR_COPY: Record<
   DeviceSSOErrorReason,
-  { header: string; description: string }
+  { header: string; description: string | React.ReactNode }
 > = {
   session_expired: {
     header: "Your sign-in session expired.",
@@ -32,6 +34,19 @@ const SSO_ERROR_COPY: Record<
     header: "Couldn't sign in.",
     description:
       "Your organization requires single sign-on to view this page. Try again, or contact your IT admin.",
+  },
+  mismatched_sso_user: {
+    header: "This page isn't available.",
+    description: (
+      <>
+        <span>
+          My device isn&apos;t available for this device because of single
+          sign-on configurations.
+        </span>
+        <br />
+        <span>Please contact your IT admin.</span>
+      </>
+    ),
   },
 };
 

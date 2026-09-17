@@ -1,7 +1,7 @@
 /** Safely decode a base64-encoded UTF-8 string into a JavaScript string.
  * atob returns a binary string (bytes 0–255), so wrap it in Uint8Array and
  * use TextDecoder to handle multi-byte UTF-8 characters. */
-const decodeBase64Utf8 = (b64: string) => {
+const decodeBase64Utf8 = (b64: string | null | undefined) => {
   if (typeof b64 !== "string" || b64.trim() === "") {
     return "";
   }
@@ -15,4 +15,5 @@ const decodeBase64Utf8 = (b64: string) => {
     return "";
   }
 };
+
 export default decodeBase64Utf8;

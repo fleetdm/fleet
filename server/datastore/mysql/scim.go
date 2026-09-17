@@ -615,10 +615,10 @@ func renameHostIdPEmails(
 	// an authenticated and a manual row may now hold the same address; the
 	// authenticated one wins
 	delStmt, delArgs, err := sqlx.In(
-		`DELETE manual FROM host_emails manual
+		`DELETE he FROM host_emails he
 		 JOIN host_emails authenticated
-		   ON authenticated.host_id = manual.host_id AND authenticated.source = ? AND authenticated.email = ?
-		 WHERE manual.host_id IN (?) AND manual.source = ? AND manual.email = ?`,
+		   ON authenticated.host_id = he.host_id AND authenticated.source = ? AND authenticated.email = ?
+		 WHERE he.host_id IN (?) AND he.source = ? AND he.email = ?`,
 		fleet.DeviceMappingMDMIdpAccounts, newEmail, slices.Sorted(maps.Keys(dedupe)), fleet.DeviceMappingIDP, newEmail)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare delete duplicate host idp device mappings arguments")
