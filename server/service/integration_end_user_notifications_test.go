@@ -1199,6 +1199,57 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		return notificationUUID
 	}
 
+	t.Run("an app that skips while a reminder for another app is on screen gets its own notification and its own hour", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-reminder-join")
+		firstPolicyID, firstInstallerID := newNotifyPatchPolicy(t, teamID, "Reminder Hour App")
+		secondPolicyID, secondInstallerID := newNotifyPatchPolicy(t, teamID, "Late Skip App")
+
+		firstUUID := skipAndDisplay(t, host,
+			map[uint]*bool{firstPolicyID: new(false), secondPolicyID: new(true)}, firstInstallerID)
+		expireTestToast(t, firstUUID)
+
+		// the first notification's hour is nearly up, so sending its reminder clears displayed_at
+		setTestInstallAt(t, s.ds, firstUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		reminding := getTestNotification(t, s.ds, firstUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, reminding.Status)
+		require.Nil(t, reminding.DisplayedAt)
+		require.JSONEq(t, `{"reminder": true}`, string(reminding.Payload))
+		firstDeadline := getTestInstallAt(t, s.ds, firstUUID)
+		require.NotNil(t, firstDeadline)
+
+		// the second app skips in that window, while the first notification is pending with no displayed_at
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{firstPolicyID: new(true), secondPolicyID: new(false)}),
+			http.StatusOK, &distributedResp)
+		executionID, installerID := activatedInstallFor(t, host.ID)
+		require.Equal(t, secondInstallerID, installerID)
+		postSkippedInstall(t, host, executionID)
+
+		uuids := patchNotificationsFor(t, host.ID)
+		require.Len(t, uuids, 2, "the skipping app opens its own notification rather than joining the reminder")
+		secondUUID := uuids[1]
+		require.NotEqual(t, firstUUID, secondUUID)
+
+		firstApps, err := s.ds.ListPatchNotificationApps(ctx, firstUUID)
+		require.NoError(t, err)
+		require.Len(t, firstApps, 1, "the reminder still lists only the app it was opened for")
+		require.Equal(t, firstInstallerID, *firstApps[0].SoftwareInstallerID)
+
+		secondApps, err := s.ds.ListPatchNotificationApps(ctx, secondUUID)
+		require.NoError(t, err)
+		require.Len(t, secondApps, 1)
+		require.Equal(t, secondInstallerID, *secondApps[0].SoftwareInstallerID)
+
+		// the new notification starts with no deadline, so it gets its own hour once displayed
+		require.Nil(t, getTestInstallAt(t, s.ds, secondUUID),
+			"the new notification does not inherit the reminder's deadline")
+		stillDue := getTestInstallAt(t, s.ds, firstUUID)
+		require.NotNil(t, stillDue)
+		require.WithinDuration(t, *firstDeadline, *stillDue, time.Second)
+	})
+
 	t.Run("a notification for a second app waits while the first toast is still on screen", func(t *testing.T) {
 		host, teamID := notifyTeamAndHost(t, "notif-second-app")
 		firstPolicyID, firstInstallerID := newNotifyPatchPolicy(t, teamID, "First App")

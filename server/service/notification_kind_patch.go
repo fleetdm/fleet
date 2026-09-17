@@ -126,6 +126,16 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get patch notification awaiting first dispatch for host")
 	}
+	if awaiting != nil {
+		// Create a new notification rather than join an existing reminder notification.
+		awaitingIsReminder, err := patchNotificationIsReminder(awaiting.Payload)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "read patch notification payload")
+		}
+		if awaitingIsReminder {
+			awaiting = nil
+		}
+	}
 
 	var notificationUUID string
 	if awaiting != nil {

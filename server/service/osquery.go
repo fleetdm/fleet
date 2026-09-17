@@ -2970,8 +2970,9 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
-		// Leave the app to a notification the end user has seen, whose countdown installs it. One that has
-		// not displayed has no deadline and may never get one, so it does not hold this install back.
+		// Skip an app  that's already on a patch notification the end user has seen, the notification's deadline is what
+		// installs it. If we queue a skippable install here, its skip can report after the notification is acted and its
+		// force installs are queued, and create a second notification.
 		var appHasDisplayedPatchNotification bool
 		if failingPolicyWithInstaller.OverridePreInstallQuery {
 			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
@@ -2980,7 +2981,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			}
 		}
 		if appHasDisplayedPatchNotification {
-			logger.DebugContext(ctx, "skipping policy automation install; a displayed patch notification is counting down to install this app")
+			logger.DebugContext(ctx, "skipping policy automation install, the app is on a patch notification the end user has seen")
 			continue
 		}
 
