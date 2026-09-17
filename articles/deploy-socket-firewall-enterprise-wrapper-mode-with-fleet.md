@@ -2,7 +2,7 @@
 
 In wrapper mode, [Socket Firewall Enterprise](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode) runs on each developer's machine as the `sfw` command, the same way Socket Firewall Free does, but with your organization's Socket API key, security policies, allow lists, dashboard reporting, and support for more ecosystems. This guide uses Fleet to install the Enterprise `sfw` binary on macOS, Windows, and Linux, deliver the API key from a Fleet secret, verify both with policies, and repair them automatically.
 
-Wrapper mode still depends on developers running `sfw npm install` instead of `npm install`, or on the shell aliases in step 5. If you need protection that developers can't bypass, use [registry mode](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-registry-mode-with-fleet) instead. Socket recommends registry mode for most organizations.
+Wrapper mode still depends on developers running `sfw npm install` instead of `npm install`, or on the shell aliases in step 5. If you need protection that developers can't bypass, use [registry mode](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-registry-mode-with-fleet) instead.
 
 ## Prerequisites
 
