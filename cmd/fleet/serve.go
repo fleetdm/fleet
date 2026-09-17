@@ -494,7 +494,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err != nil {
 		initFatal(err, "initializing android service")
 	}
-	eeAndroidSvc := ee_android.NewService(androidSvc)
+	eeAndroidSvc, err := ee_android.NewService(
+		androidSvc,
+		ds,
+		ds,
+		android_service.NewAMAPIClient(ctx, logger, config.License.Key),
+		logger,
+	)
+	if err != nil {
+		initFatal(err, "initializing ee android service")
+	}
 
 	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
