@@ -14375,7 +14375,6 @@ For Apple App Store and Google Play apps, the `software_package` field is `null`
 
 A software title can have more than one App Store app on the same fleet. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
 
-Each version's `name` identifies it in Fleet (e.g. `"Production"`) and is unique per software title per fleet. Note that in the `app_store_apps` array, `name` is the version's name. In `app_store_app` (singular), `name` remains the app's name in the store.
 
 `app_store_app` is kept for backwards compatibility and contains the first-added version.
 
