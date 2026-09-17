@@ -401,7 +401,7 @@ func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, e
 	defer conn.Close()
 
 	// The bitfield and SQL keys share the campaign's hash tag, so both probes fit
-	// in one pipeline. The SQL key is deleted on stop and doubles as the "still
+	// in one pipeline. The SQL key is deleted on stop and serves as the "still
 	// active" check, which the per-host set below cannot provide: its entries
 	// outlive StopQuery and are only filtered against the active set at read time.
 	if err := conn.Send("GETBIT", targetKey, hostID); err != nil {
@@ -421,11 +421,11 @@ func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, e
 	if err != nil {
 		return false, fmt.Errorf("receive query sql exists: %w", err)
 	}
-	if targeted == 1 {
-		return true, nil
-	}
 	if !active {
 		return false, nil
+	}
+	if targeted == 1 {
+		return true, nil
 	}
 	return r.isReverseMember(name, hostID)
 }

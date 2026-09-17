@@ -3612,7 +3612,7 @@ func TestIngestDistributedQueryNotTargetingHost(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	lq.On("IsQueryTargetingHost", "42", host.ID).Return(false, nil)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{{"col": "forged"}}, "", nil)
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{{"col": "forged"}}, "", nil)
 	require.NoError(t, err)
 	lq.AssertNotCalled(t, "QueryCompletedByHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
@@ -3633,7 +3633,7 @@ func TestIngestDistributedQueryTargetCheckError(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	lq.On("IsQueryTargetingHost", "42", host.ID).Return(false, errors.New("redis down"))
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "check campaign targets host")
 	lq.AssertNotCalled(t, "QueryCompletedByHost", testify_mock.Anything, testify_mock.Anything)
