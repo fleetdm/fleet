@@ -1,12 +1,10 @@
 import PropTypes from "prop-types";
-import hostPolicyInterface, { IHostPolicy } from "./policy";
+
+import hostQueryResult from "./campaign";
+import { ILicense, IDeviceGlobalConfig } from "./config";
+import { IHostCustomVital } from "./custom_host_vitals";
 import hostUserInterface, { IHostUser } from "./host_users";
 import labelInterface, { ILabel } from "./label";
-import packInterface, { IPack } from "./pack";
-import softwareInterface, { ISoftware } from "./software";
-import hostQueryResult from "./campaign";
-import queryStatsInterface, { IQueryStats } from "./query_stats";
-import { ILicense, IDeviceGlobalConfig } from "./config";
 import {
   IHostMdmProfile,
   MdmEnrollmentStatus,
@@ -14,8 +12,11 @@ import {
   DiskEncryptionStatus,
   HostNameSettingStatus,
 } from "./mdm";
+import packInterface, { IPack } from "./pack";
 import { HostPlatform } from "./platform";
-import { IHostCustomVital } from "./custom_host_vitals";
+import hostPolicyInterface, { IHostPolicy } from "./policy";
+import queryStatsInterface, { IQueryStats } from "./query_stats";
+import softwareInterface, { ISoftware } from "./software";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -88,6 +89,9 @@ export default PropTypes.shape({
 });
 
 export type HostStatus = "online" | "offline" | "new" | "missing";
+/** Values accepted by the hosts list `status` filter. "pending" and "enrolled"
+ * are filter-only: no host ever reports them as its status. */
+export type HostStatusFilter = HostStatus | "pending" | "enrolled";
 export interface IDeviceUser {
   email: string;
   source: string;
@@ -97,7 +101,10 @@ export interface IMunkiData {
   version: string;
 }
 
-export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
+export type MacDiskEncryptionActionRequired =
+  | "log_out"
+  | "rotate_key"
+  | "turn_on_encryption";
 
 /** What the END USER can do about a disk encryption problem. Only set when there is something they can do: a Windows
  * host also reaches action_required when the TPM is not ready or policy forbids a TPM-only protector, and neither is
@@ -460,7 +467,6 @@ export interface IHost {
   last_enrolled_at: string;
   last_mdm_enrolled_at: string;
   last_mdm_checked_in_at: string | null;
-  last_mdm_enrollment_type?: string | null;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;

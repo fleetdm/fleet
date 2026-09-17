@@ -1,5 +1,6 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
+
 import { createMockHostSoftware } from "__mocks__/hostMock";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 

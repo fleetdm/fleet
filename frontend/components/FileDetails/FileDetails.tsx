@@ -1,14 +1,12 @@
-import React from "react";
-
 import classnames from "classnames";
-
-import { IFileDetails } from "utilities/file/fileUtils";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import { ISupportedGraphicNames } from "components/FileUploader/FileUploader";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IFileDetails } from "utilities/file/fileUtils";
 
 export type IFileDetailsSupportedGraphicNames =
   | ISupportedGraphicNames

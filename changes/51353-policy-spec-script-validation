@@ -1,0 +1,1 @@
+- Fixed `POST /api/v1/fleet/spec/policies` (GitOps) accepting a `script_id` on a global policy or a script from another fleet, and returning a database error instead of a clear message for a nonexistent script.

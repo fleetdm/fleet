@@ -1,10 +1,10 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
-import mdmAPI from "services/entities/mdm";
 import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import AddAssetModal from "./AddAssetModal";
 

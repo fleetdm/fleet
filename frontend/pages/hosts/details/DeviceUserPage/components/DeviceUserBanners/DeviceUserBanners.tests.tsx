@@ -1,13 +1,14 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
 import DeviceUserBanners from "./DeviceUserBanners";
 
 describe("Device User Banners", () => {
+  const unableToEnrollIntoMdmExpectedText = /This device isn't eligible for MDM because it isn't assigned to your organization by Apple Business./;
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
   const resetNonLinuxDiskEncryptKeyExpectedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
-  const adeDiskEncryptKeyExpectedText = /Disk encryption: Refetch to ensure data is safeguarded in case your device is lost or stolen\. If this banner persists, contact your IT admin\./;
+  const diskEncryptionOffExpectedText = /Disk encryption: Disk encryption is turned off\. Contact your IT admin for additional instructions\./;
   const createNewLinuxDiskEncryptKeyExpectedText = /Disk encryption: Create a new disk encryption key\. This lets your organization help you unlock your device if you forget your passphrase\./;
   const createPINExepectedText = /Disk encryption: Create a BitLocker PIN to safeguard your data/;
 
@@ -17,6 +18,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -35,6 +38,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (manual)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus="action_required"
         diskEncryptionActionRequired="rotate_key"
@@ -48,43 +53,50 @@ describe("Device User Banners", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the refetch disk encryption banner for ADE-enrolled hosts", () => {
+  it("renders the log out banner when FileVault is deferred to the next login", () => {
     render(
       <DeviceUserBanners
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus="action_required"
-        diskEncryptionActionRequired="rotate_key"
+        diskEncryptionActionRequired="log_out"
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
         onClickTurnOnMdm={noop}
       />
     );
-    expect(screen.getByText(adeDiskEncryptKeyExpectedText)).toBeInTheDocument();
     expect(
-      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
+      screen.getByText(resetNonLinuxDiskEncryptKeyExpectedText)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(diskEncryptionOffExpectedText)
     ).not.toBeInTheDocument();
   });
 
-  // "On (company-owned)" is the current name for automatic enrollment; "On (automatic)"
-  // is the legacy value the API still returns
-  it("renders the refetch disk encryption banner for company-owned hosts", () => {
+  it("tells the end user to contact IT when nothing enforces disk encryption", () => {
     render(
       <DeviceUserBanners
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (company-owned)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus="action_required"
-        diskEncryptionActionRequired="rotate_key"
+        diskEncryptionActionRequired="turn_on_encryption"
         onTriggerEscrowLinuxKey={noop}
         onClickCreatePIN={noop}
         onClickTurnOnMdm={noop}
       />
     );
-    expect(screen.getByText(adeDiskEncryptKeyExpectedText)).toBeInTheDocument();
+    expect(screen.getByText(diskEncryptionOffExpectedText)).toBeInTheDocument();
+    expect(
+      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
+    ).not.toBeInTheDocument();
   });
   it("renders the create new linux disk encryption key banner correctly for Ubuntu", () => {
     render(
@@ -96,6 +108,8 @@ describe("Device User Banners", () => {
         diskEncryptionKeyAvailable={false}
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -119,6 +133,8 @@ describe("Device User Banners", () => {
         diskEncryptionKeyAvailable={false}
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -146,6 +162,8 @@ describe("Device User Banners", () => {
         diskEncryptionKeyAvailable={false}
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -170,6 +188,8 @@ describe("Device User Banners", () => {
         diskEncryptionKeyAvailable={false}
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -199,6 +219,8 @@ describe("Device User Banners", () => {
         diskEncryptionKeyAvailable={false}
         mdmEnrollmentStatus="On (automatic)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -216,6 +238,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="On (manual)"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm
         macDiskEncryptionStatus="verifying"
         diskEncryptionActionRequired={null}
@@ -240,7 +264,9 @@ describe("Device User Banners", () => {
       <DeviceUserBanners
         hostPlatform="darwin"
         mdmEnrollmentStatus={null}
-        mdmEnabledAndConfigured={false}
+        mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -265,6 +291,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -284,6 +312,8 @@ describe("Device User Banners", () => {
         hostPlatform="darwin"
         mdmEnrollmentStatus="Off"
         mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment={false}
         connectedToFleetMdm={false}
         macDiskEncryptionStatus={null}
         diskEncryptionActionRequired={null}
@@ -295,5 +325,28 @@ describe("Device User Banners", () => {
     );
 
     expect(screen.getByText(turnOnMdmExpcetedText)).toBeInTheDocument();
+  });
+
+  it("renders the unable to enroll into MDM banner when only AB enrollment is allowed and not DEP assigned", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="Off"
+        mdmEnabledAndConfigured
+        depAssignedToFleet={false}
+        onlyAllowAppleBusinessEnrollment
+        connectedToFleetMdm={false}
+        macDiskEncryptionStatus={null}
+        diskEncryptionActionRequired={null}
+        detailUpdatedAt="2025-01-15T10:00:00Z"
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+
+    expect(
+      screen.getByText(unableToEnrollIntoMdmExpectedText)
+    ).toBeInTheDocument();
   });
 });

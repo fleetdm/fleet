@@ -3,6 +3,7 @@
   "slug": "termius/windows",
   "package_identifier": "Termius.Termius",
   "unique_identifier": "Termius",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",

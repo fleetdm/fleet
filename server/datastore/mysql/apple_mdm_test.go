@@ -85,6 +85,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		{"TestMDMAppleResetEnrollmentScimLink", testMDMAppleResetEnrollmentScimLink},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
@@ -118,6 +119,8 @@ func TestMDMApple(t *testing.T) {
 		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
+		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
+		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
@@ -127,7 +130,6 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
-		{"GetNanoMDMEnrollmentDetailsEnrollmentType", testGetNanoMDMEnrollmentDetailsEnrollmentType},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -2434,9 +2436,9 @@ func nanoEnrollUserDevice(t *testing.T, ds *Datastore, host *fleet.Host) {
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -2445,8 +2447,17 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
-		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
+	require.NoError(t, err)
+
+	setNanoSeenTime(t, ds, host.UUID, time.Now().Add(-2*time.Second).Truncate(time.Second))
+}
+
+// setNanoSeenTime upserts the MDM check-in seen time for an enrollment id.
+func setNanoSeenTime(t *testing.T, ds *Datastore, enrollmentID string, seenTime time.Time) {
+	_, err := ds.writer(t.Context()).Exec(
+		`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?) ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+		enrollmentID, seenTime)
 	require.NoError(t, err)
 }
 
@@ -2456,9 +2467,9 @@ func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?, ?)`,
 		host.UUID,
 		host.UUID,
 		nil,
@@ -2467,9 +2478,10 @@ VALUES
 		host.UUID+".magic",
 		host.UUID,
 		1,
-		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
+
+	setNanoSeenTime(t, ds, host.UUID, time.Now().Add(-2*time.Second).Truncate(time.Second))
 
 	if withUser {
 		nanoEnrollUserOnly(t, ds, host)
@@ -2500,9 +2512,9 @@ VALUES
 
 	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at)
+	(id, device_id, user_id, type, topic, push_magic, token_hex)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, ?)`,
+	(?, ?, ?, ?, ?, ?, ?)`,
 		userID,
 		host.UUID,
 		userID,
@@ -2510,9 +2522,10 @@ VALUES
 		host.UUID+".topic",
 		host.UUID+".magic",
 		host.UUID,
-		time.Now().Add(-2*time.Second).Truncate(time.Second),
 	)
 	require.NoError(t, err)
+
+	setNanoSeenTime(t, ds, userID, time.Now().Add(-2*time.Second).Truncate(time.Second))
 }
 
 func upsertHostCPs(
@@ -3369,6 +3382,25 @@ func createDiskEncryptionRecord(ctx context.Context, ds *Datastore, t *testing.T
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, threshold)
 	require.NoError(t, err)
+}
+
+func TestInsertABMTokenDuplicateOrg(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	_, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "Acme", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.NoError(t, err)
+
+	// a duplicate org surfaces as a typed conflict, not the raw driver error
+	_, err = ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "Acme", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.Error(t, err)
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	require.Contains(t, err.Error(), "Acme")
+	require.NotContains(t, err.Error(), "Duplicate entry")
+
+	var mysqlErr *mysql.MySQLError
+	require.NotErrorAs(t, err, &mysqlErr, "raw driver error must not reach the caller")
 }
 
 func TestMDMAppleFileVaultSummary(t *testing.T) {
@@ -9981,6 +10013,152 @@ func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	require.Equal(t, orgNames[0], "org3")
 }
 
+func testCleanupHostMDMCommandsQueueAware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// small batches so the stale rows below span more than one delete
+	hostMDMCommandsBatchSizeOrig := hostMDMCommandsBatchSize
+	hostMDMCommandsBatchSize = 2
+	t.Cleanup(func() {
+		hostMDMCommandsBatchSize = hostMDMCommandsBatchSizeOrig
+	})
+	host := test.NewHost(t, ds, "cleanup-queue-aware.local", "1.1.1.1", "cqa-osquery-id", "cqa-node-key", time.Now())
+	nanoEnroll(t, ds, host, true)
+	userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnrollment)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+
+	track := func(commandType, commandUUID string, age time.Duration) {
+		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+			{HostID: host.ID, CommandType: commandType, CommandUUID: commandUUID},
+		}))
+		// updated_at auto-updates on write, so set the age explicitly after
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm_commands SET updated_at = NOW() - INTERVAL ? SECOND WHERE host_id = ? AND command_type = ?`,
+			int(age.Seconds()), host.ID, commandType)
+		require.NoError(t, err)
+	}
+	enqueue := func(enrollmentID string) string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{enrollmentID}, createRawAppleCmd("DeviceInformation", cmdUUID)))
+		return cmdUUID
+	}
+	report := func(enrollmentID, cmdUUID, status string) {
+		// the table requires a plist-looking result body
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml version="1.0"?><plist/>')`,
+			enrollmentID, cmdUUID, status)
+		require.NoError(t, err)
+	}
+
+	const day = 24 * time.Hour
+
+	// the command still waits in the queue: the row survives well past the
+	// old 24h wipe, which is what stops the daily duplicate enqueues
+	track("live", enqueue(host.UUID), 2*day)
+	// a NotNow is not an answer, the command is still outstanding
+	notNow := enqueue(host.UUID)
+	report(host.UUID, notNow, "NotNow")
+	track("not-now", notNow, 2*day)
+	// a command queued on the user channel is found through the device
+	track("user-channel", enqueue(userEnrollment.ID), 2*day)
+	// answered: the ack handler normally clears this, the cleanup is the backstop
+	acked := enqueue(host.UUID)
+	report(host.UUID, acked, "Acknowledged")
+	track("acked", acked, 2*time.Hour)
+	// cleared from the queue (re-enrollment, SCEP renewal, wipe)
+	cleared := enqueue(host.UUID)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, cleared)
+	require.NoError(t, err)
+	track("cleared", cleared, 2*time.Hour)
+	// never made it into the queue: orphaned only once past the grace window
+	track("orphan-fresh", "REFETCH-never-queued-1", 0)
+	track("orphan-old", "REFETCH-never-queued-2", 2*time.Hour)
+	// pre-UUID rows keep the day-based rule
+	track("legacy-fresh", "", 0)
+	track("legacy-old", "", 2*day)
+
+	require.NoError(t, ds.CleanupHostMDMCommands(ctx))
+
+	commands, err := ds.GetHostMDMCommands(ctx, host.ID)
+	require.NoError(t, err)
+	remaining := make([]string, 0, len(commands))
+	for _, c := range commands {
+		remaining = append(remaining, c.CommandType)
+	}
+	require.ElementsMatch(t, []string{"live", "not-now", "user-channel", "orphan-fresh", "legacy-fresh"}, remaining)
+}
+
+func testHostMDMCommandsUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("host-mdm-cmd-uuid-osquery-id"),
+		NodeKey:         new("host-mdm-cmd-uuid-node-key"),
+		UUID:            "host-mdm-cmd-uuid",
+		Hostname:        "host-mdm-cmd-uuid",
+	})
+	require.NoError(t, err)
+
+	get := func() []fleet.HostMDMCommand {
+		commands, err := ds.GetHostMDMCommands(ctx, h.ID)
+		require.NoError(t, err)
+		return commands
+	}
+
+	tracked := fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t", CommandUUID: "refetch-t-uuid-new"}
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// an ack of a stale duplicate must not clear the tracking row
+	stale := tracked
+	stale.CommandUUID = "refetch-t-uuid-old"
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, stale))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// the ack of the tracked command clears it
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, tracked))
+	require.Empty(t, get())
+
+	// a pre-UUID row (no recorded UUID) is cleared by any ack of its type
+	legacy := fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t"}
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
+		HostID: h.ID, CommandType: "refetch-t", CommandUUID: "any-uuid",
+	}))
+	require.Empty(t, get())
+
+	// a UUID-less remove keeps the pre-UUID semantics: the row goes regardless
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{HostID: h.ID, CommandType: "refetch-t"}))
+	require.Empty(t, get())
+
+	// re-tracking an existing row updates its UUID to the newest command
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{tracked}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// a UUID-less re-track must not downgrade a recorded UUID: that would
+	// strip the row of its ack-matching protection
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+
+	// batch remove with a UUID only clears rows tracking that command...
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID}, "refetch-t", "some-other-uuid"))
+	require.ElementsMatch(t, []fleet.HostMDMCommand{tracked}, get())
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID}, "refetch-t", tracked.CommandUUID))
+	require.Empty(t, get())
+
+	// ...and pre-UUID rows, which any batch remove clears
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{legacy}))
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID}, "refetch-t", "any-uuid"))
+	require.Empty(t, get())
+}
+
 func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -10071,12 +10249,12 @@ func testHostMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// No-op on an empty host list.
-	require.NoError(t, ds.RemoveHostMDMCommands(ctx, nil, "command-2"))
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, nil, "command-2", ""))
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, hostCommands[1:], commands)
 
-	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID, h2.ID, badHostID}, "command-2"))
+	require.NoError(t, ds.RemoveHostMDMCommands(ctx, []uint{h.ID, h2.ID, badHostID}, "command-2", ""))
 
 	commands, err = ds.GetHostMDMCommands(ctx, h.ID)
 	require.NoError(t, err)
@@ -10513,6 +10691,26 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 		return err
 	})
 	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
+	require.True(t, fleet.IsNotFound(err), "expected not found error, got %v", err)
+
+	// a DEP host on a platform without Apple OS update settings is also not
+	// found, rather than a server error
+	unsupportedHost, err := ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:  new("unsupported-platform-osquery-id"),
+		NodeKey:        new("unsupported-platform-node-key"),
+		UUID:           "unsupported-platform-uuid",
+		Hostname:       "unsupported-platform-hostname",
+		Platform:       "windows",
+		HardwareSerial: "unsupported-platform-serial",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			"INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)",
+			unsupportedHost.ID, unsupportedHost.HardwareSerial)
+		return err
+	})
+	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), unsupportedHost.HardwareSerial)
 	require.True(t, fleet.IsNotFound(err), "expected not found error, got %v", err)
 }
 
@@ -11127,7 +11325,8 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	getHostLastSeenAt := func(h *fleet.Host) time.Time {
 		var lastSeenAt time.Time
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &lastSeenAt, `SELECT last_seen_at FROM nano_enrollments WHERE device_id = ?`, h.UUID)
+			return sqlx.GetContext(ctx, q, &lastSeenAt,
+				`SELECT nst.seen_time FROM nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id WHERE ne.device_id = ?`, h.UUID)
 		})
 		return lastSeenAt
 	}
@@ -11142,7 +11341,7 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID}, rawCmd1)
 	require.NoError(t, err)
 
-	// at this point, last_seen_at is still the original value
+	// at this point, the seen time is still the original value
 	ts1, ts2 := getHostLastSeenAt(enrolledHosts[0]), getHostLastSeenAt(enrolledHosts[1])
 
 	time.Sleep(time.Second + time.Millisecond) // ensure a distinct mysql timestamp
@@ -11229,11 +11428,11 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE type='Device' AND device_id = ?`, deviceEnrollTime, host.UUID)
+		_, err = q.ExecContext(ctx, `UPDATE nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id SET nst.seen_time=? WHERE ne.type='Device' AND ne.device_id = ?`, deviceEnrollTime, host.UUID)
 		if err != nil {
 			return err
 		}
-		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE type='User' AND device_id = ?`, userEnrollTime, host.UUID)
+		_, err = q.ExecContext(ctx, `UPDATE nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id SET nst.seen_time=? WHERE ne.type='User' AND ne.device_id = ?`, userEnrollTime, host.UUID)
 		if err != nil {
 			return err
 		}
@@ -11242,7 +11441,7 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE device_id = ?`, byodDeviceEnrollTime, byodHost.UUID)
+		_, err = q.ExecContext(ctx, `UPDATE nano_seen_times nst JOIN nano_enrollments ne ON ne.id = nst.id SET nst.seen_time=? WHERE ne.device_id = ?`, byodDeviceEnrollTime, byodHost.UUID)
 		if err != nil {
 			return err
 		}
@@ -13443,35 +13642,125 @@ FROM mdm_apple_configuration_profiles WHERE team_id = 0 AND identifier = ?`,
 	require.Equal(t, 2, count)
 }
 
-// Manual BYOD and Account-Driven User Enrollment both report the
-// "On (manual - personal)" status, so the enrollment channel is the only way to
-// tell them apart. See #50868.
-func testGetNanoMDMEnrollmentDetailsEnrollmentType(t *testing.T, ds *Datastore) {
+func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	newHost := func(suffix string) *fleet.Host {
+	newDarwinHost := func(t *testing.T, uuid string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "adue-host-" + suffix,
-			OsqueryHostID: new("adue-osq-" + suffix),
-			NodeKey:       new("adue-key-" + suffix),
-			UUID:          "adue-uuid-" + suffix,
-			Platform:      "ios",
+			Hostname:      uuid + "-hostname",
+			UUID:          uuid,
+			Platform:      "darwin",
+			NodeKey:       new(uuid + "-key"),
+			OsqueryHostID: new(uuid + "-osquery"),
 		})
 		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
 		return h
 	}
 
-	manualBYOD := newHost("manual")
-	nanoEnroll(t, ds, manualBYOD, false)
+	newScimUser := func(t *testing.T, userName string) uint {
+		id, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName:   userName,
+			GivenName:  new("Given"),
+			FamilyName: new("Family"),
+			Active:     new(true),
+			Emails:     []fleet.ScimUserEmail{{Email: userName, Primary: new(true), Type: new("work")}},
+		})
+		require.NoError(t, err)
+		return id
+	}
 
-	accountDriven := newHost("account-driven")
-	nanoEnrollUserDevice(t, ds, accountDriven)
+	// Datastore-level equivalent of the SSO callback plus Authenticate: the IdP account
+	// is stored and attached to the host. The real flow is covered by the MDM integration
+	// suite (TestSSOWithSCIM, TestReenrollKeepsManuallyMappedIdPUser).
+	associateIdPAccount := func(t *testing.T, host *fleet.Host, email string) {
+		require.NoError(t, ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Username: email, Fullname: "Given Family", Email: email}))
+		acct, err := ds.GetMDMIdPAccountByEmail(ctx, email)
+		require.NoError(t, err)
+		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID))
 
-	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, manualBYOD.UUID)
-	require.NoError(t, err)
-	require.Equal(t, "Device", details.EnrollmentType)
+		attached, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, attached)
+		require.Equal(t, email, attached.Email)
+	}
 
-	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, accountDriven.UUID)
-	require.NoError(t, err)
-	require.Equal(t, "User Enrollment (Device)", details.EnrollmentType)
+	requireNoIdPAccount := func(t *testing.T, host *fleet.Host) {
+		acct, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Nil(t, acct, "manual mapping must not create an IdP account")
+	}
+
+	requireLinkedTo := func(t *testing.T, host *fleet.Host, scimUserID uint) {
+		linked, err := ds.ScimUserByHostID(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, scimUserID, linked.ID)
+	}
+
+	for _, scepRenewal := range []bool{true, false} {
+		name := "re-enrollment"
+		if scepRenewal {
+			name = "SCEP renewal"
+		}
+
+		t.Run("manual IdP mapping survives "+name, func(t *testing.T) {
+			email := fmt.Sprintf("manual-%v@example.com", scepRenewal)
+			host := newDarwinHost(t, "uuid-manual-"+name)
+			scimUserID := newScimUser(t, email)
+
+			// What PUT /hosts/:id/device_mapping {source: idp} does at the datastore layer.
+			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, email))
+			_, err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
+			require.NoError(t, err)
+			requireLinkedTo(t, host, scimUserID)
+			requireNoIdPAccount(t, host)
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+			requireLinkedTo(t, host, scimUserID)
+		})
+
+		t.Run("ADE IdP mapping is rebuilt on "+name, func(t *testing.T) {
+			email := fmt.Sprintf("ade-%v@example.com", scepRenewal)
+			host := newDarwinHost(t, "uuid-ade-"+name)
+			scimUserID := newScimUser(t, email)
+
+			associateIdPAccount(t, host, email)
+			require.NoError(t, ds.MaybeAssociateHostWithScimUser(ctx, host.ID))
+			requireLinkedTo(t, host, scimUserID)
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+			requireLinkedTo(t, host, scimUserID)
+		})
+	}
+
+	t.Run("ADE host re-enrolled without SSO drops the link", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-ade-then-manual")
+		scimUserID := newScimUser(t, "gone@example.com")
+
+		associateIdPAccount(t, host, "gone@example.com")
+		require.NoError(t, ds.MaybeAssociateHostWithScimUser(ctx, host.ID))
+		requireLinkedTo(t, host, scimUserID)
+
+		// OTA/manual enrollment without an IdP reference clears the association before the reset.
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+		_, err = ds.ScimUserByHostID(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err), "no IdP account and no manual mapping: link must not survive")
+	})
+
+	t.Run("ADE re-enrollment by a different user re-points the link", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-ade-handoff")
+		firstUserID := newScimUser(t, "first@example.com")
+		secondUserID := newScimUser(t, "second@example.com")
+
+		associateIdPAccount(t, host, "first@example.com")
+		require.NoError(t, ds.MaybeAssociateHostWithScimUser(ctx, host.ID))
+		requireLinkedTo(t, host, firstUserID)
+
+		associateIdPAccount(t, host, "second@example.com")
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+		requireLinkedTo(t, host, secondUserID)
+	})
 }

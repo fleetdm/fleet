@@ -52,7 +52,7 @@ type rawRelease struct {
 
 // getLatestRelease fetches the latest release from the vulnerabilities repository
 func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
-	httpClient := fleethttp.NewClient()
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", osvGithubOwner, osvGithubRepo)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -113,7 +113,7 @@ func downloadOSVArtifact(ctx context.Context, assetID int64, dstPath string) err
 	ghClient := fleethttp.NewGithubClient()
 	client := github.NewClient(ghClient)
 
-	httpClient := fleethttp.NewClient()
+	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	rc, redirectURL, err := client.Repositories.DownloadReleaseAsset(
 		ctx,
 		osvGithubOwner,

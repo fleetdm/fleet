@@ -1149,7 +1149,11 @@ func (c *Client) ApplyGroup(
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					switch {
 					case b != nil:
-						if err := c.uploadMacOSSetupAssistant(b, &tmID, filepath.Base(tmMacSetup[tmName].MacOSSetupAssistant.Value)); err != nil {
+						var setupAsstName string
+						if ms := tmMacSetup[tmName]; ms != nil {
+							setupAsstName = filepath.Base(ms.MacOSSetupAssistant.Value)
+						}
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, setupAsstName); err != nil {
 							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
 								// "Couldn't add. CONFIG_NAME_INVALID"
@@ -2380,6 +2384,15 @@ func (c *Client) DoGitOps(
 		}
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		}
+		if idpURLs, ok := integrations.(map[string]any)["certificates_idp_introspection_urls"]; !ok || idpURLs == nil {
+			integrations.(map[string]any)["certificates_idp_introspection_urls"] = []any{}
+		}
+		if idpClientIDs, ok := integrations.(map[string]any)["certificates_idp_client_ids"]; !ok || idpClientIDs == nil {
+			integrations.(map[string]any)["certificates_idp_client_ids"] = []any{}
+		}
+		if requireHostEndUserBinding, ok := integrations.(map[string]any)["certificates_disable_host_end_user_binding"]; !ok || requireHostEndUserBinding == nil {
+			integrations.(map[string]any)["certificates_disable_host_end_user_binding"] = false
 		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {

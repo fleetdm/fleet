@@ -169,6 +169,7 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
+	Default          bool   `json:"default,omitempty"`
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
@@ -1204,6 +1205,8 @@ func (c *AppConfig) Obfuscate() {
 	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
 		gwIntegration.ApiKey.SetMasked()
 	}
+	// Integrations.CertificatesIdPIntrospectionURLs and CertificatesIdPClientIDs are deliberately not masked: no secret,
+	// just URLs and public OAuth client IDs.
 	// The Apple account provisioning IdP client secret lives in
 	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
 	// whenever the feature is configured (token URL present implies a stored
@@ -1314,6 +1317,12 @@ func (c *AppConfig) Copy() *AppConfig {
 				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
+	}
+	if c.Integrations.CertificatesIdPIntrospectionURLs.Value != nil {
+		clone.Integrations.CertificatesIdPIntrospectionURLs.Value = slices.Clone(c.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	}
+	if c.Integrations.CertificatesIdPClientIDs.Value != nil {
+		clone.Integrations.CertificatesIdPClientIDs.Value = slices.Clone(c.Integrations.CertificatesIdPClientIDs.Value)
 	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
 	// if len(c.Integrations.DigiCert.Value) > 0 {

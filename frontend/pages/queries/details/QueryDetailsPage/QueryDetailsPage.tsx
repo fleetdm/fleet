@@ -1,42 +1,40 @@
 import React, { useContext, useState, useEffect } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useErrorHandler } from "react-error-boundary";
 
-import PATHS from "router/paths";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import InfoBanner from "components/InfoBanner";
+import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
+import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { AppContext } from "context/app";
-
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { IQueryReport } from "interfaces/query_report";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { IQueryReport } from "interfaces/query_report";
-
+import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
+import PATHS from "router/paths";
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
+import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
-import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
-import Spinner from "components/Spinner/Spinner";
-import Button from "components/buttons/Button";
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
-import DataError from "components/DataError/DataError";
-import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-import CustomLink from "components/CustomLink";
-import InfoBanner from "components/InfoBanner";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import PageDescription from "components/PageDescription";
-import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
+import QueryReport from "../components/QueryReport/QueryReport";
 
 import {
   DEFAULT_SORT_HEADER,

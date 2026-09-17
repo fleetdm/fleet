@@ -1,0 +1,1 @@
+- Fixed the Fleet UI so it renders correctly when the server is configured to send a Content-Security-Policy, by passing the server's nonce to runtime style and script injection.

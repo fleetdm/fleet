@@ -1,8 +1,9 @@
 import React from "react";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { dateAgo } from "utilities/date_format";
-
+import Card from "components/Card";
+import DataSet from "components/DataSet";
+import TooltipWrapper from "components/TooltipWrapper";
+import TruncatedTextList from "components/TruncatedTextList";
 import {
   SoftwareExtensionFor,
   formatSoftwareType,
@@ -11,11 +12,8 @@ import {
   ISoftwareInstallVersion,
   SoftwareSource,
 } from "interfaces/software";
-
-import Card from "components/Card";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TruncatedTextList from "components/TruncatedTextList";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { dateAgo } from "utilities/date_format";
 
 const baseClass = "inventory-versions";
 

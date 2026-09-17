@@ -1,9 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
 import { pick } from "lodash";
 
-import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import { ITeamIntegrations } from "interfaces/integration";
 import {
@@ -13,6 +11,9 @@ import {
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 interface ILoadTeamsParams {
   page?: number;
