@@ -4,10 +4,7 @@
 # as its run_script remediation, or run it on demand.
 #
 # Package upgrades only: never reboots, never crosses a release boundary
-# (Ubuntu 24.04 -> 26.04, Fedora 43 -> 44), never removes packages. The package
-# manager runs in a transient systemd unit so Fleet's script timeout can't kill it
-# mid-transaction; if it is still running when this script must return, it exits 0
-# and the next policy run picks up where it left off.
+# (Ubuntu 24.04 -> 26.04, Fedora 43 -> 44), never removes packages.
 
 set -euo pipefail
 
