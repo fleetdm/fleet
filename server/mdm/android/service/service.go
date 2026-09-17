@@ -1034,6 +1034,21 @@ func marshalRawCommand(cmd *androidmanagement.Command) sql.Null[string] {
 
 var sensitiveMetadataKeyRe = regexp.MustCompile(`"(?:\\u[0-9a-fA-F]{4}|n)ewPassword"\s*:\s*"[^"]*"\s*,?\s*`)
 
+func redactAndroidCommandJSON(rawJSON []byte) []byte {
+	var m map[string]any
+	if err := json.Unmarshal(rawJSON, &m); err != nil {
+		return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
+	}
+	if _, ok := m["newPassword"]; !ok {
+		return rawJSON
+	}
+	delete(m, "newPassword")
+	if b, err := json.Marshal(m); err == nil {
+		return b
+	}
+	return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
+}
+
 // redactOperationSensitiveFields strips sensitive fields (e.g. newPassword) from
 // the AMAPI Operation metadata before the Operation is persisted as raw_result.
 func redactOperationSensitiveFields(op *androidmanagement.Operation) {
@@ -1333,21 +1348,32 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
 			return nil, fleetErr
 		}
+		if ae, ok := errors.AsType[*googleapi.Error](err); ok && ae.Code == http.StatusInternalServerError {
+			msg := ae.Message
+			if msg == "" {
+				msg = ae.Body
+			}
+			if msg == "" {
+				msg = http.StatusText(ae.Code)
+			}
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("Android Management API rejected the command: %s", msg),
+				InternalErr: err,
+			}
+		}
 		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
 	}
 
-	cmdType := androidCustomCommandType(&amapiCmd)
+	cmdType := strings.ToUpper(androidCustomCommandType(&amapiCmd))
 
-	// Redact sensitive fields before persisting. The original rawJSON (with any
-	// password) was already sent to AMAPI above; only the stored copy is sanitized.
-	amapiCmd.NewPassword = ""
+	storedPayload := redactAndroidCommandJSON(rawJSON)
 
 	cmd := &android.MDMAndroidCommand{
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   cmdType,
-		RawCommand:    marshalRawCommand(&amapiCmd),
+		RawCommand:    sql.Null[string]{V: string(storedPayload), Valid: true},
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.InsertMDMAndroidCommand(ctx, cmd); err != nil {
