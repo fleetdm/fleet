@@ -425,6 +425,24 @@ func testListEndUserNotificationsToDispatch(t *testing.T, env *testEnv) {
 		require.NoError(t, err)
 		require.Len(t, due, 1)
 	})
+
+	t.Run("a toast on one host's screen does not stop another host's notification", func(t *testing.T) {
+		defer env.TruncateTables(t)
+		hostOnScreen := newDarwinHost(t, env, "dispatch-on-screen-host", true)
+		otherHost := newDarwinHost(t, env, "dispatch-other-host", true)
+
+		displayedUUID := env.InsertNotification(t, hostOnScreen, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, displayedUUID, hostOnScreen)))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now().Add(-1*time.Minute)))
+		env.InsertNotification(t, hostOnScreen, "k", nil, nil)
+
+		otherUUID := env.InsertNotification(t, otherHost, "k", nil, nil)
+
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		require.Len(t, due, 1, "only the host with a toast on screen is skipped")
+		assert.Equal(t, otherUUID, due[0].UUID)
+	})
 }
 
 // withExecutionID is the argument the dispatcher builds after queueing a script

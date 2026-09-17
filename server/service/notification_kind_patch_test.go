@@ -162,7 +162,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 				if !c.awaiting {
 					return nil, nil
 				}
-				return &notifications_api.EndUserNotification{UUID: awaitingUUID}, nil
+				return &notifications_api.EndUserNotification{UUID: awaitingUUID, Payload: patchNotificationFirstNoticePayload}, nil
 			}
 			notificationsSvc.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
 				require.Equal(t, hostID, notification.HostID)
