@@ -395,6 +395,39 @@ describe("AddHostsModal", () => {
     expect(openEnrollSecretModal).toHaveBeenCalledTimes(1);
   });
 
+  it("explains manual enrollment in the no enroll secret state when one-time enroll secrets are on", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig({
+            auth: { use_one_time_enroll_secrets: true },
+          }),
+        },
+      },
+    });
+
+    render(
+      <AddHostsModal
+        isAnyTeamSelected={false}
+        isLoading={false}
+        onCancel={noop}
+        openEnrollSecretModal={noop}
+      />
+    );
+
+    expect(
+      screen.getByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/new hosts must be enrolled manually to be added to/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+  });
+
   it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {
     const mockConfig = createMockConfig();
     mockConfig.server_settings.scripts_disabled = true;

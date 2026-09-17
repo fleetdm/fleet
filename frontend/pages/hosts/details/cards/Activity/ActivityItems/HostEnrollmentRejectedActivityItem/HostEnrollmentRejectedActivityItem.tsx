@@ -20,7 +20,7 @@ const HostEnrollmentRejectedActivityItem = ({
       hideCancel
     >
       <span>
-        <b>Fleet</b> rejected an enrollment attempt for this host.
+        <b>Fleet</b> rejected an enrollment for this host.
       </span>
     </ActivityItem>
   );

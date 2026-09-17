@@ -58,7 +58,9 @@ const AddHostsModal = ({
         <>
           <p>You have no enroll secrets.</p>
           <p>
-            New hosts will not enroll until an enroll secret is added to{" "}
+            {config?.auth?.use_one_time_enroll_secrets
+              ? "New hosts must be enrolled manually to be added to "
+              : "New hosts will not enroll until an enroll secret is added to "}
             <b>{teamDisplayName}</b>.
           </p>
           {openEnrollSecretModal && (

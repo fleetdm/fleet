@@ -100,7 +100,6 @@ import { strToBool } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
 import AddHostsModal from "../../../components/AddHostsModal";
-import { isAddHostsAvailable } from "../../../components/AddHostsModal/helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
@@ -546,17 +545,6 @@ const ManageHostsPage = ({
   );
 
   const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
-  const canAddHosts =
-    canEnrollHosts &&
-    isAddHostsAvailable({
-      useOneTimeEnrollSecrets,
-      isLoadingSecrets: isAnyTeamSelected
-        ? isTeamSecretsLoading
-        : isGlobalSecretsLoading,
-      hasEnrollSecret: isAnyTeamSelected
-        ? !!teamSecrets?.length
-        : !!globalSecrets?.length,
-    });
 
   const {
     data: teams,
@@ -1673,8 +1661,8 @@ const ManageHostsPage = ({
 
   const renderAddHostsModal = () => {
     const enrollSecret = isAnyTeamSelected
-      ? teamSecrets?.[0].secret
-      : globalSecrets?.[0].secret;
+      ? teamSecrets?.[0]?.secret
+      : globalSecrets?.[0]?.secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
@@ -2039,7 +2027,7 @@ const ManageHostsPage = ({
         header: "No hosts match your filters",
         info:
           "Recently enrolled hosts will appear here after their first check-in.",
-        primaryButton: canAddHosts ? (
+        primaryButton: canEnrollHosts ? (
           <Button onClick={toggleAddHostsModal} type="button">
             Add hosts
           </Button>
@@ -2055,11 +2043,11 @@ const ManageHostsPage = ({
               Add a host to start seeing data.
             </>
           );
-          emptyHosts.primaryButton = canAddHosts ? (
+          emptyHosts.primaryButton = (
             <Button onClick={toggleAddHostsModal} type="button">
               Add hosts
             </Button>
-          ) : undefined;
+          );
         } else {
           emptyHosts.info =
             "Fleet refers to computers, servers, and mobile devices as hosts.";
@@ -2190,7 +2178,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const showAddHostsButton = canAddHosts && !hasErrors;
+  const showAddHostsButton = canEnrollHosts && !hasErrors;
 
   // Gear menu grouping the page-level settings (see #50219). Options are
   // gated per item; the gear renders only when at least one is available.

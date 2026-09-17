@@ -183,11 +183,54 @@ describe("ManageHostsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides the no enroll secrets banner and Add hosts button when one-time enroll secrets are on", async () => {
+  it("opens the Add hosts modal in its no enroll secrets state instead of crashing", async () => {
     setupHandlers(0);
     mockServer.use(
       http.get(baseUrl("/spec/enroll_secret"), () => {
         return HttpResponse.json({ spec: { secrets: [] } });
+      }),
+      http.get(baseUrl("/config/certificate"), () => {
+        return HttpResponse.json({ certificate_chain: "" });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText(/you have no enroll secrets\./i);
+    const headerWrap = screen
+      .getByRole("button", { name: "Hosts page settings" })
+      .closest(".manage-hosts__button-wrap");
+    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+
+    // The banner carries the same copy and CTA, so scope to the modal.
+    await waitFor(() => {
+      expect(document.querySelector(".add-hosts-modal")).toBeInTheDocument();
+    });
+    const modal = within(
+      document.querySelector(".add-hosts-modal") as HTMLElement
+    );
+    expect(
+      modal.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+    expect(
+      modal.getByText(/new hosts will not enroll until an enroll secret/i)
+    ).toBeInTheDocument();
+  });
+
+  it("hides the no enroll secrets banner but keeps Add hosts when one-time enroll secrets are on", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      }),
+      http.get(baseUrl("/config/certificate"), () => {
+        return HttpResponse.json({ certificate_chain: "" });
       })
     );
     const render = createCustomRenderer({
@@ -202,13 +245,23 @@ describe("ManageHostsPage", () => {
       },
     });
 
-    render(<ManageHostsPage {...(createMockProps() as any)} />);
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
 
     expect(await screen.findByText("No hosts")).toBeInTheDocument();
     expect(
       screen.queryByText(/you have no enroll secrets\./i)
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Add hosts")).not.toBeInTheDocument();
+
+    const headerWrap = screen
+      .getByRole("button", { name: "Hosts page settings" })
+      .closest(".manage-hosts__button-wrap");
+    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+
+    expect(
+      await screen.findByText(/new hosts must be enrolled manually/i)
+    ).toBeInTheDocument();
   });
 
   it("renders the settings gear menu with its options", async () => {

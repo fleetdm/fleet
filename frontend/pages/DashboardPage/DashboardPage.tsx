@@ -57,7 +57,6 @@ import {
 import sortUtils from "utilities/sort";
 
 import AddHostsModal from "../../components/AddHostsModal";
-import { isAddHostsAvailable } from "../../components/AddHostsModal/helpers";
 
 import ActivityFeed from "./cards/ActivityFeed";
 import ChartCard from "./cards/ChartCard";
@@ -302,7 +301,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
-  const { isLoading: isTeamSecretsLoading, data: teamSecrets } = useQuery<
+  const { data: teamSecrets } = useQuery<
     IEnrollSecretsResponse,
     Error,
     IEnrollSecret[]
@@ -319,16 +318,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
-
-  const canAddHosts = isAddHostsAvailable({
-    useOneTimeEnrollSecrets: !!config?.auth?.use_one_time_enroll_secrets,
-    isLoadingSecrets: isAnyTeamSelected
-      ? isTeamSecretsLoading
-      : isGlobalSecretsLoading,
-    hasEnrollSecret: isAnyTeamSelected
-      ? !!teamSecrets?.length
-      : !!globalSecrets?.length,
-  });
 
   const featuresConfig = isAnyTeamSelected
     ? teams?.find((t) => t.id === currentTeamId)?.features
@@ -634,7 +623,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (hostSummaryData && hostSummaryData.totals_hosts_count) || 0
         }
         toggleAddHostsModal={toggleAddHostsModal}
-        canAddHosts={canAddHosts}
       />
     ),
   });
@@ -852,8 +840,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const renderAddHostsModal = () => {
     const enrollSecret = isAnyTeamSelected
-      ? teamSecrets?.[0].secret
-      : globalSecrets?.[0].secret;
+      ? teamSecrets?.[0]?.secret
+      : globalSecrets?.[0]?.secret;
 
     return (
       <AddHostsModal

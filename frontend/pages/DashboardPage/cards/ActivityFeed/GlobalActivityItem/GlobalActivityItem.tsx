@@ -415,7 +415,7 @@ const TAGGED_TEMPLATES = {
         </>
       );
     }
-    return <>rejected an enrollment attempt for {host}.</>;
+    return <>rejected an enrollment for {host}.</>;
   },
   fleetEnrolled: (activity: IActivity) => {
     const { host_display_name, host_serial } = activity.details || {};

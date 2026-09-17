@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import { AppContext } from "context/app";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
@@ -30,6 +31,8 @@ interface IDeleteHostModalProps {
   platform?: HostPlatform;
   /** Host details page only */
   isMdmEnrolledInFleet?: boolean;
+  /** Host details page only */
+  mdmEnrollmentStatus?: MdmEnrollmentStatus | null;
   isUpdating: boolean;
 }
 
@@ -42,6 +45,7 @@ const DeleteHostModal = ({
   hostName,
   platform,
   isMdmEnrolledInFleet,
+  mdmEnrollmentStatus,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
@@ -74,6 +78,30 @@ const DeleteHostModal = ({
     />
   );
 
+  const renderMacOneTimeSecretBody = () => {
+    // Hosts enrolled through Apple Business come back as pending hosts and
+    // can renew their own enrollment. Manually enrolled hosts need fleetd
+    // reinstalled to get a new one-time secret.
+    const reEnrollInstructions =
+      mdmEnrollmentStatus === "On (automatic)" ? (
+        <>
+          To re-enroll it, wipe it or run <b>profiles renew -type enrollment</b>{" "}
+          in the host&apos;s Terminal. {learnMoreLink}
+        </>
+      ) : (
+        <>To re-enroll it, Fleet&apos;s agent must be reinstalled.</>
+      );
+    return (
+      <>
+        <p>
+          This will unenroll <b>{hostName}</b> but won&apos;t remove company
+          data.
+        </p>
+        <p>{reEnrollInstructions}</p>
+      </>
+    );
+  };
+
   const renderSingleMdmHostBody = () => {
     if (selectedHostIds || !platform) {
       return null;
@@ -98,19 +126,7 @@ const DeleteHostModal = ({
     }
     if (isMacOS(platform) && isMdmEnrolledInFleet) {
       if (useOneTimeEnrollSecrets) {
-        return (
-          <>
-            <p>
-              This will unenroll <b>{hostName}</b> but won&apos;t remove company
-              data.
-            </p>
-            <p>
-              To re-enroll it, wipe it or run{" "}
-              <b>profiles renew -type enrollment</b> in the host&apos;s
-              Terminal. {learnMoreLink}
-            </p>
-          </>
-        );
+        return renderMacOneTimeSecretBody();
       }
       return (
         <>
@@ -144,17 +160,11 @@ const DeleteHostModal = ({
         <ul>
           <li>
             macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
-            agent is uninstalled.{" "}
-            <CustomLink
-              text="Uninstall Fleet's agent"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-fleetd`}
-              newTab
-            />
+            agent is uninstalled. {learnMoreLink}
           </li>
           <li>
-            iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
-            off. For iOS and iPadOS it may take up to an hour and for Android it
-            may take up to 24 hours to re-appear.
+            iOS and iPadOS will re-enroll unless MDM is turned off. Android will
+            remove company data and may take up to 24 hours.
           </li>
         </ul>
       </>

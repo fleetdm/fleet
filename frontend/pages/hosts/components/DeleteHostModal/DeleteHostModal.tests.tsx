@@ -72,8 +72,14 @@ describe("DeleteHostModal", () => {
       screen.getByText(/and associated data such as unlock PINs/i)
     ).toBeVisible();
     expect(
-      screen.getByRole("link", { name: /uninstall fleet's agent/i })
+      screen.getByText(
+        /iOS and iPadOS will re-enroll unless MDM is turned off/i
+      )
     ).toBeVisible();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      expect.stringMatching(DELETING_A_HOST_LINK)
+    );
   });
 
   it("renders the Android copy", () => {
@@ -111,9 +117,32 @@ describe("DeleteHostModal", () => {
     );
   });
 
-  it("renders the re-enrollment instructions when one-time enroll secrets are on", () => {
+  it("tells admins to reinstall the agent for a manually enrolled Mac when one-time enroll secrets are on", () => {
     renderModal(
-      { hostName: "Mac", platform: "darwin", isMdmEnrolledInFleet: true },
+      {
+        hostName: "Mac",
+        platform: "darwin",
+        isMdmEnrolledInFleet: true,
+        mdmEnrollmentStatus: "On (manual)",
+      },
+      true
+    );
+    expect(screen.getByText("Mac")).toBeVisible();
+    expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
+    expect(
+      screen.getByText("To re-enroll it, Fleet's agent must be reinstalled.")
+    ).toBeVisible();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("renders the profiles renew instructions for an automatically enrolled Mac when one-time enroll secrets are on", () => {
+    renderModal(
+      {
+        hostName: "Mac",
+        platform: "darwin",
+        isMdmEnrolledInFleet: true,
+        mdmEnrollmentStatus: "On (automatic)",
+      },
       true
     );
     expect(screen.getByText("Mac")).toBeVisible();

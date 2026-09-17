@@ -28,7 +28,7 @@ describe("HostEnrollmentRejectedActivityItem", () => {
 
     expect(screen.getByText("Fleet")).toBeInTheDocument();
     expect(
-      screen.getByText(/rejected an enrollment attempt for this host\./i)
+      screen.getByText(/rejected an enrollment for this host\./i)
     ).toBeInTheDocument();
   });
 

@@ -19,7 +19,6 @@ import SlackButton from "../../../../../assets/images/slack-button-get-help.png"
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
   toggleAddHostsModal: (showAddHostsModal: boolean) => void;
-  canAddHosts?: boolean;
 }
 
 const baseClass = "welcome-host";
@@ -30,7 +29,6 @@ const POLICY_FAIL = "fail";
 const WelcomeHost = ({
   totalsHostsCount,
   toggleAddHostsModal,
-  canAddHosts = true,
 }: IWelcomeHostCardProps): JSX.Element => {
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
@@ -145,14 +143,12 @@ const WelcomeHost = ({
             In Fleet, laptops, workstations, and servers are referred to as
             &quot;hosts&quot;.
           </p>
-          {canAddHosts && (
-            <Button
-              onClick={toggleAddHostsModal}
-              className={`${baseClass}__add-host`}
-            >
-              <span>Add hosts</span>
-            </Button>
-          )}
+          <Button
+            onClick={toggleAddHostsModal}
+            className={`${baseClass}__add-host`}
+          >
+            <span>Add hosts</span>
+          </Button>
         </div>
       </div>
     );

@@ -22,22 +22,3 @@ export const renderAppleManualEnrollmentDisabled = (type: string) => {
     />
   );
 };
-
-interface IAddHostsAvailability {
-  useOneTimeEnrollSecrets: boolean;
-  isLoadingSecrets: boolean;
-  hasEnrollSecret: boolean;
-}
-
-/**
- * With one-time enroll secrets on, Apple MDM hosts enroll without a shared
- * secret, so the Add hosts flow has nothing to offer until a shared secret
- * exists. Loading counts as available so the entry point doesn't flash away
- * while secrets are still being fetched.
- */
-export const isAddHostsAvailable = ({
-  useOneTimeEnrollSecrets,
-  isLoadingSecrets,
-  hasEnrollSecret,
-}: IAddHostsAvailability) =>
-  !(useOneTimeEnrollSecrets && !isLoadingSecrets && !hasEnrollSecret);

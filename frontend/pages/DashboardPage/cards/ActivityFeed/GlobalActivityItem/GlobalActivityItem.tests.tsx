@@ -1551,7 +1551,7 @@ describe("Activity Feed", () => {
       });
       expect(screen.getByText("Fleet")).toBeInTheDocument();
       expect(
-        screen.getByText(/rejected an enrollment attempt for/i)
+        screen.getByText(/rejected an enrollment for/i)
       ).toBeInTheDocument();
       expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
     });
@@ -1570,7 +1570,7 @@ describe("Activity Feed", () => {
     it("falls back to 'a host' when there is no display name or serial", () => {
       renderRejected({ reason: "something_new" });
       expect(
-        screen.getByText(/rejected an enrollment attempt for a host\./i)
+        screen.getByText(/rejected an enrollment for a host\./i)
       ).toBeInTheDocument();
     });
 

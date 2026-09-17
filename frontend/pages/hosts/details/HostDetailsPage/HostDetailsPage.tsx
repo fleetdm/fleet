@@ -1941,6 +1941,7 @@ const HostDetailsPage = ({
               hostName={host?.display_name}
               platform={host?.platform}
               isMdmEnrolledInFleet={!!host?.mdm?.connected_to_fleet}
+              mdmEnrollmentStatus={host?.mdm?.enrollment_status}
               isUpdating={isUpdating}
             />
           )}
