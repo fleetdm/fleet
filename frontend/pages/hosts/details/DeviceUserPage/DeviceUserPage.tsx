@@ -1,13 +1,7 @@
 import { AxiosError } from "axios";
 import classNames from "classnames";
 import { omit, pick } from "lodash";
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -316,9 +310,7 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      // A PIN the agent has not reported on yet is the one thing on this page that resolves without the end user
-      // doing anything, so the banner clears itself. The modal polls while it is open, and a backgrounded tab stops,
-      // because refetchIntervalInBackground is left off.
+      // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
       refetchInterval: (data) =>
         !showBitLockerPINModal && hasPINRequestInFlight(data)
           ? BITLOCKER_PIN_POLL_INTERVAL
@@ -422,19 +414,11 @@ const DeviceUserPage = ({
   const needsBitLockerPIN =
     diskEncryptionSetting?.action_required === "create_pin";
 
-  // The Fleet Desktop toast links here with ?create_pin=1. The parameter is dropped once the page has acted on it, so
-  // closing the modal and reloading does not reopen it.
-  const hasHandledCreatePINParam = useRef(false);
+  // The Fleet Desktop toast links here with ?create_pin=1. The parameter is dropped once the page has acted on it.
   useEffect(() => {
-    if (!location.query.create_pin) {
-      // Removing the parameter below reruns this effect, and the guard has to lift so a later link is not ignored.
-      hasHandledCreatePINParam.current = false;
+    if (!location.query.create_pin || !host) {
       return;
     }
-    if (!host || hasHandledCreatePINParam.current) {
-      return;
-    }
-    hasHandledCreatePINParam.current = true;
     if (needsBitLockerPIN) {
       setShowBitLockerPINModal(true);
     }
@@ -447,8 +431,7 @@ const DeviceUserPage = ({
   }, [host, needsBitLockerPIN, location, router]);
 
   const pollHostDetails = useCallback(async () => {
-    // A failed refetch resolves rather than rejects, and leaves the last good data in place. Without this the caller
-    // would read a stale response as if it were fresh.
+    // A failed refetch resolves rather than rejects, and leaves the last good data in place.
     const { data, error } = await refetchDupDetails();
     if (error) {
       throw error;
