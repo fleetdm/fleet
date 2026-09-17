@@ -3532,7 +3532,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 		p := payload(new(true), nil)
 		p.NotifyBeforePatching = new(true)
 		_, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
-		require.ErrorContains(t, err, "coming soon to Windows")
+		require.ErrorContains(t, err, "only available for macOS Fleet-maintained apps")
 	})
 
 	// The pre-install query is managed while notify_before_patching is in effect, same as
