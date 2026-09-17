@@ -566,6 +566,8 @@ type SetPatchNotificationAppsQueuedFunc func(ctx context.Context, notificationUU
 
 type ListPatchNotificationAppsFunc func(ctx context.Context, notificationUUID string) ([]fleet.PatchNotificationAppDetail, error)
 
+type ListPatchNotificationAppInstallStatusesFunc func(ctx context.Context, notificationUUID string) (map[uint]fleet.SoftwareInstallerStatus, error)
+
 type ListPatchNotificationAppsForNotificationsFunc func(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error)
 
 type DeletePatchNotificationAppsFunc func(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
@@ -3259,6 +3261,9 @@ type DataStore struct {
 
 	ListPatchNotificationAppsFunc        ListPatchNotificationAppsFunc
 	ListPatchNotificationAppsFuncInvoked bool
+
+	ListPatchNotificationAppInstallStatusesFunc        ListPatchNotificationAppInstallStatusesFunc
+	ListPatchNotificationAppInstallStatusesFuncInvoked bool
 
 	ListPatchNotificationAppsForNotificationsFunc        ListPatchNotificationAppsForNotificationsFunc
 	ListPatchNotificationAppsForNotificationsFuncInvoked bool
@@ -7978,6 +7983,13 @@ func (s *DataStore) ListPatchNotificationApps(ctx context.Context, notificationU
 	s.ListPatchNotificationAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListPatchNotificationAppsFunc(ctx, notificationUUID)
+}
+
+func (s *DataStore) ListPatchNotificationAppInstallStatuses(ctx context.Context, notificationUUID string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+	s.mu.Lock()
+	s.ListPatchNotificationAppInstallStatusesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListPatchNotificationAppInstallStatusesFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]fleet.PatchNotificationAppDetail, error) {

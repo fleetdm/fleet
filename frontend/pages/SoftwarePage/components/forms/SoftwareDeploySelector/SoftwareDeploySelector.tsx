@@ -1,16 +1,15 @@
 import React from "react";
 import { SingleValue } from "react-select-5";
 
-import { isMacOS, isWindows } from "interfaces/platform";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner";
+import { isMacOS, isWindows } from "interfaces/platform";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "software-deploy-selector";
 

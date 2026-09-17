@@ -86,6 +86,9 @@
   }
 
   &__item-status {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
     font-size: $x-small;
     color: $ui-fleet-black-75;
     flex-shrink: 0;

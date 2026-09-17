@@ -1,16 +1,18 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
-import mockServer from "test/mock-server";
-import { createCustomRenderer } from "test/test-utils";
 import {
   createMockNotificationView,
   customDeviceNotificationHandler,
   defaultDeviceNotificationActionHandler,
   errorDeviceNotificationActionHandler,
   errorDeviceNotificationHandler,
+  installingThenSettledDeviceNotificationHandler,
   notFoundDeviceNotificationHandler,
+  settledDeviceNotificationHandler,
 } from "test/handlers/device-notifications-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import DeviceNotificationPage from "./DeviceNotificationPage";
 
@@ -41,6 +43,9 @@ describe("DeviceNotificationPage", () => {
   afterEach(() => {
     delete window.webkit;
     localStorage.removeItem("fleet-theme");
+    // A polling test that fails mid-way would otherwise leave fake timers on
+    // and take every test after it down with it.
+    jest.useRealTimers();
   });
 
   it("renders the fetched notification and posts `ready` once", async () => {
@@ -165,7 +170,7 @@ describe("DeviceNotificationPage", () => {
     expect(secondary.className).toMatch(/button--subdued/);
   });
 
-  it("posts `primary` bridge and transitions to Installing on the primary action", async () => {
+  it("transitions to Installing on update_now and posts no close-triggering bridge", async () => {
     mockServer.use(
       customDeviceNotificationHandler(
         createMockNotificationView({
@@ -183,15 +188,53 @@ describe("DeviceNotificationPage", () => {
     const primary = await screen.findByRole("button", { name: "Update now" });
     await user.click(primary);
 
-    // Server returns the Installing… view (statuses on every item), which
+    // Server returns the Installing... view (statuses on every item), which
     // we render by writing the response into the query cache.
-    const installing = await screen.findAllByText("Installing…");
+    const installing = await screen.findAllByText("Installing...");
     expect(installing.length).toBeGreaterThan(0);
 
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "primary" })
+    // Both `primary` and `dismiss` fade the toast out in Swift, so update_now
+    // must post neither — the window has to stay open on the Installing view.
+    const closingCalls = postMessage.mock.calls.filter(
+      ([msg]) => msg.action === "primary" || msg.action === "dismiss"
     );
-    // update_now keeps the window open — no dismiss bridge on this path.
+    expect(closingCalls).toHaveLength(0);
+  });
+
+  // An install that is still pending keeps the toast polling, so a status that
+  // settles on the server reaches the screen without the end user doing anything.
+  it("polls while an install is pending and shows the settled statuses", async () => {
+    jest.useFakeTimers();
+    const { handler, state } = installingThenSettledDeviceNotificationHandler();
+    mockServer.use(handler);
+
+    renderPage();
+
+    expect((await screen.findAllByText("Installing...")).length).toBe(3);
+    expect(state.requestCount).toBe(1);
+
+    jest.advanceTimersByTime(5000);
+
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    expect((await screen.findAllByText("Installed")).length).toBe(2);
+    expect(screen.queryByText("Installing...")).not.toBeInTheDocument();
+
+    // Nothing is pending now, so the interval stops rather than polling forever.
+    const settledRequestCount = state.requestCount;
+    jest.advanceTimersByTime(15000);
+    await waitFor(() => {
+      expect(state.requestCount).toBe(settledRequestCount);
+    });
+  });
+
+  // The toast stays open on a terminal view: the end user closes it with Hide.
+  it("keeps the toast open and offers Hide once every install has settled", async () => {
+    mockServer.use(settledDeviceNotificationHandler);
+
+    renderPage();
+
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide" })).toBeInTheDocument();
     const dismissCalls = postMessage.mock.calls.filter(
       ([msg]) => msg.action === "dismiss"
     );

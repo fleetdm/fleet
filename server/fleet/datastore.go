@@ -814,6 +814,10 @@ type Datastore interface {
 	// ListPatchNotificationApps returns a notification's apps, with names and icons
 	// for the host's fleet.
 	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
+	// ListPatchNotificationAppInstallStatuses returns the status of the install each
+	// app got after it joined the notification, keyed by software title id. An app
+	// with no entry has no finished install to report.
+	ListPatchNotificationAppInstallStatuses(ctx context.Context, notificationUUID string) (map[uint]SoftwareInstallerStatus, error)
 	// ListPatchNotificationAppsForNotifications returns the apps of several
 	// notifications at once, keyed by notification uuid, without the names and
 	// icons the toast is displayed with.

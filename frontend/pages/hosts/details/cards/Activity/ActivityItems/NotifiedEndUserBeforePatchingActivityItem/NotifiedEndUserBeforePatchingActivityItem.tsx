@@ -1,11 +1,11 @@
 import React from "react";
 
-import ActivityItem from "components/ActivityItem";
 import {
   renderNotifyTitleList,
   formatNotifyTimeLabel,
   isNotifyFailure,
 } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import ActivityItem from "components/ActivityItem";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 

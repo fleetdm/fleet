@@ -93,6 +93,7 @@ type NotificationItem struct {
 	Name            string  `json:"name"`
 	DisplayName     string  `json:"display_name,omitempty"`
 	Status          string  `json:"status,omitempty"`
+	InstallStatus   string  `json:"install_status,omitempty"`
 }
 
 type NotificationAction struct {
