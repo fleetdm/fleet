@@ -172,9 +172,14 @@ WHERE eun.status = ?
 	AND eun.expires_at > NOW(6)
 	AND h.platform = 'darwin'
 	AND NOT EXISTS (
-		SELECT 1 FROM notifications_end_user dispatched
-		WHERE dispatched.host_id = eun.host_id AND dispatched.status = ?
-			AND dispatched.displayed_at IS NULL
+		-- Exclude hosts with a dispatched notification that hasn't displayed yet.
+		-- Fleet Desktop doesn't return an exit code when a notification is already displaying, so also exclude hosts whose displayed notification hasn't been automatically hidden yet.
+		SELECT 1 FROM notifications_end_user neu
+		WHERE neu.host_id = eun.host_id AND neu.uuid != eun.uuid
+			AND (
+				(neu.status = ? AND neu.displayed_at IS NULL)
+				OR NOW(6) < neu.displayed_at + INTERVAL 10 MINUTE
+			)
 	)
 ORDER BY eun.id
 LIMIT ?
