@@ -351,6 +351,9 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [refetchTimeout, setRefetchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const queryClient = useQueryClient();
 
   const [
@@ -731,6 +734,14 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
+    };
+  }, [refetchTimeout]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -1468,7 +1479,9 @@ const HostDetailsPage = ({
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
   // no Fleet Desktop (so no token, and no page to load) or wiped.
-  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
+  const canViewMyDeviceLink =
+    isGlobalAdmin &&
+    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
@@ -1606,6 +1619,9 @@ const HostDetailsPage = ({
               hostPlatform={host?.platform}
               macDiskEncryptionStatus={
                 host?.mdm.apple_settings?.disk_encryption
+              }
+              diskEncryptionActionRequired={
+                host?.mdm.apple_settings?.action_required
               }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
@@ -2278,7 +2294,14 @@ const HostDetailsPage = ({
             platform={host.platform}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             connectedToFleet={host.mdm.connected_to_fleet}
-            onSuccessfulCheckIn={refetchHostDetails}
+            onSuccessfulCheckIn={() => {
+              // Delay the refetch of the host details
+              // so the device has time to check in.
+              const timeout = setTimeout(() => {
+                refetchHostDetails();
+              }, 5000);
+              setRefetchTimeout(timeout);
+            }}
             user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}

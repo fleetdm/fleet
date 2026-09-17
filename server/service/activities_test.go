@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -98,8 +99,54 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				GlobalRole: tt.newRole,
 				Teams:      newTeams,
 			}
-			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser))
+			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser, false))
 			require.Equal(t, tt.expectActivities, activities)
+		})
+	}
+}
+
+func isRoleChangeActivity(activity activity_api.ActivityDetails) bool {
+	switch activity.(type) {
+	case fleet.ActivityTypeChangedUserGlobalRole,
+		fleet.ActivityTypeDeletedUserGlobalRole,
+		fleet.ActivityTypeChangedUserTeamRole,
+		fleet.ActivityTypeDeletedUserTeamRole:
+		return true
+	}
+	return false
+}
+
+func TestNewUserRoleActivityJIT(t *testing.T) {
+	for _, jitProvisioned := range []bool{true, false} {
+		t.Run(fmt.Sprintf("jit=%t", jitProvisioned), func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+			var roleActivities []fleet.ActivityTypeChangedUserGlobalRole
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+				if a, ok := activity.(fleet.ActivityTypeChangedUserGlobalRole); ok {
+					roleActivities = append(roleActivities, a)
+				}
+				return nil
+			}
+			ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+				user.ID = 1
+				return user, nil
+			}
+
+			_, err := svc.NewUser(ctx, fleet.UserPayload{
+				Name:           new("SSO User"),
+				Email:          new("sso@example.com"),
+				SSOEnabled:     new(true),
+				GlobalRole:     new(fleet.RoleObserver),
+				JITProvisioned: jitProvisioned,
+			})
+			require.NoError(t, err)
+
+			require.Len(t, roleActivities, 1)
+			require.Equal(t, fleet.RoleObserver, roleActivities[0].Role)
+			require.Equal(t, jitProvisioned, roleActivities[0].JIT)
 		})
 	}
 }

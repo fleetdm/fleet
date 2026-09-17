@@ -198,6 +198,7 @@ policies:
   - path: ../lib/windows/policies/remote-desktop-disabled.yml
   - path: ../lib/windows/policies/screen-lock-timeout-configured.yml
   # Linux policies
+  - path: ../lib/linux/policies/latest-linux.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml

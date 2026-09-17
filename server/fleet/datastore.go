@@ -492,7 +492,10 @@ type Datastore interface {
 	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
 	// RemoveHostMDMCommands removes the MDM command of the given type from all the provided hosts.
-	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error
+	// RemoveHostMDMCommands removes the tracking rows for the given hosts and
+	// command type. An empty commandUUID removes them unconditionally; with a
+	// UUID, only rows tracking that command (or pre-UUID rows) are removed.
+	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType, commandUUID string) error
 	// RemoveHostMDMCommandByHostUUID is RemoveHostMDMCommand for callers that hold a host UUID
 	// rather than an ID, such as an MDM command results handler that returns before resolving one.
 	RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error
@@ -1414,6 +1417,22 @@ type Datastore interface {
 	ReportEscrowError(ctx context.Context, hostID uint, err string) error
 	QueueEscrow(ctx context.Context, hostID uint) error
 	AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error
+
+	// QueueBitLockerPINRequest stores an end user's BitLocker startup PIN. Replaces any earlier submission for the host, and raises
+	// the pending flag on the host's Windows MDM enrollment row in the same transaction so the orbit config poll sees it.
+	QueueBitLockerPINRequest(ctx context.Context, host *Host, encryptedPIN string) error
+	// GetBitLockerPINRequest returns where a host's PIN submission stands, for the My device page to poll. It never
+	// returns the PIN, and reports notFound when the host has no submission.
+	GetBitLockerPINRequest(ctx context.Context, hostID uint) (*HostBitLockerPINRequest, error)
+	// TakeBitLockerPINRequest returns the encrypted PIN exactly once and clears it.
+	TakeBitLockerPINRequest(ctx context.Context, host *Host) (encryptedPIN string, requestUUID string, err error)
+	// SetBitLockerPINRequestOutcome records what the agent did with the PIN.
+	SetBitLockerPINRequestOutcome(ctx context.Context, host *Host, requestUUID string, outcome BitLockerPINRequestStatus, clientError string) error
+	// DeleteBitLockerPINRequest drops a host's PIN submission.
+	DeleteBitLockerPINRequest(ctx context.Context, host *Host) error
+	// CleanupExpiredBitLockerPINRequests discards the ciphertext of submissions the agent never collected and marks
+	// them timed out, so an offline or re-enrolled host does not leave a PIN sitting in the database indefinitely.
+	CleanupExpiredBitLockerPINRequests(ctx context.Context) error
 
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
@@ -2494,6 +2513,10 @@ type Datastore interface {
 	// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
 	// enrollment. Written on-change by the orbit-config endpoint so the OMA-DM management session (no capability header) can gate poll relaxation.
 	SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error
+
+	// SetMDMWindowsEnrollmentFleetdBitLockerPINCapable persists the last-observed CapabilityWindowsBitLockerPIN value for the host's most
+	// recent Windows MDM enrollment.
+	SetMDMWindowsEnrollmentFleetdBitLockerPINCapable(ctx context.Context, hostUUID string, capable bool) error
 
 	// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for its current Windows
 	// MDM enrollment, which is what stops the server asking it to create the account. Reports whether the value changed, so the caller logs the

@@ -139,13 +139,13 @@ describe("Host Summary section", () => {
     });
   });
 
-  describe("Empty card", () => {
+  describe("Mobile Status row", () => {
     it.each<[string, HostPlatform, string]>([
       ["Android", "android", "Android 14"],
       ["iOS", "ios", "iOS 17.4"],
       ["iPadOS", "ipados", "iPadOS 17.4"],
     ])(
-      "does not render the summary card for a Free-tier %s host",
+      "renders the Status row for a Free-tier %s host",
       (_label, platform, os_version) => {
         const render = createCustomRenderer({
           context: {
@@ -159,13 +159,13 @@ describe("Host Summary section", () => {
         const summaryData = createMockHostSummary({
           platform,
           os_version,
+          status: "online",
         });
 
-        const { container } = render(
-          <HostSummary summaryData={summaryData} isPremiumTier={false} />
-        );
+        render(<HostSummary summaryData={summaryData} isPremiumTier={false} />);
 
-        expect(container).toBeEmptyDOMElement();
+        expect(screen.getByText("Status")).toBeInTheDocument();
+        expect(screen.getByText("Online")).toBeInTheDocument();
       }
     );
   });

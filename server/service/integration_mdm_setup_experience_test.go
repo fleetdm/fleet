@@ -5443,11 +5443,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 
 	tracked, err := s.ds.GetHostMDMCommands(ctx, enrolledHostID)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: enrolledHostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: enrolledHostID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: enrolledHostID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, tracked)
+	requireTrackedRefetchCommands(t, tracked, enrolledHostID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Drain the device's command queue and check the three refetch commands
 	// arrive. InstalledApplicationList for BYOD MUST request managed apps only;
