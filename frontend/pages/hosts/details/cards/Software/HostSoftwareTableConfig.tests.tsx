@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
-import { createMockRouter } from "test/test-utils";
 import { createMockHostSoftware } from "__mocks__/hostMock";
+import { createMockRouter } from "test/test-utils";
 
 import { generateSoftwareTableHeaders } from "./HostSoftwareTableConfig";
 

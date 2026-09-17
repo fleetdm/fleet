@@ -1,8 +1,8 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
+import { renderWithSetup } from "test/test-utils";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import VersionCell, { VersionsColumnCell } from "./VersionCell";

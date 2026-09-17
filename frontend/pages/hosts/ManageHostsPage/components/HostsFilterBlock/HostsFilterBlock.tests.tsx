@@ -1,9 +1,9 @@
-import React from "react";
-import { noop } from "lodash";
 import { screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { createMockSoftware } from "__mocks__/softwareMock";
+import { createCustomRenderer } from "test/test-utils";
 import { PolicyResponse } from "utilities/constants";
 
 import HostsFilterBlock from "./HostsFilterBlock";

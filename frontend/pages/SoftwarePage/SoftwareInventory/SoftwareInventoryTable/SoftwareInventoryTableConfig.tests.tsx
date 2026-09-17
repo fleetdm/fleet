@@ -1,11 +1,11 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
-import { createMockRouter } from "test/test-utils";
 import {
   createMockSoftwareTitle,
   createMockSoftwareTitleVersion,
 } from "__mocks__/softwareMock";
+import { createMockRouter } from "test/test-utils";
 
 import generateTableHeaders from "./SoftwareInventoryTableConfig";
 

@@ -1,5 +1,4 @@
 import React from "react";
-
 import type { SVGProps } from "react";
 
 const GoBinary = (props: SVGProps<SVGSVGElement>) => (
