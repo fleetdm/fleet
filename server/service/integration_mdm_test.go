@@ -198,6 +198,20 @@ var defaultVPPAssetList = []vpp.Asset{
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
+// requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
+// the given refetch command types, each recording the full prefixed UUID of
+// the command it tracks (the exact UUIDs are random).
+func requireTrackedRefetchCommands(t *testing.T, commands []fleet.HostMDMCommand, hostID uint, commandTypes ...string) {
+	gotTypes := make([]string, 0, len(commands))
+	for _, c := range commands {
+		assert.Equal(t, hostID, c.HostID)
+		assert.Truef(t, strings.HasPrefix(c.CommandUUID, c.CommandType),
+			"tracking row for %s must record its full prefixed command UUID, got %q", c.CommandType, c.CommandUUID)
+		gotTypes = append(gotTypes, c.CommandType)
+	}
+	assert.ElementsMatch(t, commandTypes, gotTypes)
+}
+
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
@@ -14403,11 +14417,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSent)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, host.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
@@ -14522,11 +14533,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostIPod.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSentPerRefetch)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostIPod.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostIPod.ID), nil, http.StatusOK)
@@ -23668,11 +23676,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err := s.ds.GetHostMDMCommands(ctx, hostBYOD.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostBYOD.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
 		var installedAppListCount int
@@ -23715,11 +23720,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err = s.ds.GetHostMDMCommands(ctx, hostDEP.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostDEP.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
@@ -28911,6 +28913,50 @@ func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUI
 	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, idpAccountUUID)
 	require.NoError(t, err)
 	return sessionID
+}
+
+func (s *integrationMDMTestSuite) TestReenrollKeepsManuallyMappedIdPUser() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	const userName = "manual.mapped@example.com"
+	var createResp map[string]any
+	s.DoJSON("POST", "/api/latest/fleet/scim/Users", map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": userName,
+		"name":     map[string]any{"givenName": "Manual", "familyName": "Mapped"},
+		"emails":   []map[string]any{{"value": userName, "type": "work", "primary": true}},
+		"active":   true,
+	}, http.StatusCreated, &createResp)
+
+	// Manual enrollment, no end-user authentication: the host has no IdP account.
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	hostID := hostResp.Host.ID
+
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hostID),
+		putHostDeviceMappingRequest{Email: userName, Source: fleet.DeviceMappingIDP}, http.StatusOK, &putResp)
+
+	checkEndUser := func() {
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.Len(t, hostResp.Host.EndUsers, 1)
+		assert.Equal(t, userName, hostResp.Host.EndUsers[0].IdpUserName)
+		assert.Equal(t, "Manual Mapped", hostResp.Host.EndUsers[0].IdpFullName)
+	}
+	checkEndUser()
+
+	// Authenticate + TokenUpdate again, as a SCEP renewal or `profiles renew -type enrollment` does.
+	require.NoError(t, mdmDevice.Reenroll())
+	checkEndUser()
 }
 
 // TestBitLockerPINHandoff drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to

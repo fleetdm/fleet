@@ -492,7 +492,10 @@ type Datastore interface {
 	// RemoveHostMDMCommand removes the provided MDM command from the host, indicating that it has been processed.
 	RemoveHostMDMCommand(ctx context.Context, command HostMDMCommand) error
 	// RemoveHostMDMCommands removes the MDM command of the given type from all the provided hosts.
-	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType string) error
+	// RemoveHostMDMCommands removes the tracking rows for the given hosts and
+	// command type. An empty commandUUID removes them unconditionally; with a
+	// UUID, only rows tracking that command (or pre-UUID rows) are removed.
+	RemoveHostMDMCommands(ctx context.Context, hostIDs []uint, commandType, commandUUID string) error
 	// RemoveHostMDMCommandByHostUUID is RemoveHostMDMCommand for callers that hold a host UUID
 	// rather than an ID, such as an MDM command results handler that returns before resolving one.
 	RemoveHostMDMCommandByHostUUID(ctx context.Context, hostUUID, commandType string) error

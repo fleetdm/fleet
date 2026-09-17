@@ -143,6 +143,7 @@ import {
 import HostReportsTab from "../HostReportsTab";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
+import HostOnlineHistoryModal from "../modals/HostOnlineHistoryModal";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
@@ -278,6 +279,7 @@ const HostDetailsPage = ({
     location.query.show_mdm_status === "true"
   );
   const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showOnlineHistoryModal, setShowOnlineHistoryModal] = useState(false);
   // Sync MDM status modal state when the query param changes while mounted
   // (e.g., browser back/forward navigation).
   useEffect(() => {
@@ -402,15 +404,15 @@ const HostDetailsPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    "teams",
-    () => teamAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL && !!isPremiumTier,
-      retry: false,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isError: isTeamsError } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >("teams", () => teamAPI.loadAll(), {
+    enabled: !!hostIdFromURL && !!isPremiumTier,
+    retry: false,
+    select: (data: ILoadTeamsResponse) => data.teams,
+  });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
@@ -713,6 +715,18 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
+  // undefined = still resolving. Global config must be loaded, and for a
+  // teamed host the teams query must have either succeeded or errored. A
+  // teams-load failure falls back to the global setting rather than spinning
+  // forever; a missing team-level override is treated as "not disabled".
+  const teamFeaturesResolved =
+    !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeCollectionEnabled: boolean | undefined =
+    config?.features === undefined || !teamFeaturesResolved
+      ? undefined
+      : (config.features.historical_data?.uptime ?? true) &&
+        (featuresConfig?.historical_data?.uptime ?? true);
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -768,6 +782,10 @@ const HostDetailsPage = ({
   const toggleVitalsModal = useCallback(() => {
     setShowVitalsModal(!showVitalsModal);
   }, [showVitalsModal, setShowVitalsModal]);
+
+  const toggleOnlineHistoryModal = useCallback(() => {
+    setShowOnlineHistoryModal((prev) => !prev);
+  }, []);
 
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal((prev) => {
@@ -1680,6 +1698,7 @@ const HostDetailsPage = ({
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                  toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
@@ -2270,6 +2289,14 @@ const HostDetailsPage = ({
               canEditCustomHostVitals ? setEditingCustomHostVital : undefined
             }
             onExit={toggleVitalsModal}
+          />
+        )}
+        {showOnlineHistoryModal && (
+          <HostOnlineHistoryModal
+            hostId={host.id}
+            fleetId={host.team_id ?? undefined}
+            uptimeCollectionEnabled={uptimeCollectionEnabled}
+            onExit={toggleOnlineHistoryModal}
           />
         )}
         {editingCustomHostVital && (
