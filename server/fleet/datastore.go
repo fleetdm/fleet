@@ -1474,10 +1474,6 @@ type Datastore interface {
 	// the given secret value, or a NotFoundError. It reads from the primary
 	// because secrets are minted moments before they are presented.
 	GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*HostOneTimeEnrollSecret, error)
-	// DeleteHostOneTimeEnrollSecrets deletes all of the host's one-time enroll
-	// secrets, spent or not. Used when the MDM enrollment is reset or removed,
-	// since the next profile delivery mints a fresh secret.
-	DeleteHostOneTimeEnrollSecrets(ctx context.Context, hostID uint) error
 	// CleanupHostOneTimeEnrollSecrets removes spent secrets that have been
 	// superseded by a newer secret for the same host, and secrets whose host no
 	// longer exists. It returns the number of rows deleted.

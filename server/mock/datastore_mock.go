@@ -980,8 +980,6 @@ type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew 
 
 type GetHostOneTimeEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error)
 
-type DeleteHostOneTimeEnrollSecretsFunc func(ctx context.Context, hostID uint) error
-
 type CleanupHostOneTimeEnrollSecretsFunc func(ctx context.Context) (int64, error)
 
 type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error)
@@ -3862,9 +3860,6 @@ type DataStore struct {
 
 	GetHostOneTimeEnrollSecretFunc        GetHostOneTimeEnrollSecretFunc
 	GetHostOneTimeEnrollSecretFuncInvoked bool
-
-	DeleteHostOneTimeEnrollSecretsFunc        DeleteHostOneTimeEnrollSecretsFunc
-	DeleteHostOneTimeEnrollSecretsFuncInvoked bool
 
 	CleanupHostOneTimeEnrollSecretsFunc        CleanupHostOneTimeEnrollSecretsFunc
 	CleanupHostOneTimeEnrollSecretsFuncInvoked bool
@@ -9382,13 +9377,6 @@ func (s *DataStore) GetHostOneTimeEnrollSecret(ctx context.Context, secret strin
 	s.GetHostOneTimeEnrollSecretFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostOneTimeEnrollSecretFunc(ctx, secret)
-}
-
-func (s *DataStore) DeleteHostOneTimeEnrollSecrets(ctx context.Context, hostID uint) error {
-	s.mu.Lock()
-	s.DeleteHostOneTimeEnrollSecretsFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteHostOneTimeEnrollSecretsFunc(ctx, hostID)
 }
 
 func (s *DataStore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {

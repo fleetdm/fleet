@@ -32,10 +32,6 @@ func (ds *Datastore) GetHostOneTimeEnrollSecret(ctx context.Context, secret stri
 	return &s, nil
 }
 
-func (ds *Datastore) DeleteHostOneTimeEnrollSecrets(ctx context.Context, hostID uint) error {
-	return deleteHostOneTimeEnrollSecrets(ctx, ds.writer(ctx), hostID)
-}
-
 func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM host_one_time_enroll_secrets WHERE host_id = ?`, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host one-time enroll secrets")
@@ -50,33 +46,41 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // removed here: a host holds at most one and it stays valid until used.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
-	stmts := []string{
-		`DELETE FROM host_one_time_enroll_secrets WHERE id IN (
-			SELECT id FROM (
-				SELECT DISTINCT s.id
-				FROM host_one_time_enroll_secrets s
-				JOIN host_one_time_enroll_secrets newer ON newer.host_id = s.host_id AND newer.id > s.id
-				WHERE s.consumed_at IS NOT NULL AND s.consumed_at < NOW(6) - INTERVAL ? SECOND
-				LIMIT ?
-			) AS superseded
-		)`,
-		`DELETE FROM host_one_time_enroll_secrets WHERE id IN (
-			SELECT id FROM (
-				SELECT s.id
-				FROM host_one_time_enroll_secrets s
-				LEFT JOIN hosts h ON h.id = s.host_id
-				WHERE s.host_id IS NOT NULL AND h.id IS NULL
-				LIMIT ?
-			) AS orphaned
-		)`,
-	}
 	windowSeconds := int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow / time.Second)
-	args := [][]any{{windowSeconds, batchSize}, {batchSize}}
+	deletes := []struct {
+		stmt string
+		args []any
+	}{
+		{
+			stmt: `DELETE FROM host_one_time_enroll_secrets WHERE id IN (
+				SELECT id FROM (
+					SELECT DISTINCT s.id
+					FROM host_one_time_enroll_secrets s
+					JOIN host_one_time_enroll_secrets newer ON newer.host_id = s.host_id AND newer.id > s.id
+					WHERE s.consumed_at IS NOT NULL AND s.consumed_at < NOW(6) - INTERVAL ? SECOND
+					LIMIT ?
+				) AS superseded
+			)`,
+			args: []any{windowSeconds, batchSize},
+		},
+		{
+			stmt: `DELETE FROM host_one_time_enroll_secrets WHERE id IN (
+				SELECT id FROM (
+					SELECT s.id
+					FROM host_one_time_enroll_secrets s
+					LEFT JOIN hosts h ON h.id = s.host_id
+					WHERE s.host_id IS NOT NULL AND h.id IS NULL
+					LIMIT ?
+				) AS orphaned
+			)`,
+			args: []any{batchSize},
+		},
+	}
 
 	var total int64
-	for i, stmt := range stmts {
+	for _, d := range deletes {
 		for {
-			res, err := ds.writer(ctx).ExecContext(ctx, stmt, args[i]...)
+			res, err := ds.writer(ctx).ExecContext(ctx, d.stmt, d.args...)
 			if err != nil {
 				return total, ctxerr.Wrap(ctx, err, "cleanup host one-time enroll secrets")
 			}
@@ -234,23 +238,13 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 	return nil
 }
 
-// rejectSharedSecretForMDMManagedAppleHost refuses a shared enroll secret that
-// matched an Apple host which is enrolled in Fleet MDM or assigned to Fleet in
-// Apple Business Manager. Such hosts receive a one-time secret through the
-// fleetd configuration profile and must enroll with it.
-//
-// It only applies to a matched row. A deleted Mac(ADE only) is recreated only by
-// fleetd enrolling again (the MDM check-in path recreates iOS/iPadOS hosts
-// only), so the insert branch stays open to shared secrets even though the
-// device's MDM enrollment is retained across the deletion. The residual is
-// the pre-existing "new host with a shared secret" capability, limited to
-// rows an admin already deleted. ADE Macs don't actually get deleted so this gap
-// does not exist there.
-//
-// TODO: the DEP-assignment half blocks the fleetd install step of an MDM
-// migration (fleetd installed with a shared secret on a Mac already assigned to
-// Fleet in ABM). Product guidance is pending on whether to keep it, narrow the
-// check to enabled Fleet MDM enrollments, or document "finish migration first".
+// rejectSharedSecretForMDMManagedAppleHost refuses a shared enroll secret for a
+// matched Apple host that is enrolled in Fleet MDM or assigned to Fleet in Apple
+// Business Manager: such hosts get a one-time secret through the fleetd
+// configuration profile and must enroll with it. Only a matched row is checked.
+// A deleted, manually enrolled Mac is recreated only by fleetd enrolling again
+// (MDM check-in recreates iOS/iPadOS hosts only), so the insert branch stays
+// open to shared secrets for that host.
 func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string) error {
 	if !fleet.IsApplePlatform(platform) {
 		return nil

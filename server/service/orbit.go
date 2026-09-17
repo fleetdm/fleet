@@ -367,8 +367,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
-		var rejected *fleet.EnrollmentRejectedError
-		if errors.As(err, &rejected) {
+		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
 			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}

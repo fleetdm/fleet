@@ -255,8 +255,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
-		var rejected *fleet.EnrollmentRejectedError
-		if errors.As(err, &rejected) {
+		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
 			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
 			return "", newOsqueryErrorWithInvalidNode("enroll failed")
 		}

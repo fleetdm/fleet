@@ -104,6 +104,7 @@ func osqueryEnrollOpts(h *fleet.Host, teamID *uint, extra ...fleet.DatastoreEnro
 func requireEnrollmentRejected(t *testing.T, err error, reason string, hostID *uint) {
 	var rejected *fleet.EnrollmentRejectedError
 	require.ErrorAs(t, err, &rejected)
+	require.NotNil(t, rejected)
 	require.Equal(t, reason, rejected.Reason)
 	require.Equal(t, hostID, rejected.HostID)
 }
@@ -153,10 +154,8 @@ func testOneTimeEnrollSecretMint(t *testing.T, ds *Datastore) {
 	const racers = 8
 	results := make(chan string, racers)
 	var wg sync.WaitGroup
-	for i := 0; i < racers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range racers {
+		wg.Go(func() {
 			expanded, err := ds.ExpandHostSecrets(ctx, oneTimeSecretProfile, racer.UUID)
 			if err != nil {
 				results <- "error: " + err.Error()
@@ -164,7 +163,7 @@ func testOneTimeEnrollSecretMint(t *testing.T, ds *Datastore) {
 			}
 			start := strings.Index(expanded, "<string>") + len("<string>")
 			results <- expanded[start:strings.Index(expanded, "</string>")]
-		}()
+		})
 	}
 	wg.Wait()
 	close(results)
@@ -302,7 +301,7 @@ func testOneTimeEnrollSecretEnrollRules(t *testing.T, ds *Datastore) {
 	t.Run("secret deleted between lookup and enrollment is spent", func(t *testing.T) {
 		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
 		row := mintOneTimeSecret(t, ds, h.UUID)
-		require.NoError(t, ds.DeleteHostOneTimeEnrollSecrets(ctx, h.ID))
+		require.NoError(t, deleteHostOneTimeEnrollSecrets(ctx, ds.writer(ctx), h.ID))
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretSpent, nil)
 	})
@@ -440,7 +439,7 @@ func testOneTimeEnrollSecretCleanup(t *testing.T, ds *Datastore) {
 	h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
 	other := newOneTimeSecretTestHost(t, ds, "darwin", nil)
 
-	insert := func(hostID uint, consumedAgo *time.Duration) uint {
+	insert := func(hostID uint, consumedAgo *time.Duration) int64 {
 		var consumedAt *time.Time
 		if consumedAgo != nil {
 			consumedAt = new(time.Now().Add(-*consumedAgo))
@@ -451,7 +450,7 @@ func testOneTimeEnrollSecretCleanup(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		id, err := res.LastInsertId()
 		require.NoError(t, err)
-		return uint(id)
+		return id
 	}
 	twoHours := 2 * time.Hour
 	oneMinute := time.Minute
@@ -466,9 +465,9 @@ func testOneTimeEnrollSecretCleanup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.EqualValues(t, 2, n)
 
-	var remaining []uint
+	var remaining []int64
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &remaining, `SELECT id FROM host_one_time_enroll_secrets ORDER BY id`))
-	require.ElementsMatch(t, []uint{supersededRecent, newestSpent, unconsumed}, remaining)
+	require.ElementsMatch(t, []int64{supersededRecent, newestSpent, unconsumed}, remaining)
 	require.NotContains(t, remaining, supersededOld)
 	require.NotContains(t, remaining, orphan)
 

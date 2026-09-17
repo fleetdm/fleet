@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -176,7 +176,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		info := f.orbitInfo()
 		info.HardwareSerial = "SOMEONE-ELSE"
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			_, err := f.svc.EnrollOrbit(f.ctx, info, f.row.Secret, "")
 			requireAuthFailed(t, err)
 		}
@@ -225,7 +225,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
 		requireAuthFailed(t, err)
 		var orbitErr fleet.OrbitError
-		require.False(t, errors.As(err, &orbitErr))
+		require.NotErrorAs(t, err, &orbitErr)
 		require.Len(t, *f.rejections, 1)
 		require.Equal(t, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, (*f.rejections)[0].Reason)
 		require.Equal(t, &victim, (*f.rejections)[0].HostID)
@@ -301,7 +301,7 @@ func TestEnrollOsqueryWithOneTimeEnrollSecret(t *testing.T) {
 		f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 			return nil, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: f.row.HostID}
 		}
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			_, err := f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
 			require.ErrorContains(t, err, "enroll failed")
 		}
@@ -320,7 +320,7 @@ func TestRecordEnrollmentRejectedWithoutKeyValueStore(t *testing.T) {
 	}(), nil, nil, &TestServerOpts{})
 	info := f.orbitInfo()
 	info.HardwareUUID = "OTHER"
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, err := svc.EnrollOrbit(ctx, info, f.row.Secret, "")
 		requireAuthFailed(t, err)
 	}
@@ -371,7 +371,7 @@ func TestEnsureFleetdConfigWithOneTimeEnrollSecrets(t *testing.T) {
 	for _, p := range upserted {
 		key := "no-team"
 		if p.TeamID != nil {
-			key = string(rune('0' + *p.TeamID))
+			key = fmt.Sprintf("team-%d", *p.TeamID)
 		}
 		switch p.Name {
 		case mdm.FleetdConfigProfileName:
@@ -433,18 +433,13 @@ func TestResendFleetdProfileWithOneTimeEnrollSecrets(t *testing.T) {
 			return status, nil
 		}
 		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error { return nil }
-		ds.DeleteHostOneTimeEnrollSecretsFunc = func(ctx context.Context, hid uint) error {
-			t.Fatalf("resend must not delete one-time enroll secrets (host %d)", hid)
-			return nil
-		}
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 		return ds, svc, ctx
 	}
 
-	t.Run("admin can resend the fleetd profile while verifying without touching the secret", func(t *testing.T) {
+	t.Run("admin can resend the fleetd profile while verifying", func(t *testing.T) {
 		ds, svc, ctx := newSvc(t, true, fleet.MDMDeliveryVerifying)
 		require.NoError(t, svc.ResendHostMDMProfile(ctx, hostID, fleetdProfileUUID))
-		require.False(t, ds.DeleteHostOneTimeEnrollSecretsFuncInvoked)
 		require.True(t, ds.ResendHostMDMProfileFuncInvoked)
 	})
 
@@ -452,7 +447,6 @@ func TestResendFleetdProfileWithOneTimeEnrollSecrets(t *testing.T) {
 		for _, status := range []fleet.MDMDeliveryStatus{fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed} {
 			ds, svc, ctx := newSvc(t, true, status)
 			require.NoError(t, svc.ResendHostMDMProfile(ctx, hostID, fleetdProfileUUID))
-			require.False(t, ds.DeleteHostOneTimeEnrollSecretsFuncInvoked)
 			require.True(t, ds.ResendHostMDMProfileFuncInvoked)
 		}
 	})
