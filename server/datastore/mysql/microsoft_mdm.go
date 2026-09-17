@@ -1987,13 +1987,15 @@ AND ` + whereBitLockerPINSet
 		// 3. The disk is encrypted with protection on but nothing can unseal it at boot AND the agent reported it
 		//    cannot add a protector, so the next restart lands on the recovery prompt and only a person can prevent it.
 		// Protection being off on its own is NOT action required: Fleet repairs that itself, so it belongs in enforcing.
+		// All three need an encrypted volume. A PIN especially cannot be created while one is still encrypting, because
+		// Windows only offers PIN setup on a protected volume, so that host is Fleet's work to finish.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
-AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
+AND ` + whereEncrypted + `
 AND ((NOT ` + whereBitLockerPINSet + ` AND NOT ` + whereBootProtectorMissing + `)
-     OR (` + whereEncrypted + ` AND ` + whereProtectionOff + ` AND ` + whereProtectionError + `)
-     OR (` + whereEncrypted + ` AND ` + whereProtectionOn + ` AND ` + whereBootProtectorMissing + ` AND ` + whereProtectionError + `))`
+     OR (` + whereProtectionOff + ` AND ` + whereProtectionError + `)
+     OR (` + whereProtectionOn + ` AND ` + whereBootProtectorMissing + ` AND ` + whereProtectionError + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -2008,7 +2010,8 @@ AND (
     NOT ` + whereKeyAvailable + `
     OR (` + whereKeyAvailable + `
         AND (NOT ` + whereEncrypted + `
-            AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
+            AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `
+                 OR NOT ` + whereBitLockerPINSet + `)
 		)
 	)
     OR (` + whereKeyAvailable + `
