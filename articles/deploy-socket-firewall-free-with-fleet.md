@@ -217,7 +217,7 @@ software:
         path: ../lib/socket-firewall/uninstall-socket-firewall.ps1
 ```
 
-> **Note:** Script-only packages can't be installed automatically through a policy. For automatic installs, use the `controls.scripts` entries above with the `run_script` automation in step 4.
+> **Note:** A script-only package declared with `path` can't be the target of a policy's `install_software` automation in GitOps. Fleet resolves that target by URL or hash, and a script package has neither. Uploading one with `automatic_install` is also rejected, because Fleet can't generate a detection policy for a script. Step 4 uses the `controls.scripts` entries above with `run_script` instead, which has neither limit. If you add the package through the Fleet UI, you can attach it to a custom policy's install automation there.
 
 ### Fleet UI
 
