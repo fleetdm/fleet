@@ -15069,7 +15069,7 @@ _Available in Fleet Premium._
 
 Modify an Apple App Store (VPP) or a Google Play app's options.
 
-A software title can have more than one version of the same App Store app on a fleet. Use `app_store_app_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
+A software title can have more than one version of the same App Store app on a fleet. Use `version_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -15078,7 +15078,7 @@ A software title can have more than one version of the same App Store app on a f
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
-| app_store_app_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
+| version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
@@ -15122,7 +15122,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
 ```json
 {
   "team_id": 2,
-  "app_store_app_id": 42,
+  "version_id": 42,
   "name": "Test",
   "labels_include_any": ["Test"],
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
