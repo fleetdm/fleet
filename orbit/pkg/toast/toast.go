@@ -125,7 +125,9 @@ if ($expiresIn -gt 0) { $toast.ExpirationTime = [DateTimeOffset]::Now.AddSeconds
 $toast.SuppressPopup = $env:FLEET_TOAST_SUPPRESS_POPUP -eq 'true'
 $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($env:FLEET_TOAST_APP_ID)
 # Show() is silent when notifications are off for this user, this app, or by policy, so report which it is instead.
-if ($notifier.Setting -ne 'Enabled') { throw "Windows notifications are $($notifier.Setting)" }
+# Setting reads as null on hosts where Show() works fine, so only a value that names an actual block stops us.
+$setting = "$($notifier.Setting)"
+if ($setting -ne '' -and $setting -ne 'Enabled') { throw "Windows notifications are $setting" }
 $notifier.Show($toast)
 ` + scriptEpilogue
 	removeScript = scriptPrologue + `[Windows.UI.Notifications.ToastNotificationManager]::History.Remove(
