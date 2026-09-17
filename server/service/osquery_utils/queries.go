@@ -1690,6 +1690,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		// SQLite pushes the correlated LIKE into the extension and calls it once per keg and
 		// directory, as the apps override does per bundle. executable_hashes keeps only the last
 		// path constraint it receives, so bin and sbin are separate UNION members, not an OR.
+		// The unary plus keeps the path_type filter in SQLite: when osquery hands the extension
+		// that constant equality next to the correlated LIKE, the join returns no rows.
 		Query: `
 		SELECT
 		  hp.path AS keg_path,
@@ -1698,7 +1700,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		  eh.executable_sha256 AS executable_sha256
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/bin/%'
-		WHERE hp.type = 'formula' AND eh.path_type = 'file'
+		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
 		UNION ALL
 		SELECT
 		  hp.path AS keg_path,
@@ -1707,7 +1709,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		  eh.executable_sha256 AS executable_sha256
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/sbin/%'
-		WHERE hp.type = 'formula' AND eh.path_type = 'file'
+		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
 		`,
 		Description:            "A software override query[^1] to append the sha256 hash of Mach-O executables installed by Homebrew formulae to macOS software entries. Requires `fleetd`",
 		Platforms:              []string{"darwin"},

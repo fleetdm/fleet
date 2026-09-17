@@ -1114,7 +1114,7 @@ SELECT
 		  eh.executable_sha256 AS executable_sha256
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/bin/%'
-		WHERE hp.type = 'formula' AND eh.path_type = 'file'
+		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
 		UNION ALL
 		SELECT
 		  hp.path AS keg_path,
@@ -1123,7 +1123,7 @@ SELECT
 		  eh.executable_sha256 AS executable_sha256
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/sbin/%'
-		WHERE hp.type = 'formula' AND eh.path_type = 'file'
+		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
 ```
 
 ## software_python_packages
