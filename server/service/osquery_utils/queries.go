@@ -1687,32 +1687,27 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// extensions resolve every path as an app bundle, so they would return empty hashes while
 	// spawning a process per file.
 	"macos_homebrew_executable_sha256": {
-		// The globs are constants so the extension is called once per pattern instead of once per
-		// keg, and the keg is recovered by matching the executable path prefix. executable_hashes
-		// keeps only the last path constraint it receives, so each UNION member passes exactly one.
+		// SQLite pushes the correlated LIKE into the extension and calls it once per keg and
+		// directory, as the apps override does per bundle. executable_hashes keeps only the last
+		// path constraint it receives, so bin and sbin are separate UNION members, not an OR.
 		Query: `
-		WITH keg_execs AS (
-		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
-		  WHERE path LIKE '/opt/homebrew/Cellar/%/%/bin/%' AND path_type = 'file'
-		  UNION ALL
-		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
-		  WHERE path LIKE '/opt/homebrew/Cellar/%/%/sbin/%' AND path_type = 'file'
-		  UNION ALL
-		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
-		  WHERE path LIKE '/usr/local/Cellar/%/%/bin/%' AND path_type = 'file'
-		  UNION ALL
-		  SELECT path, executable_path, executable_sha256 FROM executable_hashes
-		  WHERE path LIKE '/usr/local/Cellar/%/%/sbin/%' AND path_type = 'file'
-		)
 		SELECT
 		  hp.path AS keg_path,
 		  hp.version AS version,
-		  ke.executable_path AS executable_path,
-		  ke.executable_sha256 AS executable_sha256
+		  eh.executable_path AS executable_path,
+		  eh.executable_sha256 AS executable_sha256
 		FROM homebrew_packages hp
-		JOIN keg_execs ke
-		  ON substr(ke.path, 1, length(hp.path || '/' || hp.version || '/')) = hp.path || '/' || hp.version || '/'
-		WHERE hp.type = 'formula'
+		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/bin/%'
+		WHERE hp.type = 'formula' AND eh.path_type = 'file'
+		UNION ALL
+		SELECT
+		  hp.path AS keg_path,
+		  hp.version AS version,
+		  eh.executable_path AS executable_path,
+		  eh.executable_sha256 AS executable_sha256
+		FROM homebrew_packages hp
+		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/sbin/%'
+		WHERE hp.type = 'formula' AND eh.path_type = 'file'
 		`,
 		Description:            "A software override query[^1] to append the sha256 hash of Mach-O executables installed by Homebrew formulae to macOS software entries. Requires `fleetd`",
 		Platforms:              []string{"darwin"},
