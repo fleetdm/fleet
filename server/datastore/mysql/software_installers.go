@@ -70,7 +70,10 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
-    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
+    -- Snapshot (not a live policies join): fleetd and the classifier must agree
+    -- on this value, so both read hsi.patch_when_closed. A post-activation policy
+    -- toggle applies to future activations, not to already-queued/in-flight installs.
+    hsi.patch_when_closed AS patch_when_closed,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -79,9 +82,6 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON hsi.software_installer_id = si.id
-  LEFT OUTER JOIN
-    policies p
-    ON p.id = hsi.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -2312,12 +2312,11 @@ SELECT
 	hsi.updated_at as updated_at,
 	st.source,
 	hsi.attempt_number,
-	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
+	hsi.patch_when_closed AS patch_when_closed
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
-	LEFT JOIN policies p ON hsi.policy_id = p.id
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND
