@@ -4,7 +4,6 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { getErrorReason } from "interfaces/errors";
@@ -225,15 +224,14 @@ const BitLockerPinModal = ({
               >
                 Cancel
               </Button>
-              <Button type="submit" formId={formId} disabled={isDisabled}>
-                {isDisabled ? (
-                  <span className={`${baseClass}__saving`}>
-                    <Spinner size="x-small" centered={false} delay={0} />
-                    Setting PIN...
-                  </span>
-                ) : (
-                  "Save"
-                )}
+              <Button
+                type="submit"
+                formId={formId}
+                isLoading={isDisabled}
+                loadingText="Setting PIN..."
+                disabled={isDisabled}
+              >
+                Save
               </Button>
             </>
           }

@@ -6,21 +6,4 @@
   p {
     margin: 0;
   }
-
-  // The Button's own isLoading spinner is an overlay that hides the label. This one sits beside it instead.
-  &__saving {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-
-    .loading-spinner {
-      .background {
-        display: none;
-      }
-
-      .path {
-        stroke: $core-fleet-white;
-      }
-    }
-  }
 }
