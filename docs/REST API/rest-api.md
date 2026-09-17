@@ -9011,7 +9011,7 @@ None.
 ```json
 {
   "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
-    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token from Fleet>"
+    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token>"
   }
 }
 ```
