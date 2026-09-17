@@ -1427,6 +1427,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"cleanup_expired_bitlocker_pin_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredBitLockerPINRequests(ctx)
+			},
+		),
+		schedule.WithJob(
 			"expired_challenges",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupExpiredChallenges(ctx)

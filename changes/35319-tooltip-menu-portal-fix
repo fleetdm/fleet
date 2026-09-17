@@ -1,0 +1,1 @@
+- Fixed an issue with tooltips rendering unstyled when inside a table on actions dropdown.

@@ -198,6 +198,20 @@ var defaultVPPAssetList = []vpp.Asset{
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
+// requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
+// the given refetch command types, each recording the full prefixed UUID of
+// the command it tracks (the exact UUIDs are random).
+func requireTrackedRefetchCommands(t *testing.T, commands []fleet.HostMDMCommand, hostID uint, commandTypes ...string) {
+	gotTypes := make([]string, 0, len(commands))
+	for _, c := range commands {
+		assert.Equal(t, hostID, c.HostID)
+		assert.Truef(t, strings.HasPrefix(c.CommandUUID, c.CommandType),
+			"tracking row for %s must record its full prefixed command UUID, got %q", c.CommandType, c.CommandUUID)
+		gotTypes = append(gotTypes, c.CommandType)
+	}
+	assert.ElementsMatch(t, commandTypes, gotTypes)
+}
+
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
@@ -1494,6 +1508,83 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	require.Len(t, tokensResp.Tokens, 1)
 	assert.Equal(t, team.Name, tokensResp.Tokens[0].IOSTeam.Name)
 	assert.Equal(t, team.ID, tokensResp.Tokens[0].IOSTeam.ID)
+}
+
+func (s *integrationMDMTestSuite) TestABMTokenDefault() {
+	t := s.T()
+
+	orgA := t.Name() + "-org-a"
+	orgB := t.Name() + "-org-b"
+	s.enableABM(orgA)
+	s.enableABM(orgB)
+
+	tokensResp := listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+	require.Len(t, tokensResp.Tokens, 2)
+	tokA := s.getABMTokenByName(orgA, tokensResp.Tokens)
+	tokB := s.getABMTokenByName(orgB, tokensResp.Tokens)
+
+	// the first token became the default when it was the only one
+	require.True(t, tokA.IsDefault)
+	require.False(t, tokB.IsDefault)
+
+	countDefaults := func() (n int, defaultOrg string) {
+		s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+		for _, tok := range tokensResp.Tokens {
+			if tok.IsDefault {
+				n++
+				defaultOrg = tok.OrganizationName
+			}
+		}
+		return n, defaultOrg
+	}
+	appCfgDefaults := func() map[string]bool {
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		m := make(map[string]bool)
+		for _, e := range acResp.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	// setting B as default moves it off A in one call
+	var setResp setABMTokenDefaultResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": true}`), http.StatusOK, &setResp)
+	require.NotNil(t, setResp.ABMToken)
+	assert.True(t, setResp.ABMToken.IsDefault)
+	n, defaultOrg := countDefaults()
+	assert.Equal(t, 1, n)
+	assert.Equal(t, orgB, defaultOrg)
+	// GET /config mirrors it on B's entry and drops it from A's
+	cfgDefaults := appCfgDefaults()
+	assert.True(t, cfgDefaults[orgB])
+	assert.False(t, cfgDefaults[orgA])
+
+	// unsetting the default clears it everywhere
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+	n, _ = countDefaults()
+	assert.Equal(t, 0, n)
+	cfgDefaults = appCfgDefaults()
+	assert.False(t, cfgDefaults[orgA])
+	assert.False(t, cfgDefaults[orgB])
+
+	// unsetting a non-default token is a no-op
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+
+	// unknown token id
+	s.Do("PATCH", "/api/latest/fleet/ab_tokens/999999/default",
+		json.RawMessage(`{"default": true}`), http.StatusNotFound)
+
+	// omitting "default" is rejected instead of silently clearing the default
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
 }
 
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
@@ -14326,11 +14417,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSent)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, host.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
@@ -14445,11 +14533,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostIPod.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSentPerRefetch)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostIPod.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostIPod.ID), nil, http.StatusOK)
@@ -23591,11 +23676,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err := s.ds.GetHostMDMCommands(ctx, hostBYOD.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostBYOD.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
 		var installedAppListCount int
@@ -23638,11 +23720,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err = s.ds.GetHostMDMCommands(ctx, hostDEP.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostDEP.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
@@ -28539,6 +28618,67 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
 }
 
+// TestAndroidCustomCommandRejectedOnPersonallyOwnedHost covers the symptom reported in #53151: REBOOT on a BYOD work
+// profile used to return 200 and record a "ran REBOOT" activity because AMAPI reports the operation as done with no
+// error while the device ignores it. The command must now be refused outright, so no activity claims it ran.
+func (s *integrationMDMTestSuite) TestAndroidCustomCommandRejectedOnPersonallyOwnedHost() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	enterprise := android.Enterprise{ID: enterpriseID, EnterpriseID: "byod-cmd-fake"}
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  enterprise,
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	var issueCalls atomic.Int32
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		return &androidmanagement.Operation{Name: fmt.Sprintf("%s/operations/byod-op-%d", deviceName, issueCalls.Add(1))}, nil
+	}
+
+	byodHostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byodHostID), nil, http.StatusOK, &hostResp)
+	hostUUID := hostResp.Host.UUID
+	require.True(t, hostResp.Host.MDM.IsPersonalEnrollment)
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	res := s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body),
+		"REBOOT is not supported for personally-owned Android hosts.")
+
+	// Nothing reached AMAPI, so nothing can come back acknowledged.
+	require.Zero(t, issueCalls.Load())
+
+	// No command row, so the command does not show up as pending or ran for this host.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s", hostUUID), nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Results)
+
+	// The reported symptom: no activity may claim the command ran. Asserting the newest activity is unchanged
+	// also catches an activity written before the command is issued.
+	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0))
+
+	// A command type AMAPI does support on a work profile is still issued, so the check is not over-broad.
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"CLEAR_APP_DATA","clearAppsDataParams":{"packageNames":["com.example.app"]}}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusOK, &runResp)
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, int32(1), issueCalls.Load())
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), "", 0)
+}
+
 // fileVaultStatusHelpers returns helpers to drive the host's FileVault profile
 // status and assert the derived disk encryption status through the API.
 func (s *integrationMDMTestSuite) fileVaultStatusHelpers(ctx context.Context, host *fleet.Host) (
@@ -28641,7 +28781,8 @@ func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, 
 }
 
 // Escrow without enforcement: status follows the escrowed key, not the disk
-// state — action required (rotate key) → verifying → verified.
+// state — action required (turn on encryption while the disk is off, rotate
+// key once it is on) → verifying → verified.
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 	t := s.T()
 	ctx := context.Background()
@@ -28662,13 +28803,20 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 
 	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
 	rotateKey := fleet.ActionRequiredRotateKey
+	turnOnEncryption := fleet.ActionRequiredTurnOnEncryption
 
 	setProfileStatus(fleet.MDMDeliveryPending)
 	checkHost(fleet.DiskEncryptionEnforcing, nil)
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
 
-	// profile installed, disk encrypted by a third party, no key escrowed yet
+	// profile installed, nothing enforces FileVault and the disk is still off
 	setProfileStatus(fleet.MDMDeliveryVerified)
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &turnOnEncryption)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// disk encrypted by a third party, no key escrowed yet
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
 	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
@@ -28754,4 +28902,156 @@ func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUI
 	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, idpAccountUUID)
 	require.NoError(t, err)
 	return sessionID
+}
+
+// TestBitLockerPINHandoff drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to
+// collect it on its next config poll, collects it exactly once, reports success, and the host comes out the other side
+// with its PIN recorded, an activity written, and the notification gone.
+func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
+	t := s.T()
+	ctx := t.Context()
+
+	// The Windows enrollment row is what carries both the capability and the pending flag.
+	host, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	deviceToken := "bitlocker-pin-handoff-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceToken))
+
+	// Require a PIN, then put the host in the one state where only the end user can act: encrypted, key escrowed and
+	// decryptable, protection on, and no PIN yet.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "enable_disk_encryption": true, "windows_require_bitlocker_pin": true } }`),
+		http.StatusOK, &acResp)
+	protectionOn := fleet.BitLockerProtectionStatusOn
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, &protectionOn))
+	_, err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", new(true))
+	require.NoError(t, err)
+	// The volume has a TPM protector but no PIN, the only state in which Windows offers PIN setup.
+	require.NoError(t, s.ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, false))
+
+	orbitConfig := func(caps string) fleet.OrbitGetConfigResponse {
+		headers := map[string]string{}
+		if caps != "" {
+			headers[fleet.CapabilitiesHeader] = caps
+		}
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, headers)
+		var resp fleet.OrbitGetConfigResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+	deviceHost := func() getDeviceHostResponse {
+		var resp getDeviceHostResponse
+		s.DoJSON("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK, &resp)
+		return resp
+	}
+	submitPIN := func(pin string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{"pin": pin})
+		require.NoError(t, err)
+		s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin", json.RawMessage(body), wantStatus)
+	}
+	collectPIN := func(wantStatus int) fleet.OrbitGetDiskEncryptionPINDetailsResponse {
+		var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+		s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), wantStatus, &resp)
+		return resp
+	}
+	reportOutcome := func(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{
+			"orbit_node_key": *host.OrbitNodeKey, "request_uuid": requestUUID, "outcome": string(outcome), "client_error": clientError,
+		})
+		require.NoError(t, err)
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result", json.RawMessage(body), wantStatus)
+	}
+
+	// An agent that has not advertised the capability is treated as unable to apply a PIN, so the page keeps the old
+	// instructions modal and a submission is refused.
+	orbitConfig("")
+	resp := deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredCreatePIN, *resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	require.False(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	submitPIN("123456", http.StatusBadRequest)
+
+	// The agent advertises that it can apply a PIN; the server persists that on the enrollment row.
+	caps := fleet.CapabilityMap{fleet.CapabilityWindowsBitLockerPIN: struct{}{}}
+	capsHeader := caps.String()
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	require.True(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+
+	// A PIN that Windows would reject is refused with a validation error before anything is stored.
+	submitPIN("12ab", http.StatusUnprocessableEntity)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// The end user submits a valid PIN, and the agent's next poll is told to collect it.
+	submitPIN("123456", http.StatusNoContent)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestPending, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// Collecting returns the PIN in the clear, exactly once.
+	pinResp := collectPIN(http.StatusOK)
+	require.Equal(t, "123456", pinResp.PIN)
+	firstRequestUUID := pinResp.RequestUUID
+
+	// An outcome that names no collected submission is refused.
+	reportOutcome("not-a-real-request", fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+
+	// A replayed collect gets nothing, and the notification is already gone.
+	collectPIN(http.StatusNotFound)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// A failure is reported back to the waiting page.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestFailed, "PIN already set", http.StatusNoContent)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestFailed, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.Equal(t, "PIN already set", resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Error)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+
+	// The end user retries with an enhanced PIN, the agent collects it, and this time it works.
+	submitPIN(`Fl"eet 2026!`, http.StatusNoContent)
+	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+	pinResp = collectPIN(http.StatusOK)
+	require.Equal(t, `Fl"eet 2026!`, pinResp.PIN)
+	require.NotEqual(t, firstRequestUUID, pinResp.RequestUUID, "each submission gets its own id")
+
+	// A late outcome for the superseded submission must not be recorded against this one.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+	reportOutcome(pinResp.RequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNoContent)
+
+	// The PIN is recorded, so the end user's banner clears without them pressing Refetch.
+	resp = deviceHost()
+	require.Nil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestSet, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// Success asks the host to refetch so osquery confirms the protector list, and is recorded for the admin with no
+	// actor, because the end user chose the PIN rather than Fleet applying one of its own.
+	refetched, err := s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, refetched.RefetchRequested)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedDiskEncryptionPIN{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()),
+		0,
+	)
+
+	// The PIN fields are Windows-only.
+	macHost := createOrbitEnrolledHost(t, "darwin", t.Name()+"-mac", s.ds)
+	macToken := "bitlocker-pin-handoff-mac-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, macHost.ID, macToken))
+	macRes := s.DoRaw("GET", "/api/latest/fleet/device/"+macToken, nil, http.StatusOK)
+	macBody, err := io.ReadAll(macRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, macRes.Body.Close())
+	require.Contains(t, string(macBody), `"os_settings"`, "precondition: os_settings is present, so the checks below mean something")
+	require.NotContains(t, string(macBody), "fleetd_can_set_pin")
+	require.NotContains(t, string(macBody), "pin_request")
 }
