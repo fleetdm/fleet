@@ -34,7 +34,7 @@ For current sales territory assignments, see the ["GTM territory assignments"](h
 
 ## Responsibilities
 
-The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+The Sales department is directly responsible for attaining the revenue goals of Fleet, solutions consulting, and helping to deliver upon our customers' objectives.
 
 
 ### Add an account to your patch

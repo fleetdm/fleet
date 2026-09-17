@@ -21,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Responsibilities
 
-The IT department is directly responsible for solutions consulting, dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
+The IT department is directly responsible for dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
 
 
 ### Register a domain for Fleet
