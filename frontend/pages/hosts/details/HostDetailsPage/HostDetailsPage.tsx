@@ -404,15 +404,15 @@ const HostDetailsPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    "teams",
-    () => teamAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL && !!isPremiumTier,
-      retry: false,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isError: isTeamsError } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >("teams", () => teamAPI.loadAll(), {
+    enabled: !!hostIdFromURL && !!isPremiumTier,
+    retry: false,
+    select: (data: ILoadTeamsResponse) => data.teams,
+  });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
@@ -715,14 +715,16 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  // undefined = still resolving (featuresConfig is undefined until config
-  // loads, and for a teamed host until `teams` loads too). The modal treats
-  // undefined as loading and defers the chart query; treating it as `true`
-  // would fire the query before we know the team-level uptime setting.
+  // undefined = still resolving. Global config must be loaded, and for a
+  // teamed host the teams query must have either succeeded or errored. A
+  // teams-load failure falls back to the global setting rather than spinning
+  // forever; a missing team-level override is treated as "not disabled".
+  const teamFeaturesResolved =
+    !host?.team_id || teams !== undefined || isTeamsError;
   const uptimeCollectionEnabled: boolean | undefined =
-    featuresConfig === undefined
+    config?.features === undefined || !teamFeaturesResolved
       ? undefined
-      : (config?.features?.historical_data?.uptime ?? true) &&
+      : (config.features.historical_data?.uptime ?? true) &&
         (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
