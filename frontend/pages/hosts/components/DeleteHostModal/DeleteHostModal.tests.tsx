@@ -86,15 +86,23 @@ describe("DeleteHostModal", () => {
     renderModal({ hostName: "Pixel", platform: "android" });
     expect(screen.getByText("Pixel")).toBeVisible();
     expect(screen.getByText(/and remove company data\./i)).toBeVisible();
-    expect(screen.getByText("This may take up to 24 hours.")).toBeVisible();
+    expect(screen.getByText(/This may take up to 24 hours\./)).toBeVisible();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      expect.stringMatching(DELETING_A_HOST_LINK)
+    );
   });
 
   it("renders the iOS and iPadOS copy", () => {
     renderModal({ hostName: "iPad", platform: "ipados" });
     expect(screen.getByText("This will remove all host data.")).toBeVisible();
     expect(
-      screen.getByText("This host will re-enroll unless MDM is turned off.")
+      screen.getByText(/This host will re-enroll unless MDM is turned off\./)
     ).toBeVisible();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      expect.stringMatching(DELETING_A_HOST_LINK)
+    );
   });
 
   it("renders the macOS MDM copy with the deleting-a-host link when one-time enroll secrets are off", () => {

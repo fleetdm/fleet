@@ -421,7 +421,7 @@ describe("AddHostsModal", () => {
       screen.getByText(/you have no enroll secrets\./i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/new hosts must be enrolled manually to be added to/i)
+      screen.getByText(/only apple hosts that automatically enroll via/i)
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /add enroll secret/i })

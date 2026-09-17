@@ -260,7 +260,7 @@ describe("ManageHostsPage", () => {
     await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
 
     expect(
-      await screen.findByText(/new hosts must be enrolled manually/i)
+      await screen.findByText(/only apple hosts that automatically enroll/i)
     ).toBeInTheDocument();
   });
 

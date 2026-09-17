@@ -112,7 +112,7 @@ const DeleteHostModal = ({
           <p>
             This will unenroll <b>{hostName}</b> and remove company data.
           </p>
-          <p>This may take up to 24 hours.</p>
+          <p>This may take up to 24 hours. {learnMoreLink}</p>
         </>
       );
     }
@@ -120,7 +120,9 @@ const DeleteHostModal = ({
       return (
         <>
           <p>This will remove all host data.</p>
-          <p>This host will re-enroll unless MDM is turned off.</p>
+          <p>
+            This host will re-enroll unless MDM is turned off. {learnMoreLink}
+          </p>
         </>
       );
     }

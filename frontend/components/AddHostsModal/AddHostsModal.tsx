@@ -58,10 +58,18 @@ const AddHostsModal = ({
         <>
           <p>You have no enroll secrets.</p>
           <p>
-            {config?.auth?.use_one_time_enroll_secrets
-              ? "New hosts must be enrolled manually to be added to "
-              : "New hosts will not enroll until an enroll secret is added to "}
-            <b>{teamDisplayName}</b>.
+            {config?.auth?.use_one_time_enroll_secrets ? (
+              <>
+                Only Apple hosts that automatically enroll via Automated Device
+                Enrollment (ADE) can enroll to <b>{teamDisplayName}</b>. Add an
+                enroll secret to enroll other hosts.
+              </>
+            ) : (
+              <>
+                New hosts will not enroll until an enroll secret is added to{" "}
+                <b>{teamDisplayName}</b>.
+              </>
+            )}
           </p>
           {openEnrollSecretModal && (
             <div className="modal-cta-wrap">
