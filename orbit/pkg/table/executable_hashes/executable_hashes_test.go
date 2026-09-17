@@ -674,3 +674,30 @@ func TestHashByteBudgetAdmitsOversizeFileOnlyFirst(t *testing.T) {
 
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
 }
+
+func TestHashCacheDeduplicatesByIdentity(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+
+	target := filepath.Join(dir, "tool")
+	content := writeFixture(t, target, machOHeader, "shared content")
+	require.NoError(t, os.Symlink(target, filepath.Join(dir, "alias1")))
+	require.NoError(t, os.Symlink(target, filepath.Join(dir, "alias2")))
+	require.NoError(t, os.Link(target, filepath.Join(dir, "hardlink")))
+
+	// Budget for exactly one read: every alias must be served from the first hash.
+	hashByteBudget = int64(len(content))
+
+	rows := generateLike(t, filepath.Join(dir, "%"))
+	require.Len(t, rows, 4)
+
+	byPath := rowsByPath(rows)
+	for _, name := range []string{"alias1", "alias2", "tool"} {
+		require.Equal(t, resolve(t, target), byPath[filepath.Join(dir, name)][colExecPath], name)
+	}
+	// A hard link is its own name for the same file.
+	require.Equal(t, resolve(t, filepath.Join(dir, "hardlink")), byPath[filepath.Join(dir, "hardlink")][colExecPath])
+	for _, row := range rows {
+		require.Equal(t, sha256Hex(content), row[colExecHash])
+	}
+}

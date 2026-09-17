@@ -202,6 +202,12 @@ func hashCached(path string, stat os.FileInfo, pathType string, budget *hashBudg
 		}
 	}
 
+	// Aliases of one file (clang, clang++ -> clang-18) share its identity; read it once.
+	if hash, ok := fileHashCache.hashByIdentity(identityKey{pathType: pathType, fileIdentity: newFileIdentity(stat)}); ok {
+		fileHashCache.add(newHashCacheKey(path, pathType, stat), hashCacheEntry{execPath: execPath, hash: hash})
+		return execPath, hash, hashOK
+	}
+
 	var hashed os.FileInfo
 	hash, hashed, status = hashFile(execPath, requireMachO, budget)
 	if status == hashOK {
@@ -346,14 +352,32 @@ type hashCacheEntry struct {
 	hash     string
 }
 
+type identityKey struct {
+	pathType string
+	fileIdentity
+}
+
 type hashCache struct {
-	mu      sync.Mutex
-	max     int
-	entries map[hashCacheKey]hashCacheEntry
+	mu         sync.Mutex
+	max        int
+	entries    map[hashCacheKey]hashCacheEntry
+	byIdentity map[identityKey]string
 }
 
 func newHashCache(maxEntries int) *hashCache {
-	return &hashCache{max: maxEntries, entries: make(map[hashCacheKey]hashCacheEntry)}
+	return &hashCache{
+		max:        maxEntries,
+		entries:    make(map[hashCacheKey]hashCacheEntry),
+		byIdentity: make(map[identityKey]string),
+	}
+}
+
+func (c *hashCache) hashByIdentity(key identityKey) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	hash, ok := c.byIdentity[key]
+	return hash, ok
 }
 
 func (c *hashCache) get(key hashCacheKey) (hashCacheEntry, bool) {
@@ -371,8 +395,10 @@ func (c *hashCache) add(key hashCacheKey, entry hashCacheEntry) {
 	if _, exists := c.entries[key]; !exists && len(c.entries) >= c.max {
 		log.Debug().Int("entries", len(c.entries)).Msg("hash cache full, clearing")
 		clear(c.entries)
+		clear(c.byIdentity)
 	}
 	c.entries[key] = entry
+	c.byIdentity[identityKey{pathType: key.pathType, fileIdentity: key.fileIdentity}] = entry.hash
 }
 
 func getExecutablePath(ctx context.Context, path string) string {
