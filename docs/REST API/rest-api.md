@@ -8869,6 +8869,11 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 - [Get EULA metadata](#get-eula-metadata)
 - [Delete EULA](#delete-eula)
 - [Download EULA](#download-eula)
+- [Create Windows EULA](#create-windows-eula)
+- [Get Windows EULA](#get-windows-eula-metadata)
+- [Delete Windows EULA](#delete-windows-eula)
+- [Download Windows EULA](#download-windows-eula)
+
 - [List setup experience software](#list-setup-experience-software)
 - [Update setup experience software (setup experience)](#update-setup-experience-software)
 - [Create setup experience script](#create-setup-experience-script)
@@ -9422,6 +9427,116 @@ Download an EULA file
 ```http
 Status: 200
 Content-Type: application/pdf
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+### Create Windows EULA
+
+_Available in Fleet Premium_
+
+Upload a custom EULA markdown file that will be shown to end users during Windows setup. If no custom terms are uploaded, Fleet uses a default terms of service page.
+
+> You need to send a request of type `multipart/form-data`.
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/setup_experience/windows_eula`
+
+#### Parameters
+
+ Name        | Type |  In  |                    Description                                     |
+------       |------|------|---------------------------------------------------                 |
+windows_eula | file | body | **Required**. A markdown file containing the terms and conditions. |
+
+#### Example
+
+`POST /api/v1/fleet/setup_experience/windows_eula`
+
+##### Request body
+
+```http
+windows_eula="terms.md"
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Get Windows EULA
+
+_Available in Fleet Premium_
+
+Get information about the EULA file that was uploaded to Fleet. If no EULA previously uploaded, this endpoint returns a `404` status code.
+
+`GET /api/v1/fleet/setup_experience/windows_eula/metadata`
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/windows_eula/metadata`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "terms.html",
+  "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
+  "created_at": "2023-04-20T13:02:05Z"
+}
+```
+> In the response above: `token` is the value you can use to download the terms and conditions.
+
+
+### Delete Windows EULA
+
+_Available in Fleet Premium_
+
+Delete a Windows EULA file.
+
+`DELETE /api/v1/fleet/setup_experience/windows_eula/:token`
+
+#### Parameters
+
+ Name  |  Type  |  In  |               Description                        |
+-------|--------|------|--------------------------------------------------|
+ token | string | path | **Required** The token of the Windows EULA file. |
+
+#### Example
+
+`DELETE /api/v1/fleet/setup_experience/windows_eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+### Download Windows EULA
+
+_Available in Fleet Premium_
+
+Download a Windows EULA file.
+
+`GET /api/v1/fleet/setup_experience/windows_eula/:token`
+
+#### Parameters
+
+ Name  |  Type  |  In  |               Description                        |
+-------|--------|------|--------------------------------------------------|
+ token | string | path | **Required** The token of the Windows EULA file. |
+
+#### Example
+
+`GET /api/v1/fleet/setup_experience/windows_eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: text/html
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
