@@ -17,6 +17,7 @@ import commandApi, {
 import decodeBase64Utf8 from "utilities/base64";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
+import formatJsonForDisplay from "utilities/json_format";
 
 const baseClass = "command-details-modal";
 
@@ -215,7 +216,7 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={result.payload}
+          value={formatJsonForDisplay(result.payload)}
           readOnly
           enableCopy
           disableResize
@@ -229,7 +230,7 @@ export const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
-          value={result.result}
+          value={formatJsonForDisplay(result.result)}
           readOnly
           enableCopy
           disableResize
