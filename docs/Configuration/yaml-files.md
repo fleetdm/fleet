@@ -1475,11 +1475,11 @@ org_settings:
     end_user_license_agreement: ./lib/eula.pdf
 ```
 
-##### windows_terms_and_conditions
+##### windows_eula
 
-You can set a custom terms and conditions file for your end users. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
+You can set a custom end user license agreement (EULA) file for your end users on Windows. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
 
-- `windows_terms_and_conditions` is the path to the html file.
+- `windows_eula` is the path to the markdown file.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1488,7 +1488,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   mdm:
-    windows_terms_and_conditions: ./lib/toc.html
+    windows_eula: ./lib/toc.md
 ```
 
 ##### apple_server_url
