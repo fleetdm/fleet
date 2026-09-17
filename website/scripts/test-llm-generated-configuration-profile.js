@@ -187,7 +187,7 @@ const TEST_CASES = [
     instructions: 'Disable AirDrop and turn off Siri.',
     readByEye: 'Two dicts, each with a distinct uppercase PayloadUUID and an identifier that is the root identifier plus a suffix.  Duplicate UUIDs install unpredictably and nothing here can detect them.',
     expect: {
-      mustContain: ['PayloadUUID', 'PayloadIdentifier']
+      mustContain: ['com.apple.applicationaccess', 'allowAirDrop', 'allowAssistant'],
     }
   },
   {
