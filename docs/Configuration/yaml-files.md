@@ -642,37 +642,37 @@ software:
       setup_experience: true
       versions:
         - name: Production
-          labels_include_any: # Available in Fleet Premium
-            - Product
-            - Marketing
+          labels_exclude_any:
+            - IT team
+          self-service: true  
           categories:
             - "👬 Communication"
           auto_update_enabled: true
           auto_update_window_start: "00:00"
           auto_update_window_end: "04:00"
           configuration:
-            path: ../lib/software/zoom-config-production.xml
+            path: ../lib/software/ios-clouflare-one-agent-config-production.xml
         - name: Test
           labels_include_any:
-            - IT test team
+            - IT team
           configuration:
-            path: ../lib/software/zoom-config-test.xml
-    - app_store_id: "us.zoom.videomeetings"
+            path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
+    - app_store_id: "com.cloudflare.cloudflareoneagent"
       platform: android
       setup_experience: true
       versions:
-        - name: Sales
-          self_service: true
-          labels_include_all:
-            - Sales
-          configuration:
-            path: ../lib/software/zoom-config-sales.json
-        - name: Everyone else
+        - name: Production
           self_service: true
           labels_exclude_any:
-            - Sales
+            - IT team
           configuration:
-            path: ../lib/software/zoom-config-default.json
+            path: ../lib/software/android-clouflare-one-agent-config-production.json
+        - name: Test
+          self_service: true
+          labels_include_any:
+            - IT team
+          configuration:
+            path: ../lib/software/android-clouflare-one-agent-config-test.json
   fleet_maintained_apps:
     - slug: slack/darwin
       version: "4.47.65"
