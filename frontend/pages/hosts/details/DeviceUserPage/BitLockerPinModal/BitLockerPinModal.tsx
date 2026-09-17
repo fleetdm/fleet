@@ -166,7 +166,7 @@ const BitLockerPinModal = ({
       return;
     }
     if (outcome.status === "set") {
-      notify.success("Successfully set PIN.");
+      notify.success("Successfully created PIN.");
     } else {
       // Leaving the form open would invite a second PIN that supersedes the one the agent is still collecting.
       notify.error(STILL_WORKING);

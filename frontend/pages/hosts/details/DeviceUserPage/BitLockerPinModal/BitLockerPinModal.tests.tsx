@@ -127,7 +127,7 @@ describe("BitLockerPinModal", () => {
 
     await advanceWait();
 
-    expect(notify.success).toHaveBeenCalledWith("Successfully set PIN.");
+    expect(notify.success).toHaveBeenCalledWith("Successfully created PIN.");
     expect(onExit).toHaveBeenCalled();
   });
 
