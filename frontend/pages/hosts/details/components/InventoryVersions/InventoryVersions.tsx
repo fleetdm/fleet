@@ -1,5 +1,7 @@
+import classnames from "classnames";
 import React from "react";
 
+import CopyButton from "components/buttons/CopyButton";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -16,6 +18,8 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { dateAgo } from "utilities/date_format";
 
 const baseClass = "inventory-versions";
+
+const fileName = (path: string | null) => path?.split("/").pop() || path;
 
 interface IInventoryVersionProps {
   version: ISoftwareInstallVersion;
@@ -90,21 +94,55 @@ const InventoryVersion = ({
       </div>
       {!!installedPaths?.length &&
         installedPaths.map((path) => {
-          // Find the signature info for this path
-          const sigInfo = signatureInformation?.find(
-            (info) => info.installed_path === path
+          // A path reports one signature entry per executable found under it,
+          // so a Homebrew keg has as many entries as the formula has Mach-O
+          // files while an app bundle has one.
+          const pathSigInfo =
+            signatureInformation?.filter(
+              (info) => info.installed_path === path
+            ) ?? [];
+          const cdHash = pathSigInfo.find((info) => info.hash_sha256)
+            ?.hash_sha256;
+          const executables = pathSigInfo.filter(
+            (info) => !info.hash_sha256 && info.executable_sha256
           );
 
           return (
-            <div className={`${baseClass}__sig-info`}>
+            <div
+              className={classnames(`${baseClass}__sig-info`, {
+                [`${baseClass}__sig-info--with-executables`]: !!executables.length,
+              })}
+              key={path}
+            >
               <DataSet orientation="horizontal" title="Path" value={path} />
-              {sigInfo?.hash_sha256 && (
-                <DataSet
-                  orientation="horizontal"
-                  title="Hash"
-                  value={sigInfo.hash_sha256}
-                />
+              {cdHash && (
+                <DataSet orientation="horizontal" title="Hash" value={cdHash} />
               )}
+              {executables.map((info) => (
+                <DataSet
+                  key={`${info.executable_path}:${info.executable_sha256}`}
+                  orientation="horizontal"
+                  title="Executable"
+                  value={
+                    <span className={`${baseClass}__executable`}>
+                      <TooltipWrapper
+                        className={`${baseClass}__executable-name`}
+                        tipContent={info.executable_path}
+                      >
+                        {fileName(info.executable_path)}
+                      </TooltipWrapper>
+                      <span className={`${baseClass}__executable-hash`}>
+                        {info.executable_sha256}
+                      </span>
+                      <CopyButton
+                        copyText={info.executable_sha256 ?? ""}
+                        variant="compact"
+                        size="small"
+                      />
+                    </span>
+                  }
+                />
+              ))}
             </div>
           );
         })}

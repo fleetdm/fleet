@@ -45,6 +45,9 @@
 
     dt {
       min-width: 40px;
+      // dt is nowrap, so a label wider than the floor would otherwise be
+      // squeezed by dd's width and spill its text over the value.
+      flex-shrink: 0;
     }
 
     // Show entire hash and file path, easier to read/compare not hidden in tooltip
@@ -53,5 +56,38 @@
       text-wrap: wrap;
       overflow-wrap: anywhere;
     }
+  }
+
+  // "Executable" is wider than the floor the Path and Hash labels share.
+  // Widen the label column for keg blocks only, so the four rows line up
+  // there without moving anything on an app bundle's card.
+  &__sig-info--with-executables dt {
+    min-width: 72px;
+  }
+
+  // A keg's executables list one row each, and each row stays on one line:
+  // the file name in full, then as much of the hash as fits, ending in an
+  // ellipsis. The copy button carries the whole value, which is what an
+  // admin writing a Santa rule actually needs.
+  &__executable {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-xsmall;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__executable-name {
+    flex: 0 0 auto;
+  }
+
+  &__executable-hash {
+    flex: 1 1 auto;
+    min-width: 0;
+    // dd sets text-wrap: wrap and overflow-wrap: anywhere for the full path
+    // and cdhash rows; the hash opts out so it never breaks mid-value.
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
