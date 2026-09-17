@@ -148,18 +148,23 @@ func GetServerDeviceCapabilities() CapabilityMap {
 }
 
 func GetOrbitClientCapabilities() CapabilityMap {
+	return orbitClientCapabilitiesForOS(runtime.GOOS)
+}
+
+func orbitClientCapabilitiesForOS(goos string) CapabilityMap {
 	capabilities := CapabilityMap{
 		CapabilityEscrowBuddy:     {},
 		CapabilitySetupExperience: {},
 	}
 	// On non-macOS systems, include end user auth capability.
-	if runtime.GOOS != "darwin" {
+	if goos != "darwin" {
 		capabilities[CapabilityEndUserAuth] = struct{}{}
 	}
 	// Windows fleetd can start an on-demand OMA-DM session (windowsMDMSyncConfigReceiver) when the server signals queued MDM commands.
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		capabilities[CapabilityWindowsMDMSync] = struct{}{}
 		capabilities[CapabilityWindowsManagedLocalAccount] = struct{}{}
+		capabilities[CapabilityWindowsBitLockerPIN] = struct{}{}
 	}
 	return capabilities
 }

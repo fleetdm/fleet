@@ -117,8 +117,9 @@ func (svc *Service) BitLockerPINStateForDevice(
 	case err != nil:
 		return false, nil, ctxerr.Wrap(ctx, err, "get bitlocker pin request")
 	}
-	// The cleanups cron retires abandoned submissions, but the page should not have to wait for it: a request past its
-	// TTL is already uncollectable, so report it as timed out rather than leaving the modal spinning on "pending".
+	// The cleanups cron retires abandoned submissions, but the page should not have to wait for it. A pending request
+	// past its TTL is already uncollectable, and a delivered one past the result timeout is no longer waited on, so
+	// report either as timed out.
 	if req != nil && req.Expired(time.Now()) {
 		req = &fleet.HostBitLockerPINRequest{
 			Status:    fleet.BitLockerPINRequestFailed,
