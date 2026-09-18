@@ -1,8 +1,9 @@
 import { AxiosResponse } from "axios";
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import FileUploader from "components/FileUploader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -15,16 +16,24 @@ import {
   TargetType,
 } from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IApiError } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
-import { IMdmProfile, IProfileLabel } from "interfaces/mdm";
+import {
+  IMdmProfile,
+  IProfileLabel,
+  isMDMConfiguredForPlatform,
+  platformToMDMLabel,
+} from "interfaces/mdm";
 import PATHS from "router/paths";
 import labelsAPI, {
   getCustomLabels,
   listNamesFromSelectedLabels,
 } from "services/entities/labels";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import {
   generateCustomTargetLabelKey,
@@ -97,6 +106,11 @@ const EditProfileModal = ({
   onCancel,
 }: IEditProfileModalProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
+  const { config } = useContext(AppContext);
+  const isMDMEnabled = isMDMConfiguredForPlatform(
+    profile.platform,
+    config?.mdm
+  );
 
   const initialIncludeLabels =
     profile.labels_include_all ?? profile.labels_include_any;
@@ -229,6 +243,69 @@ const EditProfileModal = ({
     listNamesFromSelectedLabels(selectedIncludeLabels).length > 0 ||
     listNamesFromSelectedLabels(selectedExcludeLabels).length > 0;
 
+  const renderUpdateButton = () => {
+    const btn = (disabled: boolean) => (
+      <Button
+        className={`${baseClass}__update-profile-button`}
+        onClick={onUpdateProfile}
+        isLoading={isUpdating}
+        disabled={
+          disabled ||
+          isUpdating ||
+          (selectedTargetType === "Custom" && !hasSelectedLabels)
+        }
+      >
+        Update profile
+      </Button>
+    );
+
+    if (!isMDMEnabled) {
+      const mdmLabel = platformToMDMLabel(profile.platform);
+      let learnMoreUrl: string | undefined;
+      // eslint-disable-next-line default-case
+      switch (mdmLabel) {
+        case "Apple":
+          learnMoreUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`;
+          break;
+        case "Windows":
+          learnMoreUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`;
+          break;
+        case "Android":
+          learnMoreUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/how-to-connect-android-enterprise`;
+          break;
+      }
+      return (
+        <TooltipWrapper
+          tipContent={
+            <p>
+              To enable, first turn on{" "}
+              <CustomLink
+                text={`${mdmLabel} MDM`}
+                url={learnMoreUrl}
+                variant="tooltip-link"
+              />
+              .
+            </p>
+          }
+          showArrow
+          position="top"
+          underline={false}
+        >
+          {" "}
+          {btn(true)}{" "}
+        </TooltipWrapper>
+      );
+    }
+
+    return (
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => {
+          return btn(!!disableChildren);
+        }}
+      />
+    );
+  };
+
   return (
     <Modal className={baseClass} title="Edit profile" onExit={onCancel}>
       {isPremiumTier && isLoadingLabels && <Spinner />}
@@ -278,22 +355,7 @@ const EditProfileModal = ({
             <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <Button
-                  className={`${baseClass}__update-profile-button`}
-                  onClick={onUpdateProfile}
-                  isLoading={isUpdating}
-                  disabled={
-                    disableChildren ||
-                    isUpdating ||
-                    (selectedTargetType === "Custom" && !hasSelectedLabels)
-                  }
-                >
-                  Update profile
-                </Button>
-              )}
-            />
+            {renderUpdateButton()}
           </div>
         </div>
       )}
