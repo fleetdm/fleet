@@ -26,15 +26,27 @@ import (
 )
 
 const (
-	colPath     = "path"
-	colExecPath = "executable_path"
-	colExecHash = "executable_sha256"
-	colPathType = "path_type"
+	colPath      = "path"
+	colExecPath  = "executable_path"
+	colExecHash  = "executable_sha256"
+	colPathType  = "path_type"
+	colHashState = "hash_state"
 
 	// pathTypeBundle: `path` is an app bundle, `executable_path` the executable its Info.plist names.
 	pathTypeBundle = "bundle"
 	// pathTypeFile: `path` is a Mach-O file, possibly a symlink; `executable_path` is the resolved file.
 	pathTypeFile = "file"
+
+	// hashStateHashed: `executable_sha256` holds the digest of `executable_path`.
+	hashStateHashed = "hashed"
+	// hashStateDeferred: the file is Mach-O and present, but this run's byte budget was spent
+	// before it was hashed, so a later run hashes it. The row exists so that the rows for a
+	// path are its complete set of Mach-O files every run, which is what lets a consumer read
+	// an absent path as a removed file rather than an unhashed one.
+	hashStateDeferred = "deferred"
+	// hashStateUnavailable: no hash could be produced. Today only a bundle whose executable is
+	// missing or unreadable.
+	hashStateUnavailable = "unavailable"
 )
 
 // Columns is the schema of the table.
@@ -44,6 +56,7 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn(colExecPath),
 		table.TextColumn(colExecHash),
 		table.TextColumn(colPathType),
+		table.TextColumn(colHashState),
 	}
 }
 
@@ -79,10 +92,11 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	for _, res := range processed {
 		results = append(results, map[string]string{
-			colPath:     res.Path,
-			colExecPath: res.ExecPath,
-			colExecHash: res.ExecSha256,
-			colPathType: res.PathType,
+			colPath:      res.Path,
+			colExecPath:  res.ExecPath,
+			colExecHash:  res.ExecSha256,
+			colPathType:  res.PathType,
+			colHashState: res.HashState,
 		})
 	}
 
@@ -94,6 +108,7 @@ type fileInfo struct {
 	ExecPath   string
 	ExecSha256 string
 	PathType   string
+	HashState  string
 }
 
 func processFile(ctx context.Context, path string, wildcard bool) ([]fileInfo, error) {
@@ -119,6 +134,7 @@ func processFile(ctx context.Context, path string, wildcard bool) ([]fileInfo, e
 		case hashOK:
 			output = append(output, info)
 		case hashDeferred:
+			output = append(output, info)
 			deferred++
 		}
 	}
@@ -152,7 +168,7 @@ func processPath(ctx context.Context, path string, budget *hashBudget) (fileInfo
 // no deferral tolerance for the apps source, so a deferred bundle would drop the app's hash for
 // a run.
 func processBundle(ctx context.Context, path string) fileInfo {
-	row := fileInfo{Path: path, PathType: pathTypeBundle}
+	row := fileInfo{Path: path, PathType: pathTypeBundle, HashState: hashStateUnavailable}
 
 	row.ExecPath = getExecutablePath(ctx, path)
 	if row.ExecPath == "" {
@@ -166,15 +182,29 @@ func processBundle(ctx context.Context, path string) fileInfo {
 	}
 
 	_, row.ExecSha256, _ = hashCached(row.ExecPath, stat, pathTypeBundle, nil)
+	if row.ExecSha256 != "" {
+		row.HashState = hashStateHashed
+	}
 	return row
 }
 
 func processMachOFile(path string, stat os.FileInfo, budget *hashBudget) (fileInfo, hashStatus) {
 	execPath, hash, status := hashCached(path, stat, pathTypeFile, budget)
-	if status != hashOK {
-		return fileInfo{}, status
+	switch status {
+	case hashOK:
+		return fileInfo{
+			Path: path, ExecPath: execPath, ExecSha256: hash,
+			PathType: pathTypeFile, HashState: hashStateHashed,
+		}, hashOK
+	case hashDeferred:
+		// hashCached resolved the symlinks and ran the Mach-O check before charging the
+		// budget, so every field but the digest is already in hand.
+		return fileInfo{
+			Path: path, ExecPath: execPath,
+			PathType: pathTypeFile, HashState: hashStateDeferred,
+		}, hashDeferred
 	}
-	return fileInfo{Path: path, ExecPath: execPath, ExecSha256: hash, PathType: pathTypeFile}, hashOK
+	return fileInfo{}, status
 }
 
 type hashStatus int
@@ -183,12 +213,10 @@ const (
 	hashOK hashStatus = iota
 	// hashUnavailable: unreadable, or not Mach-O when one was required.
 	hashUnavailable
-	// hashDeferred: this run's byte budget is spent; a later run hashes the file. A deferred file
-	// yields no row, not a row with an empty hash. Omission is the signal the server keys on: for
-	// a keg it still sees, it keeps stored executables a run doesn't report, and treats the same
-	// path reported with a different hash as a rebuild in place. An empty hash would take the
-	// rebuild branch and delete the known-good hash. Bundles get no such tolerance, so they never
-	// defer.
+	// hashDeferred: this run's byte budget is spent; a later run hashes the file. A deferred
+	// file yields a row with an empty hash and `hash_state = 'deferred'`, so the rows for a
+	// path are the complete set of Mach-O files it holds every run and omission means the file
+	// is gone. Bundles never defer: they draw from no budget.
 	hashDeferred
 )
 

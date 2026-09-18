@@ -11032,6 +11032,12 @@
         "type": "text",
         "required": false,
         "description": "`bundle` when `path` is an app folder, `file` when `path` is a Mach-O executable file."
+      },
+      {
+        "name": "hash_state",
+        "type": "text",
+        "required": false,
+        "description": "`hashed` when `executable_sha256` holds the hash of `executable_path`, `deferred` when `path` is a Mach-O executable file that this run's hashing cap did not reach and a later run hashes, `unavailable` when no hash could be produced."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). A file that is not a Mach-O executable, such as a shell or Python script, returns no row.",

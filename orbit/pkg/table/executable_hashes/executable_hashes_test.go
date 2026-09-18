@@ -124,6 +124,7 @@ func TestGenerateWithExactPathMissingExecutable(t *testing.T) {
 	require.Equal(t, filepath.Join(contentsDir, "MacOS", "XProtect"), rows[0][colExecPath])
 	require.Empty(t, rows[0][colExecHash])
 	require.Equal(t, pathTypeBundle, rows[0][colPathType])
+	require.Equal(t, hashStateUnavailable, rows[0][colHashState])
 }
 
 // TestGenerateWithWildcardPartialMissingExecutables ensures a single bundle whose
@@ -219,6 +220,7 @@ func TestGenerateWithPlainDirectory(t *testing.T) {
 	require.Empty(t, rows[0][colExecPath])
 	require.Empty(t, rows[0][colExecHash])
 	require.Equal(t, pathTypeBundle, rows[0][colPathType])
+	require.Equal(t, hashStateUnavailable, rows[0][colHashState])
 }
 
 func TestGenerateWithWildcard(t *testing.T) {
@@ -448,6 +450,16 @@ func rowsByPath(rows []map[string]string) map[string]map[string]string {
 	return byPath
 }
 
+func countState(rows []map[string]string, state string) int {
+	count := 0
+	for _, row := range rows {
+		if row[colHashState] == state {
+			count++
+		}
+	}
+	return count
+}
+
 func TestGenerateWithWildcardMachOFiles(t *testing.T) {
 	resetHashState(t)
 	dir := t.TempDir()
@@ -515,10 +527,18 @@ func TestGenerateSkipsUnreadableFile(t *testing.T) {
 	writeFixture(t, unreadablePath, machOHeader, "unreadable mach-o content")
 	require.NoError(t, os.Chmod(unreadablePath, 0o000))
 
+	// A file that cannot be opened leaves the reported set rather than reporting `deferred`:
+	// the server reads its absence as a file that is gone and drops it, and the row returns
+	// when the file becomes readable again.
 	rows := generateLike(t, filepath.Join(dir, "%"))
 	require.Len(t, rows, 1)
 	require.Equal(t, readablePath, rows[0][colPath])
 	require.Equal(t, sha256Hex(content), rows[0][colExecHash])
+	require.Equal(t, hashStateHashed, rows[0][colHashState])
+
+	require.NoError(t, os.Chmod(unreadablePath, 0o644))
+	nextRun(t)
+	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
 }
 
 // A bundle whose executable exists but cannot be read keeps its row with an empty hash, and
@@ -542,10 +562,12 @@ func TestGenerateBundleWithUnreadableExecutable(t *testing.T) {
 	require.Equal(t, goodExec, byPath[goodPath][colExecPath])
 	require.Equal(t, sha256Hex(goodContent), byPath[goodPath][colExecHash])
 	require.Equal(t, pathTypeBundle, byPath[goodPath][colPathType])
+	require.Equal(t, hashStateHashed, byPath[goodPath][colHashState])
 
 	require.Equal(t, badExec, byPath[badPath][colExecPath])
 	require.Empty(t, byPath[badPath][colExecHash])
 	require.Equal(t, pathTypeBundle, byPath[badPath][colPathType])
+	require.Equal(t, hashStateUnavailable, byPath[badPath][colHashState])
 }
 
 func TestGenerateWithExactPathToFile(t *testing.T) {
@@ -679,11 +701,23 @@ func TestHashByteBudgetDefersFiles(t *testing.T) {
 	// deferred files are picked up one per call until every file is hashed.
 	hashByteBudget = size
 
-	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 1)
+	// Every file is reported every run: the budget decides which rows carry a hash, not
+	// which files are reported.
+	rows := generateLike(t, filepath.Join(dir, "%"))
+	require.Len(t, rows, 3)
+	require.Equal(t, 1, countState(rows, hashStateHashed))
+	require.Equal(t, 2, countState(rows, hashStateDeferred))
+
 	nextRun(t)
-	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
+	rows = generateLike(t, filepath.Join(dir, "%"))
+	require.Len(t, rows, 3)
+	require.Equal(t, 2, countState(rows, hashStateHashed))
+	require.Equal(t, 1, countState(rows, hashStateDeferred))
+
 	nextRun(t)
-	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 3)
+	rows = generateLike(t, filepath.Join(dir, "%"))
+	require.Len(t, rows, 3)
+	require.Equal(t, 3, countState(rows, hashStateHashed))
 }
 
 // writeBundle creates dir/name.app with an executable holding content.
@@ -732,11 +766,13 @@ func TestHashByteBudgetDefersFileExceedingRemainder(t *testing.T) {
 	hashByteBudget = int64(len(small)) + int64(len(big))/2
 
 	rows := generateLike(t, filepath.Join(dir, "%"))
-	require.Len(t, rows, 1)
-	require.Equal(t, filepath.Join(dir, "a-small"), rows[0][colPath])
+	require.Len(t, rows, 2)
+	byPath := rowsByPath(rows)
+	require.Equal(t, hashStateHashed, byPath[filepath.Join(dir, "a-small")][colHashState])
+	require.Equal(t, hashStateDeferred, byPath[filepath.Join(dir, "b-big")][colHashState])
 
 	nextRun(t)
-	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
+	require.Equal(t, 2, countState(generateLike(t, filepath.Join(dir, "%")), hashStateHashed))
 }
 
 func TestHashByteBudgetAdmitsOversizeFileOnlyFirst(t *testing.T) {
@@ -750,11 +786,13 @@ func TestHashByteBudgetAdmitsOversizeFileOnlyFirst(t *testing.T) {
 
 	// Only the first file of a call may exceed the budget, so the pair takes two calls.
 	rows := generateLike(t, filepath.Join(dir, "%"))
-	require.Len(t, rows, 1)
-	require.Equal(t, filepath.Join(dir, "a"), rows[0][colPath])
+	require.Len(t, rows, 2)
+	byPath := rowsByPath(rows)
+	require.Equal(t, hashStateHashed, byPath[filepath.Join(dir, "a")][colHashState])
+	require.Equal(t, hashStateDeferred, byPath[filepath.Join(dir, "b")][colHashState])
 
 	nextRun(t)
-	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
+	require.Equal(t, 2, countState(generateLike(t, filepath.Join(dir, "%")), hashStateHashed))
 }
 
 func TestHashCacheDeduplicatesByIdentity(t *testing.T) {
@@ -793,11 +831,15 @@ func TestHashByteBudgetSharedWithinWindow(t *testing.T) {
 
 	// One call per keg, as a correlated join issues them. The first spends the cap.
 	require.Len(t, generateExact(t, filepath.Join(dirA, "a")), 1)
-	require.Empty(t, generateExact(t, filepath.Join(dirB, "b")))
+	rows := generateExact(t, filepath.Join(dirB, "b"))
+	require.Len(t, rows, 1)
+	require.Equal(t, hashStateDeferred, rows[0][colHashState])
 
 	// Still the same run partway through the window.
 	fakeNow = fakeNow.Add(hashBudgetWindow / 2)
-	require.Empty(t, generateExact(t, filepath.Join(dirB, "b")))
+	rows = generateExact(t, filepath.Join(dirB, "b"))
+	require.Len(t, rows, 1)
+	require.Equal(t, hashStateDeferred, rows[0][colHashState])
 }
 
 func TestHashByteBudgetRenewsAfterWindow(t *testing.T) {
@@ -808,11 +850,14 @@ func TestHashByteBudgetRenewsAfterWindow(t *testing.T) {
 	hashByteBudget = int64(len(content))
 
 	require.Len(t, generateExact(t, filepath.Join(dirA, "a")), 1)
-	require.Empty(t, generateExact(t, filepath.Join(dirB, "b")))
-
-	nextRun(t)
 	rows := generateExact(t, filepath.Join(dirB, "b"))
 	require.Len(t, rows, 1)
+	require.Equal(t, hashStateDeferred, rows[0][colHashState])
+
+	nextRun(t)
+	rows = generateExact(t, filepath.Join(dirB, "b"))
+	require.Len(t, rows, 1)
+	require.Equal(t, hashStateHashed, rows[0][colHashState])
 	require.Equal(t, sha256Hex(b), rows[0][colExecHash])
 }
 
@@ -830,4 +875,74 @@ func TestBundleHashedWhenBudgetSpent(t *testing.T) {
 	require.Len(t, rows, 1)
 	require.Equal(t, sha256Hex(bundleContent), rows[0][colExecHash])
 	require.Equal(t, pathTypeBundle, rows[0][colPathType])
+	require.Equal(t, hashStateHashed, rows[0][colHashState])
+}
+
+// A file the byte budget deferred still reports its path. The rows a run returns are the
+// complete set of Mach-O files under the queried path, which is what lets the server read an
+// absent path as a file that is gone rather than one it has not hashed yet.
+func TestDeferredFileReportsRowWithoutHash(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+
+	// The target lives outside the globbed directory so the glob only matches the symlink,
+	// which pins that a deferred row still carries the resolved executable path.
+	targetDir := t.TempDir()
+	targetPath := filepath.Join(targetDir, "tool")
+	content := writeFixture(t, targetPath, machOHeader, "deferred mach-o content")
+	linkPath := filepath.Join(dir, "tool")
+	require.NoError(t, os.Symlink(targetPath, linkPath))
+
+	// Glob order puts the spender first, so it takes the whole budget.
+	spender := writeFixture(t, filepath.Join(dir, "a-spender"), machOHeader, "spend the budget")
+	hashByteBudget = int64(len(spender))
+
+	row := rowsByPath(generateLike(t, filepath.Join(dir, "%")))[linkPath]
+	require.Equal(t, hashStateDeferred, row[colHashState])
+	require.Equal(t, pathTypeFile, row[colPathType])
+	require.Equal(t, resolve(t, targetPath), row[colExecPath])
+	require.Empty(t, row[colExecHash])
+
+	nextRun(t)
+	row = rowsByPath(generateLike(t, filepath.Join(dir, "%")))[linkPath]
+	require.Equal(t, hashStateHashed, row[colHashState])
+	require.Equal(t, resolve(t, targetPath), row[colExecPath])
+	require.Equal(t, sha256Hex(content), row[colExecHash])
+}
+
+// A script is not something Santa can act on, so it must not enter the reported set in any
+// state: the Mach-O check runs before the budget, so a spent budget defers nothing.
+func TestNonMachOFileNeverDeferred(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+
+	spender := writeFixture(t, filepath.Join(dir, "a-spender"), machOHeader, "spend the budget")
+	writeFixture(t, filepath.Join(dir, "script"), []byte("#!/bin/sh"), "\necho hello\n")
+	hashByteBudget = int64(len(spender))
+
+	rows := generateLike(t, filepath.Join(dir, "%"))
+	require.Len(t, rows, 1)
+	require.Equal(t, filepath.Join(dir, "a-spender"), rows[0][colPath])
+	require.Equal(t, hashStateHashed, rows[0][colHashState])
+}
+
+// Bundles never draw from the budget, so they never report `deferred` however little is left.
+func TestBundleNeverDeferred(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+
+	content := writeFixture(t, filepath.Join(dir, "tool"), machOHeader, "spend the budget")
+	hashByteBudget = int64(len(content))
+	require.Len(t, generateExact(t, filepath.Join(dir, "tool")), 1)
+
+	bundleDir := t.TempDir()
+	writeBundle(t, bundleDir, "Big", "Big", []byte("bundle executable longer than the whole budget"))
+	writeBundle(t, bundleDir, "Empty", "Empty", nil)
+	require.NoError(t, os.Remove(filepath.Join(bundleDir, "Empty.app", "Contents", "MacOS", "Empty")))
+
+	rows := generateLike(t, filepath.Join(bundleDir, "%.app"))
+	require.Len(t, rows, 2)
+	require.Equal(t, 1, countState(rows, hashStateHashed))
+	require.Equal(t, 1, countState(rows, hashStateUnavailable))
+	require.Zero(t, countState(rows, hashStateDeferred))
 }
