@@ -209,6 +209,14 @@ const TEST_CASES = [
       mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation']]
     }
   },
+  {
+    id: 'mobileconfig-app-store',
+    profileType: 'mobileconfig',
+    instructions: 'Prevent users from downloading books tagged as erotica from the Apple Books store',
+    expect: {
+      mustContain: ['com.apple.applicationaccess', 'allowBookstoreErotica'],
+    }
+  },
 
   //  ╔╦╗╔╦╗╔╦╗
   //   ║║ ║║║║║
