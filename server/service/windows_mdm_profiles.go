@@ -338,6 +338,9 @@ func subjectNameHasRenewalIDMarker(data string) bool {
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
+	if err := fleet.ValidateNoHostSecretVariables(contents); err != nil {
+		return nil, err
+	}
 	foundVars := variables.Find(contents)
 	if len(foundVars) == 0 {
 		return nil, nil

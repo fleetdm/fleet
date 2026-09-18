@@ -438,7 +438,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		},
 	)
 	require.Error(t, err)
-	require.ErrorContains(t, err, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.ErrorContains(t, err, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
 	require.Nil(t, cmds)
 	require.Nil(t, total)
 

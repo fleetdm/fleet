@@ -12,6 +12,7 @@ import {
   IVPPHostSoftware,
 } from "interfaces/software";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import HostInstallerActionCell from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import { installStatusSortType } from "../../../helpers";
@@ -83,7 +84,10 @@ export const generateSoftwareTableHeaders = ({
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
-      accessor: "name",
+      id: "name",
+      // Client-side sort: the key must be the string the cell renders.
+      accessor: (originalRow) =>
+        getDisplayedSoftwareName(originalRow.name, originalRow.display_name),
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {

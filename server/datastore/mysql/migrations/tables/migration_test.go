@@ -168,6 +168,7 @@ WHERE
 		{"utf8mb4_bin", "host_certificate_templates", "fleet_challenge", "utf8mb4"},
 		{"utf8mb4_bin", "host_device_auth", "previous_token", "utf8mb4"},
 		{"utf8mb4_bin", "host_device_auth", "token", "utf8mb4"},
+		{"utf8mb4_bin", "host_one_time_enroll_secrets", "secret", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
 		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
 		{"utf8mb4_bin", "in_house_app_install_tokens", "token", "utf8mb4"},

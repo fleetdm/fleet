@@ -1,7 +1,10 @@
 import React, { useCallback } from "react";
 
 import { IHostSummary } from "interfaces/host_summary";
-import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
+import {
+  getBuiltinPlatformLabelId,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "interfaces/label";
 import PATHS from "router/paths";
 import { PlatformValueOptions } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -44,9 +47,7 @@ const PlatformHostCounts = ({
 
   const getBuiltinLabelId = useCallback(
     (platformName: keyof typeof PLATFORM_NAME_TO_LABEL_NAME) =>
-      builtInLabels?.find(
-        (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME[platformName]
-      )?.id,
+      getBuiltinPlatformLabelId(builtInLabels, platformName),
     [builtInLabels]
   );
 

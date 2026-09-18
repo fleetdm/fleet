@@ -169,7 +169,6 @@ policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/latest-macos.yml
-  - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
@@ -198,6 +197,7 @@ policies:
   - path: ../lib/windows/policies/remote-desktop-disabled.yml
   - path: ../lib/windows/policies/screen-lock-timeout-configured.yml
   # Linux policies
+  - path: ../lib/linux/policies/latest-linux.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
