@@ -411,6 +411,9 @@ module.exports = {
       {
         "configurationProfile": "TODO",
         "profileFilename": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
         "settingsEnforced": [// For each setting enforced by the configuration profile.
           {
             name: "TODO",
