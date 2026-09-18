@@ -157,6 +157,8 @@ func processPath(ctx context.Context, path string, budget *hashBudget) (fileInfo
 	if stat.IsDir() {
 		return processBundle(ctx, path), hashOK
 	}
+	// A FIFO would block os.Open until a writer appeared, stalling the extension until
+	// osquery's watchdog killed it, and a device node is not an executable either.
 	if !stat.Mode().IsRegular() {
 		return fileInfo{}, hashUnavailable
 	}
@@ -178,6 +180,10 @@ func processBundle(ctx context.Context, path string) fileInfo {
 	stat, err := os.Stat(row.ExecPath)
 	if err != nil {
 		log.Debug().Err(err).Str("path", row.ExecPath).Msg("executable could not be read, returning empty hash")
+		return row
+	}
+	if !stat.Mode().IsRegular() {
+		log.Debug().Str("path", row.ExecPath).Msg("executable is not a regular file, returning empty hash")
 		return row
 	}
 
@@ -256,6 +262,10 @@ func hashCached(path string, stat os.FileInfo, pathType string, budget *hashBudg
 	return execPath, hash, status
 }
 
+// statFile is (*os.File).Stat, indirected so a test can stand in for a write that lands
+// between the two stats of a hash.
+var statFile = (*os.File).Stat
+
 // hashFile returns the SHA-256 of the file at path and the identity of the descriptor it hashed.
 // A nil budget admits everything. Read failures are skips, not errors, so one unreadable file
 // does not cost the host every other hash in the batch.
@@ -267,7 +277,7 @@ func hashFile(path string, requireMachO bool, budget *hashBudget) (string, fileI
 	}
 	defer f.Close()
 
-	before, err := f.Stat()
+	before, err := statFile(f)
 	if err != nil {
 		log.Debug().Err(err).Str("path", path).Msg("skipping file that could not be stat'd")
 		return "", fileIdentity{}, hashUnavailable
@@ -289,7 +299,7 @@ func hashFile(path string, requireMachO bool, budget *hashBudget) (string, fileI
 	}
 
 	// A write that lands mid-hash yields a digest of neither version.
-	after, err := f.Stat()
+	after, err := statFile(f)
 	if err != nil || newFileIdentity(after) != id {
 		log.Debug().Err(err).Str("path", path).Msg("skipping file that changed while being hashed")
 		return "", fileIdentity{}, hashUnavailable

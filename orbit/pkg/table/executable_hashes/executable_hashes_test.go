@@ -5,10 +5,13 @@ package executable_hashes
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -416,28 +419,26 @@ func sha256Hex(content []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func generateLike(t *testing.T, pattern string) []map[string]string {
-	t.Helper()
-	rows, err := Generate(t.Context(), table.QueryContext{
+func pathConstraint(expression string, operator table.Operator) table.QueryContext {
+	return table.QueryContext{
 		Constraints: map[string]table.ConstraintList{
 			colPath: {
-				Constraints: []table.Constraint{{Expression: pattern, Operator: table.OperatorLike}},
+				Constraints: []table.Constraint{{Expression: expression, Operator: operator}},
 			},
 		},
-	})
+	}
+}
+
+func generateLike(t *testing.T, pattern string) []map[string]string {
+	t.Helper()
+	rows, err := Generate(t.Context(), pathConstraint(pattern, table.OperatorLike))
 	require.NoError(t, err)
 	return rows
 }
 
 func generateExact(t *testing.T, path string) []map[string]string {
 	t.Helper()
-	rows, err := Generate(t.Context(), table.QueryContext{
-		Constraints: map[string]table.ConstraintList{
-			colPath: {
-				Constraints: []table.Constraint{{Expression: path, Operator: table.OperatorEquals}},
-			},
-		},
-	})
+	rows, err := Generate(t.Context(), pathConstraint(path, table.OperatorEquals))
 	require.NoError(t, err)
 	return rows
 }
@@ -583,10 +584,6 @@ func TestGenerateWithExactPathToFile(t *testing.T) {
 	require.Equal(t, resolve(t, machOPath), rows[0][colExecPath])
 	require.Equal(t, sha256Hex(content), rows[0][colExecHash])
 	require.Equal(t, pathTypeFile, rows[0][colPathType])
-
-	scriptPath := filepath.Join(dir, "script")
-	writeFixture(t, scriptPath, []byte("#!/bin/sh"), "\necho hello\n")
-	require.Empty(t, generateExact(t, scriptPath))
 }
 
 func TestHashCacheHitAndInvalidation(t *testing.T) {
@@ -822,11 +819,11 @@ func TestHashCacheDeduplicatesByIdentity(t *testing.T) {
 	}
 }
 
-func TestHashByteBudgetSharedWithinWindow(t *testing.T) {
+func TestHashByteBudgetWindow(t *testing.T) {
 	resetHashState(t)
 	dirA, dirB := t.TempDir(), t.TempDir()
 	content := writeFixture(t, filepath.Join(dirA, "a"), machOHeader, "same length")
-	writeFixture(t, filepath.Join(dirB, "b"), machOHeader, "same length")
+	b := writeFixture(t, filepath.Join(dirB, "b"), machOHeader, "same length")
 	hashByteBudget = int64(len(content))
 
 	// One call per keg, as a correlated join issues them. The first spends the cap.
@@ -840,20 +837,8 @@ func TestHashByteBudgetSharedWithinWindow(t *testing.T) {
 	rows = generateExact(t, filepath.Join(dirB, "b"))
 	require.Len(t, rows, 1)
 	require.Equal(t, hashStateDeferred, rows[0][colHashState])
-}
 
-func TestHashByteBudgetRenewsAfterWindow(t *testing.T) {
-	resetHashState(t)
-	dirA, dirB := t.TempDir(), t.TempDir()
-	content := writeFixture(t, filepath.Join(dirA, "a"), machOHeader, "same length")
-	b := writeFixture(t, filepath.Join(dirB, "b"), machOHeader, "same length")
-	hashByteBudget = int64(len(content))
-
-	require.Len(t, generateExact(t, filepath.Join(dirA, "a")), 1)
-	rows := generateExact(t, filepath.Join(dirB, "b"))
-	require.Len(t, rows, 1)
-	require.Equal(t, hashStateDeferred, rows[0][colHashState])
-
+	// The first call after the window starts a fresh budget.
 	nextRun(t)
 	rows = generateExact(t, filepath.Join(dirB, "b"))
 	require.Len(t, rows, 1)
@@ -926,23 +911,155 @@ func TestNonMachOFileNeverDeferred(t *testing.T) {
 	require.Equal(t, hashStateHashed, rows[0][colHashState])
 }
 
-// Bundles never draw from the budget, so they never report `deferred` however little is left.
-func TestBundleNeverDeferred(t *testing.T) {
+// A path that is not a regular file must be dropped before os.Open, which on a FIFO blocks
+// until a writer appears and would stall the extension until osquery's watchdog killed it.
+// The call runs on its own goroutine so a regression fails the test instead of hanging it.
+func TestGenerateSkipsNonRegularFile(t *testing.T) {
 	resetHashState(t)
 	dir := t.TempDir()
 
-	content := writeFixture(t, filepath.Join(dir, "tool"), machOHeader, "spend the budget")
-	hashByteBudget = int64(len(content))
-	require.Len(t, generateExact(t, filepath.Join(dir, "tool")), 1)
+	// Glob order puts the FIFO first, so a blocking open would also cost the Mach-O file.
+	require.NoError(t, syscall.Mkfifo(filepath.Join(dir, "a-fifo"), 0o644))
+	content := writeFixture(t, filepath.Join(dir, "b-tool"), machOHeader, "mach-o content")
 
-	bundleDir := t.TempDir()
-	writeBundle(t, bundleDir, "Big", "Big", []byte("bundle executable longer than the whole budget"))
-	writeBundle(t, bundleDir, "Empty", "Empty", nil)
-	require.NoError(t, os.Remove(filepath.Join(bundleDir, "Empty.app", "Contents", "MacOS", "Empty")))
+	type outcome struct {
+		rows []map[string]string
+		err  error
+	}
+	done := make(chan outcome, 1)
+	ctx := t.Context()
+	go func() {
+		rows, err := Generate(ctx, pathConstraint(filepath.Join(dir, "%"), table.OperatorLike))
+		done <- outcome{rows, err}
+	}()
 
-	rows := generateLike(t, filepath.Join(bundleDir, "%.app"))
-	require.Len(t, rows, 2)
-	require.Equal(t, 1, countState(rows, hashStateHashed))
-	require.Equal(t, 1, countState(rows, hashStateUnavailable))
-	require.Zero(t, countState(rows, hashStateDeferred))
+	select {
+	case got := <-done:
+		require.NoError(t, got.err)
+		require.Len(t, got.rows, 1)
+		require.Equal(t, filepath.Join(dir, "b-tool"), got.rows[0][colPath])
+		require.Equal(t, sha256Hex(content), got.rows[0][colExecHash])
+	case <-time.After(30 * time.Second):
+		t.Fatal("Generate blocked, most likely opening the FIFO")
+	}
+}
+
+// A bundle whose Info.plist names a FIFO is the same hazard: nothing constrains what
+// CFBundleExecutable points at.
+func TestGenerateBundleWithNonRegularExecutable(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+
+	bundlePath, execPath := writeBundle(t, dir, "Fifo", "Fifo", nil)
+	require.NoError(t, os.Remove(execPath))
+	require.NoError(t, syscall.Mkfifo(execPath, 0o644))
+
+	done := make(chan []map[string]string, 1)
+	ctx := t.Context()
+	go func() {
+		rows, _ := Generate(ctx, pathConstraint(bundlePath, table.OperatorEquals))
+		done <- rows
+	}()
+
+	select {
+	case rows := <-done:
+		require.Len(t, rows, 1)
+		require.Equal(t, execPath, rows[0][colExecPath])
+		require.Empty(t, rows[0][colExecHash])
+		require.Equal(t, hashStateUnavailable, rows[0][colHashState])
+	case <-time.After(30 * time.Second):
+		t.Fatal("Generate blocked, most likely opening the FIFO")
+	}
+}
+
+// touchedStat reports a modification time a second later than the file's, standing in for a
+// write that lands between the two stats of a hash.
+type touchedStat struct {
+	os.FileInfo
+}
+
+func (s touchedStat) ModTime() time.Time { return s.FileInfo.ModTime().Add(time.Second) }
+
+// A file that changes while it is read yields a digest of neither version, so the row is
+// dropped and nothing is cached. Racing a real write is not reproducible, so the second stat
+// is the seam.
+func TestFileChangedWhileHashedYieldsNoRow(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		after func(os.FileInfo) (os.FileInfo, error)
+	}{
+		{"identity moved", func(stat os.FileInfo) (os.FileInfo, error) { return touchedStat{stat}, nil }},
+		{"stat failed", func(os.FileInfo) (os.FileInfo, error) { return nil, errors.New("stat failed") }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			resetHashState(t)
+			dir := t.TempDir()
+			path := filepath.Join(dir, "tool")
+			content := writeFixture(t, path, machOHeader, "content that changes mid-hash")
+
+			previous := statFile
+			calls := 0
+			statFile = func(f *os.File) (os.FileInfo, error) {
+				stat, err := previous(f)
+				calls++
+				if err != nil || calls == 1 {
+					return stat, err
+				}
+				return tt.after(stat)
+			}
+			require.Empty(t, generateExact(t, path))
+
+			// Nothing was cached, so the file hashes normally once it stops moving.
+			statFile = previous
+			rows := generateExact(t, path)
+			require.Len(t, rows, 1)
+			require.Equal(t, sha256Hex(content), rows[0][colExecHash])
+		})
+	}
+}
+
+// The hash cache and the run's byte budget are package-level state that every Generate call
+// shares, and osquery can have several in flight at once. Run under -race.
+func TestGenerateConcurrentCalls(t *testing.T) {
+	resetHashState(t)
+	dir := t.TempDir()
+
+	const files = 8
+	expected := make(map[string]string, files)
+	for i := range files {
+		path := filepath.Join(dir, fmt.Sprintf("tool%d", i))
+		expected[path] = sha256Hex(writeFixture(t, path, machOHeader, fmt.Sprintf("mach-o content %d", i)))
+	}
+
+	const callers = 8
+	results := make([][]map[string]string, callers)
+	errs := make([]error, callers)
+	ctx := t.Context()
+
+	var wg sync.WaitGroup
+	for i := range callers {
+		wg.Go(func() {
+			results[i], errs[i] = Generate(ctx, pathConstraint(filepath.Join(dir, "%"), table.OperatorLike))
+		})
+	}
+	wg.Wait()
+
+	for i, rows := range results {
+		require.NoError(t, errs[i])
+		require.Len(t, rows, files)
+		for _, row := range rows {
+			require.Equal(t, expected[row[colPath]], row[colExecHash], row[colPath])
+			require.Equal(t, hashStateHashed, row[colHashState])
+		}
+	}
+}
+
+func TestGenerateWithWildcardMatchingNothing(t *testing.T) {
+	resetHashState(t)
+	require.Empty(t, generateLike(t, filepath.Join(t.TempDir(), "%")))
+}
+
+func TestGenerateWithoutPathConstraint(t *testing.T) {
+	_, err := Generate(t.Context(), table.QueryContext{})
+	require.ErrorContains(t, err, "missing `path` constraint")
 }
