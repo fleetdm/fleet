@@ -30,12 +30,17 @@ fi
 before="${PRETTY_NAME:-$NAME ${VERSION:-}}"
 
 if systemctl is-active --quiet "$UNIT.service" 2>/dev/null; then
-  log "A previous OS update is still running (see: journalctl -u $UNIT); will re-check on the next policy run."
+  started_at="$(systemctl show -p ActiveEnterTimestamp --value "$UNIT.service" 2>/dev/null)"
+  log "An OS update started at $started_at is still running in the background (see: journalctl -u $UNIT). Exiting before Fleet's script timeout; the policy re-checks on its next run."
   exit 0
 fi
 
 # An upgrade interrupted by a dead battery can leave dpkg/rpm half-applied.
 for supply in /sys/class/power_supply/*; do
+  # Only the system battery matters; peripherals (Bluetooth mice/keyboards) also
+  # report type=Battery but scope=Device, and would defer this forever on desktops.
+  [ -r "$supply/type" ] && [ "$(cat "$supply/type")" = "Battery" ] || continue
+  [ -r "$supply/scope" ] && [ "$(cat "$supply/scope")" = "Device" ] && continue
   [ -r "$supply/status" ] && [ -r "$supply/capacity" ] || continue
   if [ "$(cat "$supply/status")" = "Discharging" ] && [ "$(cat "$supply/capacity")" -lt "$MIN_BATTERY_PERCENT" ]; then
     log "On battery at $(cat "$supply/capacity")%; deferring until charging or above $MIN_BATTERY_PERCENT%."
@@ -47,8 +52,14 @@ case " ${ID:-} ${ID_LIKE:-} " in
   *" debian "*|*" ubuntu "*)
     # `upgrade --with-new-pkgs` pulls new dependencies (e.g. a new kernel through its
     # meta-package) but never removes anything, unlike full-upgrade.
+    # `apt-get update` failures (e.g. one broken third-party repo) shouldn't block
+    # upgrading everything else, so its failure is swallowed. Ubuntu's phased-rollout
+    # packages are left deferred on purpose -- they don't affect the `base-files`
+    # point release this policy checks; add
+    # -o APT::Get::Always-Include-Phased-Updates=true if a future policy compares
+    # package versions instead.
     UPGRADE_CMD='export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a UCF_FORCE_CONFFOLD=1
-      apt-get update -o DPkg::Lock::Timeout=300 &&
+      apt-get update -o DPkg::Lock::Timeout=300 || true
       apt-get -y -o DPkg::Lock::Timeout=300 \
         -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
         upgrade --with-new-pkgs'
@@ -64,6 +75,12 @@ case " ${ID:-} ${ID_LIKE:-} " in
 esac
 
 mkdir -p "$STATE_DIR"
+if [ -f "$STATUS_FILE" ]; then
+  prev_status="$(cat "$STATUS_FILE" 2>/dev/null || echo "")"
+  if [ -n "$prev_status" ] && [ "$prev_status" != "0" ]; then
+    log "Previous background upgrade exited $prev_status (see: journalctl -u $UNIT); retrying."
+  fi
+fi
 rm -f "$STATUS_FILE"
 systemctl reset-failed "$UNIT.service" 2>/dev/null || true
 started="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -79,13 +96,13 @@ while systemctl is-active --quiet "$UNIT.service" && [ "$waited" -lt "$WAIT_SECO
 done
 
 if systemctl is-active --quiet "$UNIT.service"; then
-  log "Upgrade still running after ${WAIT_SECONDS}s; it continues in the background and the policy re-checks on its next run."
+  log "OS update started by this run is still running after ${WAIT_SECONDS}s and continues in the background (see: journalctl -u $UNIT). Exiting before Fleet's script timeout; the policy re-checks on its next run."
   exit 0
 fi
 
 status="$(cat "$STATUS_FILE" 2>/dev/null || echo unknown)"
 echo "--- package manager output (tail) ---"
-journalctl -u "$UNIT.service" --since "$started" --no-pager -o cat 2>/dev/null | tail -n 40 || true
+journalctl _SYSTEMD_UNIT="$UNIT.service" --since "$started" --no-pager -o cat 2>/dev/null | tail -n 40 || true
 echo "--- end ---"
 if [ "$status" != "0" ]; then
   log "Package upgrade failed (exit $status)." >&2
@@ -93,14 +110,22 @@ if [ "$status" != "0" ]; then
 fi
 
 . /etc/os-release
-log "After: ${PRETTY_NAME:-$NAME ${VERSION:-}}"
+after="${PRETTY_NAME:-$NAME ${VERSION:-}}"
+log "After: $after"
 
 reboot_needed=""
 [ -e /var/run/reboot-required ] && reboot_needed=1
-# needs-restarting exits 1 when a reboot is required; skip if the plugin isn't installed.
-if command -v dnf >/dev/null 2>&1 && dnf needs-restarting --help >/dev/null 2>&1; then
-  rc=0; dnf needs-restarting -r >/dev/null 2>&1 || rc=$?
-  [ "$rc" -eq 1 ] && reboot_needed=1
+if command -v dnf >/dev/null 2>&1; then
+  if dnf needs-restarting --help >/dev/null 2>&1; then
+    # needs-restarting exits 1 when a reboot is required.
+    rc=0; dnf needs-restarting -r >/dev/null 2>&1 || rc=$?
+    [ "$rc" -eq 1 ] && reboot_needed=1
+  elif command -v rpm >/dev/null 2>&1; then
+    # dnf5 dropped the needs-restarting plugin; fall back to comparing the running
+    # kernel against the newest installed one.
+    newest_kernel="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null | sort -V | tail -n 1)"
+    [ -n "$newest_kernel" ] && [ "$newest_kernel" != "$(uname -r)" ] && reboot_needed=1
+  fi
 fi
 if [ -n "$reboot_needed" ]; then
   log "Updates installed; a restart is required to finish (kernel or core libraries)."
@@ -113,6 +138,6 @@ if [ -n "$reboot_needed" ]; then
   fi
 fi
 
-if [ "${ID:-}" = "fedora" ]; then
+if [ "${ID:-}" = "fedora" ] && [ "$after" = "$before" ]; then
   log "Note: package updates don't move a host to a newer Fedora release. If the policy keeps failing, run: sudo dnf system-upgrade download --releasever=<latest> && sudo dnf system-upgrade reboot"
 fi
