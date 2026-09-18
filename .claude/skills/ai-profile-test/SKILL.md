@@ -30,8 +30,8 @@ Read every entry in `TEST_CASES` at the top of the script. If an existing case a
 Do NOT write assertions from memory — a plausible-but-wrong key produces a test that enforces the wrong output forever. Confirm the exact key names, casing, value types, and allowed values:
 
 - **csp**: Microsoft CSP reference (`learn.microsoft.com/en-us/windows/client-management/mdm/`) — exact OMA-URI node path, `Format`, allowed values.
-- **mobileconfig**: Apple's profile-specific payload keys (`developer.apple.com/documentation/devicemanagement/profile-specific-payload-keys`) — `PayloadType`, key names with exact casing, value types.
-- **ddm**: Apple's declarative device management schemas (`github.com/apple/device-management`, `declarative/declarations/`) — declaration `Type` and payload keys.
+- **mobileconfig**: Apple's per-payload YAML schemas (`github.com/apple/device-management`, `mdm/profiles/` — e.g. `com.apple.applicationaccess.yaml`) — `PayloadType`, key names with exact casing, value types, allowed values. The rendered docs (`developer.apple.com/documentation/devicemanagement/profile-specific-payload-keys`) cover the same payloads but are JS-rendered; the YAML is easier to fetch and is the source the docs are built from.
+- **ddm**: Apple's declarative device management schemas (same repo, `declarative/declarations/`) — declaration `Type` and payload keys.
 
 Keep the URL(s) you verified against — they go in the PR body so the reviewer can check the assertions without redoing the research.
 
