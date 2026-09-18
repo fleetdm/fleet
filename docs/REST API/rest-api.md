@@ -4893,7 +4893,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 > Note: 
-> - `signature_information` is only set for macOS (.app) applications. 
+> - `signature_information` is set for macOS apps (`source: apps`) and Homebrew formulae (`source: homebrew_packages`). Apps get one entry per bundle. Homebrew formulae get one entry per Mach-O executable in the formula's `bin` and `sbin` directories, with `executable_path` and `executable_sha256`. For those entries, `team_identifier` is empty and `hash_sha256` is `null`. Homebrew hashes require fleetd 1.63.0.
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
@@ -6529,7 +6529,11 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+`signature_information` is returned for macOS software from the `apps` and `homebrew_packages` sources.
+
+For `apps`, `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign) of the bundle.
+
+For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the formula's `bin` and `sbin` directories. Each entry has the executable's `executable_path` and its `executable_sha256`. `team_identifier` is empty and `hash_sha256` is `null`. Scripts and helpers under `libexec` aren't hashed, so a formula that installs only scripts, such as a Python or Ruby based tool, has one entry with no hashes. A formula's `installed_paths` lists its Cellar directory once, even when it has several entries. Homebrew hashes require fleetd 1.63.0.
 
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
@@ -6613,6 +6617,44 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         ]
       },
       "app_store_app": null
+    },
+    {
+      "id": 1042,
+      "name": "git",
+      "icon_url": null,
+      "source": "homebrew_packages",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "2.46.0",
+          "bundle_identifier": "",
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/opt/homebrew/Cellar/git"
+          ],
+          "signature_information": [
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git"
+            },
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell"
+            }
+          ],
+          "last_opened_at": ""
+        }
+      ],
+      "display_name": "",
+      "software_package": null,
+      "app_store_app": null
     }
   ],
   "meta": {
@@ -6647,7 +6689,11 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+`signature_information` is returned for macOS software from the `apps` and `homebrew_packages` sources.
+
+For `apps`, `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign) of the bundle.
+
+For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the formula's `bin` and `sbin` directories. Each entry has the executable's `executable_path` and its `executable_sha256`. `team_identifier` is empty and `hash_sha256` is `null`. Scripts and helpers under `libexec` aren't hashed, so a formula that installs only scripts, such as a Python or Ruby based tool, has one entry with no hashes. A formula's `installed_paths` lists its Cellar directory once, even when it has several entries. Homebrew hashes require fleetd 1.63.0.
 
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
@@ -6730,6 +6776,44 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
           "Browsers"
         ]
       },
+      "app_store_app": null
+    },
+    {
+      "id": 1042,
+      "name": "git",
+      "icon_url": null,
+      "source": "homebrew_packages",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "2.46.0",
+          "bundle_identifier": "",
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/opt/homebrew/Cellar/git"
+          ],
+          "signature_information": [
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git"
+            },
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell"
+            }
+          ],
+          "last_opened_at": ""
+        }
+      ],
+      "display_name": "",
+      "software_package": null,
       "app_store_app": null
     }
   ],
