@@ -3780,7 +3780,7 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 
 ### mdm.windows_enrollment_retention
 
-How long Fleet keeps a Windows MDM enrollment that is orphaned or superseded before the hourly cleanup deletes it, along with its queued commands, command results, and stored responses. An enrollment is orphaned when its host has been deleted from Fleet and the device hasn't re-enrolled, and superseded when the same host has a newer enrollment.
+The minimum time since a Windows MDM enrollment was last updated before the hourly cleanup deletes it, if it is orphaned or superseded, along with its queued commands, command results, and stored responses. An enrollment is orphaned when its host has been deleted from Fleet and the device hasn't re-enrolled, and superseded when the same host has a newer enrollment. The clock runs from the enrollment's last update, not from when its host was deleted, so an enrollment that has been idle for longer than this value is removed on the first cleanup after it becomes orphaned.
 
 Enrollments are kept after a host is deleted so that a device that's still online relinks to a new host record when fleetd re-enrolls it. Lower this value in test environments that delete and re-enroll hosts frequently. Set it to `0` to disable the cleanup.
 
