@@ -15,7 +15,6 @@ import { INITIAL_FLEET_DATE } from "utilities/constants";
 const baseClass = "device-user-banners";
 
 interface IDeviceUserBannersProps extends IHostBannersBaseProps {
-  /** The device endpoint sends more than the admin one, and this banner reads it. */
   diskEncryptionOSSetting?: IDeviceDiskEncryptionSetting;
   mdmEnabledAndConfigured: boolean;
   mdmManualEnrolmentUrl?: string;

@@ -314,9 +314,7 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
-      // A modal still owed an answer keeps polling on its own account: the request is read from a replica, so the
-      // fetch right after a submit can answer from before it and show nothing in flight. The modal gives up after a
-      // deadline, which is what bounds this.
+      // A modal still owed an answer keeps polling on its own account. The modal gives up after a deadline, which is what bounds this.
       refetchInterval: (data) =>
         isAwaitingPINOutcome || hasPINRequestInFlight(data)
           ? BITLOCKER_PIN_POLL_INTERVAL

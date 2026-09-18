@@ -160,12 +160,10 @@ export interface IHostDiskEncryptionSetting {
   action_required?: DiskEncryptionActionRequired | null;
 }
 
-/** What the device endpoint adds for the My device page. The admin host endpoint never sends these, so they live here
- * rather than on IHostDiskEncryptionSetting: admin-side code that reads them should not compile. */
+/** What the device endpoint adds for the My device page. */
 export interface IDeviceDiskEncryptionSetting
   extends IHostDiskEncryptionSetting {
-  /** Only for a Windows host that needs a PIN. False means the host's fleetd is too old to be handed one, so the end
-   * user has to set it themselves. */
+  /** Only for a Windows host that needs a PIN. False means the host's fleetd is too old to be handed one. */
   fleetd_can_set_pin?: boolean;
   /** The end user's most recent PIN submission. */
   pin_request?: IBitLockerPINRequest;

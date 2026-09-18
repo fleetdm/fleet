@@ -36,14 +36,18 @@ const diskEncryption = (
   pin_request: pinRequest,
 });
 
+/** A host the agent has taken a PIN for and not reported on yet. */
+const inTheAgentsHands = diskEncryption({ status: "delivered", error: "" });
+
 /** Renders the modal and hands back a way to feed it the page's next fetch. */
-const renderModal = (onExit = jest.fn(), beforeSubmit = diskEncryption()) => {
+const renderModal = (beforeSubmit = diskEncryption()) => {
   // delay: null keeps user-event off the fake clock, which otherwise makes typing and clicking flaky under load.
   const user = userEvent.setup({
     advanceTimers: jest.advanceTimersByTime,
     delay: null,
   });
   const onWaitingChange = jest.fn();
+  const onExit = jest.fn();
   // onExit is inline here as it is on the page, so every render hands the modal a different function. A modal that
   // took that as a signal would restart its deadline on every poll.
   const modal = (data: IDeviceDiskEncryptionSetting, dataUpdatedAt: number) => (
@@ -56,21 +60,18 @@ const renderModal = (onExit = jest.fn(), beforeSubmit = diskEncryption()) => {
     />
   );
   // Fetched before any submit, so nothing already on screen counts as this submit's answer.
-  const { rerender } = render(modal(beforeSubmit, 0));
+  const { rerender, unmount } = render(modal(beforeSubmit, 0));
 
   /** Stands in for the page's query resolving: new data, fetched now. */
-  const pageFetched = (
-    next: IDeviceDiskEncryptionSetting = beforeSubmit,
-    elapsedMs = 1000
-  ) =>
+  const pageFetched = (next: IDeviceDiskEncryptionSetting) =>
     act(() => {
       // Fake timers freeze Date.now(), so move it on: data fetched in the same millisecond as the submit cannot be
       // this submit's answer, and the modal is right to ignore it.
-      jest.advanceTimersByTime(elapsedMs);
+      jest.advanceTimersByTime(1000);
       rerender(modal(next, Date.now()));
     });
 
-  return { user, onExit, onWaitingChange, pageFetched };
+  return { user, onExit, onWaitingChange, pageFetched, unmount };
 };
 
 const submitPIN = async (
@@ -87,6 +88,29 @@ const submitPIN = async (
     await jest.advanceTimersByTimeAsync(0);
   });
 };
+
+/** Every signal the modal accepts as the PIN having been set. */
+const successCases: [string, IDeviceDiskEncryptionSetting][] = [
+  [
+    "the agent reports the PIN is set",
+    diskEncryption({ status: "set", error: "" }),
+  ],
+  // osquery can see the PIN before the agent's own report reaches Fleet.
+  [
+    "the disk reads as verified",
+    diskEncryption({ status: "delivered", error: "" }, "verified", undefined),
+  ],
+  [
+    "the disk reads as verifying",
+    diskEncryption({ status: "delivered", error: "" }, "verifying", undefined),
+  ],
+];
+
+const stillWaitingCases: [string, IDeviceDiskEncryptionSetting][] = [
+  ["the agent has not answered", inTheAgentsHands],
+  // The request is read from a replica, so the fetch right after a submit can still show nothing in flight.
+  ["a fetch answers from before the submit landed", diskEncryption()],
+];
 
 describe("BitLockerPinModal", () => {
   beforeEach(() => {
@@ -128,57 +152,36 @@ describe("BitLockerPinModal", () => {
     expect(screen.getByText("Setting PIN...")).toBeVisible();
   });
 
-  it("closes with a success toast once the agent reports the PIN is set", async () => {
-    const { user, onExit, pageFetched } = renderModal();
+  it.each(successCases)(
+    "closes with a success toast once %s",
+    async (_, fetched) => {
+      const { user, onExit, onWaitingChange, pageFetched } = renderModal();
+
+      await submitPIN(user, "123456");
+      pageFetched(fetched);
+
+      expect(notify.success).toHaveBeenCalledWith("Successfully created PIN.");
+      expect(onExit).toHaveBeenCalled();
+      expect(onWaitingChange).toHaveBeenLastCalledWith(false);
+    }
+  );
+
+  it.each(stillWaitingCases)("keeps waiting while %s", async (_, fetched) => {
+    const { user, onExit, onWaitingChange, pageFetched } = renderModal();
 
     await submitPIN(user, "123456");
-    pageFetched(diskEncryption({ status: "set", error: "" }));
-
-    expect(notify.success).toHaveBeenCalledWith("Successfully created PIN.");
-    expect(onExit).toHaveBeenCalled();
-  });
-
-  it("closes with a success toast when osquery sees the PIN before the agent reports it", async () => {
-    const { user, onExit, pageFetched } = renderModal();
-
-    await submitPIN(user, "123456");
-    pageFetched(
-      diskEncryption({ status: "delivered", error: "" }, "verified", undefined)
-    );
-
-    expect(notify.success).toHaveBeenCalledWith("Successfully created PIN.");
-    expect(onExit).toHaveBeenCalled();
-  });
-
-  it("keeps waiting while the agent has not answered", async () => {
-    const { user, onExit, pageFetched } = renderModal();
-
-    await submitPIN(user, "123456");
-    pageFetched(diskEncryption({ status: "delivered", error: "" }));
+    pageFetched(fetched);
 
     expect(screen.getByText("Setting PIN...")).toBeVisible();
     expect(notify.success).not.toHaveBeenCalled();
     expect(notify.error).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
-  });
-
-  it("keeps waiting when a fetch answers from before the submit landed", async () => {
-    // The request is read from a replica, so the fetch right after a submit can still show nothing in flight. Giving
-    // up on it would leave the outcome unread.
-    const { user, onExit, onWaitingChange, pageFetched } = renderModal();
-
-    await submitPIN(user, "123456");
-    pageFetched(diskEncryption());
-
     expect(onWaitingChange).toHaveBeenLastCalledWith(true);
-    expect(screen.getByText("Setting PIN...")).toBeVisible();
-    expect(onExit).not.toHaveBeenCalled();
   });
 
   it("ignores an outcome fetched before the submit", async () => {
     // A failure from an earlier attempt is still in the page's data when this one is submitted.
     const { user, onExit } = renderModal(
-      jest.fn(),
       diskEncryption({ status: "failed", error: "PIN already set" })
     );
 
@@ -207,16 +210,17 @@ describe("BitLockerPinModal", () => {
     expect(onWaitingChange).toHaveBeenLastCalledWith(false);
   });
 
-  it("reports the agent's failure even once the host stops asking for a PIN", async () => {
+  it("reports the agent's failure ahead of any success signal", async () => {
     const { user, onExit, pageFetched } = renderModal();
 
     await submitPIN(user, "123456");
-    // A host can stop asking for a PIN for reasons unrelated to this submission.
+    // Both signals at once. A host can be encrypting for reasons unrelated to this submission, so success needs the
+    // agent's own report and cannot be read off the disk encryption status alone.
     pageFetched(
       diskEncryption(
         { status: "failed", error: "PIN already set" },
-        "action_required",
-        "restart"
+        "verifying",
+        undefined
       )
     );
 
@@ -249,10 +253,24 @@ describe("BitLockerPinModal", () => {
     await submitPIN(user, "123456");
     // Every poll re-renders the modal. A deadline that restarted with them would never be reached.
     for (let elapsed = 0; elapsed <= POLL_TIMEOUT_MS; elapsed += 1000) {
-      pageFetched(diskEncryption({ status: "delivered", error: "" }));
+      pageFetched(inTheAgentsHands);
     }
 
     expect(onExit).toHaveBeenCalled();
+  });
+
+  it("drops the wait when the modal closes mid-flight", async () => {
+    const { user, unmount } = renderModal();
+
+    await submitPIN(user, "123456");
+    unmount();
+    act(() => {
+      jest.advanceTimersByTime(POLL_TIMEOUT_MS);
+    });
+
+    // Nothing is left running to report on a modal the end user has already closed.
+    expect(notify.error).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
   });
 
   it("reports the server's reason for a rejected submission without waiting", async () => {
