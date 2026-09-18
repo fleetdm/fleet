@@ -668,8 +668,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoint that's behind the mdmConfiguredMiddleware, this applies
 	// both to this set of endpoints and to any public/token-authenticated
 	// endpoints using `neMDM` below in this file.
+	// On authenticated route groups the configuration check runs after
+	// authentication, so responses to requests without valid credentials
+	// don't vary with configuration state.
 	mdmConfiguredMiddleware := mdmconfigured.NewMDMConfigMiddleware(svc)
-	mdmAppleMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	mdmAppleMW := ue.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDM())
 
 	// Deprecated: POST /mdm/apple/enqueue is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/run. It is still supported
@@ -817,7 +820,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/apns_ping", apnsPingRequestEndpoint, sendAPNSPingRequest{})
 
-	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
+	mdmAnyMW := ue.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 
@@ -957,7 +960,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesEndpoint, batchApplyCertificateAuthoritiesRequest{})
 	ue.GET("/api/_version_/fleet/spec/certificate_authorities", getCertificateAuthoritiesSpecEndpoint, getCertificateAuthoritiesSpecRequest{})
 
-	mdmAndroidMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAndroidMDM())
+	mdmAndroidMW := ue.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAndroidMDM())
 	mdmAndroidMW.POST("/api/_version_/fleet/software/web_apps", createAndroidWebAppEndpoint, createAndroidWebAppRequest{})
 
 	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
@@ -1032,11 +1035,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// migrate_mdm is posted by the tray app's "Migrate to Fleet" dialog with the
 	// device token alone (orbit/pkg/useraction -> DeviceClient.MigrateMDM), and it
 	// has no browser to complete an IdP round-trip in.
-	deNoSSOmdm := deNoSSO.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	deNoSSOmdm := deNoSSO.AppendCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDM())
 	deNoSSOmdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
 
-	// Device authenticated, Apple MDM endpoints.
-	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	// Device authenticated, Apple MDM endpoints. Append keeps the device SSO
+	// gate ahead of the configuration check.
+	demdm := de.AppendCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
@@ -1142,7 +1146,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oeAppleMDM := oe.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDMOnMacOSHosts())
 	oeAppleMDM.POST("/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusEndpoint, fleet.GetOrbitSetupExperienceStatusRequest{})
 
-	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
+	oeWindowsMDM := oe.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, fleet.OrbitPostDiskEncryptionKeyRequest{})
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_protection", postOrbitDiskEncryptionProtectionEndpoint, fleet.OrbitPostDiskEncryptionProtectionRequest{})
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/details", getOrbitDiskEncryptionPINDetailsEndpoint, fleet.OrbitGetDiskEncryptionPINDetailsRequest{})

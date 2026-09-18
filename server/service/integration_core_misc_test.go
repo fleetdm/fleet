@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -528,6 +529,10 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 			params = fleet.GetOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
+
+		// orbit routes authenticate before the MDM configuration check runs.
+		case strings.HasPrefix(route.path, "/api/fleet/orbit/"):
+			params = map[string]string{"orbit_node_key": *h.OrbitNodeKey}
 
 		case route.method == "POST" && route.path == "/api/latest/fleet/software/web_apps":
 			multipartBody, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{

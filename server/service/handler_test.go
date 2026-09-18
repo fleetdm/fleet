@@ -2,14 +2,19 @@ package service
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -418,4 +423,101 @@ func TestGzipResponses(t *testing.T) {
 
 		require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when disabled")
 	})
+}
+
+// Routes gated on MDM configuration must answer a request without valid
+// credentials the same way whether or not that MDM platform is configured,
+// while authenticated callers keep the descriptive not-configured error.
+func TestMDMConfiguredMiddlewareRunsAfterAuth(t *testing.T) {
+	dsIface, _, server := setupAuthTest(t)
+	ds := dsIface.(*mock.Store)
+
+	var mdmConfigured atomic.Bool
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		c := mdmConfigured.Load()
+		return &fleet.AppConfig{MDM: fleet.MDM{
+			EnabledAndConfigured:        c,
+			WindowsEnabledAndConfigured: c,
+			AndroidEnabledAndConfigured: c,
+		}}, nil
+	}
+	ds.LoadHostByOrbitNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return nil, &notFoundError{}
+	}
+
+	client := fleethttp.NewClient()
+
+	// do sends a request without user credentials and returns the status code
+	// and the response body with the per-request uuid removed.
+	do := func(t *testing.T, method, path, contentType string, body []byte) (int, string) {
+		var reader io.Reader
+		if body != nil {
+			reader = bytes.NewReader(body)
+		}
+		req, err := http.NewRequest(method, server.URL+path, reader)
+		require.NoError(t, err)
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		raw, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(raw, &payload), "response body: %s", string(raw))
+		delete(payload, "uuid")
+		normalized, err := json.Marshal(payload)
+		require.NoError(t, err)
+		return resp.StatusCode, string(normalized)
+	}
+
+	var androidBody bytes.Buffer
+	mw := multipart.NewWriter(&androidBody)
+	require.NoError(t, mw.WriteField("title", "Test App"))
+	require.NoError(t, mw.WriteField("url", "https://example.com"))
+	require.NoError(t, mw.Close())
+
+	cases := []struct {
+		name        string
+		method      string
+		path        string
+		contentType string
+		body        []byte
+	}{
+		{"user route requiring Apple MDM", "GET", "/api/latest/fleet/mdm/apple/profiles", "", nil},
+		{"user route requiring any MDM", "GET", "/api/latest/fleet/commands", "", nil},
+		{"user route requiring Android MDM", "POST", "/api/latest/fleet/software/web_apps", mw.FormDataContentType(), androidBody.Bytes()},
+		{"orbit route requiring Windows MDM", "POST", "/api/fleet/orbit/disk_encryption_key", "", []byte(`{"orbit_node_key":"no-such-key"}`)},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mdmConfigured.Store(false)
+			offStatus, offBody := do(t, c.method, c.path, c.contentType, c.body)
+
+			mdmConfigured.Store(true)
+			onStatus, onBody := do(t, c.method, c.path, c.contentType, c.body)
+
+			require.Equal(t, onStatus, offStatus)
+			require.Equal(t, onBody, offBody)
+			require.Equal(t, http.StatusUnauthorized, offStatus)
+		})
+	}
+
+	// An authenticated user still gets the descriptive error so the UI and
+	// fleetctl can surface it.
+	token := getTestAdminToken(t, server)
+	mdmConfigured.Store(false)
+	req, err := http.NewRequest("GET", server.URL+"/api/latest/fleet/mdm/apple/profiles", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ErrMDMNotConfigured.StatusCode(), resp.StatusCode)
+	require.Contains(t, string(raw), fleet.MDMNotConfiguredMessage)
 }
