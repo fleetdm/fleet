@@ -237,8 +237,8 @@ const buildAndroidHostVitals = (
       value: displayEnum(encryptionType, ENCRYPTION_STATUS_LABELS),
     },
     {
-      sortKey: "Play Protect enabled",
-      title: "Play Protect enabled",
+      sortKey: "Play Protect",
+      title: "Play Protect",
       value: displayBoolean(playProtectEnabled),
     },
     {
@@ -280,8 +280,8 @@ const buildAndroidHostVitals = (
       value: displayEnum(systemUpdateStatus, SYSTEM_UPDATE_STATUS_LABELS),
     },
     {
-      sortKey: "USB debugging enabled",
-      title: "USB debugging enabled",
+      sortKey: "USB debugging",
+      title: "USB debugging",
       value: displayBoolean(adbEnabled),
     },
   ];

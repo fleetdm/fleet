@@ -1199,14 +1199,14 @@ describe("Android vitals", () => {
   const ANDROID_VITAL_TITLES = [
     "Bootloader version",
     "Encryption status",
-    "Play Protect enabled",
+    "Play Protect",
     "Kernel version",
     "Manufacturer",
     "Passcode set",
     "Security posture",
     "Security update version",
     "Software update status",
-    "USB debugging enabled",
+    "USB debugging",
   ];
 
   /** Shown only for company-owned hosts. */
@@ -1285,9 +1285,9 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security update version")).toBe(
       "May 1, 2026"
     );
-    expect(getVitalValue(container, "USB debugging enabled")).toBe("True");
+    expect(getVitalValue(container, "USB debugging")).toBe("True");
     expect(getVitalValue(container, "Passcode set")).toBe("True");
-    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("True");
   });
 
   it("maps the AMAPI enum values to human-readable labels", () => {
@@ -1341,9 +1341,9 @@ describe("Android vitals", () => {
 
     // `false` must survive the trip through normalizeEmptyValues rather than
     // collapsing into the empty-cell value.
-    expect(getVitalValue(container, "USB debugging enabled")).toBe("False");
+    expect(getVitalValue(container, "USB debugging")).toBe("False");
     expect(getVitalValue(container, "Passcode set")).toBe("False");
-    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("True");
   });
 
   it("formats the security update version as a readable date", () => {
