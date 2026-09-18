@@ -167,7 +167,7 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-screensaver',
     profileType: 'mobileconfig',
-    instructions: 'Show the default screensaver after 10 minutes of inactivity and require a password immediately.',
+    instructions: 'Show the "Flurry" screensaver after 10 minutes of inactivity and require a password immediately.',
     expect: {
       mustContain: ['idleTime', 'askForPassword', 'moduleName', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
     }
