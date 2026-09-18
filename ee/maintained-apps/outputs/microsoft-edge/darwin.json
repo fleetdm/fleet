@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "153.0.4234.32",
+      "version": "153.0.4234.46",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac' AND path NOT LIKE '%/Library/Application Support/Microsoft/EdgeUpdater/%' AND version_compare(bundle_short_version, '153.0.4234.32') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac' AND path NOT LIKE '%/Library/Application Support/Microsoft/EdgeUpdater/%' AND version_compare(bundle_short_version, '153.0.4234.46') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.microsoft.edgemac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/74938451-0c0a-49b3-afb5-052d7622a222/MicrosoftEdge-153.0.4234.32.dmg",
+      "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/dc7faaf7-4bc1-470c-9ace-6199d9ce8073/MicrosoftEdge-153.0.4234.46.dmg",
       "install_script_ref": "1daaa317",
       "uninstall_script_ref": "77fd5782",
-      "sha256": "a1a2b585c387e65eb715872c5302897617fcc78fd1a3dd2846186a117c1152f7",
+      "sha256": "29eb75b51472b5f5a392c37bdbb016e5ef887156be323c58e99dbfdcc74ec8e9",
       "default_categories": [
         "Browsers"
       ]
