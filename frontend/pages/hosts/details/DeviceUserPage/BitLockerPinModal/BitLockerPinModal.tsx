@@ -17,7 +17,7 @@ const PIN_MIN_LENGTH = 6;
 const PIN_MAX_LENGTH = 20;
 const PRINTABLE_ASCII = /^[ -~]+$/;
 
-/** How long the modal waits for the agent. It checks in every 30 seconds, so a host that is awake answers well
+/** How long the modal waits for the agent. Agent checks in every 30 seconds, so a host that is awake answers well
  * inside this. The page keeps polling afterwards, so giving up here only ends the wait on screen. */
 export const POLL_TIMEOUT_MS = 90000;
 
@@ -65,8 +65,7 @@ interface IBitLockerPinModalProps {
   deviceAuthToken: string;
   /** Disk encryption from the page's host query, which polls while a submission is in the agent's hands. */
   diskEncryption?: IDeviceDiskEncryptionSetting;
-  /** When that query last succeeded. The modal ignores anything fetched before its own submit, so a failure from an
-   * earlier attempt is never read as the outcome of this one. */
+  /** When that query last succeeded. */
   dataUpdatedAt: number;
   /** Whether an answer is still owed. The page fetches on the way into a wait and polls until it is over. */
   onWaitingChange: (isWaiting: boolean) => void;
