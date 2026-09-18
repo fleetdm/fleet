@@ -1105,7 +1105,14 @@ const DeviceUserPage = ({
     if (isSSORequired) {
       return renderDeviceSSOState();
     }
-    if (dupDetailsError || enrollUrlError) {
+    // Only a failure that leaves nothing to show takes over the page. The host query retries nothing and this page
+    // polls, so treating every failed refetch as fatal would let one blip replace a working page, and any modal on it,
+    // with the error screen. An expired token still takes over, because nothing here will work again without signing in.
+    if (
+      (dupDetailsError && !dupDetails) ||
+      isAuthenticationError ||
+      enrollUrlError
+    ) {
       return (
         <DeviceUserError
           isMobileView={isMobileView}

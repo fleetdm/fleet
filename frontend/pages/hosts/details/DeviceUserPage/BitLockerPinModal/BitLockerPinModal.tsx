@@ -179,65 +179,58 @@ const BitLockerPinModal = ({
 
   return (
     <Modal title="Create PIN" onExit={onExit} className={baseClass}>
-      <>
-        <form id={formId} onSubmit={handleSubmit(onValidSubmit)}>
-          <p>
-            Set a BitLocker PIN to protect your data if this device is lost or
-            stolen. You&apos;ll need to enter it each time your device starts
-            up.
-          </p>
-          <InputField
-            label="BitLocker PIN"
-            name="pin"
-            type="password"
-            value={formData.pin}
-            error={getError("pin")}
-            onChange={(value: string) => setField("pin", value)}
-            onFocus={() => clearFieldError("pin")}
-            onBlur={() => validateField("pin")}
-            disabled={isDisabled}
-            enableShowSecret
-            blockAutoComplete
-            autofocus
-            helpText={`Must be ${PIN_MIN_LENGTH}–${PIN_MAX_LENGTH} characters. Keep it somewhere safe. This PIN isn't kept by Fleet or your IT team.`}
-          />
-          <InputField
-            label="Confirm PIN"
-            name="confirmPin"
-            type="password"
-            value={formData.confirmPin}
-            error={getError("confirmPin")}
-            onChange={(value: string) => setField("confirmPin", value)}
-            onFocus={() => clearFieldError("confirmPin")}
-            onBlur={() => validateField("confirmPin")}
-            disabled={isDisabled}
-            enableShowSecret
-            blockAutoComplete
-          />
-        </form>
-        <ModalFooter
-          primaryButtons={
-            <>
-              <Button
-                onClick={onExit}
-                variant="secondary"
-                disabled={isDisabled}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                formId={formId}
-                isLoading={isDisabled}
-                loadingText="Setting PIN..."
-                disabled={isDisabled}
-              >
-                Save
-              </Button>
-            </>
-          }
+      <form id={formId} onSubmit={handleSubmit(onValidSubmit)}>
+        <p>
+          Set a BitLocker PIN to protect your data if this device is lost or
+          stolen. You&apos;ll need to enter it each time your device starts up.
+        </p>
+        <InputField
+          label="BitLocker PIN"
+          name="pin"
+          type="password"
+          value={formData.pin}
+          error={getError("pin")}
+          onChange={(value: string) => setField("pin", value)}
+          onFocus={() => clearFieldError("pin")}
+          onBlur={() => validateField("pin")}
+          disabled={isDisabled}
+          enableShowSecret
+          blockAutoComplete
+          autofocus
+          helpText={`Must be ${PIN_MIN_LENGTH}–${PIN_MAX_LENGTH} characters. Keep it somewhere safe. This PIN isn't kept by Fleet or your IT team.`}
         />
-      </>
+        <InputField
+          label="Confirm PIN"
+          name="confirmPin"
+          type="password"
+          value={formData.confirmPin}
+          error={getError("confirmPin")}
+          onChange={(value: string) => setField("confirmPin", value)}
+          onFocus={() => clearFieldError("confirmPin")}
+          onBlur={() => validateField("confirmPin")}
+          disabled={isDisabled}
+          enableShowSecret
+          blockAutoComplete
+        />
+      </form>
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button onClick={onExit} variant="secondary" disabled={isDisabled}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              formId={formId}
+              isLoading={isDisabled}
+              loadingText="Setting PIN..."
+              disabled={isDisabled}
+            >
+              Save
+            </Button>
+          </>
+        }
+      />
     </Modal>
   );
 };
