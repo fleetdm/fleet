@@ -4066,7 +4066,7 @@ LIMIT ?`
 		}
 	}
 	if exhausted {
-		ds.logger.WarnContext(ctx, "cleanup stale windows mdm enrollments did not finish, remaining rows will be cleaned on next run",
+		ds.logger.WarnContext(ctx, "cleanup stale windows mdm enrollments hit its batch cap, any remaining rows are cleaned on the next run",
 			"deleted", totalDeleted, "max_batches", maxBatches)
 	}
 	return totalDeleted, nil

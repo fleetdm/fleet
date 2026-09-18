@@ -278,7 +278,7 @@ func TestCleanupStaleWindowsMDMEnrollmentsCronJob(t *testing.T) {
 	t.Run("non-positive retention disables the job", func(t *testing.T) {
 		for _, retention := range []time.Duration{0, -time.Hour} {
 			ds := new(mock.Store)
-			require.NoError(t, cleanupStaleWindowsMDMEnrollmentsCronJob(context.Background(), ds, logger, retention))
+			require.NoError(t, cleanupStaleWindowsMDMEnrollmentsCronJob(t.Context(), ds, logger, retention))
 			require.False(t, ds.CleanupStaleMDMWindowsEnrollmentsFuncInvoked)
 		}
 	})
@@ -291,7 +291,7 @@ func TestCleanupStaleWindowsMDMEnrollmentsCronJob(t *testing.T) {
 			return 3, nil
 		}
 		before := time.Now()
-		require.NoError(t, cleanupStaleWindowsMDMEnrollmentsCronJob(context.Background(), ds, logger, 30*24*time.Hour))
+		require.NoError(t, cleanupStaleWindowsMDMEnrollmentsCronJob(t.Context(), ds, logger, 30*24*time.Hour))
 		require.True(t, ds.CleanupStaleMDMWindowsEnrollmentsFuncInvoked)
 		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
 	})
@@ -301,7 +301,7 @@ func TestCleanupStaleWindowsMDMEnrollmentsCronJob(t *testing.T) {
 		ds.CleanupStaleMDMWindowsEnrollmentsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
 			return 0, errors.New("boom")
 		}
-		err := cleanupStaleWindowsMDMEnrollmentsCronJob(context.Background(), ds, logger, time.Hour)
+		err := cleanupStaleWindowsMDMEnrollmentsCronJob(t.Context(), ds, logger, time.Hour)
 		require.ErrorContains(t, err, "boom")
 	})
 }
