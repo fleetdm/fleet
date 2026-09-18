@@ -4027,27 +4027,16 @@ func (ds *Datastore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olde
 	return cleanupStaleMDMWindowsEnrollmentsDB(ctx, ds, olderThan, batchSize, maxBatches)
 }
 
-// cleanupStaleMDMWindowsEnrollmentsDB selects ids first because MySQL rejects
-// the self-referencing "superseded" subquery in a DELETE, and it bounds each
-// DELETE and its FK cascades to one batch. The id cursor means a tick scans
-// the table once, not once per batch. No index on updated_at on purpose: it
+// cleanupStaleMDMWindowsEnrollmentsDB selects ids first to bound each DELETE
+// and its FK cascades to one batch. The id cursor means a tick scans the
+// table once, not once per batch. No index on updated_at on purpose: it
 // changes on hot-path check-in writes, and most live rows are old anyway.
 // Both statements use the writer so replica lag cannot feed back deleted ids.
 func cleanupStaleMDMWindowsEnrollmentsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
 	const selectStmt = `
 SELECT e.id
 FROM mdm_windows_enrollments e
-WHERE e.id > ?
-  AND e.updated_at < ?
-  AND (
-    e.host_uuid = ''
-    OR NOT EXISTS (SELECT 1 FROM hosts h WHERE h.uuid = e.host_uuid)
-    OR EXISTS (
-      SELECT 1 FROM mdm_windows_enrollments n
-      WHERE n.host_uuid = e.host_uuid
-        AND (n.created_at > e.created_at OR (n.created_at = e.created_at AND n.id > e.id))
-    )
-  )
+WHERE e.id > ? AND ` + staleMDMWindowsEnrollmentPredicate + `
 ORDER BY e.id
 LIMIT ?`
 
@@ -4083,10 +4072,32 @@ LIMIT ?`
 	return totalDeleted, nil
 }
 
-// deleteStaleMDMWindowsEnrollmentsByIDs re-checks updated_at so a device that
-// relinks between the id selection and the delete survives.
+// staleMDMWindowsEnrollmentPredicate matches enrollments (aliased e) not
+// updated since the bound cutoff that are orphaned or superseded. "Newer"
+// mirrors the ORDER BY in MDMWindowsGetEnrolledDeviceWithHostUUID.
+const staleMDMWindowsEnrollmentPredicate = `e.updated_at < ?
+  AND (
+    e.host_uuid = ''
+    OR NOT EXISTS (SELECT 1 FROM hosts h WHERE h.uuid = e.host_uuid)
+    OR EXISTS (
+      SELECT 1 FROM mdm_windows_enrollments n
+      WHERE n.host_uuid = e.host_uuid
+        AND (n.created_at > e.created_at OR (n.created_at = e.created_at AND n.id > e.id))
+    )
+  )`
+
+// deleteStaleMDMWindowsEnrollmentsByIDs re-evaluates eligibility in the DELETE
+// itself, so a row that relinked, or whose host was recreated with the same
+// UUID, since the id selection survives. MySQL only accepts the self-reference
+// through a materialized derived table, hence NO_MERGE.
 func deleteStaleMDMWindowsEnrollmentsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
-	stmt, args, err := sqlx.In(`DELETE FROM mdm_windows_enrollments WHERE id IN (?) AND updated_at < ?`, ids, olderThan)
+	const deleteStmt = `
+DELETE /*+ NO_MERGE(stale) */ tgt FROM mdm_windows_enrollments tgt
+JOIN (
+  SELECT e.id FROM mdm_windows_enrollments e
+  WHERE e.id IN (?) AND ` + staleMDMWindowsEnrollmentPredicate + `
+) stale ON stale.id = tgt.id`
+	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "build delete stale windows mdm enrollments")
 	}

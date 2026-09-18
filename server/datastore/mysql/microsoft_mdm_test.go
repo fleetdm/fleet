@@ -7577,6 +7577,31 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, deleted)
 	assert.True(t, enrollmentExists(relinked.ID), "relinked between select and delete")
 	assert.False(t, enrollmentExists(gone.ID))
+
+	// Recreating the host with the same UUID makes the relink a no-op, so
+	// updated_at stays old; the delete must re-check the host itself.
+	recreated := newEnrollment(uuid.NewString())
+	setTimes(recreated.ID, old, old)
+	test.NewHost(t, ds, "win-recreated", "10.0.0.6", uuid.NewString(), recreated.HostUUID, now, test.WithPlatform("windows"))
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, recreated.HostUUID, recreated.MDMDeviceID)
+	require.NoError(t, err)
+	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{recreated.ID}, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, enrollmentExists(recreated.ID), "host recreated between select and delete")
+
+	// Deleting the newer enrollment after selection makes the older one current
+	// again, so it must survive too.
+	host6 := test.NewHost(t, ds, "win-reenrolled-then-reverted", "10.0.0.7", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+	older := newEnrollment(host6.UUID)
+	setTimes(older.ID, old.Add(-time.Hour), old)
+	newer := newEnrollment(host6.UUID)
+	setTimes(newer.ID, old, old)
+	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, newer.MDMDeviceID))
+	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{older.ID}, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, enrollmentExists(older.ID), "newer enrollment removed between select and delete")
 }
 
 // readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.

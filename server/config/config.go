@@ -1083,9 +1083,10 @@ type MDMConfig struct {
 	// WindowsWSTEPIdentityKey is the content of the private key used to sign
 	// WSTEP responses.
 	WindowsWSTEPIdentityKeyBytes string `yaml:"windows_wstep_identity_key_bytes"`
-	// WindowsEnrollmentRetention is how long orphaned or superseded Windows MDM
-	// enrollments are kept before the hourly cleanup deletes them. Zero or
-	// negative disables the cleanup.
+	// WindowsEnrollmentRetention is the minimum time since an orphaned or
+	// superseded Windows MDM enrollment row was last updated before the hourly
+	// cleanup deletes it. It is measured from the row's updated_at, not from
+	// when it became orphaned. Zero or negative disables the cleanup.
 	WindowsEnrollmentRetention time.Duration `yaml:"windows_enrollment_retention"`
 
 	// the following fields hold the parsed, validated TLS certificate set the
@@ -2035,7 +2036,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
-	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "How long orphaned or superseded Windows MDM enrollments are kept before the hourly cleanup deletes them (0 disables the cleanup)")
+	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "Minimum time since an orphaned or superseded Windows MDM enrollment was last updated before the hourly cleanup deletes it (0 disables the cleanup)")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")

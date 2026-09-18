@@ -1572,18 +1572,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.CleanupWindowsMDMCommandQueue(ctx)
 		}),
 		schedule.WithJob("cleanup_stale_windows_mdm_enrollments", func(ctx context.Context) error {
-			retention := config.MDM.WindowsEnrollmentRetention
-			if retention <= 0 {
-				return nil
-			}
-			deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, time.Now().Add(-retention).UTC())
-			if err != nil {
-				return err
-			}
-			if deleted > 0 {
-				logger.InfoContext(ctx, "cleaned up stale windows mdm enrollments", "deleted", deleted)
-			}
-			return nil
+			return cleanupStaleWindowsMDMEnrollmentsCronJob(ctx, ds, logger, config.MDM.WindowsEnrollmentRetention)
 		}),
 		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
 			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
@@ -1678,6 +1667,22 @@ func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *
 			return nil
 		}
 	}
+}
+
+// cleanupStaleWindowsMDMEnrollmentsCronJob is disabled by a non-positive
+// retention, the documented off switch for mdm.windows_enrollment_retention.
+func cleanupStaleWindowsMDMEnrollmentsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up stale windows mdm enrollments", "deleted", deleted)
+	}
+	return nil
 }
 
 func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, maxRunTime time.Duration) error {
