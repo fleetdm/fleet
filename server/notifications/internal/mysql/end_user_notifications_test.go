@@ -344,18 +344,69 @@ func testListEndUserNotificationsToDispatch(t *testing.T, env *testEnv) {
 		assert.Empty(t, due)
 	})
 
-	t.Run("host with an already-displayed dispatch is not busy", func(t *testing.T) {
+	t.Run("host with a dispatch notification displayed over ten minutes ago gets its next notification", func(t *testing.T) {
 		defer env.TruncateTables(t)
 		hostID := newDarwinHost(t, env, "dispatch-already-displayed", true)
 		displayedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
 		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, displayedUUID, hostID)))
-		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now()))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now().Add(-11*time.Minute)))
 		nextUUID := env.InsertNotification(t, hostID, "k", nil, nil)
 
 		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
 		require.NoError(t, err)
 		require.Len(t, due, 1)
 		assert.Equal(t, nextUUID, due[0].UUID)
+	})
+
+	// Fleet Desktop closes a toast ten minutes after displaying it, so a notification sent before then draws over it.
+	t.Run("host with a dispatch notification displayed in the last ten minutes gets no new notification", func(t *testing.T) {
+		defer env.TruncateTables(t)
+		hostID := newDarwinHost(t, env, "dispatch-on-screen", true)
+		displayedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, displayedUUID, hostID)))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now().Add(-9*time.Minute)))
+		env.InsertNotification(t, hostID, "k", nil, nil)
+
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		assert.Empty(t, due)
+	})
+
+	t.Run("host with an acted notification displayed over ten minutes ago gets its next notification", func(t *testing.T) {
+		defer env.TruncateTables(t)
+		hostID := newDarwinHost(t, env, "dispatch-acted-off-screen", true)
+		actedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, actedUUID, hostID)))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, actedUUID, time.Now().Add(-11*time.Minute)))
+		acted, err := env.ds.ActOnEndUserNotification(ctx, actedUUID)
+		require.NoError(t, err)
+		require.True(t, acted)
+		nextUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		require.Len(t, due, 1)
+		assert.Equal(t, nextUUID, due[0].UUID)
+	})
+
+	// an acted notification's toast stays on screen showing install progress
+	t.Run("host with an acted notification on screen gets no new notification", func(t *testing.T) {
+		defer env.TruncateTables(t)
+		hostID := newDarwinHost(t, env, "dispatch-acted-on-screen", true)
+		actedUUID := env.InsertNotification(t, hostID, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, actedUUID, hostID)))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, actedUUID, time.Now().Add(-1*time.Minute)))
+		// Update now moves the status to acted and leaves displayed_at alone, so the toast is still on screen
+		acted, err := env.ds.ActOnEndUserNotification(ctx, actedUUID)
+		require.NoError(t, err)
+		require.True(t, acted)
+		// the second notification is due and would be the only row returned, so an empty result means
+		// the acted notification kept it from going out
+		env.InsertNotification(t, hostID, "k", nil, nil)
+
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		assert.Empty(t, due)
 	})
 
 	t.Run("different hosts go out together, and limit caps rows read", func(t *testing.T) {
@@ -373,6 +424,24 @@ func testListEndUserNotificationsToDispatch(t *testing.T, env *testEnv) {
 		due, err = env.ds.ListEndUserNotificationsToDispatch(ctx, 1)
 		require.NoError(t, err)
 		require.Len(t, due, 1)
+	})
+
+	t.Run("a toast on one host's screen does not stop another host's notification", func(t *testing.T) {
+		defer env.TruncateTables(t)
+		hostOnScreen := newDarwinHost(t, env, "dispatch-on-screen-host", true)
+		otherHost := newDarwinHost(t, env, "dispatch-other-host", true)
+
+		displayedUUID := env.InsertNotification(t, hostOnScreen, "k", nil, nil)
+		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx, withExecutionID(t, env, displayedUUID, hostOnScreen)))
+		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, displayedUUID, time.Now().Add(-1*time.Minute)))
+		env.InsertNotification(t, hostOnScreen, "k", nil, nil)
+
+		otherUUID := env.InsertNotification(t, otherHost, "k", nil, nil)
+
+		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
+		require.NoError(t, err)
+		require.Len(t, due, 1, "only the host with a toast on screen is skipped")
+		assert.Equal(t, otherUUID, due[0].UUID)
 	})
 }
 

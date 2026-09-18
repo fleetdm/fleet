@@ -1355,18 +1355,23 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 
 	// batching reads back what the create above wrote
 	opts.NotificationsMock.NotificationAwaitingDisplayFunc = func(_ context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error) {
-		var uuids []string
+		var awaiting []struct {
+			UUID    string          `db:"uuid"`
+			Payload json.RawMessage `db:"payload"`
+		}
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &uuids, `
-				SELECT uuid FROM notifications_end_user
+			return sqlx.SelectContext(ctx, q, &awaiting, `
+				SELECT uuid, payload FROM notifications_end_user
 				WHERE host_id = ? AND kind = ? AND status IN (?, ?) AND displayed_at IS NULL
 				ORDER BY id DESC LIMIT 1`,
 				hostID, kind, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched)
 		})
-		if len(uuids) == 0 {
+		if len(awaiting) == 0 {
 			return nil, nil
 		}
-		return &notifications_api.EndUserNotification{UUID: uuids[0], HostID: hostID, Kind: kind}, nil
+		return &notifications_api.EndUserNotification{
+			UUID: awaiting[0].UUID, HostID: hostID, Kind: kind, Payload: awaiting[0].Payload,
+		}, nil
 	}
 
 	user, err := ds.NewUser(ctx, &fleet.User{

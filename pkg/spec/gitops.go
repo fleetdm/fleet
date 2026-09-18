@@ -2155,7 +2155,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			item.Type = fleet.PolicyTypeDynamic
 		}
 		if item.Type == fleet.PolicyTypePatch {
-			if _, ok := fmasBySlug[item.FleetMaintainedAppSlug]; !ok {
+			_, slugIsKnownFMA := fmasBySlug[item.FleetMaintainedAppSlug]
+			if !slugIsKnownFMA {
 				multiError = multierror.Append(
 					multiError,
 					fmt.Errorf(
@@ -2169,6 +2170,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
 			if item.PatchWhenClosed || item.NotifyBeforePatching {
+				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
+				if item.NotifyBeforePatching && slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+				}
 				patchOption := "patch_when_closed"
 				if item.NotifyBeforePatching {
 					patchOption = "notify_before_patching"

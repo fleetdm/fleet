@@ -845,7 +845,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
 				},
-				wantErr: `"notify_before_patching" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
+				wantErr: `"notify_before_patching" is only available for macOS Fleet-maintained apps.`,
 			},
 			{
 				name:              "continuous automations off",
@@ -899,7 +899,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				name:           "windows policy",
 				storedPlatform: "windows",
 				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
-				wantErr:        `"notify_before_patching" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
+				wantErr:        `"notify_before_patching" is only available for macOS Fleet-maintained apps.`,
 			},
 		}
 

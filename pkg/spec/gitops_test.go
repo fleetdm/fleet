@@ -5736,6 +5736,11 @@ software:
       pre_install_query:
         path: ./preinstall.yml
 `
+	const fmaSoftwareWindows = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/windows
+`
 
 	tests := []struct {
 		name     string
@@ -5743,6 +5748,8 @@ software:
 		policies string
 		// wantErrs empty means the config must apply cleanly.
 		wantErrs []string
+		// unwantedErrs are messages the config must not produce alongside wantErrs.
+		unwantedErrs []string
 		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
 		wantCA *bool
 	}{
@@ -5882,6 +5889,45 @@ policies:
 `,
 			wantErrs: []string{`Only one of "patch_when_closed" or "notify_before_patching" can be set to true`},
 		},
+		{
+			// The dry run skips the policy apply, so without this check only a real apply rejects it.
+			name:     "notify_before_patching on a Windows Fleet-maintained app is rejected",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs: []string{`"notify_before_patching" is only available for macOS Fleet-maintained apps.`},
+		},
+		{
+			// The slug names no Fleet-maintained app, so there is no platform to judge and the missing app is the only problem worth reporting.
+			name:     "notify_before_patching on a slug missing from software reports only the missing Fleet-maintained app",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    notify_before_patching: true
+`,
+			wantErrs:     []string{`isn't specified under "software.fleet_maintained_apps."`},
+			unwantedErrs: []string{"only available for macOS Fleet-maintained apps"},
+		},
+		{
+			name:     "patch_when_closed on a Windows Fleet-maintained app still applies",
+			software: fmaSoftwareWindows,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    fleet_maintained_app_slug: google-chrome/windows
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
 	}
 
 	for _, tc := range tests {
@@ -5893,6 +5939,9 @@ policies:
 			if len(tc.wantErrs) > 0 {
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
+				}
+				for _, unwanted := range tc.unwantedErrs {
+					require.NotContains(t, err.Error(), unwanted)
 				}
 				return
 			}

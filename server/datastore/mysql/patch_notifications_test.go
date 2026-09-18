@@ -605,6 +605,21 @@ func testPatchNotificationAppInstallStatuses(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
 
+	// a skip reads as a failed install, but it belongs to a policy run rather than this notification
+	skippedAt := appJoinedAt.Add(4 * time.Minute)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, pre_install_query_output,
+				override_pre_install_query, created_at, updated_at)
+			VALUES (?, ?, ?, '', 1, ?, ?)`,
+			uuid.NewString(), host.ID, secondInstallerID, skippedAt, skippedAt)
+		return err
+	})
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
+
 	// uninstalling the app marks its installs removed, which nulls host_software_installs.status,
 	// so the patch's own outcome has to keep reporting from execution_status
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
