@@ -44,6 +44,7 @@ Read the `CASES` comment at the top of the script first — it documents the ass
 - `expect`: substring assertions only (compared with all whitespace stripped):
   - `mustContain` / `mustNotContain`: raw substrings.
   - `mustContainElement` / `mustNotContainElement`: `[tag, value]` pairs, e.g. `['Format', 'int']` or `['key', 'autohide']`.
+  - Bind a value to its key as one adjacent-pair substring — whitespace stripping makes `'<key>allowBookstore</key><true/>'` work. Asserting the key and the value separately lets a value elsewhere in the profile satisfy the check.
   - Assert against the tempting wrong answers too: the lookalike key that doesn't do what the instruction asks, wrong casing, `bool` where the CSP wants `int`, an inverted value.
 - `readByEye`: only for properties assertions can't express (one dict per payload domain, distinct PayloadUUIDs, single-line CDATA). Omit otherwise.
 - Do NOT set `canary: true` — canaries are a curated set of exact-substring sentinel cases, not a flag for new proposals.
