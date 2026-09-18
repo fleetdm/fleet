@@ -124,6 +124,7 @@ module.exports = {
     // and the keys nested inside dictionaries and arrays are dropped -- this list settles what exists, not what it
     // accepts.  Regenerate by walking apple/device-management's mdm/profiles, including CommonPayloadKeys.yaml and
     // TopLevel.yaml, whose keys lead the list because they are the ones a payload manifest never repeats.
+    //eslint-disable-next-line camelcase
     const MOBILECONFIG_PAYLOAD_SCHEMA_v1 = `(common keys -- valid on every dict inside PayloadContent)
       PayloadIdentifier*, PayloadUUID*, PayloadType*, PayloadVersion*, PayloadDescription, PayloadDisplayName, PayloadOrganization
     (root dict only -- never inside PayloadContent)
@@ -493,7 +494,7 @@ module.exports = {
       'mobileconfig': {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
         firstPartySettingDescription: 'a key in an Apple-published payload',
-        providedSchema: MOBILECONFIG_PAYLOAD_SCHEMA_v1,
+        providedSchema: MOBILECONFIG_PAYLOAD_SCHEMA_v1,//eslint-disable-line camelcase
         providedSchemaDescription: `Provided context: every payload type Apple publishes a manifest for, and the top-level keys each one accepts.
 Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a dictionary, and \`[]\` is
 an array.  The two parenthesized blocks that open the list are not payload types: the first gives the keys every dict
