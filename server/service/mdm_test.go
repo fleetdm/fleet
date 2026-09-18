@@ -2034,6 +2034,15 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		require.Equal(t, declUUID, puid)
 		return nil, errors.New("simulated declaration lookup error")
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
 
 	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")

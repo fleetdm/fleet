@@ -33,7 +33,6 @@ import labelsAPI, {
   listNamesFromSelectedLabels,
 } from "services/entities/labels";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import {
   generateCustomTargetLabelKey,
@@ -261,19 +260,6 @@ const EditProfileModal = ({
 
     if (!isMDMEnabled) {
       const mdmLabel = platformToMDMLabel(profile.platform);
-      let learnMoreUrl: string | undefined;
-      // eslint-disable-next-line default-case
-      switch (mdmLabel) {
-        case "Apple":
-          learnMoreUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`;
-          break;
-        case "Windows":
-          learnMoreUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`;
-          break;
-        case "Android":
-          learnMoreUrl = `${LEARN_MORE_ABOUT_BASE_LINK}/how-to-connect-android-enterprise`;
-          break;
-      }
       return (
         <TooltipWrapper
           tipContent={
@@ -281,7 +267,7 @@ const EditProfileModal = ({
               To enable, first turn on{" "}
               <CustomLink
                 text={`${mdmLabel} MDM`}
-                url={learnMoreUrl}
+                url={PATHS.ADMIN_INTEGRATIONS_MDM}
                 variant="tooltip-link"
               />
               .
@@ -326,6 +312,7 @@ const EditProfileModal = ({
             }}
             gitopsCompatible
             gitOpsModeEnabled={gitOpsModeEnabled}
+            disabled={!isMDMEnabled}
           />
           {isPremiumTier && (
             <GitOpsModeTooltipWrapper
@@ -345,7 +332,7 @@ const EditProfileModal = ({
                     onAddLabel={() => {
                       window.location.href = PATHS.LABEL_NEW_DYNAMIC;
                     }}
-                    disableOptions={!!disableChildren}
+                    disableOptions={!!disableChildren || !isMDMEnabled}
                   />
                 </div>
               )}
