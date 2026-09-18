@@ -26,6 +26,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
+	ee_android "github.com/fleetdm/fleet/v4/ee/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -498,6 +499,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err != nil {
 		initFatal(err, "initializing android service")
 	}
+	eeAndroidSvc, err := ee_android.NewService(
+		androidSvc,
+		ds,
+		ds,
+		android_service.NewAMAPIClient(ctx, logger, config.License.Key),
+		logger,
+	)
+	if err != nil {
+		initFatal(err, "initializing ee android service")
+	}
 
 	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
 
@@ -843,7 +854,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 		if err != nil {
 			initFatal(err, "initializing the API handler")
 		}
