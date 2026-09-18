@@ -466,6 +466,8 @@ controls:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+      - path: ../lib/windows/profiles/background-task.xml
+        hidden: true
     enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
@@ -535,9 +537,9 @@ In addition to configuration profiles, you can upload **assets** which are `.jso
 
 > PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
 
-Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in.
+Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in. Only supported for `.mobileconfig` profiles. Labels still decide which hosts can see the profile.
 
-Use `hidden` to specify whether to hide the profile from the end user by default on **Fleet Desktop > Controls**. End users can toggle "Show hidden profiles" in the UI to view all profiles on the host, but these profiles do not require the end user to take any action. `self_service` must be set to `false` (force install of profile) to use this option.
+Use `hidden` to specify whether to hide the profile from the end user by default on **Fleet Desktop > Controls**. End users can toggle "Show hidden profiles" in the UI to view all profiles on the host, but these profiles do not require the end user to take any action. `self_service` must be set to `false` (force install of profile) to use this option. Supported for `.mobileconfig`, declaration (`.json`), and Windows (`.xml`) profiles.
 
 ### android_settings
 
@@ -546,6 +548,8 @@ Use `hidden` to specify whether to hide the profile from the end user by default
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+Use `hidden` to mark a profile that doesn't require any action from the end user. Hidden profiles show a hidden indicator on **Host details > Controls**. `self_service` isn't supported for Android profiles.
 
 #### android_settings.certificates
 
