@@ -97,7 +97,7 @@ Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`
 
 Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each eligible host during setup. IT admins can use this account as a break-glass login for troubleshooting.
 
-> The managed local account is only created when a Mac goes through Setup Assistant during automatic enrollment (ADE). It is not created during [MDM migration](https://fleetdm.com/guides/mdm-migration). macOS ignores the account creation command during migration, so migrated Macs won't have the _fleetadmin account. Wipe and re-enroll the Mac to get the account.
+> The managed local account is only created during automatic enrollment (ADE). It is not created during [MDM migration](https://fleetdm.com/guides/mdm-migration). Wipe and re-enroll the Mac to get the account.
 
 This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
 
