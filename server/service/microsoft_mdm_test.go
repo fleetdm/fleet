@@ -19,6 +19,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,6 +52,22 @@ func TestValidSoapResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	require.Contains(t, string(outXML), fmt.Sprintf("<a:RelatesTo>%s</a:RelatesTo>", relatesTo))
+}
+
+func TestHideSoapFaultDetail(t *testing.T) {
+	detailed := errors.New("host data cannot be found sql: no rows in result set")
+	fault := NewSoapFault(syncml.SoapErrorMessageFormat, fleet.MDEPolicy, detailed)
+	hideSoapFaultDetail(&fault)
+	require.Equal(t, platform_http.GenericErrorMessage, fault.Reason.Text.Content)
+
+	// The rendered SOAP response must not carry the original detail.
+	sres, err := NewSoapResponse(&fault, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
+	require.NoError(t, err)
+	outXML, err := xml.MarshalIndent(sres, "", "  ")
+	require.NoError(t, err)
+	require.NotContains(t, string(outXML), "sql: no rows")
+	require.NotContains(t, string(outXML), "host data cannot be found")
+	require.Contains(t, string(outXML), platform_http.GenericErrorMessage)
 }
 
 func TestInvalidSoapResponse(t *testing.T) {

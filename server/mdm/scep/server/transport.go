@@ -205,12 +205,12 @@ func message(r *http.Request) ([]byte, error) {
 
 			msg2, err := url.PathUnescape(rawMsg)
 			if err != nil {
-				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", rawMsg)}
+				return nil, &BadRequestError{Message: "invalid PKIOperation message"}
 			}
 
 			decoded, err := base64.StdEncoding.DecodeString(msg2)
 			if err != nil {
-				return nil, &BadRequestError{Message: fmt.Sprintf("failed to base64 decode message: %s: %s", err.Error(), msg2)}
+				return nil, &BadRequestError{Message: "failed to base64 decode message"}
 			}
 
 			return decoded, nil

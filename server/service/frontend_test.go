@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/WatchBeam/clock"
 	mockredis "github.com/fleetdm/fleet/v4/server/mock/redis"
@@ -327,6 +328,46 @@ func TestServeEndUserEnrollOTARejectsUnknownSession(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
 	require.NotEmpty(t, resp.Header.Get("Location"))
 	require.NotContains(t, string(body), unknown)
+}
+
+// enrollPageSSOFailService fails SSO initiation with an error carrying
+// backend detail that must not reach the page.
+type enrollPageSSOFailService struct {
+	enrollPageService
+}
+
+func (s *enrollPageSSOFailService) InitiateMDMSSO(context.Context, string, string, string) (string, int, string, error) {
+	return "", 0, "", errors.New("initiate mdm sso: connection refused to https://internal-idp.corp.local")
+}
+
+func TestServeEndUserEnrollOTASSOInitiationFailure(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	ds := new(mock.Store)
+	ds.HasUsersFunc = func(ctx context.Context) (bool, error) { return true, nil }
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: secret}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}, nil
+	}
+	svc := &enrollPageSSOFailService{}
+	h := ServeEndUserEnrollOTA(svc, "", ds, newMemKeyValueStore(), clock.C, slog.New(slog.DiscardHandler), false)
+	ts := httptest.NewServer(h)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.DefaultClient.Get(ts.URL + "?enroll_secret=foo")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), "Unable to start single sign-on. Please contact your IT admin.")
+	require.NotContains(t, string(body), "internal-idp")
+	require.NotContains(t, string(body), "connection refused")
 }
 
 func newMemKeyValueStore() *mockredis.KeyValueStore {

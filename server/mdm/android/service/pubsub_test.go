@@ -39,6 +39,49 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	return svc, mockDS
 }
 
+func TestPubSubMalformedPayload(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	t.Run("token is checked before the payload is parsed", func(t *testing.T) {
+		msg := &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubEnrollment)},
+			Data:       "%%%not-base64%%%",
+		}
+		err := svc.ProcessPubSubPush(t.Context(), "invalid", msg)
+		require.Error(t, err)
+		require.Equal(t, "Authentication failed", err.Error())
+	})
+
+	t.Run("invalid base64 data returns a generic message", func(t *testing.T) {
+		msg := &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubEnrollment)},
+			Data:       "%%%not-base64%%%",
+		}
+		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Equal(t, "invalid Pub/Sub message data", badReq.Message)
+	})
+
+	t.Run("invalid JSON payload returns a generic message", func(t *testing.T) {
+		for _, nt := range []android.NotificationType{android.PubSubEnrollment, android.PubSubStatusReport, android.PubSubCommand} {
+			msg := &android.PubSubMessage{
+				Attributes: map[string]string{"notificationType": string(nt)},
+				Data:       base64.StdEncoding.EncodeToString([]byte("{not json")),
+			}
+			err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+			require.Error(t, err, "notification type %s", nt)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq, "notification type %s", nt)
+			require.Equal(t, "invalid Pub/Sub message payload", badReq.Message)
+		}
+	})
+}
+
 func TestPubSubEnrollment(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 

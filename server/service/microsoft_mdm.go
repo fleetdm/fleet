@@ -33,6 +33,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -398,6 +399,15 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 			},
 		},
 	}
+}
+
+// hideSoapFaultDetail replaces the fault's reason text with a generic message.
+// GetAuthorizedSoapFault has already recorded the original error in the
+// request log, so the detail stays available server-side. Used on paths whose
+// errors describe Fleet's own internals rather than the caller's request.
+func hideSoapFaultDetail(soapFault *mdm_types.SoapFault) *mdm_types.SoapFault {
+	soapFault.Reason.Text.Content = platform_http.GenericErrorMessage
+	return soapFault
 }
 
 // getSoapResponseFault Returns a SoapResponse with a SoapFault on its body
@@ -793,18 +803,20 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
-	// Getting the GetPoliciesResponse message
+	// Getting the GetPoliciesResponse message. Failures here (token
+	// verification, backend lookups) describe Fleet's internals, so the fault
+	// carries a generic reason and the detail stays in the request log.
 	policyResponseMsg, err := svc.GetMDMWindowsPolicyResponse(ctx, hdrSecToken)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+		return getSoapResponseFault(req.GetMessageID(), hideSoapFaultDetail(soapFault)), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
 	response, err := NewSoapResponse(policyResponseMsg, req.GetMessageID())
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
-		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
+		return getSoapResponseFault(req.GetMessageID(), hideSoapFaultDetail(soapFault)), nil
 	}
 
 	return SoapResponseContainer{

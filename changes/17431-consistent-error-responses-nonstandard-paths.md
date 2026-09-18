@@ -1,0 +1,1 @@
+- Made error responses on the SCEP, Windows MDM policy, Android Pub/Sub, enrollment page, software package upload, and invite endpoints consistent with the rest of the API: clients get a generic message and details stay in server logs.

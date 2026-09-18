@@ -18,6 +18,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSCEPPKIOperationUnparsableMessage(t *testing.T) {
+	ds := new(mock.Store)
+	svc := NewSCEPService(ds, nil, slog.New(slog.DiscardHandler))
+
+	// Valid BER (passes the depth check) but not a PKI message.
+	data := []byte{0x30, 0x03, 0x02, 0x01, 0x01}
+	_, err := svc.PKIOperation(t.Context(), data)
+	require.Error(t, err)
+
+	var badReq *scepserver.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+	require.NotNil(t, badReq)
+	assert.Equal(t, "invalid request body", badReq.Message)
+	assert.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
+}
+
 func TestSCEPPKIOperationUndecryptableEnvelope(t *testing.T) {
 	caCert, caKey, err := depot.NewSCEPCACertKey()
 	require.NoError(t, err)

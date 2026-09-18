@@ -168,7 +168,14 @@ func ServeEndUserEnrollOTA(
 				// IdP authentication has not been completed yet, initiate it by
 				// redirecting to the configured IdP provider.
 				if err := initiateOTAEnrollSSO(svc, w, r, enrollSecret); err != nil {
-					herr(ctx, w, "initiate IdP SSO authentication err: "+err.Error())
+					// Nothing has been written on this error path yet, so the page can
+					// still render a generic message; the detail stays in the logs.
+					logger.ErrorContext(ctx, "initiate IdP SSO authentication", "err", err)
+					if err := renderEnrollPage(w, appCfg, urlPrefix, "",
+						"Unable to start single sign-on. Please contact your IT admin.",
+						nonce, appleManualEnrollmentBlocked); err != nil {
+						herr(ctx, w, err.Error())
+					}
 					return
 				}
 				return

@@ -56,7 +56,10 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.debugLogger)))
 	if err != nil {
-		return nil, err
+		// The SCEP transport writes error text into the response body, so parser
+		// detail (which can echo the request) stays in the logs.
+		svc.debugLogger.ErrorContext(ctx, "failed to parse PKI message", "err", err)
+		return nil, &scepserver.BadRequestError{Message: "invalid request body"}
 	}
 
 	cert, err := assets.CAKeyPair(ctx, svc.ds)
@@ -104,9 +107,12 @@ func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
 
 // NewService creates a new scep service
 func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger *slog.Logger) scepserver.Service {
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
 	return &service{
 		signer:      signer,
-		debugLogger: slog.New(slog.DiscardHandler),
+		debugLogger: logger,
 		ds:          ds,
 	}
 }

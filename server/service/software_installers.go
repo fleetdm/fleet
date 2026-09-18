@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -18,9 +19,11 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -73,8 +76,34 @@ type uploadSoftwareInstallerResponse struct {
 	Err             error                    `json:"error,omitempty"`
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// softwareInstallerUploadPreAuth returns an HTTP middleware for the installer
+// upload endpoints that rejects requests without a valid user session before
+// the (potentially very large) multipart body is parsed. The endpoint-layer
+// AuthenticatedUser middleware still performs the full authentication after
+// decode; this only short-circuits requests that would fail it anyway.
+func softwareInstallerUploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			bearer := token.FromHTTPRequest(r)
+			if bearer == "" {
+				encodeError(ctx, fleet.NewAuthHeaderRequiredError("no auth token"), w)
+				return
+			}
+			if _, err := auth.AuthViewer(ctx, string(bearer), svc); err != nil {
+				logger.WarnContext(ctx, "software package request rejected before body parse",
+					"path", r.URL.Path, "err", err)
+				encodeError(ctx, err, w)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// NOTE: the multipart body is still parsed before the role-based
+// svc.authz.Authorize check runs; softwareInstallerUploadPreAuth only keeps
+// unauthenticated requests from reaching the parser.
 func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := updateSoftwareInstallerRequest{}
 
@@ -102,8 +131,9 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 				http.StatusRequestTimeout,
 			)
 		}
+		// The parser's own message stays in the logs via InternalErr.
 		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form: " + err.Error(),
+			Message:     "failed to parse multipart form",
 			InternalErr: err,
 		}
 	}
@@ -336,8 +366,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil, fleet.ErrMissingLicense
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// NOTE: the multipart body is still parsed before the role-based
+// svc.authz.Authorize check runs; softwareInstallerUploadPreAuth only keeps
+// unauthenticated requests from reaching the parser.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
@@ -358,8 +389,9 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 				http.StatusRequestTimeout,
 			)
 		}
+		// The parser's own message stays in the logs via InternalErr.
 		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form: " + err.Error(),
+			Message:     "failed to parse multipart form",
 			InternalErr: err,
 		}
 	}
