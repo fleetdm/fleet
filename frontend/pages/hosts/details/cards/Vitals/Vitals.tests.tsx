@@ -1285,9 +1285,9 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security update version")).toBe(
       "May 1, 2026"
     );
-    expect(getVitalValue(container, "USB debugging")).toBe("True");
+    expect(getVitalValue(container, "USB debugging")).toBe("Enabled");
     expect(getVitalValue(container, "Passcode set")).toBe("True");
-    expect(getVitalValue(container, "Play Protect")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("Enabled");
   });
 
   it("maps the AMAPI enum values to human-readable labels", () => {
@@ -1330,7 +1330,7 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security posture")).toBe("constructor");
   });
 
-  it("renders booleans as True/False, including a reported false", () => {
+  it("renders booleans, including a reported false", () => {
     const { container } = renderAndroidCard(
       createMockAndroidHost({
         adb_enabled: false,
@@ -1341,9 +1341,9 @@ describe("Android vitals", () => {
 
     // `false` must survive the trip through normalizeEmptyValues rather than
     // collapsing into the empty-cell value.
-    expect(getVitalValue(container, "USB debugging")).toBe("False");
+    expect(getVitalValue(container, "USB debugging")).toBe("Disabled");
     expect(getVitalValue(container, "Passcode set")).toBe("False");
-    expect(getVitalValue(container, "Play Protect")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("Enabled");
   });
 
   it("formats the security update version as a readable date", () => {

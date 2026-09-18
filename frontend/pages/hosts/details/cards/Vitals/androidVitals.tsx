@@ -66,6 +66,13 @@ const displayBoolean = (value?: boolean | null) => {
   return value ? "True" : "False";
 };
 
+const displayEnabledDisabled = (value?: boolean | null) => {
+  if (value === undefined || value === null) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+  return value ? "Enabled" : "Disabled";
+};
+
 const displayText = (value?: string | null) =>
   value ? <TooltipTruncatedText value={value} /> : DEFAULT_EMPTY_CELL_VALUE;
 
@@ -239,7 +246,7 @@ const buildAndroidHostVitals = (
     {
       sortKey: "Play Protect",
       title: "Play Protect",
-      value: displayBoolean(playProtectEnabled),
+      value: displayEnabledDisabled(playProtectEnabled),
     },
     {
       sortKey: "Kernel version",
@@ -282,7 +289,7 @@ const buildAndroidHostVitals = (
     {
       sortKey: "USB debugging",
       title: "USB debugging",
-      value: displayBoolean(adbEnabled),
+      value: displayEnabledDisabled(adbEnabled),
     },
   ];
 
