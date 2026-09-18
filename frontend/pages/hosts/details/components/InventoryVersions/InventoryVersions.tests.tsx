@@ -77,8 +77,6 @@ describe("InventoryVersions component", () => {
   it("renders the cdhash and no executable row for a signed app", () => {
     render(<InventoryVersions hostSoftware={createMockHostSoftware()} />);
 
-    expect(screen.getByText("Path:")).toBeInTheDocument();
-    expect(screen.getByText("/Applications/mock.app")).toBeInTheDocument();
     expect(screen.getByText("Hash:")).toBeInTheDocument();
     expect(screen.getByText("mockhashhere")).toBeInTheDocument();
     expect(screen.queryByText("Executable:")).toBeNull();

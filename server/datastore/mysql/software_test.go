@@ -4026,9 +4026,10 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	})
 }
 
-// testUpdateHostSoftwareKegExecutables walks a keg's document through the runs of §20.4.7: its
-// first report, a run that fills in a deferred hash, an unchanged run that must not write, and a
-// binary deleted from the keg by hand.
+// testUpdateHostSoftwareKegExecutables covers what only a real column can: that a keg's
+// executables survive the round trip through MySQL's JSON type, that a keg whose executables
+// changed keeps its row rather than being replaced, and that an empty set is stored as NULL. The
+// rules themselves are pinned by the delta's own subtests.
 func testUpdateHostSoftwareKegExecutables(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "keg-host", "", "keg-host-key", "keg-host-uuid", time.Now())
@@ -4055,35 +4056,18 @@ func testUpdateHostSoftwareKegExecutables(t *testing.T, ds *Datastore) {
 		return stored[0]
 	}
 
-	// Run 1: a fresh install whose hashing budget ran out after the first binary.
+	// A fresh install whose hashing budget ran out after the first binary.
 	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": ""})
 	first := storedKeg()
 	require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": ""}, first.ExecutableHashes)
 
-	// Run 2: the deferred file is hashed, and the row keeps its identity.
+	// The deferred file is hashed on a later run, and the row keeps its identity.
 	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": "2dee"})
 	converged := storedKeg()
 	require.Equal(t, first.ID, converged.ID)
 	require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": "2dee"}, converged.ExecutableHashes)
 
-	// Run 3: nothing changed, so nothing is written.
-	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": "2dee"})
-	require.Equal(t, converged, storedKeg())
-
-	// Run 4: git-cvsserver deleted from the keg by hand. Membership ages the entry out.
-	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88"})
-	require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": "9a88"}, storedKeg().ExecutableHashes)
-
-	// A deferred file whose hash nothing ever reported carries the stored empty value, and the
-	// read path leaves it out of the signature information.
-	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-daemon": ""})
-	stored := storedKeg()
-	_, signatureInfo := groupHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath{stored})
-	entries := signatureInfo[stored.SoftwareID]
-	require.Len(t, entries, 1)
-	require.Equal(t, new(kegPath+"/2.46.0/bin/git"), entries[0].ExecutablePath)
-
-	// A keg that installs no Mach-O files at all clears the column.
+	// A keg that installs no Mach-O files at all stores NULL, not an empty document.
 	report(fleet.ExecutableHashes{})
 	require.Nil(t, storedKeg().ExecutableHashes)
 }
