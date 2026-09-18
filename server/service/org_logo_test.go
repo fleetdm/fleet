@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"net/http/httptest"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -273,6 +274,32 @@ func TestUploadOrgLogoFiresActivity(t *testing.T) {
 	require.NoError(t, svc.UploadOrgLogo(ctx, fleet.OrgLogoModeLight, bytes.NewReader(testPNG(t))))
 	assert.Equal(t, 1, changedFired, "upload must fire a single changed_org_logo activity")
 	assert.Equal(t, string(fleet.OrgLogoModeLight), changedMode, "activity must record the uploaded mode")
+}
+
+func TestOrgLogoServingHeaders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("raster logo", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		getOrgLogoResponse{Body: testPNG(t)}.HijackRender(t.Context(), rec)
+
+		assert.Equal(t, "image/png", rec.Header().Get("Content-Type"))
+		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+		assert.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
+		assert.Empty(t, rec.Header().Get("Content-Disposition"))
+		assert.Empty(t, rec.Header().Get("Content-Security-Policy"))
+	})
+
+	t.Run("svg logo", func(t *testing.T) {
+		body := []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>`)
+		rec := httptest.NewRecorder()
+		getOrgLogoResponse{Body: body}.HijackRender(t.Context(), rec)
+
+		assert.Equal(t, "image/svg+xml", rec.Header().Get("Content-Type"))
+		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+		assert.Equal(t, "default-src 'none'; style-src 'unsafe-inline'", rec.Header().Get("Content-Security-Policy"))
+		assert.Equal(t, `attachment; filename="logo.svg"`, rec.Header().Get("Content-Disposition"))
+	})
 }
 
 func checkOrgLogoAuth(t *testing.T, shouldFail bool, err error) {

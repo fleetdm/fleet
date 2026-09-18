@@ -414,6 +414,46 @@ func TestService_EmailConfig(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
+			name: "team admins should also see email provider details",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserTeamAdminTeam1),
+			},
+			want: &fleet.EmailConfig{
+				Backend: "ses",
+				Config: fleet.SESConfig{
+					Region:       "us-east-1",
+					SourceARN:    "qux",
+					SenderDomain: "email.example.com",
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "global observers should not see email provider details",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserObserver),
+			},
+			want:    nil,
+			wantErr: assert.NoError,
+		},
+		{
+			name: "global maintainers should not see email provider details",
+			fields: fields{
+				config: testSESPluginConfig(),
+			},
+			args: args{
+				ctx: test.UserContext(context.Background(), test.UserMaintainer),
+			},
+			want:    nil,
+			wantErr: assert.NoError,
+		},
+		{
 			name: "no configured email backend should return nil",
 			fields: fields{
 				config: config.TestConfig(),
