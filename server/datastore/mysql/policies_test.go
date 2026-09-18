@@ -4808,6 +4808,14 @@ func testGetTeamHostsPolicyMembershipsEmailPriority(t *testing.T, ds *Datastore)
 			expected: "idpsrc@example.com",
 		},
 		{
+			name: "entra-join-vs-chrome",
+			mappings: []*fleet.HostDeviceMapping{
+				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{Email: "entra@example.com", Source: fleet.DeviceMappingEntraJoin},
+			},
+			expected: "entra@example.com",
+		},
+		{
 			name: "custom-vs-chrome",
 			mappings: []*fleet.HostDeviceMapping{
 				{Email: "chrome@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},

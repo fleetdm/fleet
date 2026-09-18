@@ -25,6 +25,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -692,6 +693,14 @@ func TestGetDetailQueries(t *testing.T) {
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
+
+	// the Entra join user query is premium only
+	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
+	premiumQueries := append([]string{}, baseQueries...)
+	premiumQueries = append(premiumQueries, "entra_join_user_windows")
+	require.Len(t, queriesPremium, len(premiumQueries))
+	sortedKeysCompare(t, queriesPremium, premiumQueries)
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -5436,4 +5445,56 @@ func TestBitlockerKeyProtectorsVerifyDirectIngest(t *testing.T) {
 			require.Equal(t, *tt.wantWrite, *got)
 		})
 	}
+}
+
+func TestDirectIngestEntraJoinUser(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 42, UUID: "entra-join-uuid", Platform: "windows"}
+
+	cases := []struct {
+		name     string
+		rows     []map[string]string
+		wantCall bool
+		wantUPN  string
+	}{
+		{name: "no rows clears the mapping", rows: nil, wantCall: true, wantUPN: ""},
+		{name: "join record without a user clears the mapping", rows: []map[string]string{{"user_email": ""}}, wantCall: true, wantUPN: ""},
+		{name: "upn with entra-allowed punctuation", rows: []map[string]string{{"user_email": "o'brien@example.com"}}, wantCall: true, wantUPN: "o'brien@example.com"},
+		{name: "malformed value clears the mapping", rows: []map[string]string{{"user_email": "DESKTOP-ABC"}}, wantCall: true, wantUPN: ""},
+		{name: "valid upn is normalized", rows: []map[string]string{{"user_email": "  Join.User@Example.COM "}}, wantCall: true, wantUPN: "join.user@example.com"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+				require.Equal(t, host.ID, hostID)
+				require.Equal(t, c.wantUPN, upn)
+				return true, nil
+			}
+			err := directIngestEntraJoinUser(ctx, logger, host, ds, c.rows)
+			require.NoError(t, err)
+			require.Equal(t, c.wantCall, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
+		})
+	}
+
+	t.Run("datastore error is returned", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return false, errors.New("boom")
+		}
+		err := directIngestEntraJoinUser(ctx, logger, host, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.ErrorContains(t, err, "boom")
+	})
+
+	t.Run("results from a non-windows host are ignored", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return true, nil
+		}
+		macHost := &fleet.Host{ID: 43, UUID: "not-windows", Platform: "darwin"}
+		err := directIngestEntraJoinUser(ctx, logger, macHost, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
+	})
 }

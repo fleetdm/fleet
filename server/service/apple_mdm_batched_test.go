@@ -32,6 +32,9 @@ func TestReconcileAppleProfilesBatchedCursorAdvance(t *testing.T) {
 				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
 			}, nil
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return nil, nil
 		}
@@ -60,7 +63,7 @@ func TestReconcileAppleProfilesBatchedCursorAdvance(t *testing.T) {
 		hosts := []*fleet.AppleHostReconcileInfo{{HostID: 2, UUID: "uuid-dup", Platform: "darwin"}}
 		ds, savedCursor := newMockDS(hosts, true)
 
-		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0))
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0, false))
 		require.True(t, ds.SetMDMAppleReconcileCursorFuncInvoked)
 		require.Equal(t, "uuid-dup", *savedCursor)
 	})
@@ -69,7 +72,7 @@ func TestReconcileAppleProfilesBatchedCursorAdvance(t *testing.T) {
 		hosts := []*fleet.AppleHostReconcileInfo{{HostID: 2, UUID: "uuid-last", Platform: "darwin"}}
 		ds, _ := newMockDS(hosts, false)
 
-		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0))
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0, false))
 		// cursor was already "" and the page was short, so it stays "" (no write).
 		require.False(t, ds.SetMDMAppleReconcileCursorFuncInvoked)
 	})

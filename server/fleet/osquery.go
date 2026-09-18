@@ -85,6 +85,12 @@ type DatastoreEnrollOsqueryConfig struct {
 	TeamID         *uint
 	Cooldown       time.Duration
 	IdentityCert   *types.HostIdentityCertificate
+	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
+	// secret; the enrollment consumes it for the osquery plane.
+	OneTimeEnrollSecretID *uint
+	// RejectSharedSecretForMDMHosts refuses a shared enroll secret that would
+	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
+	RejectSharedSecretForMDMHosts bool
 }
 
 // DatastoreEnrollOsqueryOption is a functional option for configuring datastore Host enrollment
@@ -136,6 +142,18 @@ func WithEnrollOsqueryTeamID(teamID *uint) DatastoreEnrollOsqueryOption {
 func WithEnrollOsqueryCooldown(cooldown time.Duration) DatastoreEnrollOsqueryOption {
 	return func(c *DatastoreEnrollOsqueryConfig) {
 		c.Cooldown = cooldown
+	}
+}
+
+func WithEnrollOsqueryOneTimeEnrollSecret(id uint) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.OneTimeEnrollSecretID = &id
+	}
+}
+
+func WithEnrollOsqueryRejectSharedSecretForMDMHosts(reject bool) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.RejectSharedSecretForMDMHosts = reject
 	}
 }
 

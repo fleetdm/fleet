@@ -379,12 +379,22 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	recentFailed := newBitLockerPINHost(t, ds)
 	settle(t, recentFailed, fleet.BitLockerPINRequestFailed, "PIN rejected")
 
-	// The agent has the PIN and may still report, so an old delivered row must survive for a late success to land.
-	oldDelivered := newBitLockerPINHost(t, ds)
-	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, oldDelivered, "encrypted-pin"))
-	_, _, err := ds.TakeBitLockerPINRequest(ctx, oldDelivered)
+	// The agent collected the PIN too long ago and never reported, so Fleet stops waiting for it.
+	unreported := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, unreported, "encrypted-pin"))
+	_, unreportedUUID, err := ds.TakeBitLockerPINRequest(ctx, unreported)
 	require.NoError(t, err)
-	ageBitLockerPINRequest(t, ds, oldDelivered.ID, "updated_at", pastRetention)
+	ageBitLockerPINRequest(t, ds, unreported.ID, "updated_at", fleet.BitLockerPINResultTimeout+time.Minute)
+	// Refused as soon as it times out.
+	require.True(t, fleet.IsNotFound(
+		ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")))
+
+	// Collected recently, so the agent may still report.
+	recentlyCollected := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, recentlyCollected, "encrypted-pin"))
+	_, _, err = ds.TakeBitLockerPINRequest(ctx, recentlyCollected)
+	require.NoError(t, err)
+	ageBitLockerPINRequest(t, ds, recentlyCollected.ID, "updated_at", fleet.BitLockerPINResultTimeout-time.Minute)
 
 	// Expires in this same run, so it only just became terminal and must stay visible as a timeout for a full day.
 	justExpired := newBitLockerPINHost(t, ds)
@@ -400,13 +410,22 @@ func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
 	require.False(t, exists(t, oldSet.ID), "a set row past retention is reaped")
 	require.False(t, exists(t, oldFailed.ID), "a failed row past retention is reaped")
 	require.True(t, exists(t, recentFailed.ID), "a recently finished row is kept")
-	require.True(t, exists(t, oldDelivered.ID), "a delivered row is never reaped")
 
-	req, err := ds.GetBitLockerPINRequest(ctx, justExpired.ID)
+	for _, hostID := range []uint{justExpired.ID, unreported.ID} {
+		req, err := ds.GetBitLockerPINRequest(ctx, hostID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.BitLockerPINRequestFailed, req.Status)
+		require.Equal(t, fleet.BitLockerPINRequestTimedOutError, req.Error)
+		require.Nil(t, storedBitLockerPIN(t, ds, hostID), "a timed-out submission does not keep its ciphertext")
+	}
+
+	req, err := ds.GetBitLockerPINRequest(ctx, recentlyCollected.ID)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BitLockerPINRequestFailed, req.Status)
-	require.Equal(t, fleet.BitLockerPINRequestTimedOutError, req.Error)
-	require.Nil(t, storedBitLockerPIN(t, ds, justExpired.ID), "a timed-out submission does not keep its ciphertext")
+	require.Equal(t, fleet.BitLockerPINRequestDelivered, req.Status)
+
+	// Still refused once the cron has retired it, so orbit drops the outcome. osquery still shows whether the PIN was set.
+	err = ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")
+	require.True(t, fleet.IsNotFound(err))
 
 	// The enrollment flag is what the config poll reads, so retiring a submission has to clear it.
 	require.False(t, bitLockerPINPending(t, ds, justExpired.UUID), "expiring a submission clears the enrollment flag")

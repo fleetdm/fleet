@@ -1,0 +1,1 @@
+- Added IdP host vitals (username, full name, groups, department) on Entra-joined Windows hosts enrolled without Fleet MDM, by matching the Entra join user reported by the device to the SCIM-provisioned user. Manually set and end user authentication usernames take precedence.
