@@ -2899,7 +2899,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{},
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]fleet.ExecutableHashes,
 		result *fleet.UpdateHostSoftwareDBResult,
 	) error {
 		return nil
@@ -5172,10 +5172,9 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/opt/homebrew/Cellar/git",
 	}
-	gitKegExecutable := func(executablePath, executableSHA256 string) map[string]string {
+	gitKegWithExecutables := func(executables string) map[string]string {
 		row := maps.Clone(gitKeg)
-		row["executable_path"] = executablePath
-		row["executable_sha256"] = executableSHA256
+		row["executable_hashes"] = executables
 		return row
 	}
 	someRow := map[string]string{
@@ -5779,7 +5778,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "macos homebrew executable hashes fan out one row per executable",
+			name: "macos homebrew executable hashes are carried on the keg's row",
 			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_macos":                            fleet.StatusOK,
@@ -5796,20 +5795,21 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"version":           "2.46.0",
 						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git",
 						"executable_sha256": "aaaa",
+						"hash_state":        "hashed",
 					},
 					{
 						"keg_path":          "/opt/homebrew/Cellar/git",
 						"version":           "2.46.0",
 						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell",
-						"executable_sha256": "bbbb",
+						"executable_sha256": "",
+						"hash_state":        "deferred",
 					},
 				},
 			},
 			resultsExpected: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
-					gitKegExecutable("/opt/homebrew/Cellar/git/2.46.0/bin/git", "aaaa"),
-					gitKegExecutable("/opt/homebrew/Cellar/git/2.46.0/bin/git-shell", "bbbb"),
+					gitKegWithExecutables(`{"2.46.0/bin/git":"aaaa","2.46.0/bin/git-shell":""}`),
 				},
 			},
 			overrides: map[string]osquery_utils.DetailQuery{

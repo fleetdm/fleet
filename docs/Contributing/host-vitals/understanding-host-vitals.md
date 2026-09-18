@@ -1111,7 +1111,8 @@ SELECT
 		  hp.path AS keg_path,
 		  hp.version AS version,
 		  eh.executable_path AS executable_path,
-		  eh.executable_sha256 AS executable_sha256
+		  eh.executable_sha256 AS executable_sha256,
+		  eh.hash_state AS hash_state
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/bin/%'
 		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
@@ -1120,7 +1121,8 @@ SELECT
 		  hp.path AS keg_path,
 		  hp.version AS version,
 		  eh.executable_path AS executable_path,
-		  eh.executable_sha256 AS executable_sha256
+		  eh.executable_sha256 AS executable_sha256,
+		  eh.hash_state AS hash_state
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/sbin/%'
 		WHERE hp.type = 'formula' AND +eh.path_type = 'file'

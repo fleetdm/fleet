@@ -2120,7 +2120,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		t.Run("errors are reported back", func(t *testing.T) {
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 				return errors.New("some error")
 			}
 			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
@@ -2128,12 +2128,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 
 		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
-			var calledWith map[string]struct{}
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
-				calledWith = make(map[string]struct{})
-				for k, v := range sPaths {
-					calledWith[k] = v
-				}
+			var calledWith map[string]fleet.ExecutableHashes
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+				calledWith = maps.Clone(sPaths)
 				return nil
 			}
 
@@ -2183,7 +2180,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				return nil, nil
 			}
 
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 				// NOP - This functionality is tested elsewhere
 				return nil
 			}
@@ -2235,7 +2232,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			require.Len(t, sPaths, 2)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
@@ -2302,15 +2299,16 @@ func TestDirectIngestSoftware(t *testing.T) {
 			}
 			return nil, nil
 		}
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			// ... but each one is its own installed path row, differing only in the executable.
 			require.Len(t, sPaths, len(binaries))
 			for _, row := range data {
-				require.Contains(t, sPaths, fmt.Sprintf(
-					"%s%s%s%s%s%s%s%s%s%s%s",
-					kegPath, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator,
-					row["executable_sha256"], fleet.SoftwareFieldSeparator, row["executable_path"], fleet.SoftwareFieldSeparator, keg.ToUniqueStr(),
-				))
+				require.Contains(t, sPaths, fleet.HostSoftwareInstalledPathKey{
+					InstalledPath:     kegPath,
+					ExecutableSHA256:  row["executable_sha256"],
+					ExecutablePath:    row["executable_path"],
+					SoftwareUniqueStr: keg.ToUniqueStr(),
+				}.String())
 			}
 			return nil
 		}
@@ -2346,7 +2344,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			return nil, nil
 		}
 
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			return nil
 		}
 
@@ -4311,7 +4309,7 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 		return nil, nil
 	}
 	var gotPaths []string
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 		gotPaths = maps.Keys(sPaths)
 		return nil
 	}
@@ -5428,12 +5426,22 @@ func TestMacOSHomebrewExecutableSHA256(t *testing.T) {
 			"version":           version,
 			"executable_path":   "/opt/homebrew/Cellar/" + name + "/" + version + "/bin/" + binary,
 			"executable_sha256": hash,
+			"hash_state":        "hashed",
 		}
 	}
-	withExec := func(row map[string]string, execPath, hash string) map[string]string {
+	withExecutablePath := func(row map[string]string, path string) map[string]string {
 		out := maps.Clone(row)
-		out["executable_path"] = execPath
-		out["executable_sha256"] = hash
+		out["executable_path"] = path
+		return out
+	}
+	deferred := func(name, version, binary string) map[string]string {
+		row := exec(name, version, binary, "")
+		row["hash_state"] = "deferred"
+		return row
+	}
+	withExecs := func(row map[string]string, executables string) map[string]string {
+		out := maps.Clone(row)
+		out["executable_hashes"] = executables
 		return out
 	}
 	safariApp := map[string]string{
@@ -5456,7 +5464,7 @@ func TestMacOSHomebrewExecutableSHA256(t *testing.T) {
 			expected: []map[string]string{keg("git", "2.46.0"), safariApp},
 		},
 		{
-			name: "one keg fans out to one row per executable",
+			name: "a keg carries its executables keyed relative to the Cellar directory",
 			main: []map[string]string{keg("git", "2.46.0")},
 			results: []map[string]string{
 				exec("git", "2.46.0", "git", "aa"),
@@ -5464,9 +5472,7 @@ func TestMacOSHomebrewExecutableSHA256(t *testing.T) {
 				exec("git", "2.46.0", "git-upload-pack", "cc"),
 			},
 			expected: []map[string]string{
-				withExec(keg("git", "2.46.0"), "/opt/homebrew/Cellar/git/2.46.0/bin/git", "aa"),
-				withExec(keg("git", "2.46.0"), "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell", "bb"),
-				withExec(keg("git", "2.46.0"), "/opt/homebrew/Cellar/git/2.46.0/bin/git-upload-pack", "cc"),
+				withExecs(keg("git", "2.46.0"), `{"2.46.0/bin/git":"aa","2.46.0/bin/git-shell":"bb","2.46.0/bin/git-upload-pack":"cc"}`),
 			},
 		},
 		{
@@ -5478,31 +5484,69 @@ func TestMacOSHomebrewExecutableSHA256(t *testing.T) {
 				exec("git", "2.46.0", "git-shell", "cc"),
 			},
 			expected: []map[string]string{
-				withExec(keg("git", "2.45.0"), "/opt/homebrew/Cellar/git/2.45.0/bin/git", "aa"),
-				withExec(keg("git", "2.46.0"), "/opt/homebrew/Cellar/git/2.46.0/bin/git", "bb"),
-				withExec(keg("git", "2.46.0"), "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell", "cc"),
+				withExecs(keg("git", "2.45.0"), `{"2.45.0/bin/git":"aa"}`),
+				withExecs(keg("git", "2.46.0"), `{"2.46.0/bin/git":"bb","2.46.0/bin/git-shell":"cc"}`),
 			},
 		},
 		{
-			name:     "a formula with no Mach-O executables passes through unchanged",
-			main:     []map[string]string{keg("cocoapods", "1.15.2"), keg("jq", "1.7.1")},
-			results:  []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
-			expected: []map[string]string{keg("cocoapods", "1.15.2"), withExec(keg("jq", "1.7.1"), "/opt/homebrew/Cellar/jq/1.7.1/bin/jq", "aa")},
+			name:    "a formula with no Mach-O executables carries an empty document",
+			main:    []map[string]string{keg("cocoapods", "1.15.2"), keg("jq", "1.7.1")},
+			results: []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
+			expected: []map[string]string{
+				withExecs(keg("cocoapods", "1.15.2"), `{}`),
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"aa"}`),
+			},
 		},
 		{
-			name:     "rows from other sources are untouched",
-			main:     []map[string]string{safariApp, keg("jq", "1.7.1")},
-			results:  []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
-			expected: []map[string]string{safariApp, withExec(keg("jq", "1.7.1"), "/opt/homebrew/Cellar/jq/1.7.1/bin/jq", "aa")},
+			name:    "rows from other sources are untouched",
+			main:    []map[string]string{safariApp, keg("jq", "1.7.1")},
+			results: []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
+			expected: []map[string]string{
+				safariApp,
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"aa"}`),
+			},
 		},
 		{
-			name: "executables with an empty hash are dropped",
+			name: "a deferred executable is membership without a hash",
 			main: []map[string]string{keg("jq", "1.7.1")},
 			results: []map[string]string{
-				exec("jq", "1.7.1", "jq", ""),
+				deferred("jq", "1.7.1", "jq"),
 				exec("jq", "1.7.1", "jq-real", "aa"),
 			},
-			expected: []map[string]string{withExec(keg("jq", "1.7.1"), "/opt/homebrew/Cellar/jq/1.7.1/bin/jq-real", "aa")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"","1.7.1/bin/jq-real":"aa"}`),
+			},
+		},
+		{
+			name:    "a keg whose executables were all deferred still reports them",
+			main:    []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{deferred("jq", "1.7.1", "jq"), deferred("jq", "1.7.1", "jq-real")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"","1.7.1/bin/jq-real":""}`),
+			},
+		},
+		{
+			name: "an executable with neither a hash nor a state is not membership",
+			main: []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{
+				{
+					"keg_path": "/opt/homebrew/Cellar/jq", "version": "1.7.1",
+					"executable_path": "/opt/homebrew/Cellar/jq/1.7.1/bin/jq", "executable_sha256": "",
+					"hash_state": "unavailable",
+				},
+				exec("jq", "1.7.1", "jq-real", "aa"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq-real":"aa"}`),
+			},
+		},
+		{
+			name:    "an executable outside its keg is ignored",
+			main:    []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{withExecutablePath(exec("jq", "1.7.1", "jq", "aa"), "/usr/local/bin/jq")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{}`),
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -5529,41 +5573,44 @@ func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
 		('docker', '/opt/homebrew/Caskroom/docker', '4.34.0', 'cask')`)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`CREATE TABLE executable_hashes (path TEXT, executable_path TEXT, executable_sha256 TEXT, path_type TEXT)`)
+	_, err = db.Exec(`CREATE TABLE executable_hashes (path TEXT, executable_path TEXT, executable_sha256 TEXT, path_type TEXT, hash_state TEXT)`)
 	require.NoError(t, err)
 	_, err = db.Exec(`INSERT INTO executable_hashes VALUES
-		('/opt/homebrew/Cellar/git/2.46.0/bin/git', '/opt/homebrew/Cellar/git/2.46.0/bin/git', 'aaaa', 'file'),
-		('/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', '/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', 'bbbb', 'file'),
-		('/opt/homebrew/Cellar/git/2.45.0/bin/git', '/opt/homebrew/Cellar/git/2.45.0/bin/git', 'cccc', 'file'),
-		('/usr/local/Cellar/jq/1.7.1/bin/jq', '/usr/local/Cellar/jq/1.7.1/bin/jq', 'dddd', 'file'),
+		('/opt/homebrew/Cellar/git/2.46.0/bin/git', '/opt/homebrew/Cellar/git/2.46.0/bin/git', 'aaaa', 'file', 'hashed'),
+		('/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', '/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', 'bbbb', 'file', 'hashed'),
+		('/opt/homebrew/Cellar/git/2.45.0/bin/git', '/opt/homebrew/Cellar/git/2.45.0/bin/git', 'cccc', 'file', 'hashed'),
+		('/usr/local/Cellar/jq/1.7.1/bin/jq', '/usr/local/Cellar/jq/1.7.1/bin/jq', 'dddd', 'file', 'hashed'),
+		-- a file the hashing budget did not reach this run, which is still part of its keg
+		('/usr/local/Cellar/jq/1.7.1/bin/jq-deferred', '/usr/local/Cellar/jq/1.7.1/bin/jq-deferred', '', 'file', 'deferred'),
 		-- a keg of the same formula at a version this one is a prefix of
-		('/opt/homebrew/Cellar/node/1.2.3/bin/node', '/opt/homebrew/Cellar/node/1.2.3/bin/node', 'eeee', 'file'),
+		('/opt/homebrew/Cellar/node/1.2.3/bin/node', '/opt/homebrew/Cellar/node/1.2.3/bin/node', 'eeee', 'file', 'hashed'),
 		-- a formula whose name starts with another formula's name plus an underscore
-		('/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', '/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', 'ffff', 'file'),
+		('/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', '/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', 'ffff', 'file', 'hashed'),
 		-- an app bundle, which the apps override already reports
-		('/Applications/Safari.app', '/Applications/Safari.app/Contents/MacOS/Safari', 'gggg', 'bundle'),
+		('/Applications/Safari.app', '/Applications/Safari.app/Contents/MacOS/Safari', 'gggg', 'bundle', 'hashed'),
 		-- a cask binary, which is out of scope
-		('/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', '/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', 'hhhh', 'file')`)
+		('/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', '/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', 'hhhh', 'file', 'hashed')`)
 	require.NoError(t, err)
 
 	rows, err := db.Query(SoftwareOverrideQueries["macos_homebrew_executable_sha256"].Query)
 	require.NoError(t, err)
 	defer rows.Close()
 
-	type execRow struct{ kegPath, version, executablePath, executableSHA256 string }
+	type execRow struct{ kegPath, version, executablePath, executableSHA256, hashState string }
 	var got []execRow
 	for rows.Next() {
 		var r execRow
-		require.NoError(t, rows.Scan(&r.kegPath, &r.version, &r.executablePath, &r.executableSHA256))
+		require.NoError(t, rows.Scan(&r.kegPath, &r.version, &r.executablePath, &r.executableSHA256, &r.hashState))
 		got = append(got, r)
 	}
 	require.NoError(t, rows.Err())
 
 	require.ElementsMatch(t, []execRow{
-		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/bin/git", "aaaa"},
-		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon", "bbbb"},
-		{"/opt/homebrew/Cellar/git", "2.45.0", "/opt/homebrew/Cellar/git/2.45.0/bin/git", "cccc"},
-		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq", "dddd"},
-		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff"},
+		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/bin/git", "aaaa", "hashed"},
+		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon", "bbbb", "hashed"},
+		{"/opt/homebrew/Cellar/git", "2.45.0", "/opt/homebrew/Cellar/git/2.45.0/bin/git", "cccc", "hashed"},
+		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq", "dddd", "hashed"},
+		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
+		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
 	}, got)
 }

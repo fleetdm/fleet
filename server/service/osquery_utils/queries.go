@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -1681,11 +1682,14 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
-	// macos_homebrew_executable_sha256 collects the sha256 of every Mach-O executable a Homebrew
-	// formula installs under its keg's bin and sbin, via the fleetd `executable_hashes` table.
+	// macos_homebrew_executable_sha256 collects every Mach-O executable a Homebrew formula
+	// installs under its keg's bin and sbin, and the sha256 of each, via the fleetd
+	// `executable_hashes` table. A file the table did not hash this run still comes back, with
+	// hash_state 'deferred', so the rows for a keg are its complete membership every run.
 	// Discovery keys on the path_type column rather than on the table being present: older
 	// extensions resolve every path as an app bundle, so they would return empty hashes while
-	// spawning a process per file.
+	// spawning a process per file. path_type has never shipped without hash_state, so it gates
+	// both.
 	"macos_homebrew_executable_sha256": {
 		// SQLite pushes the correlated LIKE into the extension and calls it once per keg and
 		// directory, as the apps override does per bundle. executable_hashes keeps only the last
@@ -1697,7 +1701,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		  hp.path AS keg_path,
 		  hp.version AS version,
 		  eh.executable_path AS executable_path,
-		  eh.executable_sha256 AS executable_sha256
+		  eh.executable_sha256 AS executable_sha256,
+		  eh.hash_state AS hash_state
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/bin/%'
 		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
@@ -1706,7 +1711,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		  hp.path AS keg_path,
 		  hp.version AS version,
 		  eh.executable_path AS executable_path,
-		  eh.executable_sha256 AS executable_sha256
+		  eh.executable_sha256 AS executable_sha256,
+		  eh.hash_state AS hash_state
 		FROM homebrew_packages hp
 		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/sbin/%'
 		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
@@ -1835,51 +1841,64 @@ WHERE (
 	},
 }
 
-// mergeHomebrewExecutableHashes fans each Homebrew formula row out to one row per Mach-O
-// executable found in its keg, since the codesign and app bundle hash merges can mutate rows in
-// place only because an app has a single executable.
+// hashStateDeferred marks a Mach-O file the fleetd executable_hashes table found but did not
+// hash this run, because its per-run byte budget was spent. A later run hashes it.
+const hashStateDeferred = "deferred"
+
+// mergeHomebrewExecutableHashes attaches to each Homebrew formula's row the set of Mach-O
+// executables its keg installs, as a JSON document keyed by each file's path relative to the
+// Cellar directory. The server stores one row per keg carrying that document, so a file that
+// stops being reported is a file that is gone.
 //
 // Rows are keyed by installed path and version together because homebrew_packages.path is the
 // Cellar directory, which every installed version of a formula shares.
 func mergeHomebrewExecutableHashes(mainSoftwareResults, results []map[string]string) []map[string]string {
 	if len(results) == 0 {
+		// The host is saying nothing about membership, so no row carries a document and the
+		// datastore leaves every stored one alone. Absence of the query is never evidence that a
+		// keg lost its executables.
 		return mainSoftwareResults
 	}
 
-	type execRow struct {
-		path   string
-		sha256 string
-	}
-
-	execsByKeg := make(map[string][]execRow, len(results))
+	execsByKeg := make(map[string]fleet.ExecutableHashes, len(results))
 	for _, r := range results {
-		if r["executable_sha256"] == "" {
+		kegPath := r["keg_path"]
+		relPath, under := strings.CutPrefix(r["executable_path"], kegPath+"/")
+		if !under || relPath == "" {
 			continue
 		}
-		key := r["keg_path"] + fleet.SoftwareFieldSeparator + r["version"]
-		execsByKeg[key] = append(execsByKeg[key], execRow{path: r["executable_path"], sha256: r["executable_sha256"]})
+		key := kegPath + fleet.SoftwareFieldSeparator + r["version"]
+		if execsByKeg[key] == nil {
+			execsByKeg[key] = fleet.ExecutableHashes{}
+		}
+		switch {
+		case r["hash_state"] == hashStateDeferred:
+			// Membership without a value. The datastore carries the stored hash over until a
+			// later run reports one.
+			execsByKeg[key][relPath] = ""
+		case r["executable_sha256"] != "":
+			execsByKeg[key][relPath] = r["executable_sha256"]
+		}
+		// Anything else is a file that could not be read, which is not membership.
 	}
 
-	merged := make([]map[string]string, 0, len(mainSoftwareResults))
 	for _, row := range mainSoftwareResults {
 		if row["source"] != "homebrew_packages" {
-			merged = append(merged, row)
 			continue
 		}
-		// A formula that installs only scripts, and every cask, has no executables to report.
+		// A formula that installs only scripts, and every cask, carries an empty document rather
+		// than none: the query did run, so the datastore can clear what it has stored.
 		execs := execsByKeg[row["installed_path"]+fleet.SoftwareFieldSeparator+row["version"]]
-		if len(execs) == 0 {
-			merged = append(merged, row)
+		if execs == nil {
+			execs = fleet.ExecutableHashes{}
+		}
+		encoded, err := json.Marshal(execs)
+		if err != nil {
 			continue
 		}
-		for _, e := range execs {
-			execRow := maps.Clone(row)
-			execRow["executable_path"] = e.path
-			execRow["executable_sha256"] = e.sha256
-			merged = append(merged, execRow)
-		}
+		row["executable_hashes"] = string(encoded)
 	}
-	return merged
+	return mainSoftwareResults
 }
 
 // processProgramFilesScan deduplicates file scan results against existing programs entries,
@@ -2404,7 +2423,7 @@ var (
 
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
-	sPaths := map[string]struct{}{}
+	sPaths := map[string]fleet.ExecutableHashes{}
 
 	for _, row := range rows {
 		// Attempt to parse the last_opened_at and emit a debug log if it fails.
@@ -2473,11 +2492,27 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			if epath, ok := row["executable_path"]; ok {
 				execPath = epath
 			}
-			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, execSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
-			)
-			sPaths[key] = struct{}{}
+			key := fleet.HostSoftwareInstalledPathKey{
+				InstalledPath:     installedPath,
+				TeamIdentifier:    teamIdentifier,
+				CDHashSHA256:      cdhashSHA256,
+				ExecutableSHA256:  execSHA256,
+				ExecutablePath:    execPath,
+				SoftwareUniqueStr: s.ToUniqueStr(),
+			}
+			// A Homebrew keg carries the executables it installs as a document rather than one
+			// row per executable. The field is absent unless the override query ran, which is
+			// what tells the datastore apart from a keg that installs none.
+			var execHashes fleet.ExecutableHashes
+			if raw, ok := row["executable_hashes"]; ok {
+				if err := json.Unmarshal([]byte(raw), &execHashes); err != nil {
+					logger.DebugContext(ctx, "host reported unparseable executable hashes",
+						"host_id", host.ID,
+						"installed_path", installedPath,
+						"err", err)
+				}
+			}
+			sPaths[key.String()] = execHashes
 		}
 	}
 

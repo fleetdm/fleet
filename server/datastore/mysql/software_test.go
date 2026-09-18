@@ -84,6 +84,7 @@ func TestSoftware(t *testing.T) {
 		{"HostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
 		{"DeleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"UpdateHostSoftwareKegExecutables", testUpdateHostSoftwareKegExecutables},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
 		{"HostSoftwareInstallUninstallNoDropout", testHostSoftwareInstallUninstallNoDropout},
@@ -1593,16 +1594,18 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 			ExecutablePath:   ptr.String(execPath),
 		},
 	}
-	// A Homebrew keg reports one row per Mach-O executable, all sharing the keg path.
+	// A Homebrew keg is one row carrying the executables it installs. git-cvsserver has been
+	// reported but not hashed yet.
+	kegExecutables := fleet.ExecutableHashes{"2.46.0/bin/git-cvsserver": ""}
 	for _, binary := range []string{"git", "git-shell", "git-upload-pack"} {
-		installpaths = append(installpaths, fleet.HostSoftwareInstalledPath{
-			HostID:           host.ID,
-			SoftwareID:       softwareIDByName["git"],
-			InstalledPath:    kegPath,
-			ExecutableSHA256: new(fmt.Sprintf("%x", sha256.Sum256([]byte(binary)))),
-			ExecutablePath:   new(kegPath + "/2.46.0/bin/" + binary),
-		})
+		kegExecutables["2.46.0/bin/"+binary] = fmt.Sprintf("%x", sha256.Sum256([]byte(binary)))
 	}
+	installpaths = append(installpaths, fleet.HostSoftwareInstalledPath{
+		HostID:           host.ID,
+		SoftwareID:       softwareIDByName["git"],
+		InstalledPath:    kegPath,
+		ExecutableHashes: kegExecutables,
+	})
 
 	err = insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), installpaths)
 	require.NoError(t, err)
@@ -1624,7 +1627,8 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 	require.Equal(t, execHash, *banana.PathSignatureInformation[0].ExecutableSHA256)
 	require.Equal(t, execPath, *banana.PathSignatureInformation[0].ExecutablePath)
 
-	// The keg path is reported once, but every executable keeps its own signature information.
+	// The keg path is reported once, and its executables expand to one signature information
+	// entry each. The one that has not been hashed yet is left out.
 	git := softwareByName["git"]
 	require.Equal(t, []string{kegPath}, git.InstalledPaths)
 	require.Len(t, git.PathSignatureInformation, 3)
@@ -1637,7 +1641,7 @@ func testLoadHostSoftwarePopulateSoftwareInstalledPath(t *testing.T, ds *Datasto
 		require.Equal(t, fmt.Sprintf("%x", sha256.Sum256([]byte(binary))), *psi.ExecutableSHA256)
 		gotBinaries = append(gotBinaries, binary)
 	}
-	require.ElementsMatch(t, []string{"git", "git-shell", "git-upload-pack"}, gotBinaries)
+	require.Equal(t, []string{"git", "git-shell", "git-upload-pack"}, gotBinaries)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -1699,10 +1703,10 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Insert paths for software1
-	s1Paths := map[string]struct{}{}
+	s1Paths := map[string]fleet.ExecutableHashes{}
 	for _, s := range software1 {
 		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
-		s1Paths[key] = struct{}{}
+		s1Paths[key] = nil
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
 
@@ -1710,10 +1714,10 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Insert paths for software2
-	s2Paths := map[string]struct{}{}
+	s2Paths := map[string]fleet.ExecutableHashes{}
 	for _, s := range software2 {
 		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
-		s2Paths[key] = struct{}{}
+		s2Paths[key] = nil
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
 
@@ -3688,8 +3692,9 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("empty args", func(t *testing.T) {
-		toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, nil, nil, slog.New(slog.DiscardHandler))
+		toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, nil, nil, slog.New(slog.DiscardHandler))
 		require.Empty(t, toI)
+		require.Empty(t, toU)
 		require.Empty(t, toD)
 		require.NoError(t, err)
 	})
@@ -3718,7 +3723,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, stored, software, slog.New(slog.DiscardHandler))
+		toI, _, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, stored, software, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 
 		require.Empty(t, toI)
@@ -3734,13 +3739,13 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("host has no software but some paths were reported", func(t *testing.T) {
-		reported := make(map[string]struct{})
-		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[0].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = struct{}{}
-		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[2].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
+		reported := make(map[string]fleet.ExecutableHashes)
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[0].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[0].ToUniqueStr())] = nil
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[1].ID+1, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[1].ToUniqueStr())] = nil
+		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[2].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = nil
 
 		var stored []fleet.HostSoftwareInstalledPath
-		_, _, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported, stored, nil, slog.New(slog.DiscardHandler))
+		_, _, _, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported, stored, nil, slog.New(slog.DiscardHandler))
 		require.Error(t, err)
 	})
 
@@ -3775,10 +3780,10 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 			return key
 		}
-		reported := make(map[string]struct{})
-		reported[getKey(software[0], 0)] = struct{}{}
-		reported[getKey(software[1], 1)] = struct{}{}
-		reported[getKey(software[2], 0)] = struct{}{}
+		reported := make(map[string]fleet.ExecutableHashes)
+		reported[getKey(software[0], 0)] = nil
+		reported[getKey(software[1], 1)] = nil
+		reported[getKey(software[2], 0)] = nil
 
 		var stored []fleet.HostSoftwareInstalledPath
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
@@ -3816,7 +3821,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			ExecutablePath:   &ePath2,
 		})
 
-		toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported, stored, software, slog.New(slog.DiscardHandler))
+		toI, _, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported, stored, software, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 
 		require.Len(t, toD, 3)
@@ -3853,131 +3858,143 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("homebrew keg", func(t *testing.T) {
-		// A Homebrew keg reports one row per Mach-O executable, all with the keg as their
-		// installed path. The fleetd table hashes a bounded number of bytes per run and defers
-		// the rest, so a report can miss executables of a keg that is still installed. A keg is
-		// immutable per version, so an unreported executable of a still-present keg is kept.
+		// A Homebrew keg is one row carrying the executables it installs, keyed by their path
+		// relative to the Cellar directory. The report is the keg's membership: a file that stops
+		// being reported is gone, and a file reported without a hash is one fleetd has found but
+		// not hashed yet.
 		keg := fleet.Software{ID: 6, Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
 		const kegPath = "/opt/homebrew/Cellar/git"
 		logger := slog.New(slog.DiscardHandler)
 		hostSoftware := []fleet.Software{keg}
 
-		execPath := func(binary string) string { return kegPath + "/2.46.0/bin/" + binary }
 		execHash := func(seed string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(seed))) }
-		key := func(s fleet.Software, installedPath, hash, path string) string {
-			return fmt.Sprintf(
-				"%s%s%s%s%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hash, fleet.SoftwareFieldSeparator, path, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
-			)
+		key := func(s fleet.Software, installedPath string) string {
+			return fleet.HostSoftwareInstalledPathKey{
+				InstalledPath:     installedPath,
+				SoftwareUniqueStr: s.ToUniqueStr(),
+			}.String()
 		}
-		hashedKey := func(binary string) string { return key(keg, kegPath, execHash(binary), execPath(binary)) }
-		plainKey := key(keg, kegPath, "", "")
-		hashedRow := func(id uint, binary string) fleet.HostSoftwareInstalledPath {
+		kegKey := key(keg, kegPath)
+		storedKeg := func(id uint, execs fleet.ExecutableHashes) fleet.HostSoftwareInstalledPath {
 			return fleet.HostSoftwareInstalledPath{
-				ID:               id,
-				HostID:           host.ID,
-				SoftwareID:       keg.ID,
-				InstalledPath:    kegPath,
-				ExecutableSHA256: new(execHash(binary)),
-				ExecutablePath:   new(execPath(binary)),
+				ID: id, HostID: host.ID, SoftwareID: keg.ID,
+				InstalledPath: kegPath, ExecutableHashes: execs,
 			}
 		}
-		reported := func(keys ...string) map[string]struct{} {
-			m := make(map[string]struct{}, len(keys))
-			for _, k := range keys {
-				m[k] = struct{}{}
-			}
-			return m
+		reported := func(execs fleet.ExecutableHashes) map[string]fleet.ExecutableHashes {
+			return map[string]fleet.ExecutableHashes{kegKey: execs}
 		}
 
-		t.Run("unreported executable is kept", func(t *testing.T) {
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git")), stored, hostSoftware, logger)
+		t.Run("membership is stored on the first report", func(t *testing.T) {
+			execs := fleet.ExecutableHashes{
+				"2.46.0/bin/git":           execHash("git"),
+				"2.46.0/bin/git-shell":     execHash("git-shell"),
+				"2.46.0/bin/git-cvsserver": "",
+			}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(execs), nil, hostSoftware, logger)
 			require.NoError(t, err)
-			require.Empty(t, toI)
-			require.Empty(t, toD)
-		})
-
-		t.Run("new executable is inserted without deleting the rest", func(t *testing.T) {
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git")}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-upload-pack")), stored, hostSoftware, logger)
-			require.NoError(t, err)
+			require.Empty(t, toU)
 			require.Empty(t, toD)
 			require.Len(t, toI, 1)
-			require.Equal(t, keg.ID, toI[0].SoftwareID)
 			require.Equal(t, kegPath, toI[0].InstalledPath)
-			require.Equal(t, execPath("git-upload-pack"), *toI[0].ExecutablePath)
-			require.Equal(t, execHash("git-upload-pack"), *toI[0].ExecutableSHA256)
-		})
-
-		t.Run("executable rebuilt in place is replaced", func(t *testing.T) {
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
-			rebuilt := key(keg, kegPath, execHash("git-rebuilt"), execPath("git"))
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(rebuilt, hashedKey("git-shell")), stored, hostSoftware, logger)
-			require.NoError(t, err)
-			require.Equal(t, []uint{stored[0].ID}, toD)
-			require.Len(t, toI, 1)
-			require.Equal(t, execPath("git"), *toI[0].ExecutablePath)
-			require.Equal(t, execHash("git-rebuilt"), *toI[0].ExecutableSHA256)
-		})
-
-		t.Run("uninstalled keg rows are deleted", func(t *testing.T) {
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, stored, []fleet.Software{software[0]}, logger)
-			require.NoError(t, err)
-			require.Empty(t, toI)
-			require.ElementsMatch(t, []uint{stored[0].ID, stored[1].ID}, toD)
-		})
-
-		t.Run("plain row is not inserted while hashed rows are kept", func(t *testing.T) {
-			// Every executable was deferred this run, so the merge emitted the keg's plain row.
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(plainKey), stored, hostSoftware, logger)
-			require.NoError(t, err)
-			require.Empty(t, toI)
-			require.Empty(t, toD)
-		})
-
-		t.Run("hashed rows replace a plain row", func(t *testing.T) {
-			// The first report with hashes, after an all-deferred run or an older fleetd.
-			stored := []fleet.HostSoftwareInstalledPath{{ID: 1, HostID: host.ID, SoftwareID: keg.ID, InstalledPath: kegPath}}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-shell")), stored, hostSoftware, logger)
-			require.NoError(t, err)
-			require.Equal(t, []uint{stored[0].ID}, toD)
-			require.Len(t, toI, 2)
-		})
-
-		t.Run("removed keg under a second prefix is deleted", func(t *testing.T) {
-			// The same formula and version under both Homebrew prefixes is one software row, so
-			// the keg is identified by its installed path as well.
-			const intelKegPath = "/usr/local/Cellar/git"
-			intelRow := func(id uint, binary string) fleet.HostSoftwareInstalledPath {
-				return fleet.HostSoftwareInstalledPath{
-					ID:               id,
-					HostID:           host.ID,
-					SoftwareID:       keg.ID,
-					InstalledPath:    intelKegPath,
-					ExecutableSHA256: new(execHash("intel-" + binary)),
-					ExecutablePath:   new(intelKegPath + "/2.46.0/bin/" + binary),
-				}
-			}
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), intelRow(2, "git"), intelRow(3, "git-shell")}
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git")), stored, hostSoftware, logger)
-			require.NoError(t, err)
-			require.Empty(t, toI)
-			require.ElementsMatch(t, []uint{stored[1].ID, stored[2].ID}, toD)
-		})
-
-		t.Run("plain row of a second keg is inserted", func(t *testing.T) {
-			const intelKegPath = "/usr/local/Cellar/git"
-			stored := []fleet.HostSoftwareInstalledPath{hashedRow(1, "git"), hashedRow(2, "git-shell")}
-			intelPlain := key(keg, intelKegPath, "", "")
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(hashedKey("git"), hashedKey("git-shell"), intelPlain), stored, hostSoftware, logger)
-			require.NoError(t, err)
-			require.Empty(t, toD)
-			require.Len(t, toI, 1)
-			require.Equal(t, intelKegPath, toI[0].InstalledPath)
 			require.Nil(t, toI[0].ExecutableSHA256)
+			require.Equal(t, execs, toI[0].ExecutableHashes)
+		})
+
+		t.Run("a file reported without a hash keeps the stored one", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{storedKeg(1, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")})}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(fleet.ExecutableHashes{"2.46.0/bin/git": "", "2.46.0/bin/git-shell": execHash("git-shell")}),
+				stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+			require.Len(t, toU, 1)
+			require.Equal(t, fleet.ExecutableHashes{
+				"2.46.0/bin/git":       execHash("git"),
+				"2.46.0/bin/git-shell": execHash("git-shell"),
+			}, toU[0].ExecutableHashes)
+		})
+
+		t.Run("an unchanged keg is not rewritten", func(t *testing.T) {
+			execs := fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(maps.Clone(execs)), []fleet.HostSoftwareInstalledPath{storedKeg(1, execs)}, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toU)
+			require.Empty(t, toD)
+		})
+
+		t.Run("a file deleted from the keg loses its entry", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{storedKeg(1, fleet.ExecutableHashes{
+				"2.46.0/bin/git":           execHash("git"),
+				"2.46.0/bin/git-cvsserver": execHash("git-cvsserver"),
+			})}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")}), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+			require.Len(t, toU, 1)
+			require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")}, toU[0].ExecutableHashes)
+		})
+
+		t.Run("an executable rebuilt in place keeps its entry and gains the new hash", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{storedKeg(1, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")})}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git-rebuilt")}), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+			require.Len(t, toU, 1)
+			require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git-rebuilt")}, toU[0].ExecutableHashes)
+		})
+
+		t.Run("a keg with no Mach-O files clears its document", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{storedKeg(1, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")})}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(fleet.ExecutableHashes{}), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toD)
+			require.Len(t, toU, 1)
+			require.Empty(t, toU[0].ExecutableHashes)
+		})
+
+		t.Run("a report that says nothing about executables leaves the document alone", func(t *testing.T) {
+			// The override query did not run, or failed. Absence of the query is never evidence
+			// that a keg lost its executables.
+			stored := []fleet.HostSoftwareInstalledPath{storedKeg(1, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")})}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(nil), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toU)
+			require.Empty(t, toD)
+		})
+
+		t.Run("an uninstalled keg is deleted", func(t *testing.T) {
+			stored := []fleet.HostSoftwareInstalledPath{storedKeg(1, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")})}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, nil, stored, []fleet.Software{software[0]}, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toU)
+			require.Equal(t, []uint{stored[0].ID}, toD)
+		})
+
+		t.Run("the same formula under a second prefix is a separate document", func(t *testing.T) {
+			const intelKegPath = "/usr/local/Cellar/git"
+			stored := []fleet.HostSoftwareInstalledPath{
+				storedKeg(1, fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")}),
+				{ID: 2, HostID: host.ID, SoftwareID: keg.ID, InstalledPath: intelKegPath, ExecutableHashes: fleet.ExecutableHashes{"2.46.0/bin/git": execHash("intel-git")}},
+			}
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				reported(fleet.ExecutableHashes{"2.46.0/bin/git": execHash("git")}), stored, hostSoftware, logger)
+			require.NoError(t, err)
+			require.Empty(t, toI)
+			require.Empty(t, toU)
+			require.Equal(t, []uint{stored[1].ID}, toD)
 		})
 
 		t.Run("other sources still delete unreported executables", func(t *testing.T) {
@@ -3993,13 +4010,82 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 				}
 			}
 			stored := []fleet.HostSoftwareInstalledPath{appRow(1, "/Applications/Foo.app"), appRow(2, "/Users/me/Applications/Foo.app")}
-			reportedApp := key(app, "/Applications/Foo.app", execHash("/Applications/Foo.app"), "/Applications/Foo.app/Contents/MacOS/Foo")
-			toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported(reportedApp), stored, []fleet.Software{app}, logger)
+			reportedApp := fleet.HostSoftwareInstalledPathKey{
+				InstalledPath:     "/Applications/Foo.app",
+				ExecutableSHA256:  execHash("/Applications/Foo.app"),
+				ExecutablePath:    "/Applications/Foo.app/Contents/MacOS/Foo",
+				SoftwareUniqueStr: app.ToUniqueStr(),
+			}.String()
+			toI, toU, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID,
+				map[string]fleet.ExecutableHashes{reportedApp: nil}, stored, []fleet.Software{app}, logger)
 			require.NoError(t, err)
 			require.Empty(t, toI)
+			require.Empty(t, toU)
 			require.Equal(t, []uint{stored[1].ID}, toD)
 		})
 	})
+}
+
+// testUpdateHostSoftwareKegExecutables walks a keg's document through the runs of §20.4.7: its
+// first report, a run that fills in a deferred hash, an unchanged run that must not write, and a
+// binary deleted from the keg by hand.
+func testUpdateHostSoftwareKegExecutables(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "keg-host", "", "keg-host-key", "keg-host-uuid", time.Now())
+
+	const kegPath = "/opt/homebrew/Cellar/git"
+	keg := fleet.Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
+	mutation, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{keg})
+	require.NoError(t, err)
+
+	kegKey := fleet.HostSoftwareInstalledPathKey{
+		InstalledPath:     kegPath,
+		SoftwareUniqueStr: keg.ToUniqueStr(),
+	}.String()
+
+	report := func(execs fleet.ExecutableHashes) {
+		require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx,
+			host.ID, map[string]fleet.ExecutableHashes{kegKey: execs}, mutation))
+	}
+	storedKeg := func() fleet.HostSoftwareInstalledPath {
+		stored, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, stored, 1)
+		require.Equal(t, kegPath, stored[0].InstalledPath)
+		return stored[0]
+	}
+
+	// Run 1: a fresh install whose hashing budget ran out after the first binary.
+	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": ""})
+	first := storedKeg()
+	require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": ""}, first.ExecutableHashes)
+
+	// Run 2: the deferred file is hashed, and the row keeps its identity.
+	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": "2dee"})
+	converged := storedKeg()
+	require.Equal(t, first.ID, converged.ID)
+	require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": "2dee"}, converged.ExecutableHashes)
+
+	// Run 3: nothing changed, so nothing is written.
+	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-cvsserver": "2dee"})
+	require.Equal(t, converged, storedKeg())
+
+	// Run 4: git-cvsserver deleted from the keg by hand. Membership ages the entry out.
+	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88"})
+	require.Equal(t, fleet.ExecutableHashes{"2.46.0/bin/git": "9a88"}, storedKeg().ExecutableHashes)
+
+	// A deferred file whose hash nothing ever reported carries the stored empty value, and the
+	// read path leaves it out of the signature information.
+	report(fleet.ExecutableHashes{"2.46.0/bin/git": "9a88", "2.46.0/bin/git-daemon": ""})
+	stored := storedKeg()
+	_, signatureInfo := groupHostSoftwareInstalledPaths([]fleet.HostSoftwareInstalledPath{stored})
+	entries := signatureInfo[stored.SoftwareID]
+	require.Len(t, entries, 1)
+	require.Equal(t, new(kegPath+"/2.46.0/bin/git"), entries[0].ExecutablePath)
+
+	// A keg that installs no Mach-O files at all clears the column.
+	report(fleet.ExecutableHashes{})
+	require.Nil(t, storedKeg().ExecutableHashes)
 }
 
 func testDeleteHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
@@ -4458,12 +4544,12 @@ func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 		"UserApp":   "/Users/alice/Applications/UserApp.app",                  // user-local, dropped
 	}
 
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	for _, hs := range host.Software {
 		path, ok := pathByName[hs.Name]
 		require.True(t, ok)
 		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
-		swPaths[key] = struct{}{}
+		swPaths[key] = nil
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
 
@@ -4520,7 +4606,7 @@ func testListHostSoftwareHomebrewExecutableHashes(t *testing.T, ds *Datastore) {
 	require.Len(t, mutationResults.CurrInstalled(), 2)
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 	require.Len(t, host.Software, 2)
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	for _, hs := range host.Software {
 		paths := [][3]string{{"/usr/local/lib/node_modules/lodash", "", ""}}
 		if hs.Source == "homebrew_packages" {
@@ -4538,7 +4624,7 @@ func testListHostSoftwareHomebrewExecutableHashes(t *testing.T, ds *Datastore) {
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				p[0], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, p[1], fleet.SoftwareFieldSeparator, p[2], fleet.SoftwareFieldSeparator, hs.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
 		}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
@@ -4719,12 +4805,12 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
 		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
-		swPaths[key] = struct{}{}
+		swPaths[key] = nil
 		installPaths = append(installPaths, path)
 	}
 	err = ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
@@ -9107,7 +9193,7 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
 	require.NoError(t, err)
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	err = ds.UpdateHostSoftwareInstalledPaths(ctx, tmHost.ID, swPaths, mutationResults)
 	require.NoError(t, err)
 

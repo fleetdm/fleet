@@ -927,7 +927,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	require.Len(t, hostSoftware.CurrInstalled(), 1)
 
 	// Add installed paths and signature information
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "abc123hash"
 	testExecHash := "def456hash"
 	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -946,7 +946,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1929,7 +1929,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// Update the host's software installed paths for the software above.
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -1948,12 +1948,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 			}
 		}
 		if s.Name == "gh" {
-			// A Homebrew keg reports one row per Mach-O executable it installs, all under the
-			// same keg path.
-			pathItems = [][5]string{
-				{ghKegPath, "", "", "1111", ghKegPath + "/2.55.0/bin/gh"},
-				{ghKegPath, "", "", "2222", ghKegPath + "/2.55.0/bin/gh-helper"},
-			}
+			// A Homebrew keg is one row carrying the executables it installs.
+			pathItems = [][5]string{{ghKegPath, "", "", "", ""}}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
@@ -1965,7 +1961,15 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
+			if path == ghKegPath {
+				// gh-deferred is a file fleetd found but has not hashed yet.
+				swPaths[key] = fleet.ExecutableHashes{
+					"2.55.0/bin/gh":          "1111",
+					"2.55.0/bin/gh-helper":   "2222",
+					"2.55.0/bin/gh-deferred": "",
+				}
+			}
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -2014,8 +2018,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
-	// The Homebrew keg lists its path once, but keeps one signature information entry per
-	// executable it installs.
+	// The Homebrew keg lists its path once, and expands its executables into one signature
+	// information entry each. The one fleetd has not hashed yet is left out.
 	require.Equal(t, "gh", getHostSoftwareResp.Software[2].Name)
 	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions, 1)
 	ghVersion := getHostSoftwareResp.Software[2].InstalledVersions[0]
