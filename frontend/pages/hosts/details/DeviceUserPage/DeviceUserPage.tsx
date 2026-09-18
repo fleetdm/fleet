@@ -294,6 +294,7 @@ const DeviceUserPage = ({
 
   const {
     data: dupDetails,
+    dataUpdatedAt: dupDetailsUpdatedAt,
     isLoading: isLoadingDupDetails,
     error: dupDetailsError,
     refetch: refetchDupDetails,
@@ -312,9 +313,7 @@ const DeviceUserPage = ({
       retry: false,
       // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
       refetchInterval: (data) =>
-        !showBitLockerPINModal && hasPINRequestInFlight(data)
-          ? BITLOCKER_PIN_POLL_INTERVAL
-          : false,
+        hasPINRequestInFlight(data) ? BITLOCKER_PIN_POLL_INTERVAL : false,
       onSuccess: ({ host: responseHost }) => {
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
@@ -430,14 +429,6 @@ const DeviceUserPage = ({
     );
   }, [host, needsBitLockerPIN, location, router]);
 
-  const pollHostDetails = useCallback(async () => {
-    // A failed refetch resolves rather than rejects, and leaves the last good data in place.
-    const { data, error } = await refetchDupDetails();
-    if (error) {
-      throw error;
-    }
-    return data;
-  }, [refetchDupDetails]);
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
@@ -1010,7 +1001,9 @@ const DeviceUserPage = ({
             (diskEncryptionSetting?.fleetd_can_set_pin ? (
               <BitLockerPinModal
                 deviceAuthToken={deviceAuthToken}
-                onPollHost={pollHostDetails}
+                diskEncryption={diskEncryptionSetting}
+                dataUpdatedAt={dupDetailsUpdatedAt}
+                onSubmitted={refetchDupDetails}
                 onExit={() => setShowBitLockerPINModal(false)}
               />
             ) : (
