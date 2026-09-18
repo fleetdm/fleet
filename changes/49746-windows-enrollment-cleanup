@@ -1,0 +1,1 @@
+* Added an hourly cleanup that deletes Windows MDM enrollments that have been orphaned by host deletion or superseded by a re-enrollment for more than 30 days (configurable with `FLEET_MDM_WINDOWS_ENROLLMENT_RETENTION`), along with their queued commands, results, and responses.
