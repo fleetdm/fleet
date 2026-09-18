@@ -816,8 +816,8 @@ csp cases report as not-checked either way.`
     }
     let transcriptPath = path.resolve(
       sails.config.appPath,
-      'test-results',
-      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - ${baseModel}${whatWasRunForFilename}.txt`
+      `test-results/${profileType ? profileType : 'all'}`,
+      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - (${testLighterResponse ? 'light-response' : 'full-response'}) ${baseModel}${whatWasRunForFilename}.txt`
     );
     // The reordering the three sections exist for: what ran, then how it went, then the evidence.
     await sails.helpers.fs.write(transcriptPath, headerLines.concat(summaryLines, detailLines).join('\n'), true);
