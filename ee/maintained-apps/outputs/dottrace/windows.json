@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.1",
+      "version": "2026.2.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotTrace%' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotTrace%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains dotTrace%' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('dottrace32.exe','dottrace64.exe','dottrace64a.exe','dottraceviewer32.exe','dottraceviewer64.exe','dottraceviewer64a.exe','jetbrains.dottrace.home.shell.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/resharper/dotUltimate.2026.2.1/JetBrains.dotTrace.2026.2.1.web.exe",
+      "installer_url": "https://download.jetbrains.com/resharper/dotUltimate.2026.2.2/JetBrains.dotTrace.2026.2.2.web.exe",
       "install_script_ref": "69d7201f",
       "uninstall_script_ref": "badfd331",
-      "sha256": "2668937cbc5eaa819f90a9797302b82b23db04df76db9a27e4c52f073c9cc877",
+      "sha256": "99bb041c7e999d18bc09512f76ec87e35fb9576722240de00743fe5666120d83",
       "default_categories": [
         "Developer tools"
       ]

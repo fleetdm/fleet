@@ -477,9 +477,12 @@ func TestHostDetailsMDMAppleDiskEncryptionPerPlatformSettings(t *testing.T) {
 		{"enforce only, verifying profile, disk encrypted, undecryptable key", enforceOnly, new(0), new(true), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
 		{"enforce only, verifying profile, disk not encrypted, decryptable key", enforceOnly, new(1), new(false), installed(fleet.MDMDeliveryVerifying), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredLogOut, fleet.MDMDeliveryPending},
 		{"enforce only, pending profile, disk encrypted", enforceOnly, new(-1), new(true), installed(fleet.MDMDeliveryPending), fleet.DiskEncryptionEnforcing, "", fleet.MDMDeliveryPending},
-		// escrow (with or without enforce) follows the key, the disk state is irrelevant
+		// escrow (with or without enforce) follows the key; the disk state only picks the reason when nothing enforces
 		{"escrow only, verified profile, decryptable key, disk not encrypted", escrowOnly, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
 		{"escrow only, verified profile, no key, disk encrypted", escrowOnly, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"escrow only, verified profile, no key, disk not encrypted", escrowOnly, new(-1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredTurnOnEncryption, fleet.MDMDeliveryPending},
+		{"escrow only, verified profile, no key, disk state unknown", escrowOnly, new(-1), nil, installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
+		{"both on, verified profile, no key, disk not encrypted", bothOn, new(-1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
 		{"escrow only, verified profile, unchecked key", escrowOnly, nil, new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerifying, "", fleet.MDMDeliveryVerifying},
 		{"both on, verified profile, no key, disk encrypted", bothOn, new(-1), new(true), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionActionRequired, fleet.ActionRequiredRotateKey, fleet.MDMDeliveryPending},
 		{"both on, verified profile, decryptable key, disk not encrypted", bothOn, new(1), new(false), installed(fleet.MDMDeliveryVerified), fleet.DiskEncryptionVerified, "", fleet.MDMDeliveryVerified},
@@ -597,6 +600,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			LastMDMSeenTime:        &ts2,
 			HardwareAttested:       false,
 			BootstrapTokenEscrowed: true,
+			// Simulate an active enrollment so the details service surfaces
+			// LastMDMSeenTime into host.LastMDMCheckedInAt.
+			Enabled: true,
 		}, nil
 	}
 
@@ -644,6 +650,86 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			}
 		})
 	}
+
+	// Checked-out mobile enrollment: LastMDMCheckedInAt must be nil so
+	// /hosts/{id} matches /hosts (nesm join filters enabled=1).
+	t.Run("checked-out iPadOS enrollment hides LastMDMCheckedInAt", func(t *testing.T) {
+		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{
+				LastMDMEnrollmentTime: &ts1,
+				LastMDMSeenTime:       &ts2,
+				Enabled:               false,
+			}, nil
+		}
+		host := &fleet.Host{ID: 4, MDM: fleet.MDMHostData{}, Platform: "ipados", UUID: "checked-out-uuid"}
+		hostDetail, err := svc.getHostDetails(
+			test.UserContext(context.Background(), test.UserAdmin),
+			host,
+			fleet.HostDetailOptions{ExcludeSoftware: true},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, hostDetail.LastMDMEnrolledAt)
+		require.Nil(t, hostDetail.LastMDMCheckedInAt, "checked-out mobile enrollment must not expose LastMDMCheckedInAt on /hosts/{id}")
+	})
+
+	// macOS host details keep surfacing LastMDMCheckedInAt regardless of
+	// enrollment state — HostHeader.tsx renders it as an informational
+	// timestamp, and Host.mobileStatus doesn't apply to darwin.
+	t.Run("checked-out macOS enrollment still exposes LastMDMCheckedInAt", func(t *testing.T) {
+		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{
+				LastMDMEnrollmentTime: &ts1,
+				LastMDMSeenTime:       &ts2,
+				Enabled:               false,
+			}, nil
+		}
+		host := &fleet.Host{ID: 5, MDM: fleet.MDMHostData{}, Platform: "darwin", UUID: "checked-out-mac-uuid"}
+		hostDetail, err := svc.getHostDetails(
+			test.UserContext(context.Background(), test.UserAdmin),
+			host,
+			fleet.HostDetailOptions{ExcludeSoftware: true},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, hostDetail.LastMDMCheckedInAt, "checked-out macOS enrollment should still expose LastMDMCheckedInAt on /hosts/{id}")
+		require.Equal(t, ts2, *hostDetail.LastMDMCheckedInAt)
+	})
+
+	// When Apple MDM is turned off, /hosts still reads nstm.seen_time via
+	// the unconditional LEFT JOIN. /hosts/{id} must do the same — the nano
+	// read is hoisted above the MDM-configured guard so both endpoints
+	// return the same LastMDMCheckedInAt for a host whose nano row survives
+	// an MDM shutoff.
+	t.Run("Apple MDM disabled still exposes LastMDMCheckedInAt", func(t *testing.T) {
+		ds.GetNanoMDMEnrollmentDetailsFuncInvoked = false
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{
+				LastMDMEnrollmentTime: &ts1,
+				LastMDMSeenTime:       &ts2,
+				Enabled:               true,
+			}, nil
+		}
+		mdmOffConfig := &fleet.AppConfig{}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return mdmOffConfig, nil
+		}
+		defer func() {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+			}
+		}()
+		host := &fleet.Host{ID: 6, MDM: fleet.MDMHostData{}, Platform: "darwin", UUID: "mdm-off-mac-uuid"}
+		hostDetail, err := svc.getHostDetails(
+			test.UserContext(context.Background(), test.UserAdmin),
+			host,
+			fleet.HostDetailOptions{ExcludeSoftware: true},
+		)
+		require.NoError(t, err)
+		require.True(t, ds.GetNanoMDMEnrollmentDetailsFuncInvoked, "nano read must run even when Apple MDM is off")
+		require.NotNil(t, hostDetail.LastMDMCheckedInAt, "Apple MDM off must not hide LastMDMCheckedInAt on /hosts/{id}")
+		require.Equal(t, ts2, *hostDetail.LastMDMCheckedInAt)
+	})
 }
 
 // mockHostDetailsDatastore stubs out the datastore calls getHostDetails makes
@@ -3876,19 +3962,27 @@ func TestRefetchHostIOSTracksBeforeEnqueue(t *testing.T) {
 		env.ds.GetHostLockWipeStatusFunc = func(ctx context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 			return &fleet.HostLockWipeStatus{}, nil
 		}
+		trackedUUIDs := map[string]string{}
 		env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
 			for _, cmd := range commands {
 				require.Equal(t, host.ID, cmd.HostID)
+				require.True(t, strings.HasPrefix(cmd.CommandUUID, cmd.CommandType),
+					"tracking row must record the full prefixed command UUID")
+				trackedUUIDs[cmd.CommandType] = cmd.CommandUUID
 				env.events = append(env.events, "add:"+cmd.CommandType)
 			}
 			return nil
 		}
 		env.ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 			require.Equal(t, host.ID, command.HostID)
+			require.Equal(t, trackedUUIDs[command.CommandType], command.CommandUUID,
+				"rollback must target the command it tracked")
 			env.events = append(env.events, "remove:"+command.CommandType)
 			return nil
 		}
 		env.mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm.CommandWithSubtype) (map[string]error, error) {
+			require.Equal(t, trackedUUIDs[refetchCommandTypeFromUUID(cmd.CommandUUID)], cmd.CommandUUID,
+				"enqueued command must be the one the tracking row records")
 			env.events = append(env.events, "enqueue:"+refetchCommandTypeFromUUID(cmd.CommandUUID))
 			return nil, nil
 		}

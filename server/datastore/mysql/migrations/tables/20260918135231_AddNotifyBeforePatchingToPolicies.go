@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260916144346, Down_20260916144346)
+	MigrationClient.AddMigration(Up_20260918135231, Down_20260918135231)
 }
 
-func Up_20260916144346(tx *sql.Tx) error {
+func Up_20260918135231(tx *sql.Tx) error {
 	if !columnExists(tx, "policies", "notify_before_patching") {
 		if _, err := tx.Exec(`
 			ALTER TABLE policies
@@ -30,9 +30,21 @@ func Up_20260916144346(tx *sql.Tx) error {
 		}
 	}
 
+	// Installs already in flight at upgrade were queued before this column existed. Stamp the
+	// ones whose policy patches only when closed so fleetd keeps the app-open gate for them.
+	// Finished rows keep their recorded outcome.
+	if _, err := tx.Exec(`
+		UPDATE host_software_installs
+		SET override_pre_install_query = 1
+		WHERE execution_status = 'pending_install'
+			AND policy_id IN (SELECT id FROM policies WHERE patch_when_closed = 1)
+	`); err != nil {
+		return fmt.Errorf("backfill override_pre_install_query on in-flight host_software_installs: %w", err)
+	}
+
 	return nil
 }
 
-func Down_20260916144346(tx *sql.Tx) error {
+func Down_20260918135231(tx *sql.Tx) error {
 	return nil
 }

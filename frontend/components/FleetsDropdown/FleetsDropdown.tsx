@@ -165,13 +165,7 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
     // Stop Enter/Space from bubbling to SelectContainer, which would treat
     // them as "select highlighted option" alongside the button's own click.
     // Escape/Tab/Arrow still bubble so react-select's close/focus work.
-    // preventDefault on Enter — Fleet Button's handleKeyDown already
-    // synthesizes onClick from Enter, so without preventDefault the browser
-    // would ALSO synthesize a native click and fire onClickAddFleet twice.
-    if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
-    } else if (event.key === " ") {
+    if (event.key === "Enter" || event.key === " ") {
       event.stopPropagation();
     }
   };

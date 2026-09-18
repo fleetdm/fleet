@@ -7864,6 +7864,35 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallPending, upcomingResult.Status)
 	require.True(t, upcomingResult.OverridePreInstallQuery)
+
+	// An activity queued before the payload carried override_pre_install_query (an upgrade with
+	// installs in flight) takes the policy's patch flags at activation. The request carries the
+	// opposite value so only the fallback can produce the expected one.
+	for _, tc := range []struct {
+		option string
+		want   bool
+	}{{"closed", true}, {"notify", true}, {"", false}} {
+		legacyHost := test.NewHost(t, ds, "pwc-host-legacy-"+tc.option, "pwc-ip-legacy-"+tc.option, "pwc-key-legacy-"+tc.option, "pwc-uuid-legacy-"+tc.option, time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{legacyHost.ID})))
+		legacyInstaller, legacyTitle := newInstaller(t, "pwc-legacy-"+tc.option)
+		legacyPol := patchPolicy(t, legacyTitle, tc.option)
+
+		legacyExec, err := ds.InsertSoftwareInstallRequest(ctx, legacyHost.ID, legacyInstaller,
+			fleet.HostSoftwareInstallOptions{PolicyID: &legacyPol.ID, OverridePreInstallQuery: !tc.want, DeferActivation: true})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE upcoming_activities SET payload = JSON_REMOVE(payload, '$.override_pre_install_query') WHERE execution_id = ?`,
+				legacyExec)
+			return err
+		})
+
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), legacyHost.ID, "")
+		require.NoError(t, err)
+		legacyResult, err := ds.GetSoftwareInstallResults(ctx, legacyExec)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, legacyResult.OverridePreInstallQuery, "option %q", tc.option)
+	}
 }
 
 func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {

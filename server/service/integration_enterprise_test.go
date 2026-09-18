@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -910,6 +911,35 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+// applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
+// reaches the caller as a 413 while that wrapper still unwraps to the size error underneath. Without
+// it the request is answered with a 400 carrying the raw read error.
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsBodySizeLimit() {
+	t := s.T()
+
+	// The limit the /spec/fleets route is registered with.
+	const limit = 5 * units.MiB
+
+	// The padding sits inside a JSON string value so the body stays syntactically valid up to the
+	// point where the reader is cut off.
+	prefix := `{"specs":[{"name":"`
+	suffix := `"}]}`
+	padSize := limit + 1 - len(prefix) - len(suffix)
+	require.Positive(t, padSize, "padding must be positive")
+
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/fleets",
+		[]byte(prefix+strings.Repeat("x", padSize)+suffix), http.StatusRequestEntityTooLarge)
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "exceeds the max size limit")
+	assert.NotContains(t, string(body), "request body too large")
+
+	// A malformed body within the limit is still a 400, so the size error isn't reported for a
+	// reader that simply ran out early.
+	s.DoRaw("POST", "/api/latest/fleet/spec/fleets", []byte(prefix), http.StatusBadRequest)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
@@ -17578,6 +17608,22 @@ func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincip
 		NodeKey:  *host.NodeKey,
 		Results:  results,
 		Statuses: make(map[string]interface{}),
+		Messages: make(map[string]string),
+		Stats:    map[string]*fleet.Stats{},
+	}
+}
+
+func genDistributedReqWithEntraJoinUser(host *fleet.Host, userEmail string) submitDistributedQueryResultsRequestShim {
+	results := make(map[string]json.RawMessage)
+	rows := "[]"
+	if userEmail != "" {
+		rows = fmt.Sprintf(`[{"user_email": "%s"}]`, userEmail)
+	}
+	results["fleet_detail_query_entra_join_user_windows"] = json.RawMessage(rows)
+	return submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: make(map[string]any),
 		Messages: make(map[string]string),
 		Stats:    map[string]*fleet.Stats{},
 	}
@@ -37471,4 +37517,88 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 	for _, p := range globalList.Policies {
 		require.NotEqual(t, "gitops global script", p.Name)
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestEntraJoinUserDetailQueryPopulatesIdPVitals() {
+	t := s.T()
+	ctx := t.Context()
+
+	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "join.user@example.com",
+		GivenName:  new("Join"),
+		FamilyName: new("User"),
+		Department: new("Engineering"),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteScimUser(context.Background(), scimUserID)
+		require.NoError(t, err)
+	})
+
+	host := createOrbitEnrolledHost(t, "windows", "entra-join", s.ds)
+
+	getEndUsers := func() []fleet.HostEndUser {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		return hostResp.Host.EndUsers
+	}
+	submit := func(userEmail string) {
+		var resp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraJoinUser(host, userEmail), http.StatusOK, &resp)
+	}
+
+	// nothing mapped yet
+	require.Empty(t, getEndUsers())
+
+	// the device reports the join user (any casing): vitals come from SCIM
+	submit("Join.User@Example.com")
+	endUsers := getEndUsers()
+	require.Len(t, endUsers, 1)
+	require.Equal(t, "join.user@example.com", endUsers[0].IdpUserName)
+	require.Equal(t, "Join User", endUsers[0].IdpFullName)
+	require.Equal(t, "Engineering", endUsers[0].Department)
+
+	// the mapping is reported under the mdm_idp_accounts source, like the manual one,
+	// on the single-host endpoint and on the hosts list
+	var mappingResp listHostDeviceMappingResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
+	require.Len(t, mappingResp.DeviceMapping, 1)
+	require.Equal(t, "join.user@example.com", mappingResp.DeviceMapping[0].Email)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappingResp.DeviceMapping[0].Source)
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "device_mapping", "true", "query", host.Hostname)
+	require.Len(t, listResp.Hosts, 1)
+	require.NotNil(t, listResp.Hosts[0].DeviceMapping)
+	var listMappings []fleet.HostDeviceMapping
+	require.NoError(t, json.Unmarshal(*listResp.Hosts[0].DeviceMapping, &listMappings))
+	require.Len(t, listMappings, 1)
+	require.Equal(t, "join.user@example.com", listMappings[0].Email)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, listMappings[0].Source)
+
+	// no rows (left Entra, or joined without a user): the mapping is removed
+	submit("")
+	require.Empty(t, getEndUsers())
+
+	// a join user that is not provisioned in SCIM never maps
+	submit("stranger@example.com")
+	require.Empty(t, getEndUsers())
+
+	// mapped again, then an admin clears it and the next refresh refills it
+	submit("join.user@example.com")
+	require.Len(t, getEndUsers(), 1)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
+	require.Empty(t, getEndUsers())
+	submit("join.user@example.com")
+	require.Len(t, getEndUsers(), 1)
+
+	// a manually set IdP username wins over what the device reports
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "manual.user@example.com", Source: "idp"}, http.StatusOK, &putResp)
+	submit("join.user@example.com")
+	endUsers = getEndUsers()
+	require.Len(t, endUsers, 1)
+	require.Equal(t, "manual.user@example.com", endUsers[0].IdpUserName)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
+	require.Len(t, mappingResp.DeviceMapping, 1)
 }

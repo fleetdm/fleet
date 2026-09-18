@@ -732,6 +732,7 @@ import Nudge from "./png/Nudge.png";
 import Numi from "./png/Numi.png";
 import Nvda from "./png/Nvda.png";
 import NvidiaGeforceNow from "./png/NvidiaGeforceNow.png";
+import NvidiaSync from "./png/NvidiaSync.png";
 import Obs from "./png/Obs.png";
 import Obsidian from "./png/Obsidian.png";
 import Ocenaudio from "./png/Ocenaudio.png";
@@ -1912,6 +1913,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   numi: Numi,
   nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
+  "nvidia sync": NvidiaSync,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,

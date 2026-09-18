@@ -70,6 +70,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
+    -- Snapshot (not a live policies join): fleetd and the classifier must agree
+    -- on this value. A post-activation policy toggle applies to future
+    -- activations, not to already-queued/in-flight installs.
     hsi.override_pre_install_query AS override_pre_install_query,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,

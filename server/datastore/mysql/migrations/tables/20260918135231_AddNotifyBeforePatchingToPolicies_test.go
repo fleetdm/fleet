@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260916144346(t *testing.T) {
+func TestUp_20260918135231(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed a policy and an install that pre-date the migration, with old timestamps so a rewrite would show.
@@ -33,6 +33,25 @@ func TestUp_20260916144346(t *testing.T) {
 		INSERT INTO host_software_installs (host_id, execution_id, software_installer_id, created_at, updated_at)
 		VALUES (?, 'exec-before-migration', ?, '2020-01-01 00:00:00', '2020-01-02 03:04:05')`,
 		hostID, installerID)
+
+	// Rows for the in-flight backfill: only a pending install on a patch-when-closed policy is stamped.
+	patchPolicyID := execNoErrLastID(
+		t, db,
+		"INSERT INTO policies (name, query, description, checksum, patch_when_closed) VALUES (?,?,?,?,1)",
+		"patch-policy", "", "", "checksum-patch",
+	)
+	pendingPatch := execNoErrLastID(t, db, `
+		INSERT INTO host_software_installs (host_id, execution_id, software_installer_id, policy_id)
+		VALUES (?, 'pending-patch', ?, ?)`, hostID, installerID, patchPolicyID)
+	pendingOrdinary := execNoErrLastID(t, db, `
+		INSERT INTO host_software_installs (host_id, execution_id, software_installer_id, policy_id)
+		VALUES (?, 'pending-ordinary', ?, ?)`, hostID, installerID, policyID)
+	installedPatch := execNoErrLastID(t, db, `
+		INSERT INTO host_software_installs (host_id, execution_id, software_installer_id, policy_id, install_script_exit_code)
+		VALUES (?, 'installed-patch', ?, ?, 0)`, hostID, installerID, patchPolicyID)
+	failedPatch := execNoErrLastID(t, db, `
+		INSERT INTO host_software_installs (host_id, execution_id, software_installer_id, policy_id, pre_install_query_output)
+		VALUES (?, 'failed-patch', ?, ?, '')`, hostID, installerID, patchPolicyID)
 
 	timestamps := func(table string, id int64) (time.Time, time.Time) {
 		var row struct {
@@ -68,6 +87,17 @@ func TestUp_20260916144346(t *testing.T) {
 	require.NoError(t, db.GetContext(context.Background(), &overridePreInstallQuery,
 		`SELECT override_pre_install_query FROM host_software_installs WHERE id = ?`, installID))
 	assert.False(t, overridePreInstallQuery)
+
+	overrideOf := func(id int64) bool {
+		var v bool
+		require.NoError(t, db.GetContext(context.Background(), &v,
+			`SELECT override_pre_install_query FROM host_software_installs WHERE id = ?`, id))
+		return v
+	}
+	assert.True(t, overrideOf(pendingPatch), "in-flight install on a patch-when-closed policy keeps its app-open gate")
+	assert.False(t, overrideOf(pendingOrdinary), "in-flight install on an ordinary policy stays 0")
+	assert.False(t, overrideOf(installedPatch), "finished rows keep their recorded outcome")
+	assert.False(t, overrideOf(failedPatch), "finished rows keep their recorded outcome")
 
 	// New rows can set the columns.
 	policy2 := execNoErrLastID(

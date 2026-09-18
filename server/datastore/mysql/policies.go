@@ -3238,7 +3238,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 					PARTITION BY he.host_id
 					ORDER BY
 						CASE
-							WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
+							WHEN he.source IN (?, ?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp, entra_join) have priority 1
 							WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
 							ELSE 3                             -- Other sources have lower priority
 						END,
@@ -3257,7 +3257,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 
 	query, args, err := sqlx.In(query,
 		policyIDs,
-		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, fleet.DeviceMappingEntraJoin, // IdP sources
 		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles
 		domain, teamID,                          // domain and team_id for WHERE clause
 		teamID) // h.team_id in main WHERE

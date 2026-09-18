@@ -33,6 +33,7 @@ func ReconcileAppleProfilesBatched(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
+	useOneTimeEnrollSecrets bool,
 ) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -52,7 +53,7 @@ func ReconcileAppleProfilesBatched(
 	if block == nil || block.Type != "CERTIFICATE" {
 		return ctxerr.New(ctx, "failed to decode PEM block from SCEP certificate")
 	}
-	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
+	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes, useOneTimeEnrollSecrets); err != nil {
 		logger.ErrorContext(ctx, "unable to ensure fleetd configuration profiles are in place", "details", err)
 	}
 

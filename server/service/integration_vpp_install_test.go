@@ -2228,11 +2228,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 			commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 			require.NoError(t, err)
 			require.Len(t, commands, 3)
-			assert.ElementsMatch(t, []fleet.HostMDMCommand{
-				{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-				{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-				{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-			}, commands)
+			requireTrackedRefetchCommands(t, commands, host.ID,
+				fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 		}
 
 		handleRefetch := func(software []fleet.Software) {

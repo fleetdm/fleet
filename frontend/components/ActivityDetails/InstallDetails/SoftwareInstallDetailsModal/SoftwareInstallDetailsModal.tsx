@@ -114,26 +114,6 @@ export const StatusMessage = ({
     created_at,
   } = installResult;
 
-  // Treat failed_install/failed_uninstall with installed versions as installed
-  // as the host still reports installed versions (4.82 #31663)
-  const overrideFailureWithInstalled =
-    canOverrideFailureWithInstalled &&
-    ["failed_install", "failed_uninstall"].includes(status || "");
-
-  if (overrideFailureWithInstalled) {
-    return (
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName="success"
-        message={
-          <span>
-            <b>{softwareName}</b> is installed.
-          </span>
-        }
-      />
-    );
-  }
-
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
   ) : (
@@ -149,6 +129,10 @@ export const StatusMessage = ({
       })})`
     : "";
 
+  // A patch-when-closed skip must render its own message even when the host
+  // currently reports the app as installed. The skip is the load-bearing state
+  // (deferred update); collapsing it into "is installed" would hide the
+  // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
     // Notify variant appends "Fleet notifies the end user..." to
     // pre_install_query_output; patch_when_closed doesn't.
@@ -168,7 +152,6 @@ export const StatusMessage = ({
           text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
           newTab
         />
-        .
       </>
     );
 
@@ -185,6 +168,27 @@ export const StatusMessage = ({
             {isNotifyVariant
               ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
               : skippedDetails}
+          </span>
+        }
+      />
+    );
+  }
+
+  // Treat failed_install/failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663). Skipped installs
+  // are handled above so this override never masks a patch-when-closed skip.
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(status || "");
+
+  if (overrideFailureWithInstalled) {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
           </span>
         }
       />
@@ -421,11 +425,14 @@ export const SoftwareInstallDetailsModal = ({
       ? inventoryReportsInstalled
       : false;
 
-  // Treat failed_install / failed_uninstall with installed versions as installed
+  // Treat failed_install / failed_uninstall with installed versions as installed.
+  // Skips escape the override so the Details button + SKIPPED_PRE_INSTALL_OUTPUT
+  // still render on Library rows where inventory reports an older version.
   const overrideFailedMessageWithInstalledMessage =
     canOverrideFailureWithInstalled &&
+    !detailsFromProps.skipped_install &&
     ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || "" || ""
+      swInstallResult?.status || ""
     );
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
