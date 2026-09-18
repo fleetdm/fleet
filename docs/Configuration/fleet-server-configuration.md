@@ -3778,6 +3778,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
+### mdm.windows_enrollment_retention
+
+How long Fleet keeps a Windows MDM enrollment that is orphaned or superseded before the hourly cleanup deletes it, along with its queued commands, command results, and stored responses. An enrollment is orphaned when its host has been deleted from Fleet and the device hasn't re-enrolled, and superseded when the same host has a newer enrollment.
+
+Enrollments are kept after a host is deleted so that a device that's still online relinks to a new host record when fleetd re-enrolls it. Lower this value in test environments that delete and re-enroll hosts frequently. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_ENROLLMENT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_enrollment_retention: 1h
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
