@@ -214,12 +214,12 @@ const TEST_CASES = [
     id: 'mobileconfig-allow-bookstore',
     profileType: 'mobileconfig',
     instructions: 'Enable access to Bookstore app',
-    // 'allowBookstore' is a substring-prefix of 'allowBookstoreErotica', so the element pair plus
-    // the mustNotContain is what pins the right key.  "Enable" means true here -- the tempting
-    // failure is inverting to false because the payload is named "restrictions".
+    // The adjacent pair binds the value to the key -- a lone '<true/>' could be satisfied by any
+    // other key -- and pins the exact key, since 'allowBookstore' is a substring-prefix of
+    // 'allowBookstoreErotica'.  "Enable" means true here -- the tempting failure is inverting to
+    // false because the payload is named "restrictions".
     expect: {
-      mustContain: ['com.apple.applicationaccess', '<true/>'],
-      mustContainElement: [['key', 'allowBookstore']],
+      mustContain: ['com.apple.applicationaccess', '<key>allowBookstore</key><true/>'],
       mustNotContain: ['allowBookstoreErotica', '<false/>'],
       mustNotContainElement: [['key', 'AllowBookstore'], ['string', 'true']]
     }
