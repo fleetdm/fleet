@@ -123,7 +123,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | OS update management (tvOS/visionOS/watchOS) | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | OS update management (Windows) | 🐣 | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| [OS update management (Android)](https://fleetdm.com/guides/enforce-os-updates#android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Patch management (macOS) | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Patch management (iPhone/iPadOS) | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Patch management (tvOS/visionOS/watchOS) | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
