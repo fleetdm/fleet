@@ -105,6 +105,16 @@ On Thursdays, marketing reviews the names and accounts for upcoming meetings and
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
 
+### Monitor the #help-marketing Slack channel
+
+The Marketing Coordinator is the DRI for the #help-marketing Slack channel and is responsible for making sure nothing posted there goes unnoticed.
+
+To do this:
+- Check #help-marketing regularly and review every new thread and top-level post.
+- Reply to each message within one business day.
+- Keep an eye on open threads until they're resolved, following up as needed.
+
+
 ### Create UTM link
 
 Use the [Fleet UTM builder](https://docs.google.com/spreadsheets/d/1SO7-WIJSMPjEg89tskBIJmNj59xNySt0D-EjLg61IW8/edit?gid=0#gid=0) to create and record a UTM link needed for marketing campaigns
