@@ -14,7 +14,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 
 ## Migrate hosts
 
-> During MDM migration, Fleet doesn't run the full setup experience. The [managed local account](https://fleetdm.com/guides/setup-experience#managed-local-account) is not created, and the [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) is not installed by default. Only fleetd is installed.
+> During MDM migration, Fleet doesn't run the full setup experience. The [managed local account](https://fleetdm.com/guides/setup-experience#managed-local-account) is not created, and the [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) is not installed by default. Only Fleet's agent is installed.
 
 To migrate hosts, we will do the following steps:
 
