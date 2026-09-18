@@ -241,7 +241,8 @@ func (ds *Datastore) ListPatchNotificationAppInstallStatuses(ctx context.Context
 	// so an install recorded against a different installer id for the title still reports. Skip installs
 	// older than the app's row, which patched an earlier version. Read execution_status rather than
 	// status, which nulls out once the app leaves the host's inventory, so uninstalling a patched app
-	// does not put its row back to installing.
+	// does not put its row back to installing. Leave out installs carrying the app open query, which skip
+	// while the app is open and report a failure the notification never asked for.
 	const selectStmt = `
 SELECT
 	pna.software_title_id,
@@ -252,6 +253,7 @@ FROM patch_notification_apps pna
 	JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
 		AND hsi.host_id = neu.host_id
 		AND hsi.updated_at > pna.created_at
+		AND hsi.override_pre_install_query = 0
 		AND hsi.execution_status IS NOT NULL
 WHERE pna.notification_uuid = ?
 ORDER BY hsi.id

@@ -560,11 +560,18 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			wantInstallStatus:  "failed_install",
 		},
 		{
-			name:               "an app whose install was cancelled shows failed rather than installing forever",
+			name:               "an app whose install was cancelled shows no status",
 			notificationStatus: notifications_api.EndUserNotificationActed,
 			installStatus:      new(fleet.SoftwareInstallerStatus("canceled_install")),
-			wantStatus:         "Failed",
-			wantInstallStatus:  "failed_install",
+			wantStatus:         "",
+			wantInstallStatus:  "",
+		},
+		{
+			name:               "an app whose install reports a status other than installed or failed shows installing",
+			notificationStatus: notifications_api.EndUserNotificationActed,
+			installStatus:      new(fleet.SoftwareInstallerStatus("pending_uninstall")),
+			wantStatus:         "Installing...",
+			wantInstallStatus:  "pending_install",
 		},
 		{
 			name:               "an app whose installer was deleted shows failed rather than installing forever",

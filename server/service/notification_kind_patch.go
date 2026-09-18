@@ -243,15 +243,20 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			if app.SoftwareInstallerID == nil {
 				installStatus = fleet.SoftwareInstallFailed
 			}
+
 			switch installStatus {
 			case fleet.SoftwareInstalled:
-				item.InstallStatus, item.Status = string(fleet.SoftwareInstalled), "Installed"
-			// Treat an app with no install to report as still waiting on the host.
-			case "", fleet.SoftwareInstallPending:
-				item.InstallStatus, item.Status = string(fleet.SoftwareInstallPending), "Installing..."
-			// Fail on cancelled, failed, or whatever else the install ended as, which all leave the app unpatched.
+				item.InstallStatus = string(fleet.SoftwareInstalled)
+				item.Status = "Installed"
+			case fleet.SoftwareInstallFailed:
+				item.InstallStatus = string(fleet.SoftwareInstallFailed)
+				item.Status = "Failed"
+			case "canceled_install":
+				item.InstallStatus = ""
+				item.Status = ""
 			default:
-				item.InstallStatus, item.Status = string(fleet.SoftwareInstallFailed), "Failed"
+				item.InstallStatus = string(fleet.SoftwareInstallPending)
+				item.Status = "Installing..."
 			}
 		}
 		items = append(items, item)
