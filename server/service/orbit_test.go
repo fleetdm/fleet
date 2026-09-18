@@ -2861,3 +2861,31 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }
+
+func TestSaveHostScriptResultRecordsNotificationOutcomeOnDuplicate(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	ds.GetHostScriptExecutionResultFunc = func(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+		return nil, newNotFoundError()
+	}
+	// a duplicate result, which the datastore ignores and reports by returning no script result
+	ds.SetHostScriptExecutionResultFunc = func(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult, string, error) {
+		return nil, "", nil
+	}
+
+	var recordedExecutionID string
+	opts.NotificationsMock.RecordOutcomeFunc = func(_ context.Context, executionID string, _ int64, _ string) error {
+		recordedExecutionID = executionID
+		return nil
+	}
+
+	hostCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: "chrome"})
+	err := svc.SaveHostScriptResult(hostCtx, &fleet.HostScriptResultPayload{ExecutionID: "notify-exec-1"})
+	require.NoError(t, err)
+	// the first post can store the script result and fail before the outcome, so the outcome still
+	// has to land when orbit retries and the result comes back as a duplicate
+	require.True(t, opts.NotificationsMock.RecordOutcomeFuncInvoked)
+	require.Equal(t, "notify-exec-1", recordedExecutionID)
+}

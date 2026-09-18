@@ -10614,6 +10614,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
+	// Insert into notifications_end_user table (no host FK, cleaned up via hostRefs).
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+		VALUES (?, ?, 'pending', 'patch', '{}', NOW(6) + INTERVAL 1 HOUR)`,
+		uuid.NewString(), host.ID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

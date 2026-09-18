@@ -7820,6 +7820,25 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
 		require.NoError(t, err)
 		require.Empty(t, manualDetails.PreInstallCondition, option)
+
+		// The app was open, so the install stopped before running.
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    optHost.ID,
+			InstallUUID:               optExec,
+			PreInstallConditionOutput: new(""),
+		}, nil)
+		require.NoError(t, err)
+
+		// Deleting the policy nulls host_software_installs.policy_id, and the recorded result still
+		// should report which patch option queued the install, to differentiate between them in details,
+		// rather than just use override pre install query.
+		_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{optPol.ID})
+		require.NoError(t, err)
+		deletedPolicyResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.True(t, deletedPolicyResult.OverridePreInstallQuery, option)
+		require.Equal(t, option == "closed", deletedPolicyResult.PatchWhenClosed, option)
+		require.Equal(t, option == "notify", deletedPolicyResult.NotifyBeforePatching, option)
 	}
 
 	// A patch policy with neither option keeps the user query on the policy path.

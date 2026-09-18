@@ -1415,14 +1415,13 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	}
 
 	var isNotification bool
-	if hsr != nil {
-		isNotification = isNotificationScript(hsr)
+	if hsr != nil && isNotificationScript(hsr) {
+		isNotification = true
 	}
 
-	if isNotification {
-		if err := svc.notificationsSvc.RecordOutcome(ctx, result.ExecutionID, int64(result.ExitCode), result.Output); err != nil {
-			return ctxerr.Wrap(ctx, err, "record end user notification outcome")
-		}
+	err = svc.notificationsSvc.RecordOutcome(ctx, result.ExecutionID, int64(result.ExitCode), result.Output)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "record end user notification outcome")
 	}
 
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
@@ -1510,7 +1509,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			// cancel them silently before falling through to record the
 			// "ran script" activity for the wipe itself.
 			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
-				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, host.ID)
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
 				if err != nil {
 					return err
 				}

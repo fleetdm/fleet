@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
 import DataSet from "components/DataSet";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
@@ -59,7 +60,10 @@ const PolicyAutomationActivityDetailsModal = ({
   const [showDetails, setShowDetails] = useState(false);
 
   // Only the notify branches need the exit code (not on the activity itself).
-  const { data: scriptResult } = useQuery<IScriptResultResponse, AxiosError>(
+  const { data: scriptResult, isError } = useQuery<
+    IScriptResultResponse,
+    AxiosError
+  >(
     ["notify-script-result", scriptExecutionId],
     () => scriptsAPI.getScriptResult(scriptExecutionId as string),
     {
@@ -156,7 +160,7 @@ const PolicyAutomationActivityDetailsModal = ({
               </>
             )}
           </p>
-          {detailsContent && detailsLabel && (
+          {(detailsContent || isError) && detailsLabel && (
             <>
               <RevealButton
                 isShowing={showDetails}
@@ -166,7 +170,14 @@ const PolicyAutomationActivityDetailsModal = ({
                 onClick={() => setShowDetails((s) => !s)}
               />
               {showDetails &&
-                renderOutputSection(detailsLabel, detailsContent, true)}
+                (isError ? (
+                  <DataError
+                    description="Couldn't load the notification script output."
+                    excludeIssueLink
+                  />
+                ) : (
+                  renderOutputSection(detailsLabel, detailsContent, true)
+                ))}
             </>
           )}
         </>

@@ -80,12 +80,6 @@ func (env *testEnv) InsertNotification(t testing.TB, hostID uint, kind string, n
 	return notificationUUID
 }
 
-func (env *testEnv) DeleteHost(t testing.TB, hostID uint) {
-	t.Helper()
-	_, err := env.db.ExecContext(context.Background(), `DELETE FROM hosts WHERE id = ?`, hostID)
-	require.NoError(t, err)
-}
-
 // InsertPatchNotification writes the rows the notify-before-patching kind creates, so a test can check they cascade.
 func (env *testEnv) InsertPatchNotification(t testing.TB, notificationUUID string, softwareTitleName string) {
 	t.Helper()
