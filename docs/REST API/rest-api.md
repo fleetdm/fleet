@@ -4283,7 +4283,8 @@ Returns the information of the specified host.
           "scope": "device",
           "managed_local_account": "",
           "detail": "",
-          "self_service": true
+          "self_service": true,
+          "hidden": false
         },
         {
           "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381234",
@@ -4295,12 +4296,25 @@ Returns the information of the specified host.
           "detail": "",
           "self_service": false,
           "hidden": true
+        },
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e385678",
+          "name": "profile3",
+          "status": null,
+          "operation_type": "",
+          "scope": "device",
+          "managed_local_account": "",
+          "detail": "",
+          "self_service": true,
+          "hidden": false
         }
       ]
     }
   }
 }
 ```
+
+A profile with `"status": null` is a self-service profile the host can install but hasn't yet. Once the end user or an IT admin installs it, `status` follows the same values as any other profile.
 
 #### Example (iOS/iPadOS)
 `GET /api/v1/fleet/hosts/121`
@@ -5826,13 +5840,27 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
           "scope": "device",
           "managed_local_account": "",
           "detail": "",
-          "self_service": true
+          "self_service": true,
+          "hidden": false
+        },
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e385678",
+          "name": "profile3",
+          "status": null,
+          "operation_type": "",
+          "scope": "device",
+          "managed_local_account": "",
+          "detail": "",
+          "self_service": true,
+          "hidden": false
         }
       ]
     }
   }
 }
 ```
+
+A profile with `"status": null` is a self-service profile the host can install but hasn't yet.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
@@ -6867,7 +6895,8 @@ Retrieves a list of the configuration profiles assigned to a host.
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
-      "self_service": true
+      "self_service": true,
+      "hidden": false
     }
   ]
 }
@@ -8070,8 +8099,12 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | labels_include_any        | array    | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array    | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
 | activation                | file     | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
+| self_service              | boolean  | body | _Available in Fleet Premium_. If `true`, the profile is opt-in: Fleet doesn't install it automatically, and end users install it from **My device > Controls**. Only supported for `.mobileconfig` profiles. Default is `false`. |
+| hidden                    | boolean  | body | _Available in Fleet Premium_. If `true`, the profile is hidden by default on **My device > Controls**. Supported for all profile types. `self_service` must be `false`. Default is `false`. |
 
 `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
+
+For a self-service profile, labels decide which hosts can see the profile. The profile is only installed on hosts that opt in.
 
 If the response is `Status: 409 Conflict`, the body may include additional error details in the case
 of duplicate payload display name or duplicate payload identifier (macOS profiles).
@@ -8149,6 +8182,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
       "self_service": true,
+      "hidden": false,
       "labels_exclude_any": [
        {
         "name": "Label name 1",
@@ -8165,7 +8199,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
-      "self_service": true,
+      "self_service": false,
+      "hidden": true,
       "labels_include_all": [
         {
           "name": "Label name 2",
@@ -8218,6 +8253,8 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
   "checksum": "dGVzdAo=",
+  "self_service": false,
+  "hidden": false,
   "labels_include_all": [
     {
       "name": "Label name 1",
@@ -8294,8 +8331,14 @@ Update an existing configuration profile. Use this endpoint to change which host
 | labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
 | activation                | file     | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
+| self_service              | boolean | body | If `true`, the profile is opt-in. Only supported for `.mobileconfig` profiles. If omitted, the current value is kept. |
+| hidden                    | boolean | body | If `true`, the profile is hidden by default on **My device > Controls**. `self_service` must be `false`. If omitted, the current value is kept. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
+
+Unlike the label fields, `self_service` and `hidden` keep their current values when omitted.
+
+Changing `self_service` from `false` to `true` opts in every host that already has the profile, so nothing is removed. Changing it from `true` to `false` installs the profile on all targeted hosts that don't have it.
 
 ##### Uploading a new profile file
 
@@ -8370,6 +8413,56 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 ##### Default response
 
 `Status: 202`
+
+### Install self-service configuration profile
+
+_Available in Fleet Premium._
+
+Installs a self-service (opt-in) configuration profile on the specified host on the end user's behalf. Fleet queues the install and delivers it on the next profile run. Only `.mobileconfig` profiles with `self_service` set to `true` can be installed this way.
+
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/install`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| profile_uuid   | string | path | **Required.** The UUID of the self-service configuration profile to install. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/install`
+
+##### Default response
+
+`Status: 202`
+
+If the profile isn't self-service, or the host isn't targeted by the profile's labels, the response is `Status: 400`. If the profile is already installed or installing on the host, the response is `Status: 409`.
+
+### Uninstall self-service configuration profile
+
+_Available in Fleet Premium._
+
+Removes a self-service (opt-in) configuration profile from the specified host on the end user's behalf. Fleet queues the removal and delivers it on the next profile run. The profile stays available for the host to install again.
+
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/uninstall`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| profile_uuid   | string | path | **Required.** The UUID of the self-service configuration profile to uninstall. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/uninstall`
+
+##### Default response
+
+`Status: 202`
+
+If the profile isn't self-service, the response is `Status: 400`. If the host hasn't installed the profile, the response is `Status: 404`.
 
 ### Batch-update configuration profiles
 
@@ -8644,6 +8737,56 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 `Status: 202`
 
+### Install self-service configuration profile by Fleet Desktop token
+
+_Available in Fleet Premium._
+
+Installs a self-service (opt-in) configuration profile on the host. Fleet queues the install and delivers it on the next profile run. Only `.mobileconfig` profiles with `self_service` set to `true` can be installed this way.
+
+`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/install`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| profile_uuid   | string | path | **Required.** The UUID of the self-service configuration profile to install. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/install`
+
+##### Default response
+
+`Status: 202`
+
+If the profile isn't self-service, or the host isn't targeted by the profile's labels, the response is `Status: 400`. If the profile is already installed or installing, the response is `Status: 409`.
+
+### Uninstall self-service configuration profile by Fleet Desktop token
+
+_Available in Fleet Premium._
+
+Removes a self-service (opt-in) configuration profile from the host. Fleet queues the removal and delivers it on the next profile run. The profile stays available to install again.
+
+`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/uninstall`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| profile_uuid   | string | path | **Required.** The UUID of the self-service configuration profile to uninstall. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/uninstall`
+
+##### Default response
+
+`Status: 202`
+
+If the profile isn't self-service, the response is `Status: 400`. If the host hasn't installed the profile, the response is `Status: 404`.
+
 
 ### Batch-resend configuration profile
 
@@ -8840,6 +8983,8 @@ Get aggregate status counts of profiles for macOS and Windows hosts that are "Un
 }
 ```
 
+For self-service profiles, the counts include only hosts that opted in. Hosts that can install a self-service profile but haven't aren't counted.
+
 ### Get OS setting (configuration profile) status
 
 Get status counts of a single OS settings (configuration profile) enforced on hosts.
@@ -8868,6 +9013,8 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
   "pending": 123
 }
 ```
+
+For self-service profiles, the counts include only hosts that opted in. Hosts that can install a self-service profile but haven't aren't counted.
 
 ---
 
