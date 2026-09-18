@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,6 +43,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
 		{"GetOrCreateFleetChallengeForCertificateTemplate", testGetOrCreateFleetChallengeForCertificateTemplate},
 		{"RetryHostCertificateTemplate", testRetryHostCertificateTemplate},
+		{"TransitionCertificateTemplatesToDeliveredClearsDetail", testTransitionCertificateTemplatesToDeliveredClearsDetail},
 	}
 
 	for _, c := range cases {
@@ -2205,4 +2207,115 @@ func testRetryHostCertificateTemplate(t *testing.T, ds *Datastore) {
 		require.Equal(t, uint(i+2), record.RetryCount)
 		require.Equal(t, detail, *record.Detail)
 	}
+}
+
+// testTransitionCertificateTemplatesToDeliveredClearsDetail covers the detail bookkeeping of the
+// transition to delivered. An automatic retry deliberately carries the failure message that caused
+// it through pending and delivering, so the transition has to empty it once the certificate has
+// been delivered again, or the host keeps reporting a failure it has recovered from.
+func testTransitionCertificateTemplatesToDeliveredClearsDetail(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+	newTemplate := func(name string) *fleet.CertificateTemplateResponse {
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			Name:                   name,
+			TeamID:                 setup.team.ID,
+			CertificateAuthorityID: setup.ca.ID,
+			SubjectName:            "CN=" + name,
+		})
+		require.NoError(t, err)
+		return template
+	}
+
+	resendTemplate := newTemplate("Resent Cert")
+	failedTemplate := newTemplate("Failed Cert")
+	pendingTemplate := newTemplate("Pending Cert")
+
+	host := test.NewHost(t, ds, "android-host", "10.0.0.1", "key1", "uuid1", time.Now(),
+		test.WithPlatform("android"), test.WithTeamID(setup.team.ID))
+	otherHost := test.NewHost(t, ds, "other-android-host", "10.0.0.2", "key2", "uuid2", time.Now(),
+		test.WithPlatform("android"), test.WithTeamID(setup.team.ID))
+
+	const staleDetail = "Network error during SCEP enrollment: Failed to communicate with SCEP server"
+	challenge := "challenge-val"
+
+	// The retried template is mid-redelivery after a failure, the resent one was resent manually
+	// (which clears the detail to NULL), and the failed/pending ones are only here to prove the
+	// status guard holds even when their IDs are passed in.
+	require.NoError(t, ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{HostUUID: host.UUID, CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateDelivering, FleetChallenge: &challenge, OperationType: fleet.MDMOperationTypeInstall, Name: setup.template.Name},
+		{HostUUID: host.UUID, CertificateTemplateID: resendTemplate.ID, Status: fleet.CertificateTemplateDelivering, FleetChallenge: &challenge, OperationType: fleet.MDMOperationTypeInstall, Name: resendTemplate.Name},
+		{HostUUID: host.UUID, CertificateTemplateID: failedTemplate.ID, Status: fleet.CertificateTemplateFailed, OperationType: fleet.MDMOperationTypeInstall, Name: failedTemplate.Name},
+		{HostUUID: host.UUID, CertificateTemplateID: pendingTemplate.ID, Status: fleet.CertificateTemplatePending, OperationType: fleet.MDMOperationTypeInstall, Name: pendingTemplate.Name},
+		{HostUUID: otherHost.UUID, CertificateTemplateID: setup.template.ID, Status: fleet.CertificateTemplateDelivering, FleetChallenge: &challenge, OperationType: fleet.MDMOperationTypeInstall, Name: setup.template.Name},
+	}))
+
+	// A retry writes the detail and bumps the retry count; a manual resend leaves the detail NULL.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			UPDATE host_certificate_templates
+			SET detail = ?, retry_count = 2
+			WHERE certificate_template_id != ?`,
+			staleDetail, resendTemplate.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			UPDATE host_certificate_templates
+			SET retry_count = ?
+			WHERE certificate_template_id = ?`,
+			fleet.MaxCertificateInstallRetries+1, resendTemplate.ID)
+		return err
+	})
+
+	err := ds.TransitionCertificateTemplatesToDelivered(ctx, host.UUID, []uint{
+		setup.template.ID, resendTemplate.ID, failedTemplate.ID, pendingTemplate.ID,
+	})
+	require.NoError(t, err)
+
+	retried, err := ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.CertificateTemplateDelivered, retried.Status)
+	// Emptied rather than set to NULL: NULL is what tells a manual resend apart from a retry, so
+	// the certificate has to keep reporting that Fleet is still retrying it.
+	require.NotNil(t, retried.Detail)
+	assert.Empty(t, *retried.Detail)
+	assert.True(t, retried.IsRetrying())
+	assert.Equal(t, uint(2), retried.RetryCount)
+	assert.Nil(t, retried.FleetChallenge)
+	assert.Empty(t, retried.ToHostMDMProfile().Detail)
+
+	resent, err := ds.GetHostCertificateTemplateRecord(ctx, host.UUID, resendTemplate.ID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.CertificateTemplateDelivered, resent.Status)
+	assert.Nil(t, resent.Detail)
+	assert.False(t, resent.IsRetrying())
+
+	// The transition only touches delivering rows, so a failed or pending certificate keeps the
+	// detail describing why it is where it is.
+	for _, tc := range []struct {
+		name           string
+		templateID     uint
+		expectedStatus fleet.CertificateTemplateStatus
+	}{
+		{"failed", failedTemplate.ID, fleet.CertificateTemplateFailed},
+		{"pending", pendingTemplate.ID, fleet.CertificateTemplatePending},
+	} {
+		t.Run(tc.name+" is untouched", func(t *testing.T) {
+			record, err := ds.GetHostCertificateTemplateRecord(ctx, host.UUID, tc.templateID)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedStatus, record.Status)
+			require.NotNil(t, record.Detail)
+			require.Equal(t, staleDetail, *record.Detail)
+		})
+	}
+
+	// Another host delivering the same template is not part of this transition.
+	other, err := ds.GetHostCertificateTemplateRecord(ctx, otherHost.UUID, setup.template.ID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.CertificateTemplateDelivering, other.Status)
+	require.NotNil(t, other.Detail)
+	assert.Equal(t, staleDetail, *other.Detail)
 }

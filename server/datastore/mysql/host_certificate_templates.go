@@ -551,6 +551,10 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 // TransitionCertificateTemplatesToDelivered transitions the specified templates from 'delivering' to 'delivered'.
 // The fleet_challenge is cleared so a fresh one is generated when the device fetches the certificate template via
 // GetOrCreateFleetChallengeForCertificateTemplate.
+//
+// The detail is emptied because a retry carries the previous failure message through pending and delivering, and
+// once the certificate has been delivered again that message no longer describes the row. A NULL detail is left
+// as-is: NULL is what tells a manual resend apart from an automatic retry, see HostCertificateTemplate.IsRetrying.
 func (ds *Datastore) TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, templateIDs []uint) error {
 	if len(templateIDs) == 0 {
 		return nil
@@ -561,6 +565,7 @@ func (ds *Datastore) TransitionCertificateTemplatesToDelivered(ctx context.Conte
 		SET
 			status = '%s',
 			fleet_challenge = NULL,
+			detail = IF(detail IS NULL, NULL, ''),
 			updated_at = NOW()
 		WHERE
 			host_uuid = ? AND
