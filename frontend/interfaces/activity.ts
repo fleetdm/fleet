@@ -169,6 +169,7 @@ export enum ActivityType {
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedDiskEncryptionPIN = "created_disk_encryption_pin",
   CreatedCustomVariable = "created_custom_variable",
   UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
@@ -252,6 +253,7 @@ export type IHostPastActivityType =
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
   | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.CreatedDiskEncryptionPIN
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
@@ -594,6 +596,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
+  [ActivityType.CreatedDiskEncryptionPIN]: "Created disk encryption PIN",
   created_custom_variable: "Created custom variable",
   updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",

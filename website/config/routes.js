@@ -993,6 +993,7 @@ module.exports.routes = {
       return res.redirect('/software-catalog/' + req.param('appIdentifier'));
     }
   },
+  'GET /pdfs/fleet-leave-behind-deck.pdf': '/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf',
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
   'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',

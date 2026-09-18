@@ -1,4 +1,4 @@
-# Marketing
+xf# Marketing
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
@@ -103,6 +103,16 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
+
+
+### Monitor the #help-marketing Slack channel
+
+The Marketing Coordinator is the DRI for the #help-marketing Slack channel and is responsible for making sure nothing posted there goes unnoticed.
+
+To do this:
+- Check #help-marketing at least daily and review every new thread and top-level post.
+- Reply to each message within one business day, looping in the appropriate DRI as necessary. 
+- Keep an eye on open threads until they're resolved, following up as needed.
 
 
 ### Create UTM link

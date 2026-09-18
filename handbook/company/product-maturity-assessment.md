@@ -123,7 +123,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | OS update management (tvOS/visionOS/watchOS) | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | OS update management (Windows) | 🐣 | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
-| OS update management (Android) | 🥚 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
+| [OS update management (Android)](https://fleetdm.com/guides/enforce-os-updates#android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
 | Patch management (macOS) | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Patch management (iPhone/iPadOS) | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Patch management (tvOS/visionOS/watchOS) | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
@@ -172,7 +172,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Platform | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | macOS | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 | 🦢 |
-| Windows | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Windows | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (Debian) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |

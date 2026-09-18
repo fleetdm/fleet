@@ -2131,6 +2131,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdDiskEncryptionPIN: (activity: IActivity) => {
+    return (
+      <>
+        <b>End user </b>created a disk encryption PIN for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdLabel: (activity: IActivity) => {
     const fleetText = activity.details?.fleet_name ? (
       <>
@@ -2923,6 +2931,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
+    case ActivityType.CreatedDiskEncryptionPIN: {
+      return TAGGED_TEMPLATES.createdDiskEncryptionPIN(activity);
+    }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
@@ -3058,6 +3069,9 @@ const GlobalActivityItem = ({
         if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
         return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
+      case ActivityType.CreatedDiskEncryptionPIN:
         // The template carries the "End user" subject for this roll-up.
         return null;
       case ActivityType.UserMFARequested:
