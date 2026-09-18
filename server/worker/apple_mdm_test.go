@@ -2047,8 +2047,8 @@ VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosApp
 		defer mysqltest.TruncateTables(t, ds)
 
 		appCfg, err := ds.AppConfig(ctx)
-		originalAppCfg := *appCfg
 		require.NoError(t, err)
+		originalAppCfg := *appCfg
 		appCfg.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(true)
 		require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
 		defer func() {
