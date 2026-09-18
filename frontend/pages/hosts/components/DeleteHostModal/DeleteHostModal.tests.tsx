@@ -183,7 +183,7 @@ describe("DeleteHostModal", () => {
     );
   });
 
-  it("tells admins to reinstall the agent for a manually enrolled Mac when one-time enroll secrets are on", () => {
+  it("offers manual MDM or agent reinstall for a manually enrolled Mac when one-time enroll secrets are on", () => {
     renderModal(
       {
         hostName: "Mac",
@@ -196,7 +196,9 @@ describe("DeleteHostModal", () => {
     expect(screen.getByText("Mac")).toBeVisible();
     expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
     expect(
-      screen.getByText("To re-enroll it, Fleet's agent must be reinstalled.")
+      screen.getByText(
+        "To re-enroll it, turn on MDM manually or reinstall Fleet's agent."
+      )
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
       "href",

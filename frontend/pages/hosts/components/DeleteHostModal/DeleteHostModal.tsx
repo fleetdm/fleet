@@ -113,7 +113,10 @@ const DeleteHostModal = ({
           {isPlural ? "each host's" : "the host's"} Terminal.
         </>
       ) : (
-        <>To re-enroll {them}, Fleet&apos;s agent must be reinstalled.</>
+        <>
+          To re-enroll {them}, turn on MDM manually or reinstall Fleet&apos;s
+          agent.
+        </>
       );
     return (
       <>
