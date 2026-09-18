@@ -39,7 +39,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 		case len(artifact.App) > 0:
 			sb.Write("# copy to the applications folder")
 			// Quit the app before installing if it's running, and track state for relaunch
-			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			sb.Writef("quit_and_track_application %s", shellSingleQuote(app.UniqueIdentifier))
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -63,12 +63,12 @@ fi`, appPath)
 fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation
-			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			sb.Writef("relaunch_application %s", shellSingleQuote(app.UniqueIdentifier))
 
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
 			// Quit the app before installing if it's running, and track state for relaunch
-			sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+			sb.Writef("quit_and_track_application %s", shellSingleQuote(app.UniqueIdentifier))
 			switch len(artifact.Pkg) {
 			case 1:
 				if err := sb.InstallPkg(artifact.Pkg[0].String); err != nil {
@@ -82,7 +82,7 @@ fi`, appPath)
 				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.Token)
 			}
 			// Relaunch the app if it was running before installation
-			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			sb.Writef("relaunch_application %s", shellSingleQuote(app.UniqueIdentifier))
 
 		case len(artifact.Binary) > 0:
 			if len(artifact.Binary) == 2 {
