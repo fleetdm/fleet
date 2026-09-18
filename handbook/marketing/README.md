@@ -109,11 +109,7 @@ Add notes in the meeting document if you cannot find a Salesforce account for an
 
 The [Marketing Coordinator](https://fleetdm.com/handbook/marketing#team) is the DRI for the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel and is responsible for making sure nothing posted there goes unnoticed.
 
-To do this:
-
-1. Check #help-marketing regularly and review every new thread and top-level post.
-2. Reply to each message within **one business day**.
-3. Keep an eye on open threads until they're resolved, following up as needed.
+Check #help-marketing regularly and respond to each thread within one business day. Loop in the DRI for the thread.
 
 
 ### Create UTM link
