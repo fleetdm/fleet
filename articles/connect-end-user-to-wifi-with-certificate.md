@@ -1081,7 +1081,7 @@ NOTE: the following instructions are based on the example of configuring the [Ok
 
 1. To configure for GitOps, in `git` or your repository management solution (e.g., GitHub), add a new repository secret. This will allow you to securely add the password or any other secret required for the integration into your YAML configuration as a variable string. 
 
-In Github, open your Fleet GitOps repository, go to **Settings > Secrets and variables > Actions** then click the "New repository secret" button.
+In GitHub, open your Fleet GitOps repository, go to **Settings > Secrets and variables > Actions**, then click the "New repository secret" button.
 
 2. Populate the "Name" field with your variable name (e.g., `FLEET_OKTA_CA_NDES_PASSWORD` - make sure to **NOT** include the $ character) and populate the "Secret" field with the Okta CA password created in Step 1 of the Okta CA setup above.
 
