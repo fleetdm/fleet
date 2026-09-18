@@ -30,20 +30,39 @@ describe("EnrollmentAttemptDetailsModal", () => {
     expect(screen.getByText("Host details > Controls")).toBeInTheDocument();
   });
 
-  it("explains an identifier mismatch", () => {
-    renderModal({ reason: "one_time_secret_identifier_mismatch" });
+  it("describes an identifier mismatch in the headline with a support link", () => {
+    renderModal({
+      hostDisplayName: "Anna's MacBook Pro",
+      reason: "one_time_secret_identifier_mismatch",
+    });
     expect(
-      screen.getByText(/different serial number or hardware UUID/i)
+      screen.getByText(
+        /rejected an enrollment for a host that tried to enroll with/i
+      )
     ).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro's")).toBeInTheDocument();
+    expect(screen.getByText(/reach out to/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /fleet support/i })
+    ).toHaveAttribute("href", "https://fleetdm.com/support");
+    expect(
+      screen.queryByText(/not valid for this host/i)
+    ).not.toBeInTheDocument();
   });
 
   it("explains a shared secret used for a host that needs a one-time secret", () => {
     renderModal({ reason: "shared_secret_for_mdm_managed_host" });
     expect(
       screen.getByText(
-        "A shared enroll secret was used for a host that requires a one-time enroll secret."
+        /A shared enroll secret was used for a host that requires a one-time enroll secret\./
       )
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /how to troubleshoot/i })
+    ).toHaveAttribute(
+      "href",
+      expect.stringMatching(/learn-more-about\/enrollment-troubleshooting$/)
+    );
   });
 
   it("falls back to a generic host and reason", () => {

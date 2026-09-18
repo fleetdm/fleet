@@ -167,7 +167,10 @@ const OSSettingsResendCell = ({
   // must not go through the profile-resend path above.
   const showResendButton =
     canResendProfiles &&
-    (isFailed || isVerified || isAndroidCertStuckEnforcing || (isVerifying && canResendWhileVerifying)) &&
+    (isFailed ||
+      isVerified ||
+      isAndroidCertStuckEnforcing ||
+      (isVerifying && canResendWhileVerifying)) &&
     !isRecoveryLockRow &&
     !isHostNameRow;
   const showRotateButton =

@@ -86,7 +86,7 @@ const DeleteHostModal = ({
       mdmEnrollmentStatus === "On (automatic)" ? (
         <>
           To re-enroll it, wipe it or run <b>profiles renew -type enrollment</b>{" "}
-          in the host&apos;s Terminal. {learnMoreLink}
+          in the host&apos;s Terminal.
         </>
       ) : (
         <>To re-enroll it, Fleet&apos;s agent must be reinstalled.</>
@@ -95,7 +95,7 @@ const DeleteHostModal = ({
       <>
         <p>
           This will unenroll <b>{hostName}</b> but won&apos;t remove company
-          data.
+          data. {learnMoreLink}
         </p>
         <p>{reEnrollInstructions}</p>
       </>

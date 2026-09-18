@@ -140,7 +140,10 @@ describe("DeleteHostModal", () => {
     expect(
       screen.getByText("To re-enroll it, Fleet's agent must be reinstalled.")
     ).toBeVisible();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      expect.stringMatching(DELETING_A_HOST_LINK)
+    );
   });
 
   it("renders the profiles renew instructions for an automatically enrolled Mac when one-time enroll secrets are on", () => {
