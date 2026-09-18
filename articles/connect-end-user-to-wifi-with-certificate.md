@@ -31,7 +31,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
    - **Use Okta as Certificate Authority**.
    - **Dynamic SCEP URL** and verify that **Generic** is selected.
 4. Select **Generate**.
-5. Copy the **Password** to a secure location (i.e., 1Password or some other secure secrets vault) then select **Save**.
+5. Copy the **Password** to a secure location (e.g., 1Password or some other secure secrets vault) then select **Save**.
 6. Copy the **URLs** and the **Username** as well. (You will be pasting these values into the Fleet CA configuration.)
 
 ### Step 2: Connect Fleet to Okta's CA
