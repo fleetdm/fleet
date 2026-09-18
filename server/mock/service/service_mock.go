@@ -343,6 +343,8 @@ type LicenseFunc func(ctx context.Context) (*fleet.LicenseInfo, error)
 
 type PartnershipsConfigFunc func(ctx context.Context) (*fleet.Partnerships, error)
 
+type AuthSettingsFunc func(ctx context.Context) (*fleet.AuthSettings, error)
+
 type LoggingConfigFunc func(ctx context.Context) (*fleet.Logging, error)
 
 type EmailConfigFunc func(ctx context.Context) (*fleet.EmailConfig, error)
@@ -1510,6 +1512,9 @@ type Service struct {
 
 	PartnershipsConfigFunc        PartnershipsConfigFunc
 	PartnershipsConfigFuncInvoked bool
+
+	AuthSettingsFunc        AuthSettingsFunc
+	AuthSettingsFuncInvoked bool
 
 	LoggingConfigFunc        LoggingConfigFunc
 	LoggingConfigFuncInvoked bool
@@ -3665,6 +3670,13 @@ func (s *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships, 
 	s.PartnershipsConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.PartnershipsConfigFunc(ctx)
+}
+
+func (s *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, error) {
+	s.mu.Lock()
+	s.AuthSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthSettingsFunc(ctx)
 }
 
 func (s *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {

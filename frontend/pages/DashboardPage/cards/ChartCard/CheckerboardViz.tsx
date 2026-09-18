@@ -39,6 +39,14 @@ interface ICheckerboardVizProps {
   theme?: ChartTheme;
   tooltipFormatter?: TooltipFormatter;
   relativeScale?: boolean;
+  // "gradient" (default) shows the full No data → More ramp. "binary" renders
+  // "Offline [offline swatch] [online swatch] Online" — for filters that
+  // render as on/off only, e.g. a single-host uptime view.
+  legendVariant?: "gradient" | "binary";
+  // Shrinks cell dimensions to 0.93 so the 30-day grid fits inside a medium
+  // modal (~570px content). Dashboard cards leave this off and render at
+  // the default cell size.
+  compact?: boolean;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -50,6 +58,7 @@ const Y_AXIS_WIDTH = 40; // space for y-axis labels on the left
 // than this threshold and we scale cells up by WIDE_MULTIPLIER.
 const WIDE_THRESHOLD = 700;
 const WIDE_MULTIPLIER = 1.5;
+const COMPACT_MULTIPLIER = 0.93;
 
 const CheckerboardViz = ({
   data,
@@ -57,6 +66,8 @@ const CheckerboardViz = ({
   theme = "green",
   tooltipFormatter,
   relativeScale = false,
+  legendVariant = "gradient",
+  compact = false,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -238,7 +249,9 @@ const CheckerboardViz = ({
   const numCols = is24h ? hourRows : numDays;
   const numRows = is24h ? 1 : hourRows;
 
-  const scale = isWide ? WIDE_MULTIPLIER : 1;
+  let scale = 1;
+  if (isWide) scale = WIDE_MULTIPLIER;
+  else if (compact) scale = COMPACT_MULTIPLIER;
   const cellW = CELL_W * scale;
   const cellH = CELL_H * scale;
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
@@ -435,18 +448,33 @@ const CheckerboardViz = ({
         </div>
       )}
       <div className={`${baseClass}__legend`}>
-        <span className={`${baseClass}__legend-label`}>No data</span>
-        <span
-          className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
-        />
-        <span className={`${baseClass}__legend-label`}>Less</span>
-        {[1, 2, 3, 4, 5].map((level) => (
-          <span
-            key={level}
-            className={`${baseClass}__legend-swatch ${baseClass}__cell--level-${level}`}
-          />
-        ))}
-        <span className={`${baseClass}__legend-label`}>More</span>
+        {legendVariant === "gradient" ? (
+          <>
+            <span className={`${baseClass}__legend-label`}>No data</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
+            <span className={`${baseClass}__legend-label`}>Less</span>
+            {[1, 2, 3, 4, 5].map((level) => (
+              <span
+                key={level}
+                className={`${baseClass}__legend-swatch ${baseClass}__cell--level-${level}`}
+              />
+            ))}
+            <span className={`${baseClass}__legend-label`}>More</span>
+          </>
+        ) : (
+          <>
+            <span className={`${baseClass}__legend-label`}>Offline</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-5`}
+            />
+            <span className={`${baseClass}__legend-label`}>Online</span>
+          </>
+        )}
       </div>
     </div>
   );

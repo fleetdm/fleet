@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1021,12 +1022,37 @@ var macOSEntraIDDetails = DetailQuery{
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
+// entraDeviceCertIssuerLike matches the issuer of the certificate Windows stores for
+// an Entra-joined or Entra-registered device; its subject is the Entra device ID.
+const entraDeviceCertIssuerLike = "net + windows + MS-Organization-Access%"
+
 // windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
 var windowsEntraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
-	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;",
+	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE '" + entraDeviceCertIssuerLike + "' LIMIT 1;",
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
+// windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
+// agent-only Windows hosts get IdP vitals without an end user authentication prompt.
+// The datastore ignores it for hosts enrolled in Fleet MDM, which receive profiles and
+// certificates that must not follow a device-asserted identity.
+// The JoinInfo subkey is named after the device's certificate thumbprint; matching them
+// drops stale keys but is not an integrity control. Newest certificate first, so a
+// current record without a user yields an empty user_email, not an older record's.
+// Registry first: osquery's certificates table enumerates every store regardless of WHERE.
+var windowsEntraJoinUser = DetailQuery{
+	Query: `SELECT MAX(CASE WHEN r.name = 'UserEmail' THEN r.data END) AS user_email
+FROM registry r
+CROSS JOIN certificates c ON UPPER(c.sha1) = UPPER(SUBSTR(r.key, LENGTH('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\') + 1))
+WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\%'
+  AND c.issuer LIKE '` + entraDeviceCertIssuerLike + `'
+GROUP BY r.key
+ORDER BY MAX(c.not_valid_after) DESC
+LIMIT 1;`,
+	Platforms:        []string{"windows"},
+	DirectIngestFunc: directIngestEntraJoinUser,
 }
 
 var softwareMacOS = DetailQuery{
@@ -2227,6 +2253,37 @@ func directIngestEntraIDDetails(
 
 	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
+	}
+	return nil
+}
+
+func directIngestEntraJoinUser(
+	ctx context.Context,
+	logger *slog.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	// the query is only sent to Windows hosts, but results are not filtered by platform
+	if host.Platform != "windows" {
+		return nil
+	}
+	// Failed queries never reach here: no rows means not joined, and a row without a
+	// usable user means joined without one. Either way the empty UPN clears the mapping.
+	var upn string
+	if len(rows) > 0 {
+		upn = strings.ToLower(strings.TrimSpace(rows[0]["user_email"]))
+		if upn != "" && !microsoft_mdm.IsValidEntraUPN(upn) {
+			logger.WarnContext(ctx, "ignoring invalid Entra join user email", "host.id", host.ID, "length", len(upn))
+			upn = ""
+		}
+	}
+	updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, host.ID, upn)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set entra join host device mapping")
+	}
+	if updated {
+		logger.InfoContext(ctx, "reconciled host IdP mapping from Entra join record", "host.id", host.ID)
 	}
 	return nil
 }
@@ -3885,6 +3942,11 @@ func GetDetailQueries(
 	if integrations.ConditionalAccessMicrosoft {
 		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
+	}
+
+	// IdP host vitals are a premium feature.
+	if license.IsPremium(ctx) {
+		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet
