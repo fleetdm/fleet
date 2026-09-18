@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -2039,6 +2040,46 @@ VALUES (?, ?, ?, ?)`, h.UUID, "Acme", fleet.SetupExperienceStatusPending, iosApp
 		assert.NotContains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
 		assert.NotContains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
 		assert.NotContains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
+	})
+
+	t.Run("does not send AccountConfiguration during AB migration", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		appCfg, err := ds.AppConfig(ctx)
+		originalAppCfg := *appCfg
+		require.NoError(t, err)
+		appCfg.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(true)
+		require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+		defer func() {
+			require.NoError(t, ds.SaveAppConfig(ctx, &originalAppCfg))
+		}()
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		args := appleMDMArgs{
+			HostUUID:         h.UUID,
+			Platform:         "darwin",
+			FromMDMMigration: true,
+		}
+
+		ctx := t.Context()
+
+		ctx = license.NewContext(ctx, &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		})
+		require.NoError(t, mdmWorker.runPostDEPEnrollment(ctx, args))
+
+		// confirm that AccountConfiguration command was not enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 }
 
