@@ -130,6 +130,7 @@ func TestSoftwareInstallerUploadPreAuth(t *testing.T) {
 		rec := httptest.NewRecorder()
 		newHandler(&preAuthStubService{}, &called).ServeHTTP(rec, newRequest())
 		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Equal(t, "application/json; charset=utf-8", rec.Header().Get("Content-Type"))
 		require.False(t, called)
 	})
 
@@ -140,18 +141,23 @@ func TestSoftwareInstallerUploadPreAuth(t *testing.T) {
 		rec := httptest.NewRecorder()
 		newHandler(&preAuthStubService{sessionErr: errors.New("Error 1045: session row lookup failed")}, &called).ServeHTTP(rec, req)
 		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Equal(t, "application/json; charset=utf-8", rec.Header().Get("Content-Type"))
 		require.False(t, called)
 		require.NotContains(t, rec.Body.String(), "1045")
 		require.NotContains(t, rec.Body.String(), "session row lookup")
 	})
 
-	t.Run("valid session passes through", func(t *testing.T) {
-		var called bool
+	t.Run("valid session passes through and stashes the viewer", func(t *testing.T) {
+		var gotViewer bool
+		h := softwareInstallerUploadPreAuth(&preAuthStubService{}, slog.New(slog.DiscardHandler))(
+			http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				_, gotViewer = viewer.FromContext(r.Context())
+			}))
 		req := newRequest()
 		req.Header.Set("Authorization", "Bearer sometoken")
 		rec := httptest.NewRecorder()
-		newHandler(&preAuthStubService{}, &called).ServeHTTP(rec, req)
-		require.True(t, called)
+		h.ServeHTTP(rec, req)
+		require.True(t, gotViewer, "viewer must be in the context so the session is not validated again")
 	})
 }
 

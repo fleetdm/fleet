@@ -55,19 +55,22 @@ func TestPubSubMalformedPayload(t *testing.T) {
 		require.Equal(t, "Authentication failed", err.Error())
 	})
 
-	t.Run("invalid base64 data returns a generic message", func(t *testing.T) {
+	t.Run("invalid base64 data is acked with a generic message", func(t *testing.T) {
 		msg := &android.PubSubMessage{
 			Attributes: map[string]string{"notificationType": string(android.PubSubEnrollment)},
 			Data:       "%%%not-base64%%%",
 		}
 		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
 		require.Error(t, err)
-		var badReq *fleet.BadRequestError
-		require.ErrorAs(t, err, &badReq)
-		require.Equal(t, "invalid Pub/Sub message data", badReq.Message)
+		require.Contains(t, err.Error(), "invalid Pub/Sub message data")
+		require.NotContains(t, err.Error(), "base64")
+		// 200 so Pub/Sub acks instead of redelivering forever.
+		sc, ok := err.(interface{ Status() int })
+		require.True(t, ok)
+		require.Equal(t, http.StatusOK, sc.Status())
 	})
 
-	t.Run("invalid JSON payload returns a generic message", func(t *testing.T) {
+	t.Run("invalid JSON payload is acked with a generic message", func(t *testing.T) {
 		for _, nt := range []android.NotificationType{android.PubSubEnrollment, android.PubSubStatusReport, android.PubSubCommand} {
 			msg := &android.PubSubMessage{
 				Attributes: map[string]string{"notificationType": string(nt)},
@@ -75,9 +78,10 @@ func TestPubSubMalformedPayload(t *testing.T) {
 			}
 			err := svc.ProcessPubSubPush(t.Context(), "value", msg)
 			require.Error(t, err, "notification type %s", nt)
-			var badReq *fleet.BadRequestError
-			require.ErrorAs(t, err, &badReq, "notification type %s", nt)
-			require.Equal(t, "invalid Pub/Sub message payload", badReq.Message)
+			require.Contains(t, err.Error(), "invalid Pub/Sub message payload", "notification type %s", nt)
+			sc, ok := err.(interface{ Status() int })
+			require.True(t, ok, "notification type %s", nt)
+			require.Equal(t, http.StatusOK, sc.Status(), "notification type %s", nt)
 		}
 	})
 }

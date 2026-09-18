@@ -72,10 +72,12 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		var err error
 		rawData, err = base64.StdEncoding.DecodeString(message.Data)
 		if err != nil {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     "invalid Pub/Sub message data",
-				InternalErr: err,
-			}, "base64 decode message.data")
+			// Answer 200 like the device validation errors below: Pub/Sub
+			// redelivers anything non-2xx, and a malformed message cannot parse
+			// better on retry.
+			svc.logger.WarnContext(ctx, "Android Pub/Sub message data is not valid base64",
+				"notification", notificationType, "err", err)
+			return fleet.NewInvalidArgumentError("message.data", "invalid Pub/Sub message data").WithStatus(http.StatusOK)
 		}
 	}
 
@@ -161,10 +163,9 @@ func clearAndroidBYOWipeRef(ctx context.Context, ds fleet.Datastore, hostID uint
 func (svc *Service) handlePubSubCommand(ctx context.Context, rawData []byte, messageID, publishTime string) error {
 	var op androidmanagement.Operation
 	if err := json.Unmarshal(rawData, &op); err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "invalid Pub/Sub message payload",
-			InternalErr: err,
-		}, "decode android pub/sub COMMAND payload")
+		// Answer 200 so Pub/Sub does not redeliver a message that cannot parse.
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND payload is not valid JSON", "err", err)
+		return fleet.NewInvalidArgumentError("message.data", "invalid Pub/Sub message payload").WithStatus(http.StatusOK)
 	}
 	if op.Name == "" {
 		// AMAPI promises Name on every notification we issue, so an empty name means the payload is malformed (or possibly a
@@ -481,10 +482,9 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, rawData []byte
 	var device androidmanagement.Device
 	err := json.Unmarshal(rawData, &device)
 	if err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "invalid Pub/Sub message payload",
-			InternalErr: err,
-		}, "unmarshal Android status report message")
+		// Answer 200 so Pub/Sub does not redeliver a message that cannot parse.
+		svc.logger.WarnContext(ctx, "Android status report payload is not valid JSON", "err", err)
+		return fleet.NewInvalidArgumentError("message.data", "invalid Pub/Sub message payload").WithStatus(http.StatusOK)
 	}
 
 	// Validate the device payload up front.
@@ -689,10 +689,9 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, rawData []byte, 
 	var device androidmanagement.Device
 	err := json.Unmarshal(rawData, &device)
 	if err != nil {
-		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "invalid Pub/Sub message payload",
-			InternalErr: err,
-		}, "unmarshal Android enrollment message")
+		// Answer 200 so Pub/Sub does not redeliver a message that cannot parse.
+		svc.logger.WarnContext(ctx, "Android enrollment payload is not valid JSON", "err", err)
+		return fleet.NewInvalidArgumentError("message.data", "invalid Pub/Sub message payload").WithStatus(http.StatusOK)
 	}
 
 	// Validate up front so the DELETED branch below (getExistingHost/getComputerName)

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -78,25 +79,35 @@ type uploadSoftwareInstallerResponse struct {
 
 // softwareInstallerUploadPreAuth returns an HTTP middleware for the installer
 // upload endpoints that rejects requests without a valid user session before
-// the (potentially very large) multipart body is parsed. The endpoint-layer
-// AuthenticatedUser middleware still performs the full authentication after
-// decode; this only short-circuits requests that would fail it anyway.
+// the (potentially very large) multipart body is parsed. On success it stashes
+// the viewer so SetRequestsContexts and the endpoint-layer AuthenticatedUser
+// middleware reuse it instead of validating the session again.
 func softwareInstallerUploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
+	// Rejections happen before the kithttp server, so the content type the
+	// server options normally apply must be set here.
+	writeErr := func(ctx context.Context, w http.ResponseWriter, err error) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		encodeError(ctx, err, w)
+	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			bearer := token.FromHTTPRequest(r)
 			if bearer == "" {
-				encodeError(ctx, fleet.NewAuthHeaderRequiredError("no auth token"), w)
+				writeErr(ctx, w, fleet.NewAuthHeaderRequiredError("no auth token"))
 				return
 			}
-			if _, err := auth.AuthViewer(ctx, string(bearer), svc); err != nil {
+			v, err := auth.AuthViewer(ctx, string(bearer), svc)
+			if err != nil {
 				logger.WarnContext(ctx, "software package request rejected before body parse",
 					"path", r.URL.Path, "err", err)
-				encodeError(ctx, err, w)
+				writeErr(ctx, w, err)
 				return
 			}
-			next.ServeHTTP(w, r)
+			ctx = viewer.NewContext(ctx, *v)
+			ctx = ctxerr.AddErrorContextProvider(ctx, v)
+			ctx = logging.WithUserEmailer(ctx, v)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

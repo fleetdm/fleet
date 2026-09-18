@@ -133,12 +133,12 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 
 	err = svc.mailService.SendEmail(ctx, inviteEmail)
 	if err != nil {
-		// The mail provider's error text describes Fleet's email integration,
-		// not the caller's request, so it stays in the logs.
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "Couldn't send invite email. Please check the invitee's email address and your organization's email configuration.",
-			InternalErr: err,
-		}, "send invite email")
+		// The mail package doesn't distinguish bad addresses (caught by the
+		// ValidateEmail check above) from provider outages, so all send failures
+		// answer as a server error; the provider's message describes Fleet's
+		// email integration, not the caller's request, so it stays in the logs.
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "send invite email"))
+		return nil, ctxerr.New(ctx, "Couldn't send invite email. Please check your organization's email configuration and try again.")
 	}
 	return invite, nil
 }
