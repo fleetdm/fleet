@@ -94,7 +94,7 @@ Apple Business has settings that restrict which Apple Accounts can sign in on yo
 
 Of the restrictions Apple lists, only the ones that mention the MDM `Get Token` message involve Fleet. All the others are enforced entirely by Apple Business and work without any Fleet involvement.
 
-When **Allow Managed Apple Account on** is set to **Managed devices only** or **Supervised devices only**, the device asks Fleet for a token during Managed Apple Account sign-in. Fleet signs the token with the MDM server UUID of the host's AB token. Hosts that aren't assigned to an AB token in Apple Business are signed with the [default AB token](https://fleetdm.com/learn-more-about/default-ab-token).
+When **Allow Managed Apple Account on** is set to **Managed devices only** or **Supervised devices only**, the device asks Fleet for a token during Managed Apple Account sign-in. Fleet signs the token with the MDM server UUID of the host's AB token. Hosts that aren't assigned to an AB token in Apple Business are signed with the default AB token.
 
 Apple verifies the token before allowing the sign-in.
 
