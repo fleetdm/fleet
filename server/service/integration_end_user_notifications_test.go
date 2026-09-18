@@ -766,10 +766,11 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.False(t, activated.OverridePreInstallQuery)
 		require.Empty(t, activated.PreInstallCondition)
 
-		// the policy option is still on, but this install was not gated on it
+		// the flags describe this install rather than the policy, and this install ran without the
+		// app open gate, so neither is set even though the policy still has notify_before_patching on
 		result, err := s.ds.GetSoftwareInstallResults(ctx, queuedInstalls[0].ExecutionID)
 		require.NoError(t, err)
-		require.True(t, result.NotifyBeforePatching)
+		require.False(t, result.NotifyBeforePatching)
 		require.False(t, result.OverridePreInstallQuery)
 	})
 
