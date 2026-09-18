@@ -1,4 +1,4 @@
-# Marketing
+xf# Marketing
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
@@ -110,8 +110,8 @@ Add notes in the meeting document if you cannot find a Salesforce account for an
 The Marketing Coordinator is the DRI for the #help-marketing Slack channel and is responsible for making sure nothing posted there goes unnoticed.
 
 To do this:
-- Check #help-marketing regularly and review every new thread and top-level post.
-- Reply to each message within one business day.
+- Check #help-marketing at least daily and review every new thread and top-level post.
+- Reply to each message within one business day, looping in the appropriate DRI as necessary. 
 - Keep an eye on open threads until they're resolved, following up as needed.
 
 
