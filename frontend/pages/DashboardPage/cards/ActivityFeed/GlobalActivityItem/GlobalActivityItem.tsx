@@ -1,6 +1,9 @@
 import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   DATASET_LABEL,
@@ -18,16 +21,12 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
-
-import ActivityItem from "components/ActivityItem";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-import TooltipWrapper from "components/TooltipWrapper";
-import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
 
@@ -160,6 +159,9 @@ const getMacOSSetupAssistantMessage = (
     </>
   );
 };
+
+const isPassiveRoleActivity = (activity: IActivity): boolean =>
+  !!activity.details?.jit || activity.actor_id === activity.details?.user_id;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -328,60 +330,75 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
-    const { actor_id } = activity;
-    const { user_id, user_email, role } = activity.details || {};
+    const { user_email, role, jit } = activity.details || {};
 
-    if (actor_id === user_id) {
-      // this is the case when SSO user is crated via JIT provisioning
-      // should only be possible for premium tier, but check anyway
+    if (isPassiveRoleActivity(activity)) {
       return (
         <>
           was assigned the <b>{role}</b> role
-          {isPremiumTier && " for all fleets"}.
+          {isPremiumTier && " for all fleets"}
+          {jit && " via just-in-time (JIT) provisioning"}.
         </>
       );
     }
     return (
       <>
-        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
+        changed <b>{user_email}</b> to <b>{role}</b>
         {isPremiumTier && " for all fleets"}.
       </>
     );
   },
   userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    const { user_email, role, jit } = activity.details || {};
+
+    if (isPassiveRoleActivity(activity)) {
+      return (
+        <>
+          was removed as <b>{role}</b>
+          {isPremiumTier && " for all fleets"}
+          {jit && " via just-in-time (JIT) provisioning"}.
+        </>
+      );
+    }
     return (
       <>
-        removed <b>{activity.details?.user_email}</b> as{" "}
-        <b>{activity.details?.role}</b>
+        removed <b>{user_email}</b> as <b>{role}</b>
         {isPremiumTier && " for all fleets"}.
       </>
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
-    const { actor_id } = activity;
-    const { user_id, user_email, role, team_name } = activity.details || {};
+    const { user_email, role, team_name, jit } = activity.details || {};
 
-    const varText =
-      actor_id === user_id ? (
+    if (isPassiveRoleActivity(activity)) {
+      return (
         <>
-          was assigned the <b>{role}</b> role
-        </>
-      ) : (
-        <>
-          changed <b>{user_email}</b> to <b>{role}</b>
+          was assigned the <b>{role}</b> role for the <b>{team_name}</b> fleet
+          {jit && " via just-in-time (JIT) provisioning"}.
         </>
       );
+    }
     return (
       <>
-        {varText} for the <b>{team_name}</b> fleet.
+        changed <b>{user_email}</b> to <b>{role}</b> for the <b>{team_name}</b>{" "}
+        fleet.
       </>
     );
   },
   userDeletedTeamRole: (activity: IActivity) => {
+    const { user_email, team_name, jit } = activity.details || {};
+
+    if (isPassiveRoleActivity(activity)) {
+      return (
+        <>
+          was removed from the <b>{team_name}</b> fleet
+          {jit && " via just-in-time (JIT) provisioning"}.
+        </>
+      );
+    }
     return (
       <>
-        removed <b>{activity.details?.user_email}</b> from the{" "}
-        <b>{activity.details?.team_name}</b> fleet.
+        removed <b>{user_email}</b> from the <b>{team_name}</b> fleet.
       </>
     );
   },
@@ -415,11 +432,27 @@ const TAGGED_TEMPLATES = {
     const { mdm_platform, platform = "", host_display_name, host_serial } =
       activity.details || {};
 
+    const enrollmentTypeText = activity.details?.installed_from_dep
+      ? "automatic"
+      : "manual";
+    // Skip the serial suffix if the display name already ends with " (serial)"
+    // (the "Model (Serial)" fallback format from fleet.HostDisplayName).
+    const showSerial =
+      !!host_display_name &&
+      !!host_serial &&
+      !host_display_name.endsWith(`(${host_serial})`);
+    const serialSuffix = showSerial ? ` (${host_serial})` : "";
+
     if (mdm_platform === "microsoft") {
       return (
         <>
           <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
-          turned on for <b>{activity.details?.host_display_name} (manual)</b>.
+          turned on for{" "}
+          <b>
+            {host_display_name || host_serial || "a host"}
+            {serialSuffix} ({enrollmentTypeText})
+          </b>
+          .
         </>
       );
     }
@@ -434,24 +467,10 @@ const TAGGED_TEMPLATES = {
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
-    let enrollmentTypeText = "";
-    if (activity.details?.installed_from_dep) {
-      enrollmentTypeText = "automatic";
-    } else {
-      enrollmentTypeText = "manual";
-    }
-
     const hostDisplayText = host_display_name || host_serial;
     const hostDisplayPrefixText = host_display_name
       ? ""
       : "a host with serial number ";
-    // Skip the serial suffix if the display name already ends with " (serial)"
-    // (the "Model (Serial)" fallback format from fleet.HostDisplayName).
-    const showSerial =
-      !!host_display_name &&
-      !!host_serial &&
-      !host_display_name.endsWith(`(${host_serial})`);
-    const serialSuffix = showSerial ? ` (${host_serial})` : "";
 
     return (
       <>
@@ -2056,10 +2075,60 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resetPolicy: (activity: IActivity) => {
+    // A host-scoped reset is described by the host; the policy's fleet scope
+    // ("globally", "on the X fleet") would read as if all hosts were reset.
+    if (activity.details?.host_display_name) {
+      return (
+        <>
+          {" "}
+          reset the policy <b>{activity.details.policy_name}</b> for host{" "}
+          <b>{activity.details.host_display_name}</b>.
+        </>
+      );
+    }
+
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = " globally";
+    } else if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          {" "}
+          for <b>Unassigned</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          {" "}
+          on the <b>{activity.details.team_name}</b> fleet
+        </>
+      );
+    } else {
+      teamText = "";
+    }
+
+    return (
+      <>
+        {" "}
+        reset the policy <b>{activity.details?.policy_name}</b>
+        {teamText}.
+      </>
+    );
+  },
   escrowedDiskEncryptionKey: (activity: IActivity) => {
     return (
       <>
         escrowed a disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdDiskEncryptionPIN: (activity: IActivity) => {
+    return (
+      <>
+        <b>End user </b>created a disk encryption PIN for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -2291,7 +2360,7 @@ const TAGGED_TEMPLATES = {
     ) : (
       <></>
     );
-    return <>edited enroll secret{postFix}.</>;
+    return <>edited enroll secrets{postFix}.</>;
   },
   addedMicrosoftEntraTenant: (activity: IActivity) => {
     const tenantId = activity.details?.tenant_id;
@@ -2354,6 +2423,12 @@ const TAGGED_TEMPLATES = {
         Business.
       </>
     );
+  },
+  enabledOnlyAppleBusinessEnrollment: () => {
+    return <>enabled Apple Business only enrollment for Apple hosts.</>;
+  },
+  disabledOnlyAppleBusinessEnrollment: () => {
+    return <>disabled Apple Business only enrollment for Apple hosts.</>;
   },
 };
 
@@ -2809,6 +2884,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
+    case ActivityType.ResetPolicy: {
+      return TAGGED_TEMPLATES.resetPolicy(activity);
+    }
     case ActivityType.CreatedLabel: {
       return TAGGED_TEMPLATES.createdLabel(activity);
     }
@@ -2820,6 +2898,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
+    }
+    case ActivityType.CreatedDiskEncryptionPIN: {
+      return TAGGED_TEMPLATES.createdDiskEncryptionPIN(activity);
     }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
@@ -2890,6 +2971,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
+    case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
+      return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
+    }
+    case ActivityType.DisabledAppleBusinessOnlyEnrollment: {
+      return TAGGED_TEMPLATES.disabledOnlyAppleBusinessEnrollment();
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -2921,8 +3008,10 @@ const GlobalActivityItem = ({
 
     switch (activity.type) {
       case ActivityType.UserChangedGlobalRole:
+      case ActivityType.UserDeletedGlobalRole:
       case ActivityType.UserChangedTeamRole:
-        return activity.actor_id === activity.details?.user_id ? (
+      case ActivityType.UserDeletedTeamRole:
+        return isPassiveRoleActivity(activity) ? (
           <b>{activity.details?.user_email} </b>
         ) : (
           DEFAULT_ACTOR_DISPLAY
@@ -2945,6 +3034,9 @@ const GlobalActivityItem = ({
         if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
         return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
+      case ActivityType.CreatedDiskEncryptionPIN:
         // The template carries the "End user" subject for this roll-up.
         return null;
       case ActivityType.UserMFARequested:

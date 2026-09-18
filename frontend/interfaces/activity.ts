@@ -15,6 +15,7 @@ export enum ActivityType {
   CreatedPolicy = "created_policy",
   DeletedPolicy = "deleted_policy",
   EditedPolicy = "edited_policy",
+  ResetPolicy = "reset_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
   DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
@@ -168,6 +169,7 @@ export enum ActivityType {
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedDiskEncryptionPIN = "created_disk_encryption_pin",
   CreatedCustomVariable = "created_custom_variable",
   UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
@@ -217,6 +219,8 @@ export enum ActivityType {
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
+  EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
+  DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -248,6 +252,7 @@ export type IHostPastActivityType =
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
   | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.CreatedDiskEncryptionPIN
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
@@ -262,7 +267,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
   | ActivityType.ReleasedDeviceFromAB
-  | ActivityType.ResentConfigurationProfile;
+  | ActivityType.ResentConfigurationProfile
+  | ActivityType.ResetPolicy;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -384,6 +390,7 @@ export interface IActivityDetails {
   failure_reason?: string;
   user_email?: string;
   user_id?: number;
+  jit?: boolean;
   webhook_url?: string;
   // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
   status_code?: number;
@@ -557,6 +564,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
   resent_configuration_profile_batch: "Bulk resent configuration profile",
+  reset_policy: "Reset policy",
   transferred_hosts: "Transferred hosts",
   uninstalled_software: "Uninstall software",
   unlocked_host: "Unlocked host",
@@ -573,6 +581,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
+  [ActivityType.CreatedDiskEncryptionPIN]: "Created disk encryption PIN",
   created_custom_variable: "Created custom variable",
   updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
@@ -656,4 +665,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
+  [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
+    "Enabled Apple Business only enrollment",
+  [ActivityType.DisabledAppleBusinessOnlyEnrollment]:
+    "Disabled Apple Business only enrollment",
 };

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.6.1",
+      "version": "4.6.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Wrike for Windows (64 bit)' AND publisher = 'Wrike.com';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wrike for Windows (64 bit)' AND publisher = 'Wrike.com' AND version_compare(version, '4.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wrike for Windows (64 bit)' AND publisher = 'Wrike.com' AND version_compare(version, '4.6.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wrike.exe');"
       },
-      "installer_url": "https://dl.wrike.com/download/WrikeDesktopApp_64.v4.6.1.msi",
+      "installer_url": "https://dl.wrike.com/download/WrikeDesktopApp_64.v4.6.2.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "7675fa72",
-      "sha256": "6624ff075da777650d5cf72c25cd734d3ab75be38a4b858b0dec23cc4aa9e5da",
+      "sha256": "4acad0a8da31d549b05116e7511e54a78b550353dbdea9a24e62018cc1dfb2ba",
       "default_categories": [
         "Productivity"
       ],

@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 
-import { QueryContext } from "context/query";
 import { notify } from "components/ToastNotification";
-import { formatSelectedTargetsForApi } from "utilities/helpers";
-
-import queryAPI from "services/entities/queries";
-import campaignHelpers from "utilities/campaign_helpers";
-import debounce from "utilities/debounce";
-import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
-
-import authToken from "utilities/auth_token";
-
+import { QueryContext } from "context/query";
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
+import queryAPI from "services/entities/queries";
+import authToken from "utilities/auth_token";
+import campaignHelpers from "utilities/campaign_helpers";
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+import debounce from "utilities/debounce";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import QueryResults from "../../edit/components/QueryResults";
 

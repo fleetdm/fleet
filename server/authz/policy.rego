@@ -17,6 +17,7 @@ create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 transfer_host := "transfer_host"
+clear_passcode := "clear_passcode"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
 write_members := "write_members"
@@ -1067,6 +1068,43 @@ allow {
   action == write
 }
 
+# Global admins, maintainers, and technicians can clear passcodes on iOS/iPadOS
+# hosts (not gitops as this is not something that relates to fleetctl gitops).
+allow {
+  object.type == "mdm_command"
+  object.is_apple_mobile == true
+  subject.global_role == [admin, maintainer, technician][_]
+  action == clear_passcode
+}
+
+# Team admins, maintainers, and technicians can clear passcodes on iOS/iPadOS hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_command"
+  object.is_apple_mobile == true
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  action == clear_passcode
+}
+
+# Only global admins and maintainers can clear passcodes on any other platform
+# (Android).
+allow {
+  object.type == "mdm_command"
+  object.is_apple_mobile == false
+  subject.global_role == [admin, maintainer][_]
+  action == clear_passcode
+}
+
+# Only team admins and maintainers can clear passcodes on hosts of their teams
+# on any other platform (Android).
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_command"
+  object.is_apple_mobile == false
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == clear_passcode
+}
+
 # Global admins, maintainers, technicians, observers and observer_plus can read MDM commands.
 allow {
   object.type == "mdm_command"
@@ -1429,6 +1467,16 @@ allow {
   object.type == "conditional_access_microsoft"
   subject.global_role == admin
   action == write
+}
+
+##
+# Microsoft Graph credentials
+##
+# Global admins and gitops can read and write Microsoft Graph credentials.
+allow {
+  object.type == "microsoft_graph_credential"
+  subject.global_role == [admin, gitops][_]
+  action == [read, write][_]
 }
 
 ##

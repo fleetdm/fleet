@@ -1,9 +1,9 @@
-import React from "react";
 import { waitFor } from "@testing-library/react";
 import { Command } from "cmdk";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
+import { createCustomRenderer } from "test/test-utils";
 
 import HostPicker from "./HostPicker";
 

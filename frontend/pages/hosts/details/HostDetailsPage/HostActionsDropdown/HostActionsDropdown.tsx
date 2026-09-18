@@ -1,16 +1,14 @@
 import React, { useContext } from "react";
 
-import {
-  isEnrolledInMdm,
-  MdmEnrollmentStatus,
-  RecoveryLockPasswordStatus,
-} from "interfaces/mdm";
-import permissions from "utilities/permissions";
-import { AppContext } from "context/app";
-
 import ActionsDropdown from "components/ActionsDropdown";
-import { generateHostActionOptions } from "./helpers";
+import { AppContext } from "context/app";
+import { RecoveryLockPasswordStatus } from "interfaces/host";
+import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
+import permissions from "utilities/permissions";
+
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import { generateHostActionOptions } from "./helpers";
 
 const baseClass = "host-actions-dropdown";
 
@@ -21,7 +19,8 @@ interface IHostActionsDropdownProps {
   /** This represents the mdm managed host device status (e.g. unlocked, locked,
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
-  doesStoreEncryptionKey?: boolean;
+  isEncryptionKeyAvailable?: boolean;
+  isEncryptionKeyArchived?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   hostCpuType?: string;
@@ -51,7 +50,8 @@ const HostActionsDropdown = ({
   hostStatus,
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
-  doesStoreEncryptionKey,
+  isEncryptionKeyAvailable,
+  isEncryptionKeyArchived,
   isConnectedToFleetMdm,
   isDEPAssignedToFleet = false,
   hostPlatform = "",
@@ -117,7 +117,8 @@ const HostActionsDropdown = ({
       globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
-    doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
+    isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
+    isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     scriptsGloballyDisabled:

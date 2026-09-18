@@ -1512,7 +1512,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
+		policy_id, patch_when_closed, installer_filename, version, software_title_id, software_title_name, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1520,6 +1520,10 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.self_service', 0),
 	siua.policy_id,
+	-- Snapshot the triggering policy's patch_when_closed at activation so a
+	-- later toggle or policy delete (policy_id becomes NULL via ON DELETE SET
+	-- NULL) can't retroactively reclassify this row as an ordinary failure.
+	COALESCE(p.patch_when_closed, 0),
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
@@ -1549,6 +1553,8 @@ FROM
 		ON si.id = siua.software_installer_id
 	LEFT JOIN software_titles st
 		ON st.id = si.title_id
+	LEFT JOIN policies p
+		ON p.id = siua.policy_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
@@ -1865,9 +1871,11 @@ WHERE
 		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
 		}
+		// The device fetches this itself, so it has to be the URL Apple devices
+		// reach Fleet on, which is a separate hostname when apple_server_url is set.
 		manifestURL := fmt.Sprintf(
 			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
-			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
+			appConfig.MDMUrl(), p.SoftwareTitle, token)
 		cfg := configsByAppID[p.InHouseAppID]
 		if len(cfg) > 0 {
 			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
@@ -1901,19 +1909,24 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "insert nano queue")
 	}
 
-	// best-effort APNs push notification to the host, not critical because we
-	// have a cron job that will retry for hosts with pending MDM commands.
-	wrapped, ok := tx.(common_mysql.WrappedExtContext)
-	if ds.pusher == nil || !ok {
+	if ds.pusher == nil {
 		return nil
 	}
-	// we wrap the APNs Push here, as activate next upcoming is called from many sites
-	// and it's racy to ping before we have committed the transaction.
-	wrapped.AddOnCommitHook(func() {
+
+	switch v := tx.(type) {
+	case common_mysql.WrappedExtContext:
+		v.AddOnCommitHook(func() {
+			if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
+				ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
+			}
+		})
+	case *sqlx.DB:
+		// We are not in a transaction but rather just auto-commit mode, fire the push immediately.
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
 			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
-	})
+	}
+
 	return nil
 }
 

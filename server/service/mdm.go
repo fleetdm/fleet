@@ -36,9 +36,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -641,8 +643,9 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	// Parse the command type and sensitive fields for premium gating.
 	var cmdPayload struct {
-		Type        string `json:"type"`
-		NewPassword string `json:"newPassword"`
+		Type        string           `json:"type"`
+		NewPassword string           `json:"newPassword"`
+		WipeParams  *json.RawMessage `json:"wipeParams"`
 	}
 	if err := json.Unmarshal(rawJSON, &cmdPayload); err != nil {
 		return nil, fleet.NewInvalidArgumentError("command", "invalid Android command JSON").WithStatus(http.StatusBadRequest)
@@ -667,6 +670,28 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 	}
 
 	host := hosts[0]
+
+	// Wipe is COBO-only on Android, so a custom wipe must clear the same validation as the
+	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
+	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
+	// let a caller-supplied type decide whether the check runs.
+	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
+		// read from the primary: a replica lagging behind a recent enrollment would report
+		// the wrong ownership and let the wipe through
+		ctx = ctxdb.RequirePrimary(ctx, true)
+		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
+		// enrollment status has to come from a separate load. Reusing the shared validator
+		// rather than re-deriving the rule here is what keeps this refusal identical to the
+		// dedicated endpoint's; the extra queries are noise next to the AMAPI round trip.
+		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host")
+		}
+		if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, hostWithMDM); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate android wipe request")
+		}
+	}
+
 	cmd, err := svc.androidSvc.IssueCustomCommand(ctx, host.ID, rawJSON)
 	if err != nil {
 		return nil, err
@@ -689,10 +714,10 @@ func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byt
 		return nil
 	}
 
-	// Check if this is a SetRecoveryLock command and if any host's team (or the
+	// Check if this is a SetRecoveryLock or VerifyRecoveryLock command and if any host's team (or the
 	// global config for hosts with no team) has recovery lock password enabled
 	// (which means Fleet manages the password).
-	if strings.TrimSpace(cmd.Command.RequestType) == "SetRecoveryLock" {
+	if strings.TrimSpace(cmd.Command.RequestType) == fleet.SetRecoveryLockCmdName || strings.TrimSpace(cmd.Command.RequestType) == fleet.VerifyRecoveryLockCmdName {
 		// Get app config once for hosts with no team
 		var appConfig *fleet.AppConfig
 		for _, h := range hosts {
@@ -860,7 +885,6 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 
 func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
 	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
 	}
@@ -3595,19 +3619,28 @@ func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	var tm *fleet.Team
+	if fleetID != nil && *fleetID > 0 {
+		var err error
+		tm, err = svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	if nameTemplate != "" {
-		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+		// Re-saving an unchanged template resolves no new secret. "No team" is a
+		// global-scope write, so its caller always passes the check anyway.
+		canReferenceSecrets := svc.authz.CanWriteSecretVariables(ctx) ||
+			(tm != nil && strings.TrimSpace(nameTemplate) == tm.Config.MDM.HostNameTemplate)
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate, canReferenceSecrets)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
 		nameTemplate = validated
 	}
 
-	if fleetID != nil && *fleetID > 0 {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, fleetID, nil)
-		if err != nil {
-			return err
-		}
+	if tm != nil {
 		return svc.EnterpriseOverrides.UpdateTeamMDMHostNameTemplate(ctx, tm, nameTemplate)
 	}
 	return svc.updateAppConfigMDMHostNameTemplate(ctx, nameTemplate)
@@ -3758,6 +3791,14 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 		return err
 	}
 
+	// With one-time enroll secrets, resending the fleetd profile mints a new
+	// enrollment credential for the device, which is an admin decision.
+	if svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName) {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
+			"The Fleetd configuration profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.").
+			WithStatus(http.StatusForbidden), "check fleetd profile device resend")
+	}
+
 	err = nil
 	// A user asked for this resend, so everything goes back to them, rejection or not.
 	onError := func(innerErr error, _ bool) {
@@ -3786,11 +3827,17 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 		onError(ctxerr.Wrap(ctx, err, "getting host mdm profile status"), false)
 		return
 	}
-	if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
+	// If orbit/osquery are broken but MDM communications are still operational, the
+	// fleetd profile may be terminally in the "verifying" state because it has been
+	// acknowledged by MDM but osquery will never report back for verification, so allow
+	// resending it to allow an admin to repair the host's orbit/osquery installation
+	deliversOneTimeSecret := svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
+	verifyingAllowed := deliversOneTimeSecret && status == fleet.MDMDeliveryVerifying
+	if status == fleet.MDMDeliveryPending || (status == fleet.MDMDeliveryVerifying && !verifyingAllowed) {
 		onError(ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status"), true)
 		return
 	}
-	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
+	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified && !verifyingAllowed {
 		// this should never happen, but just in case
 		onError(ctxerr.Errorf(ctx, "unrecognized profile status %s", status), false)
 		return
@@ -4498,9 +4545,10 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	}
 
 	// Check authorization again based on host info for team-based permissions.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unenroll mdm")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
 		TeamID: host.TeamID,
-	}, fleet.ActionWrite); err != nil {
+	}, fleet.ActionWrite, notFoundErr); err != nil {
 		return err
 	}
 

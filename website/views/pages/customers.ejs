@@ -8,6 +8,29 @@
               <div class="carousel-item active">
                 <div purpose="carousel-body">
                   <div purpose="carousel-text">
+                    <h2>Pinterest manages 13,000 devices as code with Fleet</h2>
+                    <div purpose="carousel-quote">
+                      <p purpose="quote">“A lot of our tech stack is already open source, so Fleet fit right in. A lot of the time we don't even need to contact support. We can read the code or point AI at it, and answer the question ourselves.”</p>
+                      <div purpose="quote-attribution">
+                        <div purpose="quote-image">
+                          <img alt="Dustin Davis" src="/images/dustin-davis-120x120@2x.png">
+                        </div>
+                        <div purpose="quote-author">
+                          <p purpose="name">Dustin Davis</p>
+                          <p purpose="title">Sr. Manager, IT Platform Engineering</p>
+                        </div>
+                      </div>
+                    </div>
+                    <animated-arrow-button href="/case-study/pinterest">Read their story</animated-arrow-button>
+                  </div>
+                  <div purpose="carousel-image">
+                    <img alt="Pinterest" src="/images/hero-slide-pinterest-420x315@2x.png">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div purpose="carousel-body">
+                  <div purpose="carousel-text">
                     <h2>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually</h2>
                     <div purpose="carousel-quote">
                       <p purpose="quote">“The ability to get heard [with our previous MDM] was just impossible.”</p>
@@ -107,6 +130,7 @@
                 <li data-target="#heroCarousel" data-slide-to="1"></li>
                 <li data-target="#heroCarousel" data-slide-to="2"></li>
                 <li data-target="#heroCarousel" data-slide-to="3"></li>
+                <li data-target="#heroCarousel" data-slide-to="4"></li>
               </ol>
               <a data-target="#heroCarousel" role="button" data-slide="next">
                 <img alt="A small chevron" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
@@ -119,6 +143,16 @@
       <div>
         <div purpose="case-study-cards">
 
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/pinterest', $event)">
+            <img alt="Pinterest logo" src="/images/pinterest-logo-40x40@2x.png">
+            <p>Pinterest’s IT team manages 13,000 devices and engineered human error out of the job.</p>
+            <a href="/case-study/pinterest">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/campus', $event)">
+            <img alt="Campus logo" src="/images/campus-logo-182x40@2x.png">
+            <p>Campus runs IT for higher education with a team of one, Fleet, and AI.</p>
+            <a href="/case-study/campus">Read their story</a>
+          </div>
           <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/foursquare', $event)">
             <img alt="Foursquare logo" src="/images/foursquare-logo-212x40@2x.png">
             <p>Foursquare cut costs and gained 114% ROI with Fleet.</p>
@@ -133,6 +167,11 @@
             <img alt="Faire logo" src="/images/faire-logo-192x40@2x.png">
             <p>Faire secures Macs with CIS benchmarks and Fleet.</p>
             <a href="/case-study/faire">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/abridge', $event)">
+            <img alt="Abridge logo" src="/images/abridge-logo-220x40@2x.png">
+            <p>Abridge gets new hires productive in 10 minutes with Fleet.</p>
+            <a href="/case-study/abridge">Read their story</a>
           </div>
           <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/hawx', $event)">
             <img alt="Hawx logo" src="/images/hawx-logo-150x40@2x.png">

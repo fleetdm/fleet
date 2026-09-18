@@ -111,6 +111,7 @@
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "apple_require_hardware_attestation": false,
+      "only_allow_apple_business_enrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
@@ -228,6 +229,9 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
+      "certificates_idp_introspection_urls": null,
+      "certificates_idp_client_ids": null,
+      "certificates_disable_host_end_user_binding": null,
       "conditional_access_enabled": null
     },
     "update_interval": {

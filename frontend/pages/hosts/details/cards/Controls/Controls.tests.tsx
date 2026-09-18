@@ -1,7 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
+
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import Controls from "./Controls";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";

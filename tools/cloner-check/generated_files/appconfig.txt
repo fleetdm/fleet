@@ -39,7 +39,7 @@ github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	PreserveHostActi
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
-github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*jsontext.Value
 github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
@@ -53,7 +53,7 @@ github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	EPSSMax	*flo
 github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	HasKnownExploit	*bool
 github.com/fleetdm/fleet/v4/server/fleet/VulnExposureFilterSettings	ExcludeVulnerabilities	*[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	DeprecatedHostSettings	*fleet.Features
-github.com/fleetdm/fleet/v4/server/fleet/AppConfig	AgentOptions	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	AgentOptions	*jsontext.Value
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPTest	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SSOSettings	*fleet.SSOSettings
 github.com/fleetdm/fleet/v4/server/fleet/SSOSettings	SSOProviderSettings	fleet.SSOProviderSettings
@@ -118,10 +118,16 @@ github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleWorkspace	[]*fleet.G
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	Domain	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ImpersonatedUserEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet.GoogleCalendarApiKey
-github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPIntrospectionURLs	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPClientIDs	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesDisableHostEndUserBinding	optjson.Bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleServerURL	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	DeprecatedAppleBMDefaultTeam	string
@@ -130,6 +136,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMAppleABMAssignmentInfo]	Value	[]fleet.MDMAppleABMAssignmentInfo
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	OrganizationName	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	Default	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string
@@ -192,10 +199,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleRequireHardwareAttestation	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	OnlyAllowAppleBusinessEnrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice[string]
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraClientIDs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MicrosoftGraphCredentialInvalid	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsAutomaticEnrollment	optjson.Any[github.com/fleetdm/fleet/v4/server/fleet.WindowsAutomaticEnrollment]

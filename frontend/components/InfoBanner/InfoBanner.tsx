@@ -1,10 +1,10 @@
-import React, { useState } from "react";
 import classNames from "classnames";
+import React, { useState } from "react";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { IconNames } from "components/icons";
 import Card from "components/Card";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import { Colors } from "styles/var/colors";
 
 const baseClass = "info-banner";

@@ -1,15 +1,14 @@
-import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
 import createMockConfig from "__mocks__/configMock";
-import createMockUser from "__mocks__/userMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-
+import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
 import ManageHostsPage from "./ManageHostsPage";
 

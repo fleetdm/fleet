@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
 import classnames from "classnames";
+import React, { useState, useCallback } from "react";
 
 import { COLORS } from "styles/var/colors";
 

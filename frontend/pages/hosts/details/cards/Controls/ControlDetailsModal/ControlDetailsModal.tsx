@@ -6,8 +6,8 @@ import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
 
-import OSSettingsResendCell from "../OSSettingsResendCell";
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
+import OSSettingsResendCell from "../OSSettingsResendCell";
 import {
   getRowActionProps,
   IHostMdmProfileWithAddedStatus,
@@ -150,6 +150,9 @@ const ControlDetailsModal = ({
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={control}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}

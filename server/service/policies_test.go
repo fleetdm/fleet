@@ -204,6 +204,59 @@ func TestListPolicyAutomationActivities(t *testing.T) {
 		require.True(t, capturedFilter.IncludeObserver)
 	})
 
+	t.Run("empty pre_install_output on a failed install is enhanced to the query-fail copy", func(t *testing.T) {
+		// A pre-install-query failure is stored as an empty (non-null)
+		// pre_install_query_output, which the FE otherwise drops as no-output.
+		// The service must substitute the same copy /software_install_results
+		// does so the Policy Details modal / Automation runs table's Details
+		// column show why the install failed.
+		emptyOutput := ""
+		nonEmptyOutput := "pre-install ok"
+		ds.ListPolicyAutomationActivitiesFunc = func(_ context.Context, _ uint, _ fleet.TeamFilter, _ fleet.ListOptions, _ string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+			// Rows that MUST be rewritten.
+			rewriteFailedInstall := &fleet.PolicyAutomationActivity{
+				Activity: fleet.Activity{Type: "installed_software"},
+				Status:   "error", PreInstallOutput: &emptyOutput,
+			}
+			// Rows that MUST NOT be rewritten.
+			nonEmptyPreInstall := &fleet.PolicyAutomationActivity{
+				Activity: fleet.Activity{Type: "installed_software"},
+				Status:   "error", PreInstallOutput: &nonEmptyOutput,
+			}
+			successfulInstall := &fleet.PolicyAutomationActivity{
+				Activity: fleet.Activity{Type: "installed_software"},
+				Status:   "success", PreInstallOutput: &emptyOutput,
+			}
+			noPreInstallConfigured := &fleet.PolicyAutomationActivity{
+				Activity: fleet.Activity{Type: "installed_software"},
+				Status:   "error", PreInstallOutput: nil,
+			}
+			nonInstallActivity := &fleet.PolicyAutomationActivity{
+				Activity: fleet.Activity{Type: "ran_script"},
+				Status:   "error", PreInstallOutput: &emptyOutput,
+			}
+			return []*fleet.PolicyAutomationActivity{
+				rewriteFailedInstall, nonEmptyPreInstall, successfulInstall,
+				noPreInstallConfigured, nonInstallActivity,
+			}, &fleet.PaginationMetadata{}, nil
+		}
+		userCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new("admin")}})
+		activities, _, err := svc.ListPolicyAutomationActivities(userCtx, 1, fleet.ListOptions{}, "")
+		require.NoError(t, err)
+		require.Len(t, activities, 5)
+
+		require.Equal(t, fleet.SoftwareInstallerQueryFailCopy, *activities[0].PreInstallOutput,
+			"failed install with empty pre-install output should be rewritten")
+		require.Equal(t, "pre-install ok", *activities[1].PreInstallOutput,
+			"non-empty pre-install output must not be overwritten")
+		require.Empty(t, *activities[2].PreInstallOutput,
+			"successful install must not be rewritten even if pre-install is empty")
+		require.Nil(t, activities[3].PreInstallOutput,
+			"nil pre-install output (no pre-install query configured) must stay nil")
+		require.Empty(t, *activities[4].PreInstallOutput,
+			"non-installed_software activity must not be rewritten")
+	})
+
 	t.Run("endpoint surfaces total count from meta", func(t *testing.T) {
 		ds.ListPolicyAutomationActivitiesFunc = func(_ context.Context, _ uint, _ fleet.TeamFilter, _ fleet.ListOptions, _ string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
 			return returnedActivities, &fleet.PaginationMetadata{TotalResults: 123, HasNextResults: true}, nil

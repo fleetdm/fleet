@@ -1,39 +1,12 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { AxiosError } from "axios";
-
-import { pick } from "lodash";
-
 import classNames from "classnames";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
+import { omit, pick } from "lodash";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import deviceUserAPI, {
-  IGetDeviceCertsApiParams,
-  IGetDeviceCertificatesResponse,
-  IGetSetupExperienceStatusesResponse,
-} from "services/entities/device_user";
-import diskEncryptionAPI from "services/entities/disk_encryption";
-import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
-import { IListSort } from "interfaces/list_options";
-import { IHostPolicy } from "interfaces/policy";
-import { IDeviceGlobalConfig } from "interfaces/config";
-import {
-  IHostCertificate,
-  CERTIFICATES_DEFAULT_SORT,
-} from "interfaces/certificates";
-import {
-  isMacOS,
-  isAppleDevice,
-  isLinuxLike,
-  isWindows,
-} from "interfaces/platform";
-import { IHostSoftware } from "interfaces/software";
-import { ISetupStep } from "interfaces/setup";
-
-import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
-
+import CustomLink from "components/CustomLink";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -41,48 +14,74 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
-import CustomLink from "components/CustomLink";
-
-import { normalizeEmptyValues } from "utilities/helpers";
-import { isDarkMode } from "utilities/theme";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
+import { IDeviceGlobalConfig } from "interfaces/config";
+import { hasStatusKey } from "interfaces/errors";
+import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
+import { IListSort } from "interfaces/list_options";
+import { canTriggerAPNSPing } from "interfaces/mdm";
+import {
+  isMacOS,
+  isAppleDevice,
+  isLinuxLike,
+  isWindows,
+} from "interfaces/platform";
+import { IHostPolicy } from "interfaces/policy";
+import { ISetupStep } from "interfaces/setup";
+import { IHostSoftware } from "interfaces/software";
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
+import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 import PATHS from "router/paths";
+import deviceUserAPI, {
+  IGetDeviceCertsApiParams,
+  IGetDeviceCertificatesResponse,
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
+import { isDarkMode } from "utilities/theme";
+import { getPathWithQueryParams } from "utilities/url";
 
-import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
-
-import { canTriggerAPNSPing } from "interfaces/mdm";
-import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
-import SoftwareCard from "../cards/Software";
-import PoliciesCard from "../cards/Policies";
-
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import CertificatesCard from "../cards/Certificates";
 import ControlsCard from "../cards/Controls";
 import { shouldShowControlsTab } from "../cards/Controls/helpers";
 import {
   countFailedControls,
   generateTableData,
 } from "../cards/Controls/OSSettingsTableConfig";
-import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
-import SelfService from "../cards/Software/SelfService";
-import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import CertificatesCard from "../cards/Certificates";
-import UserCard from "../cards/User";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+import HostSummaryCard from "../cards/HostSummary";
+import PoliciesCard from "../cards/Policies";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import SoftwareCard from "../cards/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import SelfService from "../cards/Software/SelfService";
+import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
+import UserCard from "../cards/User";
+import VitalsCard from "../cards/Vitals";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
-import DeviceUserBanners from "./components/DeviceUserBanners";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
-import BitLockerPinModal from "./BitLockerPinModal";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import useDeviceSSO from "./useDeviceSSO";
+import BitLockerPinInstructionsModal from "./BitLockerPinInstructionsModal";
+import BitLockerPinModal from "./BitLockerPinModal";
+import BypassModal from "./BypassModal";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import InfoButton from "./components/InfoButton";
+import SettingUpYourDevice from "./components/SettingUpYourDevice";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import {
   getErrorMessage,
   hasRemainingSetupSteps,
@@ -90,14 +89,21 @@ import {
   isIPhone,
   isIPad,
   isRecentlyEnrolled,
+  isMismatchedSSOUserError,
 } from "./helpers";
 import InfoModal from "./InfoModal";
-
-import SettingUpYourDevice from "./components/SettingUpYourDevice";
-import InfoButton from "./components/InfoButton";
-import BypassModal from "./BypassModal";
+import useDeviceSSO from "./useDeviceSSO";
 
 const baseClass = "device-user";
+
+const getRetryAfterSeconds = (e: unknown): number | undefined => {
+  if (typeof e !== "object" || e === null || !("headers" in e)) {
+    return undefined;
+  }
+  const headers = (e as { headers?: Record<string, unknown> }).headers;
+  const seconds = Number(headers?.["retry-after"]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+};
 
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
@@ -118,6 +124,15 @@ const FREE_TAB_PATHS = [
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
 
+const BITLOCKER_PIN_POLL_INTERVAL = 5000;
+
+/** Whether a submitted BitLocker PIN is still in the agent's hands, so its outcome is still coming. */
+const hasPINRequestInFlight = (data?: IDUPDetails) => {
+  const status =
+    data?.host.mdm.os_settings?.disk_encryption.pin_request?.status;
+  return status === "pending" || status === "delivered";
+};
+
 interface IDeviceUserPageProps {
   location: {
     pathname: string;
@@ -132,6 +147,7 @@ interface IDeviceUserPageProps {
       order_direction?: "asc" | "desc";
       setup_only?: string;
       sso_error?: string;
+      create_pin?: string;
     };
     search?: string;
   };
@@ -164,6 +180,10 @@ const DeviceUserPage = ({
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
+  const [isEscrowInFlight, setIsEscrowInFlight] = useState(false);
+  const [escrowRetryAfterSeconds, setEscrowRetryAfterSeconds] = useState<
+    number | undefined
+  >();
   const [
     hostSWForInventoryVersions,
     setHostSWForInventoryVersions,
@@ -290,6 +310,11 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
+      refetchInterval: (data) =>
+        !showBitLockerPINModal && hasPINRequestInFlight(data)
+          ? BITLOCKER_PIN_POLL_INTERVAL
+          : false,
       onSuccess: ({ host: responseHost }) => {
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
@@ -385,12 +410,43 @@ const DeviceUserPage = ({
   const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
   const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
   const isPremiumTier = license?.tier === "premium";
+  const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
+  const needsBitLockerPIN =
+    diskEncryptionSetting?.action_required === "create_pin";
+
+  // The Fleet Desktop toast links here with ?create_pin=1. The parameter is dropped once the page has acted on it.
+  useEffect(() => {
+    if (!location.query.create_pin || !host) {
+      return;
+    }
+    if (needsBitLockerPIN) {
+      setShowBitLockerPINModal(true);
+    }
+    router.replace(
+      getPathWithQueryParams(
+        location.pathname,
+        omit(location.query, "create_pin")
+      )
+    );
+  }, [host, needsBitLockerPIN, location, router]);
+
+  const pollHostDetails = useCallback(async () => {
+    // A failed refetch resolves rather than rejects, and leaves the last good data in place.
+    const { data, error } = await refetchDupDetails();
+    if (error) {
+      throw error;
+    }
+    return data;
+  }, [refetchDupDetails]);
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
     isMacOS(host?.platform || "");
+
+  const isManualAppleEnrollmentBlocked =
+    globalConfig?.mdm.only_allow_apple_business_enrollment ?? false;
 
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
@@ -457,7 +513,10 @@ const DeviceUserPage = ({
     ["mdm_mandual_enroll_url", deviceAuthToken],
     () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
     {
-      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      enabled:
+        !!deviceAuthToken &&
+        isFleetMdmManualUnenrolledMac &&
+        !isManualAppleEnrollmentBlocked,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -580,8 +639,7 @@ const DeviceUserPage = ({
     }
   };
 
-  const idpFullName = host?.end_users?.[0]?.idp_full_name;
-  const pageHeader = idpFullName ? `${idpFullName}'s device` : "My device";
+  const pageHeader = "My device";
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -598,6 +656,8 @@ const DeviceUserPage = ({
 
   const onTriggerEscrowLinuxKey = async () => {
     setIsTriggeringCreateLinuxKey(true);
+    // reset before the request so a previous in-flight answer never flashes while loading
+    setIsEscrowInFlight(false);
     // modal opens in loading state
     setShowCreateLinuxKeyModal(true);
     try {
@@ -605,8 +665,14 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      notify.error("Failed to trigger key creation.", { response: e });
-      setShowCreateLinuxKeyModal(false);
+      // 409: fleetd is already handling an earlier request, so no new pop-up is coming
+      if (hasStatusKey(e) && e.status === 409) {
+        setIsEscrowInFlight(true);
+        setEscrowRetryAfterSeconds(getRetryAfterSeconds(e));
+      } else {
+        notify.error("Failed to trigger key creation.", { response: e });
+        setShowCreateLinuxKeyModal(false);
+      }
     } finally {
       setIsTriggeringCreateLinuxKey(false);
     }
@@ -784,6 +850,10 @@ const DeviceUserPage = ({
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
             lastMdmEnrolledAt={host.last_mdm_enrolled_at}
             detailUpdatedAt={host.detail_updated_at}
+            depAssignedToFleet={host.dep_assigned_to_fleet || false}
+            onlyAllowAppleBusinessEnrollment={
+              !!globalConfig?.mdm.only_allow_apple_business_enrollment
+            }
           />
           <HostHeader
             summaryData={summaryData}
@@ -936,11 +1006,18 @@ const DeviceUserPage = ({
           {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
             <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
           ) : null}
-          {showBitLockerPINModal && (
-            <BitLockerPinModal
-              onCancel={() => setShowBitLockerPINModal(false)}
-            />
-          )}
+          {showBitLockerPINModal &&
+            (diskEncryptionSetting?.fleetd_can_set_pin ? (
+              <BitLockerPinModal
+                deviceAuthToken={deviceAuthToken}
+                onPollHost={pollHostDetails}
+                onExit={() => setShowBitLockerPINModal(false)}
+              />
+            ) : (
+              <BitLockerPinInstructionsModal
+                onExit={() => setShowBitLockerPINModal(false)}
+              />
+            ))}
         </div>
         {!!host && showPolicyDetailsModal && (
           <PolicyDetailsModal
@@ -971,6 +1048,8 @@ const DeviceUserPage = ({
         {showCreateLinuxKeyModal && !!host && (
           <CreateLinuxKeyModal
             isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            isEscrowInFlight={isEscrowInFlight}
+            retryAfterSeconds={escrowRetryAfterSeconds}
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}
@@ -1026,12 +1105,23 @@ const DeviceUserPage = ({
     if (isSSORequired) {
       return renderDeviceSSOState();
     }
-    if (dupDetailsError || enrollUrlError) {
+    // Only a failure that leaves nothing to show takes over the page. An expired token still takes over, because
+    // nothing here will work again without signing in.
+    if (
+      (dupDetailsError && !dupDetails) ||
+      isAuthenticationError ||
+      enrollUrlError
+    ) {
       return (
         <DeviceUserError
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
+          ssoError={
+            isMismatchedSSOUserError(dupDetailsError)
+              ? "mismatched_sso_user"
+              : undefined
+          }
         />
       );
     }

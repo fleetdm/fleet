@@ -356,6 +356,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_updates not found")
 				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
 				assert.True(t, ok, "apple_require_hardware_attestation not found")
+				_, ok = gitops.Controls.OnlyAllowAppleBusinessEnrollment.(bool)
+				assert.True(t, ok, "only_allow_apple_business_enrollment not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
 				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_LENGTH"])
@@ -2110,7 +2112,8 @@ software:
 	)
 	require.NoError(t, err)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	require.ErrorContains(
+		t, err,
 		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
 	)
 
@@ -2239,7 +2242,8 @@ controls:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err,
+	assert.ErrorContains(
+		t, err,
 		"was not defined in controls for TeamName",
 	)
 }
@@ -2309,7 +2313,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	}
 
 	t.Run("happy path keeps per-package fields and inherits fleet-level setup_experience", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      setup_experience: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2337,7 +2342,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// self_service and categories set once at the fleet level apply to every package
 	// that omits them.
 	t.Run("fleet-level self_service and categories inherit to all packages", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      self_service: true\n      categories: [\"Productivity\"]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -2419,7 +2425,8 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 	// multiple packages. A single package can set setup_experience in the file and
 	// inherit labels from the fleet-level entry.
 	t.Run("single package may set setup_experience and inherit fleet-level labels", func(t *testing.T) {
-		gitops, err := setup(t,
+		gitops, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
   setup_experience: true
@@ -2447,7 +2454,8 @@ labels_include_all: [macOS]
 
 	// A hash-only package (no URL) is identified by its hash, not an empty string.
 	t.Run("conflict error identifies a hash-only package by its hash", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- hash_sha256: %s
   self_service: true
@@ -2462,7 +2470,8 @@ labels_include_all: [macOS]
 	// When a package has neither url nor hash, it is identified by the package file path
 	// rather than an empty string (url/hash are required but validated later).
 	t.Run("conflict error falls back to the file path when url and hash are absent", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      self_service: true\n",
 			fmt.Sprintf(`- self_service: true
 - hash_sha256: %s
@@ -2476,7 +2485,8 @@ labels_include_all: [macOS]
 	// The fleet-level labels rule is file-scope, so it reports once regardless of how
 	// many packages the file lists.
 	t.Run("labels error is reported once for multiple packages", func(t *testing.T) {
-		_, err := setup(t,
+		_, err := setup(
+			t,
 			"      labels_include_all: [macOS]\n",
 			fmt.Sprintf(`- hash_sha256: %s
 - hash_sha256: %s
@@ -5920,8 +5930,6 @@ controls:
 }
 
 func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
-	t.Parallel()
-
 	//nolint:gosec // G101: test fixture, not a real credential.
 	const passwordProfile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -5943,13 +5951,51 @@ func TestGitOpsPolicyWithResendConfigurationProfile(t *testing.T) {
 </plist>
 `
 
+	// certProfile substitutes base64 data through an env var and a Fleet secret,
+	// neither of which is expanded on disk.
+	const certProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDisplayName</key>
+	<string>Cert profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.cert</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F7CF282E-D91B-44E9-922F-A719634F9C8F</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.pkcs12</string>
+			<key>PayloadContent</key>
+			<data>$CERT_B64</data>
+			<key>Password</key>
+			<string>$FLEET_SECRET_CERT_PASSWORD</string>
+		</dict>
+	</array>
+</dict>
+</plist>
+`
+
 	// writeConfig lays out a gitops dir holding one macOS and one Windows profile,
 	// then appends the given policies section to a team (or global) config.
 	writeConfig := func(t *testing.T, global bool, policies string) (*GitOps, error) {
+		// t.Setenv restores the previous value on cleanup, but it rules out t.Parallel.
+		for k, v := range map[string]string{"CERT_B64": "aGVsbG8gd29ybGQ=", "FLEET_SECRET_CERT_PASSWORD": "p4ssw0rd"} {
+			t.Setenv(k, v)
+		}
 		dir := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(dir, "lib"), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "password.MOBILECoNFIG"), []byte(passwordProfile), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "screenlock.XmL"), []byte("<Replace></Replace>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "lib", "cert.mobileconfig"), []byte(certProfile), 0o644))
 
 		exclude := []string{"controls", "policies"}
 		config := getTeamConfig(exclude)
@@ -5961,6 +6007,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ./lib/password.MOBILECoNFIG
+      - path: ./lib/cert.mobileconfig
   windows_settings:
     custom_settings:
       - path: ./lib/screenlock.XmL
@@ -5989,6 +6036,18 @@ policies:
 		require.Equal(t, "screenlock", got.Policies[1].ResendConfigurationProfile)
 		// Policies without the key get an empty name so the server unsets any existing profile.
 		require.Empty(t, got.Policies[2].ResendConfigurationProfile)
+	})
+
+	t.Run("resolves a profile with variables substituted into a data payload", func(t *testing.T) {
+		got, err := writeConfig(t, false, `
+policies:
+- name: Mac policy
+  query: SELECT 1;
+  resend_configuration_profile: Cert profile
+`)
+		require.NoError(t, err)
+		require.Len(t, got.Policies, 1)
+		require.Equal(t, "Cert profile", got.Policies[0].ResendConfigurationProfile)
 	})
 
 	t.Run("errors when the profile is not defined in controls", func(t *testing.T) {

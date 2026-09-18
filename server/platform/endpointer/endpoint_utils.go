@@ -106,6 +106,23 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
+// sentFieldName is requestFieldName for a field that may have been renamed.
+// The rewriter maps a `renameto` name back to the json tag before decoding, so
+// a caller who used the new name would otherwise be told about a key they never
+// sent.
+func sentFieldName(sf reflect.StructField, rewriter *JSONKeyRewriteReader) string {
+	name := requestFieldName(sf)
+	renameTo, ok := sf.Tag.Lookup("renameto")
+	if !ok || rewriter == nil || slices.Contains(rewriter.UsedDeprecatedKeys(), name) {
+		return name
+	}
+	newName, _, err := ParseTag(renameTo)
+	if err != nil || newName == "" {
+		return name
+	}
+	return newName
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -223,6 +240,13 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[string]bool, rules *[]A
 			extractAliasRulesRecursive(fieldType, seen, rules, visited)
 		}
 	}
+}
+
+// jsonDecodeErr reports a failure to decode a request body. The decoder's message names the offending
+// field, so surfacing it is what lets a caller find the problem; the generic wording is kept for
+// failures that are not about the body's contents.
+func jsonDecodeErr(err error) error {
+	return BadRequestErr(platform_http.NewUserMessageError(err, http.StatusBadRequest).UserMessage(), err)
 }
 
 func BadRequestErr(publicMsg string, internalErr error) error {
@@ -488,6 +512,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
 		attrs = append(attrs, "uuid", uuider.UUID())
+	} else if logCtx, ok := logging.FromContext(ctx); ok && logCtx.RequestID != "" {
+		// go-kit skips the ServerAfter hooks when an endpoint returns an error, so
+		// LoggingContext.Log never runs for these.
+		attrs = append(attrs, "uuid", logCtx.RequestID)
 	}
 
 	var rle ratelimit.Error
@@ -672,7 +700,7 @@ func MakeDecoder(
 							Gzipped:        gzipped,
 						}
 					}
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				v = reflect.ValueOf(req)
 			}
@@ -747,7 +775,7 @@ func MakeDecoder(
 					}
 				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, BadRequestErr("json decoder error", err)
+					return nil, jsonDecodeErr(err)
 				}
 				return nil, err
 			}
@@ -785,7 +813,7 @@ func MakeDecoder(
 					if val && !fp.V.IsZero() {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							requestFieldName(fp.Sf),
+							sentFieldName(fp.Sf, rewriter),
 						)}
 					}
 					continue

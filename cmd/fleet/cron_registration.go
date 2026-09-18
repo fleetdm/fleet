@@ -215,8 +215,8 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 // registerMDMCrons covers the Apple MDM worker, DEP profile assigner, service
 // discovery, the Apple/Windows/Android profile managers, the Android device
-// reconciler, the Android default-policy and per-host policy migrations, and
-// the APNs pusher.
+// reconciler, the Android default-policy and per-host policy migrations, the
+// APNs pusher, and the iPhone/iPad refetcher and reviver.
 func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register apple_mdm_worker schedule", func() (fleet.CronSchedule, error) {
 		vppInstaller := deps.svc.(fleet.AppleMDMVPPInstaller)
@@ -240,6 +240,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			redis_key_value.New(deps.redisPool),
 			deps.logger,
 			deps.config.MDM.CertificateProfilesLimit,
+			deps.config.Auth.UseOneTimeEnrollSecrets,
 		)
 	})
 
@@ -296,14 +297,48 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})
 
-	deps.register("failed to register APNs pusher schedule", func() (fleet.CronSchedule, error) {
-		return newMDMAPNsPusher(
-			ctx,
-			deps.instanceID,
-			deps.ds,
-			deps.commander,
-			deps.logger,
-		)
+	// The APNs sweep replaces the legacy per-minute pending-commands pusher;
+	// the env var runs the legacy cron instead, as a rollback lever. Not
+	// both: the legacy cron's pushes keep last_seen_at fresh, which would
+	// starve the sweep's silence filter.
+	if legacyInterval, legacyEnabled, parseErr := legacyAPNsPusherInterval(os.Getenv); legacyEnabled {
+		if parseErr != nil {
+			deps.logger.WarnContext(ctx, "invalid FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL, using 1m", "err", parseErr)
+		}
+		deps.logger.InfoContext(ctx, "legacy APNs pusher enabled; APNs sweep disabled")
+		deps.register("failed to register APNs pusher schedule", func() (fleet.CronSchedule, error) {
+			return newMDMAPNsPusher(
+				ctx,
+				deps.instanceID,
+				deps.ds,
+				deps.commander,
+				legacyInterval,
+				deps.logger,
+			)
+		})
+	} else {
+		deps.register("failed to register APNs sweep schedule", func() (fleet.CronSchedule, error) {
+			return newMDMAPNsSweepSchedule(
+				ctx,
+				deps.instanceID,
+				deps.ds,
+				deps.commander,
+				deps.config.MDM.AppleAPNsSweepInterval,
+				deps.logger,
+			)
+		})
+	}
+
+	// iPhone/iPad refetcher and reviver run for all license tiers. They power
+	// iOS/iPadOS host vitals refresh (DeviceInformation, InstalledApplicationList,
+	// CertificateList) and BYOD-enrolled device APNs revival, both of which the
+	// BYOD enrollment flow (a Free feature) depends on.
+	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
+		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
+	})
+
+	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
+		return newIPhoneIPadReviver(ctx, deps.instanceID, deps.ds, deps.commander, deps.logger)
 	})
 
 	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
@@ -311,10 +346,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 }
 
-// registerPremiumCrons covers the Fleet Premium schedules: iPhone/iPad
-// refetcher and reviver, maintained apps, VPP app version refresh (and the
-// one-shot VPP country backfill), recovery lock passwords, managed local
-// account rotation, activities streaming, and the calendar schedule.
+// registerPremiumCrons covers the Fleet Premium schedules: Microsoft Autopilot
+// sync, maintained apps, VPP app version refresh (and the one-shot VPP country
+// backfill), recovery lock passwords, managed local account rotation,
+// activities streaming, and the calendar schedule.
 func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if !deps.license.IsPremium() {
 		return
@@ -322,14 +357,6 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register microsoft_autopilot_sync schedule", func() (fleet.CronSchedule, error) {
 		return cron.NewMicrosoftAutopilotSchedule(ctx, deps.instanceID, deps.ds, msgraph.NewClient, deps.logger)
-	})
-
-	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
-	})
-
-	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadReviver(ctx, deps.instanceID, deps.ds, deps.commander, deps.logger)
 	})
 
 	deps.register("failed to register maintained apps schedule", func() (fleet.CronSchedule, error) {
@@ -403,4 +430,24 @@ func registerMiscCrons(ctx context.Context, deps cronSchedulesDeps) {
 	deps.register("failed to register batch activity completion checker schedule", func() (fleet.CronSchedule, error) {
 		return newBatchActivityCompletionCheckerSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
+}
+
+// legacyAPNsPusherInterval reads FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL,
+// the rollback lever that registers the legacy per-minute APNs pusher instead
+// of the APNs sweep. Returns the interval to use and whether the lever is
+// set; a non-nil error reports an invalid value, with the interval already
+// fallen back to 1m.
+func legacyAPNsPusherInterval(getenv func(string) string) (time.Duration, bool, error) {
+	raw := getenv("FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL")
+	if raw == "" {
+		return 0, false, nil
+	}
+	interval, err := time.ParseDuration(raw)
+	if err == nil && interval <= 0 {
+		err = fmt.Errorf("non-positive interval %q", raw)
+	}
+	if err != nil {
+		return 1 * time.Minute, true, err
+	}
+	return interval, true, nil
 }

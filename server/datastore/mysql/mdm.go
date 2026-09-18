@@ -336,9 +336,9 @@ WHERE ` + whereTeam
 
 	if len(listOpts.Filters.CommandStatuses) > 0 {
 		for _, h := range dest {
-			if !fleet.ClassicMDMSupported(h.Platform) || h.Platform == "windows" {
+			if !fleet.ClassicMDMSupported(h.Platform) && !fleet.IsAndroidPlatform(h.Platform) || h.Platform == "windows" {
 				return nil, nil, nil, &fleet.BadRequestError{
-					Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
+					Message: `Currently, "command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts.`,
 				}
 			}
 		}
@@ -494,9 +494,9 @@ SELECT
     c.updated_at,
     c.status,
     CASE c.status
-        WHEN 'pending' THEN 'pending'
-        WHEN 'acknowledged' THEN 'ran'
-        WHEN 'error' THEN 'failed'
+        WHEN 'Pending' THEN 'pending'
+        WHEN 'Acknowledged' THEN 'ran'
+        WHEN 'Error' THEN 'failed'
         ELSE 'pending'
     END AS command_status,
     c.command_type AS request_type,
@@ -510,6 +510,7 @@ WHERE c.host_uuid IN (?)`
 			androidStmt += " AND c.command_type = ?"
 			androidParams = append(androidParams, listOpts.Filters.RequestType)
 		}
+		androidStmt, androidParams = addAndroidCommandStatusFilter(androidStmt, &listOpts.Filters, androidParams)
 		androidStmt, androidParams, err = sqlx.In(androidStmt, androidParams...)
 		if err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Android devices")
@@ -627,6 +628,27 @@ func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, p
 				stmt += " COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error'"
 			}
 
+		}
+		stmt += ")"
+	}
+	return stmt, params
+}
+
+func addAndroidCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, params []any) (string, []any) {
+	if len(filter.CommandStatuses) > 0 {
+		stmt += " AND ("
+		for i, status := range filter.CommandStatuses {
+			if i > 0 {
+				stmt += " OR "
+			}
+			switch status {
+			case fleet.MDMCommandStatusFilterPending:
+				stmt += " c.status = 'Pending'"
+			case fleet.MDMCommandStatusFilterRan:
+				stmt += " c.status = 'Acknowledged'"
+			case fleet.MDMCommandStatusFilterFailed:
+				stmt += " c.status = 'Error'"
+			}
 		}
 		stmt += ")"
 	}
@@ -1133,16 +1155,40 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 
 	switch {
 	case len(hostUUIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE uuid IN (?)`
-		args = append(args, hostUUIDs)
+		// Batched: a team transfer or bulk operation can pass more host
+		// identifiers than MySQL allows placeholders for in one statement. No
+		// dedupe needed here: a repeated identifier only costs a duplicate entry
+		// in androidHosts below, which the caller uses solely as a non-empty check.
+		if err := common_mysql.BatchProcessSimple(hostUUIDs, hostIDsFanoutBatchSize, func(batch []string) error {
+			inStmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE uuid IN (?)`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			var batchHosts []fleet.Host
+			if err := sqlx.SelectContext(ctx, tx, &batchHosts, inStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+			hosts = append(hosts, batchHosts...)
+			return nil
+		}); err != nil {
+			return updates, err
+		}
 
 	case len(hostIDs) > 0:
-		// TODO: if a very large number (~65K) of uuids was provided, could
-		// result in too many placeholders (not an immediate concern).
-		uuidStmt = `SELECT uuid, platform FROM hosts WHERE id IN (?)`
-		args = append(args, hostIDs)
+		if err := common_mysql.BatchProcessSimple(hostIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+			inStmt, args, err := sqlx.In(`SELECT uuid, platform FROM hosts WHERE id IN (?)`, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			}
+			var batchHosts []fleet.Host
+			if err := sqlx.SelectContext(ctx, tx, &batchHosts, inStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			}
+			hosts = append(hosts, batchHosts...)
+			return nil
+		}); err != nil {
+			return updates, err
+		}
 
 	case len(teamIDs) > 0:
 		// TODO: if a very large number (~65K) of team IDs was provided, could
@@ -2060,15 +2106,12 @@ func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
 }
 
 func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityAssociation, error) {
-	// TODO(roberto): this is not good because we don't have any indexes on
-	// h.uuid, due to time constraints, I'm assuming that this
-	// function is called with a relatively low amount of shas
-	//
 	// Note that we use GROUP BY because we can't guarantee unique entries
 	// based on uuid in the hosts table.
 	stmt, args, err := sqlx.In(`
 SELECT
     h.uuid AS host_uuid,
+	hda.host_id IS NOT NULL AS dep_assigned_to_fleet,
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
     ne.enrolled_from_migration,
@@ -2079,7 +2122,8 @@ FROM (
         n1.id,
 	n1.sha256,
 	n1.cert_not_valid_after,
-	n1.renew_command_uuid
+	n1.renew_command_uuid,
+	n1.renewal_excluded_at
     FROM
         nano_cert_auth_associations n1
     WHERE
@@ -2102,12 +2146,15 @@ LEFT JOIN
     host_mdm hm ON hm.host_id = h.id
 LEFT JOIN
     nano_enrollments ne ON ne.id = ncaa.id
+LEFT JOIN
+	host_dep_assignments hda ON hda.host_id = h.id AND hda.deleted_at IS NULL
 WHERE
     ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
     AND ncaa.renew_command_uuid IS NULL
+    AND ncaa.renewal_excluded_at IS NULL
     AND ne.enabled = 1
 GROUP BY
-    host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
+    host_uuid, dep_assigned_to_fleet, ncaa.sha256, ncaa.cert_not_valid_after
 ORDER BY
     cert_not_valid_after ASC
 LIMIT ?`, expiryDays, limit)
@@ -2130,9 +2177,6 @@ func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs 
 		return []fleet.DeviceInfoForACMERenewal{}, nil
 	}
 
-	// TODO(mna): anyone knows what those TODOs (from Sarah's PRs) were for?
-	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
-	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information
 	stmt := `
 SELECT
 	h.uuid AS host_uuid,
@@ -2147,7 +2191,7 @@ FROM
 WHERE
 	h.uuid IN(?)
 	AND hda.deleted_at IS NULL
-	AND os.name = 'macOS'`
+	AND os.name IN ('macOS', 'iOS', 'iPadOS')`
 
 	stmt, args, err := sqlx.In(stmt, hostUUIDs)
 	if err != nil {
@@ -3035,24 +3079,23 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 }
 
 func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
-	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
+	accts, err := getMDMIdPAccountsByHostIDs(ctx, tx, logger, []uint{hostID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
 	}
+	idp := accts[hostID]
 
-	// manually set IdP mappings (source "idp", written by
-	// SetOrUpdateIDPHostDeviceMapping) are reported by the API under the same
-	// "mdm_idp_accounts" source, so both sources form a single logical mapping
-	// and must be reconciled together to avoid duplicate device mappings.
+	// manual ("idp") and device-reported ("entra_join") rows are reported under the
+	// same "mdm_idp_accounts" source, so all three reconcile together.
 	var hostEmails []fleet.HostDeviceMapping
-	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?)`
-	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP); err != nil {
+	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
+	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, fleet.DeviceMappingEntraJoin); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host_emails")
 	}
 
 	var mdmIdpEmails, manualIdpEmails []fleet.HostDeviceMapping
 	for _, he := range hostEmails {
-		if he.Source == fleet.DeviceMappingIDP {
+		if he.Source == fleet.DeviceMappingIDP || he.Source == fleet.DeviceMappingEntraJoin {
 			manualIdpEmails = append(manualIdpEmails, he)
 			continue
 		}
@@ -3105,12 +3148,16 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		maxCapacity += len(hits) - 1
 	}
 	idsToDelete := make([]uint, 0, maxCapacity)
+	var removingEntraJoin bool
 	if len(misses) > 0 {
 		// log the emails we'll be deleting
 		msg := "reconcile host emails: deleting emails"
 		for _, m := range misses {
 			idsToDelete = append(idsToDelete, m.ID)
 			msg += fmt.Sprintf(" %s", m.Email)
+			if m.Source == fleet.DeviceMappingEntraJoin {
+				removingEntraJoin = true
+			}
 		}
 		logger.InfoContext(ctx, msg, "host_id", hostID)
 	}
@@ -3138,6 +3185,13 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 			return nil, ctxerr.Wrap(ctx, err, "delete host_emails")
 		}
 	}
+	if removingEntraJoin {
+		// Drop the SCIM link that came with the device-reported mapping so the
+		// authenticated user gets linked; the association step skips hosts that have one.
+		if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
+		}
+	}
 
 	if idToUpdate != 0 {
 		// perform the update
@@ -3159,40 +3213,49 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	return idp, nil
 }
 
-func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
-	var dest []string
-	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select host_mdm_idp_accounts")
-	}
-
-	var acctUUID string
-	switch {
-	case len(dest) == 0:
-		// TODO: consider falling back to the legacy enroll ref
-		logger.InfoContext(ctx, "get host mdm idp accounts: no account found", "host_id", hostID)
-	default:
-		if len(dest) > 1 {
-			// this should not happen, but if it does we want to know about it
-			logger.InfoContext(ctx, "get host mdm idp accounts: found multiple accounts", "host_id", hostID, "acct_uuids", fmt.Sprintf("%+v", dest))
-		}
-		acctUUID = dest[0]
-	}
-
-	if acctUUID == "" {
+// getMDMIdPAccountsByHostIDs returns the IdP account linked to each of the given
+// hosts, keyed by host id. Hosts with no linked account are absent from the
+// result; host_mdm_idp_accounts is unique on host_uuid, so a host has at most one.
+func getMDMIdPAccountsByHostIDs(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger, hostIDs []uint) (map[uint]*fleet.MDMIdPAccount, error) {
+	if len(hostIDs) == 0 {
 		return nil, nil
 	}
 
-	var idp fleet.MDMIdPAccount
-	stmt = `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
-	if err := sqlx.GetContext(ctx, q, &idp, stmt, acctUUID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil // TODO: maybe return a not found error?
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
+	stmt, args, err := sqlx.In(`
+		SELECT h.id AS host_id, mia.uuid, mia.username, mia.fullname, mia.email
+		FROM hosts h
+		JOIN host_mdm_idp_accounts hmia ON hmia.host_uuid = h.uuid
+		JOIN mdm_idp_accounts mia ON mia.uuid = hmia.account_uuid
+		WHERE h.id IN (?)`, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare get host mdm idp accounts arguments")
 	}
 
-	return &idp, nil
+	var rows []struct {
+		HostID uint `db:"host_id"`
+		fleet.MDMIdPAccount
+	}
+	if err := sqlx.SelectContext(ctx, q, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host mdm idp accounts")
+	}
+
+	accts := make(map[uint]*fleet.MDMIdPAccount, len(rows))
+	for i := range rows {
+		accts[rows[i].HostID] = &rows[i].MDMIdPAccount
+	}
+
+	var missing []uint
+	for _, hostID := range hostIDs {
+		if _, ok := accts[hostID]; !ok {
+			missing = append(missing, hostID)
+		}
+	}
+	if len(missing) > 0 {
+		// TODO: consider falling back to the legacy enroll ref
+		logger.InfoContext(ctx, "get host mdm idp accounts: no account found", "host_ids", fmt.Sprintf("%+v", missing))
+	}
+
+	return accts, nil
 }
 
 func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {

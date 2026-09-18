@@ -1,15 +1,14 @@
 import React, { useContext } from "react";
 
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import DataError from "components/DataError";
+import Pagination from "components/Pagination";
+import { AppContext } from "context/app";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
-import { AppContext } from "context/app";
-import DataError from "components/DataError";
-import Pagination from "components/Pagination";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-
-import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import { upcomingActivityComponentMap } from "../ActivityConfig";
+import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "upcoming-activity-feed";
 
