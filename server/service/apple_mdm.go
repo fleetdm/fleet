@@ -5194,7 +5194,8 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			// fail the notifications too, the reset above cancels every upcoming activity including any notify script
 			err = svc.notificationsSvc.FailNotificationsForHost(r.Context, info.HostID, notifications_api.EndUserNotificationReasonCanceled)
 			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "fail end user notifications on re-enrollment")
+				svc.logger.ErrorContext(r.Context, "failed to fail end user notifications on re-enrollment",
+					"host_uuid", r.ID, "err", err)
 			}
 		}
 
@@ -5577,7 +5578,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				if err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "EraseDevice: get host by identifier")
 				}
-				err = cancelActivitiesAndNotificationsForHost(r.Context, svc.ds, svc.notificationsSvc, host.ID)
+				err = cancelActivitiesAndNotificationsForHost(r.Context, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
 				if err != nil {
 					return nil, err
 				}

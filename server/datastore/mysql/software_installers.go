@@ -2310,14 +2310,13 @@ SELECT
 	hsi.updated_at as updated_at,
 	st.source,
 	hsi.attempt_number,
-	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
-	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	hsi.patch_when_closed,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AS notify_before_patching,
 	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
-	LEFT JOIN policies p ON hsi.policy_id = p.id
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND

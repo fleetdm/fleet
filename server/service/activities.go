@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -289,7 +290,7 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 	return nil
 }
 
-func cancelActivitiesAndNotificationsForHost(ctx context.Context, ds fleet.Datastore, notificationsSvc fleet.NotificationsWriteService, hostID uint) error {
+func cancelActivitiesAndNotificationsForHost(ctx context.Context, ds fleet.Datastore, notificationsSvc fleet.NotificationsWriteService, logger *slog.Logger, hostID uint) error {
 	_, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cancel upcoming activities")
@@ -297,7 +298,7 @@ func cancelActivitiesAndNotificationsForHost(ctx context.Context, ds fleet.Datas
 
 	err = notificationsSvc.FailNotificationsForHost(ctx, hostID, notifications_api.EndUserNotificationReasonCanceled)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fail end user notifications")
+		logger.ErrorContext(ctx, "failed to fail end user notifications for host", "host_id", hostID, "err", err)
 	}
 	return nil
 }

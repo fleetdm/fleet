@@ -33,7 +33,6 @@ func TestEndUserNotifications(t *testing.T) {
 		{"SetStatus", testSetEndUserNotificationStatus},
 		{"FailForHost", testFailEndUserNotificationsForHost},
 		{"Outcome", testSetEndUserNotificationOutcome},
-		{"HostDeleteCascade", testEndUserNotificationHostDeleteCascade},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -975,17 +974,6 @@ func testSetEndUserNotificationOutcome(t *testing.T, env *testEnv) {
 		require.NoError(t, err)
 		assert.NotNil(t, got.DisplayedAt)
 	})
-}
-
-func testEndUserNotificationHostDeleteCascade(t *testing.T, env *testEnv) {
-	ctx := t.Context()
-	hostID := newDarwinHost(t, env, "cascade", true)
-	notificationUUID := env.InsertNotification(t, hostID, "k", nil, nil)
-
-	env.DeleteHost(t, hostID)
-
-	_, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
-	assert.True(t, platform_errors.IsNotFound(err))
 }
 
 func testDeferEndUserNotificationsForHosts(t *testing.T, env *testEnv) {

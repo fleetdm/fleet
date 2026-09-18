@@ -3508,6 +3508,18 @@ func TestPlanPatchPolicy(t *testing.T) {
 		assert.True(t, notifyFlag)
 	})
 
+	// Switching a title that already patches when closed over to notify clears the old option
+	// rather than rejecting a request that never asked for both.
+	t.Run("notify_before_patching displaces patch_when_closed on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.NotifyBeforePatching = new(true)
+		patchFlag, patchWhenClosedFlag, notifyFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.False(t, patchWhenClosedFlag)
+		assert.True(t, notifyFlag)
+	})
+
 	// Either patch option needs patch enabled, even when clearing it.
 	t.Run("rejects notify_before_patching without patch", func(t *testing.T) {
 		p := payload(nil, nil)

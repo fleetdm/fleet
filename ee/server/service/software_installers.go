@@ -1040,9 +1040,11 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 	// default yields to an explicit notify_before_patching, since the two are mutually exclusive.
 	if payload.PatchWhenClosed == nil {
 		switch {
+		case notifyBeforePatchingFlag:
+			patchWhenClosedFlag = false
 		case existingPolicy != nil:
 			patchWhenClosedFlag = existingPolicy.PatchWhenClosed
-		case !notifyBeforePatchingFlag:
+		default:
 			patchWhenClosedFlag = true
 		}
 	} else {

@@ -300,6 +300,27 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       await userEvent.click(screen.getByRole("button", { name: /Details/ }));
       expect(screen.getByText("The screen is locked.")).toBeInTheDocument();
     });
+
+    it("shows an error under Details when the script result can't be loaded", async () => {
+      mockServer.use(
+        http.get(baseUrl("/scripts/results/:executionId"), () =>
+          HttpResponse.json({ message: "Not Found" }, { status: 404 })
+        )
+      );
+      render(
+        <PolicyAutomationActivityDetailsModal
+          activity={notifyActivity}
+          onCancel={jest.fn()}
+        />
+      );
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Details/ })
+      );
+      expect(
+        screen.getByText(/Couldn't load the notification script output/)
+      ).toBeInTheDocument();
+    });
   });
 
   describe("skipped install (notify variant)", () => {
