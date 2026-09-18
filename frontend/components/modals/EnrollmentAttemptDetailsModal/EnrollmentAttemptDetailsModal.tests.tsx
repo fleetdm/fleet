@@ -65,10 +65,34 @@ describe("EnrollmentAttemptDetailsModal", () => {
     );
   });
 
+  it("falls back to the serial number when there is no display name", () => {
+    renderModal({ hostSerial: "C02ABC", reason: "one_time_secret_spent" });
+    expect(screen.getByText(/a host with serial number/i)).toBeInTheDocument();
+    expect(screen.getByText("C02ABC")).toBeInTheDocument();
+  });
+
+  it("uses the serial number in the identifier mismatch headline", () => {
+    renderModal({
+      hostSerial: "C02ABC",
+      reason: "one_time_secret_identifier_mismatch",
+    });
+    expect(
+      screen.getByText(
+        /one-time enroll secret issued to a host with serial number/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("C02ABC")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /fleet support/i })
+    ).toBeInTheDocument();
+  });
+
   it("falls back to a generic host and reason", () => {
     renderModal({ reason: "something_new" });
 
-    expect(screen.getByText("a host")).toBeInTheDocument();
+    expect(
+      screen.getByText(/rejected an enrollment for a host\./i)
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/was not valid for this host/i)
     ).toBeInTheDocument();

@@ -1535,6 +1535,7 @@ describe("Activity Feed", () => {
             type: ActivityType.HostEnrollmentRejected,
             actor_full_name: "",
             actor_id: 0,
+            fleet_initiated: true,
             created_at: "2026-01-01T00:00:00Z",
             details,
           })}

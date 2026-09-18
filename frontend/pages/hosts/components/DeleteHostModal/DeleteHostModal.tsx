@@ -9,7 +9,9 @@ import {
   HostPlatform,
   isAndroid,
   isIPadOrIPhone,
+  isLinuxLike,
   isMacOS,
+  isWindows,
 } from "interfaces/platform";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import strUtils from "utilities/strings";
@@ -25,13 +27,12 @@ interface IDeleteHostModalProps {
   selectedHostIds?: number[];
   /** Manage host page only */
   hostsCount?: number;
-  /** Host details page only */
+  /** Display name of the host when exactly one host is being deleted. */
   hostName?: string;
-  /** Host details page only */
+  /** Set when every host being deleted shares a platform, so the modal can
+   * show the per-platform copy instead of the generic bulk copy. */
   platform?: HostPlatform;
-  /** Host details page only */
   isMdmEnrolledInFleet?: boolean;
-  /** Host details page only */
   mdmEnrollmentStatus?: MdmEnrollmentStatus | null;
   isUpdating: boolean;
 }
@@ -51,17 +52,25 @@ const DeleteHostModal = ({
   const { config } = useContext(AppContext);
   const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
 
-  const hostText = () => {
-    if (selectedHostIds) {
-      const count =
-        isAllMatchingHostsSelected && hostsCount !== undefined
-          ? hostsCount
-          : selectedHostIds.length;
-      const suffix =
-        isAllMatchingHostsSelected && hostsCount === undefined ? "+" : "";
-      return `${count}${suffix} ${strUtils.pluralize(count, "host")}`;
+  const getCount = () => {
+    if (!selectedHostIds) {
+      return 1;
     }
-    return hostName;
+    if (isAllMatchingHostsSelected && hostsCount !== undefined) {
+      return hostsCount;
+    }
+    return selectedHostIds.length;
+  };
+  const count = getCount();
+  const isPlural = count !== 1;
+
+  const hostText = () => {
+    if (hostName) {
+      return hostName;
+    }
+    const suffix =
+      isAllMatchingHostsSelected && hostsCount === undefined ? "+" : "";
+    return `${count}${suffix} ${strUtils.pluralize(count, "host")}`;
   };
 
   const hasManyHosts =
@@ -78,6 +87,20 @@ const DeleteHostModal = ({
     />
   );
 
+  const theseHosts = isPlural ? "These hosts" : "This host";
+  const them = isPlural ? "them" : "it";
+
+  // Plural selections lead with the count so admins can see what they are
+  // deleting; the singular reads as the host page copy from the design.
+  const removeAllDataSentence = (details: string) =>
+    isPlural ? (
+      <>
+        This will remove <b>{hostText()}</b> and associated data{details}.
+      </>
+    ) : (
+      <>This will remove all host data{details}.</>
+    );
+
   const renderMacOneTimeSecretBody = () => {
     // Hosts enrolled through Apple Business come back as pending hosts and
     // can renew their own enrollment. Manually enrolled hosts need fleetd
@@ -85,16 +108,17 @@ const DeleteHostModal = ({
     const reEnrollInstructions =
       mdmEnrollmentStatus === "On (automatic)" ? (
         <>
-          To re-enroll it, wipe it or run <b>profiles renew -type enrollment</b>{" "}
-          in the host&apos;s Terminal.
+          To re-enroll {them}, wipe {them} or run{" "}
+          <b>sudo profiles renew -type enrollment</b> in{" "}
+          {isPlural ? "each host's" : "the host's"} Terminal.
         </>
       ) : (
-        <>To re-enroll it, Fleet&apos;s agent must be reinstalled.</>
+        <>To re-enroll {them}, Fleet&apos;s agent must be reinstalled.</>
       );
     return (
       <>
         <p>
-          This will unenroll <b>{hostName}</b> but won&apos;t remove company
+          This will unenroll <b>{hostText()}</b> but won&apos;t remove company
           data. {learnMoreLink}
         </p>
         <p>{reEnrollInstructions}</p>
@@ -102,15 +126,15 @@ const DeleteHostModal = ({
     );
   };
 
-  const renderSingleMdmHostBody = () => {
-    if (selectedHostIds || !platform) {
+  const renderPlatformBody = () => {
+    if (!platform) {
       return null;
     }
     if (isAndroid(platform)) {
       return (
         <>
           <p>
-            This will unenroll <b>{hostName}</b> and remove company data.
+            This will unenroll <b>{hostText()}</b> and remove company data.
           </p>
           <p>This may take up to 24 hours. {learnMoreLink}</p>
         </>
@@ -119,26 +143,28 @@ const DeleteHostModal = ({
     if (isIPadOrIPhone(platform)) {
       return (
         <>
-          <p>This will remove all host data.</p>
+          <p>{removeAllDataSentence("")}</p>
           <p>
-            This host will re-enroll unless MDM is turned off. {learnMoreLink}
+            {theseHosts} will re-enroll unless MDM is turned off.{" "}
+            {learnMoreLink}
           </p>
         </>
       );
     }
-    if (isMacOS(platform) && isMdmEnrolledInFleet) {
-      if (useOneTimeEnrollSecrets) {
-        return renderMacOneTimeSecretBody();
-      }
+    if (isMacOS(platform) && isMdmEnrolledInFleet && useOneTimeEnrollSecrets) {
+      return renderMacOneTimeSecretBody();
+    }
+    if (isMacOS(platform) || isWindows(platform) || isLinuxLike(platform)) {
       return (
         <>
           <p>
-            This will remove all host data such as unlock PINs and disk
-            encryption keys.
+            {removeAllDataSentence(
+              " such as unlock PINs and disk encryption keys"
+            )}
           </p>
           <p>
-            This host will re-enroll unless Fleet&apos;s agent is uninstalled.{" "}
-            {learnMoreLink}
+            {theseHosts} will re-enroll unless Fleet&apos;s agent is
+            uninstalled. {learnMoreLink}
           </p>
         </>
       );
@@ -147,7 +173,7 @@ const DeleteHostModal = ({
   };
 
   const renderBody = () =>
-    renderSingleMdmHostBody() ?? (
+    renderPlatformBody() ?? (
       <>
         <p>
           This will remove <b>{hostText()}</b> and associated data such as

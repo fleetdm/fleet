@@ -1023,6 +1023,7 @@ const HostDetailsPage = ({
         case ActivityType.HostEnrollmentRejected:
           setEnrollmentRejectedDetails({
             hostDisplayName: host?.display_name || details?.host_display_name,
+            hostSerial: details?.host_serial,
             reason: details?.reason,
             createdAt: created_at,
           });

@@ -339,6 +339,7 @@ const ActivityFeed = ({
       case ActivityType.HostEnrollmentRejected:
         setEnrollmentRejectedDetails({
           hostDisplayName: details?.host_display_name,
+          hostSerial: details?.host_serial,
           reason: details?.reason,
           createdAt: created_at,
         });

@@ -3047,8 +3047,6 @@ const GlobalActivityItem = ({
         // The template carries its own "Somebody"/"Somebody using <email>"
         // subject, so no actor-name prefix should be rendered.
         return null;
-      case ActivityType.HostEnrollmentRejected:
-        return <b>Fleet </b>;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function

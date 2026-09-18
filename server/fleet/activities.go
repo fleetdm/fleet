@@ -502,6 +502,12 @@ func (a ActivityTypeHostEnrollmentRejected) HostIDs() []uint {
 	return []uint{*a.HostID}
 }
 
+// WasFromAutomation marks the activity as Fleet-initiated: enrollment is
+// refused by the server, never by a user.
+func (a ActivityTypeHostEnrollmentRejected) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeMDMEnrolled struct {
 	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
 	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity

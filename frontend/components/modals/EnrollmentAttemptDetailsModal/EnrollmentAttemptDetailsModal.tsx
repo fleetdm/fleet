@@ -14,6 +14,8 @@ const baseClass = "enrollment-attempt-details-modal";
 
 export interface IEnrollmentAttemptDetailsModalProps {
   hostDisplayName?: string;
+  /** Fallback identifier when the host has no display name. */
+  hostSerial?: string;
   reason?: EnrollmentRejectedReason | string;
   createdAt?: string;
   onDone: () => void;
@@ -53,6 +55,7 @@ export const getEnrollmentRejectedReasonText = (
 
 const EnrollmentAttemptDetailsModal = ({
   hostDisplayName,
+  hostSerial,
   reason,
   createdAt,
   onDone,
@@ -63,29 +66,53 @@ const EnrollmentAttemptDetailsModal = ({
         addSuffix: true,
       })})`
     : "";
-  const host = hostDisplayName || "a host";
+
+  // Same fallback chain as the activity feed row: name, then serial, then
+  // nothing identifying.
+  let host: React.ReactNode = "a host";
+  if (hostDisplayName) {
+    host = <b>{hostDisplayName}</b>;
+  } else if (hostSerial) {
+    host = (
+      <>
+        a host with serial number <b>{hostSerial}</b>
+      </>
+    );
+  }
 
   // The mismatch rejection is about a different device presenting this
   // host's secret, so the whole story fits in the headline.
   const isIdentifierMismatch = reason === "one_time_secret_identifier_mismatch";
 
-  const message = isIdentifierMismatch ? (
-    <span>
-      Fleet rejected an enrollment for a host that tried to enroll with{" "}
-      <b>{host}&apos;s</b> one-time enroll secret{displayTime}. Reach out to{" "}
-      <CustomLink
-        text="Fleet support"
-        url="https://fleetdm.com/support"
-        newTab
-      />
-      .
-    </span>
-  ) : (
-    <span>
-      Fleet rejected an enrollment for <b>{host}</b>
-      {displayTime}.
-    </span>
+  const supportLink = (
+    <CustomLink text="Fleet support" url="https://fleetdm.com/support" newTab />
   );
+
+  let message: React.ReactNode;
+  if (!isIdentifierMismatch) {
+    message = (
+      <span>
+        Fleet rejected an enrollment for {host}
+        {displayTime}.
+      </span>
+    );
+  } else if (hostDisplayName) {
+    message = (
+      <span>
+        Fleet rejected an enrollment for a host that tried to enroll with{" "}
+        <b>{hostDisplayName}&apos;s</b> one-time enroll secret{displayTime}.
+        Reach out to {supportLink}.
+      </span>
+    );
+  } else {
+    message = (
+      <span>
+        Fleet rejected an enrollment for a host that tried to enroll with the
+        one-time enroll secret issued to {host}
+        {displayTime}. Reach out to {supportLink}.
+      </span>
+    );
+  }
 
   return (
     <Modal

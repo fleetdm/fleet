@@ -66,8 +66,8 @@ describe("DeleteHostModal", () => {
     ).toBeVisible();
   });
 
-  it("renders the generic copy for a macOS host that is not enrolled in Fleet MDM", () => {
-    renderModal({ hostName: "Host1", platform: "darwin" });
+  it("renders the generic bulk copy for a mixed-platform selection", () => {
+    renderModal({ selectedHostIds: [1, 2] });
     expect(
       screen.getByText(/and associated data such as unlock PINs/i)
     ).toBeVisible();
@@ -80,6 +80,64 @@ describe("DeleteHostModal", () => {
       "href",
       expect.stringMatching(DELETING_A_HOST_LINK)
     );
+  });
+
+  it.each(["darwin", "windows", "ubuntu"] as const)(
+    "renders the agent copy for a single %s host not enrolled in Fleet MDM",
+    (platform) => {
+      renderModal({ hostName: "Host1", platform });
+      expect(
+        screen.getByText(
+          "This will remove all host data such as unlock PINs and disk encryption keys."
+        )
+      ).toBeVisible();
+      expect(
+        screen.getByText(
+          /This host will re-enroll unless Fleet's agent is uninstalled\./
+        )
+      ).toBeVisible();
+      expect(screen.queryByRole("list")).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+        "href",
+        expect.stringMatching(DELETING_A_HOST_LINK)
+      );
+    }
+  );
+
+  it("uses the host name for a single selected row on the Hosts page", () => {
+    renderModal({
+      selectedHostIds: [7],
+      hostName: "Pixel",
+      platform: "android",
+    });
+    expect(screen.getByText("Pixel")).toBeVisible();
+    expect(screen.getByText(/and remove company data\./i)).toBeVisible();
+  });
+
+  it("pluralizes the per-platform copy for a same-platform selection", () => {
+    renderModal({ selectedHostIds: [1, 2, 3], platform: "ipados" });
+    expect(screen.getByText("3 hosts")).toBeVisible();
+    expect(screen.getByText(/and associated data\./)).toBeVisible();
+    expect(
+      screen.getByText(/These hosts will re-enroll unless MDM is turned off\./)
+    ).toBeVisible();
+  });
+
+  it("pluralizes the re-enrollment instructions for several ADE Macs when one-time enroll secrets are on", () => {
+    renderModal(
+      {
+        selectedHostIds: [1, 2],
+        platform: "darwin",
+        isMdmEnrolledInFleet: true,
+        mdmEnrollmentStatus: "On (automatic)",
+      },
+      true
+    );
+    expect(screen.getByText("2 hosts")).toBeVisible();
+    expect(
+      screen.getByText(/To re-enroll them, wipe them or run/)
+    ).toBeVisible();
+    expect(screen.getByText(/in each host's Terminal\./)).toBeVisible();
   });
 
   it("renders the Android copy", () => {
@@ -158,7 +216,9 @@ describe("DeleteHostModal", () => {
     );
     expect(screen.getByText("Mac")).toBeVisible();
     expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
-    expect(screen.getByText("profiles renew -type enrollment")).toBeVisible();
+    expect(
+      screen.getByText("sudo profiles renew -type enrollment")
+    ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
       "href",
       expect.stringMatching(DELETING_A_HOST_LINK)
