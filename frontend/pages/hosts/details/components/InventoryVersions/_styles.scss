@@ -1,3 +1,7 @@
+// The label column of a keg's signature block: wide enough for "Executable",
+// and the indent the footer under those rows lines up with.
+$executable-label-width: 72px;
+
 .inventory-versions {
   display: flex;
   flex-direction: column;
@@ -62,7 +66,22 @@
   // Widen the label column for keg blocks only, so the four rows line up
   // there without moving anything on an app bundle's card.
   &__sig-info--with-executables dt {
-    min-width: 72px;
+    min-width: $executable-label-width;
+  }
+
+  // Closes a keg's executables: how many the list left out, and the copy that
+  // hands over every hash including those. Indented to the value column of the
+  // rows above.
+  &__executables-footer {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    padding-left: calc(#{$executable-label-width} + #{$pad-xsmall});
+    font-size: $x-small;
+  }
+
+  &__more-executables {
+    color: $ui-fleet-black-75;
   }
 
   // A keg's executables list one row each, and each row stays on one line:

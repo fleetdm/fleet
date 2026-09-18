@@ -1,9 +1,11 @@
 import classnames from "classnames";
+import { uniq } from "lodash";
 import React from "react";
 
 import CopyButton from "components/buttons/CopyButton";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
+import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TruncatedTextList from "components/TruncatedTextList";
 import {
@@ -20,6 +22,12 @@ import { dateAgo } from "utilities/date_format";
 const baseClass = "inventory-versions";
 
 const fileName = (path: string | null) => path?.split("/").pop() || path;
+
+/** How many of a keg's executables get a row of their own. A formula like
+ * netpbm installs hundreds of tools, and a row each mounts a tooltip and a
+ * copy button per executable — too many to scan, and all of them needed only
+ * as a set, which the copy-all button hands over in one go. */
+const MAX_EXECUTABLES_SHOWN = 20;
 
 interface IInventoryVersionProps {
   version: ISoftwareInstallVersion;
@@ -106,6 +114,15 @@ const InventoryVersion = ({
           const executables = pathSigInfo.filter(
             (info) => !info.hash_sha256 && info.executable_sha256
           );
+          const hiddenExecutableCount = Math.max(
+            executables.length - MAX_EXECUTABLES_SHOWN,
+            0
+          );
+          // Hard links inside a keg share a hash, and a Santa rule needs each
+          // hash once.
+          const allExecutableHashes = uniq(
+            executables.map((info) => info.executable_sha256)
+          ).join("\n");
 
           return (
             <div
@@ -118,7 +135,7 @@ const InventoryVersion = ({
               {cdHash && (
                 <DataSet orientation="horizontal" title="Hash" value={cdHash} />
               )}
-              {executables.map((info) => (
+              {executables.slice(0, MAX_EXECUTABLES_SHOWN).map((info) => (
                 <DataSet
                   key={`${info.executable_path}:${info.executable_sha256}`}
                   orientation="horizontal"
@@ -143,6 +160,23 @@ const InventoryVersion = ({
                   }
                 />
               ))}
+              {executables.length > 1 && (
+                <div className={`${baseClass}__executables-footer`}>
+                  {hiddenExecutableCount > 0 && (
+                    <span className={`${baseClass}__more-executables`}>
+                      +{hiddenExecutableCount} more
+                    </span>
+                  )}
+                  <CopyButton
+                    copyText={allExecutableHashes}
+                    ariaLabel="Copy all hashes"
+                    variant="subdued"
+                    size="small"
+                  >
+                    Copy all hashes <Icon name="copy" size="small" />
+                  </CopyButton>
+                </div>
+              )}
             </div>
           );
         })}
