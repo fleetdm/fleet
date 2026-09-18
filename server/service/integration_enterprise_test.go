@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -910,6 +911,35 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+// applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
+// reaches the caller as a 413 while that wrapper still unwraps to the size error underneath. Without
+// it the request is answered with a 400 carrying the raw read error.
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsBodySizeLimit() {
+	t := s.T()
+
+	// The limit the /spec/fleets route is registered with.
+	const limit = 5 * units.MiB
+
+	// The padding sits inside a JSON string value so the body stays syntactically valid up to the
+	// point where the reader is cut off.
+	prefix := `{"specs":[{"name":"`
+	suffix := `"}]}`
+	padSize := limit + 1 - len(prefix) - len(suffix)
+	require.Positive(t, padSize, "padding must be positive")
+
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/fleets",
+		[]byte(prefix+strings.Repeat("x", padSize)+suffix), http.StatusRequestEntityTooLarge)
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "exceeds the max size limit")
+	assert.NotContains(t, string(body), "request body too large")
+
+	// A malformed body within the limit is still a 400, so the size error isn't reported for a
+	// reader that simply ran out early.
+	s.DoRaw("POST", "/api/latest/fleet/spec/fleets", []byte(prefix), http.StatusBadRequest)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
