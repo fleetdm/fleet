@@ -11,7 +11,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/WatchBeam/clock"
 	hostidentity_types "github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -2523,58 +2525,12 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 	// AllowOrbitEndUserAuthBypass config flag decides whether enrollment is
 	// blocked or allowed.
 	newSvc := func(t *testing.T, allowBypass bool) (*mock.DataStore, fleet.Service, context.Context) {
-		// mock.Store hard-codes EnrollOrbit to return (nil, nil), which would make
-		// the bypass-allowed success path panic. Use the underlying mock.DataStore so
-		// EnrollOrbitFunc is honored.
-		ds := new(mock.DataStore)
 		cfg := config.TestConfig()
 		cfg.MDM.AllowOrbitEndUserAuthBypass = allowBypass
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
-
-		// Global enroll secret (no team) with end user auth required at the app-config level.
-		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret}, nil
-		}
-		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
-			return nil, nil
-		}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			ac := &fleet.AppConfig{}
-			ac.MDM.EnabledAndConfigured = true
-			ac.MDM.MacOSSetup.EnableEndUserAuthentication = true
-			return ac, nil
-		}
-		// No IdP account linked and not previously enrolled: a genuine first-time enrollment.
-		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
-			return nil, nil
-		}
-		ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
-			return false, nil
-		}
-		ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-			return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "ubuntu"}, nil
-		}
-		ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
-			return nil
-		}
-		return ds, svc, ctx
+		return newEnrollOrbitEUATestService(t, true, cfg)
 	}
 
-	hostInfo := fleet.OrbitHostInfo{
-		HardwareUUID:   "host-uuid-1",
-		HardwareSerial: "serial-1",
-		Hostname:       "host-1",
-		Platform:       "ubuntu",
-		PlatformLike:   "debian",
-	}
-
-	// noEUACtx builds a request context advertising only unrelated capabilities,
-	// simulating an agent that does not support end user auth.
-	noEUACtx := func(ctx context.Context) context.Context {
-		req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
-		req.Header.Set(fleet.CapabilitiesHeader, "foo,bar")
-		return capabilities.NewContext(ctx, req)
-	}
+	hostInfo := enrollOrbitEUATestHostInfo
 
 	t.Run("flag disabled blocks enrollment", func(t *testing.T) {
 		ds, svc, ctx := newSvc(t, false)
@@ -2597,11 +2553,6 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		// auth. A modern agent that advertises the capability must still go
 		// through the SSO flow even when the flag is on.
 		ds, svc, ctx := newSvc(t, true)
-		euaCtx := func(ctx context.Context) context.Context {
-			req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
-			req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
-			return capabilities.NewContext(ctx, req)
-		}
 		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
@@ -2623,6 +2574,150 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
 		require.False(t, ds.EnrollOrbitFuncInvoked, "the flag bypass must not fire when an EUA token is present")
 	})
+}
+
+func TestEnrollOrbitRecordsPendingEndUserAuth(t *testing.T) {
+	// The unauthenticated setup experience MDM SSO flow only accepts host UUIDs
+	// Fleet answered with END_USER_AUTH_REQUIRED, so the enroll response is what
+	// has to write -- and later clear -- that record.
+	newSvc := func(t *testing.T, euaRequired bool) (*mock.DataStore, fleet.Service, context.Context, fleet.KeyValueStore, clock.Clock) {
+		kv := newMemKeyValueStore()
+		clk := clock.NewMockClock()
+		ds, svc, ctx := newEnrollOrbitEUATestService(t, euaRequired, config.TestConfig(),
+			&TestServerOpts{KeyValueStore: kv, Clock: clk})
+		return ds, svc, ctx, kv, clk
+	}
+
+	hostInfo := enrollOrbitEUATestHostInfo
+
+	t.Run("prompting the end user records the host uuid", func(t *testing.T) {
+		_, svc, ctx, kv, clk := newSvc(t, true)
+
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.True(t, pending)
+	})
+
+	t.Run("a successful enrollment clears the record", func(t *testing.T) {
+		ds, svc, ctx, kv, clk := newSvc(t, true)
+
+		// Driving the 401 is setup here; that it records the prompt is the
+		// previous subtest's assertion.
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.Error(t, err)
+
+		// The end user signed in, so the link now exists and enrollment succeeds.
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
+		}
+		ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) error { return nil }
+
+		nodeKey, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
+	})
+
+	t.Run("an enrollment that was never prompted records nothing", func(t *testing.T) {
+		_, svc, ctx, kv, clk := newSvc(t, false)
+
+		nodeKey, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
+	})
+
+	t.Run("a failed enroll secret records nothing", func(t *testing.T) {
+		ds, svc, ctx, kv, clk := newSvc(t, true)
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return nil, &notFoundError{}
+		}
+
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "bad-secret", "")
+		require.Error(t, err)
+
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, "host-uuid-1", clk.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
+	})
+}
+
+// enrollOrbitEUATestHostInfo is a first-time Linux enrollment, the shape both
+// end-user-auth enrollment tests drive EnrollOrbit with.
+var enrollOrbitEUATestHostInfo = fleet.OrbitHostInfo{
+	HardwareUUID:      "host-uuid-1",
+	HardwareSerial:    "serial-1",
+	Hostname:          "host-1",
+	Platform:          "ubuntu",
+	PlatformLike:      "debian",
+	OsqueryIdentifier: "osquery-id-1",
+}
+
+// newEnrollOrbitEUATestService builds the service the end-user-auth enrollment
+// tests share: a valid global enroll secret, a host with no IdP account that was
+// never enrolled before (so a genuine first-time enrollment), and a datastore
+// that enrolls successfully. euaRequired sets whether the app config demands end
+// user authentication at all.
+func newEnrollOrbitEUATestService(
+	t *testing.T, euaRequired bool, cfg config.FleetConfig, opts ...*TestServerOpts,
+) (*mock.DataStore, fleet.Service, context.Context) {
+	t.Helper()
+
+	// mock.Store hard-codes EnrollOrbit to return (nil, nil), which would make
+	// the success paths panic. Use the underlying mock.DataStore so
+	// EnrollOrbitFunc is honored.
+	ds := new(mock.DataStore)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts...)
+
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: secret}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ac := &fleet.AppConfig{}
+		ac.MDM.EnabledAndConfigured = true
+		ac.MDM.MacOSSetup.EnableEndUserAuthentication = euaRequired
+		return ac, nil
+	}
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, nil
+	}
+	ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+		return false, nil
+	}
+	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+		return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "ubuntu"}, nil
+	}
+	ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
+	return ds, svc, ctx
+}
+
+// noEUACtx builds a request context advertising only unrelated capabilities,
+// simulating an agent that does not support end user auth.
+func noEUACtx(ctx context.Context) context.Context {
+	req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+	req.Header.Set(fleet.CapabilitiesHeader, "foo,bar")
+	return capabilities.NewContext(ctx, req)
+}
+
+// euaCtx advertises the end user auth capability, so the bypass escape hatch
+// does not fire and the prompt is actually returned.
+func euaCtx(ctx context.Context) context.Context {
+	req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+	req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
+	return capabilities.NewContext(ctx, req)
 }
 
 func TestEscrowLUKSDataStatus(t *testing.T) {

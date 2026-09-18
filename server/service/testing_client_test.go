@@ -20,7 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -29,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -477,18 +480,40 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 }
 
 // LoginMDMSSOUserSetupExperience drives the Orbit Setup Experience MDM SSO flow
-// (Linux/Windows), which carries the device's host UUID through the SSO request
-// data. This exercises the mdmSSOHandleCallbackAuth path that persists the IdP
-// account for a known host, unlike LoginMDMSSOUser (Apple flow) where the host
-// UUID is not yet known. Returns the callback response (a redirect).
-func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+// (Linux/Windows), where the host UUID travels in the SSO request data and the
+// callback binds the resulting IdP account to that host. Unlike
+// LoginMDMSSOUser (Apple flow), the host UUID is known up front. The flow only
+// opens for a device Fleet answered with END_USER_AUTH_REQUIRED, so the prompt
+// is seeded first, as orbit enrollment does for real devices. An optional
+// beforeCallback runs after the IdP sign-in but before the assertion reaches
+// Fleet, so a test can change server state mid-flow. Returns the callback
+// response (a redirect).
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string, beforeCallback ...func()) *http.Response {
+	ts.SeedEndUserAuthPrompt(hostUUID)
 	body, err := json.Marshal(initiateMDMSSORequest{
 		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
 		HostUUID:  hostUUID,
 	})
 	require.NoError(ts.s.T(), err)
-	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
-	return res
+	return ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body, beforeCallback...)
+}
+
+// SeedEndUserAuthPrompt records that Fleet asked hostUUID's end user to sign in.
+func (ts *withServer) SeedEndUserAuthPrompt(hostUUID string) {
+	t := ts.s.T()
+	require.NoError(t, shared_mdm.RecordEndUserAuthPrompt(
+		t.Context(), redis_key_value.New(ts.redisPool), hostUUID, clock.C.Now(),
+	))
+}
+
+// ClearEndUserAuthPrompt puts the server in the state it reaches once hostUUID
+// has enrolled: a sign-in that started earlier may still fill in a missing IdP
+// binding, but may no longer take over one.
+func (ts *withServer) ClearEndUserAuthPrompt(hostUUID string) {
+	t := ts.s.T()
+	require.NoError(t, shared_mdm.ClearEndUserAuthPrompt(
+		t.Context(), redis_key_value.New(ts.redisPool), hostUUID,
+	))
 }
 
 // newSSOTestClient returns an HTTP client with its own cookie jar for driving a
@@ -678,7 +703,10 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	return ts.loginSSOUserWithBody(username, password, basePath, callbackStatus, []byte(`{}`))
 }
 
-func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
+// loginSSOUserWithBody drives an SP-initiated SSO login end to end. Any
+// beforeCallback hooks run after the IdP sign-in and before the assertion is
+// posted to Fleet.
+func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte, beforeCallback ...func()) *http.Response {
 	client := ts.newSSOTestClient()
 
 	var resIni initiateSSOResponse
@@ -687,6 +715,10 @@ func (ts *withServer) loginSSOUserWithBody(username, password string, basePath s
 	require.NoError(ts.s.T(), resIni.Error())
 
 	samlResponse := ts.completeSAMLLogin(client, resIni.URL, username, password)
+
+	for _, hook := range beforeCallback {
+		hook()
+	}
 
 	return ts.doWithClient(client, "POST", basePath+"/callback", nil, callbackStatus, nil, "SAMLResponse", samlResponse)
 }

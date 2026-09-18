@@ -907,6 +907,12 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 	}
 
+	if initiator == fleet.SSOInitiatorOrbitSetupExperience {
+		if err := svc.checkOrbitSetupExperienceSSO(ctx, hostUUID); err != nil {
+			return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+		}
+	}
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
@@ -982,6 +988,87 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	}
 
 	return sessionID, sessionDurationSeconds, idpURL, nil
+}
+
+// checkOrbitSetupExperienceSSO refuses a setup_experience SSO request that does
+// not name a device Fleet just answered with END_USER_AUTH_REQUIRED.
+func (svc *Service) checkOrbitSetupExperienceSSO(ctx context.Context, hostUUID string) error {
+	pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID, svc.clock.Now())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get pending end user auth prompt")
+	}
+	if !pending {
+		// This endpoint is unauthenticated, so the response must not reveal
+		// whether a given host UUID is waiting to enroll.
+		svc.logger.WarnContext(ctx, "refusing setup experience mdm sso request: no pending end user auth prompt",
+			"host_uuid", hostUUID)
+		return fleet.NewAuthFailedError("end user authentication was not requested for this device")
+	}
+	return nil
+}
+
+// bindHostToIdPAccountFromSSO records the host <-> IdP account link the setup
+// experience flow exists to create. An existing link is replaced only while
+// Fleet is still waiting on this device: once it has enrolled, a sign-in that
+// started earlier may fill in a missing link but must not take one over. A
+// legitimate flow never needs to overwrite, because the prompt only fires when
+// the host has no link.
+func (svc *Service) bindHostToIdPAccountFromSSO(ctx context.Context, hostUUID string, acct *fleet.MDMIdPAccount) error {
+	replaceExisting, err := shared_mdm.HasEndUserAuthPrompt(ctx, svc.keyValueStore, hostUUID, svc.clock.Now())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get pending end user auth prompt")
+	}
+
+	previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccountFromSSO(ctx, hostUUID, acct.UUID, replaceExisting)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
+	}
+	if previousAcctUUID == acct.UUID {
+		// Nothing changed; the end user signed in as the account already linked.
+		return nil
+	}
+
+	previousEmail := svc.idPAccountEmailForActivity(ctx, previousAcctUUID)
+
+	var act fleet.ActivityDetails
+	if !replaceExisting && previousAcctUUID != "" {
+		svc.logger.WarnContext(ctx, "keeping the existing idp binding of an enrolled host",
+			"host_uuid", hostUUID, "existing_account_uuid", previousAcctUUID, "account_uuid", acct.UUID)
+		act = fleet.ActivityTypeRefusedHostIdPAccountChange{
+			HostUUID:         hostUUID,
+			IdPEmail:         acct.Email,
+			ExistingIdPEmail: previousEmail,
+		}
+	} else {
+		act = fleet.ActivityTypeBoundHostToIdPAccount{
+			HostUUID:         hostUUID,
+			IdPEmail:         acct.Email,
+			ReplacedIdPEmail: previousEmail,
+		}
+	}
+
+	if err := svc.NewActivity(ctx, nil, act); err != nil {
+		svc.logger.ErrorContext(ctx, "create activity for mdm sso host binding",
+			"err", err, "host_uuid", hostUUID, "activity", act.ActivityName())
+	}
+	return nil
+}
+
+// idPAccountEmailForActivity resolves an account UUID for a binding activity,
+// returning an empty string when there is none or it cannot be read.
+func (svc *Service) idPAccountEmailForActivity(ctx context.Context, acctUUID string) string {
+	if acctUUID == "" {
+		return ""
+	}
+	acct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, acctUUID)
+	switch {
+	case err == nil && acct != nil:
+		return acct.Email
+	case err != nil && !fleet.IsNotFound(err):
+		svc.logger.ErrorContext(ctx, "get idp account for binding activity",
+			"err", err, "account_uuid", acctUUID)
+	}
+	return ""
 }
 
 // deviceSSOErrorURL sends the end user back to the device page they came from,
@@ -1259,9 +1346,8 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	// If the initiator is setup_experience, we can insert the host idp account record
 	// right away, as the host uuid is provided in the SSO request data.
 	if ssoRequestData.Initiator == fleet.SSOInitiatorOrbitSetupExperience && ssoRequestData.HostUUID != "" {
-		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, ssoRequestData.HostUUID, idpAcc.UUID)
-		if err != nil {
-			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
+		if err := svc.bindHostToIdPAccountFromSSO(ctx, ssoRequestData.HostUUID, idpAcc); err != nil {
+			return "", "", "", "", sso.SSORequestData{}, err
 		}
 	}
 

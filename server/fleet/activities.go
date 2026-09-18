@@ -2044,6 +2044,43 @@ func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
 }
 
+// ActivityTypeBoundHostToIdPAccount records the host <-> IdP account link an
+// MDM SSO sign-in created.
+type ActivityTypeBoundHostToIdPAccount struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account that signed in and was not linked.
+	IdPEmail string `json:"idp_email"`
+	// ReplacedIdPEmail is the account the host was bound to beforehand, empty
+	// when it had no binding.
+	ReplacedIdPEmail string `json:"replaced_idp_email,omitempty"`
+}
+
+func (a ActivityTypeBoundHostToIdPAccount) ActivityName() string {
+	return "bound_host_to_idp_account"
+}
+
+func (a ActivityTypeBoundHostToIdPAccount) WasFromAutomation() bool {
+	return true
+}
+
+// ActivityTypeRefusedHostIdPAccountChange records an MDM SSO sign-in that would
+// have taken over the IdP account of a host that had already enrolled.
+type ActivityTypeRefusedHostIdPAccountChange struct {
+	HostUUID string `json:"host_uuid"`
+	// IdPEmail is the account that signed in and was not linked.
+	IdPEmail string `json:"idp_email"`
+	// ExistingIdPEmail is the account the host stays linked to.
+	ExistingIdPEmail string `json:"existing_idp_email"`
+}
+
+func (a ActivityTypeRefusedHostIdPAccountChange) ActivityName() string {
+	return "refused_host_idp_account_change"
+}
+
+func (a ActivityTypeRefusedHostIdPAccountChange) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeEscrowedDiskEncryptionKey struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
