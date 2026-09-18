@@ -5,13 +5,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260917144646, Down_20260917144646)
+	MigrationClient.AddMigration(Up_20260918233142, Down_20260918233142)
 }
 
 // Go binaries are now matched by module path against the Go vulnerability database. The
 // vulnerability cron only deletes CPEs for software it still iterates, so the rows it left
 // behind have to go here.
-func Up_20260917144646(tx *sql.Tx) error {
+func Up_20260918233142(tx *sql.Tx) error {
 	return withSteps([]migrationStep{
 		basicMigrationStep(
 			`DELETE cpe FROM software_cpe cpe
@@ -28,6 +28,6 @@ func Up_20260917144646(tx *sql.Tx) error {
 	}, tx)
 }
 
-func Down_20260917144646(tx *sql.Tx) error {
+func Down_20260918233142(tx *sql.Tx) error {
 	return nil
 }
