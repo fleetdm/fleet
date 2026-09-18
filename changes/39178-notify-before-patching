@@ -1,0 +1,1 @@
+- Added a "Notify before patching" option for macOS Fleet-maintained app patch policies. When the app is open, Fleet Desktop tells the end user 1 hour and 5 minutes before the app is closed and updated. Requires Fleet Desktop 1.5.0.
