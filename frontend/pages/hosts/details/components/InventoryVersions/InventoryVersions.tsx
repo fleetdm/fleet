@@ -1,4 +1,3 @@
-import classnames from "classnames";
 import { uniq } from "lodash";
 import React from "react";
 
@@ -27,7 +26,7 @@ const fileName = (path: string | null) => path?.split("/").pop() || path;
  * netpbm installs hundreds of tools, and a row each mounts a tooltip and a
  * copy button per executable — too many to scan, and all of them needed only
  * as a set, which the copy-all button hands over in one go. */
-const MAX_EXECUTABLES_SHOWN = 20;
+const MAX_EXECUTABLES_SHOWN = 10;
 
 interface IInventoryVersionProps {
   version: ISoftwareInstallVersion;
@@ -125,40 +124,31 @@ const InventoryVersion = ({
           ).join("\n");
 
           return (
-            <div
-              className={classnames(`${baseClass}__sig-info`, {
-                [`${baseClass}__sig-info--with-executables`]: !!executables.length,
-              })}
-              key={path}
-            >
+            <div className={`${baseClass}__sig-info`} key={path}>
               <DataSet orientation="horizontal" title="Path" value={path} />
               {cdHash && (
                 <DataSet orientation="horizontal" title="Hash" value={cdHash} />
               )}
               {executables.slice(0, MAX_EXECUTABLES_SHOWN).map((info) => (
-                <DataSet
+                <div
+                  className={`${baseClass}__executable`}
                   key={`${info.executable_path}:${info.executable_sha256}`}
-                  orientation="horizontal"
-                  title="Executable"
-                  value={
-                    <span className={`${baseClass}__executable`}>
-                      <TooltipWrapper
-                        className={`${baseClass}__executable-name`}
-                        tipContent={info.executable_path}
-                      >
-                        {fileName(info.executable_path)}
-                      </TooltipWrapper>
-                      <span className={`${baseClass}__executable-hash`}>
-                        {info.executable_sha256}
-                      </span>
-                      <CopyButton
-                        copyText={info.executable_sha256 ?? ""}
-                        variant="compact"
-                        size="small"
-                      />
-                    </span>
-                  }
-                />
+                >
+                  <TooltipWrapper
+                    className={`${baseClass}__executable-name`}
+                    tipContent={info.executable_path}
+                  >
+                    {fileName(info.executable_path)}
+                  </TooltipWrapper>
+                  <span className={`${baseClass}__executable-hash`}>
+                    {info.executable_sha256}
+                  </span>
+                  <CopyButton
+                    copyText={info.executable_sha256 ?? ""}
+                    variant="compact"
+                    size="small"
+                  />
+                </div>
               ))}
               {executables.length > 1 && (
                 <div className={`${baseClass}__executables-footer`}>
@@ -167,10 +157,13 @@ const InventoryVersion = ({
                       +{hiddenExecutableCount} more
                     </span>
                   )}
+                  {/* compact, like the per-row buttons: subdued at size small
+                  pads 8px on the right rather than 4px, which would leave this
+                  icon short of the column the row icons form. */}
                   <CopyButton
                     copyText={allExecutableHashes}
                     ariaLabel="Copy all hashes"
-                    variant="subdued"
+                    variant="compact"
                     size="small"
                   >
                     Copy all hashes <Icon name="copy" size="small" />

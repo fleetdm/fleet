@@ -1,7 +1,3 @@
-// The label column of a keg's signature block: wide enough for "Executable",
-// and the indent the footer under those rows lines up with.
-$executable-label-width: 72px;
-
 .inventory-versions {
   display: flex;
   flex-direction: column;
@@ -62,25 +58,21 @@ $executable-label-width: 72px;
     }
   }
 
-  // "Executable" is wider than the floor the Path and Hash labels share.
-  // Widen the label column for keg blocks only, so the four rows line up
-  // there without moving anything on an app bundle's card.
-  &__sig-info--with-executables dt {
-    min-width: $executable-label-width;
-  }
-
-  // Closes a keg's executables: how many the list left out, and the copy that
-  // hands over every hash including those. Indented to the value column of the
-  // rows above.
+  // Closes a keg's executables, spanning the card: how many the list left out
+  // on the left, and on the right, under the per-row copy buttons, the copy
+  // that hands over every hash including those.
   &__executables-footer {
     display: flex;
     align-items: center;
+    // Not space-between: a keg whose list fits has no count to show, and its
+    // lone copy button still belongs on the right.
+    justify-content: flex-end;
     gap: $pad-small;
-    padding-left: calc(#{$executable-label-width} + #{$pad-xsmall});
     font-size: $x-small;
   }
 
   &__more-executables {
+    margin-right: auto;
     color: $ui-fleet-black-75;
   }
 
@@ -92,19 +84,21 @@ $executable-label-width: 72px;
     display: flex;
     align-items: baseline;
     gap: $pad-xsmall;
-    flex: 1;
     min-width: 0;
   }
 
+  // The name stands in for the "Executable" label these rows used to carry,
+  // so it reads as the row's heading.
   &__executable-name {
     flex: 0 0 auto;
+    font-weight: $bold;
   }
 
   &__executable-hash {
     flex: 1 1 auto;
     min-width: 0;
-    // dd sets text-wrap: wrap and overflow-wrap: anywhere for the full path
-    // and cdhash rows; the hash opts out so it never breaks mid-value.
+    // The Path and Hash rows' dd wraps and breaks anywhere for a long value;
+    // the hash opts out so it never breaks mid-value.
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

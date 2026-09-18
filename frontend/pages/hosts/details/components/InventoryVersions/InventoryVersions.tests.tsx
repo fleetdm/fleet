@@ -32,6 +32,11 @@ const kegWithExecutables = (count: number) =>
     })),
   });
 
+/** Each executable renders one row with its own copy button, which is what
+ * distinguishes those rows from the Path and Hash ones. */
+const executableRows = () =>
+  screen.queryAllByRole("button", { name: "Copy to clipboard" });
+
 describe("InventoryVersions component", () => {
   beforeAll(() => {
     // jsdom exposes navigator.clipboard as a getter-only property.
@@ -47,7 +52,7 @@ describe("InventoryVersions component", () => {
     expect(screen.getAllByText("Path:")).toHaveLength(1);
     expect(screen.getByText(HOMEBREW_KEG_PATH)).toBeInTheDocument();
 
-    expect(screen.getAllByText("Executable:")).toHaveLength(3);
+    expect(executableRows()).toHaveLength(3);
     ["git", "git-cvsserver", "git-upload-pack"].forEach((name) => {
       expect(screen.getByText(name)).toBeInTheDocument();
     });
@@ -79,7 +84,7 @@ describe("InventoryVersions component", () => {
 
     expect(screen.getByText("Hash:")).toBeInTheDocument();
     expect(screen.getByText("mockhashhere")).toBeInTheDocument();
-    expect(screen.queryByText("Executable:")).toBeNull();
+    expect(executableRows()).toHaveLength(0);
   });
 
   it("renders the path only when an entry has neither hash", () => {
@@ -106,7 +111,7 @@ describe("InventoryVersions component", () => {
 
     expect(screen.getByText("Path:")).toBeInTheDocument();
     expect(screen.queryByText("Hash:")).toBeNull();
-    expect(screen.queryByText("Executable:")).toBeNull();
+    expect(executableRows()).toHaveLength(0);
   });
 
   it("caps a long executables list and labels the rest", () => {
@@ -119,20 +124,20 @@ describe("InventoryVersions component", () => {
     // A formula like netpbm installs hundreds of tools. Mounting a row, a
     // tooltip and a copy button for each one makes the card unusable, so the
     // list stops and says how many are left.
-    expect(screen.getAllByText("Executable:")).toHaveLength(20);
-    expect(screen.getByText("tool-19")).toBeInTheDocument();
-    expect(screen.queryByText("tool-20")).toBeNull();
-    expect(screen.getByText("+340 more")).toBeInTheDocument();
+    expect(executableRows()).toHaveLength(10);
+    expect(screen.getByText("tool-9")).toBeInTheDocument();
+    expect(screen.queryByText("tool-10")).toBeNull();
+    expect(screen.getByText("+350 more")).toBeInTheDocument();
   });
 
   it("does not label a list that fits", () => {
     render(
       <InventoryVersions
-        hostSoftware={homebrewSoftware([kegWithExecutables(20)])}
+        hostSoftware={homebrewSoftware([kegWithExecutables(10)])}
       />
     );
 
-    expect(screen.getAllByText("Executable:")).toHaveLength(20);
+    expect(executableRows()).toHaveLength(10);
     expect(screen.queryByText(/more$/)).toBeNull();
   });
 
@@ -225,7 +230,7 @@ describe("InventoryVersions component", () => {
     // One executable row for 2.45.0 and three for 2.46.0. Grouping the
     // entries by path alone would repeat every executable in both cards.
     expect(screen.getAllByText("Path:")).toHaveLength(2);
-    expect(screen.getAllByText("Executable:")).toHaveLength(4);
+    expect(executableRows()).toHaveLength(4);
     expect(screen.getAllByText("git-old")).toHaveLength(1);
     expect(screen.getAllByText("git-upload-pack")).toHaveLength(1);
   });
