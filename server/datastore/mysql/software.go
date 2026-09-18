@@ -4458,8 +4458,9 @@ func filterVPPAppsByLabel(
 		// weren't installed by Fleet or were installed by Fleet but are no longer in scope
 		// (treat as in inventory and not re-installable in self-service)
 		for _, validAppApp := range validVppApps {
-			if _, ok := byVppAppID[validAppApp.AdamId]; ok {
-				filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
+			appInScope, ok := byVppAppID[validAppApp.AdamId]
+			if ok && appInScope.ID == validAppApp.TitleId {
+				filteredbyVppAppID[validAppApp.AdamId] = appInScope
 			} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleId]; ok {
 				otherVppAppsInInventory[validAppApp.AdamId] = svpp
 			}
