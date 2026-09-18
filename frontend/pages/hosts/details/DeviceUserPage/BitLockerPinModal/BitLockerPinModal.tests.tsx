@@ -37,39 +37,40 @@ const diskEncryption = (
 });
 
 /** Renders the modal and hands back a way to feed it the page's next fetch. */
-const renderModal = (onExit = jest.fn()) => {
+const renderModal = (onExit = jest.fn(), beforeSubmit = diskEncryption()) => {
   // delay: null keeps user-event off the fake clock, which otherwise makes typing and clicking flaky under load.
   const user = userEvent.setup({
     advanceTimers: jest.advanceTimersByTime,
     delay: null,
   });
-  const onSubmitted = jest.fn();
-  const props = {
-    deviceAuthToken: "token",
-    diskEncryption: diskEncryption(),
-    // Before any submit, so nothing already on screen counts as this submit's answer.
-    dataUpdatedAt: 0,
-    onSubmitted,
-    onExit,
-  };
-  const { rerender } = render(<BitLockerPinModal {...props} />);
+  const onWaitingChange = jest.fn();
+  // onExit is inline here as it is on the page, so every render hands the modal a different function. A modal that
+  // took that as a signal would restart its deadline on every poll.
+  const modal = (data: IDeviceDiskEncryptionSetting, dataUpdatedAt: number) => (
+    <BitLockerPinModal
+      deviceAuthToken="token"
+      diskEncryption={data}
+      dataUpdatedAt={dataUpdatedAt}
+      onWaitingChange={onWaitingChange}
+      onExit={() => onExit()}
+    />
+  );
+  // Fetched before any submit, so nothing already on screen counts as this submit's answer.
+  const { rerender } = render(modal(beforeSubmit, 0));
 
   /** Stands in for the page's query resolving: new data, fetched now. */
-  const pageFetched = (next: IDeviceDiskEncryptionSetting) =>
+  const pageFetched = (
+    next: IDeviceDiskEncryptionSetting = beforeSubmit,
+    elapsedMs = 1000
+  ) =>
     act(() => {
       // Fake timers freeze Date.now(), so move it on: data fetched in the same millisecond as the submit cannot be
       // this submit's answer, and the modal is right to ignore it.
-      jest.advanceTimersByTime(1000);
-      rerender(
-        <BitLockerPinModal
-          {...props}
-          diskEncryption={next}
-          dataUpdatedAt={Date.now()}
-        />
-      );
+      jest.advanceTimersByTime(elapsedMs);
+      rerender(modal(next, Date.now()));
     });
 
-  return { user, onExit, onSubmitted, pageFetched };
+  return { user, onExit, onWaitingChange, pageFetched };
 };
 
 const submitPIN = async (
@@ -116,14 +117,14 @@ describe("BitLockerPinModal", () => {
     expect(submitBitLockerPIN).not.toHaveBeenCalled();
   });
 
-  it("asks the page to refetch so the wait has something to read", async () => {
-    const { user, onSubmitted } = renderModal();
+  it("tells the page it is waiting, so the page fetches the outcome", async () => {
+    const { user, onWaitingChange } = renderModal();
 
     // Spaces are part of a BitLocker PIN, so the modal must not trim them away.
     await submitPIN(user, " pin 1234 ");
 
     expect(submitBitLockerPIN).toHaveBeenCalledWith("token", " pin 1234 ");
-    expect(onSubmitted).toHaveBeenCalled();
+    expect(onWaitingChange).toHaveBeenLastCalledWith(true);
     expect(screen.getByText("Setting PIN...")).toBeVisible();
   });
 
@@ -161,9 +162,25 @@ describe("BitLockerPinModal", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
+  it("keeps waiting when a fetch answers from before the submit landed", async () => {
+    // The request is read from a replica, so the fetch right after a submit can still show nothing in flight. Giving
+    // up on it would leave the outcome unread.
+    const { user, onExit, onWaitingChange, pageFetched } = renderModal();
+
+    await submitPIN(user, "123456");
+    pageFetched(diskEncryption());
+
+    expect(onWaitingChange).toHaveBeenLastCalledWith(true);
+    expect(screen.getByText("Setting PIN...")).toBeVisible();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
   it("ignores an outcome fetched before the submit", async () => {
     // A failure from an earlier attempt is still in the page's data when this one is submitted.
-    const { user, onExit } = renderModal();
+    const { user, onExit } = renderModal(
+      jest.fn(),
+      diskEncryption({ status: "failed", error: "PIN already set" })
+    );
 
     await submitPIN(user, "123456");
 
@@ -173,7 +190,7 @@ describe("BitLockerPinModal", () => {
   });
 
   it("stays open and reports the agent's reason when the PIN is refused", async () => {
-    const { user, onExit, pageFetched } = renderModal();
+    const { user, onExit, onWaitingChange, pageFetched } = renderModal();
 
     await submitPIN(user, "123456");
     pageFetched(
@@ -186,6 +203,8 @@ describe("BitLockerPinModal", () => {
     expect(onExit).not.toHaveBeenCalled();
     // Save is offered again, so the button is out of its waiting state.
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    // The wait is over even though the modal stays open, so the page stops polling.
+    expect(onWaitingChange).toHaveBeenLastCalledWith(false);
   });
 
   it("reports the agent's failure even once the host stops asking for a PIN", async () => {
@@ -224,13 +243,25 @@ describe("BitLockerPinModal", () => {
     expect(onExit).toHaveBeenCalled();
   });
 
+  it("holds that deadline while the page polls", async () => {
+    const { user, onExit, pageFetched } = renderModal();
+
+    await submitPIN(user, "123456");
+    // Every poll re-renders the modal. A deadline that restarted with them would never be reached.
+    for (let elapsed = 0; elapsed <= POLL_TIMEOUT_MS; elapsed += 1000) {
+      pageFetched(diskEncryption({ status: "delivered", error: "" }));
+    }
+
+    expect(onExit).toHaveBeenCalled();
+  });
+
   it("reports the server's reason for a rejected submission without waiting", async () => {
     const reason =
       "Fleet's agent on this host is too old to set a BitLocker PIN. Update fleetd and try again.";
     submitBitLockerPIN.mockRejectedValue({
       response: { data: { errors: [{ name: "base", reason }] } },
     });
-    const { user, onExit, onSubmitted } = renderModal();
+    const { user, onExit, onWaitingChange } = renderModal();
 
     await submitPIN(user, "123456");
 
@@ -239,7 +270,7 @@ describe("BitLockerPinModal", () => {
       expect.anything()
     );
     // A rejected submission is never in the agent's hands, so the page is not asked to poll for it.
-    expect(onSubmitted).not.toHaveBeenCalled();
+    expect(onWaitingChange).not.toHaveBeenCalledWith(true);
     expect(onExit).not.toHaveBeenCalled();
   });
 });

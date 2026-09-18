@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
@@ -68,8 +68,8 @@ interface IBitLockerPinModalProps {
   /** When that query last succeeded. The modal ignores anything fetched before its own submit, so a failure from an
    * earlier attempt is never read as the outcome of this one. */
   dataUpdatedAt: number;
-  /** Refetches the host now, so the page sees the submission and starts polling for its outcome. */
-  onSubmitted: () => void;
+  /** Whether an answer is still owed. The page fetches on the way into a wait and polls until it is over. */
+  onWaitingChange: (isWaiting: boolean) => void;
   onExit: () => void;
 }
 
@@ -77,7 +77,7 @@ const BitLockerPinModal = ({
   deviceAuthToken,
   diskEncryption,
   dataUpdatedAt,
-  onSubmitted,
+  onWaitingChange,
   onExit,
 }: IBitLockerPinModalProps) => {
   // The submit button lives in a ModalFooter outside the <form>, so it reaches the form's onSubmit through this id.
@@ -85,6 +85,21 @@ const BitLockerPinModal = ({
 
   /** When the PIN was handed to Fleet, and the cutoff for data this modal will read. Null once the wait is over. */
   const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+  const isWaiting = submittedAt !== null;
+
+  // The page builds these inline, so they are different functions on every render, and it renders on every poll.
+  // Reading them from refs keeps them out of the effects below, where onExit would restart the deadline before it
+  // could fire and onWaitingChange would ask for a fetch each time.
+  const onExitRef = useRef(onExit);
+  const onWaitingChangeRef = useRef(onWaitingChange);
+  useEffect(() => {
+    onExitRef.current = onExit;
+    onWaitingChangeRef.current = onWaitingChange;
+  });
+
+  useEffect(() => {
+    onWaitingChangeRef.current(isWaiting);
+  }, [isWaiting]);
 
   const {
     formData,
@@ -110,7 +125,6 @@ const BitLockerPinModal = ({
       return;
     }
     setSubmittedAt(Date.now());
-    onSubmitted();
   };
 
   // Read the agent's answer out of the page's data. Only data fetched after the submit counts.
@@ -133,9 +147,9 @@ const BitLockerPinModal = ({
     ) {
       setSubmittedAt(null);
       notify.success("Successfully created PIN.");
-      onExit();
+      onExitRef.current();
     }
-  }, [submittedAt, dataUpdatedAt, diskEncryption, onExit]);
+  }, [submittedAt, dataUpdatedAt, diskEncryption]);
 
   // Stop waiting on screen after the deadline. The request stays collectable for far longer, so this is not a failure.
   useEffect(() => {
@@ -146,12 +160,11 @@ const BitLockerPinModal = ({
       setSubmittedAt(null);
       // Leaving the form open would invite a second PIN that supersedes the one the agent is still collecting.
       notify.error(STILL_WORKING);
-      onExit();
+      onExitRef.current();
     }, POLL_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [submittedAt, onExit]);
+  }, [submittedAt]);
 
-  const isWaiting = submittedAt !== null;
   const isDisabled = isSubmitting || isWaiting;
 
   return (

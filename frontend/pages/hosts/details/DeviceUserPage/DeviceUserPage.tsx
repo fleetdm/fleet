@@ -166,6 +166,8 @@ const DeviceUserPage = ({
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
+  /** Whether the Create PIN modal is still owed an answer about a PIN it handed to Fleet. */
+  const [isAwaitingPINOutcome, setIsAwaitingPINOutcome] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
@@ -312,8 +314,13 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
+      // A modal still owed an answer keeps polling on its own account: the request is read from a replica, so the
+      // fetch right after a submit can answer from before it and show nothing in flight. The modal gives up after a
+      // deadline, which is what bounds this.
       refetchInterval: (data) =>
-        hasPINRequestInFlight(data) ? BITLOCKER_PIN_POLL_INTERVAL : false,
+        isAwaitingPINOutcome || hasPINRequestInFlight(data)
+          ? BITLOCKER_PIN_POLL_INTERVAL
+          : false,
       onSuccess: ({ host: responseHost }) => {
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
@@ -1003,8 +1010,18 @@ const DeviceUserPage = ({
                 deviceAuthToken={deviceAuthToken}
                 diskEncryption={diskEncryptionSetting}
                 dataUpdatedAt={dupDetailsUpdatedAt}
-                onSubmitted={refetchDupDetails}
-                onExit={() => setShowBitLockerPINModal(false)}
+                onWaitingChange={(isWaiting) => {
+                  setIsAwaitingPINOutcome(isWaiting);
+                  // A request already in flight would answer from before the submit, and react-query hands it back
+                  // rather than starting a second one unless it is cancelled.
+                  if (isWaiting) {
+                    refetchDupDetails({ cancelRefetch: true });
+                  }
+                }}
+                onExit={() => {
+                  setIsAwaitingPINOutcome(false);
+                  setShowBitLockerPINModal(false);
+                }}
               />
             ) : (
               <BitLockerPinInstructionsModal
