@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -444,6 +445,12 @@ func TestMDMConfiguredMiddlewareRunsAfterAuth(t *testing.T) {
 	ds.LoadHostByOrbitNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return nil, &notFoundError{}
 	}
+	ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+		return nil, &notFoundError{}
+	}
+	ds.HostByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+		return nil, &notFoundError{}
+	}
 
 	client := fleethttp.NewClient()
 
@@ -490,6 +497,7 @@ func TestMDMConfiguredMiddlewareRunsAfterAuth(t *testing.T) {
 		{"user route requiring any MDM", "GET", "/api/latest/fleet/commands", "", nil},
 		{"user route requiring Android MDM", "POST", "/api/latest/fleet/software/web_apps", mw.FormDataContentType(), androidBody.Bytes()},
 		{"orbit route requiring Windows MDM", "POST", "/api/fleet/orbit/disk_encryption_key", "", []byte(`{"orbit_node_key":"no-such-key"}`)},
+		{"device route requiring Apple MDM", "GET", "/api/latest/fleet/device/no-such-token/mdm/apple/manual_enrollment_profile", "", nil},
 	}
 
 	for _, c := range cases {
