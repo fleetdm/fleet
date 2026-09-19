@@ -274,7 +274,10 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			cpu_type = :cpu_type,
 			hardware_model = :hardware_model,
 			hardware_vendor = :hardware_vendor,
-			uuid = :uuid
+			uuid = :uuid,
+			-- a re-enrolling device keeps its row, so the enrollment time is refreshed here,
+			-- as EnrollHost does for osquery hosts. A plain status report leaves it alone.
+			last_enrolled_at = IF(:from_enroll, NOW(), last_enrolled_at)
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
@@ -292,9 +295,21 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			"hardware_model":    host.HardwareModel,
 			"hardware_vendor":   host.HardwareVendor,
 			"uuid":              host.UUID,
+			"from_enroll":       fromEnroll,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
+		}
+
+		// An Android host never checks in through osquery, so the AMAPI status reports that
+		// drive this update are the only evidence Fleet has heard from the device. Without a
+		// host_seen_times row the host reads as last seen when its row was created.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+			host.Host.ID, time.Now().UTC(),
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host seen time")
 		}
 
 		// Keep android_devices.team_id in sync so the team survives host deletion.
