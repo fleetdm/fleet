@@ -359,20 +359,8 @@ const handleAutoUpdateConfigAppStoreAppForm = (
     body.auto_update_window_start = formData.autoUpdateStartTime;
     body.auto_update_window_end = formData.autoUpdateEndTime;
   }
-  if (formData.targetType === "Custom") {
-    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
-    if (formData.customTarget === "labelsIncludeAny") {
-      body.labels_include_any = selectedLabels;
-    } else if (formData.customTarget === "labelsIncludeAll") {
-      body.labels_include_all = selectedLabels;
-    } else {
-      body.labels_exclude_any = selectedLabels;
-    }
-  } else {
-    body.labels_exclude_any = [];
-    body.labels_include_any = [];
-    body.labels_include_all = [];
-  }
+  // Target scope is read-only in this modal; omit label fields so the PATCH
+  // does not overwrite a target changed concurrently via "Edit software".
 };
 
 const handleEditAppStoreAppForm = (
