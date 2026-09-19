@@ -1,0 +1,1 @@
+- The Windows MDM management endpoint now answers every management session that lacks stored credentials with the same authentication challenge, regardless of the device identifier in the request.

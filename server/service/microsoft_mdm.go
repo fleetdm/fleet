@@ -1304,7 +1304,9 @@ const (
 // cannot be processed. Expected non-trusted outcomes (for example
 // RequestAuthStateChallenge or RequestAuthStateUnauthorized) are reported via
 // the returned auth state and may return a nil error. The returned enrolled
-// device may be nil when the state is RequestAuthStateUntrusted.
+// device is always non-nil when the state is RequestAuthStateTrusted, and may
+// be nil for any other state; in particular it is nil for a
+// RequestAuthStateChallenge issued to an unknown DeviceID.
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
 	if reqSyncML == nil {
 		return nil, RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
@@ -1316,9 +1318,39 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 		return nil, RequestAuthStateUntrusted, fmt.Errorf("invalid SyncML message %w", err)
 	}
 
+	// Validate the shape of any provided credentials before the enrollment
+	// lookup, so a malformed request gets the same response for every DeviceID.
+	var receivedDigestHash []byte
+	if cred := reqSyncML.SyncHdr.Cred; cred != nil {
+		credFormat := cred.Meta.Format
+		credType := cred.Meta.Type
+		if credFormat == nil || credType == nil || credFormat.Content == nil || credType.Content == nil {
+			return nil, RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is missing")
+		}
+		if *credFormat.Content != syncml.AuthB64Format || *credType.Content != syncml.AuthMD5 {
+			return nil, RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is invalid")
+		}
+		receivedDigestHash, err = base64.StdEncoding.DecodeString(cred.Data)
+		if err != nil {
+			return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "decode SyncML credentials data")
+		}
+	}
+
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-	if err != nil || enrolledDevice == nil {
-		return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
+	switch {
+	case fleet.IsNotFound(err) || (err == nil && enrolledDevice == nil):
+		// The response to an unknown DeviceID depends only on the request's
+		// shape, mirroring the enrolled paths below, so it can't confirm
+		// whether a DeviceID is enrolled: credentials present get the
+		// invalid-credentials response, none gets a challenge. Either way the
+		// nonce in the reply is a throwaway: it is never stored, so nothing
+		// that follows can validate against it.
+		if reqSyncML.SyncHdr.Cred != nil {
+			return nil, RequestAuthStateUnauthorized, nil
+		}
+		return nil, RequestAuthStateChallenge, nil
+	case err != nil:
+		return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "get enrolled device")
 	}
 
 	// Check if TLS certs contains device ID on its common name
@@ -1347,31 +1379,17 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 	}
 
 	if nonce == nil || *nonce == "" {
-		// Challenge the device if nonce is missing, which will send a new nonce and store it
-		return enrolledDevice, RequestAuthStateChallenge, nil
+		// No stored nonce to validate against (expired or never issued): treat
+		// the credentials as invalid rather than answering with a bare
+		// challenge, so the response matches the unknown-DeviceID path. The
+		// invalid-credentials response carries a fresh nonce, so a real device
+		// recomputes and retries the same way it would after a challenge.
+		return enrolledDevice, RequestAuthStateUnauthorized, nil
 	}
 
-	// Credentials are present, validate it
-	credFormat := reqSyncML.SyncHdr.Cred.Meta.Format
-	credType := reqSyncML.SyncHdr.Cred.Meta.Type
-	credData := reqSyncML.SyncHdr.Cred.Data
-
-	if credFormat == nil || credType == nil || credFormat.Content == nil || credType.Content == nil {
-		return nil, RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is missing")
-	}
-
-	if *credFormat.Content != syncml.AuthB64Format || *credType.Content != syncml.AuthMD5 {
-		return nil, RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is invalid")
-	}
-
-	// MD5 auth digest, which includes (username:password):nonce
+	// Validate the credentials' MD5 auth digest, which includes (username:password):nonce
 	// Where username:password is hashed and b64 encoded, and then further hased with the nonce and finally b64 encoded for transport
 	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf Chaper (5.3)
-	receivedDigestHash, err := base64.StdEncoding.DecodeString(credData)
-	if err != nil {
-		return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "decode SyncML credentials data")
-	}
-
 	encodedCredentialsHash := base64.StdEncoding.EncodeToString(*enrolledDevice.CredentialsHash)
 	expectedDigest := fmt.Sprintf("%s:%s", encodedCredentialsHash, *nonce)
 	expectedDigestHash := md5.Sum([]byte(expectedDigest)) //nolint:gosec // Windows MDM Auth uses MD5
@@ -1857,7 +1875,11 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 // re-query mdm_windows_enrollments for the same row.
 func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML, requestAuthState requestAuthState) ([]*fleet.SyncMLCmd, error) {
 	var responseCmds []*fleet.SyncMLCmd
-	deviceID := enrolledDevice.MDMDeviceID
+	// enrolledDevice is nil when challenging an unknown DeviceID.
+	var deviceID string
+	if enrolledDevice != nil {
+		deviceID = enrolledDevice.MDMDeviceID
+	}
 
 	saveResponse := func(topLevelExists []string) error {
 		enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
@@ -1906,9 +1928,14 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
 		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
 		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
-		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
+		// The nonce is only stored for enrolled devices; a challenge to an
+		// unknown DeviceID carries a throwaway nonce so unauthenticated callers
+		// can't grow the key-value store.
+		if enrolledDevice != nil {
+			err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, 5*time.Minute) //nolint:nilaway // svc is always constructed with a keyValueStore
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
+			}
 		}
 
 		status := syncml.CmdStatusAuthenticationRequired
@@ -1937,9 +1964,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 		}
 
 		responseCmds = append(responseCmds, ackMsg)
-		err = saveResponse([]string{})
-		if err != nil {
-			return nil, err
+		if enrolledDevice != nil {
+			if err := saveResponse([]string{}); err != nil {
+				return nil, err
+			}
 		}
 		return responseCmds, nil
 	}
