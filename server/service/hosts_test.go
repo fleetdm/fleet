@@ -1010,7 +1010,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
 	}
-	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 		return &fleet.HostArchivedDiskEncryptionKey{}, nil
 	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -1299,7 +1299,7 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
 	}
-	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 		return &fleet.HostArchivedDiskEncryptionKey{}, nil
 	}
 
@@ -4377,7 +4377,7 @@ func TestHostEncryptionKey(t *testing.T) {
 					Decryptable:     new(true),
 				}, nil
 			}
-			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 				return &fleet.HostArchivedDiskEncryptionKey{}, nil
 			}
 
@@ -4403,21 +4403,21 @@ func TestHostEncryptionKey(t *testing.T) {
 
 			t.Run("allowed users", func(t *testing.T) {
 				for _, u := range tt.allowedUsers {
-					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
+					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID, false)
 					require.NoError(t, err)
 				}
 			})
 
 			t.Run("disallowed users", func(t *testing.T) {
 				for _, u := range tt.disallowedUsers {
-					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
+					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID, false)
 					require.Error(t, err)
 					require.Contains(t, authz.ForbiddenErrorMessage, err.Error())
 				}
 			})
 
 			t.Run("no user in context", func(t *testing.T) {
-				_, err := svc.HostEncryptionKey(ctx, tt.host.ID)
+				_, err := svc.HostEncryptionKey(ctx, tt.host.ID, false)
 				require.Error(t, err)
 				require.Contains(t, authz.ForbiddenErrorMessage, err.Error())
 			})
@@ -4437,7 +4437,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return nil, hostErr
 		}
-		_, err := svc.HostEncryptionKey(ctx, 1)
+		_, err := svc.HostEncryptionKey(ctx, 1, false)
 		require.ErrorIs(t, err, hostErr)
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{}, nil
@@ -4447,10 +4447,10 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
 		}
-		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 			return &fleet.HostArchivedDiskEncryptionKey{}, nil
 		}
-		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 			return &fleet.HostArchivedDiskEncryptionKey{}, nil
 		}
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
@@ -4464,7 +4464,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
 			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
 		}
-		_, err = svc.HostEncryptionKey(ctx, 1)
+		_, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.ErrorIs(t, err, keyErr)
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return &fleet.HostDiskEncryptionKey{Base64Encrypted: "key"}, nil
@@ -4474,7 +4474,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			return errors.New("activity error")
 		}
 
-		_, err = svc.HostEncryptionKey(ctx, 1)
+		_, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.Error(t, err)
 	})
 
@@ -4511,7 +4511,7 @@ func TestHostEncryptionKey(t *testing.T) {
 						Decryptable:     new(true),
 					}, nil
 				}
-				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 					return &fleet.HostArchivedDiskEncryptionKey{}, nil
 				}
 				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
@@ -4528,7 +4528,7 @@ func TestHostEncryptionKey(t *testing.T) {
 
 				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 				ctx = test.UserContext(ctx, test.UserAdmin)
-				_, err := svc.HostEncryptionKey(ctx, 1)
+				_, err := svc.HostEncryptionKey(ctx, 1, false)
 				if c.shouldFail {
 					require.Error(t, err)
 					if c.macMDMEnabled && !c.winMDMEnabled && c.hostPlatform == "windows" {
@@ -4557,7 +4557,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			return host, nil
 		}
 		// A decryptable archived key is always present: Linux must never fall back to it.
-		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 			return &fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: base64ArchivedKey}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { // needed for new activity
@@ -4568,7 +4568,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		fleetCfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
-		key, err := svc.HostEncryptionKey(ctx, 1)
+		key, err := svc.HostEncryptionKey(ctx, 1, false)
 		require.Error(t, err, "private key is unavailable")
 		require.Nil(t, key)
 
@@ -4579,7 +4579,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		fleetCfg.Server.PrivateKey = symmetricKey
 		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
-		key, err = svc.HostEncryptionKey(ctx, 1)
+		key, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.True(t, fleet.IsNotFound(err), "expected not found, got: %v", err)
 		require.Nil(t, key)
 
@@ -4589,7 +4589,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		}
 		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
-		key, err = svc.HostEncryptionKey(ctx, 1)
+		key, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.True(t, fleet.IsNotFound(err), "expected not found, got: %v", err)
 		require.Nil(t, key)
 
@@ -4602,7 +4602,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		}
 		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
-		key, err = svc.HostEncryptionKey(ctx, 1)
+		key, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.Error(t, err, "decrypt host encryption key")
 		require.Nil(t, key)
 
@@ -4615,7 +4615,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		}
 		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
-		key, err = svc.HostEncryptionKey(ctx, 1)
+		key, err = svc.HostEncryptionKey(ctx, 1, false)
 		require.NoError(t, err)
 		require.Equal(t, passphrase, key.DecryptedValue)
 	})
@@ -4639,7 +4639,7 @@ func TestHostEncryptionKey(t *testing.T) {
 				Decryptable:     new(true),
 			}, nil
 		}
-		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 			return &fleet.HostArchivedDiskEncryptionKey{
 				Base64Encrypted: "invalidArchivedKey",
 			}, nil
@@ -4656,12 +4656,80 @@ func TestHostEncryptionKey(t *testing.T) {
 			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
 		}
 
-		_, err := svc.HostEncryptionKey(ctx, 1)
+		_, err := svc.HostEncryptionKey(ctx, 1, false)
 		require.Error(t, err)
 
 		var ume *fleet.UserMessageError
 		require.True(t, errors.As(err, &ume))
 		require.Contains(t, ume.Error(), "Couldn't decrypt the disk encryption key")
+	})
+
+	// The archived-key lookup can fall back to matching on hardware_serial, which is
+	// agent-reported and not scoped to a team. Only a globally-scoped user may request
+	// that fallback; for anyone else it is silently downgraded so the response is
+	// indistinguishable from "no archived key", leaving no cross-team probing oracle.
+	t.Run("serial fallback requires global scope", func(t *testing.T) {
+		teamHost := &fleet.Host{
+			ID:             3,
+			Platform:       "darwin",
+			NodeKey:        new("test_key_3"),
+			Hostname:       "test_hostname_3",
+			UUID:           "test_uuid_3",
+			HardwareSerial: "VICTIM_SERIAL",
+			TeamID:         new(uint(1)),
+		}
+
+		for _, tc := range []struct {
+			name         string
+			user         *fleet.User
+			wantFallback bool
+		}{
+			{"global admin", test.UserAdmin, true},
+			{"global observer", test.UserObserver, true},
+			{"team admin", test.UserTeamAdminTeam1, false},
+			{"team observer", test.UserTeamObserverTeam1, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+				}
+				opts := &TestServerOpts{}
+				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil, opts)
+
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return teamHost, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return nil, newNotFoundError()
+				}
+				var gotFallback bool
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, fallbackToSerial bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					gotFallback = fallbackToSerial
+					return &fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: base64EncryptedKey}, nil
+				}
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+					return nil
+				}
+				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+					_ sqlx.QueryerContext,
+				) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+						fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+						fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+					}, nil
+				}
+				ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+					return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: testCertPEM}}, nil
+				}
+
+				// The caller asks for the serial fallback in every case; only global scope grants it.
+				_, err := svc.HostEncryptionKey(test.UserContext(ctx, tc.user), teamHost.ID, true)
+				require.NoError(t, err)
+				require.True(t, ds.GetHostArchivedDiskEncryptionKeyFuncInvoked)
+				require.Equal(t, tc.wantFallback, gotFallback)
+			})
+		}
 	})
 }
 
@@ -5742,7 +5810,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return tt.appConfig, nil
 			}
-			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 				return &fleet.HostArchivedDiskEncryptionKey{}, nil
 			}
 

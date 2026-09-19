@@ -530,7 +530,7 @@ type Service interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
-	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+	HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*HostDiskEncryptionKey, error)
 	// EscrowLUKSData stores a LUKS key or a client error. A non-empty status instead records orbit's
 	// progress: prompting and escrowing keep the request in flight, canceled and timed_out end it.
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error

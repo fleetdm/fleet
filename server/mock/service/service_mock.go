@@ -293,7 +293,7 @@ type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolutio
 
 type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error)
 
-type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error)
+type HostEncryptionKeyFunc func(ctx context.Context, id uint, archivedFallbackToSerial bool) (*fleet.HostDiskEncryptionKey, error)
 
 type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
@@ -3497,11 +3497,11 @@ func (s *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.
 	return s.GetMunkiIssueFunc(ctx, munkiIssueID)
 }
 
-func (s *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+func (s *Service) HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*fleet.HostDiskEncryptionKey, error) {
 	s.mu.Lock()
 	s.HostEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostEncryptionKeyFunc(ctx, id)
+	return s.HostEncryptionKeyFunc(ctx, id, archivedFallbackToSerial)
 }
 
 func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error {
