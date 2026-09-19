@@ -95,6 +95,37 @@ describe("SoftwareFiltersModal component", () => {
     expect(checkbox).toHaveAttribute("aria-disabled", "false");
   });
 
+  it("always shows Min score and Max score, even for Any severity", () => {
+    renderModal();
+
+    expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Max score/i)).toBeInTheDocument();
+  });
+
+  it("does not offer Custom severity as a selectable dropdown option", async () => {
+    const { user } = setUpModal();
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("combobox", { name: "Severity" }));
+
+    const options = screen
+      .getAllByTestId("dropdown-option")
+      .map((el) => el.textContent);
+    expect(options.some((text) => text?.startsWith("Custom"))).toBe(false);
+  });
+
+  it("shows Custom severity as the current value when the saved range matches no preset", () => {
+    renderModal({
+      vulnFilters: {
+        ...vulnFiltersDefault,
+        vulnerable: true,
+        minCvssScore: 4.5,
+        maxCvssScore: 8.5,
+      },
+    });
+
+    expect(screen.getByText("Custom severity")).toBeInTheDocument();
+  });
+
   // Per frontend/docs/patterns.md#data-validation: Apply stays enabled, errors
   // appear on blur of a dirty field or on a submit attempt, and clear on focus.
   describe("validation lifecycle", () => {
@@ -103,15 +134,14 @@ describe("SoftwareFiltersModal component", () => {
     const scoreInput = (field: "minScore" | "maxScore") =>
       document.querySelector(`input[name="${field}"]`) as HTMLInputElement;
 
-    const setUpCustom = async () => {
+    const setUpEnabled = async () => {
       const rendered = setUpModal();
       await rendered.user.click(screen.getByRole("switch"));
-      await selectSeverity(rendered.user, "Custom severity");
       return rendered;
     };
 
     it("keeps Apply enabled with invalid input", async () => {
-      const { user } = await setUpCustom();
+      const { user } = await setUpEnabled();
 
       await user.type(scoreInput("minScore"), "11");
 
@@ -119,7 +149,7 @@ describe("SoftwareFiltersModal component", () => {
     });
 
     it("shows nothing while typing, then the error on blur", async () => {
-      const { user } = await setUpCustom();
+      const { user } = await setUpEnabled();
 
       await user.type(scoreInput("minScore"), "11");
       expect(
@@ -131,7 +161,7 @@ describe("SoftwareFiltersModal component", () => {
     });
 
     it("clears the error on focus, restoring the label", async () => {
-      const { user } = await setUpCustom();
+      const { user } = await setUpEnabled();
 
       await user.type(scoreInput("minScore"), "11");
       await user.tab();
@@ -145,7 +175,7 @@ describe("SoftwareFiltersModal component", () => {
     });
 
     it("shows an inverted range on the maximum, the dependent field", async () => {
-      const { user } = await setUpCustom();
+      const { user } = await setUpEnabled();
 
       await user.type(scoreInput("minScore"), "7");
       await user.type(scoreInput("maxScore"), "3");
@@ -161,7 +191,6 @@ describe("SoftwareFiltersModal component", () => {
       const rendered = setUpModal({ onSubmit: onSubmitSpy });
       const { user } = rendered;
       await user.click(screen.getByRole("switch"));
-      await selectSeverity(user, "Custom severity");
 
       await user.type(scoreInput("minScore"), "11");
       await user.click(screen.getByRole("button", { name: /Apply/i }));
@@ -172,7 +201,7 @@ describe("SoftwareFiltersModal component", () => {
 
     it("drops the error when Vulnerable software is switched off", async () => {
       const onSubmitSpy = jest.fn();
-      const { user } = await setUpCustom();
+      const { user } = await setUpEnabled();
 
       await user.type(scoreInput("minScore"), "11");
       await user.tab();
@@ -188,7 +217,7 @@ describe("SoftwareFiltersModal component", () => {
     });
 
     it("clears a score error when the severity option changes", async () => {
-      const { user } = await setUpCustom();
+      const { user } = await setUpEnabled();
 
       await user.type(scoreInput("minScore"), "11");
       await user.tab();
@@ -206,7 +235,6 @@ describe("SoftwareFiltersModal component", () => {
     const onSubmitSpy = jest.fn();
     const { user } = setUpModal({ onSubmit: onSubmitSpy });
     await user.click(screen.getByRole("switch"));
-    await selectSeverity(user, "Custom severity");
 
     const minInput = screen.getByLabelText(/Min score/i);
     const maxInput = screen.getByLabelText(/Max score/i);
@@ -271,7 +299,6 @@ describe("SoftwareFiltersModal component", () => {
     const onSubmitSpy = jest.fn();
     const { user } = setUpModal({ onSubmit: onSubmitSpy });
     await user.click(screen.getByRole("switch"));
-    await selectSeverity(user, "Custom severity");
 
     // A lone "0" in Min used to collapse the control to "Any severity" while
     // still submitting min_cvss_score=0.

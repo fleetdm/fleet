@@ -104,6 +104,29 @@ describe("ChartFilterModal severity", () => {
     );
   });
 
+  // The dropdown intentionally keeps showing "Critical severity" while the
+  // score inputs are being edited (no per-keystroke flicker), but what gets
+  // saved must reflect the range that was actually typed — otherwise
+  // reopening the modal, or the filter summary tooltip, would keep
+  // mislabeling a custom range as Critical indefinitely.
+  it("re-derives severity from the edited range on Apply, rather than saving the stale preset", async () => {
+    const onApply = jest.fn();
+    const { user } = renderModal({ onApply });
+
+    await user.click(screen.getByRole("button", { name: /Advanced options/i }));
+    await user.clear(screen.getByLabelText(/Min score/i));
+    await user.type(screen.getByLabelText(/Min score/i), "5");
+    await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: "custom",
+        cvssMin: "5",
+        cvssMax: "10",
+      })
+    );
+  });
+
   it("resets severity to Any on Clear all and hides the button", async () => {
     const { user } = renderModal();
 
@@ -277,14 +300,6 @@ describe("ChartFilterModal severity", () => {
       await user.click(
         screen.getByRole("button", { name: /Advanced options/i })
       );
-      await user.click(screen.getByRole("combobox", { name: "Severity" }));
-      const custom = screen
-        .getAllByTestId("dropdown-option")
-        .find((el) => el.textContent?.startsWith("Custom severity"));
-      if (!custom) {
-        throw new Error("No Custom severity option");
-      }
-      await user.click(custom);
 
       await user.type(maxScoreInput(), "{Enter}");
 
@@ -313,14 +328,17 @@ describe("ChartFilterModal severity", () => {
         screen.getByRole("button", { name: /Advanced options/i })
       );
       await user.clear(maxScoreInput());
-      await user.type(maxScoreInput(), "10");
+      // 9.5, not 10 — a corrected range that still matches no preset, so this
+      // stays focused on "Apply now works" rather than severity re-derivation
+      // (covered separately below).
+      await user.type(maxScoreInput(), "9.5");
       await user.click(screen.getByRole("button", { name: /^Apply$/i }));
 
       expect(onApply).toHaveBeenCalledWith(
         expect.objectContaining({
           severity: "custom",
           cvssMin: "9",
-          cvssMax: "10",
+          cvssMax: "9.5",
         })
       );
     });
