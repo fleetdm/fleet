@@ -5,9 +5,11 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +26,7 @@ func TestCertificateAuthority(t *testing.T) {
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
 		{"Delete", testDeleteCertificateAuthority},
 		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
+		{"UpdateDigiCertProfileVariableAssociations", testUpdateDigiCertProfileVariableAssociations},
 	}
 
 	for _, c := range cases {
@@ -616,6 +619,277 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "updated-username", *updatedCA.Username)
 		require.Equal(t, "updated-password", *updatedCA.Password)
 	})
+}
+
+func testUpdateDigiCertProfileVariableAssociations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	caName := "digicert_ca"
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:                          string(fleet.CATypeDigiCert),
+		Name:                          &caName,
+		URL:                           new("https://example.com"),
+		APIToken:                      new("token"),
+		ProfileID:                     new("profile"),
+		CertificateCommonName:         new(fleet.FleetVarHostEndUserIDPUsername.WithPrefix()),
+		CertificateUserPrincipalNames: &[]string{},
+		CertificateSeatID:             new("seat"),
+	})
+	require.NoError(t, err)
+
+	profileInput := generateAppleCP("digicert", "digicert", 0)
+	profileInput.Mobileconfig = []byte(
+		fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + " " + fleet.FleetVarHostEndUserIDPFullname.WithPrefix(),
+	)
+	profile, err := ds.NewMDMAppleConfigProfile(ctx, *profileInput, []fleet.FleetVarName{
+		fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName),
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPFullname,
+	})
+	require.NoError(t, err)
+
+	otherCAName := "other_digicert_ca"
+	_, err = ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:                          string(fleet.CATypeDigiCert),
+		Name:                          &otherCAName,
+		URL:                           new("https://example.com"),
+		APIToken:                      new("other-token"),
+		ProfileID:                     new("other-profile"),
+		CertificateCommonName:         new(fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix()),
+		CertificateUserPrincipalNames: &[]string{},
+		CertificateSeatID:             new("other-seat"),
+	})
+	require.NoError(t, err)
+	otherProfileInput := generateAppleCP("other-digicert", "other-digicert", 0)
+	otherProfileInput.Mobileconfig = []byte(fleet.FleetVarDigiCertPasswordPrefix.WithPrefix() + otherCAName)
+	otherProfile, err := ds.NewMDMAppleConfigProfile(ctx, *otherProfileInput, []fleet.FleetVarName{
+		fleet.FleetVarName(string(fleet.FleetVarDigiCertPasswordPrefix) + otherCAName),
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+	})
+	require.NoError(t, err)
+	combinedProfileInput := generateAppleCP("combined-digicert", "combined-digicert", 0)
+	combinedProfileInput.Mobileconfig = []byte(
+		fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + " " + fleet.FleetVarDigiCertPasswordPrefix.WithPrefix() + otherCAName,
+	)
+	combinedProfile, err := ds.NewMDMAppleConfigProfile(ctx, *combinedProfileInput, []fleet.FleetVarName{
+		fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName),
+		fleet.FleetVarName(string(fleet.FleetVarDigiCertPasswordPrefix) + otherCAName),
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+	})
+	require.NoError(t, err)
+
+	getVariables := func(profileUUID string) map[string]uint {
+		var rows []struct {
+			ID   uint   `db:"id"`
+			Name string `db:"name"`
+		}
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, `
+			SELECT mcpv.id, fv.name
+			FROM mdm_configuration_profile_variables mcpv
+			JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
+			WHERE mcpv.apple_profile_uuid = ?
+			ORDER BY fv.name
+		`, profileUUID)
+		require.NoError(t, err)
+		actual := make(map[string]uint, len(rows))
+		for _, row := range rows {
+			actual[row.Name] = row.ID
+		}
+		return actual
+	}
+	checkVariables := func(profileUUID string, expected []string) {
+		actual := getVariables(profileUUID)
+		for _, name := range expected {
+			require.Contains(t, actual, name)
+		}
+		require.Len(t, actual, len(expected))
+	}
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
+	})
+	checkVariables(otherProfile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_PASSWORD_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
+	})
+	checkVariables(combinedProfile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_DIGICERT_PASSWORD_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
+	})
+	otherProfileVariables := getVariables(otherProfile.ProfileUUID)
+	profileVariablesBeforeRename := getVariables(profile.ProfileUUID)
+
+	renamedCA := "renamed_digicert_ca"
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert),
+		Name: &renamedCA,
+	}))
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
+	})
+	require.Equal(t, profileVariablesBeforeRename, getVariables(profile.ProfileUUID))
+	require.Equal(t, otherProfileVariables, getVariables(otherProfile.ProfileUUID))
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert),
+		Name: &caName,
+	}))
+	require.Equal(t, profileVariablesBeforeRename, getVariables(profile.ProfileUUID))
+
+	department := fleet.FleetVarHostEndUserIDPDepartment.WithPrefix()
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+		Type:                  string(fleet.CATypeDigiCert),
+		CertificateCommonName: &department,
+	}))
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+	})
+	checkVariables(combinedProfile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_DIGICERT_PASSWORD_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
+	})
+	require.Equal(t, otherProfileVariables, getVariables(otherProfile.ProfileUUID))
+
+	groups := fleet.FleetVarHostEndUserIDPGroups.WithPrefix()
+	require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+		Update: []*fleet.CertificateAuthority{{
+			Type:                          string(fleet.CATypeDigiCert),
+			Name:                          &caName,
+			URL:                           new("https://example.com"),
+			APIToken:                      new("token"),
+			ProfileID:                     new("profile"),
+			CertificateCommonName:         &groups,
+			CertificateUserPrincipalNames: &[]string{},
+			CertificateSeatID:             new("seat"),
+		}},
+	}))
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
+	})
+	checkVariables(combinedProfile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_DIGICERT_PASSWORD_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
+	})
+	require.Equal(t, otherProfileVariables, getVariables(otherProfile.ProfileUUID))
+
+	profileVariables := getVariables(profile.ProfileUUID)
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeDigiCert),
+		ProfileID: new("updated-profile"),
+	}))
+	require.Equal(t, profileVariables, getVariables(profile.ProfileUUID))
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+		Type:                  string(fleet.CATypeDigiCert),
+		CertificateCommonName: &groups,
+	}))
+	require.Equal(t, profileVariables, getVariables(profile.ProfileUUID))
+	require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+		Update: []*fleet.CertificateAuthority{{
+			Type:                          string(fleet.CATypeDigiCert),
+			Name:                          &caName,
+			URL:                           new("https://updated.example.com"),
+			APIToken:                      new("updated-token"),
+			ProfileID:                     new("updated-profile"),
+			CertificateCommonName:         &groups,
+			CertificateUserPrincipalNames: &[]string{},
+			CertificateSeatID:             new("seat"),
+		}},
+	}))
+	require.Equal(t, profileVariables, getVariables(profile.ProfileUUID))
+
+	profileVariablesBeforeDelete := getVariables(profile.ProfileUUID)
+	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
+	require.NoError(t, err)
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
+	})
+	require.Equal(t, profileVariablesBeforeDelete, getVariables(profile.ProfileUUID))
+	require.Equal(t, otherProfileVariables, getVariables(otherProfile.ProfileUUID))
+
+	recreatedCA, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:                          string(fleet.CATypeDigiCert),
+		Name:                          &caName,
+		URL:                           new("https://example.com"),
+		APIToken:                      new("token"),
+		ProfileID:                     new("profile"),
+		CertificateCommonName:         new(fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix()),
+		CertificateUserPrincipalNames: &[]string{},
+		CertificateSeatID:             new("seat"),
+	})
+	require.NoError(t, err)
+	require.NotZero(t, recreatedCA.ID)
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
+	})
+	require.Equal(t, profileVariablesBeforeDelete, getVariables(profile.ProfileUUID))
+	require.Equal(t, otherProfileVariables, getVariables(otherProfile.ProfileUUID))
+
+	caTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = caTx.Rollback() })
+	require.NoError(t, lockDigiCertProfileVariableAssociations(ctx, caTx))
+	_, err = getDigiCertCAByIDForProfileVariables(ctx, caTx, recreatedCA.ID)
+	require.NoError(t, err)
+	_, err = caTx.ExecContext(ctx, `
+		UPDATE certificate_authorities
+		SET certificate_common_name = ?
+		WHERE id = ?
+	`, department, recreatedCA.ID)
+	require.NoError(t, err)
+
+	profileTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = profileTx.Rollback() })
+	_, err = profileTx.ExecContext(ctx, `
+		UPDATE mdm_apple_configuration_profiles
+		SET mobileconfig = mobileconfig
+		WHERE profile_uuid = ?
+	`, profile.ProfileUUID)
+	require.NoError(t, err)
+
+	profileAssociationResult := make(chan error, 1)
+	go func() {
+		_, err := batchSetProfileVariableAssociationsDB(ctx, profileTx, []fleet.MDMProfileUUIDFleetVariables{{
+			ProfileUUID: profile.ProfileUUID,
+			FleetVariables: []fleet.FleetVarName{
+				fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName),
+				fleet.FleetVarHostEndUserIDPGroups,
+				fleet.FleetVarHostEndUserIDPFullname,
+			},
+		}}, "darwin", false)
+		profileAssociationResult <- err
+	}()
+	require.NoError(t, ds.refreshDigiCertProfileVariableAssociations(ctx, caTx, caName))
+	require.NoError(t, caTx.Commit())
+	select {
+	case err := <-profileAssociationResult:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for profile variable associations")
+	}
+	require.NoError(t, profileTx.Commit())
+	checkVariables(profile.ProfileUUID, []string{
+		"FLEET_VAR_DIGICERT_DATA_",
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
+		"FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+	})
+	require.Equal(t, otherProfileVariables, getVariables(otherProfile.ProfileUUID))
 }
 
 // // TODO(hca): refactor old app config test to cover new implementations
