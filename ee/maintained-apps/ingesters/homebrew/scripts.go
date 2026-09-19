@@ -741,10 +741,6 @@ const quitApplicationFunc = `quit_application() {
 
 // quitAndTrackApplicationFunc quits a running application and tracks whether it was running
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
-//
-// var_name reaches an eval, so map everything outside [A-Za-z0-9_]: a bundle ID
-// with a space ("org.mozilla.pale moon") otherwise splits the eval in two and
-// relaunch never sees the flag.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
