@@ -7,7 +7,12 @@
 #
 # Options:
 #   -w, --workspace NAME  Terraform workspace name (required)
-#   -i, --interval RANGE  Lookback interval. Accepts <N>h, <N>m, or a bare integer (treated as hours). Default: 3h
+#   -i, --interval RANGE  Window length. Accepts <N>h, <N>m, or a bare integer (treated as hours). Default: 3h
+#   -e, --end WHEN        End of the window. Accepts an absolute UTC timestamp
+#                         (2026-08-28T02:28:58Z) or a relative age (<N>h / <N>m / bare
+#                         integer hours, meaning "that long ago"). Default: now.
+#                         Combine with --interval to grab an arbitrary past range, e.g.
+#                         "--interval 90m --end 2h" = the 90 minutes ending 2 hours ago.
 #   -c, --category CAT    Run category for filing output: baseline | migration | mdm.
 #                         Files output under runs/<category>/<workspace>/. Omit to use runs/<workspace>/.
 #   -n, --note TEXT       Free-form note about this collection (e.g. what was being exercised).
@@ -17,7 +22,7 @@
 #   -h, --help            Show this help message
 #
 # The script discovers AWS resources by naming convention from the Terraform workspace name,
-# then collects CloudWatch metrics averaged over the specified interval ending at the current time.
+# then collects CloudWatch metrics averaged over the window [end - interval, end].
 #
 # Required: aws cli v2, jq
 
@@ -42,6 +47,7 @@ WORKSPACE=""
 OUTPUT=""
 REGION="us-east-2"
 INTERVAL_INPUT="3h"
+END_INPUT=""
 CATEGORY=""
 NOTE=""
 
@@ -49,6 +55,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -w|--workspace)  WORKSPACE="$2"; shift 2 ;;
     -i|--interval)   INTERVAL_INPUT="$2"; shift 2 ;;
+    -e|--end)        END_INPUT="$2"; shift 2 ;;
     -c|--category)   CATEGORY="$2"; shift 2 ;;
     -n|--note)       NOTE="$2"; shift 2 ;;
     -o|--output)     OUTPUT="$2"; shift 2 ;;
@@ -113,35 +120,83 @@ case "$INTERVAL_UNIT" in
 esac
 INTERVAL_LABEL="${INTERVAL_NUM}${INTERVAL_UNIT}"
 
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Resolve the end of the window: now, an absolute UTC timestamp, or a relative age.
+if [[ -z "$END_INPUT" ]]; then
+  END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+elif [[ "$END_INPUT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+  END_TIME="$END_INPUT"
+elif [[ "$END_INPUT" =~ ^([0-9]+)([hm]?)$ ]]; then
+  end_num="${BASH_REMATCH[1]}"; end_unit="${BASH_REMATCH[2]:-h}"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    case "$end_unit" in
+      h) END_TIME=$(date -u -v-${end_num}H +"%Y-%m-%dT%H:%M:%SZ") ;;
+      m) END_TIME=$(date -u -v-${end_num}M +"%Y-%m-%dT%H:%M:%SZ") ;;
+    esac
+  else
+    case "$end_unit" in
+      h) END_TIME=$(date -u -d "${end_num} hours ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
+      m) END_TIME=$(date -u -d "${end_num} minutes ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
+    esac
+  fi
+else
+  echo "Error: --end must be a UTC timestamp (2026-08-28T02:28:58Z) or a relative age ('2h', '90m', or a bare integer meaning hours). Got: '$END_INPUT'" >&2
+  exit 1
+fi
+
+TIMESTAMP="$END_TIME"
+# Wall-clock time this run actually executed. Distinct from the window end once
+# --end is used to collect a historical range.
+COLLECTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Runs are filed under runs/[<category>/]<workspace>/. compare-metrics.sh discovers
 # them recursively, so the category subfolder is purely for human organization.
 METRICS_DIR="${SCRIPT_DIR}/runs${CATEGORY:+/$CATEGORY}/${WORKSPACE}"
 mkdir -p "$METRICS_DIR"
-OUTPUT="${OUTPUT:-${METRICS_DIR}/${WORKSPACE}-$(date -u +%Y-%m-%d-%H%M%SZ)-${INTERVAL_LABEL}.json}"
+END_STAMP="${END_TIME//:/}"
+END_STAMP="${END_STAMP/T/-}"
+OUTPUT="${OUTPUT:-${METRICS_DIR}/${WORKSPACE}-${END_STAMP}-${INTERVAL_LABEL}.json}"
 # Ensure the parent dir exists even when a custom --output path is given.
 mkdir -p "$(dirname "$OUTPUT")"
 
 # ---------------------------------------------------------------------------
 # Time window: <interval> ending now
 # ---------------------------------------------------------------------------
-END_TIME="$TIMESTAMP"
+# START_TIME is END_TIME minus the interval, so an explicit --end shifts the whole
+# window into the past rather than just changing its length.
 if [[ "$(uname)" == "Darwin" ]]; then
-  case "$INTERVAL_UNIT" in
-    h) START_TIME=$(date -u -v-${INTERVAL_NUM}H +"%Y-%m-%dT%H:%M:%SZ") ;;
-    m) START_TIME=$(date -u -v-${INTERVAL_NUM}M +"%Y-%m-%dT%H:%M:%SZ") ;;
-  esac
+  END_EPOCH_TMP=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$END_TIME" +%s)
+  START_TIME=$(date -u -r $((END_EPOCH_TMP - INTERVAL_SECONDS)) +"%Y-%m-%dT%H:%M:%SZ")
 else
-  case "$INTERVAL_UNIT" in
-    h) START_TIME=$(date -u -d "${INTERVAL_NUM} hours ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
-    m) START_TIME=$(date -u -d "${INTERVAL_NUM} minutes ago" +"%Y-%m-%dT%H:%M:%SZ") ;;
-  esac
+  END_EPOCH_TMP=$(date -u -d "$END_TIME" +%s)
+  START_TIME=$(date -u -d "@$((END_EPOCH_TMP - INTERVAL_SECONDS))" +"%Y-%m-%dT%H:%M:%SZ")
+fi
+
+# Epoch equivalents of the window bounds, used by Logs Insights and ECS stopped-task
+# filtering. The -u flag matters on macOS: without it, `date -j -f` parses the UTC
+# timestamp as local wall time and the epoch is off by the UTC offset.
+if [[ "$(uname)" == "Darwin" ]]; then
+  START_EPOCH=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$START_TIME" +%s)
+  END_EPOCH=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$END_TIME" +%s)
+else
+  START_EPOCH=$(date -u -d "$START_TIME" +%s)
+  END_EPOCH=$(date -u -d "$END_TIME" +%s)
 fi
 
 # Max 5-min data points expected in this window (minimum 1 to avoid div-by-zero
 # on sub-5-minute intervals).
 MAX_POINTS=$(( INTERVAL_SECONDS / 300 ))
+
+# Performance Insights aligns the requested window to a multiple of
+# --period-in-seconds. With period=3600 a sub-hour window collapses (aligned
+# start == aligned end, zero datapoints) and a 30m window can expand to 2h, so
+# Top SQL silently comes back empty or for the wrong time range. Keep the period
+# small enough that alignment error stays bounded, while capping the datapoint
+# count for long windows. Valid PI periods: 1, 60, 300, 3600, 86400.
+if (( INTERVAL_SECONDS <= 21600 )); then
+  PI_PERIOD=300      # <= 6h: at most 72 points, alignment error <= 5m
+else
+  PI_PERIOD=3600     # longer windows: hour alignment is a small relative skew
+fi
 [[ $MAX_POINTS -lt 1 ]] && MAX_POINTS=1
 
 echo "Collecting metrics for workspace: $WORKSPACE"
@@ -251,11 +306,15 @@ if [[ -n "$RDS_WRITER_INSTANCE" ]]; then
 fi
 
 RDS_READER_DBI_RESOURCE_IDS=()
-for reader in "${RDS_READER_INSTANCES[@]}"; do
-  rid=$(aws rds describe-db-instances --db-instance-identifier "$reader" --region "$REGION" \
-    --query "DBInstances[0].DbiResourceId" --output text 2>/dev/null || echo "")
-  [[ -n "$rid" ]] && RDS_READER_DBI_RESOURCE_IDS+=("$rid")
-done
+# Guard the expansion: bash 3.2 (macOS default) treats "${arr[@]}" on an empty
+# array as an unbound-variable error under `set -u`.
+if [[ ${#RDS_READER_INSTANCES[@]} -gt 0 ]]; then
+  for reader in "${RDS_READER_INSTANCES[@]}"; do
+    rid=$(aws rds describe-db-instances --db-instance-identifier "$reader" --region "$REGION" \
+      --query "DBInstances[0].DbiResourceId" --output text 2>/dev/null || echo "")
+    [[ -n "$rid" ]] && RDS_READER_DBI_RESOURCE_IDS+=("$rid")
+  done
+fi
 
 # ElastiCache Redis — try both naming patterns
 REDIS_REPLICATION_GROUP=""
@@ -380,9 +439,11 @@ collect_metric() {
   local dp_count
   dp_count=$(echo "$fine" | jq '[.Datapoints[]] | length')
 
-  # Extract the single datapoint, rounding numbers to 2 decimal places
+  # Extract the single datapoint, rounding numbers to 4 decimal places.
+  # 4 (not 2) because seconds-scale metrics like ALB TargetResponseTime average
+  # in the 0.001-0.05s range — 2-decimal rounding flattened them to 0.
   local datapoint
-  datapoint=$(echo "$result" | jq '.Datapoints[0] // null | if . then with_entries(if .value | type == "number" then .value = (.value * 100 | round / 100) else . end) else null end')
+  datapoint=$(echo "$result" | jq '.Datapoints[0] // null | if . then with_entries(if .value | type == "number" then .value = (.value * 10000 | round / 10000) else . end) else null end')
 
   jq -n \
     --argjson dp "$datapoint" \
@@ -925,12 +986,15 @@ if [[ -n "$RDS_WRITER_DBI_RESOURCE_ID" ]]; then
     --identifier "$RDS_WRITER_DBI_RESOURCE_ID" \
     --start-time "$START_TIME" \
     --end-time "$END_TIME" \
-    --period-in-seconds 300 \
+    --period-in-seconds "$PI_PERIOD" \
     --metric-queries '[{"Metric":"db.load.avg","GroupBy":{"Group":"db.sql_tokenized","Limit":5}}]' \
     --region "$REGION" \
     --output json 2>/dev/null || echo '{}')
 
   RDS_PI_WRITER=$(flatten_top_sql "$pi_raw")
+  if [[ "$(echo "$RDS_PI_WRITER" | jq 'length')" -eq 0 ]]; then
+    echo "    [!] no Top SQL returned for the writer — window aligned to $(echo "$pi_raw" | jq -r '.AlignedStartTime // "?"') .. $(echo "$pi_raw" | jq -r '.AlignedEndTime // "?"')"
+  fi
 fi
 
 # Performance Insights for reader(s)
@@ -947,12 +1011,15 @@ if [[ ${#RDS_READER_DBI_RESOURCE_IDS[@]} -gt 0 ]]; then
       --identifier "$rid" \
       --start-time "$START_TIME" \
       --end-time "$END_TIME" \
-      --period-in-seconds 300 \
+      --period-in-seconds "$PI_PERIOD" \
       --metric-queries '[{"Metric":"db.load.avg","GroupBy":{"Group":"db.sql_tokenized","Limit":5}}]' \
       --region "$REGION" \
       --output json 2>/dev/null || echo '{}')
 
     pi_flat=$(flatten_top_sql "$pi_raw")
+    if [[ "$(echo "$pi_flat" | jq 'length')" -eq 0 ]]; then
+      echo "    [!] no Top SQL returned for $reader_label — window aligned to $(echo "$pi_raw" | jq -r '.AlignedStartTime // "?"') .. $(echo "$pi_raw" | jq -r '.AlignedEndTime // "?"')"
+    fi
     pi_reader_obj=$(jq -n --arg inst "$reader_label" --argjson sql "$pi_flat" '{instance: $inst, top_sql: $sql}')
     pi_reader_arr=$(echo "$pi_reader_arr" | jq --argjson obj "$pi_reader_obj" '. + [$obj]')
     idx=$((idx + 1))
@@ -1121,6 +1188,24 @@ if [[ -n "$ALB_ARN_SUFFIX" ]]; then
     "Name=LoadBalancer,Value=$ALB_ARN_SUFFIX" \
     Average Maximum Minimum)
 
+  # TargetResponseTime percentiles: the Average hides tail latency and the
+  # Maximum is a single slowest request (noisy). p95/p99 are the stable
+  # regression signals. Percentiles require --extended-statistics, which the
+  # API doesn't allow in the same call as --statistics.
+  echo "  ALB: TargetResponseTime p95/p99 (tail latency)..."
+  alb_pcts_raw=$(aws cloudwatch get-metric-statistics \
+    --namespace "AWS/ApplicationELB" \
+    --metric-name "TargetResponseTime" \
+    --dimensions "Name=LoadBalancer,Value=$ALB_ARN_SUFFIX" \
+    --start-time "$START_TIME" \
+    --end-time "$END_TIME" \
+    --period "$INTERVAL_SECONDS" \
+    --extended-statistics p95 p99 \
+    --region "$REGION" \
+    --output json 2>/dev/null || echo '{"Datapoints":[]}')
+  alb_percentiles=$(echo "$alb_pcts_raw" | jq '.Datapoints[0].ExtendedStatistics // null
+    | if . then with_entries(.value = (.value * 10000 | round / 10000)) else null end')
+
   # HTTPCode_Target_5XX_Count: Total number of HTTP 5xx responses from Fleet
   # server containers. Non-zero values indicate server errors. Track over time
   # to catch regressions that introduce error-producing code paths.
@@ -1128,6 +1213,18 @@ if [[ -n "$ALB_ARN_SUFFIX" ]]; then
   alb_5xx=$(collect_metric "AWS/ApplicationELB" "HTTPCode_Target_5XX_Count" \
     "Name=LoadBalancer,Value=$ALB_ARN_SUFFIX" \
     Sum)
+  # CloudWatch only publishes 5xx datapoints when errors occur, so "no data"
+  # genuinely means zero. Record 0 instead of null so comparisons can grade it.
+  [[ "$alb_5xx" == "null" ]] && alb_5xx='{"Sum": 0, "Unit": "Count", "no_datapoints": true}'
+
+  # HTTPCode_ELB_5XX_Count: 5xx generated by the ALB itself (target connection
+  # failures, timeouts, no healthy targets). These never reach Fleet server
+  # logs, so target-5xx alone misses them.
+  echo "  ALB: HTTPCode_ELB_5XX_Count (ALB-generated errors)..."
+  alb_elb_5xx=$(collect_metric "AWS/ApplicationELB" "HTTPCode_ELB_5XX_Count" \
+    "Name=LoadBalancer,Value=$ALB_ARN_SUFFIX" \
+    Sum)
+  [[ "$alb_elb_5xx" == "null" ]] && alb_elb_5xx='{"Sum": 0, "Unit": "Count", "no_datapoints": true}'
 
   # RequestCount: Total HTTP requests handled by the ALB during the interval.
   # Useful for normalizing other metrics (e.g. errors per request) and verifying
@@ -1148,12 +1245,16 @@ if [[ -n "$ALB_ARN_SUFFIX" ]]; then
 
   ALB_METRICS=$(jq -n \
     --argjson latency "$alb_latency" \
+    --argjson percentiles "$alb_percentiles" \
     --argjson errors_5xx "$alb_5xx" \
+    --argjson elb_5xx "$alb_elb_5xx" \
     --argjson requests "$alb_requests" \
     --argjson bytes "$alb_bytes" \
     '{
       target_response_time: $latency,
+      target_response_time_percentiles: $percentiles,
       http_5xx_count: $errors_5xx,
+      http_elb_5xx_count: $elb_5xx,
       request_count: $requests,
       processed_bytes: $bytes
     }')
@@ -1176,8 +1277,8 @@ if [[ -n "$FLEET_LOG_GROUP" ]]; then
   # Start the Logs Insights query (async)
   LOGS_QUERY_ID=$(aws logs start-query \
     --log-group-name "$FLEET_LOG_GROUP" \
-    --start-time "$(date -d "$START_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$START_TIME" +%s)" \
-    --end-time "$(date -d "$END_TIME" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$END_TIME" +%s)" \
+    --start-time "$START_EPOCH" \
+    --end-time "$END_EPOCH" \
     --query-string 'fields @timestamp, @message
 | filter ispresent(error) or ispresent(err) or level = "error"
 | filter @message not like /fleet_detail_query_software/
@@ -1202,9 +1303,18 @@ if [[ -n "$FLEET_LOG_GROUP" ]]; then
     done
 
     if [[ "$logs_status" == "Complete" ]]; then
-      # Count total matched records and extract sample messages
+      # Count total matched records and extract sample messages.
+      # Sample messages are raw server log lines and the run artifacts get
+      # committed to the public repo, so redact anything that looks like a
+      # secret (long base64/hex/token runs) before writing. Short identifiers,
+      # paths, and error text survive — enough for triage.
       logs_total=$(echo "$logs_result" | jq '.statistics.recordsMatched // 0')
-      logs_samples=$(echo "$logs_result" | jq '[.results[:10][] | [.[] | select(.field == "@message") | .value] | first // empty]')
+      logs_samples=$(echo "$logs_result" | jq '
+        def redact_secrets:
+          gsub("[A-Za-z0-9+/=]{40,}"; "<redacted>")
+          | gsub("\\b[A-Fa-f0-9]{32,}\\b"; "<redacted>")
+          | gsub("[A-Za-z0-9_-]{32,}"; "<redacted>");
+        [.results[:10][] | [.[] | select(.field == "@message") | .value] | first // empty | redact_secrets]')
 
       LOGS_ERRORS=$(jq -n \
         --argjson total "$logs_total" \
@@ -1372,44 +1482,74 @@ fi
 # -------------------------------------------------------------------------
 # osquery-perf / loadtest container health
 #
-# Checks two things:
+# Checks three things:
 #   1. Stopped tasks — any tasks with non-zero exit codes during the interval
-#      indicate crashes or OOM kills. Expected: 0.
-#   2. Running task uptime — queries all running tasks for the loadtest service,
-#      captures each task's startedAt time and calculates uptime. If any
-#      container started significantly later than the others (>10 min spread),
-#      it likely restarted. All containers should start within a few minutes
-#      of each other.
+#      indicate crashes or OOM kills. Expected: 0. (ECS only retains stopped
+#      tasks ~1h, so this only sees recent crashes.)
+#   2. ECS service events — the scheduler's own event log (last 100 events per
+#      service) is a longer-lived record. Health-check failures and placement
+#      failures are genuine problems; deliberate restarts (e.g. a server
+#      migration rolling the containers) emit only start/stop events and are
+#      NOT counted, so migration runs don't false-positive.
+#   3. Running task uptime — each running task's startedAt and uptime, kept as
+#      context for spotting stragglers manually.
 #
 # Output JSON:
-#   abnormal_stops:    count of tasks that stopped with non-zero exit code
-#   running_tasks:     number of currently running tasks
-#   oldest_start:      ISO timestamp of the earliest startedAt
-#   newest_start:      ISO timestamp of the latest startedAt
-#   start_spread_min:  difference in minutes between oldest and newest start
-#   start_spread_alert: true if spread > 10 minutes (indicates a restart)
-#   tasks:             array of {task_id, started_at, uptime_min} per task
+#   abnormal_stops:        loadtest/osquery_perf tasks stopped with non-zero exit code
+#   fleet_abnormal_stops:  fleet server tasks stopped with non-zero exit code
+#   running_tasks:         number of currently running tasks
+#   failed_health_checks:  service events reporting failed/unhealthy health checks
+#   unable_to_place:       service events reporting task placement failures
+#   service_events:        the matching failure events [{service, at, message}]
+#   tasks:                 array of {task_id, started_at, uptime_min} per task
 # -------------------------------------------------------------------------
 CONTAINER_HEALTH="{}"
 LOADTEST_SVC="${OSQUERY_PERF_SERVICE:-${LOADTEST_SERVICES[0]:-}}"
+
+# jq helper: parse AWS CLI timestamps to epoch seconds. The CLI renders
+# datetimes as ISO 8601 with fractional seconds and a UTC *or local* offset
+# (e.g. "2026-07-10T10:00:00.123000-05:00"), so neither plain strptime nor
+# lexicographic comparison against a "...Z" string is safe.
+JQ_TS_EPOCH='def ts_epoch:
+  sub("\\.[0-9]+"; "") |
+  if endswith("Z") then strptime("%Y-%m-%dT%H:%M:%SZ") | mktime
+  else capture("(?<t>.+)(?<s>[+-])(?<h>[0-9]{2}):?(?<m>[0-9]{2})$") |
+    ((.t | strptime("%Y-%m-%dT%H:%M:%S") | mktime)
+     - (if .s == "+" then 1 else -1 end) * ((.h | tonumber) * 3600 + (.m | tonumber) * 60))
+  end;'
+
 if [[ -n "$LOADTEST_SVC" ]]; then
   echo "  Loadtest: Checking for container restarts..."
-  # List stopped tasks in the cluster from the interval and count non-zero exit codes
+  # List stopped tasks in the cluster from the interval and count non-zero exit
+  # codes, split into loadtest tasks vs the Fleet server itself. Note: ECS only
+  # retains stopped tasks for about an hour, so over a long interval this
+  # undercounts — treat it as "recent crashes", not a full-window total.
   stopped_tasks=$(aws ecs list-tasks --cluster "$ECS_CLUSTER" --desired-status STOPPED \
     --region "$REGION" --output json 2>/dev/null || echo '{"taskArns":[]}')
   stopped_arns=$(echo "$stopped_tasks" | jq -r '.taskArns[]' | head -50)
 
   restart_count=0
+  fleet_restart_count=0
   if [[ -n "$stopped_arns" ]]; then
     task_details=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" \
       --tasks $stopped_arns \
       --region "$REGION" --output json 2>/dev/null || echo '{"tasks":[]}')
 
-    restart_count=$(echo "$task_details" | jq \
-      --arg starttime "$START_TIME" --arg endtime "$END_TIME" \
-      '[.tasks[] | select(.stoppedAt >= $starttime) | select(.stoppedAt <= $endtime) | select([.containers[]? | select(.exitCode > 0)] | length > 0)] | length')
+    abnormal_stops_json=$(echo "$task_details" | jq \
+      --argjson start "$START_EPOCH" --argjson wend "$END_EPOCH" \
+      "$JQ_TS_EPOCH"'
+      [.tasks[]
+        | select(.stoppedAt) | select((.stoppedAt | ts_epoch) >= $start and (.stoppedAt | ts_epoch) <= $wend)
+        | select([.containers[]? | select(.exitCode != null and .exitCode > 0)] | length > 0)
+        | .group // ""] |
+      {
+        loadtest: [.[] | select(test("^service:(loadtest|osquery_perf)"))] | length,
+        fleet:    [.[] | select(. == "service:fleet")] | length
+      }' 2>/dev/null || echo '{"loadtest":0,"fleet":0}')
+    restart_count=$(echo "$abnormal_stops_json" | jq '.loadtest')
+    fleet_restart_count=$(echo "$abnormal_stops_json" | jq '.fleet')
   fi
-  echo "  Loadtest: $restart_count abnormal container stops detected"
+  echo "  Loadtest: $restart_count abnormal loadtest stops, $fleet_restart_count abnormal fleet stops detected"
 
   # Query running tasks for uptime analysis
   echo "  Loadtest: Checking container uptime..."
@@ -1419,68 +1559,73 @@ if [[ -n "$LOADTEST_SVC" ]]; then
   running_count=$(echo "$running_tasks" | jq '.taskArns | length')
 
   uptime_json="[]"
-  oldest_start=""
-  newest_start=""
   if [[ -n "$running_arns" ]] && [[ "$running_count" -gt 0 ]]; then
     running_details=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" \
       --tasks $running_arns \
       --region "$REGION" --output json 2>/dev/null || echo '{"tasks":[]}')
 
-    # Extract task start times and compute uptime in minutes
-    uptime_json=$(echo "$running_details" | jq --arg now "$TIMESTAMP" '
-      [.tasks[] | select(.startedAt) | {
+    # Extract task start times and compute uptime in minutes. startedAt comes
+    # back with fractional seconds and a timezone offset, so parse via ts_epoch.
+    uptime_json=$(echo "$running_details" | jq --argjson now "$END_EPOCH" \
+      "$JQ_TS_EPOCH"'
+      [.tasks[] | select(.startedAt) | (.startedAt | ts_epoch) as $e | {
         task_id: (.taskArn | split("/") | last),
         started_at: .startedAt,
-        uptime_min: (
-          (($now | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) -
-           (.startedAt | strptime("%Y-%m-%dT%H:%M:%S") | mktime)) / 60
-          | . * 100 | round / 100
-        )
-      }] | sort_by(.started_at)
+        started_epoch: $e,
+        uptime_min: (($now - $e) / 60 * 100 | round / 100)
+      }] | sort_by(.started_epoch)
     ' 2>/dev/null || echo '[]')
-
-    oldest_start=$(echo "$uptime_json" | jq -r 'if length > 0 then first.started_at else null end')
-    newest_start=$(echo "$uptime_json" | jq -r 'if length > 0 then last.started_at else null end')
   fi
 
-  # Calculate the spread between oldest and newest start time
-  start_spread_min="null"
-  start_spread_alert="false"
-  if [[ -n "$oldest_start" && "$oldest_start" != "null" && -n "$newest_start" && "$newest_start" != "null" ]]; then
-    if [[ "$(uname)" == "Darwin" ]]; then
-      oldest_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${oldest_start%%.*}" +%s 2>/dev/null || echo 0)
-      newest_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${newest_start%%.*}" +%s 2>/dev/null || echo 0)
-    else
-      oldest_epoch=$(date -d "${oldest_start}" +%s 2>/dev/null || echo 0)
-      newest_epoch=$(date -d "${newest_start}" +%s 2>/dev/null || echo 0)
-    fi
-    if [[ "$oldest_epoch" -gt 0 && "$newest_epoch" -gt 0 ]]; then
-      spread_seconds=$(( newest_epoch - oldest_epoch ))
-      start_spread_min=$(awk "BEGIN { printf \"%.1f\", $spread_seconds / 60 }")
-      # Alert if any container started >10 minutes after the first one
-      if (( spread_seconds > 600 )); then
-        start_spread_alert="true"
-      fi
-    fi
+  echo "  Loadtest: $running_count running tasks"
+
+  # ECS service events — scan the scheduler's event log for genuine failures
+  # in the collection window. Health-check and placement failures alert;
+  # ordinary start/stop events (including deliberate migration restarts) don't.
+  SERVICES_TO_CHECK=()
+  [[ -n "$FLEET_SERVICE" ]] && SERVICES_TO_CHECK+=("$FLEET_SERVICE")
+  [[ -n "$OSQUERY_PERF_SERVICE" ]] && SERVICES_TO_CHECK+=("$OSQUERY_PERF_SERVICE")
+  if [[ ${#LOADTEST_SERVICES[@]} -gt 0 ]]; then
+    SERVICES_TO_CHECK+=("${LOADTEST_SERVICES[@]}")
   fi
 
-  echo "  Loadtest: $running_count running tasks, start spread=${start_spread_min}min"
+  SERVICE_EVENTS="[]"
+  failed_health_checks=0
+  unable_to_place=0
+  if [[ ${#SERVICES_TO_CHECK[@]} -gt 0 ]]; then
+    echo "  Loadtest: Scanning ECS service events for failures..."
+    for svc in "${SERVICES_TO_CHECK[@]:0:10}"; do
+      svc_events=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$svc" --region "$REGION" \
+        --query "services[0].events" --output json 2>/dev/null || echo '[]')
+      # NB: "end" is a reserved keyword in jq, so the window-end variable is $wend.
+      svc_fail=$(echo "$svc_events" | jq --arg svc "$svc" --argjson start "$START_EPOCH" --argjson wend "$END_EPOCH" \
+        "$JQ_TS_EPOCH"'
+        [(. // [])[] | select(.createdAt)
+         | select((.createdAt | ts_epoch) >= $start and (.createdAt | ts_epoch) <= $wend)
+         | select(.message | test("health check|unhealthy|unable to|failed"; "i"))
+         | {service: $svc, at: .createdAt, message: .message}]' 2>/dev/null || echo '[]')
+      SERVICE_EVENTS=$(jq -n --argjson a "$SERVICE_EVENTS" --argjson b "$svc_fail" '$a + $b')
+    done
+    failed_health_checks=$(echo "$SERVICE_EVENTS" | jq '[.[] | select(.message | test("health check|unhealthy"; "i"))] | length')
+    unable_to_place=$(echo "$SERVICE_EVENTS" | jq '[.[] | select(.message | test("unable to"; "i"))] | length')
+    echo "  Loadtest: $failed_health_checks health-check failure event(s), $unable_to_place placement failure event(s)"
+  fi
 
   CONTAINER_HEALTH=$(jq -n \
     --argjson abnormal_stops "$restart_count" \
+    --argjson fleet_abnormal_stops "$fleet_restart_count" \
     --argjson running_tasks "$running_count" \
-    --arg oldest_start "${oldest_start:-null}" \
-    --arg newest_start "${newest_start:-null}" \
-    --argjson start_spread_min "${start_spread_min:-null}" \
-    --argjson start_spread_alert "$start_spread_alert" \
+    --argjson failed_health_checks "$failed_health_checks" \
+    --argjson unable_to_place "$unable_to_place" \
+    --argjson service_events "$SERVICE_EVENTS" \
     --argjson tasks "$uptime_json" \
     '{
       abnormal_stops: $abnormal_stops,
+      fleet_abnormal_stops: $fleet_abnormal_stops,
       running_tasks: $running_tasks,
-      oldest_start: (if $oldest_start == "null" then null else $oldest_start end),
-      newest_start: (if $newest_start == "null" then null else $newest_start end),
-      start_spread_min: $start_spread_min,
-      start_spread_alert: $start_spread_alert,
+      failed_health_checks: $failed_health_checks,
+      unable_to_place: $unable_to_place,
+      service_events: ($service_events | sort_by(.at) | .[0:20]),
       tasks: $tasks
     }')
 fi
@@ -1494,7 +1639,7 @@ echo "Assembling results..."
 
 jq -n \
   --arg workspace "$WORKSPACE" \
-  --arg collected_at "$TIMESTAMP" \
+  --arg collected_at "$COLLECTED_AT" \
   --arg region "$REGION" \
   --arg interval "${INTERVAL_LABEL}" \
   --arg note "$NOTE" \
@@ -1555,7 +1700,7 @@ MD_OUTPUT="${OUTPUT%.json}.md"
 {
 echo "# Metrics Synopsis: ${WORKSPACE}"
 echo ""
-echo "- **Collected:** ${TIMESTAMP}"
+echo "- **Collected:** ${COLLECTED_AT}"
 echo "- **Interval:** ${INTERVAL_LABEL}"
 echo "- **Window:** ${START_TIME} to ${END_TIME}"
 [[ -n "$NOTE" ]] && echo "- **Note:** ${NOTE}"
@@ -1655,15 +1800,32 @@ done
 
 if jq -e '.alb.target_response_time' "$OUTPUT" >/dev/null 2>&1; then
   alb_lat=$(jq -r '.alb.target_response_time.Average // "N/A"' "$OUTPUT")
+  alb_p95=$(jq -r '.alb.target_response_time_percentiles.p95 // "N/A"' "$OUTPUT")
+  alb_p99=$(jq -r '.alb.target_response_time_percentiles.p99 // "N/A"' "$OUTPUT")
   alb_5xx=$(jq -r '.alb.http_5xx_count.Sum // 0' "$OUTPUT")
+  alb_elb_5xx=$(jq -r '.alb.http_elb_5xx_count.Sum // 0' "$OUTPUT")
   alb_reqs=$(jq -r '.alb.request_count.Sum // "N/A"' "$OUTPUT")
   alb_bytes=$(jq -r '.alb.processed_bytes.Sum // "N/A" | if type == "number" then (. / 1048576 * 100 | round / 100 | tostring) + "MB" else . end' "$OUTPUT")
-  printf "ALB:           Latency=%ss  5xx=%s  Requests=%s  Traffic=%s\n" "$alb_lat" "$alb_5xx" "$alb_reqs" "$alb_bytes"
+  printf "ALB:           Latency avg=%ss p95=%ss p99=%ss\n" "$alb_lat" "$alb_p95" "$alb_p99"
+  printf "               Target5xx=%s  ELB5xx=%s  Requests=%s  Traffic=%s\n" "$alb_5xx" "$alb_elb_5xx" "$alb_reqs" "$alb_bytes"
 fi
 
 if jq -e '.fleet_server_errors.error_count' "$OUTPUT" >/dev/null 2>&1; then
   err_count=$(jq -r '.fleet_server_errors.error_count // "N/A"' "$OUTPUT")
+  err_samples=$(jq -r '.fleet_server_errors.sample_messages // [] | length' "$OUTPUT")
   printf "Fleet Errors:  Count=%s\n" "$err_count"
+  # Show a few sample messages inline so the synopsis is actionable without
+  # opening the JSON (which holds up to 10 full samples). Structured (JSON)
+  # log lines are summarized to timestamp + endpoint + error detail; anything
+  # else is shown truncated.
+  if [[ "$err_samples" -gt 0 ]]; then
+    jq -r '.fleet_server_errors.sample_messages[:3][] |
+      ((fromjson? | [(.ts // ""), (.uri // ""), (."ingestion-err" // .err // .msg // "")] | map(select(. != "")) | join("  ")) // .) as $line |
+      "  · " + $line[0:220] + (if ($line | length) > 220 then "…" else "" end)' "$OUTPUT"
+    if [[ "$err_samples" -gt 3 ]]; then
+      printf "  (%s samples total in the .json)\n" "$err_samples"
+    fi
+  fi
 fi
 
 if jq -e '.rds_writer_extended.freeable_memory' "$OUTPUT" >/dev/null 2>&1; then
@@ -1673,9 +1835,12 @@ if jq -e '.rds_writer_extended.freeable_memory' "$OUTPUT" >/dev/null 2>&1; then
   rds_sel_lat=$(jq -r '.rds_writer_extended.select_latency.Average // "N/A"' "$OUTPUT")
   rds_ins_lat=$(jq -r '.rds_writer_extended.insert_latency.Average // "N/A"' "$OUTPUT")
   rds_threads=$(jq -r '.rds_writer_extended.threads_running.average // "N/A"' "$OUTPUT")
+  # IOPS is reported as raw ops/sec first (the format used historically to
+  # track load test results) with utilization percent as context.
+  rds_iops_total=$(jq -r '.rds_writer_extended.iops_utilization.total_iops_avg // "N/A" | if type == "number" then round else . end' "$OUTPUT")
   rds_iops_pct=$(jq -r '.rds_writer_extended.iops_utilization.utilization_pct // "N/A"' "$OUTPUT")
-  printf "RDS Writer:    FreeMem=%s  CacheHit=%s%%  Disk=%s  Threads=%s  IOPS=%s%%\n" \
-    "$rds_freemem" "$rds_cache" "$rds_disk" "$rds_threads" "$rds_iops_pct"
+  printf "RDS Writer:    FreeMem=%s  CacheHit=%s%%  Disk=%s  Threads=%s  IOPS=%s (%s%% of max)\n" \
+    "$rds_freemem" "$rds_cache" "$rds_disk" "$rds_threads" "$rds_iops_total" "$rds_iops_pct"
   printf "               SelectLat=%sms  InsertLat=%sms\n" "$rds_sel_lat" "$rds_ins_lat"
 fi
 
@@ -1685,9 +1850,10 @@ for reader_label in $(jq -r '.rds_readers_extended[].instance // empty' "$OUTPUT
   rfreemem=$(jq -r --arg i "$reader_label" '.rds_readers_extended[] | select(.instance==$i) | .freeable_memory.Average // "N/A" | if type == "number" then (. / 1073741824 * 100 | round / 100 | tostring) + "GB" else . end' "$OUTPUT")
   rthreads=$(jq -r --arg i "$reader_label" '.rds_readers_extended[] | select(.instance==$i) | .threads_running.average // "N/A"' "$OUTPUT")
   rsel_lat=$(jq -r --arg i "$reader_label" '.rds_readers_extended[] | select(.instance==$i) | .select_latency.Average // "N/A"' "$OUTPUT")
+  riops_total=$(jq -r --arg i "$reader_label" '.rds_readers_extended[] | select(.instance==$i) | .iops_utilization.total_iops_avg // "N/A" | if type == "number" then round else . end' "$OUTPUT")
   riops_pct=$(jq -r --arg i "$reader_label" '.rds_readers_extended[] | select(.instance==$i) | .iops_utilization.utilization_pct // "N/A"' "$OUTPUT")
-  printf "RDS %s: FreeMem=%s  CacheHit=%s%%  ReplicaLag=%sms  Threads=%s  IOPS=%s%%\n" \
-    "$reader_label" "$rfreemem" "$rcache" "$rlag" "$rthreads" "$riops_pct"
+  printf "RDS %s: FreeMem=%s  CacheHit=%s%%  ReplicaLag=%sms  Threads=%s  IOPS=%s (%s%% of max)\n" \
+    "$reader_label" "$rfreemem" "$rcache" "$rlag" "$rthreads" "$riops_total" "$riops_pct"
   printf "               SelectLat=%sms\n" "$rsel_lat"
 done
 
@@ -1706,14 +1872,14 @@ fi
 
 if jq -e '.container_health' "$OUTPUT" >/dev/null 2>&1; then
   ch_stops=$(jq -r '.container_health.abnormal_stops // 0' "$OUTPUT")
+  ch_fleet_stops=$(jq -r '.container_health.fleet_abnormal_stops // 0' "$OUTPUT")
   ch_running=$(jq -r '.container_health.running_tasks // 0' "$OUTPUT")
-  ch_spread=$(jq -r '.container_health.start_spread_min // "N/A"' "$OUTPUT")
-  ch_alert=$(jq -r '.container_health.start_spread_alert // false' "$OUTPUT")
-  printf "Containers:    Running=%s  AbnormalStops=%s  StartSpread=%smin" "$ch_running" "$ch_stops" "$ch_spread"
-  if [[ "$ch_alert" == "true" ]]; then
-    printf "  ⚠ STAGGERED STARTS"
-  fi
-  printf "\n"
+  ch_hc=$(jq -r '.container_health.failed_health_checks // 0' "$OUTPUT")
+  ch_place=$(jq -r '.container_health.unable_to_place // 0' "$OUTPUT")
+  printf "Containers:    Running=%s  AbnormalStops=%s  FleetStops=%s  FailedHealthChecks=%s  PlacementFailures=%s\n" \
+    "$ch_running" "$ch_stops" "$ch_fleet_stops" "$ch_hc" "$ch_place"
+  # Show the failure events themselves so the synopsis is actionable.
+  jq -r '.container_health.service_events // [] | .[:3][] | "  · " + .at + "  " + .service + ": " + .message[0:160]' "$OUTPUT"
 fi
 
 echo '```'
@@ -1750,8 +1916,13 @@ echo '```'
 #   apns-mock Redis Evictions  == 0
 #   Fleet Server Errors       == 0
 #   IOPS Utilization          < 80% avg
-#   Container Abnormal Stops   == 0
-#   Container Start Spread    < 10 min
+#   Container Abnormal Stops   == 0 (loadtest and fleet server, separately)
+#   Failed Health Check Events == 0 (ECS service events; deliberate restarts
+#                              during migrations emit only start/stop events
+#                              and are not counted)
+#   Placement Failure Events   == 0
+#   Data coverage (key metrics) >= 0.9 — low coverage means the averages above
+#                              describe only part of the window
 # ---------------------------------------------------------------------------
 ALERT_COUNT=0
 
@@ -1770,6 +1941,7 @@ check_threshold() {
     lt)  failed=$(echo "$value $threshold" | awk '{print ($1 >= $2) ? "true" : "false"}') ;;
     eq)  failed=$(echo "$value $threshold" | awk '{print ($1 != $2) ? "true" : "false"}') ;;
     gt)  failed=$(echo "$value $threshold" | awk '{print ($1 > $2) ? "true" : "false"}') ;;
+    ge)  failed=$(echo "$value $threshold" | awk '{print ($1 < $2) ? "true" : "false"}') ;;
   esac
 
   if [[ "$failed" == "true" ]]; then
@@ -1777,6 +1949,7 @@ check_threshold() {
       lt) printf "  🔴 ALERT: %s = %s (expected < %s)\n" "$label" "$value" "$threshold" ;;
       eq) printf "  🔴 ALERT: %s = %s (expected %s)\n" "$label" "$value" "$threshold" ;;
       gt) printf "  🔴 ALERT: %s = %s (expected <= %s)\n" "$label" "$value" "$threshold" ;;
+      ge) printf "  🔴 ALERT: %s = %s (expected >= %s)\n" "$label" "$value" "$threshold" ;;
     esac
     ALERT_COUNT=$((ALERT_COUNT + 1))
   fi
@@ -1822,7 +1995,15 @@ done
 check_threshold "Fleet Server Errors"      '.fleet_server_errors.error_count' eq 0
 check_threshold "IOPS Utilization"         '.rds_writer_extended.iops_utilization.utilization_pct' lt 80
 check_threshold "Container Abnormal Stops"  '.container_health.abnormal_stops' eq 0
-check_threshold "Container Start Spread (min)" '.container_health.start_spread_min' lt 10
+check_threshold "Fleet Server Abnormal Stops" '.container_health.fleet_abnormal_stops' eq 0
+check_threshold "Failed Health Check Events" '.container_health.failed_health_checks' eq 0
+check_threshold "Placement Failure Events"  '.container_health.unable_to_place' eq 0
+
+# Data coverage: if key metrics only have datapoints for part of the window,
+# the averages above are misleading (e.g. interval longer than the test ran).
+check_threshold "Fleet Server CPU data coverage" '.fleet_server.cpu_utilization.data_coverage' ge 0.9
+check_threshold "RDS Writer CPU data coverage"   '.rds_writer.cpu_utilization.data_coverage' ge 0.9
+check_threshold "ALB Requests data coverage"     '.alb.request_count.data_coverage' ge 0.9
 
 # Threads running vs vCPU count — dynamic threshold per instance
 # Average active sessions should be <= vCPUs. Above that means CPU saturation.
