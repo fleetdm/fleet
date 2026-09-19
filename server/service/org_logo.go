@@ -127,6 +127,9 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 		// document, not <img>). 'unsafe-inline' allows the inline
 		// <style> blocks most SVGs include.
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+		// Direct navigation downloads the file instead of opening it as a
+		// standalone document; subresource (<img>) rendering is unaffected.
+		w.Header().Set("Content-Disposition", `attachment; filename="logo.svg"`)
 	}
 	_, _ = w.Write(r.Body)
 }

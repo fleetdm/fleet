@@ -1,0 +1,2 @@
+* Organization logos in SVG format are now served as file downloads when the logo URL is opened directly in the browser; rendering in the Fleet UI is unchanged.
+* Email provider configuration details in the app config API response are now limited to admin roles.

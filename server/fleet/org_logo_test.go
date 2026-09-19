@@ -3,6 +3,11 @@ package fleet
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"strings"
 	"testing"
@@ -10,6 +15,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func encodeTestImage(t *testing.T, encode func(w *bytes.Buffer, img image.Image) error) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var buf bytes.Buffer
+	require.NoError(t, encode(&buf, img))
+	return buf.Bytes()
+}
+
+func TestValidateOrgLogoBytesRaster(t *testing.T) {
+	t.Parallel()
+
+	t.Run("accepts a valid PNG", func(t *testing.T) {
+		body := encodeTestImage(t, func(w *bytes.Buffer, img image.Image) error {
+			return png.Encode(w, img)
+		})
+		require.NoError(t, ValidateOrgLogoBytes(body))
+		assert.Equal(t, "image/png", ContentTypeForOrgLogo(body))
+	})
+
+	t.Run("accepts a valid JPEG", func(t *testing.T) {
+		body := encodeTestImage(t, func(w *bytes.Buffer, img image.Image) error {
+			return jpeg.Encode(w, img, nil)
+		})
+		require.NoError(t, ValidateOrgLogoBytes(body))
+		assert.Equal(t, "image/jpeg", ContentTypeForOrgLogo(body))
+	})
+
+	t.Run("rejects unsupported image formats (GIF)", func(t *testing.T) {
+		body := encodeTestImage(t, func(w *bytes.Buffer, img image.Image) error {
+			return gif.Encode(w, img, nil)
+		})
+		require.Error(t, ValidateOrgLogoBytes(body))
+	})
+
+	t.Run("rejects a PNG signature with a corrupt body", func(t *testing.T) {
+		body := append([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, []byte("not a real png")...)
+		require.Error(t, ValidateOrgLogoBytes(body))
+	})
+
+	t.Run("rejects arbitrary text regardless of declared type", func(t *testing.T) {
+		require.Error(t, ValidateOrgLogoBytes([]byte("<html><body>hello</body></html>")))
+	})
+}
 
 func TestValidateOrgLogoBytesSVG(t *testing.T) {
 	t.Parallel()

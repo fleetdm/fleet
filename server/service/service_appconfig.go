@@ -249,6 +249,16 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 		return nil, err
 	}
 
+	// Like SMTP settings in the app config response, email provider details
+	// are only returned to admins.
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	if !vc.User.IsAnyAdmin() {
+		return nil, nil
+	}
+
 	conf := svc.config
 	var email *fleet.EmailConfig
 	switch conf.Email.EmailBackend {
