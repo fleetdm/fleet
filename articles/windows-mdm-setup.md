@@ -37,11 +37,11 @@ Restart the Fleet server.
 
 ### Step 3: Turn on Windows MDM
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+1. Navigate to **Organization settings > Integrations > MDM** page.
 
 2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
-3. Toggle Windows MDM on. The best practice is to leave the end user experience set to **Automatic**. If you want end users to have to take action to turn MDM on, choose **Manual**.
+3. Toggle Windows MDM on. The best practice is to leave **Turn on MDM programmatically** enabled. If you want end users to have to take action to turn MDM on, disable it.
 
 ## Manual enrollment
 
@@ -116,23 +116,29 @@ In order to connect Fleet to Entra, your organization needs a Microsoft Enterpri
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
-The end user will see Microsoft's default initial setup. You can further simplify the initial device setup with Autopilot, which is similar to Apple's Automated Device Enrollment (DEP).
-
 Some Intune/Entra deployments enable automatic enrollment into Intune. Check to ensure **Automatic Enrollment** is not enabled, or your devices will not appear in Fleet.
 
 In your Intune settings, select **Devices**, and under **Device onboarding**, open the **Enrollment** submenu. Select **Automatic Enrollment** and ensure both **MDM user scope** and **Windows Information Protection (WIP) user scope** are set to **None**.
 
-1. [Sign in to Microsoft Entra](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
+> The steps below are grouped so you only switch between Fleet and Entra twice. First you'll copy Fleet's MDM URLs, then do all the Entra configuration, then paste the tenant ID and client ID back into Fleet.
 
-2. On the home page, find and copy the **Tenant ID**.
+**In Fleet:**
 
-3. In Fleet, navigate to **Settings** > **Integrations** > **MDM**. Under **Windows Enrollment**, select **Connect**.
+1. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra**. Next to **Windows enrollment**, select **Connect**.
 
-4. Under **Entra tenants**, select **Add**, paste tenant ID, and select **Add**.  If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+2. Copy the **MDM URLs** to paste into Entra later.
 
-5. Head to Entra, and on the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
+**In Microsoft Entra:**
 
-6. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
+3. [Sign in to Microsoft Entra](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
+
+4. On the **Overview** page, find and copy the **Tenant ID**. You'll paste this into Fleet later.
+
+> To set up a new tenant, [follow the Microsoft Entra instructions](https://learn.microsoft.com/en-us/entra/fundamentals/create-new-tenant?tabs=workforce).
+
+5. At the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
+
+6. Use the information presented in Entra to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
 
 7. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
 
@@ -140,34 +146,38 @@ In your Intune settings, select **Devices**, and under **Device onboarding**, op
 
 9. Enter "Fleet" as the name of your application and select **Create**.
 
-10. Set MDM user scope to **All**, then in Fleet head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment > Edit** and copy the **MDM URLs**. Paste them in Entra, and select **Save**.
+10. Set MDM user scope to **All**, paste the MDM URLs you copied in step 2, and select **Save**.
 
 11. While on this same page, select the **Custom MDM application settings** link.
 
 12. Click on the **Application ID URI**, which will bring you to the **Expose an API** submenu with an edit button next to the text box.
 
-13. Replace with your Fleet URL (e.g., fleet.acme.com) and select **Save**.
+13. Replace with your Fleet URL (e.g., https://fleet.acme.com) and select **Save**.
 
-14. On the same application, select **Overview** and copy the **Application (client) ID**.
+14. On the same application, select **Overview** and copy the **Application (client) ID**. You'll paste this into Fleet later.
 
-15. In Fleet, head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment > Edit**. Under **Entra application client IDs**, select **Add**, paste the client ID, and select **Add**. Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so the client ID is required. If you don't add it, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+15. Select **API permissions** from the sidebar, then select **+ Add a permission**.
 
-16. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+16. Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
 
-17. Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
-
-18. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
+17. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
     + Device > Device.Read.All
     + Device > Device.ReadWrite.All
     + Directory > Directory.Read.All
     + Group > Group.Read.All
     + User > User.Read.All
 
-19. Select **Add permissions**.
+18. Select **Add permissions**.
 
-20. Select **Grant admin consent for [your tenant name]**, and confirm.
+19. Select **Grant admin consent for [your tenant name]**, and confirm.
 
-Now you're ready to automatically enroll Windows hosts to Fleet.
+**Back in Fleet:**
+
+20. Navigate to **Organization settings** > **Integrations** > **MDM** under **Microsoft Entra** select **Edit** next to "Microsoft Entra tenant ID added". Under **Entra tenants**, select **Add**, paste the tenant ID you copied in step 4, and select **Add**. If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+
+21. Under **Entra application client IDs**, select **Add**, paste the client ID you copied in step 14, and select **Add**. Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so the client ID is required. If you don't add it, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+
+Now you're ready to automatically enroll Windows hosts to Fleet. The end user will see Microsoft's default initial setup. You can further [simplify the initial device setup with Autopilot](#windows-autopilot), which is similar to Apple's Automated Device Enrollment (DEP).
 
 ### Step 3: Test automatic enrollment
 
