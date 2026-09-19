@@ -7,6 +7,7 @@ import TruncatedTextList from "components/TruncatedTextList";
 import {
   SoftwareExtensionFor,
   formatSoftwareType,
+  formatSoftwareVersion,
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   IHostSoftware,
   ISoftwareInstallVersion,
@@ -54,7 +55,10 @@ const InventoryVersion = ({
       <div className={`${baseClass}__row`}>
         <DataSet
           title="Version"
-          value={version.version || DEFAULT_EMPTY_CELL_VALUE}
+          value={
+            formatSoftwareVersion({ ...version, source }) ||
+            DEFAULT_EMPTY_CELL_VALUE
+          }
           textOnly
         />
         <DataSet
@@ -155,7 +159,7 @@ const InventoryVersions = ({
         {installedVersions.map((installedVersion) => {
           return (
             <InventoryVersion
-              key={installedVersion.version}
+              key={`${installedVersion.version}|${installedVersion.release}`}
               version={installedVersion}
               source={hostSoftware.source}
               bundleIdentifier={hostSoftware.bundle_identifier}
