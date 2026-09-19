@@ -330,6 +330,13 @@
   quoteAuthorJobTitle: IT Manager and CPE, Reed College 
   quoteLinkUrl: https://www.linkedin.com/in/mason-peressini
   productCategories: [Device management, Software management]
+- quote: Fleet truly can support macOS, Windows, and Linux. No one else does that well enough to consider using one platform for all three, in my opinion.
+  quoteAuthorName: Shayna Waldman
+  quoteAuthorJobTitle: Sr IT Engineer
+  quoteLinkUrl: https://www.linkedin.com/in/smwaldman
+  # TODO: quoteAuthorProfileImageFilename below is a temporary LinkedIn CDN URL (it will expire). Download the image, add it to website/assets/images/ following the testimonial-author-*.png naming convention, and update this field with the local filename.
+  quoteAuthorProfileImageFilename: https://media.licdn.com/dms/image/…/1676485884617?e=1790812800&v=beta&…
+  productCategories: [Device management, Software management]
 
 
 # -
