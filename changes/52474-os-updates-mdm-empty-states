@@ -1,0 +1,1 @@
+- Added empty state to Controls > OS updates tabs when MDM isn't turned on for a platform.

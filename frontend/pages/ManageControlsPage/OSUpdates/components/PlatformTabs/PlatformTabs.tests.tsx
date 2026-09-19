@@ -25,8 +25,8 @@ const defaultProps = {
   onSelectPlatform: noop,
   refetchAppConfig: noop,
   refetchTeamConfig: noop,
+  isAppleMdmEnabled: true,
   isWindowsMdmEnabled: true,
-  isAndroidMdmEnabled: true,
 };
 
 describe("PlatformTabs", () => {
@@ -65,25 +65,41 @@ describe("PlatformTabs", () => {
     render(<PlatformTabs {...defaultProps} selectedPlatform="android" />);
 
     expect(screen.queryByLabelText(/Target/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Android updates are coming soon/i)).toBeVisible();
+    expect(
+      screen.getByText(/Android updates are coming soon/i)
+    ).toBeInTheDocument();
   });
 
-  it("hides the Windows and Android tabs when their MDM isn't enabled", () => {
+  it("shows the Windows tab with an empty state when Windows MDM isn't enabled", () => {
+    render(
+      <PlatformTabs
+        {...defaultProps}
+        selectedPlatform="windows"
+        isWindowsMdmEnabled={false}
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: /macOS/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Windows/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Android/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Turn on MDM to enforce OS updates/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows Apple tabs with empty states when Apple MDM isn't enabled", () => {
     render(
       <PlatformTabs
         {...defaultProps}
         selectedPlatform="darwin"
-        isWindowsMdmEnabled={false}
-        isAndroidMdmEnabled={false}
+        isAppleMdmEnabled={false}
       />
     );
 
     expect(screen.getByRole("tab", { name: /macOS/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("tab", { name: /Windows/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("tab", { name: /Android/i })
-    ).not.toBeInTheDocument();
+      screen.getByText(/Turn on MDM to enforce OS updates/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Minimum version/i)).not.toBeInTheDocument();
   });
 });
