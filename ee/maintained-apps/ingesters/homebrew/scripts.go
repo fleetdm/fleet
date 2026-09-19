@@ -742,12 +742,9 @@ const quitApplicationFunc = `quit_application() {
 // quitAndTrackApplicationFunc quits a running application and tracks whether it was running
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
 //
-// var_name is interpolated into an eval, so every character that isn't
-// alphanumeric or an underscore is mapped, not just dots and dashes: a bundle
-// ID with a space ("org.mozilla.pale moon") otherwise splits the eval into two
-// assignments and the flag never lands under the name relaunchApplicationFunc
-// reads back. Inert for IDs drawn from [A-Za-z0-9._-], which is every app but
-// pale-moon.
+// var_name reaches an eval, so map everything outside [A-Za-z0-9_]: a bundle ID
+// with a space ("org.mozilla.pale moon") otherwise splits the eval in two and
+// relaunch never sees the flag.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
@@ -797,7 +794,6 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
 // relaunchApplicationFunc relaunches an application if it was running before installation.
 // Checks the APP_WAS_RUNNING_<bundle_id> environment variable set by quitAndTrackApplicationFunc.
-// The var_name derivation must stay byte-identical to quitAndTrackApplicationFunc's.
 // The install script runs as root, but GUI apps must be launched in the logged-in
 // user's session (not root's) to appear in the user's Dock/GUI. We therefore use
 // 'sudo -u "$console_user" open' rather than 'osascript ... to activate', since

@@ -557,14 +557,11 @@ func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
 	require.NotContains(t, script, "/usr/sbin/installer")
 }
 
-// varNameDerivation is the single line both generated functions use to turn a
-// bundle ID into the name of the "was it running" flag variable.
+// varNameDerivation is the line both generated functions share.
 const varNameDerivation = `  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"`
 
-// varNameRoundTrip drives the generated derivation through bash the way the
-// install script does: quit_and_track_application writes the flag via eval,
-// relaunch_application derives the name again and reads it back. It returns the
-// derived name and the value that survived the round trip.
+// varNameRoundTrip writes the flag via eval and reads it back, as the two
+// generated functions do.
 func varNameRoundTrip(t *testing.T, bundleID string) (name, wasRunning string) {
 	t.Helper()
 
@@ -592,11 +589,8 @@ read_back "$1"`
 	return name, wasRunning
 }
 
-// TestQuitRelaunchVarNameSurvivesEval covers the bundle ID shapes Fleet ships.
-// "org.mozilla.pale moon" previously derived
-// "APP_WAS_RUNNING_org_mozilla_pale moon", which split the surrounding eval into
-// two assignments, so the read back came up empty and Pale Moon was quit during
-// an update but never relaunched.
+// "org.mozilla.pale moon" used to derive a name with a space in it, which split
+// the eval so the read back came up empty and Pale Moon was never relaunched.
 func TestQuitRelaunchVarNameSurvivesEval(t *testing.T) {
 	for _, tc := range []struct {
 		bundleID string
@@ -610,15 +604,12 @@ func TestQuitRelaunchVarNameSurvivesEval(t *testing.T) {
 		t.Run(tc.bundleID, func(t *testing.T) {
 			name, wasRunning := varNameRoundTrip(t, tc.bundleID)
 			require.Equal(t, tc.want, name)
-			require.Equal(t, "1", wasRunning, "flag did not survive the eval round trip")
+			require.Equal(t, "1", wasRunning)
 		})
 	}
 }
 
-// TestQuitRelaunchVarNameNeutralizesCommandSubstitution is belt and braces:
-// unique_identifier comes from Fleet's own input files rather than from the brew
-// API, but the derived name is interpolated into an eval that runs as root, so
-// the mapping should leave nothing executable behind.
+// unique_identifier is repo-controlled, but the name still reaches a root eval.
 func TestQuitRelaunchVarNameNeutralizesCommandSubstitution(t *testing.T) {
 	pwned := filepath.Join(t.TempDir(), "pwned")
 
@@ -629,13 +620,10 @@ func TestQuitRelaunchVarNameNeutralizesCommandSubstitution(t *testing.T) {
 	require.NoFileExists(t, pwned, "command substitution in the bundle ID was executed")
 }
 
-// TestQuitAndRelaunchDeriveVarNameIdentically guards the invariant the pair
-// depends on: if the two derivations drift, the flag is written under one name
-// and read under another and relaunch silently stops working.
+// If the two derivations drift, relaunch silently stops working.
 func TestQuitAndRelaunchDeriveVarNameIdentically(t *testing.T) {
 	require.Contains(t, quitAndTrackApplicationFunc, varNameDerivation)
 	require.Contains(t, relaunchApplicationFunc, varNameDerivation)
-	// The old form mapped only dots and dashes, leaving spaces to split the eval.
 	require.NotContains(t, quitAndTrackApplicationFunc, `tr '.-' '__'`)
 	require.NotContains(t, relaunchApplicationFunc, `tr '.-' '__'`)
 }
