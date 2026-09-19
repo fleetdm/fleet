@@ -1,0 +1,1 @@
+- Improved response consistency on API routes that require MDM to be configured: the caller's credentials are now checked before the configuration check, so requests without valid credentials receive the standard authentication error regardless of configuration state.

@@ -7246,6 +7246,10 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
 
+		// orbit routes authenticate before the MDM configuration check runs.
+		case strings.HasPrefix(route.path, "/api/fleet/orbit/"):
+			params = map[string]string{"orbit_node_key": *h.OrbitNodeKey}
+
 		case route.method == "POST" && route.path == "/api/latest/fleet/software/web_apps":
 			multipartBody, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
 				"title": {"Test App"},
