@@ -1,0 +1,51 @@
+name: OpenAPI spec
+
+on:
+  pull_request:
+    paths:
+      - "docs/REST API/**"
+      - "tools/openapi/**"
+      - ".github/workflows/openapi.yml"
+      - "Makefile"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  generate-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: "tools/openapi/go.mod"
+          cache-dependency-path: "tools/openapi/go.sum"
+
+      - name: Run generator tests
+        run: cd tools/openapi && go test ./...
+
+      - name: Generate and validate spec
+        run: make openapi
+
+      - name: Upload spec artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: openapi-spec
+          path: tools/openapi/openapi.yml
+          retention-days: 30
