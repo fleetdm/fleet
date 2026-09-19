@@ -551,7 +551,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		return "darwin", nil
 	}
 
-	t.Run("GetMDMAppleCommandResults", func(t *testing.T) {
+	t.Run("GetMDMCommandResults", func(t *testing.T) {
 		cmdResultsCases := []struct {
 			desc               string
 			user               *fleet.User
@@ -595,9 +595,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		for _, c := range cmdResultsCases {
 			t.Run(c.desc, func(t *testing.T) {
 				ctx = test.UserContext(ctx, c.user)
-				_, err = svc.GetMDMAppleCommandResults(ctx, c.cmdUUID)
-				checkAuthErr(t, err, c.shouldFailWithAuth)
-
 				// TODO(sarah): move test to shared file
 				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "")
 				checkAuthErr(t, err, c.shouldFailWithAuth)

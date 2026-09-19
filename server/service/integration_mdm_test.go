@@ -4404,10 +4404,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		}, http.StatusNotFound)
 
 	// get command results returns 404, that command does not exist
-	var cmdResResp getMDMAppleCommandResultsResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
 	var getMDMCmdResp getMDMCommandResultsResponse
-	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &getMDMCmdResp, "command_uuid", uuid1)
 
 	// list commands returns empty set
 	var listCmdResp listMDMAppleCommandsResponse
@@ -4460,19 +4458,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Equal(t, "ProfileList", resp.RequestType)
 
 	// the command exists but no results yet
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
-	require.Len(t, cmdResResp.Results, 1)
-	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
-	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMCommandResult{
-		HostUUID:    mdmDevice.UUID,
-		CommandUUID: uuid2,
-		Status:      "Pending",
-		RequestType: "ProfileList",
-		Result:      []byte{},
-		Payload:     []byte(rawCmd),
-		Hostname:    "test-host",
-	}, cmdResResp.Results[0])
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
 	require.Len(t, getMDMCmdResp.Results, 1)
 	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
@@ -4497,20 +4482,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Raw:         []byte(rawCmd),
 	})
 	require.NoError(t, err)
-
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
-	require.Len(t, cmdResResp.Results, 1)
-	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
-	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMCommandResult{
-		HostUUID:    mdmDevice.UUID,
-		CommandUUID: uuid2,
-		Status:      "Acknowledged",
-		RequestType: "ProfileList",
-		Result:      []byte(rawCmd),
-		Payload:     []byte(rawCmd),
-		Hostname:    "test-host",
-	}, cmdResResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
 	require.Len(t, getMDMCmdResp.Results, 1)

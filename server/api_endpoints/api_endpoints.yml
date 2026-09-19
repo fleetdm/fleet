@@ -332,10 +332,6 @@
   path: "/api/v1/fleet/commands/results"
   display_name: "Get MDM command results"
 - method: "GET"
-  path: "/api/v1/fleet/mdm/apple/commandresults"
-  display_name: "Get custom MDM command results"
-  deprecated: true
-- method: "GET"
   path: "/api/v1/fleet/commands"
   display_name: "List MDM commands"
 - method: "GET"
