@@ -1,6 +1,8 @@
 package homebrew
 
 import (
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -553,4 +555,75 @@ func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
 	script := uninstallScriptForApp(cask)
 	require.NotContains(t, script, "$HOMEBREW_PREFIX")
 	require.NotContains(t, script, "/usr/sbin/installer")
+}
+
+// varNameDerivation is the line both generated functions share.
+const varNameDerivation = `  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"`
+
+// varNameRoundTrip writes the flag via eval and reads it back, as the two
+// generated functions do.
+func varNameRoundTrip(t *testing.T, bundleID string) (name, wasRunning string) {
+	t.Helper()
+
+	script := `set -u
+track() {
+  local bundle_id="$1"
+` + varNameDerivation + `
+  eval "export $var_name=1"
+}
+read_back() {
+  local bundle_id="$1"
+` + varNameDerivation + `
+  local was_running=
+  eval "was_running=\$$var_name"
+  printf '%s|%s' "$var_name" "$was_running"
+}
+track "$1"
+read_back "$1"`
+
+	out, err := exec.Command("bash", "-c", script, "bash", bundleID).CombinedOutput()
+	require.NoError(t, err, "output: %s", out)
+
+	name, wasRunning, ok := strings.Cut(string(out), "|")
+	require.True(t, ok, "unexpected output: %q", out)
+	return name, wasRunning
+}
+
+// "org.mozilla.pale moon" used to derive a name with a space in it, which split
+// the eval so the read back came up empty and Pale Moon was never relaunched.
+func TestQuitRelaunchVarNameSurvivesEval(t *testing.T) {
+	for _, tc := range []struct {
+		bundleID string
+		want     string
+	}{
+		{"com.evernote.Evernote", "APP_WAS_RUNNING_com_evernote_Evernote"},
+		{"Cisco-Systems.Spark", "APP_WAS_RUNNING_Cisco_Systems_Spark"},
+		{"org.R-project.R", "APP_WAS_RUNNING_org_R_project_R"},
+		{"org.mozilla.pale moon", "APP_WAS_RUNNING_org_mozilla_pale_moon"},
+	} {
+		t.Run(tc.bundleID, func(t *testing.T) {
+			name, wasRunning := varNameRoundTrip(t, tc.bundleID)
+			require.Equal(t, tc.want, name)
+			require.Equal(t, "1", wasRunning)
+		})
+	}
+}
+
+// unique_identifier is repo-controlled, but the name still reaches a root eval.
+func TestQuitRelaunchVarNameNeutralizesCommandSubstitution(t *testing.T) {
+	pwned := filepath.Join(t.TempDir(), "pwned")
+
+	name, wasRunning := varNameRoundTrip(t, "com.evil$(touch "+pwned+")")
+
+	require.Regexp(t, `^APP_WAS_RUNNING_[A-Za-z0-9_]+$`, name, "derived name is not a bare shell identifier")
+	require.Equal(t, "1", wasRunning)
+	require.NoFileExists(t, pwned, "command substitution in the bundle ID was executed")
+}
+
+// If the two derivations drift, relaunch silently stops working.
+func TestQuitAndRelaunchDeriveVarNameIdentically(t *testing.T) {
+	require.Contains(t, quitAndTrackApplicationFunc, varNameDerivation)
+	require.Contains(t, relaunchApplicationFunc, varNameDerivation)
+	require.NotContains(t, quitAndTrackApplicationFunc, `tr '.-' '__'`)
+	require.NotContains(t, relaunchApplicationFunc, `tr '.-' '__'`)
 }
