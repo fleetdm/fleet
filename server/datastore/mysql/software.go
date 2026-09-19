@@ -3814,11 +3814,11 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 }
 
 func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
-	// skipped_install marks a patch-when-closed skip (the app was open): the row is stored as
-	// failed_install with an empty pre_install_query_output. We read the snapshotted
-	// hsi.patch_when_closed instead of joining policies, so a later policy toggle or delete
-	// (policy_id → NULL via ON DELETE SET NULL) can't retroactively reclassify this row.
-	// Upcoming installs are never skipped, so the union side is a literal 0.
+	// skipped_install marks an app-open skip (patch when closed or notify before patching): the
+	// row is stored as failed_install with an empty pre_install_query_output. We read the
+	// snapshotted hsi.override_pre_install_query instead of joining policies, so a later policy
+	// toggle or delete (policy_id → NULL via ON DELETE SET NULL) can't retroactively reclassify
+	// this row. Upcoming installs are never skipped, so the union side is a literal 0.
 	softwareInstallsStmt := `
         WITH upcoming_software_install AS (
             SELECT last_install_install_uuid, last_install_installed_at, installer_id, status, skipped_install FROM (
@@ -3852,7 +3852,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     IF(
                         hsi.status = 'failed_install'
                         AND hsi.pre_install_query_output = ''
-                        AND hsi.patch_when_closed = 1,
+                        AND hsi.override_pre_install_query = 1,
                         1, 0
                     ) AS skipped_install,
                     ROW_NUMBER() OVER (

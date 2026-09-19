@@ -27,6 +27,7 @@ import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActi
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import MdmEnrolledActivityItem from "./ActivityItems/MdmEnrolledActivityItem";
 import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
+import NotifiedEndUserBeforePatchingActivityItem from "./ActivityItems/NotifiedEndUserBeforePatchingActivityItem";
 import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivityItem";
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
@@ -112,6 +113,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.FailedAutomationCalendarEvent]: PolicyAutomationActivityItem,
   [ActivityType.FailedAutomationConditionalAccess]: PolicyAutomationActivityItem,
   [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
+  [ActivityType.NotifiedEndUserBeforePatching]: NotifiedEndUserBeforePatchingActivityItem,
   [ActivityType.ResentConfigurationProfile]: ResentConfigurationProfileActivityItem,
   [ActivityType.ResetPolicy]: ResetPolicyActivityItem,
 };
