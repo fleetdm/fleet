@@ -183,7 +183,7 @@ func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache 
 		PollInterval:       30 * time.Millisecond,
 		ReconnectJitterMax: 10 * time.Millisecond,
 		BackoffBase:        10 * time.Millisecond,
-		BackoffCap:         50 * time.Millisecond,
+		BackoffBaseCap:     50 * time.Millisecond,
 		ServerPingInterval: time.Minute,
 		HandshakeTimeout:   time.Second,
 	})

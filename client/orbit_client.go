@@ -202,7 +202,10 @@ var (
 	netErrInterval                     = 5 * time.Minute
 	configRetryOnNetworkError          = 30 * time.Second
 	defaultOrbitConfigReceiverInterval = 30 * time.Second
-	maxConfigBackoff                   = 5 * time.Minute
+	// configBackoffBaseCap is the exponential backoff ceiling before jitter.
+	// With 100% additive jitter, the effective interval at the cap is
+	// uniformly distributed in [15m, 30m). See #45553.
+	configBackoffBaseCap = 15 * time.Minute
 	// downloadStallTimeout bounds a software-installer download that makes no
 	// progress (e.g. a network filter dropping packets mid-transfer). It resets
 	// on any received bytes, so slow-but-healthy downloads are unaffected.
@@ -359,7 +362,7 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 	defer ticker.Stop()
 
 	// Backoff tracker for the config polling loop. See #45553.
-	configBackoff := backoff.New(oc.ReceiverUpdateInterval, maxConfigBackoff)
+	configBackoff := backoff.New(oc.ReceiverUpdateInterval, configBackoffBaseCap)
 
 	for {
 		select {
