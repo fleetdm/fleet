@@ -1,0 +1,17 @@
+- name: Guest account disabled (macOS)
+  query: |-
+    SELECT 1 WHERE EXISTS (
+      SELECT 1
+      FROM managed_policies
+      WHERE domain = 'com.apple.MCX'
+        AND name = 'DisableGuestAccount'
+        AND (value = 1 OR value = '1')
+      LIMIT 1
+    );
+  critical: false
+  description: |-
+    Verifies the macOS Guest account is disabled via MDM, as required by our SOC 2 policies.
+  resolution: |-
+    The Guest account should be automatically disabled by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin
