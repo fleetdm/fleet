@@ -275,6 +275,18 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 			LatestVersion: strings.TrimSpace(data.LatestVersionInfo.DisplayVersion),
 		}
 	}
+
+	// iPadOS can install iPhone-only apps using compatibility mode even when
+	// Apple doesn't include "ipad" in the app's device families. Expose those
+	// apps for iPadOS while preserving native iPad metadata when it is present.
+	if iosApp, ok := platforms[fleet.IOSPlatform]; ok {
+		if _, hasIPadOS := platforms[fleet.IPadOSPlatform]; !hasIPadOS {
+			ipadOSApp := iosApp
+			ipadOSApp.VPPAppTeam.VPPAppID.Platform = fleet.IPadOSPlatform
+			platforms[fleet.IPadOSPlatform] = ipadOSApp
+		}
+	}
+
 	return platforms
 }
 
