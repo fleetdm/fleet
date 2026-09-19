@@ -56,11 +56,16 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 	}
 
 	enrollChallenge, err := svc.ds.ConsumeADUEEnrollmentChallenge(ctx, enrollRef)
-	if err != nil {
+	switch {
+	case fleet.IsNotFound(err):
+		// The enrollment reference is the credential: an unknown or consumed
+		// reference must look like any other failed authentication.
+		return nil, fleet.NewAuthFailedError("account driven enrollment challenge not found")
+	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "consuming account driven enrollment challenge")
 	}
 	if enrollChallenge == nil {
-		return nil, &fleet.BadRequestError{Message: "account driven enrollment challenge not found"}
+		return nil, fleet.NewAuthFailedError("account driven enrollment challenge not found")
 	}
 
 	idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollChallenge.IdPAccountUUID)

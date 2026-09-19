@@ -3439,7 +3439,12 @@ func (svc *Service) GetMDMAppleInstallerByToken(ctx context.Context, token strin
 	svc.authz.SkipAuthorization(ctx)
 
 	installer, err := svc.ds.MDMAppleInstaller(ctx, token)
-	if err != nil {
+	switch {
+	case fleet.IsNotFound(err):
+		// The token is the credential: an unknown token must look like any
+		// other failed authentication, not a 404 that reveals server state.
+		return nil, fleet.NewAuthFailedError("invalid installer token")
+	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return installer, nil
@@ -3467,7 +3472,10 @@ func (svc *Service) GetMDMAppleInstallerDetailsByToken(ctx context.Context, toke
 	svc.authz.SkipAuthorization(ctx)
 
 	installer, err := svc.ds.MDMAppleInstallerDetailsByToken(ctx, token)
-	if err != nil {
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewAuthFailedError("invalid installer token")
+	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return installer, nil

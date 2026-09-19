@@ -977,6 +977,21 @@ func mdmConfigurationRequiredEndpoints() []struct {
 	}
 }
 
+// preauthMDMConfigurationRequiredEndpoints lists the unauthenticated routes
+// from mdmConfigurationRequiredEndpoints that respond to a not-configured
+// server with the same generic error as a failed credential check.
+func preauthMDMConfigurationRequiredEndpoints() []string {
+	return []string{
+		apple_mdm.EnrollPath + "?token=test",
+		apple_mdm.InstallerPath + "?token=test",
+		"/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172",
+		"/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172",
+		"/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172",
+		"/api/latest/fleet/mdm/bootstrap?token=1",
+		"/api/latest/fleet/bootstrap?token=1",
+	}
+}
+
 func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",

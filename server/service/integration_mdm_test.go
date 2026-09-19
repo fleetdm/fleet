@@ -4882,9 +4882,10 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Token)
 
-	// download a package, wrong token
+	// download a package, wrong token: an unknown token responds like any
+	// failed authentication so it can't be used to probe server state
 	var downloadResp downloadBootstrapPackageResponse
-	s.DoJSON("GET", "/api/latest/fleet/bootstrap?token=bad", nil, http.StatusNotFound, &downloadResp)
+	s.DoJSON("GET", "/api/latest/fleet/bootstrap?token=bad", nil, http.StatusUnauthorized, &downloadResp)
 
 	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
 	respBytes, err := io.ReadAll(resp.Body)
@@ -5327,9 +5328,10 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)
 
-	// try to download EULA with a bad token
+	// try to download EULA with a bad token: an unknown token responds like
+	// any failed authentication so it can't be used to probe server state
 	var downloadResp downloadBootstrapPackageResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/bad-token", nil, http.StatusUnauthorized, &downloadResp)
 
 	// trying to upload any EULA without deleting the previous one first results in an error
 	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
@@ -5338,7 +5340,7 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	var deleteResp deleteMDMEULAResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
 	metadataResp = getMDMEULAMetadataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusUnauthorized, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
 }
@@ -17030,6 +17032,40 @@ func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
 		res := s.DoRawNoAuth("GET", apple_mdm.EnrollPath+"?token=unused&deviceinfo="+di, nil, http.StatusUnauthorized)
 		require.NoError(t, res.Body.Close())
 	})
+
+	t.Run("account-driven enroll answers unknown enrollment reference like failed auth", func(t *testing.T) {
+		apple_mdm.SetMachineInfoVerificationForTest(t, false)
+		body, err := mdmtest.AccountDrivenUserEnrollDeviceInfoAsPKCS7(fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{
+			Product: "iPhone14,5",
+			Version: "22A3351",
+		})
+		require.NoError(t, err)
+		path := strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", "unused", 1)
+		request, err := http.NewRequest("POST", s.server.URL+path, bytes.NewReader(body))
+		require.NoError(t, err)
+		request.Header.Set("Authorization", "Bearer bogus-enroll-reference")
+		// nolint:gosec // this client is used for testing only
+		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+		response, err := cc.Do(request)
+		require.NoError(t, err)
+		defer response.Body.Close()
+		require.Equal(t, http.StatusUnauthorized, response.StatusCode)
+		respBody, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NotContains(t, string(respBody), "challenge")
+	})
+}
+
+// An unknown installer token responds like any other failed authentication so
+// anonymous callers can't use the response to probe server state.
+func (s *integrationMDMTestSuite) TestMDMAppleInstallerUnknownToken() {
+	t := s.T()
+	res := s.DoRawNoAuth("GET", apple_mdm.InstallerPath+"?token=bad", nil, http.StatusUnauthorized)
+	require.NoError(t, res.Body.Close())
+	res = s.DoRawNoAuth("HEAD", apple_mdm.InstallerPath+"?token=bad", nil, http.StatusUnauthorized)
+	require.NoError(t, res.Body.Close())
 }
 
 func (s *integrationMDMTestSuite) getSignedOTAEnrollmentBody(t *testing.T, reqBody []byte) ([]byte, *x509.Certificate, *rsa.PrivateKey) {

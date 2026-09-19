@@ -1,0 +1,1 @@
+- Improved response consistency on unauthenticated MDM endpoints.
