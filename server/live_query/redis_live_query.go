@@ -394,6 +394,53 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	return nil
 }
 
+func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
+	targetKey, sqlKey := generateKeys(name)
+
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// The bitfield and SQL keys share the campaign's hash tag, so both probes fit
+	// in one pipeline. The SQL key is deleted on stop and serves as the "still
+	// active" check, which the per-host set below cannot provide: its entries
+	// outlive StopQuery and are only filtered against the active set at read time.
+	if err := conn.Send("GETBIT", targetKey, hostID); err != nil {
+		return false, fmt.Errorf("getbit query targets: %w", err)
+	}
+	if err := conn.Send("EXISTS", sqlKey); err != nil {
+		return false, fmt.Errorf("exists query sql: %w", err)
+	}
+	if err := conn.Flush(); err != nil {
+		return false, fmt.Errorf("flush pipeline: %w", err)
+	}
+	targeted, err := redigo.Int(conn.Receive())
+	if err != nil {
+		return false, fmt.Errorf("receive target: %w", err)
+	}
+	active, err := redigo.Bool(conn.Receive())
+	if err != nil {
+		return false, fmt.Errorf("receive query sql exists: %w", err)
+	}
+	if !active {
+		return false, nil
+	}
+	if targeted == 1 {
+		return true, nil
+	}
+	return r.isReverseMember(name, hostID)
+}
+
+func (r *redisLiveQuery) isReverseMember(name string, hostID uint) (bool, error) {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(hostID), name))
+	if err != nil && err != redigo.ErrNil {
+		return false, fmt.Errorf("sismember reverse host key: %w", err)
+	}
+	return isMember, nil
+}
+
 func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()

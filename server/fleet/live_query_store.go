@@ -18,6 +18,10 @@ type LiveQueryStore interface {
 	// given host. After calling QueryCompleted, that query will no longer be
 	// sent to the host.
 	QueryCompletedByHost(name string, hostID uint) error
+	// IsQueryTargetingHost reports whether the query with the given name is
+	// active and still targets the given host (i.e. the host has not yet
+	// completed it).
+	IsQueryTargetingHost(name string, hostID uint) (bool, error)
 	// CleanupInactiveQueries removes any inactive queries. This is used via a
 	// cron job to regularly cleanup any queries that may have failed to be
 	// stopped properly in Redis.

@@ -2690,6 +2690,18 @@ func (svc *Service) ingestDistributedQuery(
 		return newOsqueryError("unable to parse campaign ID: " + trimmedQuery)
 	}
 
+	// The host controls the campaign ID in the query name and IDs are sequential,
+	// so without this any enrolled host could stream forged rows into every
+	// running campaign server-wide, including other fleets' campaigns.
+	targeted, err := svc.liveQueryStore.IsQueryTargetingHost(strconv.Itoa(campaignID), host.ID)
+	if err != nil {
+		return newOsqueryError("check campaign targets host: " + err.Error())
+	}
+	if !targeted {
+		svc.logger.DebugContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
+		return nil
+	}
+
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
 		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115

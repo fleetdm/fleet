@@ -51,6 +51,12 @@ func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return args.Error(0)
 }
 
+// IsQueryTargetingHost mocks the live query store IsQueryTargetingHost method.
+func (m *MockLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
+	args := m.Called(name, hostID)
+	return args.Bool(0), args.Error(1)
+}
+
 // CleanupInactiveQueries mocks the live query store CleanupInactiveQueries method.
 func (m *MockLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
 	args := m.Called(ctx, inactiveCampaignIDs)
