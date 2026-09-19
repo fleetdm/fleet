@@ -227,7 +227,7 @@ var milestoneReportCmd = &cobra.Command{
 			for _, p := range projects {
 				pids = append(pids, p.ID)
 			}
-			statuses, _ := ghapi.GetIssueProjectStatuses(num, pids)
+			statuses, _ := ghapi.GetIssueProjectStatuses("", num, pids)
 			row := []string{fmt.Sprintf("%d", num), fmt.Sprintf("%d", len(mi.Assignees))}
 			for _, pid := range pids {
 				ps, ok := statuses[pid]
