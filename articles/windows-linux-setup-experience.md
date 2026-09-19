@@ -73,6 +73,8 @@ On Windows and Linux hosts, Fleet checks policies before installing setup experi
 
 To associate a policy with software, use the policy's **Install software** automation. Learn more in the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
+[Patch policies](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) don't count, even when they install the app. A patch policy passes on hosts that don't have the app, so Fleet always installs software that only has a patch policy and lets the patch policy keep it up to date afterward.
+
 A policy only counts toward the decision if it applies to the host. For example, a policy scoped to labels that exclude the host is ignored. If none of the associated policies apply to the host, or the host doesn't report policy results within 30 minutes of enrolling, Fleet installs the software.
 
 A skipped install counts as a success. It shows as **Installed** on the end user's setup progress page, it doesn't create an install activity, and it never triggers **Cancel setup if software fails**.

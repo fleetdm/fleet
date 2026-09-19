@@ -2619,6 +2619,103 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.ElementsMatch(t, []uint{p1.ID, p2.ID}, forHost, "all of the installer's gating policies must be distributed during setup, not just the marker")
 	})
+
+	// newFMAInstaller creates a Windows Fleet-maintained app installer flagged for setup experience, as a patch policy requires one.
+	newFMAInstaller := func(t *testing.T, title string, teamID uint) (installerID, titleID uint) {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             title,
+			Slug:             strings.ToLower(title) + "/windows",
+			Platform:         "windows",
+			UniqueIdentifier: title,
+		})
+		require.NoError(t, err)
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("installer"), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:        "echo install",
+			InstallerFile:        tfr,
+			StorageID:            "pg-storage-" + uuid.NewString(),
+			Filename:             title + ".msi",
+			Title:                title,
+			Version:              "1.0",
+			Source:               "programs",
+			UserID:               user.ID,
+			TeamID:               &teamID,
+			Platform:             "windows",
+			Extension:            "msi",
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: &app.ID,
+		})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerID)
+			return e
+		})
+		return installerID, titleID
+	}
+
+	t.Run("patch policy that installs the app does not gate", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-patch"})
+		require.NoError(t, err)
+		installerID, titleID := newFMAInstaller(t, "PatchOnly", team.ID)
+		// "Patch when app is closed" / "Force patch": a patch policy whose install-software automation points at the installer.
+		_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Type:                         fleet.PolicyTypePatch,
+			PatchSoftwareTitleID:         &titleID,
+			SoftwareInstallerID:          &installerID,
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+
+		host := newHost("windows", &team.ID)
+		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, team.ID)
+		require.NoError(t, err)
+
+		// The patch policy passes on a host without the app, so it must not be used as a gate: the item installs unconditionally.
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "PatchOnly")
+		require.False(t, gatedFlags["PatchOnly"], "a patch policy must not gate a setup-experience item")
+
+		forInstaller, err := ds.GetSetupExperiencePolicyIDsForInstaller(ctx, installerID)
+		require.NoError(t, err)
+		require.Empty(t, forInstaller)
+		forHost, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Empty(t, forHost, "the patch policy must not be distributed as a gating policy during setup")
+	})
+
+	t.Run("patch policy alongside an install policy: only the install policy gates", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-patch-mixed"})
+		require.NoError(t, err)
+		installerID, titleID := newFMAInstaller(t, "PatchMixed", team.ID)
+		_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Type:                 fleet.PolicyTypePatch,
+			PatchSoftwareTitleID: &titleID,
+			SoftwareInstallerID:  &installerID,
+		})
+		require.NoError(t, err)
+		installPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:                "mixed-install",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		host := newHost("windows", &team.ID)
+		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, team.ID)
+		require.NoError(t, err)
+
+		gatedFlags := readPolicyGated(host.UUID)
+		require.True(t, gatedFlags["PatchMixed"])
+
+		forInstaller, err := ds.GetSetupExperiencePolicyIDsForInstaller(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []uint{installPolicy.ID}, forInstaller)
+		forHost, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, []uint{installPolicy.ID}, forHost)
+	})
 }
 
 // testSetupExperiencePolicyGateResultLookups verifies GetSetupExperiencePolicyResult freshness handling and
