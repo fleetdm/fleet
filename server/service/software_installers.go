@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -18,9 +19,12 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -73,8 +77,44 @@ type uploadSoftwareInstallerResponse struct {
 	Err             error                    `json:"error,omitempty"`
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// softwareInstallerUploadPreAuth returns an HTTP middleware for the installer
+// upload endpoints that rejects requests without a valid user session before
+// the (potentially very large) multipart body is parsed. On success it stashes
+// the viewer so SetRequestsContexts and the endpoint-layer AuthenticatedUser
+// middleware reuse it instead of validating the session again.
+func softwareInstallerUploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
+	// Rejections happen before the kithttp server, so the content type the
+	// server options normally apply must be set here.
+	writeErr := func(ctx context.Context, w http.ResponseWriter, err error) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		encodeError(ctx, err, w)
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			bearer := token.FromHTTPRequest(r)
+			if bearer == "" {
+				writeErr(ctx, w, fleet.NewAuthHeaderRequiredError("no auth token"))
+				return
+			}
+			v, err := auth.AuthViewer(ctx, string(bearer), svc)
+			if err != nil {
+				logger.WarnContext(ctx, "software package request rejected before body parse",
+					"path", r.URL.Path, "err", err)
+				writeErr(ctx, w, err)
+				return
+			}
+			ctx = viewer.NewContext(ctx, *v)
+			ctx = ctxerr.AddErrorContextProvider(ctx, v)
+			ctx = logging.WithUserEmailer(ctx, v)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// NOTE: the multipart body is still parsed before the role-based
+// svc.authz.Authorize check runs; softwareInstallerUploadPreAuth only keeps
+// unauthenticated requests from reaching the parser.
 func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := updateSoftwareInstallerRequest{}
 
@@ -102,8 +142,9 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 				http.StatusRequestTimeout,
 			)
 		}
+		// The parser's own message stays in the logs via InternalErr.
 		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form: " + err.Error(),
+			Message:     "failed to parse multipart form",
 			InternalErr: err,
 		}
 	}
@@ -336,8 +377,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil, fleet.ErrMissingLicense
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// NOTE: the multipart body is still parsed before the role-based
+// svc.authz.Authorize check runs; softwareInstallerUploadPreAuth only keeps
+// unauthenticated requests from reaching the parser.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
@@ -358,8 +400,9 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 				http.StatusRequestTimeout,
 			)
 		}
+		// The parser's own message stays in the logs via InternalErr.
 		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form: " + err.Error(),
+			Message:     "failed to parse multipart form",
 			InternalErr: err,
 		}
 	}

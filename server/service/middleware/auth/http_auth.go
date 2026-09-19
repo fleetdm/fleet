@@ -17,7 +17,9 @@ func SetRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 	return func(ctx context.Context, r *http.Request) context.Context {
 		bearer := token.FromHTTPRequest(r)
 		ctx = token.NewContext(ctx, bearer)
-		if bearer != "" {
+		// An HTTP-level pre-auth middleware may have already validated the
+		// session and stashed the viewer; don't validate it a second time.
+		if _, ok := viewer.FromContext(ctx); !ok && bearer != "" {
 			v, err := AuthViewer(ctx, string(bearer), svc)
 			if err == nil {
 				ctx = viewer.NewContext(ctx, *v)

@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -69,6 +70,95 @@ func TestUploadSoftwareInstallerDecodeTitleID(t *testing.T) {
 			require.Equal(t, tt.want, decoded.(*uploadSoftwareInstallerRequest).TitleID)
 		})
 	}
+}
+
+func TestSoftwareInstallerDecodeMultipartParseError(t *testing.T) {
+	newRequest := func(method string) *http.Request {
+		request := httptest.NewRequest(method, "/api/latest/fleet/software/package", strings.NewReader("not a multipart body"))
+		request.Header.Set("Content-Type", "multipart/form-data; boundary=xxx")
+		return request
+	}
+	ctx := installersize.NewContext(t.Context(), 1024)
+
+	_, err := (uploadSoftwareInstallerRequest{}).DecodeRequest(ctx, newRequest(http.MethodPost))
+	require.Error(t, err)
+	var badReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+	require.NotNil(t, badReq)
+	require.Equal(t, "failed to parse multipart form", badReq.Message)
+
+	updateReq := mux.SetURLVars(newRequest(http.MethodPatch), map[string]string{"id": "1"})
+	_, err = (updateSoftwareInstallerRequest{}).DecodeRequest(ctx, updateReq)
+	require.Error(t, err)
+	var updateBadReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &updateBadReq)
+	require.NotNil(t, updateBadReq)
+	require.Equal(t, "failed to parse multipart form", updateBadReq.Message)
+}
+
+// preAuthStubService implements the two service methods the upload pre-auth
+// middleware exercises through auth.AuthViewer.
+type preAuthStubService struct {
+	fleet.Service
+	sessionErr error
+}
+
+func (s *preAuthStubService) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
+	if s.sessionErr != nil {
+		return nil, s.sessionErr
+	}
+	return &fleet.Session{UserID: 1}, nil
+}
+
+func (s *preAuthStubService) UserUnauthorized(ctx context.Context, id uint) (*fleet.User, error) {
+	return &fleet.User{ID: id}, nil
+}
+
+func TestSoftwareInstallerUploadPreAuth(t *testing.T) {
+	newHandler := func(svc fleet.Service, called *bool) http.Handler {
+		return softwareInstallerUploadPreAuth(svc, slog.New(slog.DiscardHandler))(
+			http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				*called = true
+			}))
+	}
+	newRequest := func() *http.Request {
+		return httptest.NewRequest(http.MethodPost, "/api/latest/fleet/software/package", strings.NewReader("body"))
+	}
+
+	t.Run("missing token is rejected before the body is parsed", func(t *testing.T) {
+		var called bool
+		rec := httptest.NewRecorder()
+		newHandler(&preAuthStubService{}, &called).ServeHTTP(rec, newRequest())
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Equal(t, "application/json; charset=utf-8", rec.Header().Get("Content-Type"))
+		require.False(t, called)
+	})
+
+	t.Run("invalid session is rejected with a generic message", func(t *testing.T) {
+		var called bool
+		req := newRequest()
+		req.Header.Set("Authorization", "Bearer sometoken")
+		rec := httptest.NewRecorder()
+		newHandler(&preAuthStubService{sessionErr: errors.New("Error 1045: session row lookup failed")}, &called).ServeHTTP(rec, req)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Equal(t, "application/json; charset=utf-8", rec.Header().Get("Content-Type"))
+		require.False(t, called)
+		require.NotContains(t, rec.Body.String(), "1045")
+		require.NotContains(t, rec.Body.String(), "session row lookup")
+	})
+
+	t.Run("valid session passes through and stashes the viewer", func(t *testing.T) {
+		var gotViewer bool
+		h := softwareInstallerUploadPreAuth(&preAuthStubService{}, slog.New(slog.DiscardHandler))(
+			http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				_, gotViewer = viewer.FromContext(r.Context())
+			}))
+		req := newRequest()
+		req.Header.Set("Authorization", "Bearer sometoken")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		require.True(t, gotViewer, "viewer must be in the context so the session is not validated again")
+	})
 }
 
 func TestSoftwareInstallersAuth(t *testing.T) {

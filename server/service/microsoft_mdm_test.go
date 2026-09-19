@@ -14,11 +14,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,6 +53,38 @@ func TestValidSoapResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, outXML)
 	require.Contains(t, string(outXML), fmt.Sprintf("<a:RelatesTo>%s</a:RelatesTo>", relatesTo))
+}
+
+func TestHideSoapFaultDetail(t *testing.T) {
+	detailed := errors.New("host data cannot be found sql: no rows in result set")
+	fault := NewSoapFault(syncml.SoapErrorMessageFormat, fleet.MDEPolicy, detailed)
+	hideSoapFaultDetail(&fault)
+	require.Equal(t, platform_http.GenericErrorMessage, fault.Reason.Text.Content)
+
+	// The rendered SOAP response must not carry the original detail.
+	sres, err := NewSoapResponse(&fault, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
+	require.NoError(t, err)
+	outXML, err := xml.MarshalIndent(sres, "", "  ")
+	require.NoError(t, err)
+	require.NotContains(t, string(outXML), "sql: no rows")
+	require.NotContains(t, string(outXML), "host data cannot be found")
+	require.Contains(t, string(outXML), platform_http.GenericErrorMessage)
+}
+
+// The policy endpoint keeps fault reasons for token failures the caller can
+// act on, and hides everything else; classification must survive the ctxerr
+// wrapping applied by GetMDMWindowsPolicyResponse.
+func TestClientTokenErrorClassification(t *testing.T) {
+	ctx := context.Background()
+
+	wrapped := ctxerr.Wrap(ctx, newClientTokenError("authToken is not valid"), "validate binary security token")
+	var cte clientTokenError
+	require.ErrorAs(t, wrapped, &cte)
+	require.Equal(t, "authToken is not valid", cte.Error())
+
+	backend := ctxerr.Wrap(ctx, errors.New("Error 1045: access denied"), "validate binary security token")
+	var cte2 clientTokenError
+	require.NotErrorAs(t, backend, &cte2)
 }
 
 func TestInvalidSoapResponse(t *testing.T) {

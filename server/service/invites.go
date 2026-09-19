@@ -49,6 +49,9 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email", "missing required argument"))
 	}
 	*payload.Email = strings.ToLower(*payload.Email)
+	if err := fleet.ValidateEmail(*payload.Email); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email", "Email is invalid"))
+	}
 
 	// verify that the user with the given email does not already exist
 	_, err := svc.ds.UserByEmail(ctx, *payload.Email)
@@ -130,7 +133,12 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 
 	err = svc.mailService.SendEmail(ctx, inviteEmail)
 	if err != nil {
-		return nil, err
+		// The mail package doesn't distinguish bad addresses (caught by the
+		// ValidateEmail check above) from provider outages, so all send failures
+		// answer as a server error; the provider's message describes Fleet's
+		// email integration, not the caller's request, so it stays in the logs.
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "send invite email"))
+		return nil, ctxerr.New(ctx, "Couldn't send invite email. Please check your organization's email configuration and try again.")
 	}
 	return invite, nil
 }

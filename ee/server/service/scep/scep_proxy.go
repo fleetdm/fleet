@@ -249,6 +249,16 @@ func sanitizeUpstreamError(ctx context.Context, err error, message string) error
 	return ctxerr.New(ctx, message)
 }
 
+// backendError logs err and returns a replacement carrying only message; like
+// sanitizeUpstreamError, it keeps backend error text out of the response body
+// the SCEP transport writes. Unlike an upstream CA failure, a backend failure
+// is Fleet's own, so it is also reported to the error store.
+func (svc *scepProxyService) backendError(ctx context.Context, err error, message string) error {
+	svc.debugLogger.ErrorContext(ctx, message, "err", err)
+	ctxerr.Handle(ctx, ctxerr.Wrap(ctx, err, message))
+	return ctxerr.New(ctx, message)
+}
+
 // GetCACert returns the CA certificate(s) from SCEP server.
 // It is a pass-through call to the SCEP server.
 func (svc *scepProxyService) GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error) {
@@ -369,7 +379,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 ) {
 	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, false)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+		return "", svc.backendError(ctx, err, "getting grouped certificate authorities")
 	}
 
 	parsedID, err := url.PathUnescape(identifier)
@@ -406,7 +416,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
 		profile, err := svc.ds.GetAppleHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+			return "", svc.backendError(ctx, err, "getting host MDM profile")
 		}
 		if profile != nil {
 			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
@@ -415,7 +425,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		profile, err := svc.ds.GetWindowsHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
+			return "", svc.backendError(ctx, err, "getting host MDM profile")
 		}
 		if profile != nil {
 			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
@@ -431,16 +441,22 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		}
 
 		template, err := svc.ds.GetCertificateTemplateForHost(ctx, hostUUID, uint(certTemplateID))
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "getting Android certificate template")
-		}
-		certReq = &certificateTemplateForHostAdapter{
-			template:    template,
-			profileUUID: profileUUID,
-		}
-		// Use the fleet challenge from the template if not provided in the identifier
-		if fleetChallenge == "" && template.FleetChallenge != nil {
-			fleetChallenge = *template.FleetChallenge
+		switch {
+		case fleet.IsNotFound(err):
+			// Leave certReq nil so an unknown template answers like the Apple and
+			// Windows branches ("unknown identifier"), instead of surfacing the
+			// datastore's not-found text.
+		case err != nil:
+			return "", svc.backendError(ctx, err, "getting Android certificate template")
+		default:
+			certReq = &certificateTemplateForHostAdapter{
+				template:    template,
+				profileUUID: profileUUID,
+			}
+			// Use the fleet challenge from the template if not provided in the identifier
+			if fleetChallenge == "" && template.FleetChallenge != nil {
+				fleetChallenge = *template.FleetChallenge
+			}
 		}
 	}
 
@@ -475,7 +491,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
 			if err := svc.resendProfileForExpiredChallenge(ctx, hostUUID, profileUUID); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resending host profile after expired challenge")
+				return "", svc.backendError(ctx, err, "resending host profile after expired challenge")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
@@ -499,7 +515,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
 			if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+				return "", svc.backendError(ctx, err, "resending host mdm profile")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}

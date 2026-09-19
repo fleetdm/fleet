@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -64,6 +65,29 @@ func TestInviteNewUserMock(t *testing.T) {
 	ms.UserByEmailFunc = mock.UserByEmailWithUser(new(fleet.User))
 	_, err = svc.InviteNewUser(test.UserContext(context.Background(), test.UserAdmin), payload)
 	require.NotNil(t, err, "should err if the user we're inviting already exists")
+
+	// a mail-provider failure is mapped to a generic server error (not a
+	// client error); the provider's own message stays out of the response
+	ms.UserByEmailFunc = mock.UserWithEmailNotFound()
+	mailer.SendEmailFn = func(e fleet.Email) error {
+		return errors.New("ses: MessageRejected: sender address ops@internal.example.com is not verified")
+	}
+	_, err = svc.InviteNewUser(license.NewContext(test.UserContext(context.Background(), test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierPremium}), payload)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Couldn't send invite email")
+	require.NotContains(t, err.Error(), "MessageRejected")
+	require.NotContains(t, err.Error(), "internal.example.com")
+	var badReq *fleet.BadRequestError
+	require.NotErrorAs(t, err, &badReq, "mail failures should not answer as client errors")
+
+	// the email address is validated before anything else runs
+	ms.NewInviteFuncInvoked = false
+	payload.Email = new("not-an-email")
+	_, err = svc.InviteNewUser(license.NewContext(test.UserContext(context.Background(), test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierPremium}), payload)
+	require.Error(t, err)
+	var invalidArg *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &invalidArg)
+	require.False(t, ms.NewInviteFuncInvoked)
 }
 
 func TestUpdateInvite(t *testing.T) {

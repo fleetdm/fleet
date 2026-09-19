@@ -238,6 +238,14 @@ func TestValidateSCEPURL(t *testing.T) {
 	assert.ErrorContains(t, err, "could not retrieve CA certificate")
 }
 
+// testNotFoundErr satisfies fleet.IsNotFound for datastore stubs.
+type testNotFoundErr struct{}
+
+func (testNotFoundErr) Error() string {
+	return "CertificateTemplateForHost was not found in the datastore"
+}
+func (testNotFoundErr) IsNotFound() bool { return true }
+
 func TestValidateIdentifier(t *testing.T) {
 	t.Parallel()
 
@@ -336,6 +344,48 @@ func TestValidateIdentifier(t *testing.T) {
 		_, err := svc.validateIdentifier(ctx, identifier, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown identifier in URL path")
+	})
+
+	t.Run("Android template not found responds like unknown identifier", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return nil, testNotFoundErr{}
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g123", "test-ca", "challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Equal(t, "unknown identifier in URL path", err.Error())
+		assert.NotContains(t, err.Error(), "datastore")
+	})
+
+	t.Run("backend error detail stays out of the returned error", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+			return nil, errors.New("Error 1045 (28000): Access denied for user 'fleet'")
+		}
+		svc := newTestService(ds)
+
+		identifier := makeIdentifier("host-uuid", "g123", "test-ca", "challenge")
+		_, err := svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Equal(t, "getting Android certificate template", err.Error())
+		assert.NotContains(t, err.Error(), "1045")
+
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return nil, errors.New("Error 1045 (28000): Access denied for user 'fleet'")
+		}
+		_, err = svc.validateIdentifier(ctx, identifier, false)
+		require.Error(t, err)
+		assert.Equal(t, "getting grouped certificate authorities", err.Error())
+		assert.NotContains(t, err.Error(), "1045")
 	})
 
 	t.Run("profile status not pending for Apple profile", func(t *testing.T) {
