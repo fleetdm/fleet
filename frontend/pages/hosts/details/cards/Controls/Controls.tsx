@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
@@ -7,6 +7,7 @@ import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -68,6 +69,13 @@ const Controls = ({
     selectedControl,
     setSelectedControl,
   ] = useState<IHostMdmProfileWithAddedStatus | null>(null);
+  const { config } = useContext(AppContext);
+
+  // Admin-only. The device page never populates AppContext.config and the
+  // server refuses the device-token resend of this profile anyway; the
+  // isDeviceUser check just keeps that explicit here.
+  const canResendFleetdWhileVerifying =
+    !isDeviceUser && !!config?.auth?.use_one_time_enroll_secrets;
 
   const tableConfig = useMemo(
     () =>
@@ -79,7 +87,8 @@ const Controls = ({
         canRotateRecoveryLockPassword,
         rotateRecoveryLockPassword,
         canResendHostNameTemplate,
-        resendHostNameTemplate
+        resendHostNameTemplate,
+        canResendFleetdWhileVerifying
       ),
     [
       canResendProfiles,
@@ -90,6 +99,7 @@ const Controls = ({
       rotateRecoveryLockPassword,
       canResendHostNameTemplate,
       resendHostNameTemplate,
+      canResendFleetdWhileVerifying,
     ]
   );
 
@@ -160,6 +170,7 @@ const Controls = ({
           isDeviceUser={isDeviceUser}
           isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly}
           canResendProfiles={canResendProfiles}
+          canResendFleetdWhileVerifying={canResendFleetdWhileVerifying}
           canRotateRecoveryLockPassword={canRotateRecoveryLockPassword}
           canResendHostNameTemplate={canResendHostNameTemplate}
           resendRequest={resendRequest}
