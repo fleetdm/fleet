@@ -1,5 +1,6 @@
 # File-reference forms that must validate: path on section values and packages, and
-# path/paths (a single glob string) on policies, labels, reports, and yara_rules.
+# path/paths (a single glob string) on policies, labels, reports, yara_rules,
+# app_store_apps, and fleet_maintained_apps.
 org_settings:
   yara_rules:
     - path: ../lib/yara/rule.yar
@@ -13,3 +14,7 @@ reports:
 software:
   packages:
     - path: ../lib/software/pkg.yml
+  app_store_apps:
+    - path: ../lib/software/apps.yml
+  fleet_maintained_apps:
+    - paths: "../lib/software/fma-*.yml"
