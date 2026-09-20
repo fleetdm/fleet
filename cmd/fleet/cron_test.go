@@ -299,7 +299,7 @@ func TestCleanupStaleWindowsMDMEnrollmentsCronJob(t *testing.T) {
 	t.Run("propagates datastore errors", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.CleanupStaleMDMWindowsEnrollmentsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
-			return 0, errors.New("boom")
+			return 2, errors.New("boom")
 		}
 		err := cleanupStaleWindowsMDMEnrollmentsCronJob(t.Context(), ds, logger, time.Hour)
 		require.ErrorContains(t, err, "boom")

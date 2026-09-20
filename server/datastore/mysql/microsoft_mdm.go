@@ -4031,7 +4031,8 @@ func (ds *Datastore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olde
 // and its FK cascades to one batch. The id cursor means a tick scans the
 // table once, not once per batch. No index on updated_at on purpose: it
 // changes on hot-path check-in writes, and most live rows are old anyway.
-// Both statements use the writer so replica lag cannot feed back deleted ids.
+// The scan runs on the reader since most ticks delete nothing; a lagging
+// replica can only return ids the DELETE then re-checks on the writer.
 func cleanupStaleMDMWindowsEnrollmentsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
 	const selectStmt = `
 SELECT e.id
@@ -4047,7 +4048,7 @@ LIMIT ?`
 	exhausted := true
 	for range maxBatches {
 		var ids []uint
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, selectStmt, lastID, olderThan, batchSize); err != nil {
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, selectStmt, lastID, olderThan, batchSize); err != nil {
 			return totalDeleted, ctxerr.Wrap(ctx, err, "select stale windows mdm enrollments")
 		}
 		if len(ids) == 0 {

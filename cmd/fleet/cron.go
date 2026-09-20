@@ -1677,6 +1677,9 @@ func cleanupStaleWindowsMDMEnrollmentsCronJob(ctx context.Context, ds fleet.Data
 	}
 	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, time.Now().Add(-retention).UTC())
 	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup stale windows mdm enrollments failed after partial progress", "deleted", deleted)
+		}
 		return err
 	}
 	if deleted > 0 {

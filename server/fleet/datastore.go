@@ -516,7 +516,8 @@ type Datastore interface {
 	// CleanupStaleMDMWindowsEnrollments deletes Windows MDM enrollments not
 	// updated since olderThan that are orphaned (no matching host) or
 	// superseded by a newer enrollment for the same host. Child command queue,
-	// results and responses rows cascade. Returns the number deleted.
+	// results and responses rows cascade. Returns the number deleted, which
+	// on error is the count deleted before the failure.
 	CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error)
 	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
 	// deleted and edited profiles) once no host still has the prior version installed.
