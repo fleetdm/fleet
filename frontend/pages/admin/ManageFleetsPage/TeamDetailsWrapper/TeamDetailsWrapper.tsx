@@ -430,6 +430,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
+                entityType: "secrets",
               },
               {
                 type: "secondary",

@@ -7,6 +7,7 @@ import DropdownButton from "components/buttons/DropdownButton";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
+import { IGitOpsExceptions } from "interfaces/config";
 
 // TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
 // TableContainer. Disambiguate these names or combine into a single abstraction.
@@ -18,6 +19,9 @@ export interface IActionButtonProps {
   iconName?: IconNames;
   hideAction?: boolean;
   gitOpsModeCompatible?: boolean;
+  /** Checked against the GitOps mode exceptions. When the entity is excepted, the
+   * action stays enabled in GitOps mode. Omit for actions no exception covers. */
+  entityType?: keyof IGitOpsExceptions;
 }
 
 interface IProps {
@@ -59,6 +63,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
             if (action.gitOpsModeCompatible) {
               return (
                 <GitOpsModeTooltipWrapper
+                  entityType={action.entityType}
                   renderChildren={(disableChildren) => (
                     <Button
                       variant={action.buttonVariant}
