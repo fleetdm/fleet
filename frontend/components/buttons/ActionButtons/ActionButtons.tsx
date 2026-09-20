@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import Button from "components/buttons/Button";
 import { ButtonVariant } from "components/buttons/Button/Button";
@@ -7,6 +7,8 @@ import DropdownButton from "components/buttons/DropdownButton";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
+import { AppContext } from "context/app";
+import { isGitOpsModeEnabledFor } from "hooks/useGitOpsMode";
 import { IGitOpsExceptions } from "interfaces/config";
 
 // TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
@@ -30,6 +32,7 @@ interface IProps {
 }
 
 const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
+  const { config } = useContext(AppContext);
   const primaryActions: IActionButtonProps[] = [];
   const secondaryActions: IActionButtonProps[] = [];
 
@@ -42,6 +45,16 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
       ? primaryActions.push(action)
       : secondaryActions.push(action);
   });
+
+  // The dropdown is the narrow-viewport rendering of the same secondary actions,
+  // so it has to reach the same GitOps decision the tooltip wrapper makes for the
+  // buttons. DropdownButton renders plain options, hence the explicit disabled.
+  const dropdownOptions = secondaryActions.map((action) => ({
+    ...action,
+    disabled:
+      !!action.gitOpsModeCompatible &&
+      isGitOpsModeEnabledFor(config, action.entityType),
+  }));
 
   return (
     <div
@@ -93,7 +106,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
         >
           <DropdownButton
             showCaret={false}
-            options={secondaryActions}
+            options={dropdownOptions}
             variant="secondary"
           >
             More options <Icon name="more" />
