@@ -71,6 +71,9 @@ export default {
   DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
   },
+  DEVICE_DISK_ENCRYPTION_PIN: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/disk_encryption_pin`;
+  },
   DEVICE_CERTIFICATES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/certificates`;
   },

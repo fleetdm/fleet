@@ -47,6 +47,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
+		{"TestMDMWindowsPendingCommandsDeliveryOrder", testMDMWindowsPendingCommandsDeliveryOrder},
 		{"TestMDMWindowsGetESPReleaseAckStatus", testMDMWindowsGetESPReleaseAckStatus},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
@@ -2194,6 +2195,107 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, 0)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
+}
+
+func testMDMWindowsPendingCommandsDeliveryOrder(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(t *testing.T) (enrollmentID uint, hostUUID string) {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-1C3ARC1",
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               uuid.NewString(),
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID), d.HostUUID
+	}
+
+	// Insert order is the reverse of command_uuid order, so a tie broken by command_uuid returns these backwards.
+	newBurst := func() []*fleet.MDMWindowsCommand {
+		var cmds []*fleet.MDMWindowsCommand
+		for i, prefix := range []string{"zzz-", "mmm-", "aaa-"} {
+			cmds = append(cmds, &fleet.MDMWindowsCommand{
+				CommandUUID:  prefix + uuid.NewString(),
+				RawCommand:   []byte(fmt.Sprintf("<Exec>%d</Exec>", i)),
+				TargetLocURI: fmt.Sprintf("./test/uri/%d", i),
+			})
+		}
+		return cmds
+	}
+	uuidsOf := func(cmds []*fleet.MDMWindowsCommand) []string {
+		out := make([]string, 0, len(cmds))
+		for _, cmd := range cmds {
+			out = append(out, cmd.CommandUUID)
+		}
+		return out
+	}
+	// Force the tie rather than depend on the inserts landing in the same second.
+	setCreatedAt := func(t *testing.T, createdAt string, cmdUUIDs []string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt, args, err := sqlx.In(`UPDATE windows_mdm_commands SET created_at = ? WHERE command_uuid IN (?)`, createdAt, cmdUUIDs)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+	enqueue := func(t *testing.T, enrollmentID uint, cmdUUIDs []string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			for _, cmdUUID := range cmdUUIDs {
+				if _, err := q.ExecContext(ctx,
+					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`, enrollmentID, cmdUUID); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	pending := func(t *testing.T, enrollmentID uint) []string {
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
+		require.NoError(t, err)
+		return uuidsOf(cmds)
+	}
+	const sameSecond = "2026-01-01 00:00:00"
+
+	t.Run("single-row inserts", func(t *testing.T) {
+		enrollmentID, hostUUID := newEnrollment(t)
+		burst := newBurst()
+		for _, cmd := range burst {
+			require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, cmd))
+		}
+		setCreatedAt(t, sameSecond, uuidsOf(burst))
+		require.Equal(t, uuidsOf(burst), pending(t, enrollmentID))
+	})
+
+	t.Run("multi-row insert", func(t *testing.T) {
+		enrollmentID, _ := newEnrollment(t)
+		burst := newBurst()
+		require.NoError(t, ds.MDMWindowsBulkInsertCommands(ctx, burst))
+		enqueue(t, enrollmentID, uuidsOf(burst))
+		setCreatedAt(t, sameSecond, uuidsOf(burst))
+		require.Equal(t, uuidsOf(burst), pending(t, enrollmentID))
+	})
+
+	t.Run("older created_at beats higher id", func(t *testing.T) {
+		// Rows that predate the id column were backfilled in primary-key order, so this is the shape they can have.
+		enrollmentID, hostUUID := newEnrollment(t)
+		burst := newBurst()
+		for _, cmd := range burst {
+			require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, cmd))
+		}
+		setCreatedAt(t, sameSecond, uuidsOf(burst))
+		last := burst[len(burst)-1].CommandUUID
+		setCreatedAt(t, "2025-12-31 00:00:00", []string{last})
+		want := append([]string{last}, uuidsOf(burst[:len(burst)-1])...)
+		require.Equal(t, want, pending(t, enrollmentID))
+	})
 }
 
 func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
