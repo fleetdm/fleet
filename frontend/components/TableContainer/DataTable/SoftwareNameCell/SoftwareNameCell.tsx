@@ -258,6 +258,8 @@ interface ISoftwareNameCellProps {
   name: string;
   /** Overrides name for display */
   display_name?: string;
+  /** Last-resort label for apps whose reported name has nothing visible */
+  bundle_identifier?: string;
   source?: string;
   /** pass in a `path` that this cell will link to */
   path?: string;
@@ -281,6 +283,7 @@ interface ISoftwareNameCellProps {
 const SoftwareNameCell = ({
   name,
   display_name,
+  bundle_identifier,
   source,
   path,
   router,
@@ -297,7 +300,11 @@ const SoftwareNameCell = ({
   autoUpdateWindowEnd,
   previewIcon,
 }: ISoftwareNameCellProps) => {
-  const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
+  const softwareDisplayName = getDisplayedSoftwareName(
+    name,
+    display_name,
+    bundle_identifier
+  );
   const icon = previewIcon || (
     <SoftwareIcon name={name} source={source} url={iconUrl} />
   );
