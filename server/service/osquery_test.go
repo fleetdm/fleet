@@ -1990,30 +1990,31 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
-		hostDetailQueryPrefix + "mdm":                                     {},
-		hostDetailQueryPrefix + "munki_info":                              {},
-		hostDetailQueryPrefix + "kubequery_info":                          {},
-		hostDetailQueryPrefix + "orbit_info":                              {},
-		hostDetailQueryPrefix + "software_vscode_extensions":              {},
-		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
-		hostDetailQueryPrefix + "software_adobe_plugins":                  {},
-		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
-		hostDetailQueryPrefix + "software_go_binaries":                    {},
-		hostDetailQueryPrefix + "software_python_packages":                {},
-		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
-		hostDetailQueryPrefix + "software_macos_firefox":                  {},
-		hostDetailQueryPrefix + "battery":                                 {},
-		hostDetailQueryPrefix + "software_macos_codesign":                 {},
-		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
-		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
-		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
-		hostDetailQueryPrefix + "disk_space_darwin":                       {},
-		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
-		hostDetailQueryPrefix + "certificates_windows":                    {},
-		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
-		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":          {},
-		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":         {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                    {},
+		hostDetailQueryPrefix + "mdm":                                       {},
+		hostDetailQueryPrefix + "munki_info":                                {},
+		hostDetailQueryPrefix + "kubequery_info":                            {},
+		hostDetailQueryPrefix + "orbit_info":                                {},
+		hostDetailQueryPrefix + "software_vscode_extensions":                {},
+		hostDetailQueryPrefix + "software_jetbrains_plugins":                {},
+		hostDetailQueryPrefix + "software_adobe_plugins":                    {},
+		hostDetailQueryPrefix + "software_linux_fleetd_pacman":              {},
+		hostDetailQueryPrefix + "software_go_binaries":                      {},
+		hostDetailQueryPrefix + "software_python_packages":                  {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir":   {},
+		hostDetailQueryPrefix + "software_macos_firefox":                    {},
+		hostDetailQueryPrefix + "battery":                                   {},
+		hostDetailQueryPrefix + "software_macos_codesign":                   {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":          {},
+		hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": {},
+		hostDetailQueryPrefix + "software_rpm_last_opened_at":               {},
+		hostDetailQueryPrefix + "software_deb_last_opened_at":               {},
+		hostDetailQueryPrefix + "disk_space_darwin":                         {},
+		hostDetailQueryPrefix + "disk_space_darwin_legacy":                  {},
+		hostDetailQueryPrefix + "certificates_windows":                      {},
+		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
+		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
+		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -3037,7 +3038,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{},
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]fleet.ExecutableHashes,
 		result *fleet.UpdateHostSoftwareDBResult,
 	) error {
 		return nil
@@ -5299,6 +5300,22 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
 	}
+	gitKeg := map[string]string{
+		"name":              "git",
+		"version":           "2.46.0",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "homebrew_packages",
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    "/opt/homebrew/Cellar/git",
+	}
+	gitKegWithExecutables := func(executables string) map[string]string {
+		row := maps.Clone(gitKeg)
+		row["executable_hashes"] = executables
+		return row
+	}
 	someRow := map[string]string{
 		"1": "1",
 	}
@@ -5897,6 +5914,45 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"team_identifier": "com.slack.slack",
 					},
 				},
+			},
+		},
+		{
+			name: "macos homebrew executable hashes are carried on the keg's row",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                            fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					gitKeg,
+				},
+				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": []map[string]string{
+					{
+						"keg_path":          "/opt/homebrew/Cellar/git",
+						"version":           "2.46.0",
+						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git",
+						"executable_sha256": "aaaa",
+						"hash_state":        "hashed",
+					},
+					{
+						"keg_path":          "/opt/homebrew/Cellar/git",
+						"version":           "2.46.0",
+						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell",
+						"executable_sha256": "",
+						"hash_state":        "deferred",
+					},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					gitKegWithExecutables(`{"2.46.0/bin/git":"aaaa","2.46.0/bin/git-shell":""}`),
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"macos_homebrew_executable_sha256": osquery_utils.SoftwareOverrideQueries["macos_homebrew_executable_sha256"],
 			},
 		},
 		{

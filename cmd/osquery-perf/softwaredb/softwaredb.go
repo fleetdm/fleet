@@ -147,6 +147,11 @@ func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 		if s.ExtensionFor != nil {
 			m["browser"] = *s.ExtensionFor
 		}
+		if s.Source == "homebrew_packages" {
+			// Homebrew formulae report their keg directory, which is what the executable hash
+			// override query joins on.
+			m["installed_path"] = "/opt/homebrew/Cellar/" + s.Name
+		}
 		results = append(results, m)
 	}
 	return results

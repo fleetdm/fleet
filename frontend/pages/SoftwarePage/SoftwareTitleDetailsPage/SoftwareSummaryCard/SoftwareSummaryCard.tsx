@@ -90,7 +90,8 @@ const SoftwareSummaryCard = ({
 
   const softwareDisplayName = getDisplayedSoftwareName(
     softwareTitle.name,
-    softwareTitle.display_name
+    softwareTitle.display_name,
+    softwareTitle.bundle_identifier
   );
 
   // Pre-compute meta-derived values via optional chaining so the hooks below

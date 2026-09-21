@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260918204050, Down_20260918204050)
+	MigrationClient.AddMigration(Up_20260921170814, Down_20260921170814)
 }
 
-func Up_20260918204050(tx *sql.Tx) error {
+func Up_20260921170814(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS patch_notifications (
   notification_uuid VARCHAR(36) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -52,6 +52,6 @@ CREATE TABLE IF NOT EXISTS patch_notification_apps (
 	return nil
 }
 
-func Down_20260918204050(tx *sql.Tx) error {
+func Down_20260921170814(tx *sql.Tx) error {
 	return nil
 }

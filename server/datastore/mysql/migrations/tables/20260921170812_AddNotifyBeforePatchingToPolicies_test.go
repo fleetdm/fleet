@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260918204048(t *testing.T) {
+func TestUp_20260921170812(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed a policy and an install that pre-date the migration, with old timestamps so a rewrite would show.

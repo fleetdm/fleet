@@ -1335,15 +1335,17 @@ type Datastore interface {
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
 
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
-	// 'reported', either inserts or deletes the corresponding entries in the
-	// 'host_software_installed_paths' table. 'reported' is a set of
-	// 'installed_path\0team_identifier\0software.ToUniqueStr()' strings. 'mutationResults' contains the software inventory of
+	// 'reported', either inserts, updates or deletes the corresponding entries in the
+	// 'host_software_installed_paths' table. 'reported' is keyed by
+	// 'installed_path\0team_identifier\0cdhash_sha256\0executable_sha256\0executable_path\0software.ToUniqueStr()',
+	// see HostSoftwareInstalledPathKey. Its value is the executables a Homebrew keg installs, and
+	// is nil for every other software. 'mutationResults' contains the software inventory of
 	// the host (pre-mutations) and the mutations performed after calling 'UpdateHostSoftware',
 	// it is used as DB optimization.
 	//
 	// TODO(lucas): We should amend UpdateHostSoftwareInstalledPaths to just accept raw information
 	// otherwise the caller has to assemble the reported set the same way in all places where it's used.
-	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
+	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]ExecutableHashes, mutationResults *UpdateHostSoftwareDBResult) error
 
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
