@@ -121,7 +121,11 @@ const SoftwarePicker = ({
   return (
     <Command.Group className={`${baseClass}__group`}>
       {titles.map((title) => {
-        const label = getDisplayedSoftwareName(title.name, title.display_name);
+        const label = getDisplayedSoftwareName(
+          title.name,
+          title.display_name,
+          title.bundle_identifier
+        );
         const typeLabel = formatSoftwareType(title);
         const installerProps = getInstallerProps(title);
         return (

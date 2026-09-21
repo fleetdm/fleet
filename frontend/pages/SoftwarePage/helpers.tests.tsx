@@ -185,4 +185,48 @@ describe("getDisplayedSoftwareName", () => {
     expect(getDisplayedSoftwareName(undefined, undefined)).toBe("Software");
     expect(getDisplayedSoftwareName(null, null)).toBe("Software");
   });
+
+  // macOS hides helper apps such as MediaRemoteUI by setting CFBundleDisplayName
+  // to a lone U+200E LEFT-TO-RIGHT MARK. trim() does not strip it, so the name
+  // arrives here as a non-empty but entirely invisible string.
+  it.each([
+    ["left-to-right mark", "\u200e"],
+    ["right-to-left mark", "\u200f"],
+    ["zero-width space", "\u200b"],
+    ["word joiner", "\u2060"],
+    ["right-to-left override", "\u202e"],
+    ["byte order mark", "\ufeff"],
+    ["non-breaking space", "\u00a0"],
+    ["null character", "\u0000"],
+    ["delete character", "\u007f"],
+    ["mixed invisibles", "\u200e\u00a0\u200b"],
+  ])("labels a name of only %s with the bundle identifier", (_label, name) => {
+    expect(
+      getDisplayedSoftwareName(name, null, "com.apple.MediaRemoteUI")
+    ).toBe("com.apple.MediaRemoteUI");
+  });
+
+  it("treats an invisible display_name as absent and falls back to name", () => {
+    expect(getDisplayedSoftwareName("Some App", "\u200e")).toBe("Some App");
+  });
+
+  it("returns the default when the name is invisible and there is no bundle identifier", () => {
+    expect(getDisplayedSoftwareName("\u200e", null)).toBe("Software");
+  });
+
+  it("returns the default when the bundle identifier is also invisible", () => {
+    expect(getDisplayedSoftwareName("\u200e", null, "\u200e")).toBe("Software");
+  });
+
+  // Only wholly invisible names fall back; a name with visible characters is
+  // left untouched so legitimate titles are not rewritten.
+  it("keeps a name that merely contains an invisible character", () => {
+    expect(getDisplayedSoftwareName("Foo\u200eBar", null)).toBe("Foo\u200eBar");
+  });
+
+  it("prefers display_name over the bundle identifier", () => {
+    expect(
+      getDisplayedSoftwareName("\u200e", "My App", "com.apple.MediaRemoteUI")
+    ).toBe("My App");
+  });
 });
