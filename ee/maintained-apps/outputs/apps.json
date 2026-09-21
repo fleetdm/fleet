@@ -6197,6 +6197,13 @@
       "description": "NVIDIA GeForce NOW is a cloud gaming platform."
     },
     {
+      "name": "NVIDIA Sync",
+      "slug": "nvidia-sync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nvidia.nvidia-sync",
+      "description": "NVIDIA Sync is a utility for launching applications and containers on remote Linux systems."
+    },
+    {
       "name": "OBS",
       "slug": "obs/darwin",
       "platform": "darwin",

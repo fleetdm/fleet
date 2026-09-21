@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -103,6 +105,8 @@ func TestHosts(t *testing.T) {
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
 		{"GenerateStatusStatisticsMobileMDMSeenTime", testHostsGenerateStatusStatisticsMobileMDMSeenTime},
+		{"MobileOnlineOffline", testHostsMobileOnlineOffline},
+		{"MDMCheckinParity", testHostsMDMCheckinParity},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"GenerateStatusStatisticsDEPErrors", testHostsGenerateStatusStatisticsDEPErrors},
 		{"GenerateStatusStatisticsDeletedDEPAssignment", testHostsGenerateStatusStatisticsDeletedDEPAssignment},
@@ -154,6 +158,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
 		{"IDPHostDeviceMapping", testIDPHostDeviceMapping},
+		{"EntraJoinHostDeviceMapping", testEntraJoinHostDeviceMapping},
 		{"ListHostsDeviceMappingOrder", testHostsListDeviceMappingOrder},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
@@ -2489,7 +2494,8 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 
 	for _, tt := range enrollTests {
 		var created bool
-		h, err := ds.EnrollOsquery(context.Background(),
+		h, err := ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 			fleet.WithEnrollOsqueryTeamID(&team.ID),
@@ -2504,7 +2510,8 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
 		created = false
-		_, err = ds.EnrollOsquery(context.Background(),
+		_, err = ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
 			fleet.WithEnrollOsqueryCreated(&created),
@@ -2514,7 +2521,8 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		assert.False(t, created)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
-		_, err = ds.EnrollOsquery(context.Background(),
+		_, err = ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
 			fleet.WithEnrollOsqueryCooldown(10*time.Second),
@@ -2534,7 +2542,8 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(context.Background(),
+		h, err := ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
@@ -2555,7 +2564,8 @@ func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(context.Background(),
+		h, err := ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
@@ -3218,6 +3228,365 @@ func testHostsGenerateStatusStatisticsMobileMDMSeenTime(t *testing.T, ds *Datast
 	assert.Equal(t, h.ID, hosts[0].ID)
 }
 
+// testHostsMobileOnlineOffline is the online/offline mirror of
+// testHostsGenerateStatusStatisticsMobileMDMSeenTime's MIA/Missing coverage.
+// Exercises Host.Status() on listed rows, the status filter, the aggregate,
+// and CountHostsInTargets in one shot.
+func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	now := time.Now()
+
+	// Helpers for seeding a mobile host with the "no osquery activity" shape.
+	newMobileHost := func(t *testing.T, name, uuid, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        name,
+			UUID:            uuid,
+			HardwareSerial:  name + "-serial",
+			Platform:        platform,
+			DetailUpdatedAt: now.Add(-40 * 24 * time.Hour),
+			LabelUpdatedAt:  now.Add(-40 * 24 * time.Hour),
+			PolicyUpdatedAt: now.Add(-40 * 24 * time.Hour),
+		})
+		require.NoError(t, err)
+		// Mobile hosts don't post host_seen_times; drop the row NewHost seeded.
+		_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE host_id = ?`, h.ID)
+		require.NoError(t, err)
+		return h
+	}
+	setNanoLastSeen := func(t *testing.T, h *fleet.Host, ts time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?)
+			 ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, h.UUID, ts)
+		require.NoError(t, err)
+	}
+	setLabelUpdatedAt := func(t *testing.T, h *fleet.Host, ts time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET label_updated_at = ? WHERE id = ?`, ts, h.ID)
+		require.NoError(t, err)
+	}
+
+	recent := now.Add(-10 * time.Minute) // well inside 1h + buffer
+	stale := now.Add(-2 * time.Hour)     // well outside 1h + buffer
+	neverTS, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
+	require.NoError(t, err) // guard against a zero-time.Time slipping in silently
+
+	// iOS online via nano_seen_times.seen_time.
+	iosOnline := newMobileHost(t, "ios-online", "ios-online-uuid", "ios")
+	nanoEnroll(t, ds, iosOnline, false)
+	setNanoLastSeen(t, iosOnline, recent)
+
+	// iOS offline: nano last_seen_at stale, no other signals.
+	iosOffline := newMobileHost(t, "ios-offline", "ios-offline-uuid", "ios")
+	nanoEnroll(t, ds, iosOffline, false)
+	setNanoLastSeen(t, iosOffline, stale)
+	setLabelUpdatedAt(t, iosOffline, neverTS)
+
+	// iPadOS online via nano_enrollments.
+	ipadosOnline := newMobileHost(t, "ipados-online", "ipados-online-uuid", "ipados")
+	nanoEnroll(t, ds, ipadosOnline, false)
+	setNanoLastSeen(t, ipadosOnline, recent)
+
+	// Android online via label_updated_at (no nano row).
+	androidOnline := newMobileHost(t, "android-online", "android-online-uuid", "android")
+	setLabelUpdatedAt(t, androidOnline, recent)
+
+	// Android offline: label_updated_at is the never sentinel.
+	androidNever := newMobileHost(t, "android-never", "android-never-uuid", "android")
+	setLabelUpdatedAt(t, androidNever, neverTS)
+
+	// iOS disabled enrollment (checked out) with fresh last_seen_at — must be
+	// offline because the mobile join filters nano_enrollments.enabled = 1.
+	iosDisabled := newMobileHost(t, "ios-disabled", "ios-disabled-uuid", "ios")
+	nanoEnroll(t, ds, iosDisabled, false)
+	setNanoLastSeen(t, iosDisabled, recent)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iosDisabled.UUID)
+	require.NoError(t, err)
+	setLabelUpdatedAt(t, iosDisabled, neverTS)
+
+	// iOS with stale nano seen_time but fresh label_updated_at — must read
+	// online. Regression for hostMobileOnlineExpr: a bare COALESCE(nstm, label)
+	// picks the older nstm.seen_time and reports offline, splitting from
+	// Host.mobileStatus which takes the greater of the two.
+	iosLabelFreshest := newMobileHost(t, "ios-label-freshest", "ios-label-freshest-uuid", "ios")
+	nanoEnroll(t, ds, iosLabelFreshest, false)
+	setNanoLastSeen(t, iosLabelFreshest, stale)
+	setLabelUpdatedAt(t, iosLabelFreshest, recent)
+
+	expectedOnline := []uint{iosOnline.ID, ipadosOnline.ID, androidOnline.ID, iosLabelFreshest.ID}
+	expectedOffline := []uint{iosOffline.ID, androidNever.ID, iosDisabled.ID}
+
+	// GenerateHostStatusStatistics counts.
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, uint(len(expectedOnline)), summary.OnlineCount, "online mobile count")
+	assert.Equal(t, uint(len(expectedOffline)), summary.OfflineCount, "offline mobile count")
+
+	// Hosts list, status=online.
+	got, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{StatusFilter: fleet.StatusOnline})
+	require.NoError(t, err)
+	gotIDs := make([]uint, 0, len(got))
+	for _, h := range got {
+		gotIDs = append(gotIDs, h.ID)
+	}
+	assert.ElementsMatch(t, expectedOnline, gotIDs, "status=online filter")
+
+	// Hosts list, status=offline.
+	got, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{StatusFilter: fleet.StatusOffline})
+	require.NoError(t, err)
+	gotIDs = gotIDs[:0]
+	for _, h := range got {
+		gotIDs = append(gotIDs, h.ID)
+	}
+	assert.ElementsMatch(t, expectedOffline, gotIDs, "status=offline filter")
+
+	// Host.Status() on rows returned by ListHosts must agree with the SQL bucket —
+	// LastMDMCheckedInAt gets populated from nstm.seen_time and the Go-side
+	// mobile branch runs against it.
+	allHosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	byID := map[uint]*fleet.Host{}
+	for _, h := range allHosts {
+		byID[h.ID] = h
+	}
+	for _, id := range expectedOnline {
+		h := byID[id]
+		require.NotNil(t, h, "listed host %d", id)
+		assert.Equal(t, fleet.StatusOnline, h.Status(now), "Host.Status for %s", h.Hostname)
+	}
+	for _, id := range expectedOffline {
+		h := byID[id]
+		require.NotNil(t, h, "listed host %d", id)
+		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
+	}
+
+	// Live-query target flow against the same host set: mobile hosts must be
+	// excluded from all three paths so the picker hides them (SearchHosts),
+	// the metrics don't lie about counting them (CountHostsInTargets), and
+	// the campaign never fires against phones that can't answer
+	// (HostIDsInTargets). If any of the three regresses, a mobile-only or
+	// mobile-inclusive target either shows a phantom row in the picker,
+	// reports counts that don't match the campaign, or launches a dead run.
+	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
+	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
+	require.NoError(t, err)
+	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
+	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
+	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
+
+	ids, err := ds.HostIDsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs})
+	require.NoError(t, err)
+	assert.Empty(t, ids, "mobile hosts must not flow into liveQueryStore.RunQuery")
+
+	// SearchHosts by name should skip mobile hosts even when they match — the
+	// picker calls this and would otherwise let a user pick a phone.
+	for _, h := range []*fleet.Host{iosOnline, ipadosOnline, androidOnline} {
+		found, err := ds.SearchHosts(ctx, filter, h.Hostname)
+		require.NoError(t, err)
+		for _, r := range found {
+			assert.NotEqual(t, h.ID, r.ID, "SearchHosts must not surface mobile host %q to the target picker", h.Hostname)
+		}
+	}
+}
+
+// testHostsMDMCheckinParity locks in the parity contract between the /hosts
+// SQL join (populates Host.LastMDMCheckedInAt via nstm.seen_time, filtered by
+// nesm.enabled = 1) and the /hosts/{id} Go read (via
+// GetNanoMDMEnrollmentDetails, gated by "!IsAppleMobilePlatform || Enabled").
+// The four (platform × enabled) cases pin each cell of the matrix, including
+// the known and intentional macOS-checked-out divergence — a future change to
+// either the join predicate or the service-side gate will surface here
+// instead of silently drifting between endpoints.
+func testHostsMDMCheckinParity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	seenAt := time.Now().Add(-30 * time.Minute).Truncate(time.Second)
+
+	newAppleHost := func(t *testing.T, name, platform string, enabled bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        name,
+			UUID:            name + "-uuid",
+			HardwareSerial:  name + "-serial",
+			Platform:        platform,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?)
+			 ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, h.UUID, seenAt)
+		require.NoError(t, err)
+		if !enabled {
+			_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, h.UUID)
+			require.NoError(t, err)
+		}
+		return h
+	}
+
+	// simulateGetHostDetailsGate mirrors the service-layer assignment in
+	// getHostDetails: for macOS the LastMDMSeenTime is always surfaced (the
+	// field is purely informational there), for mobile only when the nano
+	// enrollment is still Enabled.
+	simulateGetHostDetailsGate := func(platform string, details *fleet.NanoMDMEnrollmentDetails) *time.Time {
+		if details == nil {
+			return nil
+		}
+		if !fleet.IsAppleMobilePlatform(platform) || details.Enabled {
+			return details.LastMDMSeenTime
+		}
+		return nil
+	}
+
+	cases := []struct {
+		name        string
+		platform    string
+		enabled     bool
+		wantList    *time.Time // /hosts SQL side
+		wantDetails *time.Time // /hosts/{id} Go side
+	}{
+		{"macOS enabled", "darwin", true, &seenAt, &seenAt},
+		// Known divergence: SQL join filters nesm.enabled=1 so /hosts drops the
+		// value, but /hosts/{id} still surfaces it (macOS bypasses the mobile
+		// gate — the field is informational on Host details). If this changes,
+		// pick one side of the divergence deliberately, don't accidentally
+		// flip it.
+		{"macOS checked-out (divergence)", "darwin", false, nil, &seenAt},
+		{"iOS enabled", "ios", true, &seenAt, &seenAt},
+		{"iOS checked-out", "ios", false, nil, nil},
+	}
+
+	hosts := make(map[string]*fleet.Host, len(cases))
+	for _, tc := range cases {
+		hosts[tc.name] = newAppleHost(t, tc.name, tc.platform, tc.enabled)
+	}
+
+	listed, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	byUUID := make(map[string]*fleet.Host, len(listed))
+	for _, h := range listed {
+		byUUID[h.UUID] = h
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			seeded := hosts[tc.name]
+			listedHost := byUUID[seeded.UUID]
+			require.NotNil(t, listedHost, "seeded host missing from ListHosts")
+
+			details, err := ds.GetNanoMDMEnrollmentDetails(ctx, seeded.UUID)
+			require.NoError(t, err)
+
+			gotList := listedHost.LastMDMCheckedInAt
+			gotDetails := simulateGetHostDetailsGate(tc.platform, details)
+
+			if tc.wantList == nil {
+				assert.Nil(t, gotList, "/hosts SQL LastMDMCheckedInAt")
+			} else {
+				require.NotNil(t, gotList, "/hosts SQL LastMDMCheckedInAt")
+				assert.WithinDuration(t, *tc.wantList, *gotList, time.Second, "/hosts SQL LastMDMCheckedInAt")
+			}
+			if tc.wantDetails == nil {
+				assert.Nil(t, gotDetails, "/hosts/{id} Go LastMDMCheckedInAt")
+			} else {
+				require.NotNil(t, gotDetails, "/hosts/{id} Go LastMDMCheckedInAt")
+				assert.WithinDuration(t, *tc.wantDetails, *gotDetails, time.Second, "/hosts/{id} Go LastMDMCheckedInAt")
+			}
+		})
+	}
+}
+
+// TestExplainListHostsMobileJoin asserts the ListHosts-shaped SELECT reaches
+// nano_enrollments via that table's PRIMARY KEY (through nesm.id = h.uuid)
+// rather than a full scan. If a future schema change drops hosts.uuid's
+// index or reshapes the join key, this test fails loudly instead of
+// silently regressing p95 on the /hosts hot path.
+//
+// Runs on its own datastore so it doesn't need to be registered in TestHosts:
+//
+//	MYSQL_TEST=1 go test ./server/datastore/mysql/ -run TestExplainListHostsMobileJoin -count 1 -v
+func TestExplainListHostsMobileJoin(t *testing.T) {
+	if os.Getenv("MYSQL_TEST") == "" {
+		t.Skip("MYSQL_TEST not set")
+	}
+	ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	ctx := context.Background()
+
+	// Seed hosts across platforms so the plan estimate reflects a realistic
+	// mix. An empty table can hide plan issues.
+	for i := range 20 {
+		platform := "darwin"
+		switch i % 4 {
+		case 1:
+			platform = "ios"
+		case 2:
+			platform = "android"
+		case 3:
+			platform = "windows"
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("explain-host-%d", i),
+			UUID:            fmt.Sprintf("explain-uuid-%d", i),
+			HardwareSerial:  fmt.Sprintf("explain-serial-%d", i),
+			Platform:        platform,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+		})
+		require.NoError(t, err)
+		if platform == "ios" {
+			nanoEnroll(t, ds, h, false)
+		}
+	}
+
+	// Mirror the shape of ListHosts's SELECT + the online status filter's
+	// WHERE clause so EXPLAIN exercises both the mobile MDM join and
+	// hostMobileOnlineExpr. Trim the 100-column SELECT — EXPLAIN cares about
+	// join order and index usage, not select-list width.
+	baseStmt := `SELECT h.id, h.uuid, h.platform,
+		COALESCE(hst.seen_time, h.created_at) AS seen_time,
+		nstm.seen_time AS last_mdm_checked_in_at
+		FROM hosts h
+		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)` + hostMDMSeenTimeJoin + hostMobileMDMSeenTimeJoin + `
+		WHERE 1=1 `
+	filtered, args := filterHostsByStatus(time.Now(), baseStmt, fleet.HostListOptions{StatusFilter: fleet.StatusOnline}, nil)
+	stmt := "EXPLAIN " + filtered
+
+	// Full column list — sqlx.SelectContext rejects extras it can't scan into.
+	type explainRow struct {
+		ID           sql.NullInt64   `db:"id"`
+		SelectType   sql.NullString  `db:"select_type"`
+		Table        sql.NullString  `db:"table"`
+		Partitions   sql.NullString  `db:"partitions"`
+		Type         sql.NullString  `db:"type"`
+		PossibleKeys sql.NullString  `db:"possible_keys"`
+		Key          sql.NullString  `db:"key"`
+		KeyLen       sql.NullInt64   `db:"key_len"`
+		Ref          sql.NullString  `db:"ref"`
+		Rows         sql.NullInt64   `db:"rows"`
+		Filtered     sql.NullFloat64 `db:"filtered"`
+		Extra        sql.NullString  `db:"Extra"`
+	}
+	var rows []explainRow
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...))
+
+	// nano_enrollments must be reached via eq_ref on PRIMARY (nesm.id = h.uuid,
+	// where nano_enrollments.id is the PK). Anything else (ALL / index / range)
+	// means the optimizer lost the index and the join degrades at scale.
+	var nesmRow *explainRow
+	for i := range rows {
+		if rows[i].Table.String == "nesm" {
+			nesmRow = &rows[i]
+			break
+		}
+	}
+	require.NotNil(t, nesmRow, "EXPLAIN plan is missing the nesm join row")
+	require.Equal(t, "eq_ref", nesmRow.Type.String, "nano_enrollments join must be eq_ref, got %q", nesmRow.Type.String)
+	require.Equal(t, "PRIMARY", nesmRow.Key.String, "nano_enrollments join must use PRIMARY key, got %q", nesmRow.Key.String)
+}
+
 func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -3613,7 +3982,8 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	hostNoDEP := test.NewHost(t, ds, "nodep.local", "1.1.1.4", "dep-nk-4", "dep-nk-4", now)
 
 	// Upsert DEP assignments for the three hosts that have DEP records.
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx,
+	err = ds.UpsertMDMAppleHostDEPAssignments(
+		ctx,
 		[]fleet.Host{*hostFailed, *hostThrottled, *hostSuccess},
 		abmToken.ID, make(map[uint]time.Time),
 	)
@@ -6677,8 +7047,8 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	}
 
 	// Team 1 hosts (1, 2, 3)
-	seenTime := time.Now().Add(time.Duration(-1*(team1HostExpiryWindow)*24)*time.Hour - time.Hour)         // 1 hour over expiry window
-	seenRecentlyTime := time.Now().Add(time.Duration(-1*(team1HostExpiryWindow)*24)*time.Hour + time.Hour) // 1 hour under expiry window
+	seenTime := time.Now().Add(time.Duration(-1*team1HostExpiryWindow*24)*time.Hour - time.Hour)         // 1 hour over expiry window
+	seenRecentlyTime := time.Now().Add(time.Duration(-1*team1HostExpiryWindow*24)*time.Hour + time.Hour) // 1 hour under expiry window
 	createHost(1, seenTime)
 	createHost(2, seenTime)
 	createHost(3, seenRecentlyTime)
@@ -7672,7 +8042,8 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Zero(t, count[0])
 
 	// Enroll existing host.
-	_, err = ds.EnrollOsquery(context.Background(),
+	_, err = ds.EnrollOsquery(
+		context.Background(),
 		fleet.WithEnrollOsqueryHostID("1"),
 		fleet.WithEnrollOsqueryNodeKey("1"),
 	)
@@ -7687,7 +8058,8 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	time.Sleep(1 * time.Second)
 
 	// Enroll again to trigger an update of host_seen_times.
-	_, err = ds.EnrollOsquery(context.Background(),
+	_, err = ds.EnrollOsquery(
+		context.Background(),
 		fleet.WithEnrollOsqueryHostID("1"),
 		fleet.WithEnrollOsqueryNodeKey("1"),
 	)
@@ -9162,6 +9534,13 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
+	require.False(t, h.TPMPINSet)
+
+	// Fleet Desktop's BitLocker PIN prompt reads this instead of querying the host's BitLocker status.
+	require.NoError(t, ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, true))
+	h, err = ds.LoadHostByDeviceAuthToken(ctx, validToken, time.Hour)
+	require.NoError(t, err)
+	require.True(t, h.TPMPINSet)
 
 	time.Sleep(2 * time.Second) // make sure the token expires
 
@@ -10172,7 +10551,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	cmdUUID := uuid.NewString()
 
 	// Raw INSERT into host_vpp_software_installs, so we can isolate testing deletion
-	_, err = ds.writer(ctx).Exec(`
+	_, err = ds.writer(ctx).Exec(
+		`
     INSERT INTO host_vpp_software_installs (
       host_id,
       adam_id,
@@ -10189,7 +10569,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Assert the host_vpp_software_installs row exists to delete along with DeleteHost
 	var count int
-	err = ds.writer(ctx).Get(&count,
+	err = ds.writer(ctx).Get(
+		&count,
 		`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND command_uuid = ?`,
 		host.ID, cmdUUID,
 	)
@@ -10235,6 +10616,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = batchUpsertHostAutopilotDevicesDB(ctx, ds.writer(ctx), []*fleet.HostAutopilotDevice{{
 		HostID: host.ID, TenantID: "delete-host-tenant", HardwareSerial: "delete-host-serial",
 	}})
+	require.NoError(t, err)
+
+	// Insert into host_one_time_enroll_secrets table (no host FK, cleaned up via hostRefs).
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO host_one_time_enroll_secrets (secret, host_id, platform, hardware_uuid, hardware_serial)
+		VALUES (?, ?, 'darwin', ?, ?)`, "delete-host-one-time-secret", host.ID, host.UUID, host.HardwareSerial)
+	require.NoError(t, err)
+
+	pinRequestID := uuid.New()
+	_, err = ds.writer(t.Context()).Exec(
+		`INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted) VALUES (?, ?, ?)`,
+		host.ID, pinRequestID[:], "encrypted-pin",
+	)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -11332,7 +11726,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, abmToken.ID)
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(ctx,
+		h, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryHardwareUUID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
@@ -11342,7 +11737,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		orbitKey := uuid.New().String()
 		// on orbit enrollment, the "hardware UUID" is matched with the osquery
 		// host ID to identify the host being enrolled
-		_, err = ds.EnrollOrbit(ctx,
+		_, err = ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   *h.OsqueryHostID,
 				HardwareSerial: h.HardwareSerial,
@@ -11371,7 +11767,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// The BitLocker protection notification decides from these fields rather than from a dedicated query, so dropping
 	// them from this loader's SELECT would silently stop Fleet from ever restoring protection.
 	t.Run("carries bitlocker protection state", func(t *testing.T) {
-		h, err := ds.EnrollOsquery(ctx,
+		h, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID("protection-state-uuid"),
 			fleet.WithEnrollOsqueryHardwareUUID("protection-state-uuid"),
 			fleet.WithEnrollOsqueryNodeKey("protection-state-node-key"),
@@ -11379,7 +11776,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx,
+		_, err = ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   *h.OsqueryHostID,
 				HardwareSerial: h.HardwareSerial,
@@ -11421,7 +11819,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx,
+		_, err = ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   *h.OsqueryHostID,
 				HardwareSerial: h.HardwareSerial,
@@ -11988,7 +12387,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// create and enroll a host with just an osquery ID, no serial
 	hOsqueryNoSerial := createHost(uuid.New().String(), "")
-	h, err := ds.EnrollOrbit(ctx,
+	h, err := ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
@@ -12009,7 +12409,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	// got created this way, but when enrolling in orbit it does have an osquery
 	// ID)
 	hSerialNoOsquery := createHost("", uuid.New().String())
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   uuid.New().String(),
@@ -12023,7 +12424,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// create and enroll a host with both
 	hBoth := createHost(uuid.New().String(), uuid.New().String())
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hBoth.OsqueryHostID,
@@ -12046,7 +12448,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
 	// use the osquery match)
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hBoth.OsqueryHostID,
@@ -12061,7 +12464,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	// enroll with no match, will create a new one
 	newSerial := uuid.NewString()
 	var created bool
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   uuid.New().String(),
@@ -12080,7 +12484,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// re-enrolling the same host doesn't report it as created
 	created = false
-	_, err = ds.EnrollOrbit(ctx,
+	_, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   h.UUID,
@@ -12107,7 +12512,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	hDupSerial1 := createHost("", uuid.New().String())
 	hDupSerial2 := createHost("", hDupSerial1.HardwareSerial)
 	require.Greater(t, hDupSerial2.ID, hDupSerial1.ID)
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   uuid.New().String(),
@@ -12120,7 +12526,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with osquery ID from hOsqueryNoSerial and the duplicate serial,
 	// will always match osquery ID
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
@@ -12142,7 +12549,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		dupHWSerial := uuid.New().String()
 		randomIdentifierH1 := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12152,7 +12560,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12161,7 +12570,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		randomIdentifierH2 := uuid.New().String()
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12171,7 +12581,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12201,7 +12612,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		randomIdentifierH1 := uuid.New().String()
 
 		// First osquery of the first host enrolls.
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12210,7 +12622,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		randomIdentifierH2 := uuid.New().String()
 		// Then orbit of the second host enrolls.
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12221,7 +12634,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		)
 		require.NoError(t, err)
 		// Then orbit of the first host enrolls.
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12233,7 +12647,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		// Lastly osquery of the second host enrolls.
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12267,7 +12682,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		randomIdentifierH1 := uuid.New().String()
 		randomIdentifierH2 := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
@@ -12278,7 +12694,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryMDMEnabled(true),
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
@@ -12289,7 +12706,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 
 		// Second host enrolls osquery first, then orbit.
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryMDMEnabled(true),
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
@@ -12297,7 +12715,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
@@ -12336,7 +12755,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		dupUUID := uuid.New().String()
 		dupHWSerial := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12348,7 +12768,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12360,7 +12781,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NotEqual(t, h1OrbitFetched.LastEnrolledAt, h1OsqueryFetched.LastEnrolledAt)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12375,7 +12797,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		// is to be set by osquery only).
 		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12412,7 +12835,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		dupUUID := uuid.New().String()
 		dupHWSerial := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12424,7 +12848,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12447,7 +12872,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NotNil(t, h1WithMdmFetched.MDM.ServerURL)
 		require.NotNil(t, h1WithMdmFetched.MDM.EnrollmentStatus)
 
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12462,7 +12888,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		// is to be set by osquery only).
 		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12507,7 +12934,8 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
 	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
 		hostUUID := uuid.New().String()
-		_, err := ds.EnrollOrbit(ctx,
+		_, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(false),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID: hostUUID,
@@ -12546,7 +12974,8 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
 		serial := uuid.New().String()
 		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
-		_, err := ds.EnrollOrbit(ctx,
+		_, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   uuid.New().String(),
@@ -12575,7 +13004,8 @@ func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Enroll orbit first.
-	h, err := ds.EnrollOrbit(ctx,
+	h, err := ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   "some-unique-uuid",
 			HardwareSerial: "some-unique-serial",
@@ -12597,7 +13027,8 @@ func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
 
 	// Enroll osquery after orbit.
 	// Should not clear platform and platform_like.
-	osqueryHost, err := ds.EnrollOsquery(ctx,
+	osqueryHost, err := ds.EnrollOsquery(
+		ctx,
 		fleet.WithEnrollOsqueryHostID("some-unique-uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("some-unique-uuid"),
 		fleet.WithEnrollOsqueryHardwareSerial("some-unique-uuid"),
@@ -12646,7 +13077,8 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// enroll with orbit and a uuid (will match on serial)
-	_, err = ds.EnrollOrbit(ctx,
+	_, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   "uuid",
@@ -12669,7 +13101,8 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "darwin", got.Platform)
 
 	// enroll with osquery using uuid identifier, team enroll secret
-	_, err = ds.EnrollOsquery(ctx,
+	_, err = ds.EnrollOsquery(
+		ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(true),
 		fleet.WithEnrollOsqueryHostID("uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("uuid"),
@@ -14244,7 +14677,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set IdP username on the host via host_emails (simulates PUT /device_mapping with source=idp)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"scimuser@example.com", host.ID, fleet.DeviceMappingIDP,
 			)
@@ -14281,7 +14715,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set IdP email on the host
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"primary@example.com", host.ID, fleet.DeviceMappingIDP,
 			)
@@ -14324,7 +14759,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set email with custom source (not idp)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"customuser@example.com", host.ID, fleet.DeviceMappingCustomOverride,
 			)
@@ -14360,14 +14796,16 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set up mdm_idp_accounts so any SCIM user with username "shared@example.com" matches this host.
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
 				"mdm-uuid-dup", "shared@example.com", "Shared User", "shared@example.com",
 			)
 			return err
 		})
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
 				host.UUID, "mdm-uuid-dup",
 			)
@@ -14436,14 +14874,16 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set up mdm_idp_accounts (SSO enrollment path)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
 				"mdm-uuid-1", "scimuser@example.com", "Test User", "scimuser@example.com",
 			)
 			return err
 		})
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
 				host.UUID, "mdm-uuid-1",
 			)
@@ -14452,7 +14892,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Also set a different email via host_emails with idp source
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"other@example.com", host.ID, fleet.DeviceMappingIDP,
 			)
@@ -15220,6 +15661,249 @@ func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
 	require.True(t, got.OrbitDebugUntil.Equal(later))
+}
+
+func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newWindowsHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
+			UUID:            name,
+			Platform:        "windows",
+			Hostname:        name,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		return h
+	}
+	countRawRows := func(hostID uint, source string) int {
+		var count int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &count,
+			`SELECT COUNT(*) FROM host_emails WHERE host_id = ? AND source = ?`, hostID, source)
+		require.NoError(t, err)
+		return count
+	}
+
+	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "join.user@example.com",
+		GivenName:  new("Join"),
+		FamilyName: new("User"),
+	})
+	require.NoError(t, err)
+
+	h1 := newWindowsHost("entra-join-1")
+
+	// first report: mapping created, reported under the mdm_idp_accounts source, SCIM linked
+	updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	mappings, err := ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "join.user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	})
+	require.Equal(t, 1, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
+	scimUser, err := ds.ScimUserByHostID(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUserID, scimUser.ID)
+
+	// same report: no change, link kept
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.False(t, updated)
+	require.Equal(t, 1, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
+	_, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.NoError(t, err)
+
+	// a SCIM link pointing at someone else is repaired without rewriting the mapping row
+	otherScimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "other.scim@example.com",
+		GivenName:  new("Other"),
+		FamilyName: new("Scim"),
+	})
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, h1.ID, otherScimUserID)
+	require.NoError(t, err)
+	var rowIDBefore uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rowIDBefore,
+		`SELECT id FROM host_emails WHERE host_id = ? AND source = ?`, h1.ID, fleet.DeviceMappingEntraJoin))
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	scimUser, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUserID, scimUser.ID)
+	var rowIDAfter uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rowIDAfter,
+		`SELECT id FROM host_emails WHERE host_id = ? AND source = ?`, h1.ID, fleet.DeviceMappingEntraJoin))
+	require.Equal(t, rowIDBefore, rowIDAfter)
+
+	// join user changes to someone not in SCIM: mapping and stale link removed, nothing written
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "other.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Empty(t, mappings)
+	_, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// reporting an unknown user again is a no-op, and so is reporting no join user
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "other.user@example.com")
+	require.NoError(t, err)
+	require.False(t, updated)
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "")
+	require.NoError(t, err)
+	require.False(t, updated)
+
+	// the device stops reporting a join user: an existing mapping and its link are removed
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "")
+	require.NoError(t, err)
+	require.True(t, updated)
+	require.Equal(t, 0, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
+	_, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// a provisioned user is mapped again, and custom emails coexist with the Entra join mapping
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, h1.ID, "custom@example.com", fleet.DeviceMappingCustomOverride)
+	require.NoError(t, err)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "custom@example.com", Source: fleet.DeviceMappingCustomReplacement},
+		{Email: "join.user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	})
+
+	// a manual IdP username supersedes the device-reported one and blocks further reports
+	err = ds.SetOrUpdateIDPHostDeviceMapping(ctx, h1.ID, "manual.user@example.com")
+	require.NoError(t, err)
+	require.Equal(t, 0, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
+	_, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.True(t, fleet.IsNotFound(err))
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.False(t, updated)
+	mappings, err = ds.ListHostDeviceMapping(ctx, h1.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "custom@example.com", Source: fleet.DeviceMappingCustomReplacement},
+		{Email: "manual.user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	})
+
+	// clearing the manual username lets the device-reported one come back
+	err = ds.DeleteHostIDP(ctx, h1.ID)
+	require.NoError(t, err)
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h1.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	scimUser, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUserID, scimUser.ID)
+
+	// DeleteHostIDP also clears a lone Entra join mapping and its SCIM link
+	err = ds.DeleteHostIDP(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 0, countRawRows(h1.ID, fleet.DeviceMappingEntraJoin))
+	_, err = ds.ScimUserByHostID(ctx, h1.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// an authenticated mapping written for a Windows MDM enrollment supersedes the device-reported one
+	h2 := newWindowsHost("entra-join-2")
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h2.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	_, err = ds.ScimUserByHostID(ctx, h2.ID)
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, h2.ID, []*fleet.HostDeviceMapping{
+		{HostID: h2.ID, Email: "enrolled.user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Equal(t, 0, countRawRows(h2.ID, fleet.DeviceMappingEntraJoin))
+	// the device-reported SCIM link goes with the row, so the enrollment path
+	// links the authenticated user instead of a stale one surviving
+	_, err = ds.ScimUserByHostID(ctx, h2.ID)
+	require.True(t, fleet.IsNotFound(err))
+	mappings, err = ds.ListHostDeviceMapping(ctx, h2.ID)
+	require.NoError(t, err)
+	assertHostDeviceMapping(t, mappings, []*fleet.HostDeviceMapping{
+		{Email: "enrolled.user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	})
+	// and later device reports are ignored while it exists
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h2.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.False(t, updated)
+	require.Equal(t, 0, countRawRows(h2.ID, fleet.DeviceMappingEntraJoin))
+
+	// the scoped link cleanup removes only the link it observed, so a link written
+	// meanwhile by SCIM provisioning survives
+	h3 := newWindowsHost("entra-join-3")
+	_, err = ds.SetOrUpdateHostSCIMUserMapping(ctx, h3.ID, scimUserID)
+	require.NoError(t, err)
+	_, err = deleteHostSCIMUserMappingFor(ctx, ds.writer(ctx), h3.ID, &otherScimUserID)
+	require.NoError(t, err)
+	linked, err := ds.ScimUserByHostID(ctx, h3.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUserID, linked.ID)
+	_, err = deleteHostSCIMUserMappingFor(ctx, ds.writer(ctx), h3.ID, &scimUserID)
+	require.NoError(t, err)
+	_, err = ds.ScimUserByHostID(ctx, h3.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// a host enrolled in Fleet MDM never carries the device-reported mapping
+	h4 := newWindowsHost("entra-join-4")
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h4.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	enrollment := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.NewString(),
+		MDMHardwareID:          uuid.NewString() + uuid.NewString(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "entra-join-4",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               h4.UUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, enrollment))
+	// a mapping written before the enrollment is removed along with its link
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h4.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	require.Equal(t, 0, countRawRows(h4.ID, fleet.DeviceMappingEntraJoin))
+	_, err = ds.ScimUserByHostID(ctx, h4.ID)
+	require.True(t, fleet.IsNotFound(err))
+	// and nothing is written while the enrollment lasts
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h4.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.False(t, updated)
+	require.Equal(t, 0, countRawRows(h4.ID, fleet.DeviceMappingEntraJoin))
+	// another host is not affected by that enrollment
+	h5 := newWindowsHost("entra-join-5")
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h5.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	require.Equal(t, 1, countRawRows(h5.ID, fleet.DeviceMappingEntraJoin))
+	// once unenrolled the host is agent-only again and the next report maps it
+	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, enrollment.MDMDeviceID))
+	updated, err = ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, h4.ID, "join.user@example.com")
+	require.NoError(t, err)
+	require.True(t, updated)
+	require.Equal(t, 1, countRawRows(h4.ID, fleet.DeviceMappingEntraJoin))
+	scimUser, err = ds.ScimUserByHostID(ctx, h4.ID)
+	require.NoError(t, err)
+	require.Equal(t, scimUserID, scimUser.ID)
 }
 
 func testCountAllHosts(t *testing.T, ds *Datastore) {
