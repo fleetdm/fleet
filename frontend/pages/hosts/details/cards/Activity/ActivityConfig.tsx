@@ -21,6 +21,7 @@ import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustom
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
+import HostEnrollmentRejectedActivityItem from "./ActivityItems/HostEnrollmentRejectedActivityItem";
 import InstalledAllSelfServiceSoftwareActivityItem from "./ActivityItems/InstalledAllSelfServiceSoftwareActivityItem";
 import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
@@ -114,6 +115,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ReleasedDeviceFromAB]: ReleasedFromABActivityItem,
   [ActivityType.ResentConfigurationProfile]: ResentConfigurationProfileActivityItem,
   [ActivityType.ResetPolicy]: ResetPolicyActivityItem,
+  [ActivityType.HostEnrollmentRejected]: HostEnrollmentRejectedActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

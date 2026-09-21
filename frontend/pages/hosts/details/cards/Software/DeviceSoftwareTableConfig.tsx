@@ -37,11 +37,18 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, display_name, source, icon_url } = cellProps.row.original;
+        const {
+          name,
+          display_name,
+          bundle_identifier,
+          source,
+          icon_url,
+        } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             pageContext="deviceUser"

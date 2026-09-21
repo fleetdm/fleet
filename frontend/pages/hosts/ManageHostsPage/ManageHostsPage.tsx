@@ -104,6 +104,7 @@ import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretMod
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import DeleteHostModal from "../components/DeleteHostModal";
+import { getSharedDeleteHostTarget } from "../components/DeleteHostModal/helpers";
 import TransferHostModal from "../components/TransferHostModal";
 
 import DeleteLabelModal from "./components/DeleteLabelModal";
@@ -543,6 +544,8 @@ const ManageHostsPage = ({
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
+
+  const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
 
   const {
     data: teams,
@@ -1659,8 +1662,8 @@ const ManageHostsPage = ({
 
   const renderAddHostsModal = () => {
     const enrollSecret = isAnyTeamSelected
-      ? teamSecrets?.[0].secret
-      : globalSecrets?.[0].secret;
+      ? teamSecrets?.[0]?.secret
+      : globalSecrets?.[0]?.secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
@@ -1691,16 +1694,35 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderDeleteHostModal = () => (
-    <DeleteHostModal
-      selectedHostIds={selectedHostIds}
-      onSubmit={onDeleteHostSubmit}
-      onCancel={toggleDeleteHostModal}
-      isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      hostsCount={totalFilteredHostsCount}
-      isUpdating={isUpdating}
-    />
-  );
+  const renderDeleteHostModal = () => {
+    // Only the rows on the current page are known, so a "select all matching"
+    // delete keeps the generic copy.
+    const selectedHosts = isAllMatchingHostsSelected
+      ? []
+      : (hostsData?.hosts ?? []).filter((host) =>
+          selectedHostIds.includes(host.id)
+        );
+    const sharedTarget =
+      selectedHosts.length === selectedHostIds.length
+        ? getSharedDeleteHostTarget(selectedHosts)
+        : undefined;
+    return (
+      <DeleteHostModal
+        selectedHostIds={selectedHostIds}
+        hostName={
+          selectedHosts.length === 1 ? selectedHosts[0].display_name : undefined
+        }
+        platform={sharedTarget?.platform}
+        isMdmEnrolledInFleet={sharedTarget?.isMdmEnrolledInFleet}
+        mdmEnrollmentStatus={sharedTarget?.mdmEnrollmentStatus}
+        onSubmit={onDeleteHostSubmit}
+        onCancel={toggleDeleteHostModal}
+        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+        hostsCount={totalFilteredHostsCount}
+        isUpdating={isUpdating}
+      />
+    );
+  };
 
   const renderHeaderContent = () => {
     if (isPremiumTier && !isPrimoMode && userTeams) {
@@ -2138,6 +2160,9 @@ const ManageHostsPage = ({
   };
 
   const renderNoEnrollSecretBanner = () => {
+    if (useOneTimeEnrollSecrets) {
+      return null;
+    }
     const noTeamEnrollSecrets =
       isAnyTeamSelected && !isTeamSecretsLoading && !teamSecrets?.length;
     const noGlobalEnrollSecrets =
@@ -2152,17 +2177,19 @@ const ManageHostsPage = ({
         <InfoBanner
           className={`${baseClass}__no-enroll-secret-banner`}
           color="yellow"
+          cta={
+            <Button
+              variant="link"
+              onClick={() => setShowEnrollSecretModal(true)}
+            >
+              Add enroll secret
+            </Button>
+          }
         >
           <div>
             <span>
-              You have no enroll secrets.{" "}
-              <Button
-                variant="link"
-                onClick={() => setShowEnrollSecretModal(true)}
-              >
-                Manage enroll secrets
-              </Button>{" "}
-              to enroll hosts to{" "}
+              You have no enroll secrets. New hosts will not enroll until an
+              enroll secret is added to{" "}
               <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>

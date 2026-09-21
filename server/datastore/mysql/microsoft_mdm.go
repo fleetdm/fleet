@@ -4017,6 +4017,99 @@ LIMIT ?`
 	return nil
 }
 
+// CleanupStaleMDMWindowsEnrollments reaps the enrollment rows host deletion
+// leaves behind (so a live device can relink when osquery re-enrolls) once
+// they have gone unmodified for the retention window. A live device relinks
+// long before that, since osquery reports its MDM device id on enroll.
+func (ds *Datastore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k enrollments per tick
+	)
+	return cleanupStaleMDMWindowsEnrollmentsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+// cleanupStaleMDMWindowsEnrollmentsDB selects ids first to bound each DELETE
+// and its FK cascades to one batch. The id cursor means a tick scans the
+// table once, not once per batch. No index on updated_at on purpose: it
+// changes on hot-path check-in writes, and most live rows are old anyway.
+func cleanupStaleMDMWindowsEnrollmentsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	const selectStmt = `
+SELECT e.id
+FROM mdm_windows_enrollments e
+WHERE e.id > ? AND ` + staleMDMWindowsEnrollmentPredicate + `
+ORDER BY e.id
+LIMIT ?`
+
+	var (
+		totalDeleted int64
+		lastID       uint
+	)
+	exhausted := true
+	for range maxBatches {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, selectStmt, lastID, olderThan, batchSize); err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "select stale windows mdm enrollments")
+		}
+		if len(ids) == 0 {
+			exhausted = false
+			break
+		}
+		lastID = ids[len(ids)-1]
+		n, err := deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		if err != nil {
+			return totalDeleted, err
+		}
+		totalDeleted += n
+		if len(ids) < batchSize {
+			exhausted = false
+			break
+		}
+	}
+	if exhausted {
+		ds.logger.WarnContext(ctx, "cleanup stale windows mdm enrollments hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", totalDeleted, "max_batches", maxBatches)
+	}
+	return totalDeleted, nil
+}
+
+// staleMDMWindowsEnrollmentPredicate matches enrollments (aliased e) not
+// updated since the bound cutoff that are orphaned or superseded. "Newer"
+// mirrors the ORDER BY in MDMWindowsGetEnrolledDeviceWithHostUUID.
+const staleMDMWindowsEnrollmentPredicate = `e.updated_at < ?
+  AND (
+    e.host_uuid = ''
+    OR NOT EXISTS (SELECT 1 FROM hosts h WHERE h.uuid = e.host_uuid)
+    OR EXISTS (
+      SELECT 1 FROM mdm_windows_enrollments n
+      WHERE n.host_uuid = e.host_uuid
+        AND (n.created_at > e.created_at OR (n.created_at = e.created_at AND n.id > e.id))
+    )
+  )`
+
+// deleteStaleMDMWindowsEnrollmentsByIDs re-evaluates eligibility in the DELETE
+// itself, so a row that relinked, or whose host was recreated with the same
+// UUID, since the id selection survives. MySQL only accepts the self-reference
+// through a materialized derived table, hence NO_MERGE.
+func deleteStaleMDMWindowsEnrollmentsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
+	const deleteStmt = `
+DELETE /*+ NO_MERGE(stale) */ tgt FROM mdm_windows_enrollments tgt
+JOIN (
+  SELECT e.id FROM mdm_windows_enrollments e
+  WHERE e.id IN (?) AND ` + staleMDMWindowsEnrollmentPredicate + `
+) stale ON stale.id = tgt.id`
+	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete stale windows mdm enrollments")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete stale windows mdm enrollments")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // CleanupWindowsMDMProfilePriorContent garbage-collects retained prior profile content once no host_mdm_windows_profiles row
 // still has that version installed. Reference-counted on (profile_uuid, checksum) rather than age-based, so a version's content
 // survives exactly as long as some host still has it installed and could still need its <Delete> (e.g. a host that was offline

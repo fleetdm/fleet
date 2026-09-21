@@ -1571,6 +1571,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
 			return ds.CleanupWindowsMDMCommandQueue(ctx)
 		}),
+		schedule.WithJob("cleanup_stale_windows_mdm_enrollments", func(ctx context.Context) error {
+			return cleanupStaleWindowsMDMEnrollmentsCronJob(ctx, ds, logger, config.MDM.WindowsEnrollmentRetention)
+		}),
 		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
 			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
 			// version installed, so the content survives exactly as long as some host could still need its <Delete>.
@@ -1664,6 +1667,25 @@ func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *
 			return nil
 		}
 	}
+}
+
+// cleanupStaleWindowsMDMEnrollmentsCronJob is disabled by a non-positive
+// retention, the documented off switch for mdm.windows_enrollment_retention.
+func cleanupStaleWindowsMDMEnrollmentsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup stale windows mdm enrollments failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up stale windows mdm enrollments", "deleted", deleted)
+	}
+	return nil
 }
 
 func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, maxRunTime time.Duration) error {
@@ -1814,7 +1836,26 @@ func newQueryResultsCleanupSchedule(
 			if err != nil {
 				return err
 			}
-			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			// Results are stored per host, so raising the cap to the host count
+			// bounds each report to one row per host while letting one-row-per-host
+			// reports cover the whole fleet. Cached in Redis for the ingest path.
+			hostCount, err := ds.CountAllHosts(ctx)
+			if err != nil {
+				// Fall back to the last cached count. Without any count the cap would drop to
+				// the configured value and the cleanup could delete valid rows, so skip this
+				// tick instead.
+				logger.WarnContext(ctx, "failed to count hosts for query report cap", "err", err)
+				var ok bool
+				if hostCount, ok, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
+					return ctxerr.Wrap(ctx, err, "get query reports host count from redis")
+				}
+				if !ok {
+					return ctxerr.New(ctx, "query reports host count unavailable from database and redis")
+				}
+			} else if err := liveQueryStore.SetQueryReportsHostCount(hostCount); err != nil {
+				logger.WarnContext(ctx, "failed to set query reports host count in redis", "err", err)
+			}
+			maxRows := appConfig.ServerSettings.GetEffectiveQueryReportCap(hostCount)
 			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
 			if err != nil {
 				return err

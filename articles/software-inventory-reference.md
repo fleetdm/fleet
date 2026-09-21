@@ -1,4 +1,4 @@
-# Software inventory
+# Software inventory reference
 
 Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. [Vulnerability (CVE) processing](https://fleetdm.com/guides/vulnerability-processing#coverage) runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
 
@@ -207,5 +207,5 @@ Fleet refreshes software inventory on the same schedule as other host details. T
 <meta name="authorGitHubUsername" value="karmine05">
 <meta name="authorFullName" value="Dhruv Majumdar">
 <meta name="publishedOn" value="2026-09-11">
-<meta name="articleTitle" value="Software inventory">
+<meta name="articleTitle" value="Software inventory reference">
 <meta name="description" value="Find out how Fleet collects software inventory and what software it covers on each platform.">

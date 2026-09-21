@@ -693,6 +693,8 @@ type softwareEntityCount struct {
 	duplicateBundleIdentifiersPercent int
 	softwareRenaming                  bool
 	embeddedBundlePaths               bool
+	homebrewKegPercent                int
+	homebrewLargeKegPercent           int
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -2981,6 +2983,59 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	return fleetSoftware
 }
 
+// A large keg stands in for a formula like netpbm (~360 tools) or texlive, which install
+// hundreds of executables where most formulae install one or two.
+const (
+	minLargeKegExecutables = 200
+	maxLargeKegExecutables = 400
+)
+
+// kegBucket maps a formula to a number in [0, 100) that is stable across runs and across hosts,
+// so a formula is a keg, is large, and installs the same executables wherever it appears — as with
+// a real formula, whose contents are a property of the formula, not of the machine.
+func kegBucket(salt, name string) int {
+	sum := sha256.Sum256([]byte(salt + "\x00" + name))
+	return (int(sum[0])<<8 | int(sum[1])) % 100
+}
+
+// homebrewExecutableHashes simulates the macos_homebrew_executable_sha256 software override
+// query: one row per Mach-O executable a Homebrew formula installs under its keg, hashed by the
+// fleetd executable_hashes table. That fan-out, not the number of formulae, is what sizes a macOS
+// host's installed path delta, so it is what the two keg flags control.
+func (a *agent) homebrewExecutableHashes(software []map[string]string) []map[string]string {
+	var results []map[string]string
+	for _, s := range software {
+		kegPath, name := s["installed_path"], s["name"]
+		if s["source"] != "homebrew_packages" || kegPath == "" {
+			continue
+		}
+		if kegBucket("keg", name) >= a.softwareCount.homebrewKegPercent {
+			continue
+		}
+
+		count := kegBucket("count", name)%3 + 1
+		if kegBucket("large", name) < a.softwareCount.homebrewLargeKegPercent {
+			count = minLargeKegExecutables + kegBucket("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
+		}
+
+		for i := range count {
+			binary := name
+			if i > 0 {
+				binary = fmt.Sprintf("%s-%d", binary, i+1)
+			}
+			executablePath := kegPath + "/" + s["version"] + "/bin/" + binary
+			results = append(results, map[string]string{
+				"keg_path":          kegPath,
+				"version":           s["version"],
+				"executable_path":   executablePath,
+				"executable_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath))),
+				"hash_state":        "hashed",
+			})
+		}
+	}
+	return results
+}
+
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	commonVSCodeExtensionsSoftware := make([]map[string]string, a.softwareVSCodeExtensionsCount.common)
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
@@ -3856,6 +3911,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			}
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_homebrew_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb { // nolint:gosec // load testing, not security-sensitive
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.homebrewExecutableHashes(cachedResults.software)
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
 		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
@@ -4508,6 +4572,11 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		homebrewKegPercent = flag.Int("software_homebrew_keg_percent", 80,
+			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
+		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
+			"Percentage of those kegs that install 200 or more executables, standing in for a formula like netpbm or texlive (0-100)")
+
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
 		embeddedBundlePaths               = flag.Bool("embedded_bundle_paths", false, "Nest duplicate-bundle paths under their parent .app/Contents/Library/LoginItems/")
@@ -4833,6 +4902,8 @@ func main() {
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 				softwareRenaming:                  *softwareRenaming,
 				embeddedBundlePaths:               *embeddedBundlePaths,
+				homebrewKegPercent:                *homebrewKegPercent,
+				homebrewLargeKegPercent:           *homebrewLargeKegPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

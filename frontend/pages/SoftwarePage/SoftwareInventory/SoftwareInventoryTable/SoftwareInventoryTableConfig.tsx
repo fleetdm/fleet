@@ -85,6 +85,7 @@ const getSoftwareNameCellData = (
   return {
     name: softwareTitle.name,
     displayName: softwareTitle.display_name,
+    bundleIdentifier: softwareTitle.bundle_identifier,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
     hasInstaller: hasInstaller && !isAllTeams,
@@ -119,6 +120,7 @@ const generateTableHeaders = (
           <SoftwareNameCell
             name={nameCellData.name}
             display_name={nameCellData.displayName}
+            bundle_identifier={nameCellData.bundleIdentifier}
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}

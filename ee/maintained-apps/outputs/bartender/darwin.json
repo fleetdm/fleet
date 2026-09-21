@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.0.1",
+      "version": "7.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.surteesstudios.Bartender';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.surteesstudios.Bartender' AND version_compare(bundle_short_version, '7.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.surteesstudios.Bartender' AND version_compare(bundle_short_version, '7.0.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.surteesstudios.Bartender' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.macbartender.com/Bartender7/updates/7-0-1/Bartender%207.zip",
+      "installer_url": "https://downloads.macbartender.com/Bartender7/updates/7-0-4/Bartender%207.zip",
       "install_script_ref": "28ad9ed9",
       "uninstall_script_ref": "b31850a5",
-      "sha256": "f9db34003e1ca82d78d5d6bcdf9fce25cbe7fc65b79793dadaabeb144d54b34b",
+      "sha256": "dd4d4eb20d0b0a9549ab182832149e42ee140e65737e91ce4db69d30be058fbf",
       "default_categories": [
         "Utilities"
       ]
