@@ -9,7 +9,7 @@ You are helping with this repository's Fleet GitOps configuration: $ARGUMENTS
 
 This repo configures a live Fleet instance — CI applies `default.yml` and `fleets/*.yml` (and everything they reference under `platforms/`) on every push to the default branch. Apply the following constraints for all work in this session.
 
-## Queries & reports
+## Reports & policies
 
 - Only use **Fleet tables and supported columns** when writing osquery queries for policies or reports.
 - Do not reference tables or columns that aren't present in the Fleet schema for the target platform.
