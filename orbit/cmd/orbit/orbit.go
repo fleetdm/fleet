@@ -44,7 +44,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/managedaccount"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/mdmsecret"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -439,9 +438,9 @@ func waitForMDMDeliveredEnrollSecret(disableKeystore bool, setSecret func(string
 // registry value is cleared once the secret is in the keystore, so its presence means a secret is
 // waiting and its absence means orbit already took it.
 func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) (bool, error) {
-	secret, err := mdmsecret.Read()
+	secret, err := profiles.GetEnrollSecret()
 	switch {
-	case errors.Is(err, mdmsecret.ErrNotFound), errors.Is(err, mdmsecret.ErrNotImplemented):
+	case errors.Is(err, profiles.ErrEnrollSecretNotFound), errors.Is(err, profiles.ErrNotImplemented):
 		return false, nil
 	case err != nil:
 		return false, fmt.Errorf("read MDM-delivered enroll secret: %w", err)
@@ -449,7 +448,7 @@ func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool
 
 	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
 	if err := adoptEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
-		if err := mdmsecret.Clear(); err != nil {
+		if err := profiles.ClearEnrollSecret(); err != nil {
 			// Not fatal: the secret is already in the keystore, so orbit can enroll. The value
 			// lingering only means it will be adopted again, harmlessly, on the next start.
 			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")

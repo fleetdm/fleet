@@ -107,6 +107,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   <MultiStringValue>ORBIT_FLEET_URL=[FLEET_URL]</MultiStringValue>
                   {{ if .FleetCertificate }}<MultiStringValue>ORBIT_FLEET_CERTIFICATE=[ORBITROOT]fleet.pem</MultiStringValue>{{ end }}
                   {{ if .EnrollSecret }}<MultiStringValue>ORBIT_ENROLL_SECRET_PATH=[ORBITROOT]secret.txt</MultiStringValue>{{ end }}
+                  {{ if .UseSystemConfiguration }}<MultiStringValue>ORBIT_USE_SYSTEM_CONFIGURATION=true</MultiStringValue>{{ end }}
                   {{ if .Insecure }}<MultiStringValue>ORBIT_INSECURE=true</MultiStringValue>{{ end }}
                   {{ if .Debug }}<MultiStringValue>ORBIT_DEBUG=true</MultiStringValue>{{ end }}
                   {{ if .UpdateURL }}<MultiStringValue>ORBIT_UPDATE_URL={{ .UpdateURL }}</MultiStringValue>{{ end }}

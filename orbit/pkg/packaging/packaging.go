@@ -116,8 +116,9 @@ type Options struct {
 	// AppStoreConnectAPIKeyContent is the content of the App Store API Key
 	AppStoreConnectAPIKeyContent string
 	// UseSystemConfiguration tells fleetd to try to read FleetURL and
-	// EnrollSecret from a system configuration that's present on the host.
-	// Currently only macOS profiles are supported.
+	// EnrollSecret from a system configuration that's present on the host:
+	// a configuration profile on macOS, and on Windows the registry value a
+	// Fleet-managed configuration profile writes.
 	UseSystemConfiguration bool
 	// EnableScripts enables script execution on the agent.
 	EnableScripts bool
