@@ -1458,14 +1458,18 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}
 
-		// store the command results
+		// store the command results. updated_at is set explicitly because an
+		// identical re-ack changes no column and MySQL would leave it alone; the
+		// retention sweep reads it as the last time the device spoke about the
+		// command.
 		const insertResultsStmt = `
 INSERT INTO windows_mdm_command_results
     (enrollment_id, command_uuid, raw_result, response_id, status_code)
 VALUES %s
 ON DUPLICATE KEY UPDATE
     raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
+    status_code = COALESCE(VALUES(status_code), status_code),
+    updated_at = CURRENT_TIMESTAMP
 `
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {

@@ -7748,7 +7748,7 @@ func testCleanupMDMWindowsCommandHistory(t *testing.T, ds *Datastore) {
 			}
 			if _, err := q.ExecContext(ctx, `
 				INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id, created_at, updated_at)
-				VALUES (?, ?, '<Status/>', '200', ?, ?, ?)`, dev.ID, cmd.CommandUUID, responseID, at, at); err != nil {
+				VALUES (?, ?, '', '200', ?, ?, ?)`, dev.ID, cmd.CommandUUID, responseID, at, at); err != nil {
 				return err
 			}
 			_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`,
@@ -7894,6 +7894,21 @@ func testCleanupMDMWindowsCommandHistory(t *testing.T, ds *Datastore) {
 	assert.False(t, commandExists(gone))
 	assert.True(t, commandExists(oldPending), "still queued")
 	assert.True(t, commandExists(oldWipe), "pinned by wipe_ref")
+
+	// A byte-identical re-ack through the real ack path changes no column, so
+	// only the explicit updated_at in its ON DUPLICATE KEY UPDATE keeps the
+	// sweep from deleting a result the device confirmed today.
+	reacked := enqueue(old)
+	ack(reacked, old)
+	_, err = ds.MDMWindowsSaveResponse(ctx, dev, createResponseAsEnrichedSyncML(t, dev, []enrichResponseEntry{
+		{Type: "Atomic", StatusCode: 200, UUID: reacked.CommandUUID},
+	}), nil)
+	require.NoError(t, err)
+	counts, err = ds.CleanupMDMWindowsCommandHistory(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, counts.Total())
+	assert.True(t, resultExists(reacked), "identical re-ack today extends retention")
+	assert.True(t, commandExists(reacked))
 }
 
 // readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.
