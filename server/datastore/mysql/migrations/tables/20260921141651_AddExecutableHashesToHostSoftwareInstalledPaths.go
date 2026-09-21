@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260918124042, Down_20260918124042)
+	MigrationClient.AddMigration(Up_20260921141651, Down_20260921141651)
 }
 
-func Up_20260918124042(tx *sql.Tx) error {
+func Up_20260921141651(tx *sql.Tx) error {
 	if columnExists(tx, "host_software_installed_paths", "executable_hashes") {
 		return nil
 	}
@@ -25,6 +25,6 @@ func Up_20260918124042(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260918124042(tx *sql.Tx) error {
+func Down_20260921141651(tx *sql.Tx) error {
 	return nil
 }
