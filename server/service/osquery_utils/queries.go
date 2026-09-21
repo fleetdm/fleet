@@ -3766,7 +3766,7 @@ var tpmPINQueries = map[string]DetailQuery{
 	},
 }
 
-//go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Contributing/host-vitals/understanding-host-vitals.md"
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool

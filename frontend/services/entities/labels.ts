@@ -37,15 +37,26 @@ const isManualLabelFormData = (
   return "targetedHosts" in formData;
 };
 
+export interface IUpdateLabelOptions {
+  /** Send only the label's host membership, leaving its definition untouched. Used for a manual
+   * label whose definition is managed in git while its membership is managed in Fleet. */
+  membershipOnly?: boolean;
+}
+
 const generateUpdateLabelBody = (
-  formData: IDynamicLabelFormData | IManualLabelFormData
+  formData: IDynamicLabelFormData | IManualLabelFormData,
+  { membershipOnly = false }: IUpdateLabelOptions = {}
 ) => {
   // we need to prepare the post body for only manual labels.
   if (isManualLabelFormData(formData)) {
+    const hostIds = formData.targetedHosts.map((host) => host.id);
+    if (membershipOnly) {
+      return { host_ids: hostIds };
+    }
     return {
       name: formData.name,
       description: formData.description,
-      host_ids: formData.targetedHosts.map((host) => host.id),
+      host_ids: hostIds,
     };
   }
   return formData;
@@ -179,10 +190,11 @@ export default {
 
   update: async (
     labelId: number,
-    formData: IDynamicLabelFormData | IManualLabelFormData
+    formData: IDynamicLabelFormData | IManualLabelFormData,
+    options?: IUpdateLabelOptions
   ): Promise<IUpdateLabelResponse> => {
     const { LABEL } = endpoints;
-    const updateAttrs = generateUpdateLabelBody(formData);
+    const updateAttrs = generateUpdateLabelBody(formData, options);
     return sendRequest("PATCH", LABEL(labelId), updateAttrs);
   },
 

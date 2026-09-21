@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
@@ -396,14 +397,36 @@ func TestParseRecoveryKey(t *testing.T) {
 }
 
 type fakeEscrower struct {
+	mu           sync.Mutex
 	responses    []LuksResponse
+	statuses     []string
 	err          error
 	capabilities fleet.CapabilityMap
 }
 
 func (f *fakeEscrower) SendLinuxKeyEscrowResponse(r LuksResponse) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.responses = append(f.responses, r)
 	return f.err
+}
+
+func (f *fakeEscrower) SendLinuxKeyEscrowStatus(status string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.statuses = append(f.statuses, status)
+	return f.err
+}
+
+func (f *fakeEscrower) sentStatuses() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.statuses...)
+}
+
+// newStatusEscrower returns a fake escrower whose server accepts escrow status reports.
+func newStatusEscrower() *fakeEscrower {
+	return &fakeEscrower{capabilities: fleet.CapabilityMap{fleet.CapabilityLinuxEscrowStatus: {}}}
 }
 
 func (f *fakeEscrower) GetServerCapabilities() fleet.CapabilityMap {
@@ -572,4 +595,13 @@ func TestRunRecoveryKeyEscrow(t *testing.T) {
 		// Must not panic despite no notifier.
 		require.NoError(t, lr.runRecoveryKeyEscrow(ctx, snapd))
 	})
+}
+
+func TestReportFailure(t *testing.T) {
+	escrower := &fakeEscrower{}
+	err := New(escrower).reportFailure(errors.New("cryptsetup is not installed"))
+	require.EqualError(t, err, "cryptsetup is not installed")
+	require.Len(t, escrower.responses, 1)
+	assert.Equal(t, "cryptsetup is not installed", escrower.responses[0].Err)
+	assert.Empty(t, escrower.responses[0].Passphrase)
 }

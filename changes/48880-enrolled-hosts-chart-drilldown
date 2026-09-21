@@ -1,0 +1,1 @@
+* Fixed the dashboard "Hosts enrolled" chart drill-down including pending hosts in the filtered host list, by adding an "Enrolled hosts" status filter (`status=enrolled` on the list hosts and count hosts endpoints) that excludes hosts pending MDM enrollment.

@@ -903,6 +903,8 @@ type SCEPIdentityAssociation struct {
 	// EnrollmentType is nano_enrollment.type and should be examined to determine
 	// the proper enrollment profile.
 	EnrollmentType string `db:"type"`
+	// DEPAssignedToFleet indicates whether the device is assigned to the fleet via AB.
+	DEPAssignedToFleet bool `db:"dep_assigned_to_fleet"`
 }
 
 type DeviceInfoForACMERenewal struct {
@@ -2023,3 +2025,15 @@ type MDMAppleAPNsSweepState struct {
 	Cursor    string `json:"cursor"`
 	BatchSize int    `json:"batch_size"`
 }
+
+// The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.
+//
+// [1] https://developer.apple.com/documentation/devicemanagement/get-token#Discussion
+const (
+	TokenServiceTypeMAID = "com.apple.maid" // nolint:gosec // not a credential
+)
+
+const (
+	TokenSourceDefault       = "default"
+	TokenSourceDEPAssignment = "dep_assignment"
+)

@@ -41,6 +41,7 @@ import {
   hasActiveHostFilters,
   hasActiveSoftwareFilters,
   hostFilterLines,
+  severityDefaultSentence,
   severitySelection,
   softwareFilterLines,
 } from "./helpers";
@@ -147,6 +148,7 @@ const ChartCard = ({
     DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
   if (isPremiumTier) {
+    const severityDefault = severityDefaultSentence(initialChartFilters);
     DATASETS.push({
       name: "cve",
       label: "Vulnerability exposure",
@@ -155,9 +157,13 @@ const ChartCard = ({
         <>
           The number of hosts with at least one vulnerability matching the
           chart&apos;s filters.
-          <br />
-          <br />
-          Severity is filtered to critical by default.
+          {severityDefault && (
+            <>
+              <br />
+              <br />
+              {severityDefault}
+            </>
+          )}
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>

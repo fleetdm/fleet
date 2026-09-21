@@ -106,8 +106,8 @@ describe("AccountProvisioning", () => {
 
   describe("Token URL validation", () => {
     it("shows a required error on blur when empty", async () => {
-      const { user } = render(<AccountProvisioning {...defaultProps} />);
-      await user.click(screen.getByLabelText(/token url/i));
+      const { user } = render(<AccountProvisioning {...savedConfigProps} />);
+      await user.clear(screen.getByLabelText(/token url/i));
       await user.tab();
       await waitFor(() => {
         expect(screen.getByText(/token url is required/i)).toBeInTheDocument();
@@ -168,8 +168,8 @@ describe("AccountProvisioning", () => {
 
   describe("Client ID validation", () => {
     it("shows a required error on blur when empty", async () => {
-      const { user } = render(<AccountProvisioning {...defaultProps} />);
-      await user.click(screen.getByLabelText(/client id/i));
+      const { user } = render(<AccountProvisioning {...savedConfigProps} />);
+      await user.clear(screen.getByLabelText(/client id/i));
       await user.tab();
       await waitFor(() => {
         expect(screen.getByText(/client id is required/i)).toBeInTheDocument();
@@ -179,8 +179,8 @@ describe("AccountProvisioning", () => {
 
   describe("Client secret validation", () => {
     it("shows a required error on blur when empty", async () => {
-      const { user } = render(<AccountProvisioning {...defaultProps} />);
-      await user.click(screen.getByLabelText(/client secret/i));
+      const { user } = render(<AccountProvisioning {...savedConfigProps} />);
+      await user.clear(screen.getByLabelText(/client secret/i));
       await user.tab();
       await waitFor(() => {
         expect(
@@ -191,16 +191,44 @@ describe("AccountProvisioning", () => {
   });
 
   describe("Form submission", () => {
-    it("shows all errors on submit when all fields are empty", async () => {
+    it("submits successfully as a no-op when the form is already empty", async () => {
       const { user } = render(<AccountProvisioning {...defaultProps} />);
       await user.click(screen.getByRole("button", { name: /save/i }));
+
       await waitFor(() => {
-        expect(screen.getByText(/token url is required/i)).toBeInTheDocument();
-        expect(screen.getByText(/client id is required/i)).toBeInTheDocument();
-        expect(
-          screen.getByText(/client secret is required/i)
-        ).toBeInTheDocument();
+        expect(configAPI.update).toHaveBeenCalledWith({
+          mdm: {
+            apple_account_provisioning: {
+              oauth_idp_token_url: "",
+              oauth_idp_client_id: "",
+              oauth_idp_client_secret: "",
+            },
+          },
+        });
       });
+      expect(screen.queryByText(/is required/i)).not.toBeInTheDocument();
+    });
+
+    it("clears a saved configuration when every field is emptied before submit", async () => {
+      const { user } = render(<AccountProvisioning {...savedConfigProps} />);
+      await user.clear(screen.getByLabelText(/token url/i));
+      await user.clear(screen.getByLabelText(/client id/i));
+      await user.clear(screen.getByLabelText(/client secret/i));
+
+      await user.click(screen.getByRole("button", { name: /save/i }));
+
+      await waitFor(() => {
+        expect(configAPI.update).toHaveBeenCalledWith({
+          mdm: {
+            apple_account_provisioning: {
+              oauth_idp_token_url: "",
+              oauth_idp_client_id: "",
+              oauth_idp_client_secret: "",
+            },
+          },
+        });
+      });
+      expect(screen.queryByText(/is required/i)).not.toBeInTheDocument();
     });
 
     it("does not submit when token URL is invalid", async () => {

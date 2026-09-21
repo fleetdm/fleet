@@ -85,6 +85,9 @@ describe("ChartCard", () => {
 
   beforeAll(() => {
     global.ResizeObserver = (MockResizeObserver as unknown) as typeof ResizeObserver;
+  });
+
+  beforeEach(() => {
     Element.prototype.getBoundingClientRect = function mockBCR() {
       return {
         width: MOCK_WIDTH,
@@ -268,6 +271,18 @@ describe("ChartCard", () => {
       await user.click(option);
     };
 
+    const hoverChartDescription = async (
+      user: ReturnType<typeof renderPremium>["user"]
+    ) => {
+      Element.prototype.getBoundingClientRect = origGetBCR;
+      await user.hover(screen.getByTestId("info-outline-icon"));
+      await waitFor(
+        () => expect(screen.getByRole("tooltip")).toBeInTheDocument(),
+        { timeout: 3000 }
+      );
+      return screen.getByRole("tooltip");
+    };
+
     // Which bounds a selection resolves to is severityFilters' contract. What
     // only a real request shows is the wiring either side: that they land on
     // severity_min / severity_max, and that buildQueryStringFromParams keeps an
@@ -384,6 +399,46 @@ describe("ChartCard", () => {
         screen.queryByText("Probability of exploit")
       ).not.toBeInTheDocument();
     });
+
+    const descriptionCases: {
+      label: string;
+      filterDefaults: React.ComponentProps<typeof ChartCard>["filterDefaults"];
+      sentence: string | null;
+    }[] = [
+      {
+        label: "the built-in critical default",
+        filterDefaults: undefined,
+        sentence: "Severity is filtered to critical by default.",
+      },
+      {
+        label: "a seeded high default",
+        filterDefaults: { cvss_min: 7, cvss_max: 8.9 },
+        sentence: "Severity is filtered to high by default.",
+      },
+      {
+        label: "a default that narrows nothing",
+        filterDefaults: { cvss_min: 0, cvss_max: 10 },
+        sentence: null,
+      },
+    ];
+
+    it.each(descriptionCases)(
+      "describes $label in the info tooltip",
+      async ({ filterDefaults, sentence }) => {
+        useCveHandler();
+        const { user } = renderPremium({ filterDefaults });
+
+        await selectDataset(user, "Vulnerability exposure");
+        const tip = await hoverChartDescription(user);
+
+        expect(tip).toHaveTextContent("at least one vulnerability matching");
+        if (sentence) {
+          expect(tip).toHaveTextContent(sentence);
+        } else {
+          expect(tip).not.toHaveTextContent(/Severity is filtered/);
+        }
+      }
+    );
 
     it("no longer advertises the severity filter as coming soon", async () => {
       useCveHandler();

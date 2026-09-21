@@ -7481,6 +7481,7 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	var brave003 uint
 	var opera003 uint
 	var ie003 uint
+	var netscape003 uint
 	for s := range sw.Inserted {
 		switch {
 		case sw.Inserted[s].Name == "chrome" && sw.Inserted[s].Version == "0.0.1":
@@ -7497,6 +7498,8 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			opera003 = sw.Inserted[s].ID
 		case sw.Inserted[s].Name == "internet explorer" && sw.Inserted[s].Version == "0.0.3":
 			ie003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "netscape" && sw.Inserted[s].Version == "0.0.3":
+			netscape003 = sw.Inserted[s].ID
 		}
 	}
 
@@ -7533,6 +7536,11 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 		SoftwareID: ie003,
 		CVE:        "CVE-2024-1240",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: netscape003,
+		CVE:        "CVE-2024-1241",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
@@ -7573,6 +7581,12 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			CVE:              "CVE-2024-1240",
 			CVSSScore:        nil,
 			CISAKnownExploit: nil,
+		},
+		{
+			// netscape: the only score below 7.5, so minimum-bound filters must exclude it
+			CVE:              "CVE-2024-1241",
+			CVSSScore:        new(4.0),
+			CISAKnownExploit: new(false),
 		},
 	})
 	require.NoError(t, err)
@@ -7616,6 +7630,10 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				},
 				{
 					Name:    "internet explorer",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "netscape",
 					Version: "0.0.3",
 				},
 				{
@@ -7755,6 +7773,10 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 					Version: "0.0.1",
 				},
 				{
+					Name:    "netscape",
+					Version: "0.0.3",
+				},
+				{
 					Name:    "safari",
 					Version: "0.0.1",
 				},
@@ -7772,6 +7794,10 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				{
 					Name:    "chrome",
 					Version: "0.0.1",
+				},
+				{
+					Name:    "netscape",
+					Version: "0.0.3",
 				},
 				{
 					Name:    "safari",
@@ -7805,6 +7831,38 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				MaximumCVSS:      8.0,
 			},
 			expected: []swVersion{
+				{
+					Name:    "chrome",
+					Version: "0.0.1",
+				},
+				{
+					Name:    "edge",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "firefox",
+					Version: "0.0.3",
+				},
+				{
+					Name:    "safari",
+					Version: "0.0.1",
+				},
+			},
+		},
+		{
+			name: "minimum cvss 5.0 and maximum cvss 10.0",
+			opts: fleet.SoftwareListOptions{
+				ListOptions:      fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+				IncludeCVEScores: true,
+				VulnerableOnly:   true,
+				MinimumCVSS:      5.0,
+				MaximumCVSS:      10.0,
+			},
+			expected: []swVersion{
+				{
+					Name:    "brave",
+					Version: "0.0.3",
+				},
 				{
 					Name:    "chrome",
 					Version: "0.0.1",

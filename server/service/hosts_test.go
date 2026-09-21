@@ -1059,6 +1059,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
@@ -4356,12 +4357,15 @@ func TestHostEncryptionKey(t *testing.T) {
 		passphrase := "this_is_a_passphrase"
 		base64EncryptedKey, err := mdm.EncryptAndEncode(passphrase, symmetricKey)
 		require.NoError(t, err)
+		base64ArchivedKey, err := mdm.EncryptAndEncode("previous_passphrase", symmetricKey)
+		require.NoError(t, err)
 
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return host, nil
 		}
+		// A decryptable archived key is always present: Linux must never fall back to it.
 		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
-			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+			return &fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: base64ArchivedKey}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { // needed for new activity
 			return &fleet.AppConfig{}, nil
@@ -4375,15 +4379,25 @@ func TestHostEncryptionKey(t *testing.T) {
 		require.Error(t, err, "private key is unavailable")
 		require.Nil(t, key)
 
-		// error when key is not set
+		// not found when the verify query deleted the key
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
-			return &fleet.HostDiskEncryptionKey{}, nil
+			return nil, newNotFoundError()
 		}
 		fleetCfg.Server.PrivateKey = symmetricKey
 		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 		key, err = svc.HostEncryptionKey(ctx, 1)
-		require.Error(t, err, "host encryption key is not set")
+		require.True(t, fleet.IsNotFound(err), "expected not found, got: %v", err)
+		require.Nil(t, key)
+
+		// not found when a new escrow is queued but the key hasn't arrived yet
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{}, nil
+		}
+		svc, ctx = newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+		key, err = svc.HostEncryptionKey(ctx, 1)
+		require.True(t, fleet.IsNotFound(err), "expected not found, got: %v", err)
 		require.Nil(t, key)
 
 		// error when key is not set
@@ -5617,6 +5631,44 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
 		require.NoError(t, err)
 		require.False(t, notifs.RotateDiskEncryptionKey)
+	})
+
+	// Only the agent can clear an error it reported, by reporting a later success, so a host carrying one has to keep
+	// being asked.
+	t.Run("a reported error keeps the host being asked", func(t *testing.T) {
+		appConfig := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appConfig, nil
+		}
+		mdmInfo := &fleet.HostMDM{IsServer: false}
+		// Encrypted, with a key Fleet can decrypt: nothing else would ask this host to do anything.
+		host := &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: new(true), OsqueryHostID: new("foo")}
+
+		for _, tc := range []struct {
+			name        string
+			clientError string
+			want        bool
+		}{
+			{name: "no reported error, so the host is left alone", clientError: "", want: false},
+			{name: "a reported error keeps enforcement on", clientError: "a BitLocker decryption is paused on this host", want: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return &fleet.HostDiskEncryptionKey{
+						HostID:          id,
+						Base64Encrypted: "a-key",
+						Decryptable:     new(true),
+						ClientError:     tc.clientError,
+					}, nil
+				}
+
+				notifs := &fleet.OrbitConfigNotifications{}
+				err := svc.setDiskEncryptionNotifications(ctx, notifs, host, appConfig,
+					fleet.DiskEncryptionConfig{WindowsEnabled: true}, true, mdmInfo)
+				require.NoError(t, err)
+				require.Equal(t, tc.want, notifs.EnforceBitLockerEncryption)
+			})
+		}
 	})
 
 	t.Run("macOS rotation follows escrow, not enforcement", func(t *testing.T) {

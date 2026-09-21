@@ -1,17 +1,30 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { noop } from "lodash";
 
 import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { defaultConfigProfileStatusHandler } from "test/handlers/config-profiles";
+import { IMdmConfig } from "interfaces/config";
+import { platformToMDMLabel, ProfilePlatform } from "interfaces/mdm";
 
 import ConfigProfileStatusModal from "./ConfigProfileStatusModal";
 
 describe("ConfigProfileStatusModal", () => {
-  const render = createCustomRenderer({
-    withBackendMock: true,
-  });
+  const render = (ui: React.ReactElement, mdmOverride?: Partial<IMdmConfig>) =>
+    createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              ...mdmOverride,
+            },
+          },
+        },
+      },
+    })(ui);
 
   it("renders the correct number of hosts for each status", async () => {
     mockServer.use(defaultConfigProfileStatusHandler);
@@ -20,6 +33,7 @@ describe("ConfigProfileStatusModal", () => {
         name="Test profile"
         uuid="123-abc"
         teamId={0}
+        platform="darwin"
         onClickResend={noop}
         onExit={noop}
       />
@@ -54,6 +68,7 @@ describe("ConfigProfileStatusModal", () => {
         name="Test profile"
         uuid="123-abc"
         teamId={0}
+        platform="darwin"
         onClickResend={noop}
         onExit={noop}
       />
@@ -68,4 +83,41 @@ describe("ConfigProfileStatusModal", () => {
     const resendButton = screen.getByRole("button", { name: "Resend" });
     expect(resendButton).toBeVisible();
   });
+
+  it.each([
+    "darwin",
+    "ios",
+    "ipados",
+    "windows",
+    "android",
+  ] as ProfilePlatform[])(
+    "shows MDM turned off for %s with correct label and links",
+    async (platform) => {
+      render(
+        <ConfigProfileStatusModal
+          name="Test profile"
+          uuid="123-abc"
+          teamId={0}
+          platform={platform}
+          onClickResend={noop}
+          onExit={noop}
+        />,
+        { enabled_and_configured: false }
+      );
+
+      const mdmLabel = platformToMDMLabel(platform);
+
+      await waitFor(() =>
+        screen.getByText(`${mdmLabel} mdm isn't turned on`, { exact: false })
+      );
+
+      const learnMoreLink = await screen.findByRole("link", {
+        name: "Learn more",
+      });
+      expect(learnMoreLink).toHaveAttribute(
+        "href",
+        expect.stringMatching(new RegExp(mdmLabel, "i"))
+      );
+    }
+  );
 });

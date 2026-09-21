@@ -1746,6 +1746,9 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		// This must stay in sync with the missing_30_days_count computation in GenerateHostStatusStatistics.
 		sql += "AND DATE_ADD(" + hostEffectiveLastSeenExpr + ", INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
 		params = append(params, now)
+	case fleet.StatusEnrolled:
+		// Same pending exclusion as the per-platform counts in GenerateHostStatusStatistics.
+		sql += "AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
 	}
 	return sql, params
 }
@@ -3497,14 +3500,24 @@ SELECT
 FROM hosts
 WHERE id IN (?)`
 
-	stmt, args, err := sqlx.In(stmt, ids)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by id")
-	}
+	// Callers build per-host work from these rows, so batching must not return a
+	// host twice for a repeated id.
+	uniqueIDs := slices.Compact(slices.Sorted(slices.Values(ids)))
 
 	var hosts []*fleet.Host
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by id")
+	if err := common_mysql.BatchProcessSimple(uniqueIDs, hostIDsFanoutBatchSize, func(batch []uint) error {
+		inStmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building query to select hosts by id")
+		}
+		var batchHosts []*fleet.Host
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchHosts, inStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts by id")
+		}
+		hosts = append(hosts, batchHosts...)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return hosts, nil

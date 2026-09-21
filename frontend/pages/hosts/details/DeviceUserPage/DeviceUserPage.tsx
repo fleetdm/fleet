@@ -31,6 +31,7 @@ import {
 } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
+import { hasStatusKey } from "interfaces/errors";
 
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 
@@ -99,6 +100,15 @@ import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
 
+const getRetryAfterSeconds = (e: unknown): number | undefined => {
+  if (typeof e !== "object" || e === null || !("headers" in e)) {
+    return undefined;
+  }
+  const headers = (e as { headers?: Record<string, unknown> }).headers;
+  const seconds = Number(headers?.["retry-after"]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+};
+
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
@@ -164,6 +174,10 @@ const DeviceUserPage = ({
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
+  const [isEscrowInFlight, setIsEscrowInFlight] = useState(false);
+  const [escrowRetryAfterSeconds, setEscrowRetryAfterSeconds] = useState<
+    number | undefined
+  >();
   const [
     hostSWForInventoryVersions,
     setHostSWForInventoryVersions,
@@ -603,6 +617,8 @@ const DeviceUserPage = ({
 
   const onTriggerEscrowLinuxKey = async () => {
     setIsTriggeringCreateLinuxKey(true);
+    // reset before the request so a previous in-flight answer never flashes while loading
+    setIsEscrowInFlight(false);
     // modal opens in loading state
     setShowCreateLinuxKeyModal(true);
     try {
@@ -610,8 +626,14 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      notify.error("Failed to trigger key creation.", { response: e });
-      setShowCreateLinuxKeyModal(false);
+      // 409: fleetd is already handling an earlier request, so no new pop-up is coming
+      if (hasStatusKey(e) && e.status === 409) {
+        setIsEscrowInFlight(true);
+        setEscrowRetryAfterSeconds(getRetryAfterSeconds(e));
+      } else {
+        notify.error("Failed to trigger key creation.", { response: e });
+        setShowCreateLinuxKeyModal(false);
+      }
     } finally {
       setIsTriggeringCreateLinuxKey(false);
     }
@@ -980,6 +1002,8 @@ const DeviceUserPage = ({
         {showCreateLinuxKeyModal && !!host && (
           <CreateLinuxKeyModal
             isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            isEscrowInFlight={isEscrowInFlight}
+            retryAfterSeconds={escrowRetryAfterSeconds}
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}

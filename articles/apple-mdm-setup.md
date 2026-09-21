@@ -58,7 +58,8 @@ How to connect Fleet to AB:
 2. Under **Apple Business (AB)**, select **Add AB**.
 3. Select **Download public key** to download a public key for AB.
 4. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, create one.
-5. Select **Devices > Management** and select **Add** at the bottom of list.
+5. Select **Devices > Management Services**, then select **Add** next to **Device Management Services** (or **Set Up** if this is your first device management service).
+6. Select **Connect external device management** and select **Continue**.
 7. Enter a name for the server such as "Fleet" and upload the public key downloaded in step 3 and select **Next**.
 8. Download the service token and select **Done**.
 9. In the **Default Device Assignment** section, assign the newly created server as the default for your Macs, iPhones, and iPads. Then select **Save**.

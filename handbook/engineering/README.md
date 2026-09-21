@@ -76,6 +76,13 @@ The engineering output and architecture DRI reviews and triages engineering-init
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
+#### Route a Fleet-maintained app (FMA) request or bug
+
+When a GitHub issue or request relates to a Fleet-maintained app (FMA), add the `~fma` label. That label alone is enough to surface the issue on the [Fleet-maintained apps project board](https://github.com/orgs/fleetdm/projects/116).
+
+Do not add the `:help-solutions-consulting` label to FMA-related issues. That label routes to the Solutions Consulting board, not the FMA board.
+
+
 #### Handle a security report
 
 Security reports come in through the private [fleetdm/security](https://github.com/fleetdm/security) repo. Whatever the source — GitHub security advisory, pen test finding, bug bounty, disclosure email, or scan result — file it with the [security report issue form](https://github.com/fleetdm/security/issues/new?template=security-report.yml), which standardizes the format for the engineers reviewing it and cross-links the original report. Issues labeled `security` are added to the [🔓 :help-security project](https://github.com/orgs/fleetdm/projects/113) automatically.

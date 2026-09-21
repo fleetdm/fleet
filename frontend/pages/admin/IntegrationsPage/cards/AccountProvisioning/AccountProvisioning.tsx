@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import { useQueryClient } from "react-query";
 
@@ -15,13 +15,13 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { isPremiumTier } from "utilities/permissions/permissions";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "account-provisioning";
 
@@ -31,14 +31,23 @@ interface IFormData {
   clientSecret: string;
 }
 
-interface IFormErrors {
-  tokenUrl?: string | null;
-  clientId?: string | null;
-  clientSecret?: string | null;
-}
+const isEmptyFormData = (data: IFormData) => {
+  return !data.tokenUrl && !data.clientId && !data.clientSecret;
+};
 
-const validate = (formData: IFormData): IFormErrors => {
+const validate = (rawFormData: IFormData): IFormErrors => {
   const errors: IFormErrors = {};
+
+  const formData: IFormData = {
+    tokenUrl: rawFormData.tokenUrl.trim(),
+    clientId: rawFormData.clientId.trim(),
+    clientSecret: rawFormData.clientSecret.trim(),
+  };
+
+  if (isEmptyFormData(formData)) {
+    // Clearing a form is a valid state.
+    return errors;
+  }
 
   if (!formData.tokenUrl) {
     errors.tokenUrl = "Token URL is required.";
@@ -81,80 +90,71 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
   const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<IFormData>({
-    tokenUrl: "",
-    clientId: "",
-    clientSecret: "",
+  const [serverFormErrors, setServerFormErrors] = useState<IFormErrors>({});
+
+  const {
+    formData,
+    setField,
+    validateField,
+    getError,
+    setFieldError,
+    clearFieldError,
+    clearErrors,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IFormData>({
+    validate,
+    initialFormData: {
+      clientId:
+        appConfig.mdm.apple_account_provisioning?.oauth_idp_client_id || "",
+      clientSecret:
+        appConfig.mdm.apple_account_provisioning?.oauth_idp_client_secret || "",
+      tokenUrl:
+        appConfig.mdm.apple_account_provisioning?.oauth_idp_token_url || "",
+    },
+    serverErrors: serverFormErrors,
+    isSubmitting: isUpdating,
   });
-  const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
-  useEffect(() => {
-    const provisioning = appConfig.mdm.apple_account_provisioning;
-    if (provisioning) {
-      setFormData({
-        tokenUrl: provisioning.oauth_idp_token_url,
-        clientId: provisioning.oauth_idp_client_id,
-        clientSecret: provisioning.oauth_idp_client_secret,
-      });
-    }
-  }, [appConfig]);
+  const onFieldChange = (name: keyof IFormData, value: string) => {
+    setField(name, value);
 
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-
-    // The server rejects a token URL change that reuses the stored secret
-    // (the secret would be sent to the new, possibly hostile, URL), so clear
-    // the masked secret and have the user re-enter it. Same pattern as
-    // editing a certificate authority.
-    const secretCleared =
-      name === "tokenUrl" &&
-      formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE;
-    if (secretCleared) {
-      newFormData.clientSecret = "";
-    }
-
-    setFormData(newFormData);
-    setFormErrors((prev) => {
-      const next = { ...prev };
-      if (secretCleared) {
-        next.clientSecret =
-          "Client secret must be re-entered when changing the token URL.";
-      }
-      // only update errors for fields that already have an error
-      if (prev[name as keyof IFormErrors]) {
-        next[name as keyof IFormErrors] = validate(newFormData)[
-          name as keyof IFormErrors
-        ];
-      }
-      return next;
-    });
-  };
-
-  const onInputBlur = (field: keyof IFormData) => () => {
-    const newErrors = validate(formData);
-    setFormErrors((prev) => ({ ...prev, [field]: newErrors[field] }));
-  };
-
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const errors = validate(formData);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    // Emptying the last field is how the configuration gets cleared, and an
+    // empty form is valid, so every required-field error stops applying.
+    if (isEmptyFormData({ ...formData, [name]: value })) {
+      clearErrors();
       return;
     }
 
-    const secretToSubmit =
+    if (
+      name === "tokenUrl" &&
       formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE
+    ) {
+      // The server rejects a token URL change that reuses the stored secret
+      // (the secret would be sent to the new, possibly hostile, URL), so clear
+      // the masked secret and have the user re-enter it. Same pattern as
+      // editing a certificate authority.
+      setField("clientSecret", "");
+      setFieldError(
+        "clientSecret",
+        "Client secret must be re-entered when changing the token URL."
+      );
+    }
+  };
+
+  const onSubmit = async (data: IFormData) => {
+    const secretToSubmit =
+      data.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE
         ? undefined
-        : formData.clientSecret;
+        : data.clientSecret;
 
     setIsUpdating(true);
     try {
       await configAPI.update({
         mdm: {
           apple_account_provisioning: {
-            oauth_idp_token_url: formData.tokenUrl,
-            oauth_idp_client_id: formData.clientId,
+            oauth_idp_token_url: data.tokenUrl,
+            oauth_idp_client_id: data.clientId,
             ...(secretToSubmit !== undefined && {
               oauth_idp_client_secret: secretToSubmit,
             }),
@@ -164,7 +164,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
       await queryClient.invalidateQueries(["config"]);
       notify.success("Successfully updated settings.");
     } catch (err) {
-      setFormErrors((prev) => ({ ...prev, ...getServerFieldErrors(err) }));
+      setServerFormErrors(getServerFieldErrors(err));
       const reason = getErrorReason(err);
       notify.error(
         reason
@@ -198,7 +198,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
             </>
           }
         />
-        <form onSubmit={onSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div
             className={`form ${
               gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
@@ -208,41 +208,44 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
               label="Token URL"
               name="tokenUrl"
               value={formData.tokenUrl}
-              onChange={onInputChange}
-              onBlur={onInputBlur("tokenUrl")}
-              parseTarget
+              onChange={(val) => onFieldChange("tokenUrl", val)}
+              onBlur={() => validateField("tokenUrl")}
+              onFocus={() => clearFieldError("tokenUrl")}
+              error={getError("tokenUrl")}
+              disabled={isSubmitting}
               placeholder="https://yourdomain.okta.com/oauth2/v1/token"
-              error={formErrors.tokenUrl}
               helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
             />
             <InputField
               label="Client ID"
               name="clientId"
               value={formData.clientId}
-              onChange={onInputChange}
-              onBlur={onInputBlur("clientId")}
-              parseTarget
-              error={formErrors.clientId}
+              onChange={(val) => onFieldChange("clientId", val)}
+              onBlur={() => validateField("clientId")}
+              onFocus={() => clearFieldError("clientId")}
+              error={getError("clientId")}
               helpText="In Okta, this will be in the Client Credentials section."
+              disabled={isSubmitting}
             />
             <InputField
               type="password"
               label="Client secret"
               name="clientSecret"
               value={formData.clientSecret}
-              onChange={onInputChange}
-              onBlur={onInputBlur("clientSecret")}
-              parseTarget
-              error={formErrors.clientSecret}
+              onChange={(val) => onFieldChange("clientSecret", val)}
+              onBlur={() => validateField("clientSecret")}
+              onFocus={() => clearFieldError("clientSecret")}
+              error={getError("clientSecret")}
               helpText="In Okta, this will be in the Client Credentials section."
+              disabled={isSubmitting}
             />
           </div>
           <GitOpsModeTooltipWrapper
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                disabled={disableChildren}
-                isLoading={isUpdating}
+                disabled={disableChildren || isSubmitting}
+                isLoading={isSubmitting}
               >
                 Save
               </Button>

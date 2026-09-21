@@ -113,7 +113,8 @@ interface IHostActionConfigOptions {
   isAppleBusinessEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   isAndroidMdmEnabledAndConfigured: boolean;
-  doesStoreEncryptionKey: boolean;
+  isEncryptionKeyAvailable: boolean;
+  isEncryptionKeyArchived: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
   scriptsGloballyDisabled: boolean | undefined;
@@ -348,7 +349,8 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    doesStoreEncryptionKey,
+    isEncryptionKeyAvailable,
+    isEncryptionKeyArchived,
     hostPlatform,
   } = config;
   if (!isPremiumTier) {
@@ -361,7 +363,12 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   if (isAppleDevice(hostPlatform) && !isConnectedToFleetMdm) {
     return false;
   }
-  return doesStoreEncryptionKey;
+  // Fleet never serves a Linux host's archived key: the current key is only
+  // removed once its LUKS slot is proven gone, so the archived one is dead.
+  if (isLinuxLike(hostPlatform)) {
+    return isEncryptionKeyAvailable;
+  }
+  return isEncryptionKeyAvailable || isEncryptionKeyArchived;
 };
 
 const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {

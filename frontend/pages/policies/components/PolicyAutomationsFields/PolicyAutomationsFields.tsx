@@ -514,6 +514,7 @@ const PolicyAutomationsFields = forwardRef<
               <div className={`${baseClass}__software-pickers`}>
                 <DropdownWrapper
                   name="software-title"
+                  isSearchable
                   className={`${baseClass}__row-picker`}
                   isDisabled={gitOpsModeEnabled}
                   value={
@@ -564,6 +565,7 @@ const PolicyAutomationsFields = forwardRef<
           picker: runScript ? (
             <DropdownWrapper
               name="script"
+              isSearchable
               className={`${baseClass}__row-picker`}
               isDisabled={gitOpsModeEnabled}
               value={
@@ -594,6 +596,7 @@ const PolicyAutomationsFields = forwardRef<
           picker: resendConfigProfile ? (
             <DropdownWrapper
               name="profile"
+              isSearchable
               className={`${baseClass}__row-picker`}
               isDisabled={gitOpsModeEnabled}
               value={

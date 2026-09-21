@@ -899,6 +899,30 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	require.Equal(t, "omarchy", host.Platform)
 	require.Equal(t, "arch", host.PlatformLike)
 
+	// AMD Ryzen AI Developer Platform is a Debian-based distribution that ships its
+	// own os-release ID. Values below are what osquery 5.23.1 reports on a real host.
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "amd-halo",
+    "arch": "x86_64",
+    "build": "",
+    "codename": "rex",
+    "major": "1",
+    "minor": "0",
+    "name": "AMD Ryzen AI Developer Platform",
+    "patch": "0",
+    "platform": "amd-ryzen-ai-developer-platform",
+    "platform_like": "debian",
+    "version": "1 (rex)"
+}]`),
+		&rows,
+	))
+
+	require.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
+	require.Equal(t, "AMD Ryzen AI Developer Platform 1.0.0", host.OSVersion)
+	require.Equal(t, "amd-ryzen-ai-developer-platform", host.Platform)
+	require.Equal(t, "debian", host.PlatformLike)
+
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
@@ -1965,6 +1989,28 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-arch1-1",
+			},
+		},
+		{
+			// AMD Ryzen AI Developer Platform is a distinct Debian-based release, so
+			// it keeps its own OS inventory row rather than aggregating onto Debian.
+			data: []map[string]string{
+				{
+					"name":           "AMD Ryzen AI Developer Platform",
+					"version":        "1 (rex)",
+					"major":          "1",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.18.44+rex+5-amd64",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "AMD Ryzen AI Developer Platform",
+				Version:       "1.0.0",
+				Arch:          "x86_64",
+				KernelVersion: "6.18.44+rex+5-amd64",
 			},
 		},
 	} {

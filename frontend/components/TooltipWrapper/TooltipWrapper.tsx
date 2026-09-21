@@ -127,7 +127,9 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
   /** If `true`, evenly distributes characters across lines and shrinks the
    * tooltip to hug the balanced text so there's no widow word or trailing
    * whitespace on the right. Adds a one-time layout measurement per content
-   * change. */
+   * change. Note: CSS `text-wrap: balance` only balances up to ~6 lines
+   * (browser cap) and falls back to normal wrapping beyond that — long
+   * tooltip strings may need manual `<br />` breaks to stay under the cap. */
   textBalanced?: boolean;
 }
 

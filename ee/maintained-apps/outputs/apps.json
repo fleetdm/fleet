@@ -2690,6 +2690,13 @@
       "description": "Dot is a menu bar calendar with meeting reminders."
     },
     {
+      "name": "dotPeek",
+      "slug": "dotpeek/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotPeek",
+      "description": "dotPeek is a free .NET decompiler and assembly browser by JetBrains."
+    },
+    {
       "name": "dotTrace",
       "slug": "dottrace/windows",
       "platform": "windows",
@@ -2807,6 +2814,13 @@
       "platform": "windows",
       "unique_identifier": "Druva inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync (GovCloud)",
+      "slug": "druva-insync@govcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
       "name": "DuckDuckGo",
@@ -5721,6 +5735,13 @@
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
     },
     {
+      "name": "Monotype Fonts",
+      "slug": "monotype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.monotype.monotype-fonts",
+      "description": "Monotype Fonts is a desktop app for finding, activating, and managing fonts from the Monotype Fonts library."
+    },
+    {
       "name": "Moom",
       "slug": "moom/darwin",
       "platform": "darwin",
@@ -8462,7 +8483,14 @@
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
-      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
+    },
+    {
+      "name": "Tableau Prep",
+      "slug": "tableau-prep/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Prep Builder",
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
       "name": "Tableau Desktop",

@@ -3382,6 +3382,25 @@ func createDiskEncryptionRecord(ctx context.Context, ds *Datastore, t *testing.T
 	require.NoError(t, err)
 }
 
+func TestInsertABMTokenDuplicateOrg(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	_, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "Acme", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.NoError(t, err)
+
+	// a duplicate org surfaces as a typed conflict, not the raw driver error
+	_, err = ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "Acme", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.Error(t, err)
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	require.Contains(t, err.Error(), "Acme")
+	require.NotContains(t, err.Error(), "Duplicate entry")
+
+	var mysqlErr *mysql.MySQLError
+	require.NotErrorAs(t, err, &mysqlErr, "raw driver error must not reach the caller")
+}
+
 func TestMDMAppleFileVaultSummary(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
@@ -10524,6 +10543,26 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 		return err
 	})
 	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
+	require.True(t, fleet.IsNotFound(err), "expected not found error, got %v", err)
+
+	// a DEP host on a platform without Apple OS update settings is also not
+	// found, rather than a server error
+	unsupportedHost, err := ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:  new("unsupported-platform-osquery-id"),
+		NodeKey:        new("unsupported-platform-node-key"),
+		UUID:           "unsupported-platform-uuid",
+		Hostname:       "unsupported-platform-hostname",
+		Platform:       "windows",
+		HardwareSerial: "unsupported-platform-serial",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			"INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)",
+			unsupportedHost.ID, unsupportedHost.HardwareSerial)
+		return err
+	})
+	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), unsupportedHost.HardwareSerial)
 	require.True(t, fleet.IsNotFound(err), "expected not found error, got %v", err)
 }
 
