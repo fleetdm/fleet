@@ -1,1 +1,0 @@
-* Fixed a spike in database read traffic when transferring large numbers of hosts between fleets.

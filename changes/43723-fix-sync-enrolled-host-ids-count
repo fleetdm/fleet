@@ -1,1 +1,0 @@
-- Fixed the `sync_enrolled_host_ids` cron job failing with "expected slice but got int" when the license host limit is enforced (`FLEET_LICENSE_ENFORCE_HOST_LIMIT`), which prevented the Redis set of enrolled host IDs from resyncing with the database.
