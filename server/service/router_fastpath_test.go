@@ -500,11 +500,19 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}", wantTier: tracing.TierStandard,
 		},
 		{
-			name:     "route served by gorilla is named by otelmux the same way",
+			name:     "token variable stays unexpanded on the fast path",
 			method:   "HEAD",
 			path:     "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
 			wantSpan: "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/device/{token}/ping",
 			wantTier: tracing.TierHighVolume,
+		},
+		{
+			// An excluded route reaches gorilla through the fast path's catch-all, so otelmux, not otelhttp, names its span.
+			name:     "route served by gorilla is named by otelmux the same way",
+			method:   "GET",
+			path:     "/api/latest/fleet/hosts/identifier/abc",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/identifier/{identifier}",
+			wantTier: tracing.TierStandard,
 		},
 	}
 
@@ -514,16 +522,34 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			require.Equal(t, http.StatusOK, serve(handler, c.method, c.path).Code)
 
 			var names []string
+			var matched sdktrace.ReadOnlySpan
 			for _, span := range recorder.Ended() {
 				names = append(names, span.Name())
+				if span.Name() == c.wantSpan {
+					matched = span
+				}
 			}
-			require.Containsf(t, names, c.wantSpan, "span name must stay %q; got %v", c.wantSpan, names)
+			require.NotNilf(t, matched, "span name must stay %q; got %v", c.wantSpan, names)
+			// Both spellings of the route have to agree, or a reader correlating a trace to the route keyed server metrics
+			// has two routes for one request.
+			require.Equal(t, []string{strings.TrimPrefix(c.wantSpan, c.method+" ")}, spanRoutes(matched))
 
 			tier, found := registry.Lookup(c.wantSpan)
 			require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
 			require.Equal(t, c.wantTier, tier)
 		})
 	}
+}
+
+// spanRoutes returns every http.route attribute on the span. More than one means the instrumentation disagrees with itself.
+func spanRoutes(span sdktrace.ReadOnlySpan) []string {
+	var routes []string
+	for _, attr := range span.Attributes() {
+		if string(attr.Key) == "http.route" {
+			routes = append(routes, attr.Value.AsString())
+		}
+	}
+	return routes
 }
 
 func TestIsCanonicalPath(t *testing.T) {

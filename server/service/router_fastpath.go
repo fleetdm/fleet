@@ -31,10 +31,20 @@ func (h *fastPathHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// inside a single segment. abc%2Fdef vs abc/def is a common example.
 	// 2. An unclean path (contains ../ and the like) is redirected by gorilla with a 301 but by the stdlib mux with a 307.
 	if r.URL.RawPath != "" || !isCanonicalPath(r.URL.Path) {
-		h.router.ServeHTTP(w, r)
+		gorillaFallback{h.router}.ServeHTTP(w, r)
 		return
 	}
 	h.fast.ServeHTTP(w, r)
+}
+
+// gorillaFallback hands a request the fast path did not claim to the gorilla router, clearing r.Pattern first. otelmux
+// prefers that field over the matched gorilla route, and the only pattern set on the way in here is the coarse prefix that
+// routed us ("/api/" from the root mux, "/" from the fast path's catch-all).
+type gorillaFallback struct{ router *mux.Router }
+
+func (g gorillaFallback) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r.Pattern = "" // in place, as net/http's own ServeMux writes it; nothing past this point reads it
+	g.router.ServeHTTP(w, r)
 }
 
 // Router exposes the gorilla router underneath so callers that introspect the route table, such as endpoint catalog
@@ -128,7 +138,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 		}
 		if cfg.Logging.TracingEnabled && cfg.OTELEnabled() {
 			// Span names have to keep matching the gorilla route template: the trace sampler tiers routes by span name.
-			wrapped = otelmw.WrapHandler(wrapped, tpl, cfg)
+			wrapped = otelmw.WrapHandler(otelmw.WithRouteTag(tpl, wrapped), tpl, cfg)
 		}
 
 		varNames := make([]string, 0, 4)
@@ -156,7 +166,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 	}
 
 	// Everything the fast path did not claim, including method mismatches and unknown paths, is served by gorilla.
-	fast.Handle("/", r)
+	fast.Handle("/", gorillaFallback{r})
 	return fast, nil
 }
 
