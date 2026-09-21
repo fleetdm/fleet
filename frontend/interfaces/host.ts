@@ -140,13 +140,37 @@ export interface IHostMdmHostNameSetting {
   detail: string;
 }
 
+/** Where an end user's BitLocker PIN submission stands. */
+export type BitLockerPINRequestStatus =
+  | "pending"
+  | "delivered"
+  | "set"
+  | "failed";
+
+export interface IBitLockerPINRequest {
+  status: BitLockerPINRequestStatus;
+  /** The agent's reason for a failure. Empty unless status is failed. */
+  error: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
+export interface IHostDiskEncryptionSetting {
+  status: DiskEncryptionStatus | null;
+  detail: string;
+  action_required?: DiskEncryptionActionRequired | null;
+}
+
+/** What the device endpoint adds for the My device page. */
+export interface IDeviceDiskEncryptionSetting
+  extends IHostDiskEncryptionSetting {
+  /** Only for a Windows host that needs a PIN. False means the host's fleetd is too old to be handed one. */
+  fleetd_can_set_pin?: boolean;
+  /** The end user's most recent PIN submission. */
+  pin_request?: IBitLockerPINRequest;
+}
+
 export interface IOSSettings {
-  disk_encryption: {
-    status: DiskEncryptionStatus | null;
-    detail: string;
-    action_required?: DiskEncryptionActionRequired | null;
-  };
+  disk_encryption: IHostDiskEncryptionSetting;
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;
     detail: string;
@@ -161,6 +185,12 @@ export interface IOSSettings {
     pending_rotation?: boolean;
   };
   certificates: IHostAndroidCert[];
+}
+
+/** IOSSettings as the device endpoint sends it. */
+export interface IDeviceOSSettings
+  extends Omit<IOSSettings, "disk_encryption"> {
+  disk_encryption: IDeviceDiskEncryptionSetting;
 }
 
 // Legacy Mac mdm settings. Prefer IOSSettings
@@ -601,6 +631,11 @@ export interface IHost {
  * IHostDevice is an extension of IHost that is returned by the /devices endpoint. It includes the
  * dep_assigned_to_fleet field, which is not returned by the /hosts endpoint.
  */
-export interface IHostDevice extends IHost {
+export interface IDeviceHostMdmData extends Omit<IHostMdmData, "os_settings"> {
+  os_settings?: IDeviceOSSettings;
+}
+
+export interface IHostDevice extends Omit<IHost, "mdm"> {
+  mdm: IDeviceHostMdmData;
   dep_assigned_to_fleet: boolean;
 }

@@ -576,6 +576,35 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 	})
 }
 
+// A DecodeBody that hands its decode error back as a UserMessageError, as applyTeamSpecsRequest does, only
+// gets a 413 for an oversized body if that wrapper still unwraps to the http.MaxBytesError underneath.
+// Without it the request is answered with a 400 carrying the raw read error.
+func TestMakeDecoderBodyDecoderWrappedSizeError(t *testing.T) {
+	const limit = 100
+	isBodyDecoder := func(v reflect.Value) bool {
+		_, ok := reflect.TypeAssert[*testGzipBodyDecoderType](v)
+		return ok
+	}
+	decodeBodyFn := func(_ context.Context, _ *http.Request, v reflect.Value, body io.Reader) error {
+		if err := json.NewDecoder(body).Decode(v.Interface()); err != nil {
+			return platform_http.NewUserMessageError(err, http.StatusBadRequest)
+		}
+		return nil
+	}
+	decode := MakeDecoder(testGzipBodyDecoderType{}, defaultJSONUnmarshal, nil, isBodyDecoder, decodeBodyFn, nil, limit)
+
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":"`+strings.Repeat("x", limit*10)+`"}`))
+	_, err := decode(t.Context(), r)
+	ple, ok := errors.AsType[platform_http.PayloadTooLargeError](err)
+	require.True(t, ok, "an oversized body must be reported as PayloadTooLargeError, got: %v", err)
+	assert.Equal(t, int64(limit), ple.MaxRequestSize)
+
+	w := httptest.NewRecorder()
+	EncodeError(t.Context(), err, w, nil)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.NotContains(t, w.Body.String(), "request body too large")
+}
+
 // TestMakeEndpointRequestSizeOverride asserts the precedence between a
 // route's own resolved limit and a configured EndpointRequestSizeOverrides entry.
 // The override only wins when it's larger, and it's never consulted

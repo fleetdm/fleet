@@ -927,7 +927,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	require.Len(t, hostSoftware.CurrInstalled(), 1)
 
 	// Add installed paths and signature information
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "abc123hash"
 	testExecHash := "def456hash"
 	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -946,7 +946,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1904,25 +1904,32 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		Source:           "apps",
 	}
 	ghCli := fleet.Software{
-		Name:   "gh",
-		Source: "homebrew_packages",
+		Name:    "gh",
+		Version: "2.55.0",
+		Source:  "homebrew_packages",
+	}
+	axiosPackage := fleet.Software{
+		Name:    "axios",
+		Version: "1.7.7",
+		Source:  "npm_packages",
 	}
 
 	// Update the host's software.
 	software := []fleet.Software{
-		safariApp, googleChromeApp, ghCli,
+		safariApp, googleChromeApp, ghCli, axiosPackage,
 	}
 	hostSoftware, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 3)
+	require.Len(t, hostSoftware.CurrInstalled(), 4)
 
 	// Update the host's software installed paths for the software above.
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
+	ghKegPath := "/opt/homebrew/Cellar/gh"
 	for _, s := range software {
 		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
@@ -1936,6 +1943,10 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
 			}
 		}
+		if s.Name == "gh" {
+			// A Homebrew keg is one row carrying the executables it installs.
+			pathItems = [][5]string{{ghKegPath, "", "", "", ""}}
+		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
@@ -1946,7 +1957,15 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
+			if path == ghKegPath {
+				// gh-deferred is a file fleetd found but has not hashed yet.
+				swPaths[key] = fleet.ExecutableHashes{
+					"2.55.0/bin/gh":          "1111",
+					"2.55.0/bin/gh-helper":   "2222",
+					"2.55.0/bin/gh-deferred": "",
+				}
+			}
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1962,7 +1981,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		nil, http.StatusOK, &getHostSoftwareResp,
 		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
 	)
-	require.Len(t, getHostSoftwareResp.Software, 3)
+	require.Len(t, getHostSoftwareResp.Software, 4)
 	require.Equal(t, "Safari.app", getHostSoftwareResp.Software[0].Name)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].InstalledPaths, 1)
@@ -1995,11 +2014,31 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
+	// The Homebrew keg lists its path once, and expands its executables into one signature
+	// information entry each. The one fleetd has not hashed yet is left out.
 	require.Equal(t, "gh", getHostSoftwareResp.Software[2].Name)
 	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions, 1)
-	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths, 1)
-	require.Equal(t, "/some/path/gh", getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths[0])
-	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
+	ghVersion := getHostSoftwareResp.Software[2].InstalledVersions[0]
+	require.Equal(t, []string{ghKegPath}, ghVersion.InstalledPaths)
+	require.Len(t, ghVersion.SignatureInformation, 2)
+	sort.Slice(ghVersion.SignatureInformation, func(i, j int) bool {
+		return *ghVersion.SignatureInformation[i].ExecutablePath < *ghVersion.SignatureInformation[j].ExecutablePath
+	})
+	for i, binary := range []string{"gh", "gh-helper"} {
+		sigInfo := ghVersion.SignatureInformation[i]
+		require.Equal(t, ghKegPath, sigInfo.InstalledPath)
+		require.Empty(t, sigInfo.TeamIdentifier)
+		require.Nil(t, sigInfo.CDHashSHA256)
+		require.Equal(t, ghKegPath+"/2.55.0/bin/"+binary, *sigInfo.ExecutablePath)
+	}
+	require.Equal(t, "1111", *ghVersion.SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, "2222", *ghVersion.SignatureInformation[1].ExecutableSHA256)
+
+	// Sources that report no hashes keep an empty signature information list.
+	require.Equal(t, "axios", getHostSoftwareResp.Software[3].Name)
+	require.Len(t, getHostSoftwareResp.Software[3].InstalledVersions, 1)
+	require.Equal(t, []string{"/some/path/axios"}, getHostSoftwareResp.Software[3].InstalledVersions[0].InstalledPaths)
+	require.Nil(t, getHostSoftwareResp.Software[3].InstalledVersions[0].SignatureInformation)
 }
 
 func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {

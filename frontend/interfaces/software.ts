@@ -212,6 +212,7 @@ export interface ISoftwareTitle {
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
+  bundle_identifier?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
@@ -602,7 +603,11 @@ export interface IAppLastInstall {
 interface SignatureInformation {
   installed_path: string;
   team_identifier: string;
+  /** The cdhash of a code-signed app bundle. Null for anything Fleet hashes as
+   * a plain Mach-O file, such as a Homebrew formula's executables. */
   hash_sha256: string | null;
+  executable_sha256: string | null;
+  executable_path: string | null;
 }
 export interface ISoftwareLastUninstall {
   script_execution_id: string;

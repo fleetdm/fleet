@@ -94,7 +94,7 @@ Always use `<Button icon="name">` — the `<Button><Icon /></Button>` child patt
 ## Software titles
 
 ### Display name
-Render software title names via `getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
+Render software title names via `getDisplayedSoftwareName(name, display_name, bundle_identifier?)` from `pages/SoftwarePage/helpers.tsx` — never raw `t.name` or open-coded `display_name || name`. See `frontend/docs/patterns.md`.
 
 ### Icons
 `<SoftwareIcon name={...}>` uses `name` for fallback icon matching when `icon_url` is null (Fleet-maintained apps depend entirely on this). Pass the **raw** `name`, never `getDisplayedSoftwareName(...)` or `display_name`, or admin renames will break the icon match. When a flattened row carries only one name field, add a sibling `iconName` (raw) field and feed THAT to `<SoftwareIcon>`. See `frontend/docs/patterns.md` and #47123.

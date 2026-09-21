@@ -1430,7 +1430,8 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 			svc.logger,
 			worker.MacosSetupAssistantHostsTransferred,
 			teamID,
-			serials...); err != nil {
+			serials...,
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
 		}
 	}
@@ -1614,7 +1615,8 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 			svc.logger,
 			worker.MacosSetupAssistantHostsTransferred,
 			teamID,
-			serials...); err != nil {
+			serials...,
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
 		}
 	}
@@ -2353,12 +2355,7 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
-	}
-
-	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID, appConfig.ServerSettings.GetQueryReportCap())
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -2485,12 +2482,6 @@ func (svc *Service) ListHostReports(
 		return nil, 0, nil, err
 	}
 
-	appConfig, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app config")
-	}
-	maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
-
 	// This end-point is always paginated; metadata is required for HasNextResults.
 	opts.ListOptions.IncludeMetadata = true
 	// Default page size for this endpoint is 50 (not the global default).
@@ -2517,9 +2508,23 @@ func (svc *Service) ListHostReports(
 	// labels_include_all is a premium-only feature only
 	opts.ExcludeIncludeAllQueries = !license.IsPremium(ctx)
 
-	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
+	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
+	}
+
+	if len(reports) > 0 {
+		reportIDs := make([]uint, 0, len(reports))
+		for _, r := range reports {
+			reportIDs = append(reportIDs, r.ReportID)
+		}
+		clipped, err := svc.queryReportsClipped(ctx, reportIDs)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		for _, r := range reports {
+			r.ReportClipped = clipped[r.ReportID]
+		}
 	}
 
 	return reports, total, meta, nil
@@ -2917,7 +2922,8 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	depDevice, err := depClient.GetDeviceDetails(ctx, abmToken.OrganizationName, host.HardwareSerial)
 	if err != nil {
-		svc.logger.ErrorContext(ctx, "get DEP device details from ABM",
+		svc.logger.ErrorContext(
+			ctx, "get DEP device details from ABM",
 			"host_id", hostID,
 			"org_name", abmToken.OrganizationName,
 			"err", err,
@@ -3982,6 +3988,9 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 
 type getHostEncryptionKeyRequest struct {
 	ID uint `url:"id"`
+	// AllowArchivedSerialLookup indicates whether to allow falling back to using the host's serial number
+	// when checking the archived disk encryption key.
+	AllowArchivedSerialLookup bool `query:"allow_serial_lookup,optional"`
 }
 
 type getHostEncryptionKeyResponse struct {
@@ -3994,14 +4003,14 @@ func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
 func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
-	key, err := svc.HostEncryptionKey(ctx, req.ID)
+	key, err := svc.HostEncryptionKey(ctx, req.ID, req.AllowArchivedSerialLookup)
 	if err != nil {
 		return getHostEncryptionKeyResponse{Err: err}, nil
 	}
 	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
 }
 
-func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -4018,7 +4027,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	svc.logger.InfoContext(ctx, "retrieving host disk encryption key", "host_id", host.ID, "host_name", host.DisplayName())
-	key, err := svc.getHostDiskEncryptionKey(ctx, host)
+	key, err := svc.getHostDiskEncryptionKey(ctx, host, allowArchivedSerialLookup)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
@@ -4038,7 +4047,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	return key, nil
 }
 
-func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostDiskEncryptionKey, error) {
+func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	// First, determine the decryption function based on the host platform and configuration.
 	var decryptFn func(b64 string) (string, error)
 	switch {
@@ -4089,7 +4098,13 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	// proved the key slot is gone, so the archived key is known to be dead.
 	var archivedKey *fleet.HostArchivedDiskEncryptionKey
 	if !host.IsLUKSSupported() {
-		archivedKey, err = svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host)
+		// Check global-scoped permission only for falling back to serial
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+			// The user can't read hosts without a team-id, global scoped - limit the fallback to only host ID.
+			// We discard the error here to avoid permission oracle probing.
+			allowArchivedSerialLookup = false
+		}
+		archivedKey, err = svc.ds.GetHostArchivedDiskEncryptionKey(ctx, host, allowArchivedSerialLookup)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "getting host archived disk encryption key")
 		}
