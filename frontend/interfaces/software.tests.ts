@@ -1,4 +1,8 @@
-import { formatSoftwareType, SoftwareExtensionFor } from "./software";
+import {
+  formatSoftwareType,
+  formatSoftwareVersion,
+  SoftwareExtensionFor,
+} from "./software";
 
 describe("formatSoftwareType", () => {
   describe("basic source type conversion", () => {
@@ -281,6 +285,61 @@ describe("formatSoftwareType", () => {
         expect(typeof result).toBe("string");
         expect(result.length).toBeGreaterThan(0);
       });
+    });
+  });
+});
+
+describe("formatSoftwareVersion", () => {
+  const testCases = [
+    {
+      version: "v0.21.1",
+      release: "go1.26.1",
+      source: "go_binaries",
+      expected: "v0.21.1 (go1.26.1)",
+      description: "a Go binary with a toolchain version",
+    },
+    {
+      version: "v0.21.1",
+      release: "",
+      source: "go_binaries",
+      expected: "v0.21.1",
+      description: "a Go binary with an empty toolchain version",
+    },
+    {
+      version: "v0.21.1",
+      release: undefined,
+      source: "go_binaries",
+      expected: "v0.21.1",
+      description: "a Go binary with no toolchain version",
+    },
+    {
+      version: "(devel)",
+      release: "go1.26.1",
+      source: "go_binaries",
+      expected: "(devel) (go1.26.1)",
+      description: "a binary built with `go build`",
+    },
+    {
+      version: "1.2.3",
+      release: "30.el7",
+      source: "rpm_packages",
+      expected: "1.2.3",
+      description: "an RPM package with a package release",
+    },
+    {
+      version: "1.2.3",
+      release: undefined,
+      source: undefined,
+      expected: "1.2.3",
+      description: "a version with no source",
+    },
+  ];
+
+  testCases.forEach(({ version, release, source, expected, description }) => {
+    it(`should format ${description} correctly`, () => {
+      expect(formatSoftwareVersion({ version, release, source })).toBe(
+        expected
+      );
     });
   });
 });

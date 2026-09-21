@@ -15,7 +15,9 @@ import {
   IVPPHostSoftware,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import VersionCell, {
+  VersionsColumnCell,
+} from "pages/SoftwarePage/components/tables/VersionCell";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
@@ -173,9 +175,7 @@ export const generateHostSWLibraryTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Library version",
@@ -212,7 +212,10 @@ export const generateHostSWLibraryTableHeaders = ({
         }
 
         return (
-          <VersionCell versions={[{ version: installerData?.version || "" }]} />
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
         );
       },
     },
