@@ -261,14 +261,19 @@ software:
       labels_include_all:
         - "RPM-based Linux hosts"
         - "x86-based Linux hosts"
-    - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu Linux (amd64)
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
-      labels_include_all:
-        - "Debian-based Linux hosts"
-        - "x86-based Linux hosts"
+    # Commenting out until a real, org-hosted download url (or a hash_sha256 pinned
+    # to a package already uploaded to Fleet) replaces the placeholder in
+    # ../lib/linux/software/okta-verify-deb.yml — fleetctl gitops downloads the
+    # package to read its metadata even on a dry run, so a placeholder url fails
+    # every gitops run (see PR #53628).
+    # - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu Linux (amd64)
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Security
+    #   labels_include_all:
+    #     - "Debian-based Linux hosts"
+    #     - "x86-based Linux hosts"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu (amd64)
       self_service: true
       setup_experience: true
