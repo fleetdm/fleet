@@ -1,0 +1,7 @@
+# TODO: Okta Verify for Linux shipped Sep 16, 2026. Okta currently only surfaces
+# the .deb/.rpm download through each org's Admin Console (Settings > Downloads),
+# not a public CDN URL like the macOS/Windows Okta Verify Fleet-maintained apps use.
+# Replace the placeholder `url` below with the real, versioned download URL (and
+# confirm the correct `display_name`) before this is merged/applied.
+url: https://REPLACE-ME.okta.com/artifacts/OKTA_VERIFY_LINUX/CHANGEME/okta-verify-CHANGEME.x86_64.rpm
+display_name: Okta Verify

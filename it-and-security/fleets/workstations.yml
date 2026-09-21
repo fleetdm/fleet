@@ -307,6 +307,22 @@ software:
         path: ../lib/linux/scripts/uninstall-claude-desktop.sh
       post_install_script:
         path: ../lib/linux/scripts/verify-claude-desktop.sh
+    - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu (amd64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_all:
+        - "Debian-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/okta-verify-rpm.yml # Okta Verify for RedHat (x86_64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_all:
+        - "RPM-based Linux hosts"
+        - "x86-based Linux hosts"
     # Windows apps
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
