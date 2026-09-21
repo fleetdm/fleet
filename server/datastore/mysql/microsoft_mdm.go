@@ -4033,8 +4033,6 @@ func (ds *Datastore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olde
 // and its FK cascades to one batch. The id cursor means a tick scans the
 // table once, not once per batch. No index on updated_at on purpose: it
 // changes on hot-path check-in writes, and most live rows are old anyway.
-// The scan runs on the reader since most ticks delete nothing; a lagging
-// replica can only return ids the DELETE then re-checks on the writer.
 func cleanupStaleMDMWindowsEnrollmentsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
 	const selectStmt = `
 SELECT e.id
