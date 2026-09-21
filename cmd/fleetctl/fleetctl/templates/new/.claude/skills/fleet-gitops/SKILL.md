@@ -38,7 +38,7 @@ When generating or modifying configuration profiles:
 
 ## Declarative Device Management (DDM)
 
-When generating or modifying DDM declarations:
+When generating or modifying declaration (DDM) profiles:
 
 - Validate declaration types, keys, and values against the Apple DDM reference:
   - https://github.com/apple/device-management/tree/release/declarative/declarations
