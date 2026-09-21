@@ -43,7 +43,7 @@ When generating or modifying DDM declarations:
 - Validate declaration types, keys, and values against the Apple DDM reference:
   - https://github.com/apple/device-management/tree/release/declarative/declarations
 - Ensure the `Type` identifier matches a supported declaration type from the reference.
-- Give every declaration a unique `Identifier` — contour and similar tools derive it from the last component of the declaration type, so two declarations of different types can collide if named carelessly.
+- Give every declaration profile a unique `Identifier` — contour and similar tools derive it from the last component of the declaration type, so two declarations of different types can collide if named carelessly.
 
 ## Apple profile authoring with contour (optional)
 
