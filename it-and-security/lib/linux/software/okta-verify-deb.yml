@@ -1,0 +1,18 @@
+# Okta Verify for Ubuntu Linux. Okta shipped this for production use on
+# 2026-09-16, officially supporting Ubuntu 24.04 and 26.04 (amd64):
+# https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm
+#
+# Okta does not publish a public download URL for the Linux package — admins
+# download the .deb from the org's own Okta Admin Console
+# (Settings > Downloads > Okta Verify for Linux) and either host it somewhere
+# Fleet can reach, or upload it to Fleet once via the UI/API and pin its
+# hash_sha256 here instead of a url:
+# https://fleetdm.com/docs/configuration/yaml-files#packages
+#
+# TODO(it-team): replace the placeholder url below with the real, org-hosted
+# download URL (or swap it for hash_sha256 after a one-time manual upload)
+# before this PR is merged.
+url: https://REPLACE-ME.example.com/okta-verify/okta-verify-latest-amd64.deb
+display_name: Okta Verify
+post_install_script:
+  path: ../scripts/configure-okta-verify.sh

@@ -261,6 +261,14 @@ software:
       labels_include_all:
         - "RPM-based Linux hosts"
         - "x86-based Linux hosts"
+    - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu Linux (amd64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_all:
+        - "Debian-based Linux hosts"
+        - "x86-based Linux hosts"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu (amd64)
       self_service: true
       setup_experience: true
