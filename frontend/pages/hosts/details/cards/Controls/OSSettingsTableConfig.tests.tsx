@@ -203,6 +203,45 @@ describe("getRowActionProps", () => {
     });
   });
 
+  describe("canResendWhileVerifying", () => {
+    const fleetdRow = () =>
+      createMockHostMdmProfile({
+        profile_uuid: "a-fleetd",
+        name: "Fleetd configuration",
+        platform: "darwin",
+        status: "verifying",
+      });
+
+    it("is offered for the Fleetd configuration profile when one-time enroll secrets are on", () => {
+      expect(
+        getRowActionProps(fleetdRow(), true, false, false, true)
+          .canResendWhileVerifying
+      ).toBe(true);
+    });
+
+    it("is not offered when one-time enroll secrets are off", () => {
+      expect(
+        getRowActionProps(fleetdRow(), true, false, false, false)
+          .canResendWhileVerifying
+      ).toBe(false);
+      expect(getRowActionProps(fleetdRow(), true).canResendWhileVerifying).toBe(
+        false
+      );
+    });
+
+    it("is not offered for other profiles", () => {
+      const row = createMockHostMdmProfile({
+        profile_uuid: "a-custom",
+        name: "Custom profile",
+        platform: "darwin",
+        status: "verifying",
+      });
+      expect(
+        getRowActionProps(row, true, false, false, true).canResendWhileVerifying
+      ).toBe(false);
+    });
+  });
+
   it("offers resend on a real windows profile", () => {
     const row = createMockHostMdmProfile({
       profile_uuid: "w1234",
