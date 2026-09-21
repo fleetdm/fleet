@@ -1,10 +1,11 @@
 ## 1. Close blocking decisions
 
 - [x] 1.1 Expiry for an unconsumed Windows secret: **decided, no TTL, matching macOS**. Recorded in design.md decision 8 and in security#68.
-- [ ] 1.2 Decide whether recovery reuses `resendHostMDMProfileEndpoint` (already `mdmAnyMW`, already admin-only with the resend-while-verifying carve-out) or gets a new endpoint.
-- [ ] 1.3 Decide the intended behavior when orbit loses its node key and re-enrolls with a spent secret: secret stays valid for its bound host on the same plane, or recovery is the path. Hosts going permanently silent is the outcome to avoid.
-- [ ] 1.4 Decide the tier. The existing flag is Premium-only and force-disabled without a Premium license (`cmd/fleet/serve.go:355`), but the story says "Fleet Free and Fleet Premium… not a tiered feature". Reusing the flag inherits Premium-only.
-- [ ] 1.5 Set the minimum fleetd version required for recovery to work, and decide whether to surface hosts below that floor using the orbit version the server already has.
+- [x] 1.2 Recovery endpoint: **decided, reuse `resendHostMDMProfileEndpoint`** with an added check so the end user cannot resend it, following what Apple did. Design decision 10.
+- [x] 1.3 Spent secret on a legitimate re-enroll: **decided, the IT admin resends to recover.** No automatic re-issue, matching Apple. Recovery is the single path back for any host whose secret is spent or lost.
+- [x] 1.4 Tier: **decided, Premium only for now**, reusing `auth.use_one_time_enroll_secrets` and its existing force-off unchanged. The gate may move to Free later, so nothing in the Windows path may depend on teams existing. Design decision 9.
+- [x] 1.5 Minimum fleetd version for recovery: **decided, document it only.** No version-detection code, no per-host gating, no support for the endpoint degrading on older fleetd.
+- [x] 1.6 Stuck-state carve-out: **not needed.** Windows profiles are verified by the device's SyncML ack and land in `verified`, which is already resendable; only proxied SCEP profiles are downgraded to `verifying`. Apple's `verifyingAllowed` hack has no Windows equivalent. Design decision 10.
 
 ## 2. Schema and minting (phase 1)
 
@@ -42,14 +43,17 @@
 
 - [ ] 6.1 Define the registry location the secret is delivered to, and the SyncML/CSP that writes it.
 - [ ] 6.2 Add the Fleet-managed Windows profile (or equivalent command) that carries the placeholder and is re-deliverable independently of MSI install state.
-- [ ] 6.3 Wire the admin-triggered recovery action per decision 1.2, keeping it admin-only and refusing the end-user My device path.
-- [ ] 6.4 Ensure triggering recovery mints a fresh secret when the previous is consumed, and re-delivers the same value when it is not.
-- [ ] 6.5 ACL the registry location to SYSTEM and Administrators, or record the explicit decision not to.
+- [ ] 6.3 Extend `resendHostMDMProfileEndpoint` to cover the registry-carrying Windows profile, adding the discriminator that refuses the end-user My device path (`ResendDeviceHostMDMProfile`) the way Apple does for the fleetd configuration profile.
+- [ ] 6.4 Confirm the registry profile lands in `verified` on a wedged-but-MDM-reachable host, so no `verifyingAllowed` carve-out is required. If it can reach `verifying`, revisit 1.6.
+- [ ] 6.5 Ensure triggering recovery mints a fresh secret when the previous is consumed, and re-delivers the same value when it is not.
+- [ ] 6.6 Have the MSI create the registry key at install time with a DACL matching `secret.txt` (`O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA)` — SYSTEM and Administrators only, inheritance disabled), so the MDM channel writes only the value into a pre-hardened key.
+- [ ] 6.7 Keep the Windows path free of `IsPremium()` checks so the tier gate stays a one-line change when it moves to Free.
 
 ## 7. Recovery, agent side (phase 3)
 
 - [ ] 7.1 Have orbit on Windows read the registry location on startup, as the analogue of the macOS `--use-system-configuration` loop. The read MUST be additive: fall back to `secret.txt` and the keystore when the registry value is absent, so new fleetd against an old server is a no-op.
 - [ ] 7.2 Adopt a newer secret found there, replacing the stored credential, without re-enrolling an already-enrolled host that has no new secret waiting.
+- [ ] 7.3 Delete the registry value once consumed, mirroring `readEnrollSecretFromFile`'s move-then-delete of `secret.txt`, so presence of the value means "a new secret is waiting".
 - [ ] 7.3 Keep orbit the single source of the secret for both planes: orbit continues to pass the secret to osqueryd rather than osquery sourcing it independently.
 - [ ] 7.4 Confirm the existing mutual exclusion between `enroll-secret` and `enroll-secret-path` is not violated by the new path.
 
@@ -74,6 +78,7 @@
 
 - [ ] 9.1 Document that the secret delivered to Windows MDM hosts is single-use and re-issued on re-enrollment, in the Windows MDM setup guide.
 - [ ] 9.2 Publish guidance to rotate the global enroll secret once the fleet has re-enrolled, since pre-change hosts still hold it.
-- [ ] 9.3 Update `auth_use_one_time_enroll_secrets` configuration docs to cover Windows and state the Windows prerequisite from 1.4.
+- [ ] 9.3 Update `auth_use_one_time_enroll_secrets` configuration docs to cover Windows, note it is Premium-only today, and state the minimum fleetd version required for recovery to work (per 1.5, documentation is the whole mechanism here).
+- [ ] 9.6 Document that recovering a stuck Windows host is an IT-admin action: resend the profile that writes the enroll secret to the registry. End users cannot resend it.
 - [ ] 9.4 Add a changes/ entry.
 - [ ] 9.5 Verify end to end on a real Windows host through Windows MDM, per the risk assessment, before enabling the flag anywhere.

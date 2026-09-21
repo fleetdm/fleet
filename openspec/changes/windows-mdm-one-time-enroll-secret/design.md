@@ -73,7 +73,37 @@ Follow macOS, which shipped with no TTL. An unconsumed secret stays valid until 
 
 *Alternatives considered.* **A TTL on unconsumed secrets**, as security#68 originally proposed — adds a failure class (expiring before a slow MSI download finishes on a poor link) that the recovery channel would then have to absorb, and diverges from macOS for no security gain. The original justification for a TTL was that the next session alert would re-enqueue the install and self-heal; that premise does not hold on Windows, per decision 5.
 
-### 9. Ship in three phases
+### 9. Premium only for now, reusing the existing flag unchanged
+
+Reuse `auth.use_one_time_enroll_secrets` exactly as it stands, including the Premium force-off at `cmd/fleet/serve.go:355`. No tier work, no new flag, no change to shipped Apple code. Windows inherits the same gating macOS has.
+
+The gate is expected to move to Free later. Two things to keep ready for that, without building them now:
+
+- **Nothing in the Windows design may depend on teams existing.** Free has no teams, so when the gate opens, a minted secret must be able to carry no team and the host must land in the default (Unassigned) fleet. Decision 6's team resolution already degrades to "no team" when no Windows enrollment default fleet is configured, which is the same code path, so this needs no special case — only a test.
+- **Opening the gate should be a one-line change**, i.e. removing or narrowing the force-off. Avoid spreading `IsPremium()` checks through the Windows path, which would turn a one-line change into a survey.
+
+*Alternatives considered.* **Ship Free and Premium now** by moving the Premium condition onto the Apple placeholder substitution — correct end state, but it edits a shipped Apple feature for a benefit nobody is asking for yet, and it needs sign-off from the owner of #53166. Deferring costs nothing as long as the two constraints above hold.
+
+### 10. Recovery reuses the resend endpoint with an added check, as Apple did
+
+Apple reused `resendHostMDMProfileEndpoint` and added two carve-outs rather than building a new surface. `ResendDeviceHostMDMProfile` refuses the fleetd configuration profile with 403 ("can only be resent by an admin"), and `checkAndResendHostMDMProfile` permits a resend from the otherwise-terminal `verifying` state for that profile only, keyed on `isFleetdConfigProfile`.
+
+Windows needs **only the first of those two carve-outs.** The state gating in `checkAndResendHostMDMProfile` is platform-agnostic (shared `fleet.MDMDelivery*` statuses via `GetHostMDMProfileInstallStatus`): `pending` and `verifying` are refused with 409, while `failed` and `verified` are resendable. Apple's fleetd configuration profile gets stuck in `verifying` precisely because it is verified by osquery reporting back, which a host with broken orbit never does. Windows profiles are verified by the device's SyncML acknowledgement instead, and a wedged-but-MDM-reachable host still sends that, so the profile reaches `verified`. The only Windows downgrade to `verifying` is for proxied SCEP managed-certificate profiles (`microsoft_mdm.go:1653-1658`), which a registry-carrying profile is not.
+
+So the registry profile lands in `verified`, which is already resendable, and no `verifyingAllowed` equivalent is needed. What **is** needed is the admin-only discriminator: without it an end user could resend from My device and mint themselves a fresh enroll secret.
+
+*Alternatives considered.* **A dedicated recovery endpoint** — diverges from the operator experience macOS already established, and would need its own authorization and rate-limiting. **Adding a Windows `verifying` carve-out anyway, defensively** — dead code against a state the profile cannot reach, and it would mask a real regression if Windows verification semantics ever changed.
+
+### 11. Treat the registry value as a one-shot mailbox with a restrictive DACL
+
+The registry location is chosen by us, so its exposure is a decision rather than an inherited default. Two properties, both mirroring what `secret.txt` already does:
+
+- **Restrictive DACL.** Fleet deliberately strips regular users from `secret.txt` (`O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA)` — SYSTEM and Administrators only, inheritance disabled) while every other orbit file keeps `Users: read/execute`. The registry carrier should match that, not the default ACL of a service key.
+- **Delete after read.** orbit consumes the value and removes it, exactly as `readEnrollSecretFromFile` moves `secret.txt` into Credential Manager and deletes it. Presence of the value then means "a new secret is waiting", which also removes the ambiguity about whether orbit should re-enroll on an ordinary restart: with no value present, it does nothing.
+
+Implementation note: the MSI already creates registry entries, so it can create the key with the intended DACL at install time and let the MDM channel (which runs as SYSTEM) write only the value into it. That avoids needing the CSP to express an ACL.
+
+### 12. Ship in three phases
 
 Phase 1: mint per enrollment on the existing MSI carrier. Removes the fleet-wide blast radius, which is the substance of the issue. Phase 2: host-scoped expansion, closing the at-rest and API disclosure. Phase 3: the recovery channel. **Single-use enforcement stays off or lenient until phase 3 lands**, because only then does a wedged host have a way back.
 
@@ -119,7 +149,7 @@ Three consequences for the design:
 ## Open Questions
 
 - **Agent version floor for enforcement.** Phases 1 and 2 need no agent change: the one-time secret rides the existing `FLEET_SECRET` MSI property and old fleetd cannot tell it apart from the global one. Only phase 3 recovery requires a fleetd that reads the registry. Since enforcement depends on recovery, the real prerequisite is a minimum fleetd version, and the wedge case is exactly the case where the server may not know a host's orbit version (no host row, never enrolled). See "Backward compatibility" below.
-- **Tier.** The existing flag is Premium-only and is silently forced off without a Premium license (`cmd/fleet/serve.go:355`). The Windows story states the opposite: "Fleet Free and Fleet Premium. This is a security fix on a core path, not a tiered feature." Reusing the flag inherits Premium-only. This needs an explicit decision, and it may require decoupling Windows from the existing flag.
 - **Where the recovery carrier lives.** A dedicated Fleet-managed Windows profile is the cleanest analogue of the Fleetd configuration profile, but it introduces a Fleet-managed Windows profile where none exists today. Worth confirming against how Fleet-managed Windows profiles are reconciled.
-- **Whether recovery is a new endpoint or reuses `resendHostMDMProfileEndpoint`.** The existing endpoint is registered under `mdmAnyMW` and already has the admin-only and resend-while-verifying carve-outs macOS needed. Reusing it would keep the two platforms' operator experience identical.
+- **What state the registry profile sits in when a host is wedged**, since the Apple carve-out is specifically about resending from `verifying`. The Windows profile status model differs, so the equivalent stuck state needs identifying before the carve-out can be written.
 - **Whether `host_enrollment_rejected` activities are wanted at Windows volume**, or whether the existing 12-hour per-host-per-reason rate limit is sufficient.
+- **Whether the unconsumed-secret exposure window needs narrowing further.** Windows secrets mint without identity binding (decision 3) and bind on first use, so an unconsumed value read off a device could be presented from another machine claiming a different host. The DACL plus delete-after-read in decision 11 shrink that window; whether it should also be bound at mint to whatever the enrollment does know (ZTDID, device-reported serial) is open.

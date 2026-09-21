@@ -59,6 +59,18 @@ Fleet SHALL scope the minted secret to the team the Windows MDM enrollment resol
 - **WHEN** no Windows enrollment default team is configured
 - **THEN** the minted secret carries no team and the host lands in no team
 
+### Requirement: The capability is gated behind the existing Premium flag
+Windows one-time enroll secrets SHALL be gated by `auth.use_one_time_enroll_secrets`, which is Premium-only today. The design SHALL NOT depend on teams existing, so the gate can later be opened to Fleet Free without reworking the Windows path.
+
+#### Scenario: Non-Premium license disables the capability
+- **WHEN** the server does not have a Premium license and the flag is set
+- **THEN** the flag is forced off and Windows MDM continues to receive the global enroll secret
+
+#### Scenario: No team configured still mints successfully
+- **WHEN** a Windows MDM enrollment resolves to no team, as it always would on Fleet Free
+- **THEN** the minted secret carries no team
+- **AND** the host lands in the default (Unassigned) fleet
+
 ### Requirement: The secret is single-use across the orbit and osquery planes
 Fleet SHALL allow the secret to be consumed exactly once on the orbit plane and once on the osquery plane, with the second plane required to follow within the established second-plane window. Any further presentation SHALL be rejected.
 
