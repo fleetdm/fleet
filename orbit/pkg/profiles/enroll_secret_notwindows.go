@@ -19,3 +19,8 @@ func ClearEnrollSecret() error {
 func WaitForEnrollSecretChange(_ context.Context) error {
 	return ErrNotImplemented
 }
+
+// EnsureEnrollSecretKey is not implemented outside Windows.
+func EnsureEnrollSecretKey() error {
+	return ErrNotImplemented
+}

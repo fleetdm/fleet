@@ -570,6 +570,12 @@ func orbitAction(c *cli.Context) error {
 	// the wrong thing to do.
 	adoptedMDMSecret := false
 	if runtime.GOOS == "windows" {
+		// Create the key before reading it, so a secret delivered later lands somewhere only SYSTEM and
+		// Administrators can read rather than in a key created implicitly with inherited permissions.
+		if err := profiles.EnsureEnrollSecretKey(); err != nil {
+			log.Error().Err(err).Msg("failed to prepare the registry key for an MDM-delivered enroll secret")
+		}
+
 		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setEnrollSecret)
 		if err != nil {
 			// Not fatal: fall through to the file and keystore, which may still hold a usable secret.

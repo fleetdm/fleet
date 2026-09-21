@@ -29,6 +29,69 @@ const (
 	enrollSecretValueName = "EnrollSecret"
 )
 
+// enrollSecretKeySDDL keeps the key readable only by SYSTEM and Administrators, with inheritance
+// disabled. It is the registry counterpart of the ACL the installer puts on secret.txt
+// (O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA) in orbit/pkg/packaging/wix/transform.go), with KA
+// (KEY_ALL_ACCESS) standing in for FA (FILE_ALL_ACCESS). Fleet deliberately strips regular users
+// from secret.txt while every other orbit file leaves them read access, and a delivered secret that
+// has not been adopted yet deserves the same treatment.
+const enrollSecretKeySDDL = "O:SYG:SYD:PAI(A;;KA;;;SY)(A;;KA;;;BA)"
+
+// EnsureEnrollSecretKey creates the key that carries the MDM-delivered enroll secret and applies the
+// DACL above. orbit runs as LocalSystem, so it can both create the key and set its permissions;
+// doing it here rather than in the installer means a fleetd that upgraded in place is protected
+// without waiting for a new MSI, and it closes the window where a profile that arrives before orbit
+// has ever run would otherwise create the key with inherited, world-readable permissions.
+//
+// The DACL is reapplied even when the key already exists, because the key may have been created
+// implicitly by the write that delivered a secret into it. SYSTEM keeps full control, so reapplying
+// never locks out the MDM channel that writes the value.
+func EnsureEnrollSecretKey() error {
+	return ensureEnrollSecretKey(registry.LOCAL_MACHINE, enrollSecretKeyPath)
+}
+
+func ensureEnrollSecretKey(root registry.Key, path string) error {
+	key, _, err := registry.CreateKey(root, path, registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", path, err)
+	}
+	if err := key.Close(); err != nil {
+		return fmt.Errorf("close %s: %w", path, err)
+	}
+
+	securityDescriptor, err := windows.SecurityDescriptorFromString(enrollSecretKeySDDL)
+	if err != nil {
+		return fmt.Errorf("parse enroll secret key security descriptor: %w", err)
+	}
+	dacl, _, err := securityDescriptor.DACL()
+	if err != nil {
+		return fmt.Errorf("read enroll secret key DACL: %w", err)
+	}
+
+	// SetNamedSecurityInfo names registry objects as MACHINE\... rather than HKEY_LOCAL_MACHINE\...
+	objectName := registryObjectName(root, path)
+	if err := windows.SetNamedSecurityInfo(
+		objectName,
+		windows.SE_REGISTRY_KEY,
+		// PROTECTED_DACL disables inheritance, which is what keeps a permissive parent from granting
+		// access back to users we just removed.
+		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION,
+		nil, nil, dacl, nil,
+	); err != nil {
+		return fmt.Errorf("set permissions on %s: %w", objectName, err)
+	}
+	return nil
+}
+
+func registryObjectName(root registry.Key, path string) string {
+	switch root {
+	case registry.CURRENT_USER:
+		return `CURRENT_USER\` + path
+	default:
+		return `MACHINE\` + path
+	}
+}
+
 // GetEnrollSecret returns the enroll secret Fleet MDM delivered to this device, or
 // ErrEnrollSecretNotFound when none is waiting. It never puts the value in an error, so a returned
 // error is safe to log.

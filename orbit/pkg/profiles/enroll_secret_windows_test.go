@@ -90,6 +90,32 @@ func TestClearEnrollSecretIsIdempotent(t *testing.T) {
 	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 }
 
+// The resulting DACL was verified against a real Windows 11 host: the key comes back as
+// O:SYG:SYD:PAI(A;;KA;;;SY)(A;;KA;;;BA), with SYSTEM and Administrators holding FullControl,
+// inheritance disabled, and no entry for Users. This test covers the code path and its idempotency;
+// HKCU stands in for HKLM so it runs without elevation.
+func TestEnsureEnrollSecretKeyIsIdempotentAndUsable(t *testing.T) {
+	t.Cleanup(func() { _ = registry.DeleteKey(registry.CURRENT_USER, testEnrollSecretKeyPath) })
+
+	require.NoError(t, ensureEnrollSecretKey(registry.CURRENT_USER, testEnrollSecretKeyPath))
+	// Called on every orbit start, so it has to be safe to repeat against a key that already exists.
+	require.NoError(t, ensureEnrollSecretKey(registry.CURRENT_USER, testEnrollSecretKeyPath))
+
+	// A freshly prepared key holds no secret, and reading it must not look like a failure.
+	_, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	require.ErrorIs(t, err, ErrEnrollSecretNotFound)
+
+	// The key must be writable by the MDM channel afterwards, and readable by us.
+	key, err := registry.OpenKey(registry.CURRENT_USER, testEnrollSecretKeyPath, registry.SET_VALUE)
+	require.NoError(t, err)
+	require.NoError(t, key.SetStringValue(enrollSecretValueName, "s3cret-value"))
+	require.NoError(t, key.Close())
+
+	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	require.NoError(t, err)
+	require.Equal(t, "s3cret-value", secret)
+}
+
 func TestGetEnrollSecretDoesNotLeakTheSecretIntoErrors(t *testing.T) {
 	// A returned error is logged by the caller, so it must never carry the value.
 	setEnrollSecretValue(t, "s3cret-value")
