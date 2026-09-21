@@ -25,9 +25,11 @@ Everyone who visits the booth can get a not-for-resale (NFR) license to run Flee
 
 ## Find us
 
-- **Booth:** TBD
+- **Booth:** EX29
 - **Dates:** Tuesday, September 22 through Thursday, September 24, 2026
 - **Venue:** Caesars Forum, Las Vegas
+- **Session date and time:** Wednesday, September 23, 2026. 2:30 - 3:00
+- **Session location:** Alliance 311
 
 Not attending Oktane? You can still [try Fleet](https://fleetdm.com/try-fleet) or [talk to us](https://fleetdm.com/contact) anytime.
 
