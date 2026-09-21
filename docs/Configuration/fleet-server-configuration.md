@@ -3695,6 +3695,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
+### mdm.windows_command_retention
+
+The minimum time since Windows MDM command history was recorded, or last updated, before the hourly cleanup deletes it. Command history is the raw responses devices send when they check in, the per-command results parsed from those responses, and the commands themselves once no result and no queued delivery refers to them. Deleted commands no longer appear in a host's MDM command history.
+
+Two things are kept regardless of age: commands still queued for a device that hasn't acknowledged them, and the wipe command a host's wiped status depends on. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_COMMAND_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_command_retention: 336h
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
