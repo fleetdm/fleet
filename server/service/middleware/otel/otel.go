@@ -5,7 +5,23 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// WithRouteTag annotates the request's span and metrics with the http.route attribute. otelhttp dropped its own
+// WithRouteTag in v0.65.0 without a replacement, so we keep a local equivalent of the upstream implementation.
+func WithRouteTag(route string, h http.Handler) http.Handler {
+	attr := semconv.HTTPRoute(route)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		trace.SpanFromContext(r.Context()).SetAttributes(attr)
+
+		labeler, _ := otelhttp.LabelerFromContext(r.Context())
+		labeler.Add(attr)
+
+		h.ServeHTTP(w, r)
+	})
+}
 
 // WrapHandler wraps an HTTP handler with OpenTelemetry instrumentation for a fixed route.
 // It creates spans named as "{method} {route}" (e.g., "GET /healthz").
@@ -13,7 +29,7 @@ func WrapHandler(handler http.Handler, route string, cfg config.FleetConfig) htt
 	if cfg.OTELEnabled() {
 		// Wrap with OTEL handler to create properly named spans: "{method} {route}"
 		return otelhttp.NewHandler(
-			otelhttp.WithRouteTag(route, handler),
+			WithRouteTag(route, handler),
 			"", // Empty operation name - will be set by span name formatter
 			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 				return r.Method + " " + route
@@ -32,7 +48,7 @@ func WrapHandlerDynamic(handler http.Handler, cfg config.FleetConfig) http.Handl
 			// Use the actual request path as the route
 			route := r.URL.Path
 			instrumentedHandler := otelhttp.NewHandler(
-				otelhttp.WithRouteTag(route, handler),
+				WithRouteTag(route, handler),
 				"", // Empty operation name - will be set by span name formatter
 				otelhttp.WithSpanNameFormatter(func(operation string, req *http.Request) string {
 					return req.Method + " " + route
