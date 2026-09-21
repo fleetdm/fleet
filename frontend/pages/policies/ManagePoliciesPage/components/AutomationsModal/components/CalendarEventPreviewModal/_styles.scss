@@ -10,7 +10,7 @@
     align-items: flex-start;
     gap: 24px;
     align-self: stretch;
-    border-radius: 16px;
+    border-radius: $border-radius-large;
     border: 1px solid $ui-fleet-black-10;
     background: $core-fleet-white;
   }
