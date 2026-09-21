@@ -64,6 +64,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
 		{"TestMDMWindowsProfilesSummaryEnumeration", testMDMWindowsProfilesSummaryEnumeration},
 		{"TestWindowsProfilesStatusRollup", testWindowsProfilesStatusRollup},
+		{"TestWindowsProfilesStatusRollupBacksHostListFilter", testWindowsProfilesStatusRollupBacksHostListFilter},
 		{"TestWindowsProfilesStatusReconcileBatching", testWindowsProfilesStatusReconcileBatching},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
@@ -7742,6 +7743,77 @@ func readWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) map[string]str
 	return rollup
 }
 
+// testWindowsProfilesStatusRollupBacksHostListFilter verifies that the hosts list OS settings filter resolves a Windows host's
+// bucket from the host_mdm_windows_profiles_status rollup instead of re-aggregating host_mdm_windows_profiles per candidate host.
+// The second half deliberately diverges the rollup from the profile rows it summarizes: only a rollup-backed filter follows it.
+func testWindowsProfilesStatusRollupBacksHostListFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	ds.testSynchronousWindowsRollupDispatch = true
+	t.Cleanup(func() { ds.testSynchronousWindowsRollupDispatch = false })
+
+	// Profiles-only path, so the status CASE has no BitLocker interaction to reason about.
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	setAppConfigDiskEncryptionForTest(ac, false)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+	hostUUID := uuid.New().String()
+	host := test.NewHost(t, ds, "rollup-filter-"+hostUUID, "10.0.0.1", hostUUID, hostUUID, time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, host)
+
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+	assertBucket := func(t *testing.T, wantBucket fleet.OSSettingsStatus) {
+		t.Helper()
+		for _, bucket := range []fleet.OSSettingsStatus{
+			fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified,
+		} {
+			opts := fleet.HostListOptions{OSSettingsFilter: bucket}
+			hosts, err := ds.ListHosts(ctx, teamFilter, opts)
+			require.NoError(t, err)
+			gotIDs := make([]uint, 0, len(hosts))
+			for _, h := range hosts {
+				gotIDs = append(gotIDs, h.ID)
+			}
+			count, err := ds.CountHosts(ctx, teamFilter, opts)
+			require.NoError(t, err)
+			require.Equal(t, len(hosts), count, "ListHosts and CountHosts disagree for bucket %s", bucket)
+
+			if bucket == wantBucket {
+				require.Containsf(t, gotIDs, host.ID, "host missing from expected bucket %s", bucket)
+				continue
+			}
+			require.NotContainsf(t, gotIDs, host.ID, "host unexpectedly present in bucket %s", bucket)
+		}
+	}
+
+	status := fleet.MDMDeliveryVerified
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+		ProfileUUID:   "wp-rollup-filter",
+		ProfileName:   "Profile rollup filter",
+		HostUUID:      host.UUID,
+		CommandUUID:   "cmd-rollup-filter",
+		OperationType: fleet.MDMOperationTypeInstall,
+		Status:        &status,
+		Checksum:      []byte("csum"),
+	}}))
+	require.Equal(t, string(fleet.MDMDeliveryVerified), readWindowsProfilesStatusRollup(t, ds)[host.UUID])
+	assertBucket(t, fleet.OSSettingsVerified)
+
+	// Diverge the rollup from host_mdm_windows_profiles, which still says verified. A filter that recomputed the bucket from the
+	// profile rows would keep reporting verified.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles_status SET status = ? WHERE host_uuid = ?`,
+			fleet.MDMDeliveryPending, host.UUID)
+		return err
+	})
+	assertBucket(t, fleet.OSSettingsPending)
+
+	// Reconciling recomputes the rollup from the profile rows, putting the host back in verified.
+	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+	assertBucket(t, fleet.OSSettingsVerified)
+}
+
 // testWindowsProfilesStatusRollup verifies that the per-host profile status rollup (host_mdm_windows_profiles_status) that backs
 // GetMDMWindowsProfilesSummary is maintained INCREMENTALLY by the real write paths, with no reconcile.
 func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
@@ -8174,8 +8246,8 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	// 2) Per-host membership via ListHosts with OSSettingsFilter. This
 	//    catches regressions that preserve aggregate counts but swap two
 	//    hosts between buckets, and also exercises filterHostsByOSSettingsStatus
-	//    (the host-list path uses the same windowsHostProfileStatusSubquery
-	//    helper but a different outer query).
+	//    (the host-list path reads the same host_mdm_windows_profiles_status
+	//    rollup but wraps it in a different outer query).
 	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
 	for _, filter := range []fleet.OSSettingsStatus{
 		fleet.OSSettingsFailed,

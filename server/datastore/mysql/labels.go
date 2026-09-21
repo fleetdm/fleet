@@ -1429,6 +1429,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 	if opt.OSSettingsFilter.IsValid() {
 		query += sqlJoinMDMAndroidProfilesStatus()
+		query += sqlJoinMDMWindowsProfilesStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
@@ -1453,10 +1454,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
 	if opt.OSSettingsFilter.IsValid() {
-		query, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
-		if err != nil {
-			return "", nil, err
-		}
+		query, whereParams = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	}
