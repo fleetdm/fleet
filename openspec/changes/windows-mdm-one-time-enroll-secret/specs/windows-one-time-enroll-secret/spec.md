@@ -92,6 +92,45 @@ Fleet SHALL allow the secret to be consumed exactly once on the orbit plane and 
 - **WHEN** the osquery plane presents the secret after the second-plane window has elapsed
 - **THEN** enrollment is refused as spent
 
+### Requirement: A host is linked to a Windows MDM enrollment only when the secret belongs to that enrollment
+Fleet SHALL link a host to an unlinked Windows MDM enrollment at orbit enroll only when the presented secret is the one-time secret minted for that enrollment. A hardware serial SHALL NOT by itself authorize the link, because a serial is device-asserted and is not a secret.
+
+#### Scenario: Correct secret authorizes the link
+- **WHEN** a host enrolls presenting the one-time secret minted for an unlinked Windows MDM enrollment
+- **THEN** the host is linked to that enrollment
+- **AND** the enrollment's default fleet applies to the host
+
+#### Scenario: Secret belonging to a different enrollment does not link
+- **WHEN** a host enrolls presenting a one-time secret minted for a different enrollment, while claiming the serial of the target enrollment
+- **THEN** the host is not linked to the target enrollment
+- **AND** the target enrollment remains unlinked
+
+#### Scenario: Shared secret does not reverse-link
+- **WHEN** a host enrolls presenting a shared enroll secret and claiming the serial of an unlinked Windows MDM enrollment, with the capability enabled
+- **THEN** the host is not reverse-linked to that enrollment
+
+#### Scenario: Serial is no longer required for the link
+- **WHEN** a host enrolls presenting a valid one-time secret for an enrollment whose device-reported serial is not yet known
+- **THEN** the host is still linked to that enrollment, because the secret identifies it directly
+
+### Requirement: The secret is delivered only through the registry carrier
+Fleet SHALL deliver the enroll secret to a Windows MDM host by writing it to a registry location through a Fleet-managed configuration profile, and SHALL NOT place it on the fleetd MSI command line.
+
+#### Scenario: Install command carries no secret
+- **WHEN** Fleet enqueues the fleetd install command for a Windows MDM enrollment with the capability enabled
+- **THEN** the command line contains no enroll secret value
+- **AND** the secret does not come to rest at `[ORBITROOT]secret.txt`
+
+#### Scenario: Agent waits for a secret that has not arrived yet
+- **WHEN** fleetd starts after the MSI install but before the registry profile has been delivered
+- **THEN** fleetd waits for a secret to appear rather than failing permanently
+- **AND** enrolls once the profile lands
+
+#### Scenario: Recovery uses the same carrier as first install
+- **WHEN** an administrator resends the registry-carrying profile to a wedged host
+- **THEN** the host receives a fresh secret through the same mechanism used at first install
+- **AND** no MSI reinstall is required
+
 ### Requirement: The plaintext secret is not stored in MDM commands
 Fleet SHALL store a placeholder rather than the secret value in the queued Windows MDM command, and SHALL expand it per enrollment at delivery time, so the plaintext secret is not at rest in `windows_mdm_commands` and is not returned by the MDM command-results API.
 

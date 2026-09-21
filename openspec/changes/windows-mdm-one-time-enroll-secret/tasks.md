@@ -19,14 +19,17 @@
 
 ## 3. Wire minting into the fleetd install (phase 1)
 
-- [ ] 3.1 Change `enqueueInstallFleetdCommand` (`server/service/microsoft_mdm.go:1507`) to obtain a per-enrollment secret instead of `GetEnrollSecrets(ctx, nil)[0].Secret`, gated on `auth.use_one_time_enroll_secrets`.
+- [ ] 3.1 Change `enqueueInstallFleetdCommand` (`server/service/microsoft_mdm.go:1507`) to stop putting any secret on the MSI command line, gated on `auth.use_one_time_enroll_secrets`. The `FLEET_SECRET` property is left at its `"dummy"` default, which the MSI already treats as "no secret".
 - [ ] 3.2 Keep the existing behavior byte-for-byte when the flag is off.
 - [ ] 3.3 Handle the no-global-secret case: with the flag on, a Windows MDM enrollment must still issue a one-time secret rather than silently sending an empty `FLEET_SECRET`.
 - [ ] 3.4 Verify that repeated session-start alerts (`processNewSessionAlert`) reuse the live secret rather than minting per alert, under the 1-minute fast poll.
 
 ## 4. Consumption and binding (phase 1)
 
-- [ ] 4.1 Record the presented identifiers on first consumption for Windows rows, binding the secret to the first device that uses it.
+- [ ] 4.1 Bind Windows rows to the enrollment via `mdm_hardware_id` at mint, for provenance. Record presented identifiers on first consumption.
+- [ ] 4.5 Gate host-to-enrollment linkage on the secret: in the orbit-enroll reverse link (`server/service/orbit.go:430-465`), link only when the presented secret was minted for that enrollment, resolving the enrollment from the secret rather than from `MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial`.
+- [ ] 4.6 Refuse the reverse link entirely when a shared secret is presented and the capability is enabled, since a device-asserted serial is not authorization.
+- [ ] 4.7 Confirm the DevDetail and osquery-ingest linkage paths are unaffected, since neither presents a secret at linkage time and both remain guarded by `MDMWindowsConflictingEnrollmentHardwareID`.
 - [ ] 4.2 Confirm the existing two-plane consumption and second-plane window apply unchanged to Windows rows, with no new code path.
 - [ ] 4.3 Confirm rejection reasons (`one_time_secret_spent`, `one_time_secret_identifier_mismatch`) and the `host_enrollment_rejected` activity fire for Windows, with the existing 12-hour rate limit.
 - [ ] 4.4 Confirm the enroll path adds no extra query for enrollments presenting an ordinary shared secret.
@@ -51,7 +54,8 @@
 
 ## 7. Recovery, agent side (phase 3)
 
-- [ ] 7.1 Have orbit on Windows read the registry location on startup, as the analogue of the macOS `--use-system-configuration` loop. The read MUST be additive: fall back to `secret.txt` and the keystore when the registry value is absent, so new fleetd against an old server is a no-op.
+- [ ] 7.0 Have orbit tolerate starting with **no** secret and poll for one, rather than treating an unresolvable secret as fatal (`orbit/cmd/orbit/orbit.go:470`). This is the one genuinely new agent behavior the registry-primary carrier requires, since the profile may land after the MSI finishes.
+- [ ] 7.1 Have orbit on Windows read the registry location on startup and while waiting, as the analogue of the macOS `--use-system-configuration` loop. The read MUST be additive: fall back to `secret.txt` and the keystore when the registry value is absent, so new fleetd against an old server is a no-op.
 - [ ] 7.2 Adopt a newer secret found there, replacing the stored credential, without re-enrolling an already-enrolled host that has no new secret waiting.
 - [ ] 7.3 Delete the registry value once consumed, mirroring `readEnrollSecretFromFile`'s move-then-delete of `secret.txt`, so presence of the value means "a new secret is waiting".
 - [ ] 7.3 Keep orbit the single source of the secret for both planes: orbit continues to pass the secret to osqueryd rather than osquery sourcing it independently.

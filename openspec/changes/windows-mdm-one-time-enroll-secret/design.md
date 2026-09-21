@@ -41,11 +41,19 @@ Keep one table, one consumption path, one cleanup cron, one rejection-reporting 
 
 *Alternatives considered.* **A separate Windows table** — duplicates consumption, cleanup, and the enroll-path lookup, and the enroll path is the hottest path Fleet has; two lookups instead of one is the wrong trade. **A column on `mdm_windows_enrollments`** — that table already holds per-enrollment material (`credentials_hash`), but it has no room for the consumption state (`consumed_at`, per-plane timestamps) without duplicating the macOS columns.
 
-### 3. Relax the identity binding for Windows, and populate it on first use
+### 3. Bind for provenance, and let the secret gate host-to-enrollment linkage
 
-`MatchesHost` compares platform, hardware UUID, and hardware serial. Fleet knows none of them reliably when it enqueues the Windows install; the serial only arrives later over DevDetail. Windows rows therefore mint with the identifiers unset (or with only what the enrollment carries, such as a ZTDID or device-reported serial) and record the presented identifiers on first consumption, binding the secret to the first device that uses it. Replay from a second machine is then rejected by the recorded binding, which is the property the story actually needs.
+There is no universal identifier to bind against at Windows MDM enroll time. `ztd_registration_id` is `NOT NULL DEFAULT ''`, so it is Autopilot-only. `hardware_serial` is `DEFAULT NULL` and only arrives later over DevDetail. The one stable, unique identity present for every enrollment type is `mdm_hardware_id` (`NOT NULL`, `UNIQUE KEY idx_type`), so Windows rows bind to the enrollment through that.
 
-*Alternatives considered.* **Require full identifiers at mint** — not available, would gate the install on DevDetail. **Skip the binding check on Windows entirely** — would leave a single-use secret replayable within its unconsumed window by anyone who scraped it, which is most of the value gone.
+That binding is **provenance, not an enforceable identity match**. orbit's enroll payload is ours to change, but osquery's is not, so neither plane can be asked to present the MDM device ID as proof. What both planes *do* present is the secret itself, and a one-time secret maps uniquely to one enrollment. That is the useful property, and it is enough for the check that matters:
+
+**Only link a host to a Windows MDM enrollment when the secret presented belongs to that enrollment.** Today the reverse link at orbit enroll (`server/service/orbit.go:430-465`) finds an unlinked enrollment with `MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial` — by **serial alone**, as its own trailing comment says, with the trust model stated in the code as "the serial on the unlinked enrollment was asserted by the device". The only guard, `MDMWindowsConflictingEnrollmentHardwareID`, refuses to claim a host already bound to *different* hardware but does nothing to stop an attacker claiming an *unlinked* enrollment. A serial is not a secret, so any valid enroll secret plus a victim's serial currently inherits that enrollment's MDM-managed status and its Windows enrollment default fleet.
+
+With a one-time secret the serial lookup becomes unnecessary rather than merely insufficient: the secret identifies the enrollment directly. So when a one-time secret is presented, link to the enrollment it was minted for and skip the serial match entirely. When a shared secret is presented, do not reverse-link at all while the feature is on.
+
+This is worth noting because security#68 states it does not address the matching weakness in security#7. Gating linkage on the secret closes a slice of it on this path: it introduces proof of possession where there was none.
+
+*Alternatives considered.* **Have orbit present the MDM enrollment GUID at enroll** (`fleetMDMEnrollmentGUID` in `orbit/pkg/update/execwinapi_windows.go:245` already reads it from `HKLM\SOFTWARE\Microsoft\Enrollments`, and osquery's equivalent is already matched against `mdm_device_id`) — enforceable on the orbit plane, but osquery cannot be changed, so it would protect one plane and not the other while adding an agent-server contract. The secret already carries the same information on both planes. **Require full identifiers at mint** — not available, would gate the install on DevDetail.
 
 ### 4. Add host-scoped expansion to the Windows delivery path
 
@@ -53,11 +61,21 @@ Teach `getPendingMDMCmds` to expand `$FLEET_HOST_SECRET_*` per enrollment and st
 
 *Alternatives considered.* **Mint eagerly at enqueue and store the value** — smaller diff, but leaves a live credential in `windows_mdm_commands` readable through the API. The value is now single-use and device-bound so the exposure is much smaller, but it is avoidable, and keeping the two platforms structurally identical is worth more than the saved effort.
 
-### 5. Recovery rides a re-deliverable carrier plus an agent re-read
+### 5. The registry is the primary carrier; the MSI never carries a secret
 
-Because the MSI will not reinstall, the recovery path cannot be the fleetd install command. It needs a carrier Fleet can rewrite independently of MSI state, and an agent that consults it. Concretely: a Fleet-managed Windows configuration profile that writes the secret to a known registry location, and orbit reading that location on each start and refreshing its stored secret — the direct analogue of `--use-system-configuration` on macOS. Fleet's Windows profiles are raw SyncML with arbitrary LocURIs, so a registry-writing CSP is expressible.
+The secret is delivered **only** by a Fleet-managed Windows configuration profile that writes it to a known registry location. The fleetd install command stops carrying `FLEET_SECRET` altogether. Fleet's Windows profiles are raw SyncML with arbitrary LocURIs, so a registry-writing CSP is expressible.
 
-*Alternatives considered.* **Put the secret in the MSI's service `Environment` REG_MULTI_SZ** (which already carries the per-enrollment `ORBIT_EUA_TOKEN`, and which orbit would read with zero agent changes via `ORBIT_ENROLL_SECRET`) — attractive and cheap, but it still rides the MSI, so it does nothing for recovery; it is also world-readable by default where `secret.txt` is ACL'd to SYSTEM and Administrators. **Vary the MSI product GUID to force reinstall** — turns every recovery into a full reinstall and risks repeated install churn. **Require a manual device-side repair** — that is the status quo we are trying to remove.
+This collapses three problems into one mechanism:
+
+- **No plaintext on a command line.** The secret is never an MSI property, so it is not visible to process listing at install time, not in MSI verbose logs, and never at `[ORBITROOT]secret.txt`.
+- **Recovery stops being a separate feature.** The carrier is re-deliverable by construction, so recovering a wedged host is the same profile resent. There is no second channel to build, and the fixed-MSI-GUID problem in decision 4 simply does not arise: the recovery path never depended on reinstalling the MSI.
+- **One code path for first install and recovery**, so the recovery path is exercised on every enrollment rather than only in the rare case.
+
+The MSI already supports this: `FLEET_SECRET` defaults to `"dummy"` (`orbit/pkg/packaging/windows_templates.go:59`), and both `CA_UpdateSecret` and `writeSecret` skip when the value is `"dummy"` (`orbit/pkg/packaging/windows.go:114`), so installing with no secret is an existing, tested state.
+
+The cost is on the agent: orbit must tolerate starting with **no** secret and waiting for one to appear, which it does not do today (secret resolution at `orbit/cmd/orbit/orbit.go:470` expects a secret to be resolvable). That is the one genuinely new agent behavior this design requires, and it needs to be a poll rather than a one-shot read, because the profile may land after the MSI finishes.
+
+*Alternatives considered.* **Keep the MSI command line as the primary carrier and add the registry only for recovery** — two carriers, two code paths, and the recovery path only runs in the rare case, which is the path you least want untested. **Put the secret in the MSI's service `Environment` REG_MULTI_SZ** (which already carries the per-enrollment `ORBIT_EUA_TOKEN` and which orbit would read via `ORBIT_ENROLL_SECRET` with no agent change) — cheap, but it rides the MSI so it does nothing for recovery, and it is world-readable by default. **Vary the MSI product GUID to force reinstall** — turns every recovery into a full reinstall.
 
 ### 6. Keep orbit the single source of the secret for both planes
 
@@ -148,6 +166,6 @@ Three consequences for the design:
 
 ## Open Questions
 
-- **Whether to bind at mint to what the enrollment does know.** *Blocks the schema PR.* Windows secrets mint without identity binding (decision 3) and bind on first use, so an unconsumed value read off a device could be presented from another machine claiming a different host. The DACL plus delete-after-read in decision 11 shrink that window. Whether to additionally bind at mint to a ZTDID or a device-reported serial changes which columns the migration needs, so it has to be settled before the first PR rather than after.
-- **Where the recovery carrier lives.** *Blocks the recovery PR only.* A dedicated Fleet-managed Windows profile is the cleanest analogue of the Fleetd configuration profile, but it introduces a Fleet-managed Windows profile where none exists today. Worth confirming against how Fleet-managed Windows profiles are reconciled.
 - **Whether `host_enrollment_rejected` activities are wanted at Windows volume**, or whether the existing 12-hour per-host-per-reason rate limit is sufficient. Does not block anything; the existing behavior is a reasonable default.
+- **How long orbit should poll for a secret that never arrives**, and what it should report meanwhile. Decision 5 makes waiting the normal state for a freshly installed host, so "no secret yet" must be visibly different from "install broken". Does not block the schema; needs settling inside the agent PR.
+- **Whether Fleet-managed Windows profiles have an existing reconciliation pattern to follow**, since decision 5 introduces one where none exists today. Affects how the carrier is registered, not what it contains.
