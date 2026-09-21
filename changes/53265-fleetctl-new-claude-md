@@ -1,0 +1,1 @@
+- Added `CLAUDE.md` and a `fleet-gitops` Claude Code skill to the `fleetctl new` GitOps repo template, so AI coding agents working in a scaffolded repo have guidance on its layout and how to validate changes.
