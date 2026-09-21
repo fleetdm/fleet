@@ -3,11 +3,13 @@
 package profiles
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -68,6 +70,61 @@ func getEnrollSecret(root registry.Key, path string) (string, error) {
 		return "", ErrEnrollSecretNotFound
 	}
 	return secret, nil
+}
+
+// WaitForEnrollSecretChange blocks until the key that carries the enroll secret changes, or until
+// ctx is done. Windows can tell us when that happens, so the caller does not poll: the profile that
+// writes the value lands over its own MDM session, and RegNotifyChangeKeyValue wakes us as soon as
+// it does instead of on some interval chosen in advance.
+//
+// A single notification is all Windows guarantees per registration, so callers must re-arm by
+// calling this again. It returns nil when something changed and when ctx is done, because both mean
+// "go look again"; only a failure to register is an error.
+func WaitForEnrollSecretChange(ctx context.Context) error {
+	return waitForEnrollSecretChange(ctx, registry.LOCAL_MACHINE, enrollSecretKeyPath)
+}
+
+func waitForEnrollSecretChange(ctx context.Context, root registry.Key, path string) error {
+	key, err := registry.OpenKey(root, path, registry.NOTIFY)
+	if err != nil {
+		// The key is created by the installer, so its absence is not something waiting will fix.
+		return fmt.Errorf("open %s to watch: %w", path, err)
+	}
+	defer key.Close()
+
+	// Manual-reset, initially unsignalled: the wait below is the only consumer.
+	event, err := windows.CreateEvent(nil, 1, 0, nil)
+	if err != nil {
+		return fmt.Errorf("create registry change event: %w", err)
+	}
+	defer windows.CloseHandle(event) //nolint:errcheck // nothing actionable on close failure
+
+	if err := windows.RegNotifyChangeKeyValue(
+		windows.Handle(key),
+		false, // this key only; the secret lives directly under it
+		windows.REG_NOTIFY_CHANGE_LAST_SET,
+		event,
+		true, // asynchronous: signal the event rather than blocking this call
+	); err != nil {
+		return fmt.Errorf("watch %s for changes: %w", path, err)
+	}
+
+	// Cancelling the context has to wake the wait, so signal the same event when ctx is done. The
+	// watcher goroutine is stopped on return so it cannot outlive this call.
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = windows.SetEvent(event)
+		case <-stop:
+		}
+	}()
+
+	if _, err := windows.WaitForSingleObject(event, windows.INFINITE); err != nil {
+		return fmt.Errorf("wait for %s to change: %w", path, err)
+	}
+	return nil
 }
 
 func clearEnrollSecret(root registry.Key, path string) error {

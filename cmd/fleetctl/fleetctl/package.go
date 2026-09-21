@@ -383,11 +383,8 @@ func packageCommand() *cli.Command {
 				}
 			}
 
-			// macOS reads it from a configuration profile, Windows from the registry value a
-			// Fleet-managed profile writes. Both are MDM-delivered configuration, so both installer
-			// types accept the flag; the other types have no such channel.
-			if opt.UseSystemConfiguration && c.String("type") != "pkg" && c.String("type") != "msi" {
-				return errors.New("--use-system-configuration is only available for pkg and msi installers")
+			if opt.UseSystemConfiguration && c.String("type") != "pkg" {
+				return errors.New("--use-system-configuration is only available for pkg installers")
 			}
 
 			if opt.CustomOutfile != "" {

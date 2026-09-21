@@ -398,40 +398,51 @@ func adoptEnrollSecret(
 	return nil
 }
 
-const (
-	// mdmSecretPollInterval matches the cadence the macOS configuration-profile wait uses.
-	mdmSecretPollInterval = 30 * time.Second
-	// mdmSecretSlowDeliveryWarning is how long a host may wait before the wait stops looking routine.
-	// Waiting is the normal state for a freshly installed host, so the first minutes are logged
-	// quietly; past this point the host is probably not going to get a secret without help, and the
-	// log has to say so rather than repeating the same benign line forever.
-	mdmSecretSlowDeliveryWarning = 10 * time.Minute
-)
+// mdmSecretWaitBackstop bounds a single wait for a registry change. The notification is the real
+// mechanism; this only guarantees the loop re-checks periodically if a notification is ever missed,
+// and gives the log something to say while a host sits without a secret.
+const mdmSecretWaitBackstop = 5 * time.Minute
 
 // waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret. It does not time
-// out, matching the macOS configuration-profile wait: there is nothing useful for fleetd to do
-// without a secret, and an administrator resending the profile is what ends the wait.
+// out: there is nothing useful for fleetd to do without a secret, and an administrator resending the
+// profile that carries it is what ends the wait.
+//
+// Windows signals when the key changes, so this waits on that notification rather than polling on an
+// interval. The registration is good for one notification, so it is re-armed each time around.
 func waitForMDMDeliveredEnrollSecret(disableKeystore bool, setSecret func(string) error) {
 	log.Info().Msg("no enroll secret yet, waiting for Fleet MDM to deliver one")
 
-	for started := time.Now(); ; time.Sleep(mdmSecretPollInterval) {
+	for started := time.Now(); ; {
 		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setSecret)
-		if err != nil {
+		switch {
+		case err != nil:
 			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
-			continue
-		}
-		if adopted {
-			log.Info().Msg("adopted an enroll secret delivered by Fleet MDM")
+		case adopted:
+			log.Info().Dur("waited", time.Since(started)).Msg("adopted an enroll secret delivered by Fleet MDM")
 			return
 		}
-		if waited := time.Since(started); waited > mdmSecretSlowDeliveryWarning {
+
+		// Arm the watch before the next read so a value written while we were reading is not missed.
+		ctx, cancel := context.WithTimeout(context.Background(), mdmSecretWaitBackstop)
+		waitErr := profiles.WaitForEnrollSecretChange(ctx)
+		cancel()
+		if waitErr != nil {
+			// Registration failed, so fall back to sleeping rather than spinning on a broken watch.
+			log.Error().Err(waitErr).Msg("failed to watch for an MDM-delivered enroll secret")
+			time.Sleep(mdmSecretWaitBackstop)
+		}
+
+		if waited := time.Since(started); waited > mdmSecretSlowDelivery {
 			log.Warn().Dur("waited", waited).Msg(
 				"still waiting for Fleet MDM to deliver an enroll secret; an administrator may need to resend the profile that carries it")
-		} else {
-			log.Debug().Msg("no enroll secret delivered yet")
 		}
 	}
 }
+
+// mdmSecretSlowDelivery is how long a host may wait before the wait stops looking routine. Waiting is
+// the normal state for a freshly installed host, so the first minutes stay quiet; past this point the
+// host probably needs help, and the log has to say so rather than staying silent.
+const mdmSecretSlowDelivery = 10 * time.Minute
 
 // adoptMDMDeliveredEnrollSecret adopts an enroll secret that Fleet MDM delivered out of band, if
 // one is waiting. It reports whether a secret was adopted. Only Windows has such a channel; the
@@ -550,13 +561,15 @@ func orbitAction(c *cli.Context) error {
 
 	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
 	disableKeystore := c.Bool("disable-keystore")
-	useSystemConfig := c.Bool("use-system-configuration")
 
 	// A secret Fleet MDM delivered out of band takes precedence over anything already stored, because
 	// a freshly delivered one is how an administrator recovers a host whose secret was spent or lost.
 	// Checked before the file and keystore so the newer value wins rather than being masked by them.
+	// Deliberately not gated on a packaging flag. When no value is waiting this is a no-op, and when
+	// one is waiting Fleet MDM put it there for this device, so there is no case where reading it is
+	// the wrong thing to do.
 	adoptedMDMSecret := false
-	if runtime.GOOS == "windows" && useSystemConfig {
+	if runtime.GOOS == "windows" {
 		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setEnrollSecret)
 		if err != nil {
 			// Not fatal: fall through to the file and keystore, which may still hold a usable secret.
@@ -587,7 +600,12 @@ func orbitAction(c *cli.Context) error {
 	// configuration profile rather than by the installer, so it is legitimately absent when fleetd
 	// first starts and arrives once that profile lands. Wait for it instead of exiting, which is what
 	// makes "the profile has not arrived yet" recoverable rather than a failed install.
-	if runtime.GOOS == "windows" && useSystemConfig && c.String("enroll-secret") == "" {
+	//
+	// Gated on an active Fleet MDM enrollment rather than on a packaging flag, because the question
+	// is whether a secret can still arrive, and only the host knows that. Without an enrollment there
+	// is no channel to wait on, so orbit keeps today's behavior and fails fast with a clear error
+	// rather than blocking forever.
+	if runtime.GOOS == "windows" && c.String("enroll-secret") == "" && update.HasActiveFleetMDMEnrollment() {
 		waitForMDMDeliveredEnrollSecret(disableKeystore, setEnrollSecret)
 	}
 
