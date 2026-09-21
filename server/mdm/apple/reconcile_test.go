@@ -1860,6 +1860,42 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should still be sent")
 	})
 
+	t.Run("one budget shared across calls throttles across the whole tick", func(t *testing.T) {
+		// The batched cron drains several windows per tick, calling this function once per window. The budget is shared so
+		// mdm.certificate_profiles_limit stays the per-tick rate its config description promises; a per-call limit would
+		// multiply CA issuance against the customer's CA by the number of windows drained.
+		caBudget := new(3)
+
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, caBudget, profilesToInstall, nil)
+		require.NoError(t, err)
+		firstCA := 0
+		for _, p := range upsertedProfiles {
+			if p.ProfileUUID == caProfileUUID {
+				firstCA++
+			}
+		}
+		assert.Equal(t, 3, firstCA, "the first window spends the whole budget")
+		assert.Equal(t, 0, *caBudget, "the budget is decremented in place")
+
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+		_, err = ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, caBudget, profilesToInstall, nil)
+		require.NoError(t, err)
+		secondCA, secondNonCA := 0, 0
+		for _, p := range upsertedProfiles {
+			switch p.ProfileUUID {
+			case caProfileUUID:
+				secondCA++
+			case nonCAProfileUUID:
+				secondNonCA++
+			}
+		}
+		assert.Equal(t, 0, secondCA, "the exhausted budget must throttle the next window, not reset for it")
+		assert.Equal(t, 5, secondNonCA, "non-CA profiles are never throttled")
+	})
+
 	t.Run("recently enrolled hosts bypass throttle", func(t *testing.T) {
 		upsertedProfiles = nil
 		bulkUpsertCallCount = 0
