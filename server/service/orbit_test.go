@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
@@ -2888,4 +2889,55 @@ func TestSaveHostScriptResultRecordsNotificationOutcomeOnDuplicate(t *testing.T)
 	// has to land when orbit retries and the result comes back as a duplicate
 	require.True(t, opts.NotificationsMock.RecordOutcomeFuncInvoked)
 	require.Equal(t, "notify-exec-1", recordedExecutionID)
+}
+
+func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
+	// mock.Store hard-codes EnrollOrbit to return (nil, nil); use mock.DataStore so
+	// EnrollOrbitFunc is honored.
+	ds := new(mock.DataStore)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: secret}, nil
+	}
+	ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	newHost := true
+	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+		enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
+		for _, opt := range opts {
+			opt(enrollConfig)
+		}
+		require.NotNil(t, enrollConfig.Created)
+		*enrollConfig.Created = newHost
+		return &fleet.Host{ID: 1, UUID: enrollConfig.HostInfo.HardwareUUID, Platform: "ubuntu"}, nil
+	}
+	var hostCountIncrs []int
+	lq.IncrQueryReportsHostCountOverride = func(delta int) error {
+		hostCountIncrs = append(hostCountIncrs, delta)
+		return nil
+	}
+
+	hostInfo := fleet.OrbitHostInfo{HardwareUUID: "host-uuid-1", HardwareSerial: "serial-1", Hostname: "host-1", Platform: "ubuntu"}
+
+	// A new host raises the cached host count behind the report cap.
+	nodeKey, err := svc.EnrollOrbit(ctx, hostInfo, "secret", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, nodeKey)
+	require.Equal(t, []int{1}, hostCountIncrs)
+
+	// A re-enrollment doesn't.
+	newHost = false
+	nodeKey, err = svc.EnrollOrbit(ctx, hostInfo, "secret", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, nodeKey)
+	require.Equal(t, []int{1}, hostCountIncrs)
 }

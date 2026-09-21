@@ -15,6 +15,9 @@ import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import IconStatusMessage from "components/IconStatusMessage";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
@@ -152,6 +155,12 @@ const ActivityFeed = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
   const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
     host_uuid?: string;
     command_uuid: string;
@@ -257,6 +266,7 @@ const ActivityFeed = ({
   const handleDetailsClick = ({
     type,
     details,
+    created_at,
     actor_full_name,
     fleet_initiated,
   }: IShowActivityDetailsData) => {
@@ -333,6 +343,14 @@ const ActivityFeed = ({
         break;
       case ActivityType.NotifiedEndUserBeforePatching:
         setNotifyBeforePatchingDetails({ ...details });
+        break;
+      case ActivityType.HostEnrollmentRejected:
+        setEnrollmentRejectedDetails({
+          hostDisplayName: details?.host_display_name,
+          hostSerial: details?.host_serial,
+          reason: details?.reason,
+          createdAt: created_at,
+        });
         break;
       case ActivityType.RanCustomMdmCommand: {
         if (!details?.command_uuid) {
@@ -520,6 +538,14 @@ const ActivityFeed = ({
         <FailedEnrollmentProfileModal
           command={enrollmentProfileFailedDetails.command}
           onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {enrollmentRejectedDetails && (
+        <EnrollmentAttemptDetailsModal
+          hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+          reason={enrollmentRejectedDetails.reason}
+          createdAt={enrollmentRejectedDetails.createdAt}
+          onDone={() => setEnrollmentRejectedDetails(null)}
         />
       )}
       {!!mdmCommandActivityDetails && (

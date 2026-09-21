@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-import { ActivityType } from "interfaces/activity";
+import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import GlobalActivityItem from ".";
 
@@ -1521,6 +1522,79 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  describe("host_enrollment_rejected", () => {
+    const renderRejected = (
+      details: Partial<IActivityDetails>,
+      onDetailsClick = jest.fn()
+    ) =>
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.HostEnrollmentRejected,
+            actor_full_name: "",
+            actor_id: 0,
+            fleet_initiated: true,
+            created_at: "2026-01-01T00:00:00Z",
+            details,
+          })}
+          isPremiumTier
+          onDetailsClick={onDetailsClick}
+        />
+      );
+
+    it("renders Fleet as the actor and names the host", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_display_name: "Anna's MacBook Pro",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("Fleet")).toBeInTheDocument();
+      expect(
+        screen.getByText(/rejected an enrollment for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+    });
+
+    it("falls back to the serial number when there is no display name", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("C02ABC")).toBeInTheDocument();
+      expect(
+        screen.getByText(/a host with serial number/i)
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to 'a host' when there is no display name or serial", () => {
+      renderRejected({ reason: "something_new" });
+      expect(
+        screen.getByText(/rejected an enrollment for a host\./i)
+      ).toBeInTheDocument();
+    });
+
+    it("offers details and passes the reason and time to the handler", async () => {
+      const onDetailsClick = jest.fn();
+      renderRejected(
+        { reason: "one_time_secret_spent", host_display_name: "X" },
+        onDetailsClick
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+
+      expect(onDetailsClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: ActivityType.HostEnrollmentRejected,
+          created_at: "2026-01-01T00:00:00Z",
+          details: expect.objectContaining({
+            reason: "one_time_secret_spent",
+            host_display_name: "X",
+          }),
+        })
+      );
+    });
   });
 
   it("renders a 'fleet_enrolled' type activity with display name and serial", () => {

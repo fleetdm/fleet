@@ -1303,6 +1303,17 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
+	t.Run("fails if Apple MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "asome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.ErrorContains(t, err, "MDM features aren't turned on in Fleet.")
+	})
+
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
 		testCases := []struct {
 			name             string
@@ -1898,6 +1909,17 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		var statusCoder interface{ Status() int }
 		require.ErrorAs(t, err, &statusCoder)
 		assert.Equal(t, http.StatusConflict, statusCoder.Status())
+	})
+
+	t.Run("fails if Apple MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "dsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.ErrorContains(t, err, "MDM features aren't turned on in Fleet.")
 	})
 }
 
@@ -5066,7 +5088,8 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 		},
 	}
 	for name := range fleetmdm.FleetReservedProfileNames() {
-		testCases = append(testCases,
+		testCases = append(
+			testCases,
 			testCase{
 				"reserved payload outer name " + name,
 				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
@@ -9351,7 +9374,8 @@ func TestValidatePSSORegistrationTokenVariable(t *testing.T) {
 		freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 		_, err := validateConfigProfileFleetVariables(
 			pssoProfileForValidation(fleetExt, "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", true, ""),
-			freeLic, &fleet.GroupedCertificateAuthorities{})
+			freeLic, &fleet.GroupedCertificateAuthorities{},
+		)
 		assert.ErrorContains(t, err, "requires a Fleet Premium license")
 	})
 }
@@ -9815,7 +9839,8 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 
 	t.Run("multiple supported variables", func(t *testing.T) {
 		vars, err := validateDeclarationFleetVariables(
-			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"]`), premiumLic)
+			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"]`), premiumLic,
+		)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME"}, vars)
 	})
@@ -9828,7 +9853,8 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 			expectedVars = append(expectedVars, string(v))
 		}
 		vars, err := validateDeclarationFleetVariables(
-			makeDecl("["+strings.Join(jsonVars, ", ")+"]"), premiumLic)
+			makeDecl("["+strings.Join(jsonVars, ", ")+"]"), premiumLic,
+		)
 		require.NoError(t, err)
 		require.ElementsMatch(t, expectedVars, vars)
 	})
@@ -9851,7 +9877,8 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 
 	t.Run("supported and unsupported variables", func(t *testing.T) {
 		_, err := validateDeclarationFleetVariables(
-			makeDecl(`["$FLEET_VAR_HOST_UUID", "$FLEET_VAR_DIGICERT_DATA_myCA"]`), premiumLic)
+			makeDecl(`["$FLEET_VAR_HOST_UUID", "$FLEET_VAR_DIGICERT_DATA_myCA"]`), premiumLic,
+		)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_DIGICERT_DATA_myCA is not supported in DDM profiles")
 	})

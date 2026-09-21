@@ -54,6 +54,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.CanceledScriptBatch,
   ActivityType.FailedEnrollmentProfileRenewal,
   ActivityType.NotifiedEndUserBeforePatching,
+  ActivityType.HostEnrollmentRejected,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -407,6 +408,20 @@ const TAGGED_TEMPLATES = {
         removed <b>{user_email}</b> from the <b>{team_name}</b> fleet.
       </>
     );
+  },
+  hostEnrollmentRejected: (activity: IActivity) => {
+    const { host_display_name, host_serial } = activity.details || {};
+    let host: React.ReactNode = "a host";
+    if (host_display_name) {
+      host = <b>{host_display_name}</b>;
+    } else if (host_serial) {
+      host = (
+        <>
+          a host with serial number <b>{host_serial}</b>
+        </>
+      );
+    }
+    return <>rejected an enrollment for {host}.</>;
   },
   fleetEnrolled: (activity: IActivity) => {
     const { host_display_name, host_serial } = activity.details || {};
@@ -2522,6 +2537,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.FleetEnrolled: {
       return TAGGED_TEMPLATES.fleetEnrolled(activity);
+    }
+    case ActivityType.HostEnrollmentRejected: {
+      return TAGGED_TEMPLATES.hostEnrollmentRejected(activity);
     }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);

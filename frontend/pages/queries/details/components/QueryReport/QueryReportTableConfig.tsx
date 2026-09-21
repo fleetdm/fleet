@@ -4,7 +4,6 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
@@ -94,12 +93,7 @@ const generateReportColumnConfigsFromResults = (
           <>{val}</>
         );
       },
-      Filter: DefaultColumnFilter, // Component hides filter for last_fetched
-      filterType: "text",
       disableSortBy: false,
-      sortType: colsAreNumTypes.get(colName)
-        ? "alphanumeric"
-        : "caseInsensitive",
     };
   });
   return _unshiftHostname(columnConfigs);
