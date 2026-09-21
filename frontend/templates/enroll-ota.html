@@ -292,7 +292,20 @@
         <div class="android-content">
           <p>Select <b>Enroll</b> and follow the steps.</p>
           <a class="enroll-link" href="" target="_blank">Enroll</a>
-          <p>Already finished? You can close this tab.</p>
+        </div>
+      </section>
+    </template>
+
+    <!-- android content once the enrollment flow has taken over the screen -->
+    <template id="android-enrolled-template">
+      <section class="device-instructions-content">
+        <h1>Already finished?</h1>
+        <div class="android-content">
+          <p>You can close this tab.</p>
+          <p>
+            If something went wrong,
+            <a class="refresh-link" href="#">refresh this page.</a>
+          </p>
         </div>
       </section>
     </template>
@@ -788,6 +801,52 @@
         document.querySelector(".enroll-link").setAttribute("href", url);
       };
 
+      // Replaces the Android instructions with the "you can close this tab"
+      // screen once enrollment has taken over, so the user doesn't select
+      // Enroll a second time and hit an error.
+      //
+      // The Enroll link opens Google's enrollment URL in a new tab, which hands
+      // off to Play Services and backgrounds this one, so a visibilitychange to
+      // hidden is the signal that enrollment actually started. Keying off that
+      // rather than a timer avoids guessing how long the handoff takes on a
+      // given device, and swaps the content while the tab is off-screen instead
+      // of under the user. If the handoff never happens nothing swaps and the
+      // working Enroll screen stays put.
+      const wireAndroidPostEnrollScreen = () => {
+        const enrollLink = document.querySelector(".enroll-link");
+        if (!enrollLink) {
+          return;
+        }
+
+        const showPostEnrollScreen = () => {
+          document.getElementById("main-content").innerHTML = "";
+          renderContent("android-enrolled-template");
+          const refreshLink = document.querySelector(".refresh-link");
+          if (refreshLink) {
+            refreshLink.addEventListener("click", (event) => {
+              event.preventDefault();
+              window.location.reload();
+            });
+          }
+        };
+
+        const onVisibilityChange = () => {
+          if (document.visibilityState !== "hidden") {
+            return;
+          }
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+          showPostEnrollScreen();
+        };
+
+        enrollLink.addEventListener(
+          "click",
+          () => {
+            document.addEventListener("visibilitychange", onVisibilityChange);
+          },
+          { once: true }
+        );
+      };
+
       // dynmaic content rendering for ios and ipad only
       const setIosIpadContent = (platform) => {
         if (platform === "ios") {
@@ -931,6 +990,7 @@
               throw new Error("Failed to get enrollment token");
             }
             setEnrollTokenUrl(data.android_enrollment_url);
+            wireAndroidPostEnrollScreen();
           } catch (error) {
             renderError(
               "Couldn't get Android enrollment token.",
