@@ -179,7 +179,8 @@ const SoftwareVersionDetailsPage = ({
               <SoftwareDetailsSummary
                 displayName={`${getDisplayedSoftwareName(
                   softwareVersion.name,
-                  softwareVersion.display_name
+                  softwareVersion.display_name,
+                  softwareVersion.bundle_identifier
                 )}, ${softwareVersion.version}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
