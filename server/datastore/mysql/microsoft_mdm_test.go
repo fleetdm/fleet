@@ -93,6 +93,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestCleanupStaleMDMWindowsEnrollments", testCleanupStaleMDMWindowsEnrollments},
+		{"TestCleanupMDMWindowsCommandHistory", testCleanupMDMWindowsCommandHistory},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestMDMWindowsConflictingEnrollmentHardwareID", testMDMWindowsConflictingEnrollmentHardwareID},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
@@ -7704,6 +7705,195 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Zero(t, deleted)
 	assert.True(t, enrollmentExists(older.ID), "newer enrollment removed between select and delete")
+}
+
+func testCleanupMDMWindowsCommandHistory(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	recent := now.Add(-1 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	dev := createEnrolledDevice(t, ds)
+
+	enqueue := func(createdAt time.Time) *fleet.MDMWindowsCommand {
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  uuid.NewString(),
+			RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+			TargetLocURI: "./Device/Test",
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_commands SET created_at = ? WHERE command_uuid = ?`, createdAt, cmd.CommandUUID)
+			return err
+		})
+		return cmd
+	}
+	// ack writes the response and result a check-in would, then drops the queue
+	// row the way CleanupWindowsMDMCommandQueue does an hour later.
+	ack := func(cmd *fleet.MDMWindowsCommand, at time.Time) int64 {
+		compressed, err := compressWindowsMDMResponse([]byte("<SyncML/>"))
+		require.NoError(t, err)
+		var responseID int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz, created_at) VALUES (?, ?, ?)`, dev.ID, compressed, at)
+			if err != nil {
+				return err
+			}
+			responseID, err = res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `
+				INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id, created_at, updated_at)
+				VALUES (?, ?, '<Status/>', '200', ?, ?, ?)`, dev.ID, cmd.CommandUUID, responseID, at, at); err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`,
+				dev.ID, cmd.CommandUUID)
+			return err
+		})
+		return responseID
+	}
+	count := func(stmt string, args ...any) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, stmt, args...)
+		})
+		return n
+	}
+	commandExists := func(cmd *fleet.MDMWindowsCommand) bool {
+		return count(`SELECT COUNT(*) FROM windows_mdm_commands WHERE command_uuid = ?`, cmd.CommandUUID) == 1
+	}
+	resultExists := func(cmd *fleet.MDMWindowsCommand) bool {
+		return count(`SELECT COUNT(*) FROM windows_mdm_command_results WHERE command_uuid = ?`, cmd.CommandUUID) == 1
+	}
+	responseExists := func(id int64) bool {
+		return count(`SELECT COUNT(*) FROM windows_mdm_responses WHERE id = ?`, id) == 1
+	}
+
+	// Acknowledged before the cutoff: the whole chain goes.
+	oldAcked := enqueue(old)
+	oldAckedResponse := ack(oldAcked, old)
+
+	// Acknowledged after the cutoff: kept.
+	recentAcked := enqueue(recent)
+	recentAckedResponse := ack(recentAcked, recent)
+
+	// Old but still queued: the command is pending, so it stays no matter its age.
+	oldPending := enqueue(old)
+
+	// Old response whose result the device re-acknowledged recently: kept.
+	oldReacked := enqueue(old)
+	oldReackedResponse := ack(oldReacked, old)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
+			recent, oldReacked.CommandUUID)
+		return err
+	})
+
+	// Old wipe the host's status still depends on: command, result and the
+	// response carrying it all stay.
+	host := test.NewHost(t, ds, "win-wiped", "10.0.0.1", uuid.NewString(), dev.HostUUID, now, test.WithPlatform("windows"))
+	oldWipe := enqueue(old)
+	oldWipeResponse := ack(oldWipe, old)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, wipe_ref, fleet_platform) VALUES (?, ?, 'windows')`,
+			host.ID, oldWipe.CommandUUID)
+		return err
+	})
+
+	counts, err := ds.CleanupMDMWindowsCommandHistory(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, counts.Responses)
+	assert.EqualValues(t, 1, counts.Results)
+	assert.EqualValues(t, 1, counts.Commands)
+	assert.EqualValues(t, 3, counts.Total())
+
+	assert.False(t, commandExists(oldAcked), "acknowledged before the cutoff")
+	assert.False(t, resultExists(oldAcked))
+	assert.False(t, responseExists(oldAckedResponse))
+
+	assert.True(t, commandExists(recentAcked), "acknowledged after the cutoff")
+	assert.True(t, resultExists(recentAcked))
+	assert.True(t, responseExists(recentAckedResponse))
+
+	assert.True(t, commandExists(oldPending), "old but still queued")
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, oldPending.CommandUUID))
+
+	assert.True(t, commandExists(oldReacked), "result re-acknowledged recently")
+	assert.True(t, resultExists(oldReacked))
+	assert.True(t, responseExists(oldReackedResponse))
+
+	assert.True(t, commandExists(oldWipe), "wipe the host's status depends on")
+	assert.True(t, resultExists(oldWipe))
+	assert.True(t, responseExists(oldWipeResponse))
+
+	// Idempotent: a second pass finds nothing.
+	counts, err = ds.CleanupMDMWindowsCommandHistory(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, counts.Total())
+
+	// Batching: the cap stops a run partway and the next one drains the rest.
+	var staleCmds []*fleet.MDMWindowsCommand
+	for range 3 {
+		cmd := enqueue(old)
+		ack(cmd, old)
+		staleCmds = append(staleCmds, cmd)
+	}
+	counts, err = cleanupMDMWindowsCommandHistoryDB(ctx, ds, cutoff, 1, 1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, counts.Responses)
+	assert.EqualValues(t, 1, counts.Results)
+	assert.EqualValues(t, 1, counts.Commands, "the command whose result this run deleted")
+
+	counts, err = cleanupMDMWindowsCommandHistoryDB(ctx, ds, cutoff, 1, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, counts.Responses)
+	assert.EqualValues(t, 2, counts.Results)
+	assert.EqualValues(t, 2, counts.Commands)
+	for _, cmd := range staleCmds {
+		assert.False(t, commandExists(cmd))
+		assert.False(t, resultExists(cmd))
+	}
+
+	// The deletes re-check on the primary what the select saw on the reader:
+	// a result re-acknowledged since then survives with its response, and so
+	// does a command that is still queued or pinned by a wipe.
+	pinned := enqueue(old)
+	pinnedResponse := ack(pinned, old)
+	gone := enqueue(old)
+	goneResponse := ack(gone, old)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
+			recent, pinned.CommandUUID)
+		return err
+	})
+	results, responses, err := deleteMDMWindowsResponsesByIDs(ctx, ds.writer(ctx),
+		[]uint{uint(pinnedResponse), uint(goneResponse)}, cutoff) //nolint:gosec // small test ids
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, results)
+	assert.EqualValues(t, 1, responses)
+	assert.True(t, resultExists(pinned), "re-acknowledged between select and delete")
+	assert.True(t, responseExists(pinnedResponse))
+	assert.False(t, resultExists(gone))
+	assert.False(t, responseExists(goneResponse))
+
+	free := enqueue(old)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE command_uuid = ?`, free.CommandUUID)
+		return err
+	})
+	n, err := deleteMDMWindowsCommandsByUUIDs(ctx, ds.writer(ctx),
+		[]string{free.CommandUUID, gone.CommandUUID, oldPending.CommandUUID, oldWipe.CommandUUID})
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, n, "only the two nothing references any more")
+	assert.False(t, commandExists(free))
+	assert.False(t, commandExists(gone))
+	assert.True(t, commandExists(oldPending), "still queued")
+	assert.True(t, commandExists(oldWipe), "pinned by wipe_ref")
 }
 
 // readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.

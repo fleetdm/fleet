@@ -4110,6 +4110,171 @@ JOIN (
 	return n, nil
 }
 
+// CleanupMDMWindowsCommandHistory ages out windows_mdm_responses,
+// windows_mdm_command_results and windows_mdm_commands. The queue is left to
+// CleanupWindowsMDMCommandQueue: a queue row still present here means the
+// command is pending, so its command row stays.
+//
+// Responses go first (a result never outlives the response that carried it),
+// then commands nothing references, so a command and the result that pinned
+// it go in the same run.
+func (ds *Datastore) CleanupMDMWindowsCommandHistory(ctx context.Context, olderThan time.Time) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k responses and 100k commands per tick
+	)
+	return cleanupMDMWindowsCommandHistoryDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+func cleanupMDMWindowsCommandHistoryDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+	var counts fleet.MDMWindowsCommandHistoryCleanupCounts
+
+	// A result is still in use if it was updated inside the retention window
+	// (the device re-acked) or it is the wipe behind host_mdm_actions.wipe_ref,
+	// which is what keeps a host reporting as wiped. Its response stays with
+	// it. Kept rows are excluded here rather than in the delete so the loop
+	// advances without a cursor.
+	const selectResponsesStmt = `
+SELECT wmr.id
+FROM windows_mdm_responses wmr
+WHERE wmr.created_at < ?
+	AND NOT EXISTS (
+		SELECT 1
+		FROM windows_mdm_command_results r
+		LEFT JOIN host_mdm_actions hma ON hma.wipe_ref = r.command_uuid
+		WHERE r.response_id = wmr.id
+			AND (r.updated_at >= ? OR hma.host_id IS NOT NULL)
+	)
+ORDER BY wmr.created_at
+LIMIT ?`
+
+	hitCap := true
+	for range maxBatches {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, selectResponsesStmt, olderThan, olderThan, batchSize); err != nil {
+			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm responses")
+		}
+		if len(ids) == 0 {
+			hitCap = false
+			break
+		}
+		results, responses, err := deleteMDMWindowsResponsesByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		if err != nil {
+			return counts, err
+		}
+		counts.Results += results
+		counts.Responses += responses
+		// No progress means the reader returned rows the delete refused or
+		// that are already gone (replica lag); stop rather than spin.
+		if responses == 0 || len(ids) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm responses hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", counts.Responses, "max_batches", maxBatches)
+	}
+
+	// The wipe_ref check is implied by the two above (a kept result pins its
+	// command, an unacked wipe keeps its queue row), but this delete cascades
+	// to the queue, so it is checked directly.
+	const selectCommandsStmt = `
+SELECT wmc.command_uuid
+FROM windows_mdm_commands wmc
+WHERE wmc.created_at < ?
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)
+ORDER BY wmc.created_at
+LIMIT ?`
+
+	hitCap = true
+	for range maxBatches {
+		var uuids []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, selectCommandsStmt, olderThan, batchSize); err != nil {
+			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm commands")
+		}
+		if len(uuids) == 0 {
+			hitCap = false
+			break
+		}
+		n, err := deleteMDMWindowsCommandsByUUIDs(ctx, ds.writer(ctx), uuids)
+		if err != nil {
+			return counts, err
+		}
+		counts.Commands += n
+		if n == 0 || len(uuids) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm commands hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", counts.Commands, "max_batches", maxBatches)
+	}
+
+	return counts, nil
+}
+
+// deleteMDMWindowsResponsesByIDs re-checks on the primary what the select saw
+// on the reader: a result re-acked or pinned by a wipe since then survives,
+// and so does the response carrying it.
+func deleteMDMWindowsResponsesByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (results, responses int64, err error) {
+	// Explicit rather than via the response's ON DELETE CASCADE, so the count
+	// is real and the re-check has somewhere to live.
+	const deleteResultsStmt = `
+DELETE r FROM windows_mdm_command_results r
+LEFT JOIN host_mdm_actions hma ON hma.wipe_ref = r.command_uuid
+WHERE r.response_id IN (?) AND r.updated_at < ? AND hma.host_id IS NULL`
+	stmt, args, err := sqlx.In(deleteResultsStmt, ids, olderThan)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm command results")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm command results")
+	}
+	results, _ = res.RowsAffected()
+
+	// Any result that survived pins its response.
+	const deleteResponsesStmt = `
+DELETE wmr FROM windows_mdm_responses wmr
+LEFT JOIN windows_mdm_command_results r ON r.response_id = wmr.id
+WHERE wmr.id IN (?) AND r.response_id IS NULL`
+	stmt, args, err = sqlx.In(deleteResponsesStmt, ids)
+	if err != nil {
+		return results, 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm responses")
+	}
+	res, err = q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return results, 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm responses")
+	}
+	responses, _ = res.RowsAffected()
+	return results, responses, nil
+}
+
+// deleteMDMWindowsCommandsByUUIDs re-checks that nothing references the
+// command, since the delete cascades to the queue.
+func deleteMDMWindowsCommandsByUUIDs(ctx context.Context, q sqlx.ExecerContext, uuids []string) (int64, error) {
+	const deleteStmt = `
+DELETE wmc FROM windows_mdm_commands wmc
+WHERE wmc.command_uuid IN (?)
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)`
+	stmt, args, err := sqlx.In(deleteStmt, uuids)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm commands")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm commands")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // CleanupWindowsMDMProfilePriorContent garbage-collects retained prior profile content once no host_mdm_windows_profiles row
 // still has that version installed. Reference-counted on (profile_uuid, checksum) rather than age-based, so a version's content
 // survives exactly as long as some host still has it installed and could still need its <Delete> (e.g. a host that was offline

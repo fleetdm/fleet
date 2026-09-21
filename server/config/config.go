@@ -1088,6 +1088,12 @@ type MDMConfig struct {
 	// cleanup deletes it. It is measured from the row's updated_at, not from
 	// when it became orphaned. Zero or negative disables the cleanup.
 	WindowsEnrollmentRetention time.Duration `yaml:"windows_enrollment_retention"`
+	// WindowsCommandRetention is the minimum age of Windows MDM command history
+	// (raw responses, results and commands) before the hourly cleanup deletes
+	// it, measured from when a row was recorded or, for results, last updated.
+	// Queued commands and the wipe a host's status depends on are kept
+	// regardless. Non-positive disables the cleanup.
+	WindowsCommandRetention time.Duration `yaml:"windows_command_retention"`
 
 	// the following fields hold the parsed, validated TLS certificate set the
 	// first time Microsoft WSTEP is called, as well as the PEM-encoded
@@ -2037,6 +2043,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "Minimum time since an orphaned or superseded Windows MDM enrollment was last updated before the hourly cleanup deletes it (0 disables the cleanup)")
+	man.addConfigDuration("mdm.windows_command_retention", 30*24*time.Hour, "Minimum time since Windows MDM command history (responses, results, commands) was recorded or last updated before the hourly cleanup deletes it (0 disables the cleanup)")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
@@ -2423,6 +2430,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			WindowsEnrollmentRetention:        man.getConfigDuration("mdm.windows_enrollment_retention"),
+			WindowsCommandRetention:           man.getConfigDuration("mdm.windows_command_retention"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
