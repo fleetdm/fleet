@@ -1667,6 +1667,7 @@ This activity contains the following fields:
 - "install_uuid": ID of the software installation.
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
@@ -1684,6 +1685,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
@@ -1726,6 +1728,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
@@ -1738,6 +1741,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
   "status": "uninstalled",
@@ -2042,6 +2046,7 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
@@ -2060,6 +2065,7 @@ This activity contains the following fields:
   "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
+  "software_display_name": "Logic Pro",
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
@@ -2641,6 +2647,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2650,6 +2657,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2662,6 +2670,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2671,6 +2680,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2683,6 +2693,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2692,6 +2703,7 @@ This activity contains the following fields:
   "host_id": 123,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -3332,6 +3344,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -3341,6 +3354,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 1234
 }
 ```
