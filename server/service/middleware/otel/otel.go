@@ -10,7 +10,10 @@ import (
 )
 
 // WithRouteTag annotates the request's span and metrics with the http.route attribute. otelhttp dropped its own
-// WithRouteTag in v0.65.0 without a replacement, so we keep a local equivalent of the upstream implementation.
+// WithRouteTag in v0.65.0 because it now derives http.route from r.Pattern, which covers every call site whose route
+// equals the stdlib pattern it is registered under. Two callers pass a route that r.Pattern cannot supply: the fast path
+// sends the gorilla template while the stdlib mux is registered with the expanded per-version patterns, and SCIM is
+// mounted on a subtree yet needs a finer route that keeps Users/Groups distinct without leaking IDs. See #53612.
 func WithRouteTag(route string, h http.Handler) http.Handler {
 	attr := semconv.HTTPRoute(route)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
