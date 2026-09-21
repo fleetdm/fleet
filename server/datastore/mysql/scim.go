@@ -2122,6 +2122,24 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		}
 	}
 
+	// The Windows update above resets status to NULL, moving those hosts into the pending bucket, but the rollup that backs the
+	// OS settings summary and the hosts list filter does not follow the UPDATE on its own. Refresh it on this transaction.
+	// Hosts whose rows were already NULL are harmless extras, since the recompute is idempotent, and rows are only reset here,
+	// never deleted, so orphan cleanup is skipped.
+	windowsHostUUIDStmt, windowsHostUUIDArgs, err := sqlx.In(
+		`SELECT DISTINCT h.uuid FROM hosts h JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = h.uuid WHERE h.id IN (?)`,
+		hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare windows hosts lookup for profiles status rollup")
+	}
+	var windowsHostUUIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs, windowsHostUUIDStmt, windowsHostUUIDArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select windows hosts for profiles status rollup")
+	}
+	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for variable resend")
+	}
+
 	// Resend certificate templates that use affected variables.
 	certParams := map[string]any{
 		"host_ids":               hostIDs,

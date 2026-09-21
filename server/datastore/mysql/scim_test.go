@@ -2301,6 +2301,12 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
+	// The seeding above writes host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so
+	// reconcile it to a known baseline before the resends below.
+	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+	rollup := readWindowsProfilesStatusRollup(t, ds)
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), rollup[hostW1.UUID])
+
 	// change username of scim user 1
 	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
 	require.NoError(t, err)
@@ -2336,6 +2342,13 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	// The resend reset two of hostW1's profiles, so the rollup that backs the OS settings summary and the hosts list filter
+	// has to follow it into pending on the same transaction, while the untouched hosts stay verifying.
+	rollup = readWindowsProfilesStatusRollup(t, ds)
+	require.Equal(t, string(fleet.MDMDeliveryPending), rollup[hostW1.UUID])
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), rollup[hostW2.UUID])
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), rollup[hostW3.UUID])
 
 	// reset the status for host1
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
