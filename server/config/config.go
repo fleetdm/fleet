@@ -1062,6 +1062,20 @@ type MDMConfig struct {
 	// which walks enabled enrollments in daily laps and re-pushes any silent
 	// for more than a day.
 	AppleAPNsSweepInterval time.Duration `yaml:"apple_apns_sweep_interval"`
+	// AppleCommandCleanupShortRetention is how long completed recurring Apple
+	// MDM commands (refetches, device renames, VPP verifications, DDM tickles)
+	// and inactive queue rows are kept before the hourly cleanup deletes them.
+	// Zero disables the tier; otherwise the floor is one hour.
+	AppleCommandCleanupShortRetention time.Duration `yaml:"apple_command_cleanup_short_retention"`
+	// AppleCommandCleanupStandardRetention is the same window for every other
+	// completed command type on the deletion allowlist.
+	AppleCommandCleanupStandardRetention time.Duration `yaml:"apple_command_cleanup_standard_retention"`
+	// AppleCommandCleanupMaxRowDeletionsPerRun caps queue/result pairs deleted
+	// per cleanup run; zero stops pair deletion.
+	AppleCommandCleanupMaxRowDeletionsPerRun int `yaml:"apple_command_cleanup_max_row_deletions_per_run"`
+	// AppleCommandCleanupMaxCmdDeletionsPerRun caps nano_commands rows deleted
+	// per cleanup run; zero stops command deletion.
+	AppleCommandCleanupMaxCmdDeletionsPerRun int `yaml:"apple_command_cleanup_max_command_deletions_per_run"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -1132,6 +1146,42 @@ func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string
 	if m.AndroidBatchSize < 0 {
 		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
 			"Android MDM configuration")
+	}
+}
+
+// appleCommandCleanupMinRetention is the floor for a non-zero retention window:
+// a mistyped short value must not sweep commands out from under in-flight
+// operations.
+const appleCommandCleanupMinRetention = time.Hour
+
+// ValidateAppleCommandCleanup checks the Apple MDM command cleanup knobs: a
+// retention window is either 0 (tier disabled) or at least one hour, and the
+// per-run deletion caps are non-negative.
+func (m MDMConfig) ValidateAppleCommandCleanup(initFatal func(err error, msg string)) {
+	const msg = "Apple MDM configuration"
+	retentions := []struct {
+		key string
+		val time.Duration
+	}{
+		{"mdm.apple_command_cleanup_short_retention", m.AppleCommandCleanupShortRetention},
+		{"mdm.apple_command_cleanup_standard_retention", m.AppleCommandCleanupStandardRetention},
+	}
+	for _, r := range retentions {
+		if r.val != 0 && r.val < appleCommandCleanupMinRetention {
+			initFatal(fmt.Errorf("%s must be 0 (disabled) or at least %s", r.key, appleCommandCleanupMinRetention), msg)
+		}
+	}
+	caps := []struct {
+		key string
+		val int
+	}{
+		{"mdm.apple_command_cleanup_max_row_deletions_per_run", m.AppleCommandCleanupMaxRowDeletionsPerRun},
+		{"mdm.apple_command_cleanup_max_command_deletions_per_run", m.AppleCommandCleanupMaxCmdDeletionsPerRun},
+	}
+	for _, c := range caps {
+		if c.val < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no deletions)", c.key), msg)
+		}
 	}
 }
 
@@ -2032,6 +2082,10 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.apple_apns_push_expiration")
 	man.addConfigDuration("mdm.apple_apns_sweep_interval", 1*time.Minute, "Tick interval of the APNs sweep cron, which re-pushes Apple MDM enrollments that have been silent for more than a day")
 	man.hideConfig("mdm.apple_apns_sweep_interval")
+	man.addConfigDuration("mdm.apple_command_cleanup_short_retention", 24*time.Hour, "How long completed recurring Apple MDM commands (refetches, device renames, VPP verifications, DeclarativeManagement) and inactive queue rows are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigDuration("mdm.apple_command_cleanup_standard_retention", 720*time.Hour, "How long other completed Apple MDM commands on the deletion allowlist are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run", 1000, "Maximum Apple MDM command queue entries (one command to one host, with its result) deleted per hourly cleanup run (0 = none)")
+	man.addConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run", 1000, "Maximum unreferenced Apple MDM commands deleted per hourly cleanup run (0 = none)")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
@@ -2436,6 +2490,11 @@ func (man Manager) LoadConfig() FleetConfig {
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
 			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
+
+			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
+			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),
+			AppleCommandCleanupMaxRowDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run"),
+			AppleCommandCleanupMaxCmdDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
