@@ -357,7 +357,7 @@ type Datastore interface {
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
-	CountEnrolledHosts(ctx context.Context) (int, error)
+	CountAllHosts(ctx context.Context) (int, error)
 
 	// TODO(sarah): Reconcile pending mdm hosts feature with original motivation to cleanup "dead incoming host"
 
@@ -513,6 +513,12 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
+	// CleanupStaleMDMWindowsEnrollments deletes Windows MDM enrollments not
+	// updated since olderThan that are orphaned (no matching host) or
+	// superseded by a newer enrollment for the same host. Child command queue,
+	// results and responses rows cascade. Returns the number deleted, which
+	// on error is the count deleted before the failure.
+	CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error)
 	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
 	// deleted and edited profiles) once no host still has the prior version installed.
 	CleanupWindowsMDMProfilePriorContent(ctx context.Context) error
@@ -716,12 +722,21 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
 
-	// QueryResultRows returns stored results of a query
-	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter) ([]*ScheduledQueryResultRow, error)
+	// QueryResultRows returns stored results of a query along with the total count of rows matching
+	// the filter. opts.OrderKey may be "last_fetched", "host_name", "host_id" or the name of a result
+	// column (built-in keys win over a result column with the same name; values sort as strings);
+	// opts.MatchQuery matches the host display name and any result column value.
+	// Pagination metadata is returned only when opts.IncludeMetadata is set.
+	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter, opts ListOptions) ([]*ScheduledQueryResultRow, int, *PaginationMetadata, error)
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
-	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
-	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
+	// ResultCountsForQueries returns the number of stored rows with data per query. Queries with
+	// no rows are absent from the result.
+	ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error)
+	// OverwriteQueryResultRows replaces the stored rows of a host for a query. currentCount is the
+	// (approximate) number of rows stored for the query across all hosts; if the replacement would
+	// push it above maxQueryReportRows nothing is changed and the result is marked rejected.
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (QueryReportWriteResult, error)
 	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
@@ -733,10 +748,10 @@ type Datastore interface {
 	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 	// ListHostReports returns the queries/reports associated with the given host, applying
 	// the provided options for filtering, sorting, and pagination. teamID is the team of the
-	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
-	// whether each query's report has been clipped. It returns the list of reports, the total
-	// count (without pagination), optional pagination metadata, and any error.
-	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
+	// host (nil for global). ReportClipped is left unset for the service layer to fill in. It
+	// returns the list of reports, the total count (without pagination), optional pagination
+	// metadata, and any error.
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -811,8 +826,8 @@ type Datastore interface {
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
 	// ListSoftwareForVulnDetectionByOSVersion returns all distinct software installed on hosts
-	// matching the given OS version.
-	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion) ([]Software, error)
+	// matching the given OS version, restricted to the given software sources.
+	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion, sources []string) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	// ListSoftwareVulnerabilitiesBySoftwareIDs returns vulnerabilities for the given software IDs
 	// filtered by source. Queries software_cve directly without joining through host_software.
@@ -1281,15 +1296,17 @@ type Datastore interface {
 	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
 
 	// UpdateHostSoftwareInstalledPaths looks at all software for 'hostID' and based on the contents of
-	// 'reported', either inserts or deletes the corresponding entries in the
-	// 'host_software_installed_paths' table. 'reported' is a set of
-	// 'installed_path\0team_identifier\0software.ToUniqueStr()' strings. 'mutationResults' contains the software inventory of
+	// 'reported', either inserts, updates or deletes the corresponding entries in the
+	// 'host_software_installed_paths' table. 'reported' is keyed by
+	// 'installed_path\0team_identifier\0cdhash_sha256\0executable_sha256\0executable_path\0software.ToUniqueStr()',
+	// see HostSoftwareInstalledPathKey. Its value is the executables a Homebrew keg installs, and
+	// is nil for every other software. 'mutationResults' contains the software inventory of
 	// the host (pre-mutations) and the mutations performed after calling 'UpdateHostSoftware',
 	// it is used as DB optimization.
 	//
 	// TODO(lucas): We should amend UpdateHostSoftwareInstalledPaths to just accept raw information
 	// otherwise the caller has to assemble the reported set the same way in all places where it's used.
-	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *UpdateHostSoftwareDBResult) error
+	UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]ExecutableHashes, mutationResults *UpdateHostSoftwareDBResult) error
 
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
@@ -1407,7 +1424,8 @@ type Datastore interface {
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 	// GetHostArchivedDiskEncryptionKey returns the archived disk encryption key for the given host ID.
-	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host) (*HostArchivedDiskEncryptionKey, error)
+	// It accepts the allowArchivedSerialLookup flag to indicate whether to allow falling back to using the host's serial number when checking the archived disk encryption key.
+	GetHostArchivedDiskEncryptionKey(ctx context.Context, host *Host, allowArchivedSerialLookup bool) (*HostArchivedDiskEncryptionKey, error)
 	// IsHostDiskEncryptionKeyArchived returns true if there is a disk encryption key archived
 	// for the given host ID.
 	IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error)
@@ -4425,7 +4443,7 @@ type ProfileVerificationStore interface {
 	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
 }
 
-var _ ProfileVerificationStore = (Datastore)(nil)
+var _ ProfileVerificationStore = Datastore(nil)
 
 type PolicyFailure struct {
 	PolicyID uint

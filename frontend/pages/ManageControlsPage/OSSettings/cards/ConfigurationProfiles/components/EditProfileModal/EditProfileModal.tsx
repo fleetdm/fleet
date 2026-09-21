@@ -1,8 +1,9 @@
 import { AxiosResponse } from "axios";
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import FileUploader from "components/FileUploader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -15,10 +16,17 @@ import {
   TargetType,
 } from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IApiError } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
-import { IMdmProfile, IProfileLabel } from "interfaces/mdm";
+import {
+  IMdmProfile,
+  IProfileLabel,
+  isMDMConfiguredForPlatform,
+  platformToMDMLabel,
+} from "interfaces/mdm";
 import PATHS from "router/paths";
 import labelsAPI, {
   getCustomLabels,
@@ -97,6 +105,11 @@ const EditProfileModal = ({
   onCancel,
 }: IEditProfileModalProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
+  const { config } = useContext(AppContext);
+  const isMDMEnabled = isMDMConfiguredForPlatform(
+    profile.platform,
+    config?.mdm
+  );
 
   const initialIncludeLabels =
     profile.labels_include_all ?? profile.labels_include_any;
@@ -229,6 +242,56 @@ const EditProfileModal = ({
     listNamesFromSelectedLabels(selectedIncludeLabels).length > 0 ||
     listNamesFromSelectedLabels(selectedExcludeLabels).length > 0;
 
+  const renderUpdateButton = () => {
+    const btn = (disabled: boolean) => (
+      <Button
+        className={`${baseClass}__update-profile-button`}
+        onClick={onUpdateProfile}
+        isLoading={isUpdating}
+        disabled={
+          disabled ||
+          isUpdating ||
+          (selectedTargetType === "Custom" && !hasSelectedLabels)
+        }
+      >
+        Update profile
+      </Button>
+    );
+
+    if (!isMDMEnabled) {
+      const mdmLabel = platformToMDMLabel(profile.platform);
+      return (
+        <TooltipWrapper
+          tipContent={
+            <p>
+              To enable, first turn on{" "}
+              <CustomLink
+                text={`${mdmLabel} MDM`}
+                url={PATHS.ADMIN_INTEGRATIONS_MDM}
+                variant="tooltip-link"
+              />
+              .
+            </p>
+          }
+          showArrow
+          position="top"
+          underline={false}
+        >
+          {" "}
+          {btn(true)}{" "}
+        </TooltipWrapper>
+      );
+    }
+
+    return (
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => {
+          return btn(!!disableChildren);
+        }}
+      />
+    );
+  };
+
   return (
     <Modal className={baseClass} title="Edit profile" onExit={onCancel}>
       {isPremiumTier && isLoadingLabels && <Spinner />}
@@ -249,6 +312,7 @@ const EditProfileModal = ({
             }}
             gitopsCompatible
             gitOpsModeEnabled={gitOpsModeEnabled}
+            disabled={!isMDMEnabled}
           />
           {isPremiumTier && (
             <GitOpsModeTooltipWrapper
@@ -268,7 +332,7 @@ const EditProfileModal = ({
                     onAddLabel={() => {
                       window.location.href = PATHS.LABEL_NEW_DYNAMIC;
                     }}
-                    disableOptions={!!disableChildren}
+                    disableOptions={!!disableChildren || !isMDMEnabled}
                   />
                 </div>
               )}
@@ -278,22 +342,7 @@ const EditProfileModal = ({
             <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <Button
-                  className={`${baseClass}__update-profile-button`}
-                  onClick={onUpdateProfile}
-                  isLoading={isUpdating}
-                  disabled={
-                    disableChildren ||
-                    isUpdating ||
-                    (selectedTargetType === "Custom" && !hasSelectedLabels)
-                  }
-                >
-                  Update profile
-                </Button>
-              )}
-            />
+            {renderUpdateButton()}
           </div>
         </div>
       )}

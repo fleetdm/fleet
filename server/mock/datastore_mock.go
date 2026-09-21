@@ -256,7 +256,7 @@ type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query st
 
 type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
 
-type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
+type CountAllHostsFunc func(ctx context.Context) (int, error)
 
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
@@ -363,6 +363,8 @@ type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
+
+type CleanupStaleMDMWindowsEnrollmentsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
 
 type CleanupWindowsMDMProfilePriorContentFunc func(ctx context.Context) error
 
@@ -486,21 +488,21 @@ type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fl
 
 type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
-type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error)
+type QueryResultRowsFunc func(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error)
 
 type QueryResultRowsForHostFunc func(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error)
 
-type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error)
-
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
-type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
+type ResultCountsForQueriesFunc func(ctx context.Context, queryIDs []uint) (map[uint]int, error)
+
+type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (fleet.QueryReportWriteResult, error)
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
 type CleanupExcessQueryResultRowsFunc func(ctx context.Context, maxQueryReportRows int, opts ...fleet.CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
-type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
+type ListHostReportsFunc func(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error)
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -558,7 +560,7 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
-type ListSoftwareForVulnDetectionByOSVersionFunc func(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error)
+type ListSoftwareForVulnDetectionByOSVersionFunc func(ctx context.Context, osVer fleet.OSVersion, sources []string) ([]fleet.Software, error)
 
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
 
@@ -868,7 +870,7 @@ type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats 
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
 
-type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *fleet.UpdateHostSoftwareDBResult) error
+type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -930,7 +932,7 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
-type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error)
+type GetHostArchivedDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error)
 
 type IsHostDiskEncryptionKeyArchivedFunc func(ctx context.Context, hostID uint) (bool, error)
 
@@ -2791,8 +2793,8 @@ type DataStore struct {
 	EnrolledHostIDsFunc        EnrolledHostIDsFunc
 	EnrolledHostIDsFuncInvoked bool
 
-	CountEnrolledHostsFunc        CountEnrolledHostsFunc
-	CountEnrolledHostsFuncInvoked bool
+	CountAllHostsFunc        CountAllHostsFunc
+	CountAllHostsFuncInvoked bool
 
 	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
 	CleanupIncomingHostsFuncInvoked bool
@@ -2952,6 +2954,9 @@ type DataStore struct {
 
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
+
+	CleanupStaleMDMWindowsEnrollmentsFunc        CleanupStaleMDMWindowsEnrollmentsFunc
+	CleanupStaleMDMWindowsEnrollmentsFuncInvoked bool
 
 	CleanupWindowsMDMProfilePriorContentFunc        CleanupWindowsMDMProfilePriorContentFunc
 	CleanupWindowsMDMProfilePriorContentFuncInvoked bool
@@ -3142,11 +3147,11 @@ type DataStore struct {
 	QueryResultRowsForHostFunc        QueryResultRowsForHostFunc
 	QueryResultRowsForHostFuncInvoked bool
 
-	ResultCountForQueryFunc        ResultCountForQueryFunc
-	ResultCountForQueryFuncInvoked bool
-
 	ResultCountForQueryAndHostFunc        ResultCountForQueryAndHostFunc
 	ResultCountForQueryAndHostFuncInvoked bool
+
+	ResultCountsForQueriesFunc        ResultCountsForQueriesFunc
+	ResultCountsForQueriesFuncInvoked bool
 
 	OverwriteQueryResultRowsFunc        OverwriteQueryResultRowsFunc
 	OverwriteQueryResultRowsFuncInvoked bool
@@ -6885,11 +6890,11 @@ func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
 	return s.EnrolledHostIDsFunc(ctx)
 }
 
-func (s *DataStore) CountEnrolledHosts(ctx context.Context) (int, error) {
+func (s *DataStore) CountAllHosts(ctx context.Context) (int, error) {
 	s.mu.Lock()
-	s.CountEnrolledHostsFuncInvoked = true
+	s.CountAllHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountEnrolledHostsFunc(ctx)
+	return s.CountAllHostsFunc(ctx)
 }
 
 func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
@@ -7261,6 +7266,13 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	s.CleanupWindowsMDMCommandQueueFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
+}
+
+func (s *DataStore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupStaleMDMWindowsEnrollmentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupStaleMDMWindowsEnrollmentsFunc(ctx, olderThan)
 }
 
 func (s *DataStore) CleanupWindowsMDMProfilePriorContent(ctx context.Context) error {
@@ -7690,11 +7702,11 @@ func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, 
 	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
 }
 
-func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
+func (s *DataStore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.QueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueryResultRowsFunc(ctx, queryID, filter)
+	return s.QueryResultRowsFunc(ctx, queryID, filter, opts)
 }
 
 func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
@@ -7704,13 +7716,6 @@ func (s *DataStore) QueryResultRowsForHost(ctx context.Context, queryID uint, ho
 	return s.QueryResultRowsForHostFunc(ctx, queryID, hostID)
 }
 
-func (s *DataStore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
-	s.mu.Lock()
-	s.ResultCountForQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ResultCountForQueryFunc(ctx, queryID)
-}
-
 func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint, hostID uint) (int, error) {
 	s.mu.Lock()
 	s.ResultCountForQueryAndHostFuncInvoked = true
@@ -7718,11 +7723,18 @@ func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint
 	return s.ResultCountForQueryAndHostFunc(ctx, queryID, hostID)
 }
 
-func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+func (s *DataStore) ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
+	s.mu.Lock()
+	s.ResultCountsForQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResultCountsForQueriesFunc(ctx, queryIDs)
+}
+
+func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int, currentCount int) (fleet.QueryReportWriteResult, error) {
 	s.mu.Lock()
 	s.OverwriteQueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OverwriteQueryResultRowsFunc(ctx, rows, maxQueryReportRows)
+	return s.OverwriteQueryResultRowsFunc(ctx, rows, maxQueryReportRows, currentCount)
 }
 
 func (s *DataStore) CleanupDiscardedQueryResults(ctx context.Context) error {
@@ -7739,11 +7751,11 @@ func (s *DataStore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryRe
 	return s.CleanupExcessQueryResultRowsFunc(ctx, maxQueryReportRows, opts...)
 }
 
-func (s *DataStore) ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts fleet.ListHostReportsOptions) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostReportsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostReportsFunc(ctx, hostID, teamID, hostPlatform, opts, maxQueryReportRows)
+	return s.ListHostReportsFunc(ctx, hostID, teamID, hostPlatform, opts)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -7942,11 +7954,11 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fle
 	return s.ListSoftwareForVulnDetectionFunc(ctx, filter)
 }
 
-func (s *DataStore) ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error) {
+func (s *DataStore) ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer fleet.OSVersion, sources []string) ([]fleet.Software, error) {
 	s.mu.Lock()
 	s.ListSoftwareForVulnDetectionByOSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSoftwareForVulnDetectionByOSVersionFunc(ctx, osVer)
+	return s.ListSoftwareForVulnDetectionByOSVersionFunc(ctx, osVer, sources)
 }
 
 func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
@@ -9027,7 +9039,7 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
 }
 
-func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]struct{}, mutationResults *fleet.UpdateHostSoftwareDBResult) error {
+func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error {
 	s.mu.Lock()
 	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
 	s.mu.Unlock()
@@ -9244,11 +9256,11 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+func (s *DataStore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 	s.mu.Lock()
 	s.GetHostArchivedDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host)
+	return s.GetHostArchivedDiskEncryptionKeyFunc(ctx, host, allowArchivedSerialLookup)
 }
 
 func (s *DataStore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID uint) (bool, error) {

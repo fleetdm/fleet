@@ -4,7 +4,11 @@ import React from "react";
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
-import { IDUPDetails, IHostDevice, IOSSettings } from "interfaces/host";
+import {
+  IDeviceDiskEncryptionSetting,
+  IDUPDetails,
+  IHostDevice,
+} from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import deviceUserAPI, {
@@ -1023,14 +1027,14 @@ describe("BitLocker PIN deep link", () => {
   /** What the device endpoint reports for a Windows host still waiting on a PIN. */
   const needsPIN = (
     fleetdCanSetPIN: boolean
-  ): IOSSettings["disk_encryption"] => ({
+  ): IDeviceDiskEncryptionSetting => ({
     status: "action_required",
     detail: "",
     action_required: "create_pin",
     fleetd_can_set_pin: fleetdCanSetPIN,
   });
 
-  const windowsHost = (diskEncryption: IOSSettings["disk_encryption"]) => {
+  const windowsHost = (diskEncryption: IDeviceDiskEncryptionSetting) => {
     const host = createMockHost() as IHostDevice;
     host.platform = "windows";
     host.mdm.os_settings = {
