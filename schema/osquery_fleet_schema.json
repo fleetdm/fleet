@@ -19983,7 +19983,7 @@
       },
       {
         "name": "arch",
-        "description": "OS Architecture",
+        "description": "CPU architecture (x86 vs ARM, for example)",
         "type": "text",
         "notes": "",
         "hidden": false,
