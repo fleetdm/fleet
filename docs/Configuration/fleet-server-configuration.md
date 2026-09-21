@@ -863,7 +863,7 @@ Only one of `server_private_key_arn` or `server_private_key` can be set.
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_ARN`
 - Config file format:
   ```yaml
   server:
@@ -887,7 +887,7 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   server:

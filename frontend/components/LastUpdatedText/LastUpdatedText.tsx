@@ -1,8 +1,8 @@
 import React from "react";
-import { timeAgo } from "utilities/date_format";
-import { abbreviateTimeUnits } from "utilities/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
+import { timeAgo } from "utilities/date_format";
+import { abbreviateTimeUnits } from "utilities/helpers";
 
 const baseClass = "component__last-updated-text";
 

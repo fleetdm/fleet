@@ -1,3 +1,6 @@
+import { format } from "date-fns";
+import FileSaver from "file-saver";
+import { find, isEmpty, isEqual, omit } from "lodash";
 import React, {
   useState,
   useContext,
@@ -6,59 +9,41 @@ import React, {
   useMemo,
 } from "react";
 import { useMutation, useQuery } from "react-query";
-import { Row } from "react-table";
-import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
-import { find, isEmpty, isEqual, omit } from "lodash";
-import { format } from "date-fns";
-import FileSaver from "file-saver";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { SingleValue } from "react-select-5";
+import { Row } from "react-table";
 
-import scriptsAPI, {
-  IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV1,
-  ScriptBatchHostCountV1,
-} from "services/entities/scripts";
-import enrollSecretsAPI from "services/entities/enroll_secret";
-import usersAPI from "services/entities/users";
-import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-import teamsAPI, {
-  ILoadTeamResponse,
-  ILoadTeamsResponse,
-} from "services/entities/teams";
-import policiesAPI from "services/entities/policies";
-import hostsAPI, {
-  HOSTS_QUERY_PARAMS as PARAMS,
-  ILoadHostsQueryKey,
-  ILoadHostsResponse,
-  ISortOption,
-  MacSettingsStatusQueryParam,
-  HOSTS_QUERY_PARAMS,
-} from "services/entities/hosts";
-import hostCountAPI, {
-  IHostsCountQueryKey,
-  IHostsCountResponse,
-} from "services/entities/host_count";
-import configProfileAPI, {
-  IGetConfigProfileResponse,
-} from "services/entities/config_profiles";
-
-import {
-  getOSVersions,
-  IGetOSVersionsQueryKey,
-  IOSVersionsResponse,
-} from "services/entities/operating_systems";
-
-import PATHS from "router/paths";
+import ActionsDropdown from "components/ActionsDropdown";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import FleetsDropdown from "components/FleetsDropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
-
 import useTeamIdParam from "hooks/useTeamIdParam";
-
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
 import { ILabel } from "interfaces/label";
+import {
+  DiskEncryptionStatus,
+  BootstrapPackageStatus,
+  MdmProfileStatus,
+} from "interfaces/mdm";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import {
@@ -67,15 +52,41 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { IEmptyStateProps } from "interfaces/empty_state";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
+import PATHS from "router/paths";
+import configProfileAPI, {
+  IGetConfigProfileResponse,
+} from "services/entities/config_profiles";
+import enrollSecretsAPI from "services/entities/enroll_secret";
+import hostCountAPI, {
+  IHostsCountQueryKey,
+  IHostsCountResponse,
+} from "services/entities/host_count";
+import hostsAPI, {
+  HOSTS_QUERY_PARAMS as PARAMS,
+  ILoadHostsQueryKey,
+  ILoadHostsResponse,
+  ISortOption,
+  MacSettingsStatusQueryParam,
+  HOSTS_QUERY_PARAMS,
+} from "services/entities/hosts";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import {
-  DiskEncryptionStatus,
-  BootstrapPackageStatus,
-  MdmProfileStatus,
-} from "interfaces/mdm";
-
-import sortUtils from "utilities/sort";
+  getOSVersions,
+  IGetOSVersionsQueryKey,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
+import policiesAPI from "services/entities/policies";
+import scriptsAPI, {
+  IScriptBatchSummaryQueryKey,
+  IScriptBatchSummaryV1,
+  ScriptBatchHostCountV1,
+} from "services/entities/scripts";
+import teamsAPI, {
+  ILoadTeamResponse,
+  ILoadTeamsResponse,
+} from "services/entities/teams";
+import usersAPI from "services/entities/users";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -84,31 +95,27 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
-import { getPathWithQueryParams } from "utilities/url";
-import getDeleteLabelErrorMessages from "pages/labels/helpers";
+import sortUtils from "utilities/sort";
 import { strToBool } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import TableContainer from "components/TableContainer";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import DataError from "components/DataError";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
-import FleetsDropdown from "components/FleetsDropdown";
-import ActionsDropdown from "components/ActionsDropdown";
-import Spinner from "components/Spinner";
-import MainContent from "components/MainContent";
-import EmptyState from "components/EmptyState";
-import {
-  defaultHiddenColumns,
-  generateVisibleTableColumns,
-  generateAvailableTableHeaders,
-} from "./HostTableConfig";
+import AddHostsModal from "../../../components/AddHostsModal";
+import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
+import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
+import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
+import DeleteHostModal from "../components/DeleteHostModal";
+import { getSharedDeleteHostTarget } from "../components/DeleteHostModal/helpers";
+import TransferHostModal from "../components/TransferHostModal";
+
+import DeleteLabelModal from "./components/DeleteLabelModal";
+// @ts-ignore
+import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
+import HostActivityAutomationsModal from "./components/HostActivityAutomationsModal";
+import { IHostActivityAutomationsFormData } from "./components/HostActivityAutomationsModal/HostActivityAutomationsModal";
+import HostsFilterBlock from "./components/HostsFilterBlock";
+import LabelFilterSelect from "./components/LabelFilterSelect";
+import RunScriptBatchModal from "./components/RunScriptBatchModal";
+import { isAcceptableStatus } from "./helpers";
 import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
@@ -120,22 +127,11 @@ import {
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
-import { isAcceptableStatus } from "./helpers";
-
-import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
-import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
-import AddHostsModal from "../../../components/AddHostsModal";
-import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
-// @ts-ignore
-import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
-import TransferHostModal from "../components/TransferHostModal";
-import DeleteHostModal from "../components/DeleteHostModal";
-import DeleteLabelModal from "./components/DeleteLabelModal";
-import LabelFilterSelect from "./components/LabelFilterSelect";
-import HostsFilterBlock from "./components/HostsFilterBlock";
-import RunScriptBatchModal from "./components/RunScriptBatchModal";
-import HostActivityAutomationsModal from "./components/HostActivityAutomationsModal";
-import { IHostActivityAutomationsFormData } from "./components/HostActivityAutomationsModal/HostActivityAutomationsModal";
+import {
+  defaultHiddenColumns,
+  generateVisibleTableColumns,
+  generateAvailableTableHeaders,
+} from "./HostTableConfig";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -548,6 +544,8 @@ const ManageHostsPage = ({
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
+
+  const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
 
   const {
     data: teams,
@@ -1664,8 +1662,8 @@ const ManageHostsPage = ({
 
   const renderAddHostsModal = () => {
     const enrollSecret = isAnyTeamSelected
-      ? teamSecrets?.[0].secret
-      : globalSecrets?.[0].secret;
+      ? teamSecrets?.[0]?.secret
+      : globalSecrets?.[0]?.secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
@@ -1696,16 +1694,35 @@ const ManageHostsPage = ({
     );
   };
 
-  const renderDeleteHostModal = () => (
-    <DeleteHostModal
-      selectedHostIds={selectedHostIds}
-      onSubmit={onDeleteHostSubmit}
-      onCancel={toggleDeleteHostModal}
-      isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      hostsCount={totalFilteredHostsCount}
-      isUpdating={isUpdating}
-    />
-  );
+  const renderDeleteHostModal = () => {
+    // Only the rows on the current page are known, so a "select all matching"
+    // delete keeps the generic copy.
+    const selectedHosts = isAllMatchingHostsSelected
+      ? []
+      : (hostsData?.hosts ?? []).filter((host) =>
+          selectedHostIds.includes(host.id)
+        );
+    const sharedTarget =
+      selectedHosts.length === selectedHostIds.length
+        ? getSharedDeleteHostTarget(selectedHosts)
+        : undefined;
+    return (
+      <DeleteHostModal
+        selectedHostIds={selectedHostIds}
+        hostName={
+          selectedHosts.length === 1 ? selectedHosts[0].display_name : undefined
+        }
+        platform={sharedTarget?.platform}
+        isMdmEnrolledInFleet={sharedTarget?.isMdmEnrolledInFleet}
+        mdmEnrollmentStatus={sharedTarget?.mdmEnrollmentStatus}
+        onSubmit={onDeleteHostSubmit}
+        onCancel={toggleDeleteHostModal}
+        isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+        hostsCount={totalFilteredHostsCount}
+        isUpdating={isUpdating}
+      />
+    );
+  };
 
   const renderHeaderContent = () => {
     if (isPremiumTier && !isPrimoMode && userTeams) {
@@ -2143,6 +2160,9 @@ const ManageHostsPage = ({
   };
 
   const renderNoEnrollSecretBanner = () => {
+    if (useOneTimeEnrollSecrets) {
+      return null;
+    }
     const noTeamEnrollSecrets =
       isAnyTeamSelected && !isTeamSecretsLoading && !teamSecrets?.length;
     const noGlobalEnrollSecrets =
@@ -2157,17 +2177,19 @@ const ManageHostsPage = ({
         <InfoBanner
           className={`${baseClass}__no-enroll-secret-banner`}
           color="yellow"
+          cta={
+            <Button
+              variant="link"
+              onClick={() => setShowEnrollSecretModal(true)}
+            >
+              Add enroll secret
+            </Button>
+          }
         >
           <div>
             <span>
-              You have no enroll secrets.{" "}
-              <Button
-                variant="link"
-                onClick={() => setShowEnrollSecretModal(true)}
-              >
-                Manage enroll secrets
-              </Button>{" "}
-              to enroll hosts to{" "}
+              You have no enroll secrets. New hosts will not enroll until an
+              enroll secret is added to{" "}
               <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>

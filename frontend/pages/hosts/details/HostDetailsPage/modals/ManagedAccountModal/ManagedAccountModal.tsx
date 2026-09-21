@@ -1,19 +1,18 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
 import { IHostManagedAccountPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { monthDayTimeFormat } from "utilities/date_format";
-import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "managed-account-modal";
 

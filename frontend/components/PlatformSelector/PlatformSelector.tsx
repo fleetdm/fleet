@@ -1,13 +1,13 @@
-import React from "react";
 import classNames from "classnames";
+import React from "react";
 
-import { IPolicySoftwareToInstall } from "interfaces/policy";
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
-import { getPathWithQueryParams } from "utilities/url";
-import paths from "router/paths";
+import { IPolicySoftwareToInstall } from "interfaces/policy";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IPlatformSelectorProps {
   baseClass?: string;

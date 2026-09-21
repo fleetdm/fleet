@@ -1,0 +1,1 @@
+* Adding a Windows Fleet-maintained app to a fleet that already has a different Fleet-maintained app on the same software title (for example, the x64 and ARM64 builds of Firefox Nightly, which both register as "Firefox Nightly") now fails with a clear "Only one of X or Y can be added to the same fleet" error instead of a duplicate-installer error.

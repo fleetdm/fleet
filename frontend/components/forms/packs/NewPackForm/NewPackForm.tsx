@@ -1,17 +1,16 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
-import Button from "components/buttons/Button";
-import { IQuery } from "interfaces/query";
-import { ITarget, ITargetsAPIResponse } from "interfaces/target";
-import { IEditPackFormData } from "interfaces/pack";
-import PATHS from "router/paths";
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-
-import InputField from "components/forms/fields/InputField";
 import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
+import { IEditPackFormData } from "interfaces/pack";
+import { IQuery } from "interfaces/query";
+import { ITarget, ITargetsAPIResponse } from "interfaces/target";
+import PATHS from "router/paths";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 const baseClass = "new-pack-form";
 

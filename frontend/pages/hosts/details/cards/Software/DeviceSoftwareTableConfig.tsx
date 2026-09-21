@@ -1,16 +1,14 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { formatSoftwareType, IHostSoftware } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
-import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { formatSoftwareType, IHostSoftware } from "interfaces/software";
+import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -39,11 +37,18 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, display_name, source, icon_url } = cellProps.row.original;
+        const {
+          name,
+          display_name,
+          bundle_identifier,
+          source,
+          icon_url,
+        } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             pageContext="deviceUser"

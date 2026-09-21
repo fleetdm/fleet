@@ -1,20 +1,19 @@
 import React, { ReactNode, useCallback, useMemo } from "react";
 
-import { IHostReport } from "services/entities/host_reports";
-import { humanLastSeen } from "utilities/helpers";
-import { pluralize } from "utilities/strings/stringUtils";
-
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
-import ActionsDropdown from "components/ActionsDropdown";
-import { IDropdownOption } from "interfaces/dropdownOption";
 import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
+import { humanLastSeen } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
 const ICON_COLOR: Colors = "ui-fleet-black-75";
@@ -183,7 +182,7 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <Tag tooltip="This report has paused saving results. If automations are enabled, results are still sent to your log destination.">
+            <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
             </Tag>

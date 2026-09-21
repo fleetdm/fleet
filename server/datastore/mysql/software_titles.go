@@ -761,6 +761,9 @@ SELECT
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
 		,iha.install_during_setup as in_house_app_install_during_setup
+		,sus.enabled as auto_update_enabled
+		,sus.start_time as auto_update_window_start
+		,sus.end_time as auto_update_window_end
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -772,6 +775,7 @@ FROM software_titles st
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
+		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = {{teamID .}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
@@ -866,6 +870,9 @@ GROUP BY
 		,in_house_app_storage_id
 		,in_house_app_self_service
 		,in_house_app_install_during_setup
+		,auto_update_enabled
+		,auto_update_window_start
+		,auto_update_window_end
 	{{end}}
 `
 	var args []any
@@ -1074,7 +1081,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			iha.platform AS in_house_app_platform,
 			iha.storage_id AS in_house_app_storage_id,
 			iha.self_service AS in_house_app_self_service,
-			iha.install_during_setup AS in_house_app_install_during_setup`
+			iha.install_during_setup AS in_house_app_install_during_setup,
+			sus.enabled AS auto_update_enabled,
+			sus.start_time AS auto_update_window_start,
+			sus.end_time AS auto_update_window_end`
 	}
 
 	outerSQL += fmt.Sprintf(`
@@ -1095,7 +1105,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-			AND vat.global_or_team_id = %[1]d`, teamID)
+			AND vat.global_or_team_id = %[1]d
+		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %[1]d`, teamID)
 	}
 
 	outerSQL += `

@@ -249,6 +249,58 @@ func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigIdPIntrospection(t *testing.T) {
+	setup := func(t *testing.T, tier string, ds *mock.Store) (fleet.Service, context.Context) {
+		cfg := config.TestConfig()
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: tier},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		stored := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return stored.Copy(), nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*stored = *conf
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
+		return svc, ctx
+	}
+
+	// The whitespace matters: only the validator trims it, so the premium assertions below double
+	// as proof that it is wired into ModifyAppConfig. Its individual rules, and the certificate
+	// request behavior these settings drive, are covered in their own packages.
+	const body = `{"integrations":{"certificates_idp_introspection_urls":["  https://Company.Okta.com:443/oauth2/v1/introspect/  "],"certificates_idp_client_ids":[" abc "],"certificates_disable_host_end_user_binding":true}}`
+
+	// Free tier rejects both allowlists by name and saves nothing. Disabling the binding is a
+	// relaxation rather than a licensed feature, so it passes on any tier.
+	freeDS := new(mock.Store)
+	freeSvc, freeCtx := setup(t, fleet.TierFree, freeDS)
+	_, err := freeSvc.ModifyAppConfig(freeCtx, []byte(body), fleet.ApplySpecOptions{})
+	// Error() reports only the first entry plus a count, and InvalidArgument keeps its fields
+	// unexported, so format the list to assert every setting was named.
+	invalid := new(fleet.InvalidArgumentError)
+	require.ErrorAs(t, err, &invalid)
+	rejected := fmt.Sprintf("%+v", invalid.Errors)
+	require.Contains(t, rejected, "integrations.certificates_idp_introspection_urls")
+	require.Contains(t, rejected, "integrations.certificates_idp_client_ids")
+	require.NotContains(t, rejected, "integrations.certificates_disable_host_end_user_binding")
+	require.False(t, freeDS.SaveAppConfigFuncInvoked)
+
+	// Premium accepts them, and stores the URL as given rather than canonicalized.
+	premiumSvc, premiumCtx := setup(t, fleet.TierPremium, new(mock.Store))
+	saved, err := premiumSvc.ModifyAppConfig(premiumCtx, []byte(body), fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"https://Company.Okta.com:443/oauth2/v1/introspect/"}, saved.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	require.Equal(t, []string{"abc"}, saved.Integrations.CertificatesIdPClientIDs.Value)
+	require.True(t, saved.Integrations.CertificatesDisableHostEndUserBinding.Value)
+}
+
 // TestVersion tests that all users can access the version endpoint.
 func TestVersion(t *testing.T) {
 	ds := new(mock.Store)
@@ -4160,5 +4212,37 @@ func TestWindowsEnableManagedLocalAccountKeyIsNotAliased(t *testing.T) {
 
 		assert.Equal(t, true, windowsSettings(t, out)["enable_managed_local_account"])
 		assert.Empty(t, r.UsedDeprecatedKeys())
+	})
+}
+
+func TestAuthSettings(t *testing.T) {
+	newSvc := func(t *testing.T, useOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		return newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	}
+
+	t.Run("omitted when the flag is off", func(t *testing.T) {
+		svc, ctx := newSvc(t, false)
+		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
+		require.NoError(t, err)
+		require.Nil(t, settings)
+	})
+
+	t.Run("reported when the flag is on, to any user who can read the config", func(t *testing.T) {
+		svc, ctx := newSvc(t, true)
+		for _, user := range []*fleet.User{test.UserAdmin, test.UserObserver} {
+			settings, err := svc.AuthSettings(test.UserContext(ctx, user))
+			require.NoError(t, err)
+			require.NotNil(t, settings)
+			require.True(t, settings.UseOneTimeEnrollSecrets)
+		}
+	})
+
+	t.Run("requires an authenticated user", func(t *testing.T) {
+		svc, ctx := newSvc(t, true)
+		_, err := svc.AuthSettings(ctx)
+		require.Error(t, err)
 	})
 }

@@ -12,13 +12,15 @@
  * - dynamic name/icon/version
  */
 
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
+
 import Card from "components/Card";
-import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
+import Icon from "components/Icon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import SelfServiceHeader from "pages/hosts/details/cards/Software/SelfService/components/SelfServiceHeader";
+
 import PreviewSelfServiceMobileIcon from "../../../../../../assets/images/preview-self-service-mobile-icon.png";
 
 const baseClass = "self-service-preview";

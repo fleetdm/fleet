@@ -1,10 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
+
+import createMockPolicy from "__mocks__/policyMock";
+import createMockUser from "__mocks__/userMock";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
-import createMockUser from "__mocks__/userMock";
-import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
 
 const mockRouter = createMockRouter();

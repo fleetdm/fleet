@@ -1,26 +1,25 @@
 import React from "react";
-import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
+import { CellProps, Column } from "react-table";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   ISoftwareTitle,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import VersionCell from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
+
 import { getVulnerabilities } from "./helpers";
 
 // NOTE: cellProps come from react-table
@@ -86,6 +85,7 @@ const getSoftwareNameCellData = (
   return {
     name: softwareTitle.name,
     displayName: softwareTitle.display_name,
+    bundleIdentifier: softwareTitle.bundle_identifier,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
     hasInstaller: hasInstaller && !isAllTeams,
@@ -120,6 +120,7 @@ const generateTableHeaders = (
           <SoftwareNameCell
             name={nameCellData.name}
             display_name={nameCellData.displayName}
+            bundle_identifier={nameCellData.bundleIdentifier}
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}
@@ -131,6 +132,12 @@ const generateTableHeaders = (
             }
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!cellProps.row.original.app_store_app}
+            autoUpdateEnabled={cellProps.row.original.auto_update_enabled}
+            autoUpdateWindowStart={
+              cellProps.row.original.auto_update_window_start
+            }
+            autoUpdateWindowEnd={cellProps.row.original.auto_update_window_end}
           />
         );
       },

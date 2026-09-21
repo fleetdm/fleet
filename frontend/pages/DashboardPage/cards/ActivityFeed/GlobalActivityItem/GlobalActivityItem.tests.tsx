@@ -1,10 +1,11 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-import { ActivityType } from "interfaces/activity";
+import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import GlobalActivityItem from ".";
 
@@ -488,22 +489,22 @@ describe("Activity Feed", () => {
 
   it("correctly renders a changed_user_global_role type activity for a premium SSO user created by JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 3,
       type: ActivityType.UserChangedGlobalRole,
       details: {
-        user_id: 3,
         user_email: "jit@sso.com",
         role: "observer",
+        jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    //  If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> for all fleets."
+    // "<user_email> was assigned the <role> role for all fleets via just-in-time (JIT) provisioning."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
     expect(screen.getByText("observer")).toBeInTheDocument();
-    expect(screen.getByText(/role for all fleets./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
   });
 
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
@@ -576,30 +577,49 @@ describe("Activity Feed", () => {
 
   it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
     const activity = createMockActivity({
-      actor_id: 1,
       actor_full_name: "Ally Admin",
       type: ActivityType.UserChangedTeamRole,
       details: {
-        user_id: 1,
         user_email: "jit@sso.com",
         role: "maintainer",
+        team_name: "Test Team",
+        jit: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // "<user_email> was assigned the <role> role for the <team_name> fleet via just-in-time (JIT) provisioning."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
+
+    expect(screen.queryByText("Ally Admin")).toBeNull();
+    const forAllTeams = screen.queryByText("for all fleets.");
+    expect(forAllTeams).toBeNull();
+  });
+
+  it("renders passive voice without JIT suffix for changed_user_team_role when actor_id === user_id (invite flow)", () => {
+    const activity = createMockActivity({
+      actor_id: 5,
+      type: ActivityType.UserChangedTeamRole,
+      details: {
+        user_id: 5,
+        user_email: "invited@example.com",
+        role: "observer",
         team_name: "Test Team",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    // If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> role for the <team_name> fleet."
-    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText("invited@example.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
-    expect(screen.getByText("maintainer")).toBeInTheDocument();
-    expect(screen.getByText(/role for the/)).toBeInTheDocument();
-    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
-    expect(screen.getByText(/fleet\./)).toBeInTheDocument();
-
-    expect(screen.queryByText("Ally Admin")).toBeNull();
-    const forAllTeams = screen.queryByText("for all fleets.");
-    expect(forAllTeams).toBeNull();
+    expect(screen.getByText("observer")).toBeInTheDocument();
+    expect(screen.getByText("Test Team")).toBeInTheDocument();
+    expect(screen.queryByText(/via just-in-time/)).toBeNull();
   });
 
   it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
@@ -646,6 +666,28 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
+  it("renders a deleted_user_team_role via JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit User",
+      type: ActivityType.UserDeletedTeamRole,
+      details: {
+        user_email: "jit@sso.com",
+        team_name: "Test Team",
+        jit: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // "<user_email> was removed from the <team_name> fleet via just-in-time (JIT) provisioning."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was removed from the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Team")).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Jit User")).toBeNull();
+  });
+
   it("renders a deleted_user_global_role type activity globally for premium users", () => {
     const activity = createMockActivity({
       type: ActivityType.UserDeletedGlobalRole,
@@ -673,6 +715,28 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     const forAllTeams = screen.queryByText("for all fleets.");
     expect(forAllTeams).toBeNull();
+  });
+
+  it("renders a deleted_user_global_role via JIT provisioning for premium users", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit User",
+      type: ActivityType.UserDeletedGlobalRole,
+      details: {
+        user_email: "jit@sso.com",
+        role: "maintainer",
+        jit: true,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // "<user_email> was removed as <role> for all fleets via just-in-time (JIT) provisioning."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was removed as/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(
+      screen.getByText(/via just-in-time \(JIT\) provisioning\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Jit User")).toBeNull();
   });
 
   it("renders an 'edited_disk_encryption_settings' type activity for a fleet", () => {
@@ -1458,6 +1522,79 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
+  });
+
+  describe("host_enrollment_rejected", () => {
+    const renderRejected = (
+      details: Partial<IActivityDetails>,
+      onDetailsClick = jest.fn()
+    ) =>
+      render(
+        <GlobalActivityItem
+          activity={createMockActivity({
+            type: ActivityType.HostEnrollmentRejected,
+            actor_full_name: "",
+            actor_id: 0,
+            fleet_initiated: true,
+            created_at: "2026-01-01T00:00:00Z",
+            details,
+          })}
+          isPremiumTier
+          onDetailsClick={onDetailsClick}
+        />
+      );
+
+    it("renders Fleet as the actor and names the host", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_display_name: "Anna's MacBook Pro",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("Fleet")).toBeInTheDocument();
+      expect(
+        screen.getByText(/rejected an enrollment for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+    });
+
+    it("falls back to the serial number when there is no display name", () => {
+      renderRejected({
+        reason: "one_time_secret_spent",
+        host_serial: "C02ABC",
+      });
+      expect(screen.getByText("C02ABC")).toBeInTheDocument();
+      expect(
+        screen.getByText(/a host with serial number/i)
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to 'a host' when there is no display name or serial", () => {
+      renderRejected({ reason: "something_new" });
+      expect(
+        screen.getByText(/rejected an enrollment for a host\./i)
+      ).toBeInTheDocument();
+    });
+
+    it("offers details and passes the reason and time to the handler", async () => {
+      const onDetailsClick = jest.fn();
+      renderRejected(
+        { reason: "one_time_secret_spent", host_display_name: "X" },
+        onDetailsClick
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: /show info/i }));
+
+      expect(onDetailsClick).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: ActivityType.HostEnrollmentRejected,
+          created_at: "2026-01-01T00:00:00Z",
+          details: expect.objectContaining({
+            reason: "one_time_secret_spent",
+            host_display_name: "X",
+          }),
+        })
+      );
+    });
   });
 
   it("renders a 'fleet_enrolled' type activity with display name and serial", () => {
