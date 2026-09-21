@@ -46,6 +46,11 @@ func (f *fakeSessionStore) Fullfill(sessionID string) (*Session, error) {
 func TestSAMLProviderFromSessionOrConfiguredMetadataRequestIDValidation(t *testing.T) {
 	tm, err := time.Parse(time.UnixDate, "Sun Apr 30 22:09:50 UTC 2017")
 	require.NoError(t, err)
+	oldTimeNow, oldClock := saml.TimeNow, saml.Clock
+	t.Cleanup(func() {
+		saml.TimeNow = oldTimeNow
+		saml.Clock = oldClock
+	})
 	saml.TimeNow = func() time.Time { return tm }
 	saml.Clock = dsig.NewFakeClockAt(tm)
 
