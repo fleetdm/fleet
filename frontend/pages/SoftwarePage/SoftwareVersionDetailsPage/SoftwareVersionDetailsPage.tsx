@@ -17,6 +17,7 @@ import { DisplayPlatform } from "interfaces/platform";
 import {
   ISoftwareVersion,
   formatSoftwareType,
+  formatSoftwareVersion,
   isIpadOrIphoneSoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
@@ -181,7 +182,7 @@ const SoftwareVersionDetailsPage = ({
                   softwareVersion.name,
                   softwareVersion.display_name,
                   softwareVersion.bundle_identifier
-                )}, ${softwareVersion.version}`}
+                )}, ${formatSoftwareVersion(softwareVersion)}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
                 queryParams={{

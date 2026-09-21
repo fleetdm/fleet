@@ -1233,6 +1233,7 @@ type HostSoftwareInstalledVersion struct {
 	SoftwareTitleID  uint       `json:"-" db:"software_title_id"`
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
+	Release          string     `json:"release,omitempty" db:"release"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
