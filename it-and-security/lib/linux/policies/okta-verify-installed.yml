@@ -1,31 +1,32 @@
-# These policies push Okta Verify to Linux workstations that are already enrolled (in addition
-# to `setup_experience: true` on the software packages, which installs Okta Verify during initial
+# This policy pushes Okta Verify to Ubuntu workstations that are already enrolled (in addition to
+# `setup_experience: true` on the software package, which installs Okta Verify during initial
 # enrollment/setup for new hosts). When a host fails the policy (Okta Verify isn't installed yet),
 # Fleet automatically installs it via `install_software.package_path`.
 #
-# NOTE: the package name checked below ('okta-verify') is an assumption based on Okta's naming
-# convention for other platforms and should be confirmed against the actual .deb/.rpm once it's
-# downloaded from the Okta Admin Console. See release notes:
+# Okta ships Okta Verify for Linux as an Ubuntu-only package (24.04 LTS and 26.04 LTS), so every
+# other Linux release passes this policy unevaluated, the same way `latest-linux.yml` skips
+# distributions it has no rule for. See release notes:
 # https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm
-- name: Okta Verify installed (Debian-based Linux)
-  query: SELECT 1 FROM deb_packages WHERE name = 'okta-verify' LIMIT 1;
+#
+# NOTE: the package name checked below ('okta-verify') is an assumption based on Okta's naming
+# convention for other platforms and should be confirmed against the actual .deb once it's
+# downloaded from the Okta Admin Console.
+- name: Okta Verify installed (Ubuntu)
+  query: |
+    SELECT 1 FROM os_version WHERE
+      CASE
+        -- Okta Verify for Linux supports Ubuntu 24.04 LTS and 26.04 LTS.
+        WHEN platform = 'ubuntu' AND major IN (24, 26) AND minor = 4 THEN
+          EXISTS (SELECT 1 FROM deb_packages WHERE name = 'okta-verify')
+        -- Any other Linux release is out of scope for Okta Verify and is not evaluated.
+        ELSE 1
+      END;
   critical: false
-  description: This policy checks that Okta Verify is installed on Debian-based Linux workstations.
+  description: This policy checks that Okta Verify is installed on Ubuntu workstations.
   resolution: "Okta Verify is managed by IT and installs automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it."
   platform: linux
   labels_include_all:
-    - "Debian-based Linux hosts"
+    - "Ubuntu hosts"
     - "x86-based Linux hosts"
   install_software:
     package_path: ../software/okta-verify-deb.yml
-- name: Okta Verify installed (RPM-based Linux)
-  query: SELECT 1 FROM rpm_packages WHERE name = 'okta-verify' LIMIT 1;
-  critical: false
-  description: This policy checks that Okta Verify is installed on RPM-based Linux workstations.
-  resolution: "Okta Verify is managed by IT and installs automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it."
-  platform: linux
-  labels_include_all:
-    - "RPM-based Linux hosts"
-    - "x86-based Linux hosts"
-  install_software:
-    package_path: ../software/okta-verify-rpm.yml

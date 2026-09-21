@@ -300,15 +300,7 @@ software:
       categories:
         - Security
       labels_include_all:
-        - "Debian-based Linux hosts"
-        - "x86-based Linux hosts"
-    - path: ../lib/linux/software/okta-verify-rpm.yml # Okta Verify for RedHat (x86_64)
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
-      labels_include_all:
-        - "RPM-based Linux hosts"
+        - "Ubuntu hosts"
         - "x86-based Linux hosts"
     - path: ../lib/linux/scripts/install-claude-desktop.sh # Claude for Debian-based Linux (script-only package)
       display_name: Claude

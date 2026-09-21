@@ -1,6 +1,0 @@
-# TODO: Okta does not publish a stable public download URL for Okta Verify for Linux (.rpm).
-# The installer must be downloaded from this org's Okta Admin Console (Settings > Downloads)
-# and re-hosted somewhere Fleet can fetch it (e.g. an internal S3 bucket), then this URL
-# updated accordingly. See release notes: https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm
-url: https://REPLACE_ME.example.com/okta-verify/okta-verify-linux-latest-x86_64.rpm
-display_name: Okta Verify
