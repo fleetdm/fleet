@@ -119,6 +119,10 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareSearchByBundleAndDisplayName", testListHostSoftwareSearchByBundleAndDisplayName},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
+		{
+			"TestListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForAnotherPlatform",
+			testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForAnotherPlatform,
+		},
 		{"TestListHostSoftwareLastOpenedAt", testListHostSoftwareLastOpenedAt},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
@@ -10247,6 +10251,116 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 0)
+}
+
+func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForAnotherPlatform(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+	}
+
+	cases := []struct {
+		name             string
+		teamID           *uint
+		adamID           string
+		softwareChecksum string
+	}{
+		{name: "no team", teamID: nil, adamID: "adam_no_team", softwareChecksum: "whatsap1"},
+		{name: "team1", teamID: &tm.ID, adamID: "adam_team1", softwareChecksum: "whatsap2"},
+	}
+
+	for _, c := range cases {
+		host := test.NewHost(t, ds, "host_"+c.name, "", "key_"+c.name, "uuid_"+c.name, time.Now(), test.WithPlatform("darwin"))
+		nanoEnroll(t, ds, host, false)
+		if c.teamID != nil {
+			err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(c.teamID, []uint{host.ID}))
+			require.NoError(t, err, c.name)
+			host.TeamID = c.teamID
+		}
+
+		// the macOS app targets a custom label, the iOS app with the same adam id targets all hosts
+		macOSApp := &fleet.VPPApp{
+			SelfService:      true,
+			AdamID:           c.adamID,
+			Platform:         fleet.MacOSPlatform,
+			Name:             "WhatsApp",
+			BundleIdentifier: "net.whatsapp.WhatsApp" + c.name,
+			LatestVersion:    "2.0.0",
+		}
+		_, err = ds.InsertVPPAppWithTeam(ctx, macOSApp, c.teamID)
+		require.NoError(t, err, c.name)
+
+		iOSApp := &fleet.VPPApp{
+			SelfService:      true,
+			AdamID:           c.adamID,
+			Platform:         fleet.IOSPlatform,
+			Name:             "WhatsApp",
+			BundleIdentifier: "net.whatsapp.WhatsApp" + c.name,
+			LatestVersion:    "2.0.0",
+		}
+		_, err = ds.InsertVPPAppWithTeam(ctx, iOSApp, c.teamID)
+		require.NoError(t, err, c.name)
+
+		targetLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "Target label " + c.name})
+		require.NoError(t, err, c.name)
+		host.LabelUpdatedAt = time.Now()
+		err = ds.UpdateHost(ctx, host)
+		require.NoError(t, err, c.name)
+
+		err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), macOSApp.VPPAppTeam.AppTeamID, fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName:     map[string]fleet.LabelIdent{targetLabel.Name: {LabelName: targetLabel.Name, LabelID: targetLabel.ID}},
+		}, softwareTypeVPP)
+		require.NoError(t, err, c.name)
+
+		scoped, err := ds.IsVPPAppLabelScoped(ctx, macOSApp.VPPAppTeam.AppTeamID, host.ID)
+		require.NoError(t, err, c.name)
+		require.False(t, scoped, c.name)
+
+		// the host reports an older version of the app in inventory, installed outside of Fleet
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum) VALUES (?, ?, ?, ?, ?, ?)`,
+				macOSApp.Name, "1.0.0", "apps", macOSApp.BundleIdentifier, macOSApp.TitleID, hex.EncodeToString([]byte(c.softwareChecksum)))
+			require.NoError(t, err)
+			softwareID, err := res.LastInsertId()
+			require.NoError(t, err)
+			_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, host.ID, softwareID)
+			require.NoError(t, err)
+			return nil
+		})
+
+		// the in-scope iOS app must not put the out-of-scope macOS app back in self-service
+		sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err, c.name)
+		require.Empty(t, sw, c.name)
+
+		// once the host is a member of the target label the macOS app shows up again
+		err = ds.AddLabelsToHost(ctx, host.ID, []uint{targetLabel.ID})
+		require.NoError(t, err, c.name)
+		host.LabelUpdatedAt = time.Now()
+		err = ds.UpdateHost(ctx, host)
+		require.NoError(t, err, c.name)
+
+		sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err, c.name)
+		require.Len(t, sw, 1, c.name)
+		require.Equal(t, macOSApp.TitleID, sw[0].ID, c.name)
+		require.NotNil(t, sw[0].AppStoreApp, c.name)
+	}
 }
 
 func testDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
