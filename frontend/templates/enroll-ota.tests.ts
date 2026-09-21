@@ -34,6 +34,9 @@ let doc: Document;
 // properties are unforgeable and therefore impossible to stub.
 let jsdomErrors: string[];
 
+// What jsdom reports instead of reloading.
+const NAVIGATION_ERROR = "Not implemented: navigation (except hash changes)";
+
 const setVisibility = (state: "visible" | "hidden") => {
   Object.defineProperty(doc, "visibilityState", {
     configurable: true,
@@ -118,6 +121,10 @@ const isPostEnrollScreen = () =>
   doc.querySelector("#main-content h1")?.textContent === "Already finished?";
 
 describe("enroll-ota.html — Android", () => {
+  afterEach(() => {
+    dom?.window.close();
+  });
+
   it("renders the enroll screen with the enrollment URL from the API", async () => {
     const { fetchMock } = await loadAndroidPage();
 
@@ -167,15 +174,21 @@ describe("enroll-ota.html — Android", () => {
     expect(doc.querySelector(".enroll-link")).not.toBeNull();
   });
 
-  it("only swaps once, so returning to a hidden tab doesn't re-render", async () => {
+  it("stops listening once it has swapped, so later backgrounding is inert", async () => {
     await loadAndroidPage();
 
     clickEnroll();
     setVisibility("hidden");
+    const firstRender = doc.querySelector(".refresh-link");
+    expect(firstRender).not.toBeNull();
+
     setVisibility("visible");
     setVisibility("hidden");
 
-    expect(doc.querySelectorAll("#main-content h1")).toHaveLength(1);
+    // Node identity, not markup: a second swap clears #main-content and clones
+    // an identical-looking screen, so only a reference check catches a listener
+    // that never removed itself.
+    expect(doc.querySelector(".refresh-link")).toBe(firstRender);
     expect(isPostEnrollScreen()).toBe(true);
   });
 
@@ -194,8 +207,9 @@ describe("enroll-ota.html — Android", () => {
     });
     refreshLink?.dispatchEvent(event);
 
-    // The reload, and the href="#" left unfollowed.
-    expect(jsdomErrors).toEqual([expect.stringContaining("navigation")]);
+    // The reload, and the href="#" left unfollowed. jsdom implements hash
+    // changes, so this error can only have come from reload().
+    expect(jsdomErrors).toEqual([NAVIGATION_ERROR]);
     expect(event.defaultPrevented).toBe(true);
   });
 
@@ -208,5 +222,8 @@ describe("enroll-ota.html — Android", () => {
     expect(doc.querySelector(".error-title")?.textContent).toBe(
       "Couldn't get Android enrollment token."
     );
+    // Pre-existing: renderError appends, so the dead Enroll button is still
+    // above the error. Asserted to pin the behaviour, not to endorse it.
+    expect(doc.querySelector(".enroll-link")?.getAttribute("href")).toBe("");
   });
 });
