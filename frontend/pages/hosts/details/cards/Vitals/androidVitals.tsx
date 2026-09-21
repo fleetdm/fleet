@@ -1,5 +1,9 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHost,
   IHostMdmAndroidTelephonyInfo,
@@ -11,11 +15,6 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 import { readableDate } from "utilities/helpers";
-
-import CustomLink from "components/CustomLink";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import type { VitalForSort } from "./Vitals";
 

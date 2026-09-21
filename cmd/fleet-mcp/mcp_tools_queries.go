@@ -150,17 +150,19 @@ func registerPrepareLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 func inferPlatformFromTargets(targets []Endpoint) string {
 	counts := make(map[string]int)
 	for _, t := range targets {
-		switch strings.ToLower(t.Platform) {
+		switch p := strings.ToLower(t.Platform); p {
 		case "darwin":
 			counts["macos"]++
 		case "windows":
 			counts["windows"]++
-		case "ubuntu", "centos", "rhel", "debian", "fedora", "amzn", "linux", "opensuse-leap":
-			counts["linux"]++
 		case "chrome":
 			counts["chromeos"]++
 		default:
-			counts["other"]++
+			if isLinuxPlatform(p) {
+				counts["linux"]++
+			} else {
+				counts["other"]++
+			}
 		}
 	}
 	if len(counts) == 1 {

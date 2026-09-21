@@ -6,38 +6,35 @@
  * For Android Google Play Store apps, we also use THIS modal
  * For all other apps, we use THIS modal */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
-import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import DataSet from "components/DataSet";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   IHostSoftware,
   ISoftwareInstallResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
-import deviceUserAPI from "services/entities/device_user";
-
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import CopyButton from "components/buttons/CopyButton";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DataSet from "components/DataSet";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
+import deviceUserAPI from "services/entities/device_user";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -116,26 +113,6 @@ export const StatusMessage = ({
     created_at,
   } = installResult;
 
-  // Treat failed_install/failed_uninstall with installed versions as installed
-  // as the host still reports installed versions (4.82 #31663)
-  const overrideFailureWithInstalled =
-    canOverrideFailureWithInstalled &&
-    ["failed_install", "failed_uninstall"].includes(status || "");
-
-  if (overrideFailureWithInstalled) {
-    return (
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName="success"
-        message={
-          <span>
-            <b>{softwareName}</b> is installed.
-          </span>
-        }
-      />
-    );
-  }
-
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
   ) : (
@@ -151,6 +128,10 @@ export const StatusMessage = ({
       })})`
     : "";
 
+  // A patch-when-closed skip must render its own message even when the host
+  // currently reports the app as installed. The skip is the load-bearing state
+  // (deferred update); collapsing it into "is installed" would hide the
+  // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
     // Admin-facing pages link "policy runs again" to cadence docs; the end-user
     // "My device" flow shows plain text since the doc is admin-only.
@@ -164,7 +145,6 @@ export const StatusMessage = ({
           text={SKIPPED_INSTALL_DETAILS_LINK_TEXT}
           newTab
         />
-        .
       </>
     );
 
@@ -178,6 +158,27 @@ export const StatusMessage = ({
             Fleet skipped install of <b>{software_title}</b> ({software_package}
             ) on {formattedHost}
             {displayTimeStamp}. {skippedDetails}
+          </span>
+        }
+      />
+    );
+  }
+
+  // Treat failed_install/failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663). Skipped installs
+  // are handled above so this override never masks a patch-when-closed skip.
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(status || "");
+
+  if (overrideFailureWithInstalled) {
+    return (
+      <IconStatusMessage
+        className={`${baseClass}__status-message`}
+        iconName="success"
+        message={
+          <span>
+            <b>{softwareName}</b> is installed.
           </span>
         }
       />
@@ -412,11 +413,14 @@ export const SoftwareInstallDetailsModal = ({
       ? inventoryReportsInstalled
       : false;
 
-  // Treat failed_install / failed_uninstall with installed versions as installed
+  // Treat failed_install / failed_uninstall with installed versions as installed.
+  // Skips escape the override so the Details button + SKIPPED_PRE_INSTALL_OUTPUT
+  // still render on Library rows where inventory reports an older version.
   const overrideFailedMessageWithInstalledMessage =
     canOverrideFailureWithInstalled &&
+    !detailsFromProps.skipped_install &&
     ["failed_install", "failed_uninstall"].includes(
-      swInstallResult?.status || "" || ""
+      swInstallResult?.status || ""
     );
 
   // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)

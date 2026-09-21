@@ -1,20 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
-import { IDUPDetails, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
-import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
+import { IDUPDetails, IHostDevice, IOSSettings } from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
-
+import { IHostPolicy } from "interfaces/policy";
 import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
-
-import { IHostPolicy } from "interfaces/policy";
-
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
@@ -25,8 +21,12 @@ import {
   ssoRequiredDeviceHandler,
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
-import DeviceUserPage from "./DeviceUserPage";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+
+import DeviceUserPage from "./DeviceUserPage";
 
 jest.mock("components/ToastNotification", () => ({
   notify: {
@@ -927,5 +927,169 @@ describe("Device User Page - MDM check-in ping", () => {
       );
     });
     expect(refetchSpy).toHaveBeenCalledWith("testToken");
+  });
+});
+
+describe("Device User Page - Linux disk encryption key escrow", () => {
+  let triggerEscrowSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    triggerEscrowSpy = jest.spyOn(
+      diskEncryptionAPI,
+      "triggerLinuxDiskEncryptionKeyEscrow"
+    );
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    // encrypted Ubuntu host with no escrowed key, which is what shows the Create key banner
+    const host = createMockHost({
+      platform: "ubuntu",
+      status: "online",
+    }) as IHostDevice;
+    host.disk_encryption_enabled = true;
+    host.mdm.encryption_key_available = false;
+    host.mdm.os_settings = {
+      ...host.mdm.os_settings,
+      certificates: host.mdm.os_settings?.certificates ?? [],
+      disk_encryption: { status: "action_required", detail: "" },
+    };
+    mockServer.use(customDeviceHandler({ host }));
+  });
+
+  afterEach(() => {
+    triggerEscrowSpy.mockRestore();
+    (notify.error as jest.Mock).mockClear();
+  });
+
+  const renderDevicePage = () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+  };
+
+  it("tells the end user to expect a pop-up when the request is queued", async () => {
+    triggerEscrowSpy.mockResolvedValue(undefined);
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    expect(await screen.findByText(/Wait 30 seconds/i)).toBeInTheDocument();
+    expect(screen.queryByText(/already asking/i)).toBeNull();
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("points the end user at the open pop-up when the escrow is already in flight", async () => {
+    triggerEscrowSpy.mockRejectedValue({ status: 409 });
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    expect(await screen.findByText(/already asking/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and closes the modal on any other failure", async () => {
+    triggerEscrowSpy.mockRejectedValue({ status: 500 });
+    const { user } = renderDevicePage();
+
+    await user.click(
+      await screen.findByRole("button", { name: /create key/i })
+    );
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Failed to trigger key creation.",
+        expect.anything()
+      );
+    });
+    expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
+    expect(screen.queryByText(/already asking/i)).toBeNull();
+  });
+});
+
+describe("BitLocker PIN deep link", () => {
+  const INSTRUCTIONS = /Type .Manage BitLocker. and launch/;
+
+  /** What the device endpoint reports for a Windows host still waiting on a PIN. */
+  const needsPIN = (
+    fleetdCanSetPIN: boolean
+  ): IOSSettings["disk_encryption"] => ({
+    status: "action_required",
+    detail: "",
+    action_required: "create_pin",
+    fleetd_can_set_pin: fleetdCanSetPIN,
+  });
+
+  const windowsHost = (diskEncryption: IOSSettings["disk_encryption"]) => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "windows";
+    host.mdm.os_settings = {
+      certificates: [],
+      disk_encryption: diskEncryption,
+    };
+    return host;
+  };
+
+  const renderWithCreatePINLink = async (host: IHostDevice) => {
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={router}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: "/device/testToken",
+          query: { ...mockLocation.query, create_pin: "1" },
+        }}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    return router;
+  };
+
+  /** The parameter is always consumed, so a reload never reopens the modal. */
+  const expectParamDropped = (router: ReturnType<typeof createMockRouter>) =>
+    waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith("/device/testToken");
+    });
+
+  it("opens the Create PIN form and drops only its own parameter", async () => {
+    const router = await renderWithCreatePINLink(windowsHost(needsPIN(true)));
+
+    expect(await screen.findByLabelText("BitLocker PIN")).toBeVisible();
+    await expectParamDropped(router);
+  });
+
+  it("opens the instructions when the host's fleetd cannot be handed a PIN", async () => {
+    await renderWithCreatePINLink(windowsHost(needsPIN(false)));
+
+    expect(await screen.findByText(INSTRUCTIONS)).toBeVisible();
+    expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
+  });
+
+  it("ignores the parameter when the host does not need a PIN", async () => {
+    const router = await renderWithCreatePINLink(
+      windowsHost({ status: "verified", detail: "" })
+    );
+
+    expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
+    expect(screen.queryByText(INSTRUCTIONS)).toBeNull();
+    await expectParamDropped(router);
   });
 });

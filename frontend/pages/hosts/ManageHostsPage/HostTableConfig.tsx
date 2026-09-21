@@ -4,42 +4,42 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IDeviceUser, IHost } from "interfaces/host";
-import {
-  isAndroid,
-  isAppleDevice,
-  isMobilePlatform,
-} from "interfaces/platform";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
-import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
-
-import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
-import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import NotSupported from "components/NotSupported";
+import StatusIndicator from "components/StatusIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import NotSupported from "components/NotSupported";
-
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import {
+  IHeaderProps,
+  IStringCellProps,
+  INumberCellProps,
+} from "interfaces/datatable_config";
+import { IDeviceUser, IHost } from "interfaces/host";
+import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
+import {
+  isAndroid,
+  isAppleDevice,
+  isMobilePlatform,
+  isWindows,
+} from "interfaces/platform";
+import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import {
-  IHeaderProps,
-  IStringCellProps,
-  INumberCellProps,
-} from "interfaces/datatable_config";
-import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import { getHardwareModelDisplay, getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
@@ -475,28 +475,27 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-
-      // Show "---" for ABM devices with Pending enrollment status
+      // Show "---" for Apple Business Manager and Windows Autopilot devices
+      // with Pending enrollment status.
+      const { platform } = cellProps.row.original;
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
-        isAppleDevice(cellProps.row.original.platform)
+        (isAppleDevice(platform) || isWindows(platform))
       ) {
-        const tooltip = {
-          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
-        };
         return (
-          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
+          <StatusIndicator
+            value={DEFAULT_EMPTY_CELL_VALUE}
+            tooltip={{
+              tooltipText: getHostStatusTooltipText(
+                DEFAULT_EMPTY_CELL_VALUE,
+                platform
+              ),
+            }}
+          />
         );
       }
 
-      const value = cellProps.cell.value;
-      const tooltip = {
-        tooltipText: getHostStatusTooltipText(value),
-      };
-      return <StatusIndicator value={value} tooltip={tooltip} />;
+      return <StatusIndicator value={cellProps.cell.value} />;
     },
   },
   // Issues
@@ -688,28 +687,24 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       }
 
       return (
-        <TextCell
-          value={
-            <TooltipWrapper
-              tipContent={
-                <>
-                  osquery: {osquery_version}
-                  <br />
-                  Orbit: {orbit_version}
-                  {fleet_desktop_version &&
-                    fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
-                      <>
-                        <br />
-                        Fleet Desktop: {fleet_desktop_version}
-                      </>
-                    )}
-                </>
-              }
-            >
-              {orbit_version}
-            </TooltipWrapper>
+        <TooltipWrapper
+          tipContent={
+            <>
+              osquery: {osquery_version}
+              <br />
+              Orbit: {orbit_version}
+              {fleet_desktop_version &&
+                fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                  <>
+                    <br />
+                    Fleet Desktop: {fleet_desktop_version}
+                  </>
+                )}
+            </>
           }
-        />
+        >
+          {orbit_version}
+        </TooltipWrapper>
       );
     },
   },

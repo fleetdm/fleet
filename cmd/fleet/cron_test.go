@@ -33,7 +33,7 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, kv, logger, 0)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, kv, logger, 0, false)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
@@ -136,6 +136,26 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, hosts)
+}
+
+func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
+	ds := new(mock.Store)
+
+	const budget = time.Minute
+	var deadline time.Time
+	var hasDeadline bool
+	ds.CleanupUnusedSoftwareInstallersFunc = func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
+		deadline, hasDeadline = ctx.Deadline()
+		return nil
+	}
+
+	// The schedule hands each job a context with no deadline, so the budget has to come from the job.
+	err := cleanupUnusedSoftwareInstallersCronJob(context.Background(), ds, nil, budget)
+	require.NoError(t, err)
+	require.True(t, ds.CleanupUnusedSoftwareInstallersFuncInvoked)
+	require.True(t, hasDeadline, "the S3 calls must inherit the job time budget")
+	require.Positive(t, time.Until(deadline))
+	require.LessOrEqual(t, time.Until(deadline), budget)
 }
 
 func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
@@ -528,4 +548,41 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 		gotTeam1 = append(gotTeam1, h.ID)
 	}
 	require.ElementsMatch(t, []uint{hosts[0].ID}, gotTeam1)
+}
+
+func TestAPNsJobsCapTheirRunTime(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	// both jobs read the app config first, so a deadline observed there covers
+	// the whole run; MDM disabled stops each job right after
+	cases := []struct {
+		name string
+		run  func(ctx context.Context, ds fleet.Datastore) error
+	}{
+		{"apns_push_to_pending_hosts", func(ctx context.Context, ds fleet.Datastore) error {
+			return apnsPusherJob(ctx, ds, nil, logger)
+		}},
+		{"apns_sweep", func(ctx context.Context, ds fleet.Datastore) error {
+			return apnsSweepJob(ctx, ds, nil, logger, time.Minute)
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var deadline time.Time
+			var hasDeadline bool
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				deadline, hasDeadline = ctx.Deadline()
+				return &fleet.AppConfig{}, nil
+			}
+
+			before := time.Now()
+			require.NoError(t, tc.run(t.Context(), ds))
+
+			require.True(t, ds.AppConfigFuncInvoked)
+			require.True(t, hasDeadline, "job context must carry a deadline")
+			require.WithinDuration(t, before.Add(apnsMaxRunTime), deadline, time.Minute)
+		})
+	}
 }

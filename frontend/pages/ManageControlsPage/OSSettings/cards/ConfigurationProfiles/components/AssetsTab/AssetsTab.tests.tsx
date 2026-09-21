@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
 import PATHS from "router/paths";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mdmAPI from "services/entities/mdm";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AssetsTab from "./AssetsTab";
 
@@ -164,7 +164,7 @@ describe("AssetsTab", () => {
 
     expect(
       screen.getByText(
-        /Add assets \(data or credentials\) to use them in many Apple declaration \(DDM\) profiles/i
+        /Add assets \(data or credentials\) to use them in Apple declaration \(DDM\) profiles/i
       )
     ).toBeInTheDocument();
     expect(

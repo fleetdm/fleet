@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
+import React, { useCallback, useState } from "react";
+
 import { IHostPolicy } from "interfaces/policy";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 
 import HostPolicies from "./HostPolicies";
 import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";

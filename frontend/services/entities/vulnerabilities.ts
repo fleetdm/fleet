@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { IVulnerability } from "interfaces/vulnerability";
-import { buildQueryStringFromParams } from "utilities/url";
+
 import { IVulnerabilityOSVersion } from "interfaces/operating_system";
 import { IVulnerabilitySoftware } from "interfaces/software";
+import { IVulnerability } from "interfaces/vulnerability";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IGetVulnerabilitiesQueryParams {
   teamId?: number;

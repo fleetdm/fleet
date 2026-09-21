@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0",
+      "version": "5.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app' AND version_compare(bundle_short_version, '5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app' AND version_compare(bundle_short_version, '5.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.getcleanshot.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-5.0.dmg",
+      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-5.0.1.dmg",
       "install_script_ref": "3ed068fa",
       "uninstall_script_ref": "acc4c41d",
-      "sha256": "6f4535f2297ee9166ed7d57d7010cae97417895256ab43a964876a45f9294651",
+      "sha256": "85ab95c8a4be4fb650a94ec087a7e7d89f4e6bda9c18611cdd44ab6a3edb1cf1",
       "default_categories": [
         "Productivity"
       ]

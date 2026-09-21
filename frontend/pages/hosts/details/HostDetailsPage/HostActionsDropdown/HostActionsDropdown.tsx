@@ -1,12 +1,14 @@
 import React, { useContext } from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import { AppContext } from "context/app";
+import { RecoveryLockPasswordStatus } from "interfaces/host";
 import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
-import { AppContext } from "context/app";
 
-import ActionsDropdown from "components/ActionsDropdown";
-import { generateHostActionOptions } from "./helpers";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import { generateHostActionOptions } from "./helpers";
 
 const baseClass = "host-actions-dropdown";
 
@@ -17,7 +19,8 @@ interface IHostActionsDropdownProps {
   /** This represents the mdm managed host device status (e.g. unlocked, locked,
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
-  doesStoreEncryptionKey?: boolean;
+  isEncryptionKeyAvailable?: boolean;
+  isEncryptionKeyArchived?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   hostCpuType?: string;
@@ -27,6 +30,7 @@ interface IHostActionsDropdownProps {
   isRecoveryLockPasswordEnabled?: boolean;
   diskEncryptionProfileStatus?: string;
   recoveryLockPasswordAvailable?: boolean;
+  recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
   managedAccountDetail?: string;
@@ -46,7 +50,8 @@ const HostActionsDropdown = ({
   hostStatus,
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
-  doesStoreEncryptionKey,
+  isEncryptionKeyAvailable,
+  isEncryptionKeyArchived,
   isConnectedToFleetMdm,
   isDEPAssignedToFleet = false,
   hostPlatform = "",
@@ -56,6 +61,7 @@ const HostActionsDropdown = ({
   isRecoveryLockPasswordEnabled = false,
   diskEncryptionProfileStatus,
   recoveryLockPasswordAvailable = false,
+  recoveryLockPasswordStatus,
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
   managedAccountDetail,
@@ -111,7 +117,8 @@ const HostActionsDropdown = ({
       globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
-    doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
+    isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
+    isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     scriptsGloballyDisabled:
@@ -121,6 +128,7 @@ const HostActionsDropdown = ({
     isRecoveryLockPasswordEnabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    recoveryLockPasswordStatus,
     isManagedLocalAccountEnabled,
     managedAccountStatus,
     managedAccountDetail,

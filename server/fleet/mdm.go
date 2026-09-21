@@ -192,18 +192,24 @@ func (a AppleBM) AuthzType() string {
 // TODO: during API implementation, remove AppleBM above or reconciliate those
 // two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
-	ID                  uint      `db:"id" json:"id"`
-	AppleID             string    `db:"apple_id" json:"apple_id"`
-	OrganizationName    string    `db:"organization_name" json:"org_name"`
-	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
-	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
-	TokenInvalid        bool      `db:"token_invalid" json:"token_invalid"`
-	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
-	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
-	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
-	BYODDefaultTeamID   *uint     `db:"byod_default_team_id" json:"-"`
-	EncryptedToken      []byte    `db:"token" json:"-"`
-	EnrollmentURLToken  []byte    `db:"enrollment_url_token" json:"-"`
+	ID               uint      `db:"id" json:"id"`
+	AppleID          string    `db:"apple_id" json:"apple_id"`
+	OrganizationName string    `db:"organization_name" json:"org_name"`
+	RenewAt          time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired     bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid     bool      `db:"token_invalid" json:"token_invalid"`
+	// ServerUUID is Apple's identifier for this MDM server in Apple Business,
+	// returned by the DEP AccountDetail API. Empty until fetched.
+	ServerUUID string `db:"server_uuid" json:"mdm_server_uuid"`
+	// IsDefault marks the token used for GetToken, and other cases where we need to pass a default token.
+	IsDefault bool `db:"is_default" json:"default"`
+
+	MacOSDefaultTeamID  *uint  `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint  `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint  `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint  `db:"byod_default_team_id" json:"-"`
+	EncryptedToken      []byte `db:"token" json:"-"`
+	EnrollmentURLToken  []byte `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -1392,6 +1398,11 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
@@ -1471,6 +1482,9 @@ type NanoMDMEnrollmentDetails struct {
 	// Enrollment both produce the "On (manual - personal)" status, so the channel
 	// is the only way to tell them apart.
 	EnrollmentType string `db:"enrollment_type"`
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
+	Enabled bool `db:"enabled"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

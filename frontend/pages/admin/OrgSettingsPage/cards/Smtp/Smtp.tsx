@@ -1,22 +1,20 @@
 import React, { useState, useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import { CONTACT_FLEET_LINK } from "utilities/constants";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
-import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
-import Card from "components/Card";
+import { AppContext } from "context/app";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import { CONTACT_FLEET_LINK } from "utilities/constants";
 
 import {
   IAppConfigFormProps,

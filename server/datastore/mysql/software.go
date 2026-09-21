@@ -2302,17 +2302,20 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				baseJoinConditions["c.cisa_known_exploit"] = true
 			}
 
+			// The bounds can't share the goqu.Ex map entry for c.cvss_score (the
+			// second write replaces the first) and can't share a goqu.Op either
+			// (multiple operators are ORed), so append them as separate conditions.
+			joinConditions := goqu.And(baseJoinConditions)
 			if opts.MinimumCVSS > 0 {
-				baseJoinConditions["c.cvss_score"] = goqu.Op{"gte": opts.MinimumCVSS}
+				joinConditions = joinConditions.Append(goqu.I("c.cvss_score").Gte(opts.MinimumCVSS))
 			}
-
 			if opts.MaximumCVSS > 0 {
-				baseJoinConditions["c.cvss_score"] = goqu.Op{"lte": opts.MaximumCVSS}
+				joinConditions = joinConditions.Append(goqu.I("c.cvss_score").Lte(opts.MaximumCVSS))
 			}
 
 			ds = ds.InnerJoin(
 				goqu.I("cve_meta").As("c"),
-				goqu.On(baseJoinConditions),
+				goqu.On(joinConditions),
 			)
 
 		} else {
@@ -3811,14 +3814,20 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 }
 
 func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	// skipped_install marks a patch-when-closed skip (the app was open): the row is stored as
+	// failed_install with an empty pre_install_query_output. We read the snapshotted
+	// hsi.patch_when_closed instead of joining policies, so a later policy toggle or delete
+	// (policy_id → NULL via ON DELETE SET NULL) can't retroactively reclassify this row.
+	// Upcoming installs are never skipped, so the union side is a literal 0.
 	softwareInstallsStmt := `
         WITH upcoming_software_install AS (
-            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status, skipped_install FROM (
                 SELECT
                     ua.execution_id AS last_install_install_uuid,
                     ua.created_at AS last_install_installed_at,
                     siua.software_installer_id AS installer_id,
                     'pending_install' AS status,
+                    0 AS skipped_install,
                     ROW_NUMBER() OVER (
                         PARTITION BY siua.software_installer_id, ua.activity_type
                         ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
@@ -3834,12 +3843,18 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
             WHERE rn = 1
         ),
         last_software_install AS (
-            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status FROM (
+            SELECT last_install_install_uuid, last_install_installed_at, installer_id, status, skipped_install FROM (
                 SELECT
                     hsi.execution_id AS last_install_install_uuid,
                     hsi.updated_at AS last_install_installed_at,
                     hsi.software_installer_id AS installer_id,
                     hsi.status AS status,
+                    IF(
+                        hsi.status = 'failed_install'
+                        AND hsi.pre_install_query_output = ''
+                        AND hsi.patch_when_closed = 1,
+                        1, 0
+                    ) AS skipped_install,
                     ROW_NUMBER() OVER (
                         PARTITION BY hsi.software_installer_id
                         ORDER BY hsi.created_at DESC, hsi.id DESC
@@ -3879,7 +3894,8 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 			software_titles.id AS id,
 			lsia.last_install_install_uuid,
 			lsia.last_install_installed_at,
-			lsia.status
+			lsia.status,
+			lsia.skipped_install
 		FROM
 			(SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install) AS lsia
 		INNER JOIN
@@ -4442,8 +4458,9 @@ func filterVPPAppsByLabel(
 		// weren't installed by Fleet or were installed by Fleet but are no longer in scope
 		// (treat as in inventory and not re-installable in self-service)
 		for _, validAppApp := range validVppApps {
-			if _, ok := byVppAppID[validAppApp.AdamId]; ok {
-				filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
+			appInScope, ok := byVppAppID[validAppApp.AdamId]
+			if ok && appInScope.ID == validAppApp.TitleId {
+				filteredbyVppAppID[validAppApp.AdamId] = appInScope
 			} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleId]; ok {
 				otherVppAppsInInventory[validAppApp.AdamId] = svpp
 			}
@@ -5296,6 +5313,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	// We should try to move as much of these attributes into the `stmt` query
 	if softwareTitle != nil {
 		softwareTitleRecord.Status = softwareTitle.Status
+		softwareTitleRecord.SkippedInstall = softwareTitle.SkippedInstall
 		softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
 		softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
 		softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
@@ -5589,6 +5607,7 @@ func mergeUninstallDataByInstaller(installDataByTitleInstaller map[uint]map[uint
 		(installData.LastUninstallUninstalledAt == nil ||
 			s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*installData.LastUninstallUninstalledAt)) {
 		installData.Status = s.Status
+		installData.SkippedInstall = false
 		installData.LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 		installData.LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
 		installData.ExitCode = s.ExitCode
@@ -5613,6 +5632,7 @@ func applyResolvedInstallerStatus(
 		}
 
 		software.Status = nil
+		software.SkippedInstall = false
 		software.LastInstallInstalledAt = nil
 		software.LastInstallInstallUUID = nil
 		software.LastUninstallUninstalledAt = nil
@@ -5624,6 +5644,7 @@ func applyResolvedInstallerStatus(
 			continue
 		}
 		software.Status = installData.Status
+		software.SkippedInstall = installData.SkippedInstall
 		software.LastInstallInstalledAt = installData.LastInstallInstalledAt
 		software.LastInstallInstallUUID = installData.LastInstallInstallUUID
 		software.LastUninstallUninstalledAt = installData.LastUninstallUninstalledAt
@@ -5722,6 +5743,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			// if the uninstall is more recent than the install, we should update the status
 			bySoftwareTitleID[s.ID].Status = s.Status
+			bySoftwareTitleID[s.ID].SkippedInstall = false
 			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
 			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
@@ -7258,7 +7280,63 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
+	// Post-pagination lookup rather than an assembly-SQL JOIN — cheaper on
+	// the paginated title-ID set. Skipped when the host has no team.
+	if host.TeamID != nil && len(software) > 0 {
+		if err := ds.hydrateHostSoftwareAutoUpdateFields(ctx, software, globalOrTeamID); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "hydrate host software auto-update fields")
+		}
+	}
+
 	return software, metaData, nil
+}
+
+func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
+	ctx context.Context,
+	software []*fleet.HostSoftwareWithInstaller,
+	teamID uint,
+) error {
+	titleIDs := make([]uint, 0, len(software))
+	for _, s := range software {
+		titleIDs = append(titleIDs, s.ID)
+	}
+
+	stmt, args, err := sqlx.In(`
+		SELECT title_id, enabled, start_time, end_time
+		FROM software_update_schedules
+		WHERE team_id = ? AND title_id IN (?)`,
+		teamID, titleIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build auto-update schedule lookup")
+	}
+
+	type scheduleRow struct {
+		TitleID   uint   `db:"title_id"`
+		Enabled   bool   `db:"enabled"`
+		StartTime string `db:"start_time"`
+		EndTime   string `db:"end_time"`
+	}
+	var rows []scheduleRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select auto-update schedules")
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	byTitle := make(map[uint]scheduleRow, len(rows))
+	for _, r := range rows {
+		byTitle[r.TitleID] = r
+	}
+	for _, s := range software {
+		if r, ok := byTitle[s.ID]; ok {
+			s.AutoUpdateEnabled = new(r.Enabled)
+			s.AutoUpdateStartTime = new(r.StartTime)
+			s.AutoUpdateEndTime = new(r.EndTime)
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error) {

@@ -2690,6 +2690,13 @@
       "description": "Dot is a menu bar calendar with meeting reminders."
     },
     {
+      "name": "dotPeek",
+      "slug": "dotpeek/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotPeek",
+      "description": "dotPeek is a free .NET decompiler and assembly browser by JetBrains."
+    },
+    {
       "name": "dotTrace",
       "slug": "dottrace/windows",
       "platform": "windows",
@@ -2807,6 +2814,13 @@
       "platform": "windows",
       "unique_identifier": "Druva inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync (GovCloud)",
+      "slug": "druva-insync@govcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
       "name": "DuckDuckGo",
@@ -3341,6 +3355,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox Developer Edition (ARM64)",
+      "slug": "firefox@developer-edition-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Developer Edition (AArch64 en-US)",
+      "description": "Mozilla Firefox Developer Edition (ARM64) is the native ARM64 build of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
       "name": "Mozilla Firefox Developer Edition",
       "slug": "firefox@developer-edition/darwin",
       "platform": "darwin",
@@ -3367,6 +3388,13 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox Nightly (ARM64)",
+      "slug": "firefox@nightly-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Nightly",
+      "description": "Mozilla Firefox Nightly (ARM64) is the native ARM64 build of Firefox Nightly, the daily development build of the Firefox web browser with the newest features before they reach beta and release."
     },
     {
       "name": "Mozilla Firefox Nightly",
@@ -5721,6 +5749,13 @@
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
     },
     {
+      "name": "Monotype Fonts",
+      "slug": "monotype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.monotype.monotype-fonts",
+      "description": "Monotype Fonts is a desktop app for finding, activating, and managing fonts from the Monotype Fonts library."
+    },
+    {
       "name": "Moom",
       "slug": "moom/darwin",
       "platform": "darwin",
@@ -6162,6 +6197,13 @@
       "description": "NVIDIA GeForce NOW is a cloud gaming platform."
     },
     {
+      "name": "NVIDIA Sync",
+      "slug": "nvidia-sync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nvidia.nvidia-sync",
+      "description": "NVIDIA Sync is a utility for launching applications and containers on remote Linux systems."
+    },
+    {
       "name": "OBS",
       "slug": "obs/darwin",
       "platform": "darwin",
@@ -6461,6 +6503,13 @@
       "platform": "darwin",
       "unique_identifier": "com.facebook.Origami-Studio",
       "description": "Origami Studio is a tool to design tool for interactive interfaces."
+    },
+    {
+      "name": "Orion",
+      "slug": "orion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kagi.kagimacOS",
+      "description": "Orion is a WebKit-based web browser."
     },
     {
       "name": "P4V",
@@ -7161,6 +7210,13 @@
       "platform": "darwin",
       "unique_identifier": "com.interversehq.qView",
       "description": "qView is an image viewer."
+    },
+    {
+      "name": "R for macOS",
+      "slug": "r/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.R-project.R",
+      "description": "R for macOS is a free software environment for statistical computing and graphics."
     },
     {
       "name": "R for Windows",
@@ -8462,7 +8518,14 @@
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
-      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
+    },
+    {
+      "name": "Tableau Prep",
+      "slug": "tableau-prep/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Prep Builder",
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
       "name": "Tableau Desktop",

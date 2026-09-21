@@ -202,7 +202,7 @@ func BuildMSI(opt Options) (string, error) {
 			wineChecked = true
 
 			fmt.Printf("Downloading wix from %s\n", wixDownload)
-			client := fleethttp.NewClient()
+			client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 			absWixDir = filepath.Join(tmpDir, "wix")
 			if err = downloadAndExtractZip(client, wixDownload, absWixDir); err != nil {
 				return "", err

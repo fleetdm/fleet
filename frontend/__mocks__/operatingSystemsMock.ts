@@ -1,5 +1,6 @@
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
+
 import { createMockSoftwareVulnerability } from "./softwareMock";
 
 const DEFAULT_OS_VERSION: IOperatingSystemVersion = {

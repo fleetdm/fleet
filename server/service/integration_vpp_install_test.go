@@ -1106,7 +1106,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		device            *mdmtest.TestAppleMDMClient
 		platform          string
 		titleID           uint
-		certSerial        uint64
 		expectedHostCount int
 	}
 	// Edit iOS app to enable self service
@@ -1114,8 +1113,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.NotZero(t, ipadosTitleID)
 
 	ssVppData := []SSVPPTestData{
-		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111), expectedHostCount: 3},          // expectHostCount is from iosHost, ipodHost, and the new ios device
-		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222), expectedHostCount: 1}, // no ipad has installed an app, so we expect 1 only for this device
+		{platform: "ios", titleID: iosTitleID, app: iOSApp, expectedHostCount: 3},          // expectHostCount is from iosHost, ipodHost, and the new ios device
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, expectedHostCount: 1}, // no ipad has installed an app, so we expect 1 only for this device
 	}
 
 	for _, data := range ssVppData {
@@ -1130,25 +1129,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		data.host, err = s.ds.Host(context.Background(), data.host.ID)
 		require.NoError(t, err)
 
-		// Use certificate authentication
-		headers := map[string]string{
-			"X-Client-Cert-Serial": fmt.Sprintf("%d", data.certSerial),
-		}
-		s.addHostIdentityCertificate(data.host.UUID, data.certSerial)
-
-		// self-install without cert header (UUID auth fallback for iOS/iPadOS)
-		// With fallback auth, UUID auth succeeds for iOS/iPadOS devices, so we get 400 (bad title) instead of 401
+		// self-install a non-existing title
 		res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "Software title is not available for install.")
 
-		// self-install a non-existing title (with cert header - same result)
-		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, 999), nil, http.StatusBadRequest, headers)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Software title is not available for install.")
-
 		// self-install an existing title not available for self-install
-		res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest, headers)
+		res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, "Software title is not available through self-service")
 
@@ -1158,7 +1145,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			&updateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusOK, &updateAppResp)
 
 		// Install self-service app correctly
-		s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted)
 
 		// Verify pending status
 		countResp = countHostsResponse{}
@@ -1793,28 +1780,16 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 		"fleet_id": null, "team_id": null, "self_service": false, "software_title_id": %d}`, titleID)
 	s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
-	// Add certificate authentication for iPhone
 	iosHost, err := s.ds.Host(ctx, iosHost.ID)
 	require.NoError(t, err)
-	certSerial := uint64(123456789)
-	headers := map[string]string{
-		"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
-	}
-	s.addHostIdentityCertificate(iosHost.UUID, certSerial)
 
-	// self-install without cert header (UUID auth fallback for iOS)
-	// With fallback auth, UUID auth succeeds for iOS devices, so we get 400 (bad title) instead of 401
+	// self-install a non-existing title
 	res := s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Software title is not available for install.")
 
-	// self-install a non-existing title (with cert header - same result)
-	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, 999), nil, http.StatusBadRequest, headers)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Software title is not available for install.")
-
 	// self-install an existing title not available for self-install
-	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest, headers)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Software title is not available through self-service")
 
@@ -1826,7 +1801,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// self-install request is accepted
-	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted)
 
 	var installCmdUUID string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1921,7 +1896,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	}, http.StatusOK, "")
 
 	// self-install request is rejected
-	res = s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest, headers)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "This software is not available for this host.")
 
@@ -1932,7 +1907,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	}, http.StatusOK, &addLabelsToHostResp)
 
 	// self-install request is now accepted
-	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted)
 }
 
 func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
@@ -2011,48 +1986,6 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestInvalidToken() {
 			s.DoRawNoAuth("GET", c.path, nil, c.want)
 		})
 	}
-}
-
-func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, certSerial uint64) {
-	t := s.T()
-	s.setSkipWorkerJobs(t)
-	ctx := context.Background()
-
-	// Generate a real certificate for the device with proper SHA256 hash
-	certPEM, certHash, _ := generateTestCertForDeviceAuth(t, certSerial, hostUUID)
-
-	// Insert certificate data using the new nanomdm tables
-	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		// Insert serial number
-		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO identity_certificates
-			(serial, name, not_valid_before, not_valid_after, certificate_pem, revoked)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`,
-			certSerial,
-			hostUUID,
-			time.Now().Add(-24*time.Hour),
-			time.Now().Add(365*24*time.Hour),
-			certPEM,
-			false,
-		)
-		if err != nil {
-			return err
-		}
-
-		// Insert certificate association for device authentication
-		_, err = db.ExecContext(ctx, `
-			INSERT INTO nano_cert_auth_associations (id, sha256)
-			VALUES (?, ?)
-		`, hostUUID, certHash)
-		return err
-	})
 }
 
 // TestInHouseAppVPPConflict tests that IPA (in-house apps) and VPP iOS/iPadOS apps
@@ -2295,11 +2228,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 			commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 			require.NoError(t, err)
 			require.Len(t, commands, 3)
-			assert.ElementsMatch(t, []fleet.HostMDMCommand{
-				{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-				{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-				{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-			}, commands)
+			requireTrackedRefetchCommands(t, commands, host.ID,
+				fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 		}
 
 		handleRefetch := func(software []fleet.Software) {
@@ -3095,4 +3025,111 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	require.Len(t, listResp.Hosts, 2)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	require.Equal(t, listResp.Hosts[1].ID, mdmHost2.ID)
+}
+
+// The refetch that follows a verified install must respect the host's
+// enrollment type, like the hourly cron and the manual refetch do.
+func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDevices() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	var newTeamResp teamResponse
+	teamPayload := fleet.TeamPayload{Name: new("Managed apps only")}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: teamPayload}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	s.setVPPTokenForTeam(team.ID)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "3", Platform: fleet.IPadOSPlatform},
+		http.StatusOK, &addAppStoreAppResponse{})
+
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
+		"available_for_install", "true")
+	var titleID uint
+	for _, sw := range listSw.SoftwareTitles {
+		if sw.Source == "ipados_apps" {
+			titleID = sw.ID
+		}
+	}
+	require.NotZero(t, titleID)
+
+	managedApp := fleet.Software{Name: "App 3", BundleIdentifier: "c-3", Version: "3.0.0", Installed: true}
+	personalApp := fleet.Software{Name: "PersonalGame", BundleIdentifier: "com.example.personalgame", Version: "9.9.9", Installed: true}
+
+	for _, tc := range []struct {
+		name             string
+		installedFromDEP bool
+	}{
+		{"manual enrollment", false},
+		{"automatic enrollment", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			host, device := s.createAppleMobileHostThenEnrollMDM("ipados")
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", false))
+			s.awaitRunAppleMDMWorkerSchedule()
+			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+			s.Do("POST", "/api/latest/fleet/hosts/transfer",
+				&addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+			// Report the personal app only when the command didn't ask for
+			// managed apps, the way a real device does.
+			var refetchManagedOnly *bool
+			drain := func() {
+				cmd, err := device.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					switch cmd.Command.RequestType {
+					case "InstalledApplicationList":
+						var fullCmd micromdm.CommandPayload
+						require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+						require.NotNil(t, fullCmd.Command.InstalledApplicationList)
+						managedOnly := fullCmd.Command.InstalledApplicationList.ManagedAppsOnly
+						reported := []fleet.Software{managedApp}
+						if !managedOnly {
+							reported = append(reported, personalApp)
+						}
+						if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+							refetchManagedOnly = &managedOnly
+						}
+						cmd, err = device.AcknowledgeInstalledApplicationList(device.UUID, cmd.CommandUUID, reported)
+						require.NoError(t, err)
+					default:
+						cmd, err = device.Acknowledge(cmd.CommandUUID)
+						require.NoError(t, err)
+					}
+				}
+			}
+
+			s.runWorker()
+			drain()
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID),
+				&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+
+			for range 5 {
+				s.runWorker()
+				drain()
+				if refetchManagedOnly != nil {
+					break
+				}
+			}
+			require.NotNil(t, refetchManagedOnly, "no refetch apps command was sent")
+			require.Equal(t, !tc.installedFromDEP, *refetchManagedOnly)
+
+			var getHostSw getHostSoftwareResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+			var names []string
+			for _, sw := range getHostSw.Software {
+				names = append(names, sw.Name)
+			}
+			require.Contains(t, names, managedApp.Name)
+			if tc.installedFromDEP {
+				require.Contains(t, names, personalApp.Name)
+			} else {
+				require.NotContains(t, names, personalApp.Name)
+			}
+		})
+	}
 }

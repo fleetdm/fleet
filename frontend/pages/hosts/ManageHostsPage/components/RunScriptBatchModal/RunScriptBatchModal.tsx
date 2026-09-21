@@ -1,38 +1,32 @@
+import classnames from "classnames";
 import React, { useCallback, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-
-import classnames from "classnames";
-import { getPathWithQueryParams } from "utilities/url";
-
-import Radio from "components/forms/fields/Radio";
-import InputField from "components/forms/fields/InputField";
-import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-
-import { notify } from "components/ToastNotification";
-
-import { addTeamIdCriteria, IScript } from "interfaces/script";
-import { getErrorReason } from "interfaces/errors";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import EmptyState from "components/EmptyState";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
 import Modal from "components/Modal";
-
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { getErrorReason } from "interfaces/errors";
+import { addTeamIdCriteria, IScript } from "interfaces/script";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+import PATHS from "router/paths";
 import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptBatchSupportedFilters,
   IScriptsResponse,
   IRunScriptBatchFormData,
 } from "services/entities/scripts";
-import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
-import Spinner from "components/Spinner";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 import { IPaginatedListScript } from "../RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
+
 import {
   validateFormData,
   IRunScriptBatchModalFormValidation,

@@ -1512,7 +1512,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
+		policy_id, patch_when_closed, installer_filename, version, software_title_id, software_title_name, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1520,6 +1520,10 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.self_service', 0),
 	siua.policy_id,
+	-- Snapshot the triggering policy's patch_when_closed at activation so a
+	-- later toggle or policy delete (policy_id becomes NULL via ON DELETE SET
+	-- NULL) can't retroactively reclassify this row as an ordinary failure.
+	COALESCE(p.patch_when_closed, 0),
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
@@ -1549,6 +1553,8 @@ FROM
 		ON si.id = siua.software_installer_id
 	LEFT JOIN software_titles st
 		ON st.id = si.title_id
+	LEFT JOIN policies p
+		ON p.id = siua.policy_id
 WHERE
 	ua.host_id = ? AND
 	ua.execution_id IN (?)
