@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 29 workflow skills (invoke with /) — see "Skills reference" below
+├── skills/                    # 30 workflow skills (invoke with /) — see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 24 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 25 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)

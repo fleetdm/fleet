@@ -1,7 +1,7 @@
 ---
 name: ai-profile-test
 description: Propose a new prompt test case for the AI configuration profile generator's test suite and open a PR. Use when asked to "add a profile generator test", "propose a prompt test case", "add a test prompt for AI profiles", or when a generated profile came out wrong and the failure should become a regression test.
-allowed-tools: Bash(git *), Bash(gh pr *), Bash(node *), Bash(sails *), Read, Grep, Glob, Edit, WebFetch, WebSearch
+allowed-tools: Bash(git *), Bash(gh pr *), Bash(node *), Bash(cd website && sails run *), Read, Grep, Glob, Edit, WebFetch, WebSearch
 effort: medium
 ---
 
@@ -23,7 +23,9 @@ git checkout -b add-profile-test-<short-slug> origin/main
 
 ## Step 2: Check for existing coverage
 
-Read every entry in `TEST_CASES` at the top of the script. If an existing case already exercises the same policy node / payload key / declaration type, or a near-identical instruction, STOP and report the overlap to the user instead of opening a PR. Sweep by the exact key name (e.g. `RemovableDiskDenyWriteAccess`), not just by instruction wording.
+Read every entry in `TEST_CASES` at the top of the script. If an existing case already exercises the same concrete setting — the same CSP policy node, mobileconfig payload key, or DDM setting key — with the same intended behavior, or a near-identical instruction, STOP and report the overlap to the user instead of opening a PR. Sweep by the exact key name (e.g. `RemovableDiskDenyWriteAccess`), not just by instruction wording.
+
+Sharing a payload type or DDM declaration type alone is NOT duplicate coverage — the suite deliberately has multiple cases per declaration (e.g. `ddm-beta-enroll` and `ddm-beta-block` both use `softwareupdate.settings`; the two intelligence cases share `intelligence.settings`). A new setting inside an already-covered declaration or payload still needs its own case.
 
 ## Step 3: Verify the mechanism against vendor docs
 
@@ -43,7 +45,7 @@ Read the `CASES` comment at the top of the script first — it documents the ass
 - `instructions`: phrased the way an admin would type it, matching the tone of neighboring cases. Don't name the platform — the profile type implies it.
 - `expect`: substring assertions only (compared with all whitespace stripped):
   - `mustContain` / `mustNotContain`: raw substrings.
-  - `mustContainElement` / `mustNotContainElement`: `[tag, value]` pairs, e.g. `['Format', 'int']` or `['key', 'autohide']`.
+  - `mustContainElement` / `mustNotContainElement`: `[tag, value]` pairs, e.g. `['Format', 'int']` or `['key', 'autohide']` — XML only (csp and mobileconfig). They compile to `<tag>value</tag>` regexes, so in a DDM case they never match the JSON output and a `mustNotContainElement` silently passes. DDM cases express keys and values as raw `mustContain` / `mustNotContain` substrings like `'"MinorPeriodInDays":30'`, following the existing DDM cases.
   - Bind a value to its key as one adjacent-pair substring — whitespace stripping makes `'<key>allowBookstore</key><true/>'` work. Asserting the key and the value separately lets a value elsewhere in the profile satisfy the check.
   - Assert against the tempting wrong answers too: the lookalike key that doesn't do what the instruction asks, wrong casing, `bool` where the CSP wants `int`, an inverted value.
 - `readByEye`: only for properties assertions can't express (one dict per payload domain, distinct PayloadUUIDs, single-line CDATA). Omit otherwise.
