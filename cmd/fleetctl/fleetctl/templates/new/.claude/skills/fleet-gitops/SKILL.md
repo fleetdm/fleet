@@ -11,7 +11,7 @@ This repo configures a live Fleet instance — CI applies `default.yml` and `fle
 
 ## Reports & policies
 
-- Only use **Fleet tables and supported columns** when writing osquery queries for policies or reports.
+- Only use **Fleet tables and supported columns** when writing queries for policies or reports.
 - Do not reference tables or columns that aren't present in the Fleet schema for the target platform.
 - Validate table and column names against the Fleet schema before including them in a query:
   - https://fleetdm.com/tables
