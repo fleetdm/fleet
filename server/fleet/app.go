@@ -1818,6 +1818,17 @@ func (f *ServerSettings) GetQueryReportCap() int {
 	return f.QueryReportCap
 }
 
+// GetEffectiveQueryReportCap returns the report cap raised to the given host
+// count when that is higher. Results are stored per host, so this lets a report
+// that returns one row per host cover the whole fleet while bounding the worst
+// case to one row per host.
+func (f *ServerSettings) GetEffectiveQueryReportCap(hostCount int) int {
+	if reportCap := f.GetQueryReportCap(); hostCount <= reportCap {
+		return reportCap
+	}
+	return hostCount
+}
+
 // HostExpirySettings contains settings pertaining to automatic host expiry.
 type HostExpirySettings struct {
 	HostExpiryEnabled bool `json:"host_expiry_enabled"`
@@ -2309,6 +2320,14 @@ const (
 // Partnerships contains specialized configuration options for Fleet partners.
 type Partnerships struct {
 	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
+// AuthSettings exposes the read-only authentication settings that come from
+// the server configuration and that the UI adapts to.
+type AuthSettings struct {
+	// UseOneTimeEnrollSecrets mirrors the auth.use_one_time_enroll_secrets
+	// server configuration.
+	UseOneTimeEnrollSecrets bool `json:"use_one_time_enroll_secrets,omitempty"`
 }
 
 // LicenseInfo contains information about the Fleet license.

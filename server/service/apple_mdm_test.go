@@ -1303,6 +1303,17 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
+	t.Run("fails if Apple MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "asome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.ErrorContains(t, err, "MDM features aren't turned on in Fleet.")
+	})
+
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
 		testCases := []struct {
 			name             string
@@ -1898,6 +1909,17 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		var statusCoder interface{ Status() int }
 		require.ErrorAs(t, err, &statusCoder)
 		assert.Equal(t, http.StatusConflict, statusCoder.Status())
+	})
+
+	t.Run("fails if Apple MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "dsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.ErrorContains(t, err, "MDM features aren't turned on in Fleet.")
 	})
 }
 
@@ -5054,7 +5076,8 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 		},
 	}
 	for name := range fleetmdm.FleetReservedProfileNames() {
-		testCases = append(testCases,
+		testCases = append(
+			testCases,
 			testCase{
 				"reserved payload outer name " + name,
 				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
@@ -5838,6 +5861,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return []*fleet.EnrollSecret{}, nil
 		}
@@ -5845,7 +5871,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			require.Empty(t, ps)
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -5860,6 +5886,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			{Secret: "", TeamID: ptr.Uint(1)},
 			{Secret: "", TeamID: ptr.Uint(2)},
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
 		}
@@ -5870,7 +5899,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			require.Empty(t, ps)
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -5890,6 +5919,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			appCfg.ServerSettings.ServerURL = testURL
 			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
+		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
@@ -5916,7 +5948,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			return nil
 		}
 
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
 		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
@@ -5934,6 +5966,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			appCfg.ServerSettings.ServerURL = testURL
 			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
+		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
 		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
@@ -5959,7 +5994,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			}
 			return nil
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.NoError(t, err)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -5972,7 +6007,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return nil, testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.ErrorIs(t, err, testError)
 	})
 
@@ -5982,10 +6017,13 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return nil, testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.ErrorIs(t, err, testError)
 	})
 
@@ -5996,6 +6034,9 @@ func TestEnsureFleetdConfig(t *testing.T) {
 			{Secret: "global", TeamID: nil},
 			{Secret: "team-1", TeamID: ptr.Uint(1)},
 		}
+		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
+			return nil, newNotFoundError()
+		}
 		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return secrets, nil
 		}
@@ -6005,7 +6046,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
 			return testError
 		}
-		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0])
+		err := ensureFleetProfiles(ctx, ds, logger, signingCert.Certificate[0], false)
 		require.ErrorIs(t, err, testError)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
@@ -9321,7 +9362,8 @@ func TestValidatePSSORegistrationTokenVariable(t *testing.T) {
 		freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 		_, err := validateConfigProfileFleetVariables(
 			pssoProfileForValidation(fleetExt, "$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN", true, ""),
-			freeLic, &fleet.GroupedCertificateAuthorities{})
+			freeLic, &fleet.GroupedCertificateAuthorities{},
+		)
 		assert.ErrorContains(t, err, "requires a Fleet Premium license")
 	})
 }
@@ -9785,7 +9827,8 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 
 	t.Run("multiple supported variables", func(t *testing.T) {
 		vars, err := validateDeclarationFleetVariables(
-			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"]`), premiumLic)
+			makeDecl(`["$FLEET_VAR_HOST_HARDWARE_SERIAL", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"]`), premiumLic,
+		)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{"HOST_HARDWARE_SERIAL", "HOST_END_USER_IDP_USERNAME"}, vars)
 	})
@@ -9798,7 +9841,8 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 			expectedVars = append(expectedVars, string(v))
 		}
 		vars, err := validateDeclarationFleetVariables(
-			makeDecl("["+strings.Join(jsonVars, ", ")+"]"), premiumLic)
+			makeDecl("["+strings.Join(jsonVars, ", ")+"]"), premiumLic,
+		)
 		require.NoError(t, err)
 		require.ElementsMatch(t, expectedVars, vars)
 	})
@@ -9821,7 +9865,8 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 
 	t.Run("supported and unsupported variables", func(t *testing.T) {
 		_, err := validateDeclarationFleetVariables(
-			makeDecl(`["$FLEET_VAR_HOST_UUID", "$FLEET_VAR_DIGICERT_DATA_myCA"]`), premiumLic)
+			makeDecl(`["$FLEET_VAR_HOST_UUID", "$FLEET_VAR_DIGICERT_DATA_myCA"]`), premiumLic,
+		)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_DIGICERT_DATA_myCA is not supported in DDM profiles")
 	})

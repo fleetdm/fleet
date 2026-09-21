@@ -1446,6 +1446,13 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			},
 		),
+		schedule.WithJob(
+			"cleanup_host_one_time_enroll_secrets",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -1807,7 +1814,26 @@ func newQueryResultsCleanupSchedule(
 			if err != nil {
 				return err
 			}
-			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			// Results are stored per host, so raising the cap to the host count
+			// bounds each report to one row per host while letting one-row-per-host
+			// reports cover the whole fleet. Cached in Redis for the ingest path.
+			hostCount, err := ds.CountAllHosts(ctx)
+			if err != nil {
+				// Fall back to the last cached count. Without any count the cap would drop to
+				// the configured value and the cleanup could delete valid rows, so skip this
+				// tick instead.
+				logger.WarnContext(ctx, "failed to count hosts for query report cap", "err", err)
+				var ok bool
+				if hostCount, ok, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
+					return ctxerr.Wrap(ctx, err, "get query reports host count from redis")
+				}
+				if !ok {
+					return ctxerr.New(ctx, "query reports host count unavailable from database and redis")
+				}
+			} else if err := liveQueryStore.SetQueryReportsHostCount(hostCount); err != nil {
+				logger.WarnContext(ctx, "failed to set query reports host count in redis", "err", err)
+			}
+			maxRows := appConfig.ServerSettings.GetEffectiveQueryReportCap(hostCount)
 			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
 			if err != nil {
 				return err
@@ -2006,6 +2032,7 @@ func newAppleMDMProfileManagerSchedule(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -2020,7 +2047,7 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit, useOneTimeEnrollSecrets)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)

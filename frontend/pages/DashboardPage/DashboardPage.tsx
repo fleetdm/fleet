@@ -840,8 +840,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const renderAddHostsModal = () => {
     const enrollSecret = isAnyTeamSelected
-      ? teamSecrets?.[0].secret
-      : globalSecrets?.[0].secret;
+      ? teamSecrets?.[0]?.secret
+      : globalSecrets?.[0]?.secret;
 
     return (
       <AddHostsModal

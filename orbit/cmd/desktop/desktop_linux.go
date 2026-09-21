@@ -65,3 +65,8 @@ func trayIconExists() bool {
 	// no longer visible.
 	return slices.Contains(ownedDbusNames, trayIconDbusName)
 }
+
+// currentLoginID is only needed for the Windows BitLocker PIN toast.
+func currentLoginID() (string, error) {
+	return "", nil
+}

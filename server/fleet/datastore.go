@@ -357,7 +357,7 @@ type Datastore interface {
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
-	CountEnrolledHosts(ctx context.Context) (int, error)
+	CountAllHosts(ctx context.Context) (int, error)
 
 	// TODO(sarah): Reconcile pending mdm hosts feature with original motivation to cleanup "dead incoming host"
 
@@ -428,6 +428,13 @@ type Datastore interface {
 	SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID uint, email string) error
 	// DeleteHostIDP deletes an existing host IDP device mapping.
 	DeleteHostIDP(ctx context.Context, id uint) error
+	// SetOrUpdateEntraJoinHostDeviceMapping records the UPN from the device's Entra
+	// join record as the host's IdP username and links the matching SCIM user. Only
+	// SCIM-provisioned UPNs on hosts without a Fleet MDM enrollment are mapped;
+	// anything else removes a previous Entra join mapping. Manual ("idp") and
+	// authenticated ("mdm_idp_accounts") mappings win and make this a no-op.
+	// Returns true when the mapping was created, changed or removed.
+	SetOrUpdateEntraJoinHostDeviceMapping(ctx context.Context, hostID uint, upn string) (bool, error)
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
 	// Returns any resent certificate activities that need to be created.
@@ -709,12 +716,21 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
 
-	// QueryResultRows returns stored results of a query
-	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter) ([]*ScheduledQueryResultRow, error)
+	// QueryResultRows returns stored results of a query along with the total count of rows matching
+	// the filter. opts.OrderKey may be "last_fetched", "host_name", "host_id" or the name of a result
+	// column (built-in keys win over a result column with the same name; values sort as strings);
+	// opts.MatchQuery matches the host display name and any result column value.
+	// Pagination metadata is returned only when opts.IncludeMetadata is set.
+	QueryResultRows(ctx context.Context, queryID uint, filter TeamFilter, opts ListOptions) ([]*ScheduledQueryResultRow, int, *PaginationMetadata, error)
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
-	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
-	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
+	// ResultCountsForQueries returns the number of stored rows with data per query. Queries with
+	// no rows are absent from the result.
+	ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error)
+	// OverwriteQueryResultRows replaces the stored rows of a host for a query. currentCount is the
+	// (approximate) number of rows stored for the query across all hosts; if the replacement would
+	// push it above maxQueryReportRows nothing is changed and the result is marked rejected.
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (QueryReportWriteResult, error)
 	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
@@ -726,10 +742,10 @@ type Datastore interface {
 	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 	// ListHostReports returns the queries/reports associated with the given host, applying
 	// the provided options for filtering, sorting, and pagination. teamID is the team of the
-	// host (nil for global). maxQueryReportRows is the configured report cap used to determine
-	// whether each query's report has been clipped. It returns the list of reports, the total
-	// count (without pagination), optional pagination metadata, and any error.
-	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions, maxQueryReportRows int) ([]*HostReport, int, *PaginationMetadata, error)
+	// host (nil for global). ReportClipped is left unset for the service layer to fill in. It
+	// returns the list of reports, the total count (without pagination), optional pagination
+	// metadata, and any error.
+	ListHostReports(ctx context.Context, hostID uint, teamID *uint, hostPlatform string, opts ListHostReportsOptions) ([]*HostReport, int, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -1489,6 +1505,15 @@ type Datastore interface {
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
 	IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
+	// GetHostOneTimeEnrollSecret returns the one-time enroll secret row matching
+	// the given secret value, or a NotFoundError. It reads from the primary
+	// because secrets are minted moments before they are presented.
+	GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*HostOneTimeEnrollSecret, error)
+	// CleanupHostOneTimeEnrollSecrets removes spent secrets that have been
+	// superseded by a newer secret for the same host, and secrets whose host no
+	// longer exists. It returns the number of rows deleted.
+	CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error)
+
 	// EnrollOsquery will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
@@ -1613,6 +1638,10 @@ type Datastore interface {
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile uuid.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfileByTeamAndIdentifier returns the profile with the
+	// given payload identifier for the team (nil for "no team"), or a
+	// NotFoundError.
+	GetMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) (*MDMAppleConfigProfile, error)
 
 	// GetMDMAppleDeclaration returns the declaration corresponding to the specified uuid.
 	GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*MDMAppleDeclaration, error)

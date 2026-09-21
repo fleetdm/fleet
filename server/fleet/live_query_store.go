@@ -1,6 +1,9 @@
 package fleet
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // LiveQueryStore defines an interface for storing and retrieving the status of
 // live queries in the Fleet system.
@@ -30,8 +33,12 @@ type LiveQueryStore interface {
 	LoadActiveQueryNames() ([]string, error)
 
 	// GetQueryResultsCounts returns the current count of query results for multiple queries.
-	// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+	// Queries with no stored count are absent from the result so callers can fall back to the
+	// database.
 	GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error)
+	// SetQueryResultsCountsIfAbsent seeds counts only for queries that have none stored, so a
+	// concurrent increment from another request is never overwritten.
+	SetQueryResultsCountsIfAbsent(counts map[uint]int) error
 	// IncrQueryResultsCounts increments the query results counts by the given amounts.
 	// Takes a map of query ID -> amount to increment.
 	IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error
@@ -41,4 +48,27 @@ type LiveQueryStore interface {
 	// DeleteQueryResultsCount deletes the query results count for a query.
 	// Used when deleting a query, to remove the Redis key.
 	DeleteQueryResultsCount(queryID uint) error
+
+	// SetQueryReportsHostCount stores the total number of hosts, used to raise
+	// the query report cap so that reports are never capped below one row per host.
+	// Refreshed by the query results cleanup cron job.
+	SetQueryReportsHostCount(count int) error
+	// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount. ok is
+	// false when none is stored, so callers can fall back to the database.
+	GetQueryReportsHostCount() (count int, ok bool, err error)
+	// SetQueryReportsHostCountIfAbsent seeds the host count only when none is stored.
+	SetQueryReportsHostCountIfAbsent(count int) error
+	// IncrQueryReportsHostCount adjusts the stored host count by delta, so newly enrolled hosts
+	// raise the cap before the cron refreshes it.
+	IncrQueryReportsHostCount(delta int) error
+
+	// MarkQueryReportsClipped records that a host's results for each query were rejected because of
+	// the report cap. Each marker expires after its ttl so it clears itself once rejections stop.
+	MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error
+	// QueryReportsClipped returns which of the given queries have a clipped marker set.
+	QueryReportsClipped(queryIDs []uint) (map[uint]bool, error)
+	// ClearQueryReportsClipped removes the clipped marker for the given queries. Used when a
+	// report admits a host it didn't cover yet, when its results are discarded, and when the query
+	// is deleted.
+	ClearQueryReportsClipped(queryIDs []uint) error
 }

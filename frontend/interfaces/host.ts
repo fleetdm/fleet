@@ -140,12 +140,30 @@ export interface IHostMdmHostNameSetting {
   detail: string;
 }
 
+/** Where an end user's BitLocker PIN submission stands. */
+export type BitLockerPINRequestStatus =
+  | "pending"
+  | "delivered"
+  | "set"
+  | "failed";
+
+export interface IBitLockerPINRequest {
+  status: BitLockerPINRequestStatus;
+  /** The agent's reason for a failure. Empty unless status is failed. */
+  error: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
     action_required?: DiskEncryptionActionRequired | null;
+    /** Only sent to the My device page, and only for a Windows host that needs a PIN. False means the host's fleetd
+     * is too old to be handed one, so the end user has to set it themselves. */
+    fleetd_can_set_pin?: boolean;
+    /** The end user's most recent PIN submission. Only sent to the My device page. */
+    pin_request?: IBitLockerPINRequest;
   };
   recovery_lock_password?: {
     status: RecoveryLockPasswordStatus;

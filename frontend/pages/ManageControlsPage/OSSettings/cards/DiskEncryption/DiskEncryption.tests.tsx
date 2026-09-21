@@ -475,6 +475,7 @@ describe("DiskEncryption", () => {
       renderDiskEncryption({
         urlPlatformParam: platform,
         mdm,
+        gitOpsModeEnabled: true,
       });
 
       expect(

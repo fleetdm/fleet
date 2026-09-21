@@ -1632,6 +1632,7 @@ const (
 	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
 	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
 	DeviceMappingIDP                  = "idp"              // set by user via PUT /hosts/{id}/device_mapping with source=idp
+	DeviceMappingEntraJoin            = "entra_join"       // set by the Windows detail query that reads the Entra join user from the device
 	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
 	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
 

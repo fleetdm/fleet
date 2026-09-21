@@ -199,11 +199,11 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions, teamID *ui
 
 type GetQueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error)
+type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) (results []fleet.HostQueryResultRow, count int, meta *fleet.PaginationMetadata, reportClipped bool, err error)
 
 type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error)
 
-type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+type QueryReportIsClippedFunc func(ctx context.Context, queryID uint) (bool, error)
 
 type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error)
 
@@ -342,6 +342,8 @@ type VersionFunc func(ctx context.Context) (*version.Info, error)
 type LicenseFunc func(ctx context.Context) (*fleet.LicenseInfo, error)
 
 type PartnershipsConfigFunc func(ctx context.Context) (*fleet.Partnerships, error)
+
+type AuthSettingsFunc func(ctx context.Context) (*fleet.AuthSettings, error)
 
 type LoggingConfigFunc func(ctx context.Context) (*fleet.Logging, error)
 
@@ -1510,6 +1512,9 @@ type Service struct {
 
 	PartnershipsConfigFunc        PartnershipsConfigFunc
 	PartnershipsConfigFuncInvoked bool
+
+	AuthSettingsFunc        AuthSettingsFunc
+	AuthSettingsFuncInvoked bool
 
 	LoggingConfigFunc        LoggingConfigFunc
 	LoggingConfigFuncInvoked bool
@@ -3163,11 +3168,11 @@ func (s *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
 	return s.GetQueryFunc(ctx, id)
 }
 
-func (s *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error) {
+func (s *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) (results []fleet.HostQueryResultRow, count int, meta *fleet.PaginationMetadata, reportClipped bool, err error) {
 	s.mu.Lock()
 	s.GetQueryReportResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetQueryReportResultsFunc(ctx, id, teamID)
+	return s.GetQueryReportResultsFunc(ctx, id, teamID, opts)
 }
 
 func (s *Service) GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error) {
@@ -3177,11 +3182,11 @@ func (s *Service) GetHostQueryReportResults(ctx context.Context, hid uint, query
 	return s.GetHostQueryReportResultsFunc(ctx, hid, queryID)
 }
 
-func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error) {
+func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
 	s.mu.Lock()
 	s.QueryReportIsClippedFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
+	return s.QueryReportIsClippedFunc(ctx, queryID)
 }
 
 func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error) {
@@ -3665,6 +3670,13 @@ func (s *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships, 
 	s.PartnershipsConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.PartnershipsConfigFunc(ctx)
+}
+
+func (s *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, error) {
+	s.mu.Lock()
+	s.AuthSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthSettingsFunc(ctx)
 }
 
 func (s *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {

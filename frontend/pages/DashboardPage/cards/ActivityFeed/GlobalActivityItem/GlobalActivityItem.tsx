@@ -48,6 +48,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
   ActivityType.FailedEnrollmentProfileRenewal,
+  ActivityType.HostEnrollmentRejected,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -401,6 +402,20 @@ const TAGGED_TEMPLATES = {
         removed <b>{user_email}</b> from the <b>{team_name}</b> fleet.
       </>
     );
+  },
+  hostEnrollmentRejected: (activity: IActivity) => {
+    const { host_display_name, host_serial } = activity.details || {};
+    let host: React.ReactNode = "a host";
+    if (host_display_name) {
+      host = <b>{host_display_name}</b>;
+    } else if (host_serial) {
+      host = (
+        <>
+          a host with serial number <b>{host_serial}</b>
+        </>
+      );
+    }
+    return <>rejected an enrollment for {host}.</>;
   },
   fleetEnrolled: (activity: IActivity) => {
     const { host_display_name, host_serial } = activity.details || {};
@@ -2125,6 +2140,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdDiskEncryptionPIN: (activity: IActivity) => {
+    return (
+      <>
+        <b>End user </b>created a disk encryption PIN for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdLabel: (activity: IActivity) => {
     const fleetText = activity.details?.fleet_name ? (
       <>
@@ -2482,6 +2505,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.FleetEnrolled: {
       return TAGGED_TEMPLATES.fleetEnrolled(activity);
+    }
+    case ActivityType.HostEnrollmentRejected: {
+      return TAGGED_TEMPLATES.hostEnrollmentRejected(activity);
     }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);
@@ -2891,6 +2917,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
+    case ActivityType.CreatedDiskEncryptionPIN: {
+      return TAGGED_TEMPLATES.createdDiskEncryptionPIN(activity);
+    }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
@@ -3023,6 +3052,9 @@ const GlobalActivityItem = ({
         if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
         return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
+      case ActivityType.CreatedDiskEncryptionPIN:
         // The template carries the "End user" subject for this roll-up.
         return null;
       case ActivityType.UserMFARequested:

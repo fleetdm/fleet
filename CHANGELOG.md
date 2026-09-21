@@ -5,7 +5,6 @@
 - Fixed software title details pages and the hosts list software status filter timing out for software with a large install history.
 - Fixed host activity queue getting stuck due to database transactions not retrying when getting MySQL error 1615
 - Fixed deleting a host that was released from Apple Business reporting success while the host record stayed in Fleet. Fleet now checks the assignment with Apple before deleting, and returns an error instead of reporting success if Apple can't be reached.
-- Fixed a slow query on the host details Software tab (`GET /api/v1/fleet/hosts/{id}/software`) for hosts with many historical software install/uninstall attempts.
 - Fixed "Hosts enrolled" chart on the dashboard page to exclude pending hosts from per-platform counts.
 - Fixed an issue where VPP and In House Apps would backdate and sometimes fall outside of the MDM command queue.
 - Fixed a bug where updating a SCIM group's members could silently remove members that the identity provider did not ask to remove.

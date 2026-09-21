@@ -397,13 +397,17 @@ type Service interface {
 	// included in the results. The inherited count is only meaningful when mergeInherited is true.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
+	// GetQueryReportResults returns the stored results of a query for hosts the requestor has access
+	// to, along with the total count of matching rows. Pagination metadata is returned only when
+	// opts.PerPage is set.
 	// Returns a boolean indicating whether the report is clipped.
-	GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]HostQueryResultRow, bool, error)
+	GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts ListOptions) (results []HostQueryResultRow, count int, meta *PaginationMetadata, reportClipped bool, err error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
-	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
-	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+	// QueryReportIsClipped returns true if a host's results for the report were recently rejected
+	// because storing them would have exceeded the effective report cap (see
+	// ServerSettings.GetEffectiveQueryReportCap). Merely reaching the cap does not clip a report.
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
 	// sorted, and paginated according to opts.
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
@@ -622,6 +626,10 @@ type Service interface {
 
 	// PartnershipsConfig returns Fleet partnership-specific configuration
 	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
+
+	// AuthSettings returns the read-only authentication settings sourced from
+	// the server configuration, or nil when none is enabled.
+	AuthSettings(ctx context.Context) (*AuthSettings, error)
 
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)

@@ -395,7 +395,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfilesBatched(ctx, ds, mdmCommander, keyValueStore, logger, 0)
+							err = ReconcileAppleProfilesBatched(ctx, ds, mdmCommander, keyValueStore, logger, 0, false)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -4660,7 +4660,7 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	require.NoError(t, err)
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&command_status=ran", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
 
 	// per_page above the documented maximum is rejected with a clear message.
 	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1001", nil, http.StatusBadRequest)
@@ -13491,13 +13491,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -13557,7 +13557,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -13578,7 +13578,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -13598,7 +13598,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -28612,10 +28612,21 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	require.NoError(t, err)
 	assert.Equal(t, "android", p)
 
-	// Verify command_status filter is rejected for Android hosts.
-	res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", hostUUID), nil, http.StatusBadRequest)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, and iPadOS hosts`)
+	// Verify command_status filter works for Android hosts.
+	var filteredResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", hostUUID), nil, http.StatusOK, &filteredResp)
+	require.Len(t, filteredResp.Results, 1, "command_status=ran should return the acknowledged command")
+	assert.Equal(t, cmdUUID, filteredResp.Results[0].CommandUUID)
+
+	// Filtering by pending should return no results (the command already acked).
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=pending", hostUUID), nil, http.StatusOK, &filteredResp)
+	require.Empty(t, filteredResp.Results, "command_status=pending should return no results after ack")
+
+	// Verify raw_command stores the original payload (without injected duration).
+	resultsResp = getMDMCommandResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.JSONEq(t, rebootJSON, string(resultsResp.Results[0].Payload), "raw_command should match the original payload without injected duration")
 }
 
 // TestAndroidCustomCommandRejectedOnPersonallyOwnedHost covers the symptom reported in #53151: REBOOT on a BYOD work
@@ -28902,6 +28913,50 @@ func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUI
 	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, idpAccountUUID)
 	require.NoError(t, err)
 	return sessionID
+}
+
+func (s *integrationMDMTestSuite) TestReenrollKeepsManuallyMappedIdPUser() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	const userName = "manual.mapped@example.com"
+	var createResp map[string]any
+	s.DoJSON("POST", "/api/latest/fleet/scim/Users", map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": userName,
+		"name":     map[string]any{"givenName": "Manual", "familyName": "Mapped"},
+		"emails":   []map[string]any{{"value": userName, "type": "work", "primary": true}},
+		"active":   true,
+	}, http.StatusCreated, &createResp)
+
+	// Manual enrollment, no end-user authentication: the host has no IdP account.
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	hostID := hostResp.Host.ID
+
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hostID),
+		putHostDeviceMappingRequest{Email: userName, Source: fleet.DeviceMappingIDP}, http.StatusOK, &putResp)
+
+	checkEndUser := func() {
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.Len(t, hostResp.Host.EndUsers, 1)
+		assert.Equal(t, userName, hostResp.Host.EndUsers[0].IdpUserName)
+		assert.Equal(t, "Manual Mapped", hostResp.Host.EndUsers[0].IdpFullName)
+	}
+	checkEndUser()
+
+	// Authenticate + TokenUpdate again, as a SCEP renewal or `profiles renew -type enrollment` does.
+	require.NoError(t, mdmDevice.Reenroll())
+	checkEndUser()
 }
 
 // TestBitLockerPINHandoff drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to
