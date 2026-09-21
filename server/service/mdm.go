@@ -1648,7 +1648,8 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: prof.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm windows config profile")
 	}
 
@@ -1721,7 +1722,8 @@ func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: prof.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm android config profile")
 	}
 
@@ -2272,7 +2274,8 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: newCP.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm android config profile")
 	}
 
@@ -2359,6 +2362,10 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+		return err
+	}
+
 	existing, err := svc.ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -2437,7 +2444,8 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: cp.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm android config profile")
 	}
 
@@ -2904,7 +2912,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 		}
 	}
@@ -2913,7 +2922,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
 		}
 	}
@@ -2922,7 +2932,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
 		}
 	}
@@ -2931,7 +2942,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited android profile")
 		}
 	}
@@ -3439,7 +3451,8 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 			// error messages to the user. However, we're validating again here just
 			// in case the client is not working as expected.
 			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(
-				"%s is not a valid macOS, Windows, or Android configuration profile. ", profile.Name)+
+				"%s is not a valid macOS, Windows, or Android configuration profile. ", profile.Name,
+			)+
 				"macOS profiles must be valid .mobileconfig or .json files. "+
 				"Windows configuration profiles can only have <Replace> or <Add> top level elements. "+
 				"Android profiles must be valid .json files.")
@@ -3861,7 +3874,8 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 	}
 
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), details); err != nil {
+		ctx, authz.UserFromContext(ctx), details,
+	); err != nil {
 		onError(ctxerr.Wrap(ctx, err, "logging activity for resend config profile"), false)
 		return
 	}
@@ -4389,7 +4403,8 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 				ProfileName: profileName,
 				ProfileUUID: profileUUID,
 				HostCount:   count,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")
 		}
 	}
@@ -4607,7 +4622,8 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 			HostDisplayName:  host.DisplayName(),
 			InstalledFromDEP: installedFromDEP,
 			Platform:         host.Platform,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 	return nil
