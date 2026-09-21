@@ -661,6 +661,16 @@ func (s S3Config) BucketsAndPrefixesMatch() bool {
 	return s.SoftwareInstallersBucket == cb && s.SoftwareInstallersPrefix == cp
 }
 
+// ValidateSoftwareInstallersAzureExclusive rejects configuring both an S3
+// bucket and an Azure container for the software installers group at the same
+// time, since only one backend can be selected.
+func (s S3Config) ValidateSoftwareInstallersAzureExclusive(azure AzureConfig, initFatal func(err error, msg string)) {
+	if s.SoftwareInstallersBucket != "" && azure.SoftwareInstallersContainer != "" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_bucket` and `azure_software_installers_container` cannot both be set; choose one storage backend for software installers."),
+			"software installers storage")
+	}
+}
+
 func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 	configInternal := S3ConfigInternal{
 		Bucket:           s.SoftwareInstallersBucket,
@@ -757,6 +767,49 @@ type S3CloudFrontConfig struct {
 	BaseURL            string
 	SigningPublicKeyID string
 	Signer             crypto.Signer
+}
+
+// AzureConfig defines config to enable Azure Blob Storage as an alternative
+// object store to S3 for the software installers group (installers,
+// bootstrap packages, software title icons, org logos). It is purely
+// additive: when unset, storage selection and behavior for S3/GCS deployments
+// are unchanged.
+type AzureConfig struct {
+	SoftwareInstallersAccountName string `yaml:"software_installers_account_name"`
+	SoftwareInstallersAccountKey  string `yaml:"software_installers_account_key"`
+	SoftwareInstallersContainer   string `yaml:"software_installers_container"`
+	// SoftwareInstallersContainerURL overrides the default
+	// https://<account>.blob.core.windows.net endpoint, for Azurite or other
+	// Azure-compatible emulators in tests.
+	SoftwareInstallersContainerURL string `yaml:"software_installers_container_url"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a SAS-signed
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads. This is the Azure counterpart to the
+	// S3 CloudFront/GCS signed URL configs.
+	SoftwareInstallersSignedURL bool `yaml:"software_installers_signed_url"`
+}
+
+// SoftwareInstallersToInternalCfg creates an internal Azure config struct from
+// the ingested Azure config for the software installers group (installers,
+// bootstrap packages, icons, org logos).
+func (a AzureConfig) SoftwareInstallersToInternalCfg() AzureConfigInternal {
+	return AzureConfigInternal{
+		AccountName:  a.SoftwareInstallersAccountName,
+		AccountKey:   a.SoftwareInstallersAccountKey,
+		Container:    a.SoftwareInstallersContainer,
+		ContainerURL: a.SoftwareInstallersContainerURL,
+		SignedURL:    a.SoftwareInstallersSignedURL,
+	}
+}
+
+// AzureConfigInternal is used internally to configure an Azure Blob Storage
+// client for a given purpose (e.g. software installers).
+type AzureConfigInternal struct {
+	AccountName  string
+	AccountKey   string
+	Container    string
+	ContainerURL string
+	SignedURL    bool
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -910,6 +963,7 @@ type FleetConfig struct {
 	Kinesis                    KinesisConfig
 	Lambda                     LambdaConfig
 	S3                         S3Config
+	Azure                      AzureConfig
 	Email                      EmailConfig
 	SES                        SESConfig
 	PubSub                     PubSubConfig
@@ -1936,6 +1990,13 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
 	man.addConfigBool("s3.software_installers_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 
+	// Azure Blob Storage for software installers
+	man.addConfigString("azure.software_installers_account_name", "", "Azure Storage account name")
+	man.addConfigString("azure.software_installers_account_key", "", "Azure Storage account shared key")
+	man.addConfigString("azure.software_installers_container", "", "Azure Storage container where to store uploaded software installers")
+	man.addConfigString("azure.software_installers_container_url", "", "Azure Blob Storage endpoint override (leave blank for the default https://<account>.blob.core.windows.net; used for Azurite/testing)")
+	man.addConfigBool("azure.software_installers_signed_url", false, "Hand out SAS-signed URLs for installer/in-house app/bootstrap downloads instead of proxying bytes")
+
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
@@ -2358,6 +2419,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
 		S3: man.loadS3Config(),
+		Azure: AzureConfig{
+			SoftwareInstallersAccountName:  man.getConfigString("azure.software_installers_account_name"),
+			SoftwareInstallersAccountKey:   man.getConfigString("azure.software_installers_account_key"),
+			SoftwareInstallersContainer:    man.getConfigString("azure.software_installers_container"),
+			SoftwareInstallersContainerURL: man.getConfigString("azure.software_installers_container_url"),
+			SoftwareInstallersSignedURL:    man.getConfigBool("azure.software_installers_signed_url"),
+		},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},

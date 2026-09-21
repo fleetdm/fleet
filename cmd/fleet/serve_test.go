@@ -1633,6 +1633,6 @@ func TestInitOrgLogoStore(t *testing.T) {
 	// the database-backed implementation. NewOrgLogoStore does no DB work at
 	// construction, so a zero-value Datastore is enough to verify selection.
 	ds := &mysql.Datastore{}
-	store := initOrgLogoStore(t.Context(), config.S3Config{}, ds, logger)
+	store := initOrgLogoStore(t.Context(), config.S3Config{}, config.AzureConfig{}, ds, logger)
 	require.IsType(t, ds.NewOrgLogoStore(), store)
 }

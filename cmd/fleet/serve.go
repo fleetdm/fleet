@@ -53,6 +53,7 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/azure"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -513,7 +514,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing ee android service")
 	}
 
-	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
+	orgLogoStore := initOrgLogoStore(ctx, config.S3, config.Azure, mds, logger)
 
 	svc, err = service.NewService(
 		ctx,
@@ -558,7 +559,28 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-		if config.S3.SoftwareInstallersBucket != "" {
+		config.S3.ValidateSoftwareInstallersAzureExclusive(config.Azure, initFatal)
+		if config.Azure.SoftwareInstallersContainer != "" {
+			store, err := azure.NewSoftwareInstallerStore(config.Azure)
+			if err != nil {
+				initFatal(err, "initializing Azure Blob software installer store")
+			}
+			softwareInstallStore = store
+			logger.InfoContext(ctx, "using Azure Blob software installer store", "container", config.Azure.SoftwareInstallersContainer)
+
+			bstore, err := azure.NewBootstrapPackageStore(config.Azure)
+			if err != nil {
+				initFatal(err, "initializing Azure Blob bootstrap package store")
+			}
+			bootstrapPackageStore = bstore
+			logger.InfoContext(ctx, "using Azure Blob bootstrap package store", "container", config.Azure.SoftwareInstallersContainer)
+
+			softwareTitleIconStore, err = azure.NewSoftwareTitleIconStore(config.Azure)
+			if err != nil {
+				initFatal(err, "initializing Azure Blob software title icon store")
+			}
+			logger.InfoContext(ctx, "using Azure Blob software title icon store", "container", config.Azure.SoftwareInstallersContainer)
+		} else if config.S3.SoftwareInstallersBucket != "" {
 			if config.S3.BucketsAndPrefixesMatch() {
 				logger.WarnContext(ctx,
 					"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
@@ -1271,7 +1293,15 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 // initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
 //   - S3 when a software installers bucket is configured (shared bucket, distinct prefix)
 //   - otherwise a database-backed store, so custom org logos work without object storage or a writable filesystem.
-func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
+func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, azureConfig configpkg.AzureConfig, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
+	if azureConfig.SoftwareInstallersContainer != "" {
+		store, err := azure.NewOrgLogoStore(azureConfig)
+		if err != nil {
+			initFatal(err, "initializing Azure Blob org logo store")
+		}
+		logger.InfoContext(ctx, "using Azure Blob org logo store", "container", azureConfig.SoftwareInstallersContainer)
+		return store
+	}
 	if s3Config.SoftwareInstallersBucket != "" {
 		store, err := s3.NewOrgLogoStore(s3Config)
 		if err != nil {
