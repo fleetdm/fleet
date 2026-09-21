@@ -744,15 +744,14 @@ func orbitAction(c *cli.Context) error {
 		// error on the first attempt here, causing orbit to
 		// restart. This was changed to have control over
 		// how/when we want to retry to download the packages.
-		err = retrypkg.Do(
-			func() error {
-				var err error
-				osquerydPath, desktopPath, err = getFleetdComponentPaths(c, updater, fallbackServerOverridesCfg)
-				if err != nil {
-					return err
-				}
-				return nil
-			},
+		err = retrypkg.Do(func() error {
+			var err error
+			osquerydPath, desktopPath, err = getFleetdComponentPaths(c, updater, fallbackServerOverridesCfg)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
 			// retry every 5 minutes to not flood the logs,
 			// but actual pings to the remote server are
 			// handled by `updater.Get`
@@ -934,8 +933,7 @@ func orbitAction(c *cli.Context) error {
 	enrollSecret := c.String("enroll-secret")
 	if enrollSecret != "" {
 		const enrollSecretEnvName = "ENROLL_SECRET"
-		options = append(
-			options,
+		options = append(options,
 			osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
 			osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 		)
@@ -1004,8 +1002,7 @@ func orbitAction(c *cli.Context) error {
 			log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
 		}
 
-		options = append(
-			options,
+		options = append(options,
 			osquery.WithFlags(osquery.FleetFlags(osqueryVersion, parsedURL)),
 			osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 		)
@@ -1019,8 +1016,7 @@ func orbitAction(c *cli.Context) error {
 			return fmt.Errorf("parse URL: %w", err)
 		}
 
-		options = append(
-			options,
+		options = append(options,
 			osquery.WithFlags(osquery.FleetFlags(osqueryVersion, parsedURL)),
 		)
 
@@ -1034,8 +1030,7 @@ func orbitAction(c *cli.Context) error {
 				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
 			}
 
-			options = append(
-				options,
+			options = append(options,
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else {
@@ -1173,8 +1168,7 @@ func orbitAction(c *cli.Context) error {
 		}
 		hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
 
-		options = append(
-			options,
+		options = append(options,
 			osquery.WithFlags(osquery.FleetFlags(osqueryVersion, proxy.ParsedURL)),
 
 			// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
@@ -1304,8 +1298,7 @@ func orbitAction(c *cli.Context) error {
 	switch runtime.GOOS {
 	case "darwin":
 		orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
-			orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL,
-		))
+			orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
 		const nudgeLaunchInterval = 30 * time.Minute
 		orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
@@ -1325,8 +1318,7 @@ func orbitAction(c *cli.Context) error {
 		}
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
-			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker,
-		))
+			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
 		if c.Bool("fleet-desktop") {
 			registerFleetDesktopAppID(c.String("root-dir"))
 		}
@@ -1447,8 +1439,7 @@ func orbitAction(c *cli.Context) error {
 	options = append(options, osquery.WithFlags([]string{"--force"}))
 
 	if c.Bool("debug") {
-		options = append(
-			options,
+		options = append(options,
 			osquery.WithFlags([]string{"--verbose", "--tls_dump"}),
 		)
 	}
