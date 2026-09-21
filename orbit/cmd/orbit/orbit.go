@@ -44,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/managedaccount"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/mdmsecret"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -329,8 +330,28 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 	if secret == "" {
 		return nil
 	}
-	if err = setSecret(secret); err != nil {
-		return fmt.Errorf("set enroll secret from file: %w", err)
+	return adoptEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+		deleteSecretPathIfExists(enrollSecretPath)
+	})
+}
+
+// adoptEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding
+// it when the keystore holds none and updating it when it holds a different one. The update branch
+// is what lets a freshly delivered secret supersede a stored one, which is how recovery works.
+//
+// onDelivered is called once the secret is safely in the keystore, to discard the copy it arrived
+// in: the file for a package-delivered secret, the registry value for an MDM-delivered one. It is
+// deliberately not called when the keystore write failed or could not be verified, so the delivery
+// copy survives for the next attempt.
+func adoptEnrollSecret(
+	secret string,
+	ks enrollSecretKeystore,
+	disableKeystore bool,
+	setSecret func(string) error,
+	onDelivered func(),
+) error {
+	if err := setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret: %w", err)
 	}
 	if !ks.Supported() || disableKeystore {
 		return nil
@@ -352,7 +373,7 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 				log.Warn().Msgf("enroll secret was not saved correctly in %v", ks.Name())
 			} else {
 				log.Info().Msgf("added enroll secret to keystore: %v", ks.Name())
-				deleteSecretPathIfExists(enrollSecretPath)
+				onDelivered()
 			}
 		}
 	} else if secretFromKeystore != secret {
@@ -368,14 +389,75 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 				log.Warn().Msgf("enroll secret was not updated correctly in %v", ks.Name())
 			} else {
 				log.Info().Msgf("updated enroll secret in keystore: %v", ks.Name())
-				deleteSecretPathIfExists(enrollSecretPath)
+				onDelivered()
 			}
 		}
 	} else {
-		// Keystore secret found, and it matches the secret from the file.
-		deleteSecretPathIfExists(enrollSecretPath)
+		// Keystore secret found, and it matches the delivered secret.
+		onDelivered()
 	}
 	return nil
+}
+
+const (
+	// mdmSecretPollInterval matches the cadence the macOS configuration-profile wait uses.
+	mdmSecretPollInterval = 30 * time.Second
+	// mdmSecretSlowDeliveryWarning is how long a host may wait before the wait stops looking routine.
+	// Waiting is the normal state for a freshly installed host, so the first minutes are logged
+	// quietly; past this point the host is probably not going to get a secret without help, and the
+	// log has to say so rather than repeating the same benign line forever.
+	mdmSecretSlowDeliveryWarning = 10 * time.Minute
+)
+
+// waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret. It does not time
+// out, matching the macOS configuration-profile wait: there is nothing useful for fleetd to do
+// without a secret, and an administrator resending the profile is what ends the wait.
+func waitForMDMDeliveredEnrollSecret(disableKeystore bool, setSecret func(string) error) {
+	log.Info().Msg("no enroll secret yet, waiting for Fleet MDM to deliver one")
+
+	for started := time.Now(); ; time.Sleep(mdmSecretPollInterval) {
+		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setSecret)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
+			continue
+		}
+		if adopted {
+			log.Info().Msg("adopted an enroll secret delivered by Fleet MDM")
+			return
+		}
+		if waited := time.Since(started); waited > mdmSecretSlowDeliveryWarning {
+			log.Warn().Dur("waited", waited).Msg(
+				"still waiting for Fleet MDM to deliver an enroll secret; an administrator may need to resend the profile that carries it")
+		} else {
+			log.Debug().Msg("no enroll secret delivered yet")
+		}
+	}
+}
+
+// adoptMDMDeliveredEnrollSecret adopts an enroll secret that Fleet MDM delivered out of band, if
+// one is waiting. It reports whether a secret was adopted. Only Windows has such a channel; the
+// registry value is cleared once the secret is in the keystore, so its presence means a secret is
+// waiting and its absence means orbit already took it.
+func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) (bool, error) {
+	secret, err := mdmsecret.Read()
+	switch {
+	case errors.Is(err, mdmsecret.ErrNotFound), errors.Is(err, mdmsecret.ErrNotImplemented):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("read MDM-delivered enroll secret: %w", err)
+	}
+
+	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
+	if err := adoptEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+		if err := mdmsecret.Clear(); err != nil {
+			// Not fatal: the secret is already in the keystore, so orbit can enroll. The value
+			// lingering only means it will be adopted again, harmlessly, on the next start.
+			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+		}
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // tryReadEnrollSecretFromKeystore loads the enroll secret from the keystore via
@@ -469,8 +551,26 @@ func orbitAction(c *cli.Context) error {
 
 	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
 	disableKeystore := c.Bool("disable-keystore")
+	useSystemConfig := c.Bool("use-system-configuration")
+
+	// A secret Fleet MDM delivered out of band takes precedence over anything already stored, because
+	// a freshly delivered one is how an administrator recovers a host whose secret was spent or lost.
+	// Checked before the file and keystore so the newer value wins rather than being masked by them.
+	adoptedMDMSecret := false
+	if runtime.GOOS == "windows" && useSystemConfig {
+		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setEnrollSecret)
+		if err != nil {
+			// Not fatal: fall through to the file and keystore, which may still hold a usable secret.
+			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
+		}
+		adoptedMDMSecret = adopted
+	}
+
+	// Skipped entirely when a secret was just adopted from MDM: the MSI always sets
+	// enroll-secret-path, so the mutual-exclusion check below would otherwise reject the very
+	// secret Fleet delivered, and the file holds nothing worth preferring over it.
 	enrollSecretPath := c.String("enroll-secret-path")
-	if enrollSecretPath != "" {
+	if enrollSecretPath != "" && !adoptedMDMSecret {
 		if c.String("enroll-secret") != "" {
 			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 		}
@@ -482,6 +582,14 @@ func orbitAction(c *cli.Context) error {
 		if err := tryReadEnrollSecretFromKeystore(c.String("enroll-secret"), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
 			return err
 		}
+	}
+
+	// With the registry as the primary carrier the enroll secret is delivered by a Fleet-managed
+	// configuration profile rather than by the installer, so it is legitimately absent when fleetd
+	// first starts and arrives once that profile lands. Wait for it instead of exiting, which is what
+	// makes "the profile has not arrived yet" recoverable rather than a failed install.
+	if runtime.GOOS == "windows" && useSystemConfig && c.String("enroll-secret") == "" {
+		waitForMDMDeliveredEnrollSecret(disableKeystore, setEnrollSecret)
 	}
 
 	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
