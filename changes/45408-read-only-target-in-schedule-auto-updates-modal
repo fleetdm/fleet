@@ -1,0 +1,1 @@
+- Replaced the editable target selector in the "Schedule auto updates" modal with a read-only display that shows the current target and directs users to "Actions > Edit software" to make changes.
