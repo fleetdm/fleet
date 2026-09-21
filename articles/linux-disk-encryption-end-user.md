@@ -49,6 +49,44 @@ Follow the steps below to get set up.
 
 Now, your encryption status will update to "verified" in Fleet Desktop, meaning that the newly created recovery key has been successfully stored.
 
+## Trigger the prompt programmatically
+
+IT admins can trigger the escrow prompt on a host without waiting for the end user to open Fleet Desktop. Run the script below on the host: it reads the host's Fleet Desktop token from `/opt/orbit/identifier` and calls the [Trigger Linux disk encryption escrow](https://fleetdm.com/docs/rest-api/rest-api#trigger-linux-disk-encryption-escrow-by-fleet-desktop-token) API endpoint.
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+fleet_url="https://fleet.yourdomain.com"
+identifier_file="/opt/orbit/identifier"
+
+if [[ ! -r "$identifier_file" ]]; then
+    echo "Missing or unreadable orbit identifier: $identifier_file" >&2
+    exit 1
+fi
+
+orbit_identifier="$(tr -d '[:space:]' < "$identifier_file")"
+if [[ -z "$orbit_identifier" ]]; then
+    echo "Orbit identifier is empty." >&2
+    exit 1
+fi
+
+echo "Triggering disk encryption escrow..."
+
+if curl -sf --connect-timeout 5 --max-time 20 -X POST \
+  "$fleet_url/api/v1/fleet/device/$orbit_identifier/mdm/linux/trigger_escrow" > /dev/null; then
+    echo "Escrow triggered successfully!"
+else
+    rc=$?
+    echo "Trigger failed!" >&2
+    exit "$rc"
+fi
+```
+
+Set `fleet_url` to your Fleet server's URL, then run the script on the host directly, or deploy it as a [Fleet script](https://fleetdm.com/guides/scripts) so it runs on many hosts at once.
+
+> The escrow prompt will pop up on the host without warning. Let the end user know ahead of time so it isn't unexpected.
+
 
 
 <meta name="articleTitle" value="Encrypt your Fleet-managed Linux device">
