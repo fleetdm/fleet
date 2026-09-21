@@ -67,7 +67,13 @@ macOS relies on this quietly: the reuse predicate is `consumed_at IS NULL`, and 
 
 `auth.use_one_time_enroll_secrets` already gates the macOS behavior, is Premium-only, defaults off, and is force-disabled on license downgrade. Windows reuses it rather than adding a second key. The macOS documentation states a hard prerequisite (every Mac must run fleetd installed by Fleet MDM); the Windows equivalent needs stating before one flag governs both platforms.
 
-### 8. Ship in three phases
+### 8. No expiry on an unconsumed secret
+
+Follow macOS, which shipped with no TTL. An unconsumed secret stays valid until used; the only clock is the second-plane window after first use. Consumption and re-issue on re-enrollment are what kill a scraped secret, not elapsed time.
+
+*Alternatives considered.* **A TTL on unconsumed secrets**, as security#68 originally proposed — adds a failure class (expiring before a slow MSI download finishes on a poor link) that the recovery channel would then have to absorb, and diverges from macOS for no security gain. The original justification for a TTL was that the next session alert would re-enqueue the install and self-heal; that premise does not hold on Windows, per decision 5.
+
+### 9. Ship in three phases
 
 Phase 1: mint per enrollment on the existing MSI carrier. Removes the fleet-wide blast radius, which is the substance of the issue. Phase 2: host-scoped expansion, closing the at-rest and API disclosure. Phase 3: the recovery channel. **Single-use enforcement stays off or lenient until phase 3 lands**, because only then does a wedged host have a way back.
 
@@ -81,6 +87,25 @@ Phase 1: mint per enrollment on the existing MSI carrier. Removes the fleet-wide
 - **[Legitimate re-enroll after node key loss]** Orbit that loses its node key re-enrolls with the secret it still holds. Under single-use that secret is spent. → Decide explicitly whether the secret stays valid for its bound host on the same plane, or whether recovery is the intended path; hosts going permanently silent is the failure to avoid.
 - **[Hosts holding the old global secret]** Every host enrolled before the change holds a copy of the fleet-wide secret, which stays live until rotated. → Ship with guidance to rotate the global secret once the fleet has re-enrolled.
 
+## Backward compatibility
+
+Fleet hosts the Windows MDM fleetd, but it is served from `https://download.fleetdm.com/stable/meta.json` (`pkg/fleetdbase/fleetd_base.go:32`), which is the current stable build and is **not** pinned to the Fleet server version. So the server cannot choose an older fleetd and cannot guarantee a newer one; the two version independently. fleetd then self-updates over TUF on an admin-configurable channel (`orbit-channel`), so most fleets converge on their own while channel-pinned fleets do not.
+
+The compatibility matrix is narrower than it looks, because **phases 1 and 2 require no agent change at all**. The one-time secret arrives as the same `FLEET_SECRET` MSI property; it is a different string with a different lifetime, and old fleetd cannot tell the difference.
+
+| Server | fleetd | Outcome |
+|---|---|---|
+| Old | New | Global secret on the MSI command line, fleetd reads `secret.txt` as today. The new registry probe finds nothing and falls back. Works, **provided the registry read is additive**. |
+| New, flag off | Old | Unchanged from today. Works. |
+| New, flag on | Old | Phases 1 and 2 work: single-use secret on the same MSI property. Phase 3 recovery is inert, because old fleetd never reads the registry. This is the only broken cell. |
+| New, flag on | New | Works. |
+
+Three consequences for the design:
+
+1. **The registry read in fleetd must be additive**, falling back to `secret.txt` and the keystore, so new fleetd against an old server is a no-op.
+2. **The recovery carrier can be delivered unconditionally.** It is inert on old fleetd rather than harmful, so it needs no version gate. Per-host gating is tempting because the server already knows orbit version (`GetHostOrbitInfo`, used for exactly this kind of check at `microsoft_mdm.go:1474`), but it does not help the case that matters: a wedged host never enrolled, so there is no host row and no known orbit version.
+3. **A new config knob is not the answer.** What an admin needs is not another switch but a stated minimum fleetd version for enforcement, the same shape as the documented macOS prerequisite. The server can additionally surface which hosts are below that floor from data it already has.
+
 ## Migration Plan
 
 1. Land phases 1 and 2 with `auth.use_one_time_enroll_secrets` off. No behavior change for any existing deployment.
@@ -93,7 +118,8 @@ Phase 1: mint per enrollment on the existing MSI carrier. Removes the fleet-wide
 
 ## Open Questions
 
-- **Expiry for an unconsumed secret.** macOS chose *no* TTL; the security issue and the local draft both assume one. Recommendation: match macOS. A TTL adds a failure class (expired before a slow MSI download finished) that phase 3 recovery would then have to absorb, and the self-heal should be proven before adding a second clock.
+- **Agent version floor for enforcement.** Phases 1 and 2 need no agent change: the one-time secret rides the existing `FLEET_SECRET` MSI property and old fleetd cannot tell it apart from the global one. Only phase 3 recovery requires a fleetd that reads the registry. Since enforcement depends on recovery, the real prerequisite is a minimum fleetd version, and the wedge case is exactly the case where the server may not know a host's orbit version (no host row, never enrolled). See "Backward compatibility" below.
+- **Tier.** The existing flag is Premium-only and is silently forced off without a Premium license (`cmd/fleet/serve.go:355`). The Windows story states the opposite: "Fleet Free and Fleet Premium. This is a security fix on a core path, not a tiered feature." Reusing the flag inherits Premium-only. This needs an explicit decision, and it may require decoupling Windows from the existing flag.
 - **Where the recovery carrier lives.** A dedicated Fleet-managed Windows profile is the cleanest analogue of the Fleetd configuration profile, but it introduces a Fleet-managed Windows profile where none exists today. Worth confirming against how Fleet-managed Windows profiles are reconciled.
 - **Whether recovery is a new endpoint or reuses `resendHostMDMProfileEndpoint`.** The existing endpoint is registered under `mdmAnyMW` and already has the admin-only and resend-while-verifying carve-outs macOS needed. Reusing it would keep the two platforms' operator experience identical.
 - **Whether `host_enrollment_rejected` activities are wanted at Windows volume**, or whether the existing 12-hour per-host-per-reason rate limit is sufficient.

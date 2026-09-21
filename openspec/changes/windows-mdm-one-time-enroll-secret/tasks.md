@@ -1,9 +1,10 @@
 ## 1. Close blocking decisions
 
-- [ ] 1.1 Decide expiry for an unconsumed Windows secret; recommendation in design.md is to match macOS and have no TTL. Record the decision in design.md before schema work.
+- [x] 1.1 Expiry for an unconsumed Windows secret: **decided, no TTL, matching macOS**. Recorded in design.md decision 8 and in security#68.
 - [ ] 1.2 Decide whether recovery reuses `resendHostMDMProfileEndpoint` (already `mdmAnyMW`, already admin-only with the resend-while-verifying carve-out) or gets a new endpoint.
 - [ ] 1.3 Decide the intended behavior when orbit loses its node key and re-enrolls with a spent secret: secret stays valid for its bound host on the same plane, or recovery is the path. Hosts going permanently silent is the outcome to avoid.
-- [ ] 1.4 Confirm the Windows equivalent of the macOS prerequisite ("every Mac must run fleetd installed by Fleet MDM") and write it down, since one flag will govern both platforms.
+- [ ] 1.4 Decide the tier. The existing flag is Premium-only and force-disabled without a Premium license (`cmd/fleet/serve.go:355`), but the story says "Fleet Free and Fleet Premium… not a tiered feature". Reusing the flag inherits Premium-only.
+- [ ] 1.5 Set the minimum fleetd version required for recovery to work, and decide whether to surface hosts below that floor using the orbit version the server already has.
 
 ## 2. Schema and minting (phase 1)
 
@@ -47,7 +48,7 @@
 
 ## 7. Recovery, agent side (phase 3)
 
-- [ ] 7.1 Have orbit on Windows read the registry location on startup, as the analogue of the macOS `--use-system-configuration` loop.
+- [ ] 7.1 Have orbit on Windows read the registry location on startup, as the analogue of the macOS `--use-system-configuration` loop. The read MUST be additive: fall back to `secret.txt` and the keystore when the registry value is absent, so new fleetd against an old server is a no-op.
 - [ ] 7.2 Adopt a newer secret found there, replacing the stored credential, without re-enrolling an already-enrolled host that has no new secret waiting.
 - [ ] 7.3 Keep orbit the single source of the secret for both planes: orbit continues to pass the secret to osqueryd rather than osquery sourcing it independently.
 - [ ] 7.4 Confirm the existing mutual exclusion between `enroll-secret` and `enroll-secret-path` is not violated by the new path.
@@ -66,6 +67,8 @@
 - [ ] 8.10 **Wedge scenario, the one to prove hardest**: MSI installs, the secret is consumed or invalidated *before* fleetd enrolls, and the host recovers without device-side intervention and without MSI reinstall.
 - [ ] 8.11 Repeatedly failing install does not mint an unbounded number of live secrets and the failure is observable.
 - [ ] 8.12 A host that enrolled before the upgrade re-enrolls after it and transitions to a one-time secret.
+- [ ] 8.13 **Old server, new fleetd**: a registry-reading fleetd against a server that still sends the global secret enrolls normally, falling back to `secret.txt`.
+- [ ] 8.14 **New server with the flag on, old fleetd**: phases 1 and 2 still enroll the host, since the one-time secret arrives on the same `FLEET_SECRET` MSI property. Confirm recovery is inert rather than harmful on that host.
 
 ## 9. Documentation and rollout
 
