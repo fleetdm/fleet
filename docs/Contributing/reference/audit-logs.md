@@ -2049,6 +2049,8 @@ This activity contains the following fields:
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
+- "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
 
 #### Example
 
@@ -2062,7 +2064,27 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
-  "from_setup_experience": false
+  "from_setup_experience": false,
+  "version_name": "Logic Pro",
+  "configuration": null
+}
+```
+
+#### Example (iOS app with a managed app configuration)
+
+```json
+{
+  "host_id": 57,
+  "self_service": false,
+  "host_display_name": "Anna's iPhone",
+  "software_title": "Zoom Workplace",
+  "app_store_id": "546505307",
+  "command_uuid": "12345678-90ab-cdef-1234-567890abcdef",
+  "policy_id": null,
+  "policy_name": null,
+  "from_setup_experience": false,
+  "version_name": "Production",
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
 ```
 
