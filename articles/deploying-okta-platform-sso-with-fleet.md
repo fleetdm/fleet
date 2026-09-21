@@ -428,7 +428,7 @@ For best results, don't use labels to scope Platform SSO profiles to ensure they
 
 ### Step 2: Add Okta Verify as a setup experience app
 
-Download the latest `OktaVerify-Installer.pkg` from your Fleet-maintined apps or Okta Admin Console (**Settings > Downloads**). Don't use the App Store version as it lacks the required MDM integration features.
+Download the latest `OktaVerify-Installer.pkg` from your Fleet-maintained apps or Okta Admin Console (**Settings > Downloads**). Don't use the App Store version as it lacks the required MDM integration features.
 
 If downloading from Okta Admin Console, in Fleet navigate to the target fleet and go to **Controls > Setup experience > Install software**. Upload the Okta Verify installer so that it is installed on the host during setup experience.
 
