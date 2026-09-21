@@ -35,7 +35,10 @@ const (
 // (KEY_ALL_ACCESS) standing in for FA (FILE_ALL_ACCESS). Fleet deliberately strips regular users
 // from secret.txt while every other orbit file leaves them read access, and a delivered secret that
 // has not been adopted yet deserves the same treatment.
-const enrollSecretKeySDDL = "O:SYG:SYD:PAI(A;;KA;;;SY)(A;;KA;;;BA)"
+//
+// DACL only: EnsureEnrollSecretKey sets DACL_SECURITY_INFORMATION and passes no owner or group, so
+// an owner in this string would be silently ignored. The key ends up owned by whoever created it.
+const enrollSecretKeySDDL = "D:PAI(A;;KA;;;SY)(A;;KA;;;BA)"
 
 // EnsureEnrollSecretKey creates the key that carries the MDM-delivered enroll secret and applies the
 // DACL above. orbit runs as LocalSystem, so it can both create the key and set its permissions;
