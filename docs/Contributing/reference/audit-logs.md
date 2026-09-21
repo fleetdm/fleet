@@ -3517,9 +3517,9 @@ This activity contains the following fields:
 }
 ```
 
-## installed_configuration_profile
+## installed_opt_in_configuration_profile
 
-Generated when a configuration profile is installed on a host by the user (self-service).
+Generated when an opt-in configuration profile is installed on a host by the user.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -3538,9 +3538,9 @@ This activity contains the following fields:
 }
 ```
 
-## uninstalled_configuration_profile
+## uninstalled_opt_in_configuration_profile
 
-Generated when a configuration profile is uninstalled on a host by the user (self-service).
+Generated when an opt-in configuration profile is uninstalled on a host by the user.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
