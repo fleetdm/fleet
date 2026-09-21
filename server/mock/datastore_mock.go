@@ -364,6 +364,8 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
+type CleanupStaleMDMWindowsEnrollmentsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
+
 type CleanupWindowsMDMProfilePriorContentFunc func(ctx context.Context) error
 
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
@@ -2952,6 +2954,9 @@ type DataStore struct {
 
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
+
+	CleanupStaleMDMWindowsEnrollmentsFunc        CleanupStaleMDMWindowsEnrollmentsFunc
+	CleanupStaleMDMWindowsEnrollmentsFuncInvoked bool
 
 	CleanupWindowsMDMProfilePriorContentFunc        CleanupWindowsMDMProfilePriorContentFunc
 	CleanupWindowsMDMProfilePriorContentFuncInvoked bool
@@ -7261,6 +7266,13 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	s.CleanupWindowsMDMCommandQueueFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
+}
+
+func (s *DataStore) CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupStaleMDMWindowsEnrollmentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupStaleMDMWindowsEnrollmentsFunc(ctx, olderThan)
 }
 
 func (s *DataStore) CleanupWindowsMDMProfilePriorContent(ctx context.Context) error {
