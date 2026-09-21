@@ -66,10 +66,7 @@ const FleetAppSummary = ({
   }
 
   return (
-    <Card
-      className={`${baseClass}__fleet-app-summary`}
-      borderRadiusSize="medium"
-    >
+    <Card className={`${baseClass}__fleet-app-summary`}>
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
         <div className={`${baseClass}__fleet-app-summary--details`}>
