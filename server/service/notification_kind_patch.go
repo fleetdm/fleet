@@ -247,7 +247,7 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			switch installStatus {
 			case fleet.SoftwareInstalled:
 				item.InstallStatus = string(fleet.SoftwareInstalled)
-				item.Status = "Installed"
+				item.Status = "Updated"
 			case fleet.SoftwareInstallFailed:
 				item.InstallStatus = string(fleet.SoftwareInstallFailed)
 				item.Status = "Failed"
@@ -256,7 +256,7 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 				item.Status = ""
 			default:
 				item.InstallStatus = string(fleet.SoftwareInstallPending)
-				item.Status = "Installing..."
+				item.Status = "Updating..."
 			}
 		}
 		items = append(items, item)

@@ -72,12 +72,12 @@ export const createMockScrollingNotificationView = (): INotificationView =>
     ),
   });
 
-/** Post-update_now state: items show "Installing...", one Hide action. */
+/** Post-update_now state: items show "Updating...", one Hide action. */
 export const createMockInstallingNotificationView = (): INotificationView =>
   createMockNotificationView({
     items: createMockNotificationView().items.map((item) => ({
       ...item,
-      status: "Installing...",
+      status: "Updating...",
       install_status: "pending_install",
     })),
     actions: INSTALLING_ACTIONS,
@@ -89,7 +89,7 @@ export const createMockSettledNotificationView = (): INotificationView =>
     items: createMockNotificationView().items.map((item, i) =>
       i === 0
         ? { ...item, status: "Failed", install_status: "failed_install" }
-        : { ...item, status: "Installed", install_status: "installed" }
+        : { ...item, status: "Updated", install_status: "installed" }
     ),
     actions: INSTALLING_ACTIONS,
   });
@@ -119,7 +119,7 @@ export const settledDeviceNotificationHandler = http.get(notificationUrl, () =>
   HttpResponse.json(createMockSettledNotificationView())
 );
 
-/** Answers "Installing..." first, then terminal statuses, so a test can watch the
+/** Answers "Updating..." first, then terminal statuses, so a test can watch the
  * toast poll its way to a settled view. Also counts the requests it served. */
 export const installingThenSettledDeviceNotificationHandler = () => {
   const state = { requestCount: 0 };
@@ -148,7 +148,7 @@ export const errorDeviceNotificationHandler = http.get(notificationUrl, () =>
   )
 );
 
-/** POST /actions — echoes the update_now → Installing... transition. */
+/** POST /actions — echoes the update_now → Updating... transition. */
 export const defaultDeviceNotificationActionHandler = http.post(
   notificationActionsUrl,
   async ({ request }) => {

@@ -7,7 +7,7 @@ export interface INotificationItem {
   /** Raw name — passed to <SoftwareIcon> unchanged for icon fallback matching. */
   name: string;
   display_name?: string;
-  /** Optional right-aligned status label, e.g. "Installing…". */
+  /** Optional right-aligned status label, e.g. "Updating…". */
   status?: string;
   install_status?: SoftwareInstallStatus;
 }
