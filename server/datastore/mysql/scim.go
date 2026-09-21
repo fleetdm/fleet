@@ -2122,10 +2122,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		}
 	}
 
-	// The Windows update above resets status to NULL, moving those hosts into the pending bucket, but the rollup that backs the
-	// OS settings summary and the hosts list filter does not follow the UPDATE on its own. Refresh it on this transaction.
-	// Hosts whose rows were already NULL are harmless extras, since the recompute is idempotent, and rows are only reset here,
-	// never deleted, so orphan cleanup is skipped.
+	// The Windows update above resets status to NULL, moving those hosts into the pending bucket, so refresh the Windows profiles status rollup for the affected hosts.
 	windowsHostUUIDStmt, windowsHostUUIDArgs, err := sqlx.In(
 		`SELECT DISTINCT h.uuid FROM hosts h JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = h.uuid WHERE h.id IN (?)`,
 		hostIDs)

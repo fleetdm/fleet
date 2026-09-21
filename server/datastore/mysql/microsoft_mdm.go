@@ -2519,8 +2519,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 }
 
 // sqlJoinMDMWindowsProfilesStatus returns a SQL snippet that joins the maintained host_mdm_windows_profiles_status
-// rollup, which holds one aggregate status bucket per host, to the hosts table aliased as 'h'. A host with no Windows
-// profile rows has no rollup row, so callers must COALESCE the status to ” to land in the "no profiles" bucket.
+// rollup, which holds one aggregate status bucket per host.
 func sqlJoinMDMWindowsProfilesStatus() string {
 	return `
 	LEFT JOIN host_mdm_windows_profiles_status hmwps ON hmwps.host_uuid = h.uuid
@@ -2531,10 +2530,6 @@ func sqlJoinMDMWindowsProfilesStatus() string {
 // host_mdm_windows_profiles rows to a single status bucket. It is the single source of truth for the Windows
 // profile status priority logic (failed > pending > verifying > verified, reserved profiles excluded, install-only for
 // verifying/verified, NULL treated as pending).
-//
-// The verifying branch only has to test for 'verifying' because the earlier branches already established that no
-// profile is NULL/pending/failed, and profile status is always one of {NULL,pending,failed,verifying,verified}; that
-// leaves only verifying and verified for install-type rows.
 func windowsHostProfileStatusCaseExpr() (string, []any) {
 	reserved := mdm.ListFleetReservedWindowsProfileNames()
 

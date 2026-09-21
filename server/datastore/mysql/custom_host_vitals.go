@@ -480,9 +480,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 		}
 
 		if tgt.isWindows {
-			// Resetting status to NULL moves the host into the pending bucket, and the rollup that backs the OS settings
-			// summary and the hosts list filter does not follow the UPDATE on its own. Rows are only reset here, never
-			// deleted, so orphan cleanup is skipped.
+			// Resetting status to NULL moves the host into the pending bucket, so we need to update the Windows status rollup table.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for custom host vital resend")
 			}

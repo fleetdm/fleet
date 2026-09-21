@@ -1936,11 +1936,8 @@ AND (
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
 	paramsWindows := []any{}
-	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status rollup (joined by
-	// sqlJoinMDMWindowsProfilesStatus), the same source GetMDMWindowsProfilesSummary reads, so the counts on the OS
-	// settings page and the hosts this filter returns cannot disagree. Recomputing it here instead meant one aggregation
-	// pass over host_mdm_windows_profiles per candidate host, which is O(hosts x profiles-per-host) for every list and
-	// count query.
+	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status rollup, which is
+	// much faster than recomputing it here for a large host list.
 	profilesStatus := `COALESCE(hmwps.status, '')`
 
 	bitlockerStatus := `''`

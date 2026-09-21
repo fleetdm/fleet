@@ -675,8 +675,7 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profAVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profANone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// The seeding above writes host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so
-	// reconcile it to a known baseline before the resend.
+	// Reconcile OS status rollup to a known baseline before the resend.
 	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 	require.Equal(t, string(fleet.MDMDeliveryVerifying), readWindowsProfilesStatusRollup(t, ds)[winHost.UUID])
 
@@ -706,9 +705,7 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
 
-	// Resetting the Windows profile moved the host into the pending bucket, so the rollup has to follow on the same
-	// transaction. Otherwise the OS settings summary and the hosts list filter keep reporting the host as verifying until
-	// the hourly reconcile runs.
+	// Resetting the Windows profile moved the host into the pending bucket, so the rollup has to follow on the same transaction.
 	require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[winHost.UUID])
 	assertHostProfileStatus(t, ds, androidHost.UUID,
 		hostProfileStatus{profAVital.ProfileUUID, fleet.MDMDeliveryPending},

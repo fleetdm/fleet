@@ -2301,8 +2301,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetWindowsHostProfileStatus(t, ds, hostW2.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, hostW3.UUID, profWAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// The seeding above writes host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so
-	// reconcile it to a known baseline before the resends below.
+	// Reconcile the status rollup to a known baseline before the resends below.
 	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 	rollup := readWindowsProfilesStatusRollup(t, ds)
 	require.Equal(t, string(fleet.MDMDeliveryVerifying), rollup[hostW1.UUID])
