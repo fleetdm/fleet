@@ -277,7 +277,7 @@ const SoftwareSummaryCard = ({
   if (!installerResult) {
     return (
       <>
-        <Card borderRadiusSize="xxlarge" className={baseClass}>
+        <Card className={baseClass}>
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
@@ -323,7 +323,7 @@ const SoftwareSummaryCard = ({
 
   return (
     <>
-      <Card borderRadiusSize="xxlarge" className={baseClass}>
+      <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
