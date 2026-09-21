@@ -37,9 +37,10 @@ func (h *fastPathHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.fast.ServeHTTP(w, r)
 }
 
-// gorillaFallback hands a request the fast path did not claim to the gorilla router, clearing r.Pattern first. otelmux
-// prefers that field over the matched gorilla route, and the only pattern set on the way in here is the coarse prefix that
-// routed us ("/api/" from the root mux, "/" from the fast path's catch-all).
+// gorillaFallback hands a request the fast path did not serve to the gorilla router, clearing r.Pattern first. otelmux
+// prefers that field over the matched gorilla route, and whatever is set on the way in here is never the route that ends up
+// serving: the coarse prefix that routed us ("/api/" from the root mux, "/" from the catch-all), or, when a claimed route
+// declines on method or matcher, the pattern of the route that just declined.
 type gorillaFallback struct{ router *mux.Router }
 
 func (g gorillaFallback) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +154,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 				// fast path keeps the first and ignores this one.
 				continue
 			}
-			bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, r)
+			bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, gorillaFallback{r})
 			if err := tryRegister(fast, full, bridged); err != nil {
 				return fmt.Errorf("route %s: %w", route.GetName(), err)
 			}

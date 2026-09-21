@@ -37,6 +37,9 @@ var noopHandler = http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 // request rather than inferring it from a response both routers would produce.
 const servedByGorillaHeader = "X-Served-By-Gorilla"
 
+// gorillaSawPatternHeader carries r.Pattern as gorilla saw it, and is set only when gorilla answered.
+const gorillaSawPatternHeader = "X-Gorilla-Saw-Pattern"
+
 // Which router is expected to answer a request. byRouter means no handler runs at all, so neither router reports itself: the
 // answer is a 404, a 405, or a redirect produced by routing alone.
 const (
@@ -98,7 +101,12 @@ func newRouterForTest(t *testing.T) *mux.Router {
 			tpl, _ := endpointer.RouteTemplateFromContext(endpointer.RouteTemplateRequestFunc(r.Context(), r))
 			// gorilla attaches the matched route to the request; the fast path does not. Only a handler can report this,
 			// so a request answered by the router itself (404, 405, a redirect) carries no such header.
-			w.Header().Set(servedByGorillaHeader, strconv.FormatBool(mux.CurrentRoute(r) != nil))
+			servedByGorilla := mux.CurrentRoute(r) != nil
+			w.Header().Set(servedByGorillaHeader, strconv.FormatBool(servedByGorilla))
+			if servedByGorilla {
+				// Each hand-off to gorilla has to clear the stdlib pattern, which otelmux prefers over the route that actually matched.
+				w.Header().Set(gorillaSawPatternHeader, r.Pattern)
+			}
 			_, _ = w.Write([]byte(name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
 		})
 		return nil
@@ -184,6 +192,8 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 		assert.Equalf(t, want.Code, got.Code, "status differs for %s %s (route %s)", s.method, s.path, s.route)
 		assert.Equalf(t, want.Body.String(), got.Body.String(),
 			"dispatch differs for %s %s (route %s)", s.method, s.path, s.route)
+		assert.Emptyf(t, got.Header().Get(gorillaSawPatternHeader),
+			"the hand-off to gorilla left r.Pattern set for %s %s (route %s)", s.method, s.path, s.route)
 	}
 	t.Logf("compared %d method+path samples", len(samples))
 }
@@ -259,6 +269,7 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 
 			require.Equalf(t, c.wantServedBy, got.Header().Get(servedByGorillaHeader),
 				"wrong router answered (byRouter=%q byGorilla=%q byFastPath=%q)", byRouter, byGorilla, byFastPath)
+			require.Empty(t, got.Header().Get(gorillaSawPatternHeader), "the hand-off to gorilla must clear r.Pattern")
 		})
 	}
 }
