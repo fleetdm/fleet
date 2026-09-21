@@ -448,6 +448,12 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+      - paths: ../lib/macos/profiles/*.mobileconfig2
+        self_service: false
+        hidden: true
+      - path: ../lib/macos/profiles/my-declaration.json
       - paths: ../lib/macos/profiles/ddm.json
         labels_include_any:
           - Engineering
@@ -529,6 +535,9 @@ In addition to configuration profiles, you can upload **assets** which are `.jso
 
 > PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
 
+Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in.
+
+Use `hidden` to specify whether to hide the profile from the end user by default on **Fleet Desktop > Controls**. End users can toggle "Show hidden profiles" in the UI to view all profiles on the host, but these profiles do not require the end user to take any action. `self_service` must be set to `false` (force install of profile) to use this option.
 
 ### android_settings
 
