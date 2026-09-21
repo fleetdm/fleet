@@ -1,7 +1,7 @@
 ---
 name: fleet-gitops
 description: Help with this repository's Fleet GitOps configuration, including queries, profiles, software, and DDM declarations, validated against upstream references.
-allowed-tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch
+allowed-tools: Read, Grep, Glob, Edit, Write, WebFetch, WebSearch, Bash(fleetctl gitops*)
 effort: high
 ---
 
