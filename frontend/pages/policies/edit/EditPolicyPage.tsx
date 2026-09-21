@@ -3,6 +3,7 @@ import { useErrorHandler } from "react-error-boundary";
 import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
+import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import MainContent from "components/MainContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -259,19 +260,17 @@ const PolicyPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live report. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <Card color="yellow" paddingSize="medium">
+        <p>
+          Fleet is unable to run a live report. Refresh the page or log in
+          again. If this keeps happening please{" "}
+          <CustomLink
+            url="https://github.com/fleetdm/fleet/issues/new/choose"
+            text="file an issue"
+            newTab
+          />
+        </p>
+      </Card>
     );
   };
 
