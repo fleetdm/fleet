@@ -320,11 +320,7 @@ const SelfServiceCard = ({
     );
   }
   return (
-    <Card
-      className={`${baseClass}__self-service-card`}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={`${baseClass}__self-service-card`} paddingSize="xlarge">
       <SelfServiceHeader contactUrl={contactUrl} />
       <div className={`${baseClass}__content`}>
         <SelfServiceFilters

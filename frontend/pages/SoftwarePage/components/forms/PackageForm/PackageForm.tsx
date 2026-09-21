@@ -519,7 +519,6 @@ const PackageForm = ({
           icon="info-outline"
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
-          borderRadius="medium"
         >
           If multiple packages of the same software target the same host, Fleet
           will install the one that was added first.
