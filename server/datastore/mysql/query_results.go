@@ -18,15 +18,24 @@ import (
 // OverwriteQueryResultRows overwrites the query result rows for a given query and host.
 // It deletes existing rows for the host/query and inserts the new rows.
 // If the incoming result set has more than the row limit, it bails early without storing anything.
+// If replacing the host's rows would push the query's total above maxQueryReportRows, nothing is
+// changed: hosts already in the report keep updating, hosts not yet in it are skipped once it's full.
 // Excess rows across all hosts are cleaned up by a separate cron job.
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (rowsAdded int, err error) {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows, currentCount int) (res fleet.QueryReportWriteResult, err error) {
 	if len(rows) == 0 {
-		return 0, nil
+		return res, nil
 	}
 
 	// Bail early if the incoming result set is too large (more than the row limit from a single host)
 	if len(rows) > 1000 {
-		return 0, nil
+		return res, nil
+	}
+
+	newDataRows := 0
+	for _, row := range rows {
+		if row.Data != nil {
+			newDataRows++
+		}
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -34,15 +43,20 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		queryID := rows[0].QueryID
 		hostID := rows[0].HostID
 
+		var existingDataRows int
+		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND has_data = 1`
+		if err := sqlx.GetContext(ctx, tx, &existingDataRows, countStmt, queryID, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "counting existing query results for host")
+		}
+		if currentCount-existingDataRows+newDataRows > maxQueryReportRows {
+			res.Rejected = true
+			return nil
+		}
+
 		// Delete rows based on the specific queryID and hostID
 		deleteStmt := `DELETE FROM query_results WHERE host_id = ? AND query_id = ?`
-		result, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, deleteStmt, hostID, queryID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query results for host")
-		}
-		deletedRows, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting rows affected for delete")
 		}
 
 		// Insert the new rows
@@ -58,53 +72,129 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 		INSERT IGNORE INTO query_results (query_id, host_id, last_fetched, data) VALUES
 	` + strings.Join(valueStrings, ",")
 
-		result, err = tx.ExecContext(ctx, insertStmt, valueArgs...)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, insertStmt, valueArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new rows")
 		}
-		insertedRows, err := result.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting rows affected for insert")
-		}
 
-		rowsAdded = int(insertedRows - deletedRows)
+		res.RowsAdded = newDataRows - existingDataRows
+		res.NewHost = existingDataRows == 0 && newDataRows > 0
 		return nil
 	})
 
-	return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	return res, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+}
+
+// queryResultHostDisplayNameExpr mirrors fleet.HostDisplayName so sorting and
+// searching by host name agree with the name shown in the report.
+const queryResultHostDisplayNameExpr = `COALESCE(
+	NULLIF(h.computer_name, ''),
+	NULLIF(h.hostname, ''),
+	IF(h.hardware_model != '' AND h.hardware_serial != '', CONCAT(h.hardware_model, ' (', h.hardware_serial, ')'), '')
+)`
+
+// queryResultRowsAllowedOrderKeys are the built-in order keys for QueryResultRows.
+// Any other key is treated as a result column name and sorted through the
+// sort_value column selected alongside the row, so the column name is always a
+// bound parameter and never part of the SQL text. Built-in keys take precedence
+// over result columns with the same name.
+var queryResultRowsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"last_fetched": "qr.last_fetched",
+	"host_name":    queryResultHostDisplayNameExpr,
+	"host_id":      "qr.host_id",
+	"id":           "qr.id",
+}
+
+const queryResultColumnOrderKey = "sort_value"
+
+// queryResultRowWithSort adds the result-column sort value to a row so sqlx has a
+// destination for it; it is never returned to callers.
+type queryResultRowWithSort struct {
+	fleet.ScheduledQueryResultRow
+	SortValue *string `db:"sort_value"`
 }
 
 // TODO(lucas): Any chance we can store hostname in the query_results table?
 // (to avoid having to left join hosts).
-// QueryResultRows returns the query result rows for a given query
-func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
-	selectStmt := fmt.Sprintf(`
+// QueryResultRows returns the query result rows for a given query.
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.ScheduledQueryResultRow, int, *fleet.PaginationMetadata, error) {
+	whereClause := fmt.Sprintf(`
+		FROM query_results qr
+		LEFT JOIN hosts h ON (qr.host_id=h.id)
+		WHERE qr.query_id = ? AND qr.has_data = 1 AND %s
+	`, ds.whereFilterHostsByTeams(filter, "h"))
+	whereArgs := []any{queryID}
+
+	if match := strings.TrimSpace(opts.MatchQuery); match != "" {
+		// JSON_SEARCH uses LIKE semantics but compares with the binary JSON
+		// collation, so lowercase both sides to keep the search case-insensitive
+		// like the host name columns are.
+		pattern := likePattern(match)
+		whereClause += ` AND (h.hostname LIKE ? OR h.computer_name LIKE ? OR ` + queryResultHostDisplayNameExpr + ` LIKE ? OR JSON_SEARCH(LOWER(qr.data), 'one', ?) IS NOT NULL)`
+		whereArgs = append(whereArgs, pattern, pattern, pattern, strings.ToLower(pattern))
+	}
+
+	// Sorting by a result column extracts it into sort_value with the column name
+	// bound as a parameter; JSON_QUOTE builds a valid path member for any name.
+	sortValueExpr := "NULL"
+	var sortValueArgs []any
+	allowedKeys := queryResultRowsAllowedOrderKeys
+	if key := opts.OrderKey; key != "" {
+		if _, ok := allowedKeys[key]; !ok {
+			sortValueExpr = "JSON_UNQUOTE(JSON_EXTRACT(qr.data, CONCAT('$.', JSON_QUOTE(?))))"
+			sortValueArgs = []any{key}
+			allowedKeys = maps.Clone(queryResultRowsAllowedOrderKeys)
+			allowedKeys[key] = queryResultColumnOrderKey
+		}
+		// Result columns and timestamps aren't unique, so break ties deterministically.
+		opts.TestSecondaryOrderKey = "id"
+	}
+
+	listStmt := `
 		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
-			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
-			FROM query_results qr
-			LEFT JOIN hosts h ON (qr.host_id=h.id)
-			WHERE query_id = ? AND has_data = 1 AND %s
-		`, ds.whereFilterHostsByTeams(filter, "h"))
-
-	results := []*fleet.ScheduledQueryResultRow{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
+			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial,
+			` + sortValueExpr + ` AS sort_value
+	` + whereClause
+	listArgs := append(append([]any{}, sortValueArgs...), whereArgs...)
+	// Unpaginated callers expect every row; the list-options helper would
+	// otherwise silently cap them at DefaultPerPage.
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.PerPageUnlimited
+	}
+	pagedStmt, pagedArgs, err := appendListOptionsWithCursorToSQLSecure(listStmt, listArgs, &opts, allowedKeys)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "apply list options for query result rows")
 	}
 
-	return results, nil
-}
-
-// ResultCountForQuery counts the query report rows for a given query
-// excluding rows with null data
-func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
-	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND has_data = 1`, queryID)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "counting query results for query")
+	dbReader := ds.reader(ctx)
+	var rowsWithSort []queryResultRowWithSort
+	if err := sqlx.SelectContext(ctx, dbReader, &rowsWithSort, pagedStmt, pagedArgs...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "selecting query result rows")
+	}
+	results := make([]*fleet.ScheduledQueryResultRow, 0, len(rowsWithSort))
+	for i := range rowsWithSort {
+		results = append(results, &rowsWithSort[i].ScheduledQueryResultRow)
 	}
 
-	return count, nil
+	var total int
+	if err := sqlx.GetContext(ctx, dbReader, &total, "SELECT COUNT(*) "+whereClause, whereArgs...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "counting query result rows")
+	}
+
+	var metadata *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		metadata = &fleet.PaginationMetadata{
+			HasPreviousResults: opts.Page > 0,
+			TotalResults:       uint(total), //nolint:gosec // dismiss G115
+		}
+		if len(results) > int(opts.PerPage) { //nolint:gosec // dismiss G115
+			metadata.HasNextResults = true
+			results = results[:len(results)-1]
+		}
+	}
+
+	// total is also returned on its own because callers need it when metadata is
+	// not requested (per_page unset).
+	return results, total, metadata, nil
 }
 
 // ResultCountForQueryAndHost counts the query report rows for a given query and host
@@ -117,6 +207,30 @@ func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, ho
 	}
 
 	return count, nil
+}
+
+// ResultCountsForQueries counts the stored rows with data for each query.
+func (ds *Datastore) ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
+	counts := make(map[uint]int, len(queryIDs))
+	if len(queryIDs) == 0 {
+		return counts, nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT query_id, COUNT(*) AS n FROM query_results WHERE query_id IN (?) AND has_data = 1 GROUP BY query_id`, queryIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query results count statement")
+	}
+	var rows []struct {
+		QueryID uint `db:"query_id"`
+		N       int  `db:"n"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "counting query results for queries")
+	}
+	for _, row := range rows {
+		counts[row.QueryID] = row.N
+	}
+	return counts, nil
 }
 
 // QueryResultRowsForHost returns the query result rows for a given query and host
@@ -290,16 +404,14 @@ type hostReportRow struct {
 }
 
 // ListHostReports returns reports associated with a host, applying
-// the provided filtering, sorting, and pagination options. maxQueryReportRows
-// is the configured report cap; a query whose total result count (across all
-// hosts) meets or exceeds this value is considered clipped.
+// the provided filtering, sorting, and pagination options. ReportClipped is
+// left for the service layer to fill in.
 func (ds *Datastore) ListHostReports(
 	ctx context.Context,
 	hostID uint,
 	teamID *uint,
 	hostPlatform string,
 	opts fleet.ListHostReportsOptions,
-	maxQueryReportRows int,
 ) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 	// We only care about saved queries
 	whereClause := "WHERE q.saved = 1"
@@ -409,30 +521,6 @@ func (ds *Datastore) ListHostReports(
 		queryIDs = append(queryIDs, r.QueryID)
 	}
 
-	// Fetch the total non-null result count per query across all hosts, used to
-	// determine report_clipped.
-	type totalCountRow struct {
-		QueryID       uint `db:"query_id"`
-		NQueryResults int  `db:"n_query_results"`
-	}
-	totalStmt, totalArgs, err := sqlx.In(`
-		SELECT query_id, COUNT(*) AS n_query_results
-		FROM query_results
-		WHERE query_id IN (?) AND has_data = 1
-		GROUP BY query_id
-	`, queryIDs)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building total count query for host reports")
-	}
-	var totalCountRows []totalCountRow
-	if err := sqlx.SelectContext(ctx, dbReader, &totalCountRows, dbReader.Rebind(totalStmt), totalArgs...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "fetching total result counts for host reports")
-	}
-	nQueryResultsByID := make(map[uint]int, len(totalCountRows))
-	for _, r := range totalCountRows {
-		nQueryResultsByID[r.QueryID] = r.NQueryResults
-	}
-
 	// Fetch the host-specific result count per query, used to populate
 	// NHostResults.
 	type hostCountRow struct {
@@ -502,7 +590,6 @@ func (ds *Datastore) ListHostReports(
 			r.LastFetched = &t
 		}
 		r.NHostResults = nHostResultsByID[qr.QueryID]
-		r.ReportClipped = nQueryResultsByID[qr.QueryID] >= maxQueryReportRows
 		if data, ok := firstDataByQueryID[qr.QueryID]; ok {
 			var cols map[string]string
 			if err := json.Unmarshal(*data, &cols); err != nil {
