@@ -87,24 +87,24 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		usedSet[id] = struct{}{}
 	}
 
-	// Only list a single page, same tradeoff as the S3 store's Cleanup: doing so
-	// bounds the number of API requests and the window in which an unused file
-	// could become used again between listing and deleting.
+	// Iterate every page: unlike S3's ListObjectsV2 (explicitly capped at 1000
+	// keys per call), the Azure pager's page size isn't guaranteed to cover all
+	// matching blobs in one call.
 	prefix := s.pathPrefix + "/"
 	pager := s.client.NewListBlobsFlatPager(s.container, &azblob.ListBlobsFlatOptions{
 		Prefix: &prefix,
 	})
 
-	if !pager.More() {
-		return 0, nil
-	}
-	page, err := pager.NextPage(ctx)
-	if err != nil {
-		return 0, ctxerr.Wrapf(ctx, err, "listing %s in Azure Blob store", s.fileLabel)
-	}
-
 	var toDelete []string
-	if page.Segment != nil {
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return 0, ctxerr.Wrapf(ctx, err, "listing %s in Azure Blob store", s.fileLabel)
+		}
+
+		if page.Segment == nil {
+			continue
+		}
 		for _, item := range page.Segment.BlobItems {
 			if item.Name == nil {
 				continue

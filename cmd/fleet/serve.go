@@ -516,6 +516,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing ee android service")
 	}
 
+	// Must run before initOrgLogoStore, which picks Azure over S3 regardless of license tier.
+	config.S3.ValidateSoftwareInstallersAzureExclusive(config.Azure, initFatal)
+
 	orgLogoStore := initOrgLogoStore(ctx, config.S3, config.Azure, mds, logger)
 
 	svc, err = service.NewService(
@@ -562,7 +565,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-		config.S3.ValidateSoftwareInstallersAzureExclusive(config.Azure, initFatal)
 		if config.Azure.SoftwareInstallersContainer != "" {
 			store, err := azure.NewSoftwareInstallerStore(config.Azure)
 			if err != nil {
