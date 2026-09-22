@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260918182856(t *testing.T) {
+func TestUp_20260922170154(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const staleDetail = "Network error during SCEP enrollment: Failed to communicate with SCEP server"
