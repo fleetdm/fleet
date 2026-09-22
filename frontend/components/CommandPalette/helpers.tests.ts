@@ -415,6 +415,40 @@ describe("CommandPalette helpers", () => {
       expect(keywords).toContain("sso");
     });
 
+    it("shows Add profile to admins and maintainers once some MDM is on", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAdminOrMaintainer: true,
+      });
+      const addProfile = items.find((i) => i.id === "add-profile");
+      expect(addProfile?.path).toContain(
+        "/controls/os-settings/configuration-profiles/new"
+      );
+    });
+
+    it.each([
+      [
+        "users who aren't admins or maintainers",
+        { isAdminOrMaintainer: false },
+      ],
+      [
+        "everyone when no MDM is on",
+        {
+          config: createMockConfig({
+            mdm: {
+              ...createMockConfig().mdm,
+              enabled_and_configured: false,
+              windows_enabled_and_configured: false,
+              android_enabled_and_configured: false,
+            },
+          }),
+        },
+      ],
+    ])("hides Add profile from %s", (_, overrides) => {
+      const items = buildPaletteItems({ ...BASE_CONTEXT, ...overrides });
+      expect(items.find((i) => i.id === "add-profile")).toBeUndefined();
+    });
+
     it("excludes certificates and passwords for technicians", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,

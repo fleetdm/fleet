@@ -155,7 +155,17 @@ const ProfileListItem = ({
         <div className={`${subClass}__info`}>
           <div className={`${baseClass}__title-row`}>
             <TooltipWrapper
-              tipContent={`UUID: ${profile.profile_uuid}`}
+              tipContent={
+                <>
+                  {profile.payload_display_name && (
+                    <>
+                      PayloadDisplayName: <b>{profile.payload_display_name}</b>
+                      <br />
+                    </>
+                  )}
+                  UUID: <b>{profile.profile_uuid}</b>
+                </>
+              }
               underline={false}
               position="top"
               showArrow

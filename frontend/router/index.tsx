@@ -217,6 +217,12 @@ const LazyScriptBatchDetailsPage = lazyPage(
       /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage"
     )
 );
+const LazyProfileFormPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/OSSettings/cards/ConfigurationProfiles/ProfileFormPage"
+    )
+);
 const LazySoftwarePage = lazyPage(
   () => import(/* webpackChunkName: "software" */ "pages/SoftwarePage")
 );
@@ -666,6 +672,19 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
+            {/* Declared before the controls group: its os-settings/:section/:platform
+                route would otherwise swallow these paths. Full pages, outside the
+                Controls tabs. */}
+            <Route component={AuthAnyMaintainerAdminTechnicianRoutes}>
+              <Route
+                path="controls/os-settings/configuration-profiles/new"
+                component={LazyProfileFormPage}
+              />
+              <Route
+                path="controls/os-settings/configuration-profiles/:profile_uuid"
+                component={LazyProfileFormPage}
+              />
+            </Route>
             <Route
               path="controls"
               component={AuthAnyMaintainerAdminTechnicianRoutes}

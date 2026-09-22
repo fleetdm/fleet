@@ -1,3 +1,4 @@
+import { isAnyMDMConfigured } from "interfaces/mdm";
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
@@ -15,6 +16,8 @@ const buildCommandsItems = (
     canWrite,
     canEditCustomVariable,
     canAddSoftware,
+    config,
+    isAdminOrMaintainer,
     isTechnician,
     isPremiumTier,
     isPrimoMode,
@@ -195,6 +198,28 @@ const buildCommandsItems = (
               "device health",
             ],
           },
+          // Mirrors the Configuration profiles card, which only offers "Add
+          // profile" to admins and maintainers once some MDM is turned on.
+          ...(isAdminOrMaintainer && isAnyMDMConfigured(config?.mdm)
+            ? [
+                {
+                  id: "add-profile",
+                  label: "Add profile",
+                  group: "Commands" as const,
+                  path: withTeamId(paths.CONTROLS_CUSTOM_SETTINGS_NEW),
+                  keywords: [
+                    "create profile",
+                    "new profile",
+                    "configuration profile",
+                    "upload profile",
+                    "mobileconfig",
+                    "ddm",
+                    "windows csp",
+                    "custom settings",
+                  ],
+                },
+              ]
+            : []),
           // Software add actions require Premium + a team or unassigned
           // (not "All fleets"). Each destination page renders a
           // <PremiumFeatureMessage /> in Free. Also gated on
