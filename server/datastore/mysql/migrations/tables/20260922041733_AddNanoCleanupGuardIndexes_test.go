@@ -22,7 +22,7 @@ var nanoCleanupGuardIndexes = []struct {
 	{"host_recovery_key_passwords", "idx_rkp_verify_command_uuid", "verify_command_uuid", "rkp-verify-1"},
 }
 
-func TestUp_20260921093958(t *testing.T) {
+func TestUp_20260922041733(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('adam-1', 'darwin', 'App', '1.0')`)
@@ -57,7 +57,7 @@ func TestUp_20260921093958(t *testing.T) {
 	}
 }
 
-func TestUp_20260921093958_PartiallyApplied(t *testing.T) {
+func TestUp_20260922041733_PartiallyApplied(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// A prior run that failed after some tables and part way through a

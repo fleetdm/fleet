@@ -14,7 +14,7 @@ func seedNanoResultForCleanupIndexTest(t *testing.T, db *sqlx.DB, enrollmentID, 
 	execNoErr(t, db, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, ?)`, enrollmentID, cmdUUID, status, plist)
 }
 
-func TestUp_20260921093954(t *testing.T) {
+func TestUp_20260922041729(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO nano_devices (id, authenticate) VALUES ('device-1', 'auth')`)
@@ -41,7 +41,7 @@ func TestUp_20260921093954(t *testing.T) {
 	require.Equal(t, []string{"REFETCH-DEVICE-1"}, uuids)
 }
 
-func TestUp_20260921093954_AlreadyApplied(t *testing.T) {
+func TestUp_20260922041729_AlreadyApplied(t *testing.T) {
 	db := applyUpToPrev(t)
 	execNoErr(t, db, "ALTER TABLE nano_command_results ADD INDEX idx_ncr_status_updated_at (status, updated_at), DROP INDEX `status`")
 
@@ -51,7 +51,7 @@ func TestUp_20260921093954_AlreadyApplied(t *testing.T) {
 	require.Empty(t, indexColumns(t, db, "nano_command_results", "status"))
 }
 
-func TestUp_20260921093954_OldIndexStillPresent(t *testing.T) {
+func TestUp_20260922041729_OldIndexStillPresent(t *testing.T) {
 	db := applyUpToPrev(t)
 	execNoErr(t, db, `ALTER TABLE nano_command_results ADD INDEX idx_ncr_status_updated_at (status, updated_at)`)
 

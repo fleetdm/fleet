@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260921093955(t *testing.T) {
+func TestUp_20260922041731(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `
@@ -27,7 +27,7 @@ func TestUp_20260921093955(t *testing.T) {
 	require.Equal(t, []string{"old-cmd"}, uuids)
 }
 
-func TestUp_20260921093955_AlreadyApplied(t *testing.T) {
+func TestUp_20260922041731_AlreadyApplied(t *testing.T) {
 	db := applyUpToPrev(t)
 	execNoErr(t, db, `ALTER TABLE nano_commands ADD INDEX idx_nano_commands_created_at (created_at)`)
 

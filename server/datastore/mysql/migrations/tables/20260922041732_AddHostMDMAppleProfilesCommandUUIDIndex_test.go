@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260921093956(t *testing.T) {
+func TestUp_20260922041732(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `
@@ -28,7 +28,7 @@ func TestUp_20260921093956(t *testing.T) {
 	require.Equal(t, 0, count)
 }
 
-func TestUp_20260921093956_AlreadyApplied(t *testing.T) {
+func TestUp_20260922041732_AlreadyApplied(t *testing.T) {
 	db := applyUpToPrev(t)
 	execNoErr(t, db, `ALTER TABLE host_mdm_apple_profiles ADD INDEX idx_hmap_command_uuid (command_uuid)`)
 
