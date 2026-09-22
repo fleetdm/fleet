@@ -25,10 +25,9 @@ module.exports = {
       force: true
     });
 
-    await sails.helpers.fs.writeJson.with({
+    await sails.helpers.fs.cp.with({
+      source: mergedSchemaOutputPath,
       destination: fleetMcpSchemaOutputPath,
-      json: mergedSchemaTables,
-      force: true
     });
 
     sails.log(`osquery schema successfully merged with Fleet\'s overrides. The merged schema has been saved at ${mergedSchemaOutputPath} and ${fleetMcpSchemaOutputPath}`);
