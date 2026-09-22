@@ -9978,7 +9978,7 @@ Note that the Apple `EraseDevice` and `DeviceLock` commands and the Android `LOC
 
 ### Get MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
+> The `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint, deprecated as of Fleet 4.40, was removed in Fleet 4.93. Use the API endpoint below instead.
 
 This endpoint returns the results for a specific custom MDM command.
 
