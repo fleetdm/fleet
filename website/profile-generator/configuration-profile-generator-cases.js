@@ -4,7 +4,7 @@
  *
  * Two runners share this file, which is why it is a module and not part of either of them:
  *
- *   - `test/configuration-profile-generator.test.js`, the mocha suite: one `it()` per case, one
+ *   - `profile-generator/tests/configuration-profile-generator.test.js`, the mocha suite: one `it()` per case, one
  *     live generation per `it()`.  This is the one to run to find out whether the prompt still works.
  *   - `sails run test-llm-generated-configuration-profile`, the script: the same cases, but repeated
  *     with --parallelTests to measure how often each one passes, optionally validated with contour,
