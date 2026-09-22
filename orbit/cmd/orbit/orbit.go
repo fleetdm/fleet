@@ -334,14 +334,12 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 	})
 }
 
-// adoptEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding
-// it when the keystore holds none and updating it when it holds a different one. The update branch
-// is what lets a freshly delivered secret supersede a stored one, which is how recovery works.
+// adoptEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding it when the keystore holds
+// none and updating it when it holds a different one. The update branch is what lets a freshly delivered secret supersede a
+// stored one.
 //
-// onDelivered is called once the secret is safely in the keystore, to discard the copy it arrived
-// in: the file for a package-delivered secret, the registry value for an MDM-delivered one. It is
-// deliberately not called when the keystore write failed or could not be verified, so the delivery
-// copy survives for the next attempt.
+// onDelivered is called once the secret is safely in the keystore, to discard the copy it arrived in: the file for a
+// package-delivered secret, the registry value for an MDM-delivered one.
 func adoptEnrollSecret(
 	secret string,
 	ks enrollSecretKeystore,
@@ -398,9 +396,9 @@ func adoptEnrollSecret(
 	return nil
 }
 
-// mdmSecretWaitBackstop bounds a single wait for a registry change. The notification is the real
-// mechanism; this only guarantees the loop re-checks periodically if a notification is ever missed,
-// and gives the log something to say while a host sits without a secret.
+// mdmSecretWaitBackstop bounds a single wait for a registry change. The notification is the real mechanism; this only guarantees
+// the loop re-checks periodically if a notification is ever missed, and gives the log something to say while a host sits without
+// a secret.
 const mdmSecretWaitBackstop = 5 * time.Minute
 
 // waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret. It does not time

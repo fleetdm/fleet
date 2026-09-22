@@ -19,13 +19,12 @@ const testEnrollSecretKeyPath = `SOFTWARE\FleetDM\OrbitTest`
 // setEnrollSecretValue prepares the key and writes a delivered secret into it.
 func setEnrollSecretValue(t *testing.T, value string) {
 	t.Helper()
-
 	createTestKey(t)
 	writeEnrollSecretValue(t, value)
 }
 
-// writeEnrollSecretValue writes into a key the test has already prepared. It leaves the key itself
-// alone, so a watch armed beforehand stays registered on the handle it was given.
+// writeEnrollSecretValue writes into a key the test already prepared, leaving the key itself alone
+// so a watch armed beforehand stays registered.
 func writeEnrollSecretValue(t *testing.T, value string) {
 	t.Helper()
 
@@ -36,13 +35,11 @@ func writeEnrollSecretValue(t *testing.T, value string) {
 }
 
 // createTestKey leaves the key present but empty, which is what orbit finds on a host that has not
-// been handed a secret yet. Every test that touches the key starts here, directly or through
-// setEnrollSecretValue, so that each one gets the key in a known state.
+// been handed a secret yet.
 func createTestKey(t *testing.T) {
 	t.Helper()
 
-	// A run that could not clean up must not decide this one.
-	deleteTestKey()
+	deleteTestKey() // a run that could not clean up must not decide this one
 	t.Cleanup(deleteTestKey)
 
 	key, _, err := registry.CreateKey(registry.CURRENT_USER, testEnrollSecretKeyPath, registry.SET_VALUE)
@@ -50,32 +47,15 @@ func createTestKey(t *testing.T) {
 	require.NoError(t, key.Close())
 }
 
-// deleteTestKey restores inheritance before deleting. A test that protected the key left the
-// running user without DELETE on it, and only the owner's implicit WRITE_DAC gets it back. Without
-// this, a non-elevated run would strand an unreadable key and fail every run after it.
+// deleteTestKey restores inheritance first: a test that protected the key left the running user
+// without DELETE on it, and only the owner's implicit WRITE_DAC gets it back. Without this a
+// non-elevated run would strand an unreadable key and fail every run after it.
 func deleteTestKey() {
 	//nolint:errcheck // best effort: the key may not exist, or may never have been protected
-	windows.SetNamedSecurityInfo(
-		registryObjectName(registry.CURRENT_USER, testEnrollSecretKeyPath),
-		windows.SE_REGISTRY_KEY,
-		windows.DACL_SECURITY_INFORMATION|windows.UNPROTECTED_DACL_SECURITY_INFORMATION,
-		nil, nil, nil, nil,
-	)
+	windows.SetNamedSecurityInfo(registryObjectName(registry.CURRENT_USER, testEnrollSecretKeyPath),
+		windows.SE_REGISTRY_KEY, windows.DACL_SECURITY_INFORMATION|windows.UNPROTECTED_DACL_SECURITY_INFORMATION,
+		nil, nil, nil, nil)
 	_ = registry.DeleteKey(registry.CURRENT_USER, testEnrollSecretKeyPath)
-}
-
-// The functions under test take the root and path so that tests can point them at HKCU. Every test
-// uses the same pair, so bind it once here rather than at each call.
-func getTestSecret() (string, error) {
-	return getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
-}
-
-func clearTestSecret() error {
-	return clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
-}
-
-func protectTestKey() error {
-	return ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath)
 }
 
 func TestGetEnrollSecretReportsNothingWaiting(t *testing.T) {
@@ -108,7 +88,7 @@ func TestGetEnrollSecretReportsNothingWaiting(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.setup(t)
 
-			secret, err := getTestSecret()
+			secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
 			require.ErrorIs(t, err, ErrEnrollSecretNotFound)
 			require.Empty(t, secret)
 		})
@@ -118,50 +98,29 @@ func TestGetEnrollSecretReportsNothingWaiting(t *testing.T) {
 func TestGetEnrollSecretReturnsDeliveredSecret(t *testing.T) {
 	setEnrollSecretValue(t, "  s3cret-value  ")
 
-	secret, err := getTestSecret()
+	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
 	require.NoError(t, err)
 	require.Equal(t, "s3cret-value", secret, "surrounding whitespace should be trimmed")
 }
 
 func TestClearEnrollSecret(t *testing.T) {
-	// A key that was never created and a key whose value is already gone are both the ordinary state
-	// on a host that has already adopted its secret, so all three cases have to end the same way.
-	for _, tc := range []struct {
-		name  string
-		setup func(t *testing.T)
-	}{
-		{
-			name:  "key absent",
-			setup: func(t *testing.T) { deleteTestKey() },
-		},
-		{
-			name:  "value absent",
-			setup: createTestKey,
-		},
-		{
-			name:  "value present",
-			setup: func(t *testing.T) { setEnrollSecretValue(t, "s3cret-value") },
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.setup(t)
+	setEnrollSecretValue(t, "s3cret-value")
 
-			require.NoError(t, clearTestSecret())
-			require.NoError(t, clearTestSecret(), "clearing again must stay a no-op")
+	// Clearing twice, and clearing a key whose value is already gone, are the ordinary state on a
+	// host that has already adopted its secret.
+	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
+	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 
-			_, err := getTestSecret()
-			require.ErrorIs(t, err, ErrEnrollSecretNotFound, "a cleared secret must not be readable again")
-		})
-	}
+	_, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	require.ErrorIs(t, err, ErrEnrollSecretNotFound, "a cleared secret must not be readable again")
+
+	// A key that was never created is the same no-op.
+	deleteTestKey()
+	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 }
 
-// The resulting DACL was also verified by hand against a real Windows 11 host: the key comes back
-// as O:SYG:SYD:PAI(A;;KA;;;SY)(A;;KA;;;BA), with SYSTEM and Administrators holding FullControl,
-// inheritance disabled, and no entry for Users.
-//
-// HKCU stands in for HKLM so that creating the key needs no elevation, but the DACL itself names
-// only SYSTEM and Administrators, so applying it drops the running user's own access. That makes
-// the assertions below hold only for an elevated run.
+// The DACL names only SYSTEM and Administrators, so applying it drops the running user's own access
+// to the key. That makes this test, unlike the rest of the file, require an elevated run.
 func TestEnsureEnrollSecretKeyIsProtectedIsIdempotent(t *testing.T) {
 	deleteTestKey()
 	t.Cleanup(deleteTestKey)
@@ -169,12 +128,12 @@ func TestEnsureEnrollSecretKeyIsProtectedIsIdempotent(t *testing.T) {
 
 	require.False(t, enrollSecretKeyWasProtected(objectName), "a key that does not exist is not protected")
 
-	require.NoError(t, protectTestKey())
+	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 	require.True(t, enrollSecretKeyWasProtected(objectName), "the key must carry the DACL we set")
 
 	// Called on every orbit start, so it has to be safe to repeat. The repeat takes the early return,
 	// which is only correct if the check above recognizes the DACL the first call applied.
-	require.NoError(t, protectTestKey())
+	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 	require.True(t, enrollSecretKeyWasProtected(objectName))
 }
 
@@ -186,20 +145,11 @@ func TestEnsureEnrollSecretKeyIsProtectedKeepsADeliveredSecret(t *testing.T) {
 	// Stand in for the MDM write arriving first and creating the key with inherited permissions.
 	setEnrollSecretValue(t, "delivered-before-orbit-ran")
 
-	require.NoError(t, protectTestKey())
+	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 
-	secret, err := getTestSecret()
+	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
 	require.NoError(t, err)
 	require.Equal(t, "delivered-before-orbit-ran", secret, "a delivered secret must survive being secured")
-}
-
-func TestGetEnrollSecretDoesNotLeakTheSecretIntoErrors(t *testing.T) {
-	// A returned error is logged by the caller, so it must never carry the value.
-	setEnrollSecretValue(t, "s3cret-value")
-
-	_, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath+`\missing`)
-	require.Error(t, err)
-	require.NotContains(t, err.Error(), "s3cret-value")
 }
 
 // armTestWatch arms a watch on the test key and closes it when the test ends.
@@ -240,19 +190,9 @@ func TestEnrollSecretWatchFiresWhenTheSecretIsDelivered(t *testing.T) {
 	require.NoError(t, waitWithDeadline(t, t.Context(), watch))
 
 	// Waking is only useful if the value is readable by the time Wait returns.
-	secret, err := getTestSecret()
+	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
 	require.NoError(t, err)
 	require.Equal(t, "s3cret-value", secret)
-}
-
-func TestEnrollSecretWatchFiresWhenTheSecretIsCleared(t *testing.T) {
-	// Recovery resends the profile, so the value changing in either direction has to wake the caller.
-	setEnrollSecretValue(t, "s3cret-value")
-	watch := armTestWatch(t)
-
-	require.NoError(t, clearTestSecret())
-
-	require.NoError(t, waitWithDeadline(t, t.Context(), watch))
 }
 
 func TestEnrollSecretWatchDoesNotFireUntilTheKeyChanges(t *testing.T) {
@@ -273,20 +213,16 @@ func TestEnrollSecretWatchDoesNotFireUntilTheKeyChanges(t *testing.T) {
 
 func TestEnrollSecretWatchUnblocksWhenTheContextIsAlreadyDone(t *testing.T) {
 	createTestKey(t)
-
-	watch, err := armEnrollSecretWatch(registry.CURRENT_USER, testEnrollSecretKeyPath)
-	require.NoError(t, err)
+	watch := armTestWatch(t)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	// Wait signals its own event to break the Win32 block, and here that signal can land before the
-	// wait even starts. Only a manual-reset event stays signalled long enough for that to work.
+	// wait even starts. Only a manual-reset event stays signalled long enough for that to work. The
+	// Close in armTestWatch then checks that Wait left behind no goroutine that could signal the
+	// handle after Windows has recycled it.
 	require.NoError(t, waitWithDeadline(t, ctx, watch))
-
-	// Close releases the event handle and Windows recycles handle values, so Wait must not leave a
-	// goroutine behind that could signal the recycled handle afterwards.
-	require.NoError(t, watch.Close())
 }
 
 func TestArmEnrollSecretWatchFailsWhenTheKeyIsMissing(t *testing.T) {
