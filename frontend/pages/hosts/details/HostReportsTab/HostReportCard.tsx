@@ -30,7 +30,7 @@ const ReportBanner = ({
   message: ReactNode;
   children?: ReactNode;
 }) => (
-  <InfoBanner borderRadius="xlarge">
+  <InfoBanner>
     <div className={`${baseClass}__banner-content`}>
       <div className={`${baseClass}__banner-text`}>
         <Icon name={iconName} color={ICON_COLOR} />
@@ -167,7 +167,7 @@ const HostReportCard = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
           <div className={`${baseClass}__title-row`}>

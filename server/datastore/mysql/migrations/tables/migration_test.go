@@ -184,3 +184,15 @@ WHERE
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)
 }
+
+// indexColumns returns the columns of index on table, in key order.
+func indexColumns(t *testing.T, db *sqlx.DB, table, index string) []string {
+	var cols []string
+	err := db.Select(&cols, `
+SELECT column_name
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?
+ORDER BY seq_in_index`, table, index)
+	require.NoError(t, err)
+	return cols
+}

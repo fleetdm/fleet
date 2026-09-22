@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -150,7 +151,7 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
-	reported map[string]struct{},
+	reported map[string]fleet.ExecutableHashes,
 	mutationResults *fleet.UpdateHostSoftwareDBResult,
 ) error {
 	currS := mutationResults.CurrInstalled()
@@ -160,12 +161,12 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return err
 	}
 
-	toI, toD, err := hostSoftwareInstalledPathsDelta(ctx, hostID, reported, hsip, currS, ds.logger)
+	toI, toU, toD, err := hostSoftwareInstalledPathsDelta(ctx, hostID, reported, hsip, currS, ds.logger)
 	if err != nil {
 		return err
 	}
 
-	if len(toI) == 0 && len(toD) == 0 {
+	if len(toI) == 0 && len(toU) == 0 && len(toD) == 0 {
 		// Nothing to do ...
 		return nil
 	}
@@ -184,7 +185,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 			return err
 		}
 
-		return nil
+		return updateHostSoftwareInstalledPathExecutables(ctx, tx, toU)
 	})
 }
 
@@ -197,7 +198,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	error,
 ) {
 	stmt := `
-		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.cdhash_sha256, t.executable_sha256, t.executable_path
+		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.cdhash_sha256, t.executable_sha256, t.executable_path, t.executable_hashes
 		FROM host_software_installed_paths t
 		WHERE t.host_id = ?
 	`
@@ -208,6 +209,59 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	}
 
 	return result, nil
+}
+
+// groupHostSoftwareInstalledPaths groups installed path rows by software ID, returning the
+// installed paths and the signature information of each row. A Homebrew keg is one row carrying
+// the executables it installs, and expands to one signature information entry per executable.
+func groupHostSoftwareInstalledPaths(installedPaths []fleet.HostSoftwareInstalledPath) (map[uint][]string, map[uint][]fleet.PathSignatureInformation) {
+	pathsBySoftwareID := make(map[uint][]string)
+	signatureInfoBySoftwareID := make(map[uint][]fleet.PathSignatureInformation)
+	seenPaths := make(map[uint]map[string]struct{})
+	for _, ip := range installedPaths {
+		if _, ok := seenPaths[ip.SoftwareID][ip.InstalledPath]; !ok {
+			if seenPaths[ip.SoftwareID] == nil {
+				seenPaths[ip.SoftwareID] = make(map[string]struct{})
+			}
+			seenPaths[ip.SoftwareID][ip.InstalledPath] = struct{}{}
+			pathsBySoftwareID[ip.SoftwareID] = append(pathsBySoftwareID[ip.SoftwareID], ip.InstalledPath)
+		}
+		if len(ip.ExecutableHashes) > 0 {
+			signatureInfoBySoftwareID[ip.SoftwareID] = append(signatureInfoBySoftwareID[ip.SoftwareID], kegSignatureInformation(ip)...)
+			continue
+		}
+		signatureInfoBySoftwareID[ip.SoftwareID] = append(signatureInfoBySoftwareID[ip.SoftwareID], fleet.PathSignatureInformation{
+			InstalledPath:    ip.InstalledPath,
+			TeamIdentifier:   ip.TeamIdentifier,
+			CDHashSHA256:     ip.CDHashSHA256,
+			ExecutableSHA256: ip.ExecutableSHA256,
+			ExecutablePath:   ip.ExecutablePath,
+		})
+	}
+	return pathsBySoftwareID, signatureInfoBySoftwareID
+}
+
+// kegSignatureInformation expands a keg's executables into one entry each, rebuilding every
+// absolute path from the Cellar directory the keys are relative to. Entries are sorted by path so
+// the API returns them in a stable order.
+//
+// A file the host has reported but fleetd has not hashed yet is left out: every entry carries a
+// hash, which is what the API and the frontend expect, and the entry appears once a run hashes it.
+func kegSignatureInformation(ip fleet.HostSoftwareInstalledPath) []fleet.PathSignatureInformation {
+	info := make([]fleet.PathSignatureInformation, 0, len(ip.ExecutableHashes))
+	for _, relPath := range slices.Sorted(maps.Keys(ip.ExecutableHashes)) {
+		hash := ip.ExecutableHashes[relPath]
+		if hash == "" {
+			continue
+		}
+		info = append(info, fleet.PathSignatureInformation{
+			InstalledPath:    ip.InstalledPath,
+			TeamIdentifier:   ip.TeamIdentifier,
+			ExecutableSHA256: &hash,
+			ExecutablePath:   new(ip.InstalledPath + "/" + relPath),
+		})
+	}
+	return info
 }
 
 // macOSTopLevelApplicationTitleIDs returns the set of software title IDs that
@@ -237,21 +291,22 @@ func (ds *Datastore) macOSTopLevelApplicationTitleIDs(ctx context.Context, hostI
 	return set, nil
 }
 
-// hostSoftwareInstalledPathsDelta returns what should be inserted and deleted to keep the
-// 'host_software_installed_paths' table in-sync with the osquery reported query results.
-// 'reported' is a set of 'installed_path-software.UniqueStr' strings, built from the osquery
-// results.
+// hostSoftwareInstalledPathsDelta returns what should be inserted, updated and deleted to keep
+// the 'host_software_installed_paths' table in-sync with the osquery reported query results.
+// 'reported' is keyed by fleet.HostSoftwareInstalledPathKey, its value carrying the executables a
+// Homebrew keg installs.
 // 'stored' contains all 'host_software_installed_paths' rows for the given host.
 // 'hostSoftware' contains the current software installed on the host.
 func hostSoftwareInstalledPathsDelta(
 	ctx context.Context,
 	hostID uint,
-	reported map[string]struct{},
+	reported map[string]fleet.ExecutableHashes,
 	stored []fleet.HostSoftwareInstalledPath,
 	hostSoftware []fleet.Software,
 	logger *slog.Logger,
 ) (
 	toInsert []fleet.HostSoftwareInstalledPath,
+	toUpdate []fleet.HostSoftwareInstalledPath,
 	toDelete []uint,
 	err error,
 ) {
@@ -269,6 +324,16 @@ func hostSoftwareInstalledPathsDelta(
 	sUnqStrLook := map[string]fleet.Software{}
 	for _, s := range hostSoftware {
 		sUnqStrLook[s.ToUniqueStr()] = s
+	}
+
+	reportedKeys := make(map[string]fleet.HostSoftwareInstalledPathKey, len(reported))
+	for key := range reported {
+		parsed, ok := fleet.ParseHostSoftwareInstalledPathKey(key)
+		if !ok {
+			logger.DebugContext(ctx, "skipping malformed installed path key", "host_id", hostID)
+			continue
+		}
+		reportedKeys[key] = parsed
 	}
 
 	iSPathLookup := make(map[string]fleet.HostSoftwareInstalledPath)
@@ -289,27 +354,33 @@ func hostSoftwareInstalledPathsDelta(
 		if iP.ExecutablePath != nil {
 			execPath = *iP.ExecutablePath
 		}
-		key := fmt.Sprintf(
-			"%s%s%s%s%s%s%s%s%s%s%s",
-			iP.InstalledPath, fleet.SoftwareFieldSeparator, iP.TeamIdentifier, fleet.SoftwareFieldSeparator, cdHashSHA256, fleet.SoftwareFieldSeparator, execHashSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
-		)
+		key := fleet.HostSoftwareInstalledPathKey{
+			InstalledPath:     iP.InstalledPath,
+			TeamIdentifier:    iP.TeamIdentifier,
+			CDHashSHA256:      cdHashSHA256,
+			ExecutableSHA256:  execHashSHA256,
+			ExecutablePath:    execPath,
+			SoftwareUniqueStr: s.ToUniqueStr(),
+		}.String()
 		iSPathLookup[key] = iP
 
-		// Anything stored but not reported should be deleted
-		if _, ok := reported[key]; !ok {
+		// Anything stored but not reported should be deleted.
+		if _, ok := reportedKeys[key]; !ok {
 			toDelete = append(toDelete, iP.ID)
+			continue
+		}
+		if merged, changed := mergeExecutableHashes(iP.ExecutableHashes, reported[key]); changed {
+			iP.ExecutableHashes = merged
+			toUpdate = append(toUpdate, iP)
 		}
 	}
 
-	for key := range reported {
-		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 6)
-		installedPath, teamIdentifier, cdHash, execHash, ePath, unqStr := parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
-
+	for key, parsed := range reportedKeys {
 		// Shouldn't be a common occurence ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
-		s, ok := sUnqStrLook[unqStr]
+		s, ok := sUnqStrLook[parsed.SoftwareUniqueStr]
 		if !ok {
-			logger.DebugContext(ctx, "skipping installed path for software not found", "host_id", hostID, "unq_str", unqStr)
+			logger.DebugContext(ctx, "skipping installed path for software not found", "host_id", hostID, "unq_str", parsed.SoftwareUniqueStr)
 			continue
 		}
 
@@ -319,28 +390,52 @@ func hostSoftwareInstalledPathsDelta(
 		}
 
 		var cdHashSHA256, execSHA256, execPath *string
-		if cdHash != "" {
-			cdHashSHA256 = ptr.String(cdHash)
+		if parsed.CDHashSHA256 != "" {
+			cdHashSHA256 = new(parsed.CDHashSHA256)
 		}
-		if execHash != "" {
-			execSHA256 = ptr.String(execHash)
+		if parsed.ExecutableSHA256 != "" {
+			execSHA256 = new(parsed.ExecutableSHA256)
 		}
-		if ePath != "" {
-			execPath = ptr.String(ePath)
+		if parsed.ExecutablePath != "" {
+			execPath = new(parsed.ExecutablePath)
 		}
 
 		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
 			HostID:           hostID,
 			SoftwareID:       s.ID,
-			InstalledPath:    installedPath,
-			TeamIdentifier:   teamIdentifier,
+			InstalledPath:    parsed.InstalledPath,
+			TeamIdentifier:   parsed.TeamIdentifier,
 			CDHashSHA256:     cdHashSHA256,
 			ExecutableSHA256: execSHA256,
 			ExecutablePath:   execPath,
+			ExecutableHashes: reported[key],
 		})
 	}
 
 	return
+}
+
+// mergeExecutableHashes applies a keg's reported executables to what is stored, carrying the
+// stored hash over for a file the host reported without one, and reports whether the result
+// differs from what is stored.
+//
+// The report is the keg's membership, so a file that stops being reported loses its entry. A nil
+// report is not a report: the software is not a keg, or the override query did not run, and
+// absence of the query is never evidence that a keg lost its executables. An empty but non-nil
+// report is the query saying the keg installs no Mach-O files.
+func mergeExecutableHashes(stored, reported fleet.ExecutableHashes) (fleet.ExecutableHashes, bool) {
+	if reported == nil {
+		return stored, false
+	}
+	merged := make(fleet.ExecutableHashes, len(reported))
+	for path, hash := range reported {
+		if hash == "" {
+			// fleetd found the file but spent its hashing budget before reaching it.
+			hash = stored[path]
+		}
+		merged[path] = hash
+	}
+	return merged, !maps.Equal(merged, stored)
 }
 
 func deleteHostSoftwareInstalledPaths(
@@ -379,7 +474,7 @@ func insertHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, cdhash_sha256, executable_sha256, executable_path) VALUES %s"
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, cdhash_sha256, executable_sha256, executable_path, executable_hashes) VALUES %s"
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
@@ -391,15 +486,36 @@ func insertHostSoftwareInstalledPaths(
 
 		var args []interface{}
 		for _, v := range batch {
-			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.CDHashSHA256, v.ExecutableSHA256, v.ExecutablePath)
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.CDHashSHA256, v.ExecutableSHA256, v.ExecutablePath, v.ExecutableHashes)
 		}
 
-		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", len(batch)), ", ")
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?, ?), ", len(batch)), ", ")
 		stmt := fmt.Sprintf(stmt, placeHolders)
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting rows into host_software_installed_paths")
+		}
+	}
+
+	return nil
+}
+
+// updateHostSoftwareInstalledPathExecutables rewrites the executables of rows that keep their
+// identity, which only a Homebrew keg has. One statement per row rather than a batched upsert:
+// the row count is a keg whose executables changed since the last report, so it is zero once a
+// host has converged, and an upsert keyed on the primary key would silently insert a row with a
+// hand-picked id if the row had been deleted in between.
+func updateHostSoftwareInstalledPathExecutables(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	toUpdate []fleet.HostSoftwareInstalledPath,
+) error {
+	const stmt = `UPDATE host_software_installed_paths SET executable_hashes = ? WHERE id = ?`
+
+	for _, v := range toUpdate {
+		if _, err := tx.ExecContext(ctx, stmt, v.ExecutableHashes, v.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating executables in host_software_installed_paths")
 		}
 	}
 
@@ -2573,18 +2689,7 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 		return err
 	}
 
-	installedPathsList := make(map[uint][]string)
-	pathSignatureInformation := make(map[uint][]fleet.PathSignatureInformation)
-	for _, ip := range installedPaths {
-		installedPathsList[ip.SoftwareID] = append(installedPathsList[ip.SoftwareID], ip.InstalledPath)
-		pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-			InstalledPath:    ip.InstalledPath,
-			TeamIdentifier:   ip.TeamIdentifier,
-			CDHashSHA256:     ip.CDHashSHA256,
-			ExecutableSHA256: ip.ExecutableSHA256,
-			ExecutablePath:   ip.ExecutablePath,
-		})
-	}
+	installedPathsList, pathSignatureInformation := groupHostSoftwareInstalledPaths(installedPaths)
 
 	host.Software = make([]fleet.HostSoftwareEntry, 0, len(software))
 	for _, s := range software {
@@ -3561,6 +3666,10 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	ctx context.Context,
 	filters fleet.VulnSoftwareFilter,
 ) ([]fleet.Software, error) {
+	if err := filters.Validate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing software for vulnerability detection")
+	}
+
 	var result []fleet.Software
 	var sqlstmt string
 	var args []interface{}
@@ -3599,9 +3708,11 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		args = append(args, "%"+filters.Name+"%")
 	}
 
-	if filters.Source != "" {
-		conditions = append(conditions, "s.source = ?")
-		args = append(args, filters.Source)
+	if len(filters.Sources) > 0 {
+		conditions = append(conditions, fmt.Sprintf("s.source IN (%s)", strings.TrimSuffix(strings.Repeat("?,", len(filters.Sources)), ",")))
+		for _, src := range filters.Sources {
+			args = append(args, src)
+		}
 	}
 
 	if filters.KernelsOnly {
@@ -3626,7 +3737,15 @@ const softwareVulnDetectionBatchSize = 10000
 func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 	ctx context.Context,
 	osVer fleet.OSVersion,
+	sources []string,
 ) ([]fleet.Software, error) {
+	if len(sources) == 0 {
+		return nil, ctxerr.New(ctx, "no software sources given")
+	}
+	if err := fleet.ValidateSoftwareSources(sources); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing software for OS version")
+	}
+
 	var softwareIDs []uint
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareIDs, `
 		SELECT DISTINCT hs.software_id
@@ -3642,6 +3761,8 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 		return nil, nil
 	}
 
+	sourcePlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(sources)), ",")
+
 	var result []fleet.Software
 	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
@@ -3649,11 +3770,14 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 			SELECT s.id, s.name, s.version, s.release, s.arch, COALESCE(cpe.cpe, '') AS generated_cpe
 			FROM software s
 			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
-			WHERE s.id IN (%s)
-		`, placeholders)
-		args := make([]any, len(batch))
-		for i, id := range batch {
-			args[i] = id
+			WHERE s.id IN (%s) AND s.source IN (%s)
+		`, placeholders, sourcePlaceholders)
+		args := make([]any, 0, len(batch)+len(sources))
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		for _, src := range sources {
+			args = append(args, src)
 		}
 		var batchResult []fleet.Software
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
@@ -3744,6 +3868,7 @@ type hostSoftware struct {
 	BundleIdentifier          *string    `db:"bundle_identifier"`
 	TitleBundleIdentifier     *string    `db:"title_bundle_identifier"`
 	Version                   *string    `db:"version"`
+	SoftwareRelease           *string    `db:"software_release"`
 	SoftwareID                *uint      `db:"software_id"`
 	SoftwareSource            *string    `db:"software_source"`
 	SoftwareExtensionFor      *string    `db:"software_extension_for"`
@@ -3769,6 +3894,7 @@ type hostSoftware struct {
 	SoftwareSourceList        *string `db:"software_source_list"`
 	SoftwareExtensionForList  *string `db:"software_extension_for_list"`
 	VersionList               *string `db:"version_list"`
+	SoftwareReleaseList       *string `db:"software_release_list"`
 	BundleIdentifierList      *string `db:"bundle_identifier_list"`
 	VPPAppSelfServiceList     *string `db:"vpp_app_self_service_list"`
 	VPPAppAdamIDList          *string `db:"vpp_app_adam_id_list"`
@@ -3792,6 +3918,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.extension_for AS software_extension_for,
 			software.version AS version,
+			software.release AS software_release,
 			software.bundle_identifier AS bundle_identifier,
 			software_titles.upgrade_code AS upgrade_code
 		FROM
@@ -4879,6 +5006,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 		softwareTitleRecord.SoftwareSourceList = ptr.String("")
 		softwareTitleRecord.SoftwareExtensionForList = ptr.String("")
 		softwareTitleRecord.VersionList = ptr.String("")
+		softwareTitleRecord.SoftwareReleaseList = new("")
 		softwareTitleRecord.BundleIdentifierList = ptr.String("")
 		seperator = ""
 	}
@@ -4899,6 +5027,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 			*softwareTitleRecord.SoftwareExtensionForList += seperator + *hostInstalledSoftware.SoftwareExtensionFor
 		}
 		*softwareTitleRecord.VersionList += seperator + *hostInstalledSoftware.Version
+		*softwareTitleRecord.SoftwareReleaseList += seperator + *hostInstalledSoftware.SoftwareRelease
 		*softwareTitleRecord.BundleIdentifierList += seperator + *hostInstalledSoftware.BundleIdentifier
 	}
 }
@@ -5184,6 +5313,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
 		softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
 		softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
+		softwareReleaseList := strings.Split(*softwareTitleRecord.SoftwareReleaseList, ",")
 		softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
 
 		for index, softwareIdStr := range softwareIDList {
@@ -5196,6 +5326,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 					version.Version = softwareVersionList[index]
 					version.BundleIdentifier = softwareBundleIdentifierList[index]
 					version.Source = softwareSourceList[index]
+					version.Release = softwareReleaseList[index]
 					version.LastOpenedAt = software.LastOpenedAt
 					version.SoftwareID = softwareId
 					version.SoftwareTitleID = softwareTitleRecord.ID
@@ -5203,7 +5334,9 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 					version.InstalledPaths = a.installedPathBySoftwareId[softwareId]
 					version.Vulnerabilities = a.vulnerabilitiesBySoftwareID[softwareId]
 
-					if version.Source == "apps" {
+					// Only sources that report signature information are listed; every other
+					// source has installed path rows with empty hashes.
+					if version.Source == "apps" || version.Source == "homebrew_packages" {
 						version.SignatureInformation = a.pathSignatureInformation[softwareId]
 					}
 
@@ -7018,6 +7151,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
 					GROUP_CONCAT(software.upgrade_code) AS software_upgrade_code_list,
 					GROUP_CONCAT(software.version) AS version_list,
+					GROUP_CONCAT(software.release) AS software_release_list,
 					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,
@@ -7066,6 +7200,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_extension_for_list,
 					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
+					NULL AS software_release_list,
 					NULL AS bundle_identifier_list,
 					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
 					GROUP_CONCAT(vpp_apps.latest_version) AS vpp_app_version_list,
@@ -7110,6 +7245,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_extension_for_list,
 					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
+					NULL AS software_release_list,
 					NULL AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,
@@ -7151,18 +7287,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "Could not get software installed paths")
 		}
-		installedPathBySoftwareId := make(map[uint][]string)
-		pathSignatureInformation := make(map[uint][]fleet.PathSignatureInformation)
-		for _, ip := range installedPaths {
-			installedPathBySoftwareId[ip.SoftwareID] = append(installedPathBySoftwareId[ip.SoftwareID], ip.InstalledPath)
-			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
-				InstalledPath:    ip.InstalledPath,
-				TeamIdentifier:   ip.TeamIdentifier,
-				CDHashSHA256:     ip.CDHashSHA256,
-				ExecutableSHA256: ip.ExecutableSHA256,
-				ExecutablePath:   ip.ExecutablePath,
-			})
-		}
+		installedPathBySoftwareId, pathSignatureInformation := groupHostSoftwareInstalledPaths(installedPaths)
 
 		// extract into vulnerabilitiesBySoftwareID
 		type softwareCVE struct {

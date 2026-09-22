@@ -1,19 +1,17 @@
 package osv
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
@@ -65,8 +63,10 @@ func analyzeOSV(
 	logger *slog.Logger,
 ) ([]fleet.SoftwareVulnerability, error) {
 	// Get distinct software for this OS version (replaces per-host ListSoftwareForVulnDetection).
+	// Scoped to the package sources OSV covers: a Go binary or npm package that happens to share
+	// a distro package's name must not be compared against distro advisories.
 	softwareStart := time.Now().UTC()
-	software, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ver)
+	software, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ver, oval.SupportedSoftwareSources)
 	if err != nil {
 		return nil, fmt.Errorf("listing software for OS version: %w", err)
 	}
@@ -197,47 +197,6 @@ func Analyze(
 	}, collectVulns, logger)
 }
 
-// findLatestOSVArtifactForVersion finds the most recent OSV artifact for a specific Ubuntu version
-func findLatestOSVArtifactForVersion(vulnPath string, ubuntuVersion string) (string, error) {
-	files, err := os.ReadDir(vulnPath)
-	if err != nil {
-		return "", fmt.Errorf("reading vulnerability path: %w", err)
-	}
-
-	// Pattern: osv-ubuntu-2204-YYYY-MM-DD.json.gz
-	prefix := fmt.Sprintf("osv-ubuntu-%s-", ubuntuVersion)
-	suffix := ".json.gz"
-
-	var latestFile os.DirEntry
-	var latestModTime time.Time
-
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-
-		name := f.Name()
-		// Skip delta files, same as downloader.go
-		if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) && !strings.Contains(name, "delta") {
-			info, err := f.Info()
-			if err != nil {
-				continue
-			}
-
-			if latestFile == nil || info.ModTime().After(latestModTime) {
-				latestFile = f
-				latestModTime = info.ModTime()
-			}
-		}
-	}
-
-	if latestFile == nil {
-		return "", fmt.Errorf("no OSV artifact found for Ubuntu %s", ubuntuVersion)
-	}
-
-	return filepath.Join(vulnPath, latestFile.Name()), nil
-}
-
 // loadOSVArtifact loads the full OSV artifact for the given Ubuntu version
 func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger, date time.Time) (*OSVArtifact, error) {
 	// Extract Ubuntu version (e.g., "22.04.8 LTS" -> "2204")
@@ -246,36 +205,10 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, 
 		return nil, fmt.Errorf("could not extract Ubuntu version from %s", ver.Version)
 	}
 
-	// Try to find date-specific artifact first, fall back to latest if not found
-	fileName := osvFilename(ubuntuVer, date)
-	artifactFile := filepath.Join(vulnPath, fileName)
-
-	if _, err := os.Stat(artifactFile); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("checking OSV artifact %s: %w", artifactFile, err)
-		}
-
-		artifactFile, err = findLatestOSVArtifactForVersion(vulnPath, ubuntuVer)
-		if err != nil {
-			return nil, fmt.Errorf("finding OSV artifact for Ubuntu %s: %w", ubuntuVer, err)
-		}
-	}
-
-	f, err := os.Open(artifactFile)
-	if err != nil {
-		return nil, fmt.Errorf("opening OSV artifact: %w", err)
-	}
-	defer f.Close()
-
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("creating gzip reader: %w", err)
-	}
-	defer gz.Close()
-
 	var artifact OSVArtifact
-	if err := json.UnmarshalRead(gz, &artifact); err != nil {
-		return nil, fmt.Errorf("decoding OSV artifact: %w", err)
+	artifactFile, err := readArtifact(vulnPath, OSVFilePrefix, ubuntuVer, date, &artifact)
+	if err != nil {
+		return nil, err
 	}
 
 	// Refuse to use an artifact that has no vulnerability data — an empty artifact would
@@ -578,45 +511,6 @@ func AnalyzeRHEL(
 	}, collectVulns, logger)
 }
 
-// findLatestRHELOSVArtifactForVersion finds the most recent RHEL OSV artifact for a major version.
-func findLatestRHELOSVArtifactForVersion(vulnPath string, rhelVersion string) (string, error) {
-	files, err := os.ReadDir(vulnPath)
-	if err != nil {
-		return "", fmt.Errorf("reading vulnerability path: %w", err)
-	}
-
-	prefix := fmt.Sprintf("osv-rhel-%s-", rhelVersion)
-	suffix := ".json.gz"
-
-	var latestFile os.DirEntry
-	var latestModTime time.Time
-
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-
-		name := f.Name()
-		if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) && !strings.Contains(name, "delta") {
-			info, err := f.Info()
-			if err != nil {
-				continue
-			}
-
-			if latestFile == nil || info.ModTime().After(latestModTime) {
-				latestFile = f
-				latestModTime = info.ModTime()
-			}
-		}
-	}
-
-	if latestFile == nil {
-		return "", fmt.Errorf("no RHEL OSV artifact found for RHEL %s", rhelVersion)
-	}
-
-	return filepath.Join(vulnPath, latestFile.Name()), nil
-}
-
 // loadRHELOSVArtifact loads the RHEL OSV artifact for the given OS version.
 func loadRHELOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger, date time.Time) (*RHELOSVArtifact, error) {
 	rhelVer := extractRHELMajorVersion(ver.Version)
@@ -624,35 +518,10 @@ func loadRHELOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath stri
 		return nil, fmt.Errorf("could not extract RHEL version from %s", ver.Name)
 	}
 
-	fileName := rhelOSVFilename(rhelVer, date)
-	artifactFile := filepath.Join(vulnPath, fileName)
-
-	if _, err := os.Stat(artifactFile); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("checking RHEL OSV artifact %s: %w", artifactFile, err)
-		}
-
-		artifactFile, err = findLatestRHELOSVArtifactForVersion(vulnPath, rhelVer)
-		if err != nil {
-			return nil, fmt.Errorf("finding RHEL OSV artifact for RHEL %s: %w", rhelVer, err)
-		}
-	}
-
-	f, err := os.Open(artifactFile)
-	if err != nil {
-		return nil, fmt.Errorf("opening RHEL OSV artifact: %w", err)
-	}
-	defer f.Close()
-
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("creating gzip reader: %w", err)
-	}
-	defer gz.Close()
-
 	var artifact RHELOSVArtifact
-	if err := json.UnmarshalRead(gz, &artifact); err != nil {
-		return nil, fmt.Errorf("decoding RHEL OSV artifact: %w", err)
+	artifactFile, err := readArtifact(vulnPath, OSVRHELFilePrefix, rhelVer, date, &artifact)
+	if err != nil {
+		return nil, err
 	}
 
 	// Refuse to use an artifact that has no vulnerability data — an empty artifact would

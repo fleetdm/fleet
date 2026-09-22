@@ -581,6 +581,62 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	require.Contains(t, string(body), "/login?status=error")
 }
 
+// Enabling IdP-initiated login must not relax the InResponseTo check for
+// SP-initiated logins, which do have a Fleet-issued request ID to compare
+// against.
+func (s *integrationSSOTestSuite) TestSSOLoginIdPInitiatedEnabledKeepsRequestIDCheck() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"enable_sso_idp_login": true,
+			"entity_id": "sso.test.com",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "%s"
+		}
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	u := &fleet.User{
+		Name:       "SSO User 2",
+		Email:      "sso_user2@example.com",
+		GlobalRole: new(fleet.RoleObserver),
+		SSOEnabled: true,
+		Password:   []byte{},
+	}
+	_, _ = s.ds.NewUser(context.Background(), u)
+
+	// A regular SP-initiated login still works with the setting on.
+	body := s.LoginSSOUser("sso_user2", "user123#")
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// Start two SSO flows on the same client. The cookie jar keeps the second
+	// session cookie, but the IdP is answering the first request, so the
+	// response's InResponseTo does not match the session's request ID.
+	client := s.newSSOTestClient()
+	var firstIni initiateSSOResponse
+	res := s.doWithClient(client, "POST", "/api/v1/fleet/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&firstIni))
+	require.NoError(t, firstIni.Error())
+	var secondIni initiateSSOResponse
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&secondIni))
+	require.NoError(t, secondIni.Error())
+	require.NotEqual(t, firstIni.URL, secondIni.URL)
+
+	samlResponse := s.completeSAMLLogin(client, firstIni.URL, "sso_user2", "user123#")
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/sso/callback", nil, http.StatusOK, nil, "SAMLResponse", samlResponse)
+	defer res.Body.Close()
+	rawBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(rawBody), "/login?status=error")
+}
+
 func (s *integrationSSOTestSuite) TestSSOServerURL() {
 	t := s.T()
 

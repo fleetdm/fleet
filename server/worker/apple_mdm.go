@@ -278,8 +278,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	const fleetAdminFullName = "Fleet Admin"
 
-	// Only send AccountConfiguration for macOS devices.
-	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
+	// Only send AccountConfiguration for macOS devices, that did not come from AB migration
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) && !args.FromMDMMigration {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
@@ -423,7 +423,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		args.ReleaseDeviceStartedAt = &now
 	}
 
-	a.Log.DebugContext(ctx,
+	a.Log.DebugContext(
+		ctx,
 		fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
 		"task", "runPostDEPReleaseDevice",
 		"attempt", args.ReleaseDeviceAttempt,
@@ -489,7 +490,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		a.Log.DebugContext(ctx,
+		a.Log.DebugContext(
+			ctx,
 			fmt.Sprintf("command %s has completed", cmdUUID),
 			"task", "runPostDEPReleaseDevice",
 		)
@@ -524,7 +526,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		a.Log.DebugContext(ctx,
+		a.Log.DebugContext(
+			ctx,
 			fmt.Sprintf("profile %s has been deployed", prof.Identifier),
 			"task", "runPostDEPReleaseDevice",
 		)
