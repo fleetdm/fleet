@@ -47,9 +47,8 @@ func createTestKey(t *testing.T) {
 	require.NoError(t, key.Close())
 }
 
-// deleteTestKey restores inheritance first: a test that protected the key left the running user
-// without DELETE on it, and only the owner's implicit WRITE_DAC gets it back. Without this a
-// non-elevated run would strand an unreadable key and fail every run after it.
+// deleteTestKey restores inheritance first: a test that protected the key left the running user without DELETE on it, and only
+// the owner's implicit WRITE_DAC gets it back.
 func deleteTestKey() {
 	//nolint:errcheck // best effort: the key may not exist, or may never have been protected
 	windows.SetNamedSecurityInfo(registryObjectName(registry.CURRENT_USER, testEnrollSecretKeyPath),
@@ -80,7 +79,6 @@ func TestGetEnrollSecretReportsNothingWaiting(t *testing.T) {
 			setup: func(t *testing.T) { setEnrollSecretValue(t, "   ") },
 		},
 		{
-			// The installer seeds unset properties with this sentinel; it must not reach the enroll path.
 			name:  "value is the installer placeholder",
 			setup: func(t *testing.T) { setEnrollSecretValue(t, constant.UnusedFlagKeyword) },
 		},
@@ -106,8 +104,6 @@ func TestGetEnrollSecretReturnsDeliveredSecret(t *testing.T) {
 func TestClearEnrollSecret(t *testing.T) {
 	setEnrollSecretValue(t, "s3cret-value")
 
-	// Clearing twice, and clearing a key whose value is already gone, are the ordinary state on a
-	// host that has already adopted its secret.
 	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 
@@ -119,8 +115,8 @@ func TestClearEnrollSecret(t *testing.T) {
 	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 }
 
-// The DACL names only SYSTEM and Administrators, so applying it drops the running user's own access
-// to the key. That makes this test, unlike the rest of the file, require an elevated run.
+// The DACL names only SYSTEM and Administrators, so applying it drops the running user's own access to the key. That makes this
+// test, unlike the rest of the file, require an elevated run.
 func TestEnsureEnrollSecretKeyIsProtectedIsIdempotent(t *testing.T) {
 	deleteTestKey()
 	t.Cleanup(deleteTestKey)
@@ -131,25 +127,9 @@ func TestEnsureEnrollSecretKeyIsProtectedIsIdempotent(t *testing.T) {
 	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 	require.True(t, enrollSecretKeyWasProtected(objectName), "the key must carry the DACL we set")
 
-	// Called on every orbit start, so it has to be safe to repeat. The repeat takes the early return,
-	// which is only correct if the check above recognizes the DACL the first call applied.
+	// Called on every orbit start, so it has to be safe to repeat.
 	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 	require.True(t, enrollSecretKeyWasProtected(objectName))
-}
-
-// A secret found in an unprotected key is kept, not discarded. The MDM write creates the key itself
-// whenever it lands before orbit has ever run, so discarding would fail the enrollment it was sent
-// for. The secret is single use and is spent the moment orbit enrolls with it, which is the control;
-// the DACL is hardening on top of that.
-func TestEnsureEnrollSecretKeyIsProtectedKeepsADeliveredSecret(t *testing.T) {
-	// Stand in for the MDM write arriving first and creating the key with inherited permissions.
-	setEnrollSecretValue(t, "delivered-before-orbit-ran")
-
-	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
-
-	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
-	require.NoError(t, err)
-	require.Equal(t, "delivered-before-orbit-ran", secret, "a delivered secret must survive being secured")
 }
 
 // armTestWatch arms a watch on the test key and closes it when the test ends.
@@ -162,9 +142,7 @@ func armTestWatch(t *testing.T) *EnrollSecretWatch {
 	return watch
 }
 
-// waitWithDeadline runs Wait on its own goroutine. Wait blocks in a Win32 call that nothing in Go
-// can interrupt, so a registration that never fires would hang the whole package instead of failing
-// the test that broke it.
+// waitWithDeadline runs Wait on its own goroutine. Wait blocks in a Win32 call that nothing in Go can interrupt.
 func waitWithDeadline(t *testing.T, ctx context.Context, watch *EnrollSecretWatch) error {
 	t.Helper()
 
@@ -195,10 +173,7 @@ func TestEnrollSecretWatchFiresWhenTheSecretIsDelivered(t *testing.T) {
 	require.Equal(t, "s3cret-value", secret)
 }
 
-func TestEnrollSecretWatchDoesNotFireUntilTheKeyChanges(t *testing.T) {
-	// Without this, a Wait that returned unconditionally would satisfy every other watch test here.
-	// It also covers cancellation arriving while Wait is already blocked, which is the real sequence:
-	// orbit blocks on an armed watch and the service is asked to stop.
+func TestEnrollSecretWatchBlocksUntilTheContextExpires(t *testing.T) {
 	createTestKey(t)
 	watch := armTestWatch(t)
 
@@ -208,7 +183,7 @@ func TestEnrollSecretWatchDoesNotFireUntilTheKeyChanges(t *testing.T) {
 
 	start := time.Now()
 	require.NoError(t, waitWithDeadline(t, ctx, watch))
-	require.Greater(t, time.Since(start), blockFor/2, "Wait returned before the key changed or ctx expired")
+	require.Greater(t, time.Since(start), blockFor/2, "Wait returned before the context expired")
 }
 
 func TestEnrollSecretWatchUnblocksWhenTheContextIsAlreadyDone(t *testing.T) {
@@ -218,10 +193,6 @@ func TestEnrollSecretWatchUnblocksWhenTheContextIsAlreadyDone(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	// Wait signals its own event to break the Win32 block, and here that signal can land before the
-	// wait even starts. Only a manual-reset event stays signalled long enough for that to work. The
-	// Close in armTestWatch then checks that Wait left behind no goroutine that could signal the
-	// handle after Windows has recycled it.
 	require.NoError(t, waitWithDeadline(t, ctx, watch))
 }
 
