@@ -1,6 +1,6 @@
 /**
  * Score the configuration profile generator against every case in
- * test/lib/configuration-profile-generator-cases.js -- one live generation per `it()`.
+ * profile-generator/configuration-profile-generator-cases.js -- one live generation per `it()`.
  *
  * The prompt comes from api/helpers/get-configuration-profile-generator-configuration.js, the same
  * helper the public endpoint calls, so there is nothing here to keep in sync with production.
@@ -9,8 +9,8 @@
  * deliberately:
  *
  *   sails_custom__anthropicSecret='…' npm run test-profile-generator
- *   sails_custom__anthropicSecret='…' npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5 npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' LOG_ALL_GENERATIONS=1 npm run test-profile-generator
  *
  * Every result prints its profile, passing ones included, so the `readByEye` properties no assertion
  * covers can be confirmed by eye and a green run can be trusted rather than taken on faith.  To find
@@ -29,24 +29,24 @@ const { TEST_CASES, checkExpectations } = require('../configuration-profile-gene
 // these, and the answer changes with every model release.  Same default as the script.
 const BASE_MODEL = process.env.BASE_MODEL || 'claude-haiku-4-5';
 
-let logOutput = process.env.LOG_ALL_GENERATIONS;
+const LOG_ALL_GENERATIONS = process.env.LOG_ALL_GENERATIONS;
 // A profile the admin has to wait half a minute for is a broken feature even when the XML is
 // perfect, so latency is an assertion rather than a note.  Checked after the content assertions, so
 // a case that is both wrong and slow reports the wrong part first.
 const MAX_ELAPSED_MS = 10000;
 
 
-describe('configuration profile generator', function () {
+describe('configuration profile generator', function() {
 
   // One live generation per test, and the whole point of MAX_ELAPSED_MS is to catch the slow ones,
   // so the mocha timeout has to sit well above the budget rather than enforce it.
   this.timeout(60000);
   this.slow(MAX_ELAPSED_MS);
 
-  before(function () {
+  before(function() {
     // Without a secret every single case would fail the same unexplained way, which reads as a
     // broken prompt rather than an unconfigured machine.
-    if (!sails.config.custom.anthropicSecret) {
+    if(!sails.config.custom.anthropicSecret) {
       console.log('    (skipping: sails.config.custom.anthropicSecret is not set -- re-run with sails_custom__anthropicSecret=… to actually generate anything.)');
       this.skip();
     }
@@ -56,17 +56,17 @@ describe('configuration profile generator', function () {
   // silently leave it unrun.  Native array methods rather than lodash: `_` is a Sails global, and it
   // does not exist yet when mocha loads this file to register the tests.
   let profileTypesInOrder = TEST_CASES.reduce((typesSoFar, someCase)=>{
-    if (!typesSoFar.includes(someCase.profileType)) { typesSoFar.push(someCase.profileType); }
+    if(!typesSoFar.includes(someCase.profileType)) { typesSoFar.push(someCase.profileType); }
     return typesSoFar;
   }, []);
 
   for (let profileType of profileTypesInOrder) {
 
-    describe(profileType, function () {
+    describe(profileType, function() {
 
       for (let testCase of TEST_CASES.filter((someCase)=>{ return someCase.profileType === profileType; })) {
 
-        it(`${testCase.id}: ${testCase.instructions}`, async function () {
+        it(`${testCase.id}: ${testCase.instructions}`, async function() {
 
           let startedAt = Date.now();
           // The helper supplies the PayloadUUIDs and is called once per test, so each generation
@@ -94,7 +94,7 @@ describe('configuration profile generator', function () {
             !rawResult.settingsEnforced
           );
 
-          if (expectations.expectFailure) {
+          if(expectations.expectFailure) {
             assert(abstained, 'expected this request to be refused, but a profile was generated');
             return;
           }
@@ -126,7 +126,7 @@ describe('configuration profile generator', function () {
           // `readByEye` properties exist precisely because some things no assertion covers.  So print
           // what was generated.  After the assertion rather than before it, so each result is shown
           // exactly once: a failure carries the same material in the message above.
-          if(logOutput){
+          if(LOG_ALL_GENERATIONS) {
             console.log(
               `\n      ---- ${testCase.id}${testCase.canary ? ' (CANARY)' : ''} -- ${elapsedMs}ms ----\n` +
               (testCase.readByEye ? `      CONFIRM BY EYE: ${testCase.readByEye}\n` : '') +

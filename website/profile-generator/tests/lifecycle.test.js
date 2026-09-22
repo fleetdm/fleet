@@ -16,7 +16,7 @@ const sails = require('sails');
 const rc = require('sails/accessible/rc');
 
 
-before(function (done) {
+before(function(done) {
   this.timeout(60000);
 
   // Written out rather than deep-merged: `_` is a Sails global and does not exist yet.
@@ -29,15 +29,15 @@ before(function (done) {
   // reason to want it back is a lift that failed.
   configOverrides.log = Object.assign({ level: 'warn' }, configOverrides.log);
 
-  sails.load(configOverrides, function (err) {
-    if (err) { return done(err); }
+  sails.load(configOverrides, function(err) {
+    if(err) { return done(err); }
     return done();
   });
 });
 
 
-after(function (done) {
+after(function(done) {
   this.timeout(30000);
-  if (!sails || !sails.lower) { return done(); }
+  if(!sails || !sails.lower) { return done(); }
   return sails.lower(done);
 });
