@@ -1645,7 +1645,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 	man.addConfigBool("auth.use_one_time_enroll_secrets", false,
-		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets (Premium feature)")
+		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
