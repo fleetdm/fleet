@@ -5158,6 +5158,39 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
 	require.NoError(t, err)
 	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
+
+	// Transferring the host drops the old team's hidden failure from both device
+	// endpoints right away; only the global failure remains.
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2-policies"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID})))
+
+	checkCounts := func(wantPolicies int, wantTotal, wantUnhidden uint64) {
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDeviceHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Len(t, *getDeviceHostResp.Host.Policies, wantPolicies)
+		require.Equal(t, wantTotal, getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+		require.Equal(t, wantUnhidden, *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, uint(wantTotal), *getDesktopResp.FailingPolicies)
+		require.Equal(t, uint(wantUnhidden), *getDesktopResp.FailingUnhiddenPolicies)
+	}
+	checkCounts(1, 1, 1)
+
+	// A hidden policy on the new team counts once the host reports a result for it.
+	team2Hidden, err := s.ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name: "TestQueryEnterpriseTeam2HiddenPolicy", Query: "select 1;", Hidden: true,
+	})
+	require.NoError(t, err)
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{team2Hidden.ID: new(false)}, time.Now(), false, nil)))
+	checkCounts(2, 2, 1)
 }
 
 // TestDeviceHostConditionalAccessFeatures tests the EnableConditionalAccess and
