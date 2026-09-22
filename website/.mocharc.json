@@ -1,13 +1,5 @@
 {
-  // Mocha configuration
-  // (https://mochajs.org/#configuring-mocha-nodejs)
-
-  // Only *.test.js files are specs.  Shared material lives in test/lib/, which mocha must not load
-  // as a spec -- the default glob would treat the cases module as a test file with no tests in it.
   "spec": ["profile-generator/tests/**/*.test.js"],
-
-  // Each test is a live model call.  The generator's own latency budget is asserted in the suite;
-  // this is only the ceiling that separates a slow request from a hung one.
   "timeout": 60000,
   "slow": 10000
 }
