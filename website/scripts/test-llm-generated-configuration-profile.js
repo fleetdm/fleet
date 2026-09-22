@@ -1,4 +1,4 @@
-const { TEST_CASES, checkExpectations } = require('../tests/lib/configuration-profile-generator-cases');
+const { TEST_CASES, checkExpectations } = require('../profile-generator/configuration-profile-generator-cases');
 
 
 module.exports = {

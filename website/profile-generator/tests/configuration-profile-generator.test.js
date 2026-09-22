@@ -8,9 +8,9 @@
  * Every test costs a real model call, which is why this is not part of `npm test`.  Run it
  * deliberately:
  *
- *   sails_custom__anthropicSecret='…' npm run test-configuration-profile-generator
- *   sails_custom__anthropicSecret='…' npm run test-configuration-profile-generator
- *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5 npm run test-configuration-profile-generator
+ *   sails_custom__anthropicSecret='…' npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5 npm run test-profile-generator
  *
  * Every result prints its profile, passing ones included, so the `readByEye` properties no assertion
  * covers can be confirmed by eye and a green run can be trusted rather than taken on faith.  To find
@@ -22,7 +22,7 @@
 const assert = require('assert');
 const util = require('util');
 
-const { TEST_CASES, checkExpectations } = require('./lib/configuration-profile-generator-cases');
+const { TEST_CASES, checkExpectations } = require('../configuration-profile-generator-cases');
 
 
 // Overridable because the interesting question is usually whether a cheaper model can still pass
