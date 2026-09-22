@@ -3852,9 +3852,11 @@ You can remove an activation you already added, whether or not this setting is t
 
 ### mdm.allow_orbit_end_user_auth_bypass
 
-When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Linux and Windows Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, and installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it.
+When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it, and on macOS end user authentication normally happens during automatic (ADE) MDM enrollment rather than during `fleetd` enrollment.
 
-By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Set this to `false` to strictly enforce end user authentication for all Orbit enrollments — hosts that do not complete end user authentication (including `--bypass-end-user-auth` installers and pre-end-user-auth agents) are then blocked.
+By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Because the enrollment request's platform and capabilities are supplied by the client, anyone holding an enroll secret can craft a request that enrolls a host without end user authentication while this setting is `true`.
+
+Set this to `false` to strictly enforce end user authentication for all Orbit enrollments on every platform. A host is then only enrolled if Fleet has a record that end user authentication was completed for it (for example, the IdP account linked during macOS ADE enrollment or the Windows end-user-auth token), or if it previously enrolled. Hosts that do not complete end user authentication, including `--bypass-end-user-auth` installers, pre-end-user-auth agents, and macOS hosts that install `fleetd` before turning on MDM, are blocked with `END_USER_AUTH_REQUIRED` and `fleetd` prompts the end user to sign in with the IdP.
 
 Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
 
