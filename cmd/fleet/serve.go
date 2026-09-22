@@ -228,6 +228,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	config.Osquery.Validate(initFatal)
 
+	config.MDM.ValidateAppleCommandCleanup(initFatal)
+
 	config.ConditionalAccess.Validate(initFatal)
 
 	config.WebSocket.Validate(initFatal)
