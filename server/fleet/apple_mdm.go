@@ -249,8 +249,11 @@ type MDMAppleConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
 
+	// SelfService indicates the profile is a self-service profile, meaning it can be managed by the end user or the IT admin,
+	// but will not be automatically installed unless opted in to.
 	SelfService bool `db:"self_service" json:"self_service"`
-	Hidden      bool `db:"hidden" json:"hidden"`
+	// Hidden can be used as an indicator in UI's to hide certain profiles from being displayed.
+	Hidden bool `db:"hidden" json:"hidden"`
 }
 
 // MDMProfilesUpdates flags updates that were done during batch processing of profiles.
