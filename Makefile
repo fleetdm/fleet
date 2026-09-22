@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble fleet-mcp tidy-tool-modules help
 
 export GO111MODULE=on
 
@@ -149,6 +149,11 @@ fdm:
 	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
 dibble:
 	cd tools/dibble && go build -o dibble ./cmd/dibble
+
+.help-short--fleet-mcp:
+	@echo "Builds the fleet-mcp server (binary lands at build/fleet-mcp)"
+fleet-mcp: .prefix
+	cd cmd/fleet-mcp && go build -o ../../build/fleet-mcp .
 
 .help-short--tidy-tool-modules:
 	@echo "Re-tidy tool modules that pin the parent fleet module (run after bumping the root go.mod)"

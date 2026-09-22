@@ -60,7 +60,7 @@ func requireAPIOnlyUser(ctx context.Context, fleetClient *FleetClient) {
 		logrus.Fatalf("could not verify FLEET_API_KEY via GET /api/v1/fleet/me (%v) — the MCP requires a reachable Fleet and an API-only token to start", err)
 	}
 	if !id.APIOnly {
-		logrus.Fatalf("FLEET_API_KEY must belong to an API-only Fleet user, but %s is a UI user — refusing to start. Create one with `fleetctl user create --api-only` (no UI session, its own audit identity, scoped to only the endpoints/teams the MCP needs) and use its API token.", id.Email)
+		logrus.Fatalf("FLEET_API_KEY must belong to an API-only Fleet user, but %s is a UI user — refusing to start. Create one with `fleetctl user create --api-only --name \"Fleet MCP\"` (no UI session, its own audit identity, scoped to only the endpoints/teams the MCP needs) and use its API token.", id.Email)
 	}
 	logrus.Infof("FLEET_API_KEY verified: API-only Fleet user %s", id.Email)
 }
