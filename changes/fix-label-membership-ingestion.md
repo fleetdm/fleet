@@ -1,0 +1,1 @@
+- Fixed an issue where a host's manual label membership could be removed by label results reported by the host itself.
