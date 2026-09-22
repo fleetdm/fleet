@@ -1,10 +1,10 @@
-# Audit logs
+# Global audit logs
 
 Fleet logs activities.
 
 To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
 
-This page includes a list of activities.
+This page includes a list of activities. To only receive activities linked to a specific fleet's hosts, see [Host audit logs](./host-audit-logs.md).
 
 ## created_pack
 
@@ -3680,7 +3680,6 @@ This activity contains the following fields:
 }
 ```
 
-<meta name="title" value="Audit logs">
-<meta name="pageOrderInSection" value="1400">
+<meta name="title" value="Global audit logs">
+<meta name="pageOrderInSection" value="60">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
-<meta name="navSection" value="Dig deeper">
