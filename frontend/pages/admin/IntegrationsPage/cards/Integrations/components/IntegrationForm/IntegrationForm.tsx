@@ -306,8 +306,8 @@ const IntegrationForm = ({
           tooltip={
             <>
               To find the Zendesk group ID, select{" "}
-              <strong>Admin &gt; People &gt; Groups</strong>. Find the group
-              and select it. The group ID will appear in the search field.
+              <strong>Admin &gt; People &gt; Groups</strong>. Find the group and
+              select it. The group ID will appear in the search field.
             </>
           }
         />
