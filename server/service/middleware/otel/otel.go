@@ -9,9 +9,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// WithRouteTag annotates the request's span and metrics with the http.route attribute. otelhttp dropped its own
-// WithRouteTag in v0.65.0 because it now derives http.route from r.Pattern, which covers every call site whose route
-// equals the stdlib pattern it is registered under. We will narrow this usage in #53612.
+// WithRouteTag overrides the http.route attribute otelhttp derives from r.Pattern on the request's span. It is only for the
+// callers whose route is not the stdlib pattern they are registered under.
 func WithRouteTag(route string, h http.Handler) http.Handler {
 	attr := semconv.HTTPRoute(route)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +29,7 @@ func WrapHandler(handler http.Handler, route string, cfg config.FleetConfig) htt
 	if cfg.OTELEnabled() {
 		// Wrap with OTEL handler to create properly named spans: "{method} {route}"
 		return otelhttp.NewHandler(
-			WithRouteTag(route, handler),
+			handler,
 			"", // Empty operation name - will be set by span name formatter
 			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 				return r.Method + " " + route

@@ -5,8 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -21,37 +22,50 @@ const (
 	gorillaTemplate = "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}"
 )
 
-// TestWithRouteTag serves through a stdlib ServeMux, which is what populates r.Pattern in production. The span column is
-// the only one WithRouteTag controls.
+// TestWithRouteTag serves the two production wrappings through a stdlib ServeMux, which is what populates r.Pattern. The span
+// column is the only one WithRouteTag controls, and WrapHandler on its own has to leave both columns to otelhttp.
 func TestWithRouteTag(t *testing.T) {
+	cfg := config.FleetConfig{}
+	cfg.Logging.TracingEnabled = true
+	require.True(t, cfg.OTELEnabled())
+
 	for _, tc := range []struct {
 		name       string
-		route      string // empty skips WithRouteTag, measuring what otelhttp does unaided
+		wrap       func(http.Handler) http.Handler
 		wantSpan   string
 		wantMetric string
 	}{
-		{"fast path template overrides the matched pattern", gorillaTemplate, gorillaTemplate, stdlibPattern},
-		{"route equal to the pattern is redundant", stdlibPattern, stdlibPattern, stdlibPattern},
-		{"without the helper otelhttp supplies the pattern", "", stdlibPattern, stdlibPattern},
+		{
+			"route equal to the pattern needs no tag",
+			func(h http.Handler) http.Handler { return WrapHandler(h, stdlibPattern, cfg) },
+			stdlibPattern, stdlibPattern,
+		},
+		{
+			"fast path template overrides the matched pattern",
+			func(h http.Handler) http.Handler {
+				return WrapHandler(WithRouteTag(gorillaTemplate, h), gorillaTemplate, cfg)
+			},
+			gorillaTemplate, stdlibPattern,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			spans := tracetest.NewSpanRecorder()
 			tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans))
 			reader := sdkmetric.NewManualReader()
+			// WrapHandler builds on the global providers, so they have to be swapped before it runs.
+			previousTracer, previousMeter := otel.GetTracerProvider(), otel.GetMeterProvider()
+			otel.SetTracerProvider(tracerProvider)
+			otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))
+			t.Cleanup(func() { otel.SetTracerProvider(previousTracer); otel.SetMeterProvider(previousMeter) })
 
-			var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-			if tc.route != "" {
-				handler = WithRouteTag(tc.route, handler)
-			}
 			mux := http.NewServeMux()
-			mux.Handle(stdlibPattern, otelhttp.NewHandler(handler, "test",
-				otelhttp.WithTracerProvider(tracerProvider),
-				otelhttp.WithMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)))))
+			mux.Handle(stdlibPattern, tc.wrap(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })))
 			mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "http://example.com/api/latest/fleet/hosts/42", nil))
 			require.NoError(t, tracerProvider.ForceFlush(t.Context()))
 
 			ended := spans.Ended()
 			require.Len(t, ended, 1)
+			require.Equal(t, http.MethodGet+" "+tc.wantSpan, ended[0].Name())
 			require.Equal(t, []string{tc.wantSpan}, routeAttrs(ended[0].Attributes()))
 			require.Equal(t, []string{tc.wantMetric}, metricRouteAttrs(t, reader))
 		})

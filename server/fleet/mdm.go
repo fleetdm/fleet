@@ -1253,6 +1253,45 @@ func VerifySoftwareInstallCommandUUID() string {
 	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
 }
 
+// AppleMDMCommandRetentionClass identifies a set of Fleet-generated commands
+// eligible for cleanup. An empty UUIDPrefix matches any command of RequestType.
+type AppleMDMCommandRetentionClass struct {
+	RequestType string
+	UUIDPrefix  string
+}
+
+// AppleMDMShortRetentionClasses are the recurring commands the cleanup deletes
+// after the short retention window. The UUID prefixes separate Fleet's own
+// inventory chatter from customer-run commands of the same request type, which
+// fall under the standard window instead.
+var AppleMDMShortRetentionClasses = []AppleMDMCommandRetentionClass{
+	{RequestType: "DeviceInformation", UUIDPrefix: RefetchDeviceCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: RefetchAppsCommandUUIDPrefix},
+	{RequestType: "CertificateList", UUIDPrefix: RefetchCertsCommandUUIDPrefix},
+	{RequestType: "Settings", UUIDPrefix: DeviceNameCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: VerifySoftwareInstallVPPPrefix},
+	{RequestType: "DeclarativeManagement"},
+}
+
+// AppleMDMStandardRetentionRequestTypes are the request types the cleanup
+// deletes after the standard retention window. Any type not listed here or in
+// the short classes is retained indefinitely, so a new feature's commands are
+// kept until someone reviews them for deletion.
+var AppleMDMStandardRetentionRequestTypes = []string{
+	"InstallProfile", "RemoveProfile", "InstallApplication",
+	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
+	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
+	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
+	"UserList",
+}
+
+// AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows
+// are still read back afterwards (lock/wipe/lost-mode status), so the inactive
+// purge must skip them even at active = 0.
+var AppleMDMInactivePurgeDenylist = []string{
+	"DeviceLock", "EraseDevice", EnableLostModeCmdName, DisableLostModeCmdName, AccountConfigurationCmdName,
+}
+
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
 	OrgName   string `json:"org_name"`
