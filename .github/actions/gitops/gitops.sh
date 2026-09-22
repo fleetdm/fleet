@@ -33,6 +33,7 @@ if compgen -G "$FLEET_GITOPS_DIR"/fleets/*.yml > /dev/null; then
   # Validate that every fleet has a unique name.
   # This is a limited check that assumes all fleet files contain the phrase: `name: <fleet_name>`
   if [ -n "$(perl -nle 'print $1 if /^name:\s*(.+)$/' "$FLEET_GITOPS_DIR"/fleets/*.yml | sort | uniq -d)" ]; then
+    echo "Error: duplicate fleet names found" >&2
     exit 1
   fi
 fi
