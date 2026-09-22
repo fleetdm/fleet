@@ -3,9 +3,15 @@ services:
     name: fleet-mcp
     runtime: go
     plan: standard
-    rootDir: cmd/fleet-mcp
-    buildCommand: go build -o fleet-mcp .
-    startCommand: ./fleet-mcp
+    # No rootDir: the build needs ../../schema (see the go.mod replace) and
+    # Render hides files outside rootDir. buildFilter keeps autodeploys
+    # scoped to what affects this binary.
+    buildFilter:
+      paths:
+        - cmd/fleet-mcp/**
+        - schema/**
+    buildCommand: cd cmd/fleet-mcp && go build -o fleet-mcp .
+    startCommand: ./cmd/fleet-mcp/fleet-mcp
     healthCheckPath: /healthz
     envVars:
       - key: FLEET_BASE_URL
