@@ -1127,3 +1127,69 @@ func TestApplyPolicySpecsResendConfigProfile(t *testing.T) {
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
 }
+
+func TestApplyPolicySpecsHidden(t *testing.T) {
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			return nil
+		}
+		return ds
+	}
+	hiddenSpec := func() *fleet.PolicySpec {
+		return &fleet.PolicySpec{Name: "hidden policy", Team: "team1", Query: "SELECT 1", Hidden: true}
+	}
+	testAdmin := fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	premium := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+
+	t.Run("free tier rejected", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{hiddenSpec()})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	t.Run("premium accepted", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil, premium)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{hiddenSpec()})
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	t.Run("global policy rejected", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil, premium)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		spec := hiddenSpec()
+		spec.Team = ""
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{spec})
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, err.Error(), "cannot have hidden set")
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+
+	t.Run("conditional access conflict rejected", func(t *testing.T) {
+		ds := newDS()
+		svc, ctx := newTestService(t, ds, nil, nil, premium)
+		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+		spec := hiddenSpec()
+		spec.Platform = "darwin"
+		spec.ConditionalAccessEnabled = true
+		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{spec})
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, err.Error(), `"hidden" and "conditional_access_enabled" cannot both be set`)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	})
+}

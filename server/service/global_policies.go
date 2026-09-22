@@ -256,6 +256,7 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 const (
 	errPolicyAllFleetsForConditionalAccess          = "\"All fleets\" policy cannot have conditional_access_enabled set"
 	errPolicyAllFleetsForContinuousAutomations      = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPolicyAllFleetsForHidden                     = "\"All fleets\" policy cannot have hidden set"
 	errPolicyAllFleetsForProfiles                   = "\"All fleets\" policy cannot have profile_uuid set"
 	errPolicyAllFleetsForScripts                    = "\"All fleets\" policy cannot have script_id set"
 	errPatchWhenClosedRequiresContinuousAutomations = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
@@ -487,6 +488,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if policy.Team == "" && policy.Hidden {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForHidden),
+			})
+		}
+
 		if policy.Team == "" && policy.ProfileUUID != nil && *policy.ProfileUUID != "" {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForProfiles),
@@ -516,6 +523,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// PatchWhenClosed is premium-only.
 		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		if policy.Hidden && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

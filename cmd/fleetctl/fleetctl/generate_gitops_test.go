@@ -478,6 +478,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Description: "This is a team policy with VPP app automation",
 				Platform:    "darwin",
 				Type:        fleet.PolicyTypeDynamic,
+				Hidden:      true,
 			},
 			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 2,
