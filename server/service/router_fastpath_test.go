@@ -37,6 +37,9 @@ var noopHandler = http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 // request rather than inferring it from a response both routers would produce.
 const servedByGorillaHeader = "X-Served-By-Gorilla"
 
+// gorillaSawPatternHeader carries r.Pattern as gorilla saw it, and is set only when gorilla answered.
+const gorillaSawPatternHeader = "X-Gorilla-Saw-Pattern"
+
 // Which router is expected to answer a request. byRouter means no handler runs at all, so neither router reports itself: the
 // answer is a 404, a 405, or a redirect produced by routing alone.
 const (
@@ -98,7 +101,12 @@ func newRouterForTest(t *testing.T) *mux.Router {
 			tpl, _ := endpointer.RouteTemplateFromContext(endpointer.RouteTemplateRequestFunc(r.Context(), r))
 			// gorilla attaches the matched route to the request; the fast path does not. Only a handler can report this,
 			// so a request answered by the router itself (404, 405, a redirect) carries no such header.
-			w.Header().Set(servedByGorillaHeader, strconv.FormatBool(mux.CurrentRoute(r) != nil))
+			servedByGorilla := mux.CurrentRoute(r) != nil
+			w.Header().Set(servedByGorillaHeader, strconv.FormatBool(servedByGorilla))
+			if servedByGorilla {
+				// Each hand-off to gorilla has to clear the stdlib pattern, which otelmux prefers over the route that actually matched.
+				w.Header().Set(gorillaSawPatternHeader, r.Pattern)
+			}
 			_, _ = w.Write([]byte(name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
 		})
 		return nil
@@ -184,6 +192,8 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 		assert.Equalf(t, want.Code, got.Code, "status differs for %s %s (route %s)", s.method, s.path, s.route)
 		assert.Equalf(t, want.Body.String(), got.Body.String(),
 			"dispatch differs for %s %s (route %s)", s.method, s.path, s.route)
+		assert.Emptyf(t, got.Header().Get(gorillaSawPatternHeader),
+			"the hand-off to gorilla left r.Pattern set for %s %s (route %s)", s.method, s.path, s.route)
 	}
 	t.Logf("compared %d method+path samples", len(samples))
 }
@@ -259,6 +269,7 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 
 			require.Equalf(t, c.wantServedBy, got.Header().Get(servedByGorillaHeader),
 				"wrong router answered (byRouter=%q byGorilla=%q byFastPath=%q)", byRouter, byGorilla, byFastPath)
+			require.Empty(t, got.Header().Get(gorillaSawPatternHeader), "the hand-off to gorilla must clear r.Pattern")
 		})
 	}
 }
@@ -500,11 +511,19 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}", wantTier: tracing.TierStandard,
 		},
 		{
-			name:     "route served by gorilla is named by otelmux the same way",
+			name:     "token variable stays unexpanded on the fast path",
 			method:   "HEAD",
 			path:     "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
 			wantSpan: "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/device/{token}/ping",
 			wantTier: tracing.TierHighVolume,
+		},
+		{
+			// An excluded route reaches gorilla through the fast path's catch-all, so otelmux, not otelhttp, names its span.
+			name:     "route served by gorilla is named by otelmux the same way",
+			method:   "GET",
+			path:     "/api/latest/fleet/hosts/identifier/abc",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/identifier/{identifier}",
+			wantTier: tracing.TierStandard,
 		},
 	}
 
@@ -514,16 +533,34 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			require.Equal(t, http.StatusOK, serve(handler, c.method, c.path).Code)
 
 			var names []string
+			var matched sdktrace.ReadOnlySpan
 			for _, span := range recorder.Ended() {
 				names = append(names, span.Name())
+				if span.Name() == c.wantSpan {
+					matched = span
+				}
 			}
-			require.Containsf(t, names, c.wantSpan, "span name must stay %q; got %v", c.wantSpan, names)
+			require.NotNilf(t, matched, "span name must stay %q; got %v", c.wantSpan, names)
+			// Both spellings of the route have to agree, or a reader correlating a trace to the route keyed server metrics
+			// has two routes for one request.
+			require.Equal(t, []string{strings.TrimPrefix(c.wantSpan, c.method+" ")}, spanRoutes(matched))
 
 			tier, found := registry.Lookup(c.wantSpan)
 			require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
 			require.Equal(t, c.wantTier, tier)
 		})
 	}
+}
+
+// spanRoutes returns every http.route attribute on the span. More than one means the instrumentation disagrees with itself.
+func spanRoutes(span sdktrace.ReadOnlySpan) []string {
+	var routes []string
+	for _, attr := range span.Attributes() {
+		if string(attr.Key) == "http.route" {
+			routes = append(routes, attr.Value.AsString())
+		}
+	}
+	return routes
 }
 
 func TestIsCanonicalPath(t *testing.T) {
