@@ -27,7 +27,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	fleetclient "github.com/fleetdm/fleet/v4/client"
@@ -397,150 +396,6 @@ func adoptEnrollSecret(
 	return nil
 }
 
-// mdmSecretWaitBackstop bounds a single wait for a registry change. The notification is the real mechanism; this only guarantees
-// the loop re-checks periodically if a notification is ever missed, and gives the log something to say while a host sits without
-// a secret.
-const mdmSecretWaitBackstop = 5 * time.Minute
-
-// mdmSecretWaitTimeout bounds the whole wait. Nothing else runs while orbit waits here, not even the
-// auto-updater, so a host that waits indefinitely is also a host that can never be fixed by shipping
-// it a new fleetd. On expiry orbit falls through to its usual "no enroll secret" failure and the
-// service manager restarts it, which recycles any state this loop may have wedged and returns the
-// host to the behavior it had before this wait existed.
-const mdmSecretWaitTimeout = time.Hour
-
-// waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret, mdmSecretWaitTimeout
-// elapses, or the service manager asks orbit to stop. An administrator resending the profile that
-// carries the secret is what normally ends the wait.
-//
-// Windows signals when the key changes, so this waits on that notification rather than polling on an
-// interval. The registration is good for one notification, so it is re-armed each time around.
-// stop is closed when the service manager asks orbit to stop; the wait gives up then so a stop
-// request is not held up by a secret that may never arrive.
-func waitForMDMDeliveredEnrollSecret(
-	stop <-chan struct{}, enrollSecretPath string, disableKeystore bool, setSecret func(string) error,
-) {
-	log.Info().Msg("no enroll secret yet, waiting for Fleet MDM to deliver one")
-
-	// A stop request has to interrupt the in-flight Wait, not just be noticed between iterations.
-	baseCtx, cancelBase := context.WithCancel(context.Background())
-	defer cancelBase()
-	go func() {
-		select {
-		case <-stop:
-			cancelBase()
-		case <-baseCtx.Done():
-		}
-	}()
-
-	// Parent of every per-iteration wait, so the deadline lands mid-wait rather than being noticed up
-	// to a backstop late.
-	waitCtx, cancelWait := context.WithTimeout(baseCtx, mdmSecretWaitTimeout)
-	defer cancelWait()
-
-	// Guards the sync trigger below. deviceenroller can take minutes to return, so a loop that comes
-	// around faster than that must not stack up invocations.
-	var syncInFlight sync.Mutex
-
-	for started := time.Now(); ; {
-		select {
-		case <-stop:
-			log.Info().Msg("stop requested while waiting for an MDM-delivered enroll secret")
-			return
-		default:
-		}
-
-		if waitCtx.Err() != nil {
-			log.Warn().Dur("waited", time.Since(started)).Msg(
-				"gave up waiting for Fleet MDM to deliver an enroll secret; fleetd will exit and be restarted to try again")
-			return
-		}
-
-		// Arm the watch before reading. Reading first leaves a gap in which a delivery is seen by
-		// neither the read nor the not-yet-armed registration, which would strand an already delivered
-		// secret until the backstop expired.
-		watch, watchErr := profiles.ArmEnrollSecretWatch()
-		if watchErr != nil {
-			log.Error().Err(watchErr).Msg("failed to watch for an MDM-delivered enroll secret")
-		}
-
-		adopted, err := adoptMDMDeliveredEnrollSecret(enrollSecretPath, realKeystore{}, disableKeystore, setSecret)
-		switch {
-		case err != nil:
-			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
-		case adopted:
-			if watch != nil {
-				watch.Close() //nolint:errcheck // nothing actionable, and the secret is already adopted
-			}
-			log.Info().Dur("waited", time.Since(started)).Msg("adopted an enroll secret delivered by Fleet MDM")
-			return
-		}
-
-		// Unenrolling removes the channel this wait depends on, so stop rather than block on a delivery
-		// that can no longer happen. orbit then fails startup the way it does without a secret.
-		if !update.HasActiveFleetMDMEnrollment() {
-			if watch != nil {
-				watch.Close() //nolint:errcheck // nothing actionable while giving up on the wait
-			}
-			log.Warn().Msg("host is no longer enrolled in Fleet MDM, so no enroll secret can be delivered")
-			return
-		}
-
-		// Nothing is waiting, so ask the device to check in now instead of at its next scheduled poll.
-		// Once a host has run a sync-capable fleetd the server relaxes that poll to 8 hours, and the
-		// usual wake cannot help here: it arrives over the orbit config endpoint, which needs the very
-		// enroll secret this loop is waiting for. Best effort, and off the loop's goroutine so a stop
-		// request is not held behind deviceenroller.
-		if syncInFlight.TryLock() {
-			go func() {
-				defer syncInFlight.Unlock()
-				if err := update.TriggerWindowsMDMSync(); err != nil {
-					log.Debug().Err(err).Msg("failed to trigger an MDM sync while waiting for an enroll secret")
-				}
-			}()
-		}
-
-		if watch == nil {
-			// Registration failed, so fall back to sleeping rather than spinning on a broken watch.
-			select {
-			case <-waitCtx.Done():
-			case <-time.After(mdmSecretWaitBackstop):
-			}
-		} else {
-			ctx, cancel := context.WithTimeout(waitCtx, mdmSecretWaitBackstop)
-			if err := watch.Wait(ctx); err != nil {
-				log.Error().Err(err).Msg("failed waiting for an MDM-delivered enroll secret")
-			}
-			cancel()
-			watch.Close() //nolint:errcheck // the registration is spent; a fresh one is armed next pass
-		}
-
-		if waited := time.Since(started); waited > mdmSecretSlowDelivery {
-			log.Warn().Dur("waited", waited).Msg(
-				"still waiting for Fleet MDM to deliver an enroll secret; an administrator may need to resend the profile that carries it")
-		}
-	}
-}
-
-// mdmSecretSlowDelivery is how long a host may wait before the wait stops looking routine. Waiting is
-// the normal state for a freshly installed host, so the first minutes stay quiet; past this point the
-// host probably needs help, and the log has to say so rather than staying silent.
-const mdmSecretSlowDelivery = 10 * time.Minute
-
-// adoptMDMDeliveredEnrollSecret adopts an enroll secret that Fleet MDM delivered out of band, if one
-// is waiting. It reports whether a secret was adopted. Only Windows has such a channel.
-//
-// Every other copy of the secret is retired once it is in the keystore: the registry value, so that
-// its presence keeps meaning "a secret is waiting", and the installer's secret file, which Fleet may
-// have written with the same value so an older fleetd that cannot read the registry still enrolls.
-// Leaving that file behind would strand the secret in plaintext on disk of a host that never reads it.
-func adoptMDMDeliveredEnrollSecret(
-	enrollSecretPath string, ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error,
-) (bool, error) {
-	return adoptDeliveredEnrollSecret(
-		profiles.GetEnrollSecret, profiles.ClearEnrollSecret, enrollSecretPath, ks, disableKeystore, setSecret)
-}
-
 // adoptDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without
 // reading or clearing the host's real enroll secret, which on Windows lives in HKLM and would make the
 // result depend on the state of whatever machine the test happens to run on.
@@ -671,34 +526,10 @@ func orbitAction(c *cli.Context) error {
 	// write the same secret to both so that an older fleetd, which cannot read the registry, still enrolls.
 	enrollSecretPath := c.String("enroll-secret-path")
 
-	// A secret Fleet Windows MDM delivered out of band takes precedence over anything already stored, because a freshly delivered one
-	// is how an administrator recovers a host whose secret was spent or lost. Checked before the file and keystore so the newer value
-	// wins rather than being masked by them.
-	adoptedMDMSecret := false
-	// Cleared when the registry key cannot be secured.
-	mdmSecretChannelUsable := true
-	if runtime.GOOS == "windows" {
-		// Create the key before reading it, so a secret delivered later lands somewhere only SYSTEM and Administrators can read rather
-		// than in a key created implicitly with inherited permissions.
-		if err := profiles.EnsureEnrollSecretKeyIsProtected(); err != nil {
-			// This should not happen.
-			log.Error().Err(err).Msg(
-				"not using the registry channel for an MDM-delivered enroll secret: its key could not be secured")
-			mdmSecretChannelUsable = false
-		} else {
-			adopted, err := adoptMDMDeliveredEnrollSecret(enrollSecretPath, realKeystore{}, disableKeystore, setEnrollSecret)
-			if err != nil {
-				// Not fatal: fall through to the file and keystore, which may still hold a usable secret.
-				log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
-			}
-			adoptedMDMSecret = adopted
-		}
-	}
+	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored. Run before the file and
+	// keystore so a freshly delivered value wins rather than being masked by them. See enroll_secret_mdm_windows.go.
+	adoptedMDMSecret, mdmSecretChannelUsable := adoptMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
 
-	// Skipped entirely when a secret was just adopted from MDM. fleetd-base.msi is built with a
-	// placeholder enroll secret, which is enough to set enroll-secret-path even though it never writes
-	// the file it points at, so the mutual-exclusion check below would otherwise reject the very secret
-	// Fleet delivered. The file is already gone by now anyway: adopting retires it too.
 	if enrollSecretPath != "" && !adoptedMDMSecret {
 		if c.String("enroll-secret") != "" {
 			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
@@ -713,19 +544,9 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
-	// With the registry as the primary carrier the enroll secret is delivered by a Fleet-managed
-	// configuration profile rather than by the installer, so it is legitimately absent when fleetd
-	// first starts and arrives once that profile lands. Wait for it instead of exiting, which is what
-	// makes "the profile has not arrived yet" recoverable rather than a failed install.
-	//
-	// Gated on an active Fleet MDM enrollment rather than on a packaging flag, because the question
-	// is whether a secret can still arrive, and only the host knows that. Without an enrollment there
-	// is no channel to wait on, so orbit keeps today's behavior and fails fast with a clear error
-	// rather than blocking forever.
-	// Decided here, where the rest of the secret resolution happens, but acted on after the Windows
-	// service manager is running. See the call site for why the wait cannot happen this early.
-	waitForMDMSecret := runtime.GOOS == "windows" && mdmSecretChannelUsable &&
-		c.String("enroll-secret") == "" && update.HasActiveFleetMDMEnrollment()
+	// Decided here, where the rest of the secret resolution happens, but acted on after the Windows service manager is running.
+	// See the call site for why the wait cannot happen this early.
+	waitForMDMSecret := canWaitForMDMSecret(mdmSecretChannelUsable, c.String("enroll-secret"))
 
 	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
 		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
@@ -902,15 +723,9 @@ func orbitAction(c *cli.Context) error {
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
 	}
 
-	// Waiting for an MDM-delivered enroll secret happens *after* the service manager is running, and
-	// not where the rest of the secret resolution lives. svc.Run is what reports StartPending and then
-	// Running to the SCM, so blocking before it means Windows never hears from the service and kills it
-	// for failing to start in time, turning a patient wait into a restart loop. The macOS
-	// configuration-profile wait above can block early precisely because macOS has no equivalent
-	// deadline; Windows does, so this one waits here and gives up when a service stop is requested.
-	//
-	// Nothing between the earlier secret resolution and this point consumes the enroll secret on
-	// Windows, and everything that does consume it runs later.
+	// Waiting for an MDM-delivered enroll secret happens after the service manager is running, and not where the rest of the secret
+	// resolution lives. svc.Run is what reports StartPending and then Running to the SCM, so blocking before it means Windows never
+	// hears from the service and kills it for failing to start in time.
 	if waitForMDMSecret {
 		waitForMDMDeliveredEnrollSecret(svcInterruptCh, enrollSecretPath, disableKeystore, setEnrollSecret)
 	}
