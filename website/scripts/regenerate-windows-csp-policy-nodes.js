@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Regenerate windows csp policy nodes',
+  friendlyName: 'Regenerate Windows CSP policy nodes',
 
 
   description: 'Scrape Microsoft\'s published Policy CSP reference and save every node\'s LocURI, format, access type, and allowed values to website/profile-generator/schema/windows-csp-policy-nodes.json.',
@@ -90,14 +90,15 @@ policy surface, and read the diff before committing.`,
     };
 
     let areasToRetry = [];
-    for (let batchStartsAt = 0; batchStartsAt < areaSlugs.length; batchStartsAt += CONCURRENCY) {
-      let batch = areaSlugs.slice(batchStartsAt, batchStartsAt + CONCURRENCY);
-      await Promise.all(batch.map(async (areaSlug)=>{
+    let areasFetchedSoFar = 0;
+    for (let batch of _.chunk(areaSlugs, CONCURRENCY)) {
+      await sails.helpers.flow.simultaneouslyForEach(batch, async (areaSlug)=>{
         if(!await fetchArea(areaSlug)) {
           areasToRetry.push(areaSlug);
         }
-      }));
-      sails.log(`  ...${Math.min(batchStartsAt + CONCURRENCY, areaSlugs.length)}/${areaSlugs.length} areas`);
+      });
+      areasFetchedSoFar += batch.length;
+      sails.log(`  ...${areasFetchedSoFar}/${areaSlugs.length} areas`);
     }
 
     let areasThatFailed = [];
@@ -106,7 +107,7 @@ policy surface, and read the diff before committing.`,
       for (let areaSlug of areasToRetry) {
         let fetched = false;
         for (let attempt = 1; attempt <= 5 && !fetched; attempt++) {
-          await new Promise((resolve)=>{ setTimeout(resolve, 2000 * attempt); });
+          await sails.helpers.flow.pause(2000 * attempt);
           fetched = await fetchArea(areaSlug);
         }
         if(!fetched) {
@@ -272,7 +273,7 @@ async function fetchFromLearn(url, attempts = 3) {
       return responseBody;
     }
     if(attempt < attempts) {
-      await new Promise((resolve)=>{ setTimeout(resolve, secondsToWait * 1000 * attempt); });
+      await sails.helpers.flow.pause(secondsToWait * 1000 * attempt);
     }
   }
   return undefined;
@@ -301,7 +302,7 @@ function parseAreaPage(pageHtml) {
   let stripTags = (fragment)=>{
     let withoutScripts = fragment.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
     return _.filter(
-      _.map(withoutScripts.replace(/<[^>]+>/g, ' ').split(' '), (cell)=>{ return cell.trim(); }),
+      _.map(withoutScripts.replace(/<[^>]+>/g, '\u0000').split('\u0000'), (cell)=>{ return cell.trim(); }),
       (cell)=>{ return cell !== ''; }
     );
   };
