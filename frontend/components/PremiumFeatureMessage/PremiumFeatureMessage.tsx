@@ -50,12 +50,9 @@ const PremiumFeatureMessage = ({
             style={{ width: 80 }}
           />
         </div>
-        {GHOST_SKELETON_WIDTHS.map((width, idx) => (
-          <div key={idx} className={`${baseClass}__ghost-cell`}>
-            <div
-              className={`${baseClass}__ghost-skeleton`}
-              style={{ width }}
-            />
+        {GHOST_SKELETON_WIDTHS.map((width) => (
+          <div key={width} className={`${baseClass}__ghost-cell`}>
+            <div className={`${baseClass}__ghost-skeleton`} style={{ width }} />
           </div>
         ))}
       </div>
