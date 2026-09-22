@@ -1,13 +1,11 @@
 import React from "react";
 
-import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
 import { IAppConfigFormProps } from "../constants";

@@ -1,11 +1,10 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import validateEquality from "components/forms/validators/validate_equality";
 import validatePresence from "components/forms/validators/validate_presence";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-
-import Button from "components/buttons/Button";
-import InputField from "components/forms/fields/InputField";
 
 const baseClass = "confirm-invite-page__form";
 

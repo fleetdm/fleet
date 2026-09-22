@@ -1,13 +1,12 @@
 import React from "react";
 
-import { IResetPasswordForm } from "interfaces/user";
-
 import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validatePresence from "components/forms/validators/validate_presence";
 import validatePassword from "components/forms/validators/valid_password";
 import validateEquality from "components/forms/validators/validate_equality";
+import validatePresence from "components/forms/validators/validate_presence";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { IResetPasswordForm } from "interfaces/user";
 
 const baseClass = "reset-password-form";
 

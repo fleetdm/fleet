@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
 
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Spinner from "components/Spinner";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import {
   IIntegrationFormData,
   IIntegrationTableData,
@@ -7,14 +13,6 @@ import {
   IZendeskJiraIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
-
-import Button from "components/buttons/Button";
-import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
-import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-
-import Spinner from "components/Spinner";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "integration-form";
 
