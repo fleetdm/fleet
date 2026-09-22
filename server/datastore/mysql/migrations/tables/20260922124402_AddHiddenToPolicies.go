@@ -10,7 +10,14 @@ func init() {
 }
 
 func Up_20260922124402(tx *sql.Tx) error {
-	if _, err := tx.Exec(`ALTER TABLE policies ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0`); err != nil {
+	if columnExists(tx, "policies", "hidden") {
+		return nil
+	}
+	if _, err := tx.Exec(`
+		ALTER TABLE policies
+		ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0,
+		ALGORITHM=INSTANT
+	`); err != nil {
 		return fmt.Errorf("adding hidden to policies table: %w", err)
 	}
 	return nil
