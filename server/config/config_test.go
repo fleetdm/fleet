@@ -1098,6 +1098,27 @@ func TestAppleCommandCleanupValidate(t *testing.T) {
 	}
 }
 
+// loadConfigWithOverrides parses the config the way the server does at
+// startup: yaml first, then environment variables on top. The process
+// environment is cleared for the duration of the test so only envVars apply.
+func loadConfigWithOverrides(t *testing.T, yaml string, envVars []string) FleetConfig {
+	var cmd cobra.Command
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+	man := NewManager(&cmd)
+
+	man.viper.SetConfigType("yaml")
+	require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	for _, env := range envVars {
+		kv := strings.SplitN(env, "=", 2)
+		t.Setenv(kv[0], kv[1])
+	}
+
+	return man.LoadConfig()
+}
+
 func TestAppleCommandCleanupConfig(t *testing.T) {
 	type knobs struct {
 		short, standard time.Duration
@@ -1137,21 +1158,7 @@ mdm:
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			var cmd cobra.Command
-			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			man := NewManager(&cmd)
-
-			man.viper.SetConfigType("yaml")
-			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
-
-			testutils.SaveEnv(t)
-			os.Clearenv()
-			for _, env := range c.envVars {
-				kv := strings.SplitN(env, "=", 2)
-				t.Setenv(kv[0], kv[1])
-			}
-
-			mdm := man.LoadConfig().MDM
+			mdm := loadConfigWithOverrides(t, c.yaml, c.envVars).MDM
 			got := knobs{
 				short:    mdm.AppleCommandCleanupShortRetention,
 				standard: mdm.AppleCommandCleanupStandardRetention,
@@ -1213,21 +1220,7 @@ google_workspace:
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			var cmd cobra.Command
-			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			man := NewManager(&cmd)
-
-			man.viper.SetConfigType("yaml")
-			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
-
-			testutils.SaveEnv(t)
-			os.Clearenv()
-			for _, env := range c.envVars {
-				kv := strings.SplitN(env, "=", 2)
-				t.Setenv(kv[0], kv[1])
-			}
-
-			require.Equal(t, c.want, man.LoadConfig().GoogleWorkspace)
+			require.Equal(t, c.want, loadConfigWithOverrides(t, c.yaml, c.envVars).GoogleWorkspace)
 		})
 	}
 }

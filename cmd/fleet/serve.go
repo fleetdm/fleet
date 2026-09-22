@@ -228,6 +228,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	config.Osquery.Validate(initFatal)
 
+	config.MDM.ValidateAppleCommandCleanup(initFatal)
+
 	config.ConditionalAccess.Validate(initFatal)
 
 	config.WebSocket.Validate(initFatal)
@@ -481,7 +483,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
-	config.MDM.ValidateAppleCommandCleanup(initFatal)
 	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,

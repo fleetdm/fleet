@@ -2083,7 +2083,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("mdm.apple_apns_sweep_interval", 1*time.Minute, "Tick interval of the APNs sweep cron, which re-pushes Apple MDM enrollments that have been silent for more than a day")
 	man.hideConfig("mdm.apple_apns_sweep_interval")
 	man.addConfigDuration("mdm.apple_command_cleanup_short_retention", 24*time.Hour, "How long completed recurring Apple MDM commands (refetches, device renames, VPP verifications, DeclarativeManagement) and inactive queue rows are kept before deletion (0 = disabled, minimum 1h)")
-	man.addConfigDuration("mdm.apple_command_cleanup_standard_retention", 720*time.Hour, "How long other completed Apple MDM commands on the deletion allowlist are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigDuration("mdm.apple_command_cleanup_standard_retention", 30*24*time.Hour, "How long other completed Apple MDM commands on the deletion allowlist are kept before deletion (0 = disabled, minimum 1h)")
 	man.addConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run", 1000, "Maximum Apple MDM command queue entries (one command to one host, with its result) deleted per hourly cleanup run (0 = none)")
 	man.addConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run", 1000, "Maximum unreferenced Apple MDM commands deleted per hourly cleanup run (0 = none)")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
