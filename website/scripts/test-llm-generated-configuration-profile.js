@@ -1,19 +1,15 @@
-const { TEST_CASES, checkExpectations } = require('../profile-generator/configuration-profile-generator-cases');
-
-
 module.exports = {
 
 
   friendlyName: 'Test llm generated configuration profile',
 
 
-  description: 'Generate configuration profiles and report wall-clock time plus whether the output holds up, for one instruction or for every case in this script.',
+  description: 'Generate configuration profiles and report wall-clock time plus whether the output holds up, for one instruction or for every case in profile-generator/configuration-profile-generator-cases.js.',
 
 
   extendedDescription:
 `The prompt comes from api/helpers/get-configuration-profile-generator-configuration.js, the same
 helper the public endpoint calls, so there is nothing to keep in sync -- only the model varies here.
-
 
 Examples:
   sails run test-llm-generated-configuration-profile --profileType=csp --naturalLanguageInstructions="Require a device password"
@@ -31,7 +27,7 @@ Examples:
     profileType: {
       type: 'string',
       isIn: ['mobileconfig', 'csp', 'ddm'],
-      description: 'Generate one profile of this type, or with, run only this type\'s cases.'
+      description: 'Generate one profile of this type, or, with no other inputs, run only this type\'s cases.'
     },
 
     naturalLanguageInstructions: {
@@ -53,7 +49,7 @@ Examples:
 
     caseId: {
       type: 'string',
-      description: 'Run one case from the list at the top of this script, by its id, e.g. "ddm-defer-minor-updates".',
+      description: 'Run one case from profile-generator/configuration-profile-generator-cases.js, by its id, e.g. "ddm-defer-minor-updates".',
       extendedDescription: `Unlike --naturalLanguageInstructions, the case brings its own expect block, so repeated runs
 are actually scored rather than just printed.  Combines with --parallelTests to see whether a case passes reliably or
 only sometimes.  Ids are unique and carry their profile type as a prefix, so --profileType is not needed.`
@@ -63,7 +59,7 @@ only sometimes.  Ids are unique and carry their profile type as a prefix, so --p
       type: 'number',
       defaultsTo: 1,
       description: 'Run each case this many times, to see how often it passes rather than whether it passed once.',
-      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId or.  The repeats of one case
+      extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId, or a whole run.  The repeats of one case
 go out together and the cases stay sequential, so at most this many requests are ever in flight -- launching every case
 at once would say more about rate limits than about the prompt.  Results are reported per case as a fail rate, because
 a case failing 2 of 5 is a different problem from one failing 5 of 5.`
@@ -92,6 +88,7 @@ csp cases report as not-checked either way.`
 
     let path = require('path');
     let util = require('util');
+    let { TEST_CASES, checkExpectations } = require('../profile-generator/configuration-profile-generator-cases');
 
     const MAX_ELAPSED_MS = 10000;
 
@@ -106,8 +103,8 @@ csp cases report as not-checked either way.`
       throw new Error(`--parallelTests must be at least 1 (got ${parallelTests}).`);
     }
 
-    // Resolved before anything is spent.  Listing near-misses matters with 33 cases: a bare "not found"
-    // on a mistyped id means paging back through the file to find the right spelling.
+    // Resolved before anything is spent.  Listing near-misses matters with this many cases: a bare
+    // "not found" on a mistyped id means paging back through the file to find the right spelling.
     let chosenCase;
     if(caseId) {
       chosenCase = _.find(TEST_CASES, { id: caseId });
@@ -117,7 +114,7 @@ csp cases report as not-checked either way.`
         });
         throw new Error(
           `No case with the id "${caseId}".` +
-          (nearMisses.length > 0 ? `\nDid you mean one of:\n  ${nearMisses.join('\n  ')}` : `\nRun without a caseId flag to see every case, or check the ids at the top of this script.`)
+          (nearMisses.length > 0 ? `\nDid you mean one of:\n  ${nearMisses.join('\n  ')}` : `\nRun without a caseId flag to see every case, or check the ids in profile-generator/configuration-profile-generator-cases.js.`)
         );
       }
       if(profileType && profileType !== chosenCase.profileType) {
@@ -202,7 +199,7 @@ csp cases report as not-checked either way.`
         throw new Error(`No cases defined for profileType "${profileType}".`);
       }
     } else {
-      // A named case from the list above -- which brings its own expect block, so repeats are scored --
+      // A named case from the cases module -- which brings its own expect block, so repeats are scored --
       // or a one-off from --naturalLanguageInstructions, which is not.
       cases = [chosenCase || { id: 'ad-hoc', profileType, instructions: naturalLanguageInstructions }];
     }
