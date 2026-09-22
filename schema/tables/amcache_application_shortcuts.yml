@@ -1,0 +1,60 @@
+name: amcache_application_shortcuts
+description: Start Menu shortcuts recorded in the Windows Amcache hive by the Microsoft
+  Compatibility Appraiser.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  Only Start Menu shortcuts are recorded here.
+
+  On Windows Server 2022 the appraiser writes only the shortcut path, so target_path, aumid and
+  program_id are empty on every record observed there. On Windows 10 and Windows 11 all four columns
+  carry data.
+examples: |-
+  List Start Menu shortcuts whose target sits outside the usual program directories.
+
+  ```
+  SELECT path, target_path, program_id
+  FROM amcache_application_shortcuts
+  WHERE target_path != ''
+    AND LOWER(target_path) NOT LIKE 'c:\program files%'
+    AND LOWER(target_path) NOT LIKE 'c:\windows\%';
+  ```
+columns:
+  - name: path
+    type: text
+    description: Path of the Start Menu shortcut file.
+    required: false
+  - name: target_path
+    type: text
+    description: Path the shortcut points at. Absent from every Windows Server 2022 record observed,
+      where the appraiser writes the shortcut path and nothing else.
+    required: false
+  - name: aumid
+    type: text
+    description: Application user model id the shortcut launches. Absent from every Windows Server
+      2022 record observed, where the appraiser writes the shortcut path and nothing else.
+    required: false
+  - name: program_id
+    type: text
+    description: Identifier of the application the shortcut points at. Joins
+      amcache_applications.program_id. Absent from every Windows Server 2022 record observed, where
+      the appraiser writes the shortcut path and nothing else.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false
