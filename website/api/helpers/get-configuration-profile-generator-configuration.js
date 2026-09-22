@@ -71,36 +71,14 @@ module.exports = {
       }
 
       // A nested key renders inside its parent's braces, so no parent can be rendered until every one of
-      // its children has been.  The tree is flattened onto an explicit stack rather than walked
-      // recursively: a key is appended to visitOrder before its own subkeys are pushed, so walking that
-      // list backwards guarantees a child is rendered before the parent that has to quote it.
+      // its children has been, which is what the recursion below is for: a key's subkeys are rendered on
+      // the way to rendering the key that has to quote them.
       //
       // MAX_DEPTH is where nesting stops paying for itself.  Keys at that depth still render, as
       // `Parent{}`, but their contents do not: past three levels the braces describe the shape of Apple's
       // YAML rather than anything the model has to get right.
       const MAX_DEPTH = 3;
-      let keysToVisit = [];
-      for (let entry of schemaFile.entries) {
-        for (let key of entry.keys) {
-          keysToVisit.push({key, depth: 0});
-        }
-      }
-      let visitOrder = [];
-      while (keysToVisit.length > 0) {
-        let keyToVisit = keysToVisit.pop();
-        visitOrder.push(keyToVisit);
-        if(keyToVisit.depth < MAX_DEPTH && keyToVisit.key.subkeys && keyToVisit.key.subkeys.length > 0) {
-          for (let subkey of keyToVisit.key.subkeys) {
-            keysToVisit.push({key: subkey, depth: keyToVisit.depth + 1});
-          }
-        }
-      }
-
-      // Keyed by the key itself, so a key's label and constraint are worked out once and both the inline
-      // rendering below and the per-entry rendering after it read the same answer.
-      let renderedKeys = new Map();
-      for (let i = visitOrder.length - 1; i >= 0; i--) {
-        let key = visitOrder[i].key;
+      let renderKey = (key, depth)=>{
 
         // The name, with the suffixes that mark its shape.
         let type = String(key.type || '');
@@ -131,9 +109,9 @@ module.exports = {
         let inlineText;
         if(key.subkeys && key.subkeys.length > 0) {
           let renderedSubkeys = [];
-          if(visitOrder[i].depth < MAX_DEPTH) {
+          if(depth < MAX_DEPTH) {
             for (let subkey of key.subkeys) {
-              renderedSubkeys.push(renderedKeys.get(subkey).inlineText);
+              renderedSubkeys.push(renderKey(subkey, depth + 1).inlineText);
             }
           }
           inlineText = `${key.key}${key.required ? '*' : ''}{${renderedSubkeys.join(', ')}}`;
@@ -141,8 +119,8 @@ module.exports = {
           inlineText = `${labelText}${constraint ? `:${constraint}` : ''}`;
         }
 
-        renderedKeys.set(key, {labelText, constraint, inlineText});
-      }
+        return {labelText, constraint, inlineText};
+      };
 
       // Most keys render as a bare name in a comma-separated run, the way the hand-maintained schemas
       // did.  A key earns its own line only when it carries something a name cannot: an allowed-value
@@ -156,7 +134,7 @@ module.exports = {
         let plainKeys = [];
         let keysWithTheirOwnLine = [];
         for (let key of entry.keys) {
-          let renderedKey = renderedKeys.get(key);
+          let renderedKey = renderKey(key, 0);
           if(key.subkeys && key.subkeys.length > 0) {
             plainKeys.push(renderedKey.inlineText);
           } else if(renderedKey.constraint) {

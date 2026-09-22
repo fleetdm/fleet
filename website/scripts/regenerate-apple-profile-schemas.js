@@ -131,7 +131,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
           entries.push({
             name: schemaToBuild.nameFrom(doc, filename),
             sourceFile: `${schemaToBuild.directory}/${filename}`,
-            keys: extractKeys(doc.payloadkeys, 0, new Set()),
+            keys: extractKeys(doc.payloadkeys, 0, []),
           });
         }));
       }
@@ -209,7 +209,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
  *
  * @param  {Array} payloadKeys
  * @param  {Number} depth
- * @param  {Set} alreadyVisited
+ * @param  {Array} alreadyVisited
  * @returns {Array}
  */
 function extractKeys(payloadKeys, depth, alreadyVisited) {
@@ -221,10 +221,10 @@ function extractKeys(payloadKeys, depth, alreadyVisited) {
   for (let payloadKey of payloadKeys || []) {
     // Keys named with a leading underscore are Apple's placeholders for "an element of the array above"
     // rather than keys an admin writes.
-    if(!payloadKey.key || _.startsWith(payloadKey.key, '_') || alreadyVisited.has(payloadKey)) {
+    if(!payloadKey.key || _.startsWith(payloadKey.key, '_') || _.contains(alreadyVisited, payloadKey)) {
       continue;
     }
-    alreadyVisited.add(payloadKey);
+    alreadyVisited.push(payloadKey);
 
     let range = payloadKey.range || {};
     let extracted = {
