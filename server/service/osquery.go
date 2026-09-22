@@ -2713,11 +2713,15 @@ func (svc *Service) ingestDistributedQuery(
 
 	// The host controls the campaign ID in the query name and IDs are sequential,
 	// so without this any enrolled host could stream forged rows into every
-	// running campaign server-wide, including other fleets' campaigns.
-	targeted, err := svc.liveQueryStore.IsQueryTargetingHost(strconv.Itoa(campaignID), host.ID)
+	// running campaign server-wide, including other fleets' campaigns. Marking
+	// the host complete before publishing makes the check free: the same Redis
+	// commands report whether the host was still a target. The cost is that an
+	// undelivered result below must re-target the host so it retries.
+	campaignName := strconv.Itoa(campaignID)
+	targeted, err := svc.liveQueryStore.QueryCompletedByHost(campaignName, host.ID)
 	if err != nil {
-		svc.logger.WarnContext(ctx, "checking whether live query campaign targets host", "campaignID", campaignID, "hostID", host.ID, "err", err)
-		return newOsqueryError("check campaign targets host: " + err.Error())
+		svc.logger.WarnContext(ctx, "recording live query completion for host", "campaignID", campaignID, "hostID", host.ID, "err", err)
+		return newOsqueryError("record query completion: " + err.Error())
 	}
 	if !targeted {
 		svc.logger.WarnContext(ctx, "discarding live query result for campaign not targeting host", "campaignID", campaignID, "hostID", host.ID)
@@ -2744,6 +2748,7 @@ func (svc *Service) ingestDistributedQuery(
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
 		if !ok || !pse.NoSubscriber() {
+			svc.restoreQueryTarget(ctx, campaignName, host.ID)
 			return newOsqueryError("writing results: " + err.Error())
 		}
 
@@ -2770,6 +2775,7 @@ func (svc *Service) ingestDistributedQuery(
 			// This expected error can happen if:
 			//	A. A device checked in and sent results back in between steps (1) and (2).
 			// 	B. The client stopped listening in (2) and devices continue to send results back.
+			svc.restoreQueryTarget(ctx, campaignName, host.ID)
 			return newOsqueryError(fmt.Sprintf("campaignID=%d waiting for listener", campaignID))
 		}
 
@@ -2784,16 +2790,16 @@ func (svc *Service) ingestDistributedQuery(
 			return newOsqueryError("stopping orphaned campaign: " + err.Error())
 		}
 
-		// No need to record query completion in this case
 		return newOsqueryError(fmt.Sprintf("campaignID=%d stopped", campaignID))
 	}
 
-	err = svc.liveQueryStore.QueryCompletedByHost(strconv.Itoa(campaignID), host.ID)
-	if err != nil {
-		return newOsqueryError("record query completion: " + err.Error())
-	}
-
 	return nil
+}
+
+func (svc *Service) restoreQueryTarget(ctx context.Context, campaignName string, hostID uint) {
+	if err := svc.liveQueryStore.RestoreQueryTargetForHost(campaignName, hostID); err != nil {
+		svc.logger.WarnContext(ctx, "restoring live query target after undelivered result", "campaignID", campaignName, "hostID", hostID, "err", err)
+	}
 }
 
 // ingestMembershipQuery records the results of label queries run by a host

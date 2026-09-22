@@ -55,15 +55,15 @@ func (m *MockLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 }
 
 // QueryCompletedByHost mocks the live query store QueryCompletedByHost method.
-func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
-	args := m.Called(name, hostID)
-	return args.Error(0)
-}
-
-// IsQueryTargetingHost mocks the live query store IsQueryTargetingHost method.
-func (m *MockLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
+func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
 	args := m.Called(name, hostID)
 	return args.Bool(0), args.Error(1)
+}
+
+// RestoreQueryTargetForHost mocks the live query store RestoreQueryTargetForHost method.
+func (m *MockLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
+	args := m.Called(name, hostID)
+	return args.Error(0)
 }
 
 // CleanupInactiveQueries mocks the live query store CleanupInactiveQueries method.

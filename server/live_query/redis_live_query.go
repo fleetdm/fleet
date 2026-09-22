@@ -396,64 +396,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	return nil
 }
 
-func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, error) {
-	active, targeted, err := r.isActiveAndBitTargeted(name, hostID)
-	if err != nil {
-		return false, err
-	}
-	if !active {
-		return false, nil
-	}
-	if targeted {
-		return true, nil
-	}
-	return r.isReverseMember(name, hostID)
-}
-
-// isActiveAndBitTargeted reports whether the campaign is active and whether the
-// host's bit is set in its bitfield. The bitfield and SQL keys share the
-// campaign's hash tag, so both probes fit in one pipeline. The SQL key is
-// deleted on stop and serves as the "still active" check, which the per-host
-// set cannot provide: its entries outlive StopQuery and are only filtered
-// against the active set at read time.
-func (r *redisLiveQuery) isActiveAndBitTargeted(name string, hostID uint) (active, targeted bool, err error) {
-	targetKey, sqlKey := generateKeys(name)
-
-	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	if err := conn.Send("GETBIT", targetKey, hostID); err != nil {
-		return false, false, fmt.Errorf("getbit query targets: %w", err)
-	}
-	if err := conn.Send("EXISTS", sqlKey); err != nil {
-		return false, false, fmt.Errorf("exists query sql: %w", err)
-	}
-	if err := conn.Flush(); err != nil {
-		return false, false, fmt.Errorf("flush pipeline: %w", err)
-	}
-	bit, err := redigo.Int(conn.Receive())
-	if err != nil {
-		return false, false, fmt.Errorf("receive target: %w", err)
-	}
-	active, err = redigo.Bool(conn.Receive())
-	if err != nil {
-		return false, false, fmt.Errorf("receive query sql exists: %w", err)
-	}
-	return active, bit == 1, nil
-}
-
-func (r *redisLiveQuery) isReverseMember(name string, hostID uint) (bool, error) {
-	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
-	defer conn.Close()
-
-	isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(hostID), name))
-	if err != nil && err != redigo.ErrNil {
-		return false, fmt.Errorf("sismember reverse host key: %w", err)
-	}
-	return isMember, nil
-}
-
-func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -462,24 +405,37 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	// (SREM on an absent member, and the guarded SETBIT below on an absent key).
 	// This avoids relying on a possibly-stale cache to pick the model, where a
 	// wrong guess would leave the host still receiving the query.
-	if _, err := conn.Do("SREM", reverseHostKey(hostID), name); err != nil {
-		return fmt.Errorf("srem reverse host key: %w", err)
+	//
+	// Both commands also report whether the host was still a target, which is
+	// what authorizes its result: the host controls the campaign ID it reports
+	// for, so without this any enrolled host could inject rows into any campaign.
+	removed, err := redigo.Int(conn.Do("SREM", reverseHostKey(hostID), name))
+	if err != nil {
+		return false, fmt.Errorf("srem reverse host key: %w", err)
 	}
 
-	targetKey, _ := generateKeys(name)
+	targetKey, sqlKey := generateKeys(name)
 
 	// Update the bitfield for this host only if the key exists.
 	// If the key doesn't exist (e.g. query marked as completed or cancelled)
 	// then we don't want to call SETBIT because it will create a new
 	// key (that won't expire and linger "forever").
+	//
+	// The SQL key is deleted on stop and doubles as the "still active" check,
+	// which the per-host set cannot provide: its entries outlive StopQuery.
 	const setBitScript = `
+	local active = redis.call('EXISTS', KEYS[2])
+	local prev = 0
 	if redis.call('EXISTS', KEYS[1]) == 1 then
-		return redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2])
-	else
-		return nil
-	end`
-	if _, err := conn.Do("EVAL", setBitScript, 1, targetKey, hostID, 0); err != nil {
-		return fmt.Errorf("setbit query key: %w", err)
+		prev = redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2])
+	end
+	return {active, prev}`
+	res, err := redigo.Ints(conn.Do("EVAL", setBitScript, 2, targetKey, sqlKey, hostID, 0))
+	if err != nil {
+		return false, fmt.Errorf("setbit query key: %w", err)
+	}
+	if len(res) != 2 {
+		return false, fmt.Errorf("setbit query key: unexpected script result %v", res)
 	}
 
 	// NOTE(mna): we could remove the query here if all bits are now off, meaning
@@ -488,6 +444,40 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	// needed anyway as StopQuery appears to be called every time a campaign is
 	// run (see svc.CompleteCampaign).
 
+	active, wasBitTarget := res[0] == 1, res[1] == 1
+	return active && (wasBitTarget || removed == 1), nil
+}
+
+func (r *redisLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	targetKey, _ := generateKeys(name)
+
+	// A broadcast query has a bitfield, so set the bit back. Without one the
+	// query is small-target (or already stopped, in which case the per-host
+	// entry is just another stale one), so re-add the per-host membership.
+	const restoreBitScript = `
+	if redis.call('EXISTS', KEYS[1]) == 1 then
+		redis.call('SETBIT', KEYS[1], ARGV[1], 1)
+		return 1
+	end
+	return 0`
+	hadBitfield, err := redigo.Int(conn.Do("EVAL", restoreBitScript, 1, targetKey, hostID))
+	if err != nil {
+		return fmt.Errorf("restore bitfield target: %w", err)
+	}
+	if hadBitfield == 1 {
+		return nil
+	}
+
+	hostKey := reverseHostKey(hostID)
+	if _, err := conn.Do("SADD", hostKey, name); err != nil {
+		return fmt.Errorf("sadd reverse host key: %w", err)
+	}
+	if _, err := conn.Do("EXPIRE", hostKey, int(queryExpiration.Seconds())); err != nil {
+		return fmt.Errorf("expire reverse host key: %w", err)
+	}
 	return nil
 }
 

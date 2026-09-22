@@ -208,7 +208,8 @@ func TestReverseIndexQueryCompletedByHost(t *testing.T) {
 			require.NoError(t, store.RunQuery("small", "SELECT 1", []uint{1, 2}))
 
 			// Host 1 completes the query.
-			require.NoError(t, store.QueryCompletedByHost("small", 1))
+			_, err := store.QueryCompletedByHost("small", 1)
+			require.NoError(t, err)
 
 			// Host 1's per-host membership is removed, host 2's remains.
 			isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(1), "small"))
@@ -331,8 +332,8 @@ func TestReverseIndexKillSwitch(t *testing.T) {
 }
 
 // StopQuery deletes the bitfield but leaves reverse per-host entries to expire,
-// so the reverse model needs the active check to reject late results.
-func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
+// so the reverse model needs the SQL key check to reject late results.
+func TestQueryCompletedByHostAfterStopQuery(t *testing.T) {
 	for _, cluster := range []bool{false, true} {
 		clusterName := "standalone"
 		if cluster {
@@ -345,6 +346,17 @@ func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
 
 			require.NoError(t, store.RunQuery("small", "SELECT 1", []uint{1, 2}))
 			require.NoError(t, store.RunQuery("large", "SELECT 2", []uint{1, 2, 3}))
+
+			// While active, each mode authorizes its own targets through its own storage.
+			for _, name := range []string{"small", "large"} {
+				targeted, err := store.QueryCompletedByHost(name, 2)
+				require.NoError(t, err)
+				require.True(t, targeted, "campaign %s host 2", name)
+				targeted, err = store.QueryCompletedByHost(name, 4)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host 4", name)
+			}
+
 			require.NoError(t, store.StopQuery("small"))
 			require.NoError(t, store.StopQuery("large"))
 
@@ -360,10 +372,22 @@ func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
 				{"small", 1}, {"small", 3},
 				{"large", 1}, {"large", 4},
 			} {
-				targeted, err := store.IsQueryTargetingHost(tc.name, tc.hostID)
+				targeted, err := store.QueryCompletedByHost(tc.name, tc.hostID)
 				require.NoError(t, err)
 				require.False(t, targeted, "campaign %s host %d", tc.name, tc.hostID)
 			}
+
+			// Restoring after a stop must not resurrect the bitfield key, nor make a
+			// stopped campaign authorize a host again in either mode.
+			for _, name := range []string{"small", "large"} {
+				require.NoError(t, store.RestoreQueryTargetForHost(name, 1))
+				targeted, err := store.QueryCompletedByHost(name, 1)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host 1 after restore", name)
+			}
+			exists, err := redigo.Int(conn.Do("EXISTS", queryKeyPrefix+"{large}"))
+			require.NoError(t, err)
+			require.Zero(t, exists)
 		})
 	}
 }

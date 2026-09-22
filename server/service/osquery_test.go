@@ -3394,8 +3394,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		},
 		nil,
 	)
-	lq.On("IsQueryTargetingHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -3519,7 +3518,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
@@ -3553,10 +3552,12 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
+	lq.AssertExpectations(t)
 }
 
 func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
@@ -3590,7 +3591,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
@@ -3628,7 +3629,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
@@ -3666,10 +3667,11 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 stopped")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
 }
 
@@ -3689,19 +3691,12 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(false, errors.New("fail"))
 
-	go func() {
-		ch, err := rs.ReadChannel(context.Background(), *campaign)
-		require.NoError(t, err)
-		<-ch
-	}()
-	time.Sleep(10 * time.Millisecond)
-
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
 }
 
@@ -3721,7 +3716,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(true, nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -3730,7 +3725,6 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(true, nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
@@ -3749,33 +3743,14 @@ func TestIngestDistributedQueryNotTargetingHost(t *testing.T) {
 	}
 
 	host := fleet.Host{ID: 1}
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(false, nil)
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(false, nil)
 
+	// No subscriber and no DistributedQueryCampaignFunc: reaching WriteResult
+	// would take the orphaned-campaign path and crash on the nil datastore func.
 	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{{"col": "forged"}}, "", nil)
 	require.NoError(t, err)
-	lq.AssertNotCalled(t, "QueryCompletedByHost", testify_mock.Anything, testify_mock.Anything)
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
 	lq.AssertExpectations(t)
-}
-
-func TestIngestDistributedQueryTargetCheckError(t *testing.T) {
-	ds := new(mock.Store)
-	rs := pubsub.NewInmemQueryResults()
-	lq := live_query_mock.New(t)
-	svc := &Service{
-		ds:             ds,
-		resultStore:    rs,
-		liveQueryStore: lq,
-		logger:         slog.New(slog.DiscardHandler),
-		clock:          clock.NewMockClock(),
-	}
-
-	host := fleet.Host{ID: 1}
-	lq.On("IsQueryTargetingHost", "42", host.ID).Return(false, errors.New("redis down"))
-
-	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "check campaign targets host")
-	lq.AssertNotCalled(t, "QueryCompletedByHost", testify_mock.Anything, testify_mock.Anything)
 }
 
 func TestUpdateHostIntervals(t *testing.T) {
