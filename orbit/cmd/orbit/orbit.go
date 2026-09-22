@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	fleetclient "github.com/fleetdm/fleet/v4/client"
@@ -401,9 +402,16 @@ func adoptEnrollSecret(
 // a secret.
 const mdmSecretWaitBackstop = 5 * time.Minute
 
-// waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret. It does not time
-// out: there is nothing useful for fleetd to do without a secret, and an administrator resending the
-// profile that carries it is what ends the wait.
+// mdmSecretWaitTimeout bounds the whole wait. Nothing else runs while orbit waits here, not even the
+// auto-updater, so a host that waits indefinitely is also a host that can never be fixed by shipping
+// it a new fleetd. On expiry orbit falls through to its usual "no enroll secret" failure and the
+// service manager restarts it, which recycles any state this loop may have wedged and returns the
+// host to the behavior it had before this wait existed.
+const mdmSecretWaitTimeout = time.Hour
+
+// waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret, mdmSecretWaitTimeout
+// elapses, or the service manager asks orbit to stop. An administrator resending the profile that
+// carries the secret is what normally ends the wait.
 //
 // Windows signals when the key changes, so this waits on that notification rather than polling on an
 // interval. The registration is good for one notification, so it is re-armed each time around.
@@ -423,12 +431,27 @@ func waitForMDMDeliveredEnrollSecret(stop <-chan struct{}, disableKeystore bool,
 		}
 	}()
 
+	// Parent of every per-iteration wait, so the deadline lands mid-wait rather than being noticed up
+	// to a backstop late.
+	waitCtx, cancelWait := context.WithTimeout(baseCtx, mdmSecretWaitTimeout)
+	defer cancelWait()
+
+	// Guards the sync trigger below. deviceenroller can take minutes to return, so a loop that comes
+	// around faster than that must not stack up invocations.
+	var syncInFlight sync.Mutex
+
 	for started := time.Now(); ; {
 		select {
 		case <-stop:
 			log.Info().Msg("stop requested while waiting for an MDM-delivered enroll secret")
 			return
 		default:
+		}
+
+		if waitCtx.Err() != nil {
+			log.Warn().Dur("waited", time.Since(started)).Msg(
+				"gave up waiting for Fleet MDM to deliver an enroll secret; fleetd will exit and be restarted to try again")
+			return
 		}
 
 		// Arm the watch before reading. Reading first leaves a gap in which a delivery is seen by
@@ -461,11 +484,28 @@ func waitForMDMDeliveredEnrollSecret(stop <-chan struct{}, disableKeystore bool,
 			return
 		}
 
+		// Nothing is waiting, so ask the device to check in now instead of at its next scheduled poll.
+		// Once a host has run a sync-capable fleetd the server relaxes that poll to 8 hours, and the
+		// usual wake cannot help here: it arrives over the orbit config endpoint, which needs the very
+		// enroll secret this loop is waiting for. Best effort, and off the loop's goroutine so a stop
+		// request is not held behind deviceenroller.
+		if syncInFlight.TryLock() {
+			go func() {
+				defer syncInFlight.Unlock()
+				if err := update.TriggerWindowsMDMSync(); err != nil {
+					log.Debug().Err(err).Msg("failed to trigger an MDM sync while waiting for an enroll secret")
+				}
+			}()
+		}
+
 		if watch == nil {
 			// Registration failed, so fall back to sleeping rather than spinning on a broken watch.
-			time.Sleep(mdmSecretWaitBackstop)
+			select {
+			case <-waitCtx.Done():
+			case <-time.After(mdmSecretWaitBackstop):
+			}
 		} else {
-			ctx, cancel := context.WithTimeout(baseCtx, mdmSecretWaitBackstop)
+			ctx, cancel := context.WithTimeout(waitCtx, mdmSecretWaitBackstop)
 			if err := watch.Wait(ctx); err != nil {
 				log.Error().Err(err).Msg("failed waiting for an MDM-delivered enroll secret")
 			}
