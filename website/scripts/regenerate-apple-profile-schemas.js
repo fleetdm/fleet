@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Regenerate apple profile schemas',
+  friendlyName: 'Regenerate Apple profile schemas',
 
 
   description: 'Read Apple\'s published payload manifests and declaration definitions, and save the keys the configuration profile generator needs to website/profile-generator/schema/apple-payload-manifests.json and website/profile-generator/schema/apple-ddm-declarations.json.',
@@ -45,7 +45,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
   fn: async function ({dry}) {
 
     let path = require('path');
-    let yaml = require('js-yaml');
+    let YAML = require('yaml');
 
     const GITHUB_API_BASE_URL = 'https://api.github.com/repos/apple/device-management/contents';
     const RAW_BASE_URL = 'https://raw.githubusercontent.com/apple/device-management/release';
@@ -105,12 +105,12 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
       let entries = [];
       let filesThatFailed = [];
       let CONCURRENCY = 8;
-      for (let batchStartsAt = 0; batchStartsAt < filenames.length; batchStartsAt += CONCURRENCY) {
-        await Promise.all(filenames.slice(batchStartsAt, batchStartsAt + CONCURRENCY).map(async (filename)=>{
+      for (let batch of _.chunk(filenames, CONCURRENCY)) {
+        await sails.helpers.flow.simultaneouslyForEach(batch, async (filename)=>{
           let rawYaml;
           for (let attempt = 1; attempt <= 3 && rawYaml === undefined; attempt++) {
             if(attempt > 1) {
-              await new Promise((resolve)=>{ setTimeout(resolve, 1000 * attempt); });
+              await sails.helpers.flow.pause(1000 * attempt);
             }
             rawYaml = await sails.helpers.http.get(`${RAW_BASE_URL}/${schemaToBuild.directory}/${filename}`).tolerate(()=>{ return undefined; });
           }
@@ -120,7 +120,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
           }
           let doc;
           try {
-            doc = yaml.safeLoad(rawYaml);
+            doc = YAML.parse(rawYaml);
           } catch (err) {
             filesThatFailed.push(`${filename} (could not be parsed as YAML: ${err.message})`);
             return;
@@ -133,7 +133,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
             sourceFile: `${schemaToBuild.directory}/${filename}`,
             keys: extractKeys(doc.payloadkeys, 0, []),
           });
-        }));
+        });
       }
 
       if(filesThatFailed.length > 0) {
