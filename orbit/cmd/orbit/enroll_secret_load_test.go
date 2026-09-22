@@ -10,10 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// loadEnrollSecret is shared by the two delivery channels (the packaged secret file and, on
-// Windows, the registry value Fleet MDM writes). onDelivered is what discards the delivery copy, so
-// the contract that matters is when it does and does not fire: never while the secret might still be
-// needed for another attempt.
+// loadEnrollSecret is shared by the two delivery channels (the packaged secret file and, on Windows, the registry value Fleet MDM
+// writes). onDelivered is what discards the delivery copy.
 func TestLoadEnrollSecretDiscardsTheDeliveryCopyOnlyOnceStored(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
@@ -70,6 +68,19 @@ func TestLoadEnrollSecretDiscardsTheDeliveryCopyOnlyOnceStored(t *testing.T) {
 			disableKeystore: true,
 			wantDelivered:   false,
 		},
+		{
+			// The keystore took the write without storing it. Nothing errors, so only the re-read catches it.
+			name:          "add stores the wrong secret",
+			keystore:      &fakeKeystore{supported: true, corruptOnWrite: true},
+			wantDelivered: false,
+			wantAdds:      1,
+		},
+		{
+			name:          "update stores the wrong secret",
+			keystore:      &fakeKeystore{supported: true, secret: "stale", corruptOnWrite: true},
+			wantDelivered: false,
+			wantUpdates:   1,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var set string
@@ -101,17 +112,13 @@ func TestLoadEnrollSecretPropagatesSetFailure(t *testing.T) {
 	require.False(t, delivered, "a secret that could not be made active must not have its delivery copy discarded")
 }
 
-// The delivery channel is injected so this never reads or clears the host's real enroll secret. On
-// Windows that lives in HKLM, so calling the production path here would make the result depend on
-// whatever machine the test runs on, and could clear a secret the host still needs.
 func TestLoadDeliveredEnrollSecret(t *testing.T) {
 	for _, tc := range []struct {
-		name        string
-		readErr     error
-		wantLoaded  bool
-		wantAdds    int
-		wantCleared bool
-		wantErr     bool
+		name       string
+		readErr    error
+		clearErr   error
+		wantLoaded bool
+		wantErr    bool
 	}{
 		{
 			// The ordinary state on a host that has already loaded its secret: nothing waiting is not
@@ -130,10 +137,15 @@ func TestLoadDeliveredEnrollSecret(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:        "secret waiting",
-			wantLoaded:  true,
-			wantAdds:    1,
-			wantCleared: true,
+			name:       "secret waiting",
+			wantLoaded: true,
+		},
+		{
+			// Not fatal: the secret is already in the keystore, so orbit can still enroll. The value
+			// lingering only means the next start loads it again, harmlessly.
+			name:       "clearing the delivered copy fails",
+			clearErr:   errors.New("registry locked"),
+			wantLoaded: true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -148,7 +160,7 @@ func TestLoadDeliveredEnrollSecret(t *testing.T) {
 
 			loaded, err := loadDeliveredEnrollSecret(
 				func() (string, error) { return "delivered", tc.readErr },
-				func() error { cleared = true; return nil },
+				func() error { cleared = true; return tc.clearErr },
 				secretPath, ks, false,
 				func(secret string) error { set = secret; return nil },
 			)
@@ -159,20 +171,20 @@ func TestLoadDeliveredEnrollSecret(t *testing.T) {
 				require.NoError(t, err)
 			}
 			require.Equal(t, tc.wantLoaded, loaded)
-			require.Equal(t, tc.wantAdds, ks.addCalls)
-			require.Equal(t, tc.wantCleared, cleared, "the delivery copy is discarded only once stored")
 
+			// Loading is all or nothing: the secret reaches the keystore, becomes active, and both copies
+			// it was delivered in are retired. Otherwise none of that happens and the copies stay put.
 			_, statErr := os.Stat(secretPath)
-			if tc.wantCleared {
+			if tc.wantLoaded {
+				require.Equal(t, 1, ks.addCalls)
+				require.Equal(t, "delivered", set)
+				require.True(t, cleared, "the registry copy must be cleared")
 				require.ErrorIs(t, statErr, os.ErrNotExist, "the installer's copy must not outlive loading")
 			} else {
+				require.Zero(t, ks.addCalls)
+				require.Empty(t, set)
+				require.False(t, cleared, "the delivery copy is discarded only once stored")
 				require.NoError(t, statErr, "a secret that was not loaded leaves the file for the file path to read")
-			}
-
-			if tc.wantLoaded {
-				require.Equal(t, "delivered", set)
-			} else {
-				require.Empty(t, set, "nothing should be set when no secret was loaded")
 			}
 		})
 	}
