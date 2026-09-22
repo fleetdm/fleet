@@ -409,10 +409,30 @@ const mdmSecretWaitBackstop = 5 * time.Minute
 //
 // Windows signals when the key changes, so this waits on that notification rather than polling on an
 // interval. The registration is good for one notification, so it is re-armed each time around.
-func waitForMDMDeliveredEnrollSecret(disableKeystore bool, setSecret func(string) error) {
+// stop is closed when the service manager asks orbit to stop; the wait gives up then so a stop
+// request is not held up by a secret that may never arrive.
+func waitForMDMDeliveredEnrollSecret(stop <-chan struct{}, disableKeystore bool, setSecret func(string) error) {
 	log.Info().Msg("no enroll secret yet, waiting for Fleet MDM to deliver one")
 
+	// A stop request has to interrupt the in-flight Wait, not just be noticed between iterations.
+	baseCtx, cancelBase := context.WithCancel(context.Background())
+	defer cancelBase()
+	go func() {
+		select {
+		case <-stop:
+			cancelBase()
+		case <-baseCtx.Done():
+		}
+	}()
+
 	for started := time.Now(); ; {
+		select {
+		case <-stop:
+			log.Info().Msg("stop requested while waiting for an MDM-delivered enroll secret")
+			return
+		default:
+		}
+
 		// Arm the watch before reading. Reading first leaves a gap in which a delivery is seen by
 		// neither the read nor the not-yet-armed registration, which would strand an already delivered
 		// secret until the backstop expired.
@@ -447,7 +467,7 @@ func waitForMDMDeliveredEnrollSecret(disableKeystore bool, setSecret func(string
 			// Registration failed, so fall back to sleeping rather than spinning on a broken watch.
 			time.Sleep(mdmSecretWaitBackstop)
 		} else {
-			ctx, cancel := context.WithTimeout(context.Background(), mdmSecretWaitBackstop)
+			ctx, cancel := context.WithTimeout(baseCtx, mdmSecretWaitBackstop)
 			if err := watch.Wait(ctx); err != nil {
 				log.Error().Err(err).Msg("failed waiting for an MDM-delivered enroll secret")
 			}
@@ -656,9 +676,10 @@ func orbitAction(c *cli.Context) error {
 	// is whether a secret can still arrive, and only the host knows that. Without an enrollment there
 	// is no channel to wait on, so orbit keeps today's behavior and fails fast with a clear error
 	// rather than blocking forever.
-	if runtime.GOOS == "windows" && mdmSecretChannelUsable && c.String("enroll-secret") == "" && update.HasActiveFleetMDMEnrollment() {
-		waitForMDMDeliveredEnrollSecret(disableKeystore, setEnrollSecret)
-	}
+	// Decided here, where the rest of the secret resolution happens, but acted on after the Windows
+	// service manager is running. See the call site for why the wait cannot happen this early.
+	waitForMDMSecret := runtime.GOOS == "windows" && mdmSecretChannelUsable &&
+		c.String("enroll-secret") == "" && update.HasActiveFleetMDMEnrollment()
 
 	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
 		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
@@ -827,10 +848,25 @@ func orbitAction(c *cli.Context) error {
 	appDoneCh = make(chan struct{})
 
 	// Initializing windows service runner and system service manager.
+	var svcInterruptCh chan struct{}
 	if runtime.GOOS == "windows" {
 		systemChecker := newSystemChecker()
+		svcInterruptCh = systemChecker.svcInterruptCh
 		addSubsystem(&g, "system checker", systemChecker)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+	}
+
+	// Waiting for an MDM-delivered enroll secret happens *after* the service manager is running, and
+	// not where the rest of the secret resolution lives. svc.Run is what reports StartPending and then
+	// Running to the SCM, so blocking before it means Windows never hears from the service and kills it
+	// for failing to start in time, turning a patient wait into a restart loop. The macOS
+	// configuration-profile wait above can block early precisely because macOS has no equivalent
+	// deadline; Windows does, so this one waits here and gives up when a service stop is requested.
+	//
+	// Nothing between the earlier secret resolution and this point consumes the enroll secret on
+	// Windows, and everything that does consume it runs later.
+	if waitForMDMSecret {
+		waitForMDMDeliveredEnrollSecret(svcInterruptCh, disableKeystore, setEnrollSecret)
 	}
 
 	// sofwareupdated is a macOS daemon that automatically updates Apple software.
