@@ -1,0 +1,1 @@
+- Agent requests whose HTTP message signature can't be verified now receive a uniform, generic error response. Details are logged on the server instead of being returned to the caller.

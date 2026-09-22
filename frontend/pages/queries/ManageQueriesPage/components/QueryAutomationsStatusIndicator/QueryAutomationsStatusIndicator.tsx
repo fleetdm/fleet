@@ -1,5 +1,6 @@
-import StatusIndicator from "components/StatusIndicator";
 import React from "react";
+
+import StatusIndicator from "components/StatusIndicator";
 
 interface IQueryAutomationsStatusIndicator {
   automationsEnabled: boolean;

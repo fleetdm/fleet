@@ -1,15 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import React from "react";
 
-import { ILabelSummary } from "interfaces/label";
+import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import PolicyProvider from "context/policy";
+import { ILabelSummary } from "interfaces/label";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import SaveNewPolicyModal from "./SaveNewPolicyModal";
 
 const baseUrl = (path: string) => {

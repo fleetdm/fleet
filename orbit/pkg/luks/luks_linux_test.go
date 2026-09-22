@@ -323,3 +323,14 @@ func TestAddEscrowKeyAddKeyError(t *testing.T) {
 	// AddKey failed, so the escrow key was never validated.
 	assert.Empty(t, dev.checkedSlots)
 }
+
+func (f *fakeEscrower) sentStatuses() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.statuses...)
+}
+
+// newStatusEscrower returns a fake escrower whose server accepts escrow status reports.
+func newStatusEscrower() *fakeEscrower {
+	return &fakeEscrower{capabilities: fleet.CapabilityMap{fleet.CapabilityLinuxEscrowStatus: {}}}
+}

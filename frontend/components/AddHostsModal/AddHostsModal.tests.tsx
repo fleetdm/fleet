@@ -1,8 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import AddHostsModal from "./AddHostsModal";
 
@@ -170,7 +171,6 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
-    expect(screen.getByText("Enrollment instructions")).toBeInTheDocument();
     expect(
       screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();
@@ -204,7 +204,6 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
-    expect(screen.getByText("Enrollment instructions")).toBeInTheDocument();
     expect(
       screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();
@@ -379,18 +378,54 @@ describe("AddHostsModal", () => {
       />
     );
 
-    expect(screen.getByText("Something's gone wrong.")).toBeInTheDocument();
     expect(
       screen.getByText(/you have no enroll secrets\./i)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /new hosts will not enroll until an enroll secret is added to/i
+      )
+    ).toBeInTheDocument();
 
-    const cta = screen.getByText(/manage enroll secrets/i);
-    expect(cta).toBeInTheDocument();
-
-    await user.click(cta);
+    await user.click(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    );
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(openEnrollSecretModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("explains manual enrollment in the no enroll secret state when one-time enroll secrets are on", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig({
+            auth: { use_one_time_enroll_secrets: true },
+          }),
+        },
+      },
+    });
+
+    render(
+      <AddHostsModal
+        isAnyTeamSelected={false}
+        isLoading={false}
+        onCancel={noop}
+        openEnrollSecretModal={noop}
+      />
+    );
+
+    expect(
+      screen.getByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/only apple hosts that automatically enroll via/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
   });
 
   it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {

@@ -3517,6 +3517,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't add. Profile name %q is not allowed.`, name))
 	}
 
+	// Windows profile names cannot be empty or whitespace-only after stripping the extension.
+	assertWindowsProfile(".xml", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add. Profile name can't be empty.")
+	assertWindowsProfile("  .xml", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add. Profile name can't be empty.")
+
 	// profiles with non-existent labels
 	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
@@ -4130,6 +4134,15 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
 	require.Equal(t, winContent3, downloadProfile(winUUID))
 
+	// Empty or whitespace-only names must be rejected on PATCH, even when the
+	// file name trims down to an empty string.
+	for _, fileName := range []string{".xml", "  .xml"} {
+		res = patchProfile(winUUID, fileName, winContent3, nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "Couldn't edit. Profile name can't be empty.")
+		require.Equal(t, "update-win-profile-renamed", getProfile(winUUID).Name)
+		require.Equal(t, winContent3, downloadProfile(winUUID))
+	}
+
 	// labels-only edit; no file, so the name is left alone
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
@@ -4655,6 +4668,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 
 	checkHostsFilteredByOSSettingsStatus := func(t *testing.T, wantHosts []string, wantStatus fleet.MDMDeliveryStatus, teamID *uint, labels ...*fleet.Label) {
+		// Filtering hosts by OS settings reads the maintained host_mdm_windows_profiles_status rollup, same as the profiles
+		// summary. This test simulates device reports by writing host_mdm_windows_profiles directly, bypassing the write paths
+		// that maintain the rollup, so reconcile it before reading.
+		require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 		var teamFilter string
 		if teamID != nil {
 			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
@@ -6106,7 +6124,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -6186,7 +6204,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)

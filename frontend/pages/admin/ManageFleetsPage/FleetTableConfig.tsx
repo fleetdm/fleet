@@ -1,13 +1,12 @@
 import React from "react";
 
-import { ITeam as IFleet } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
-
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeam as IFleet } from "interfaces/team";
+import PATHS from "router/paths";
 
 interface IHeaderProps {
   column: {

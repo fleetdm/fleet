@@ -119,7 +119,9 @@ Apple verifies the token before allowing the sign-in.
 
 7. Upload the token (.p7m file) downloaded in step 3.
 
-### Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
+### Set a default fleet for hosts that automatically enroll
+
+Hosts that automatically enroll are assigned to a default fleet. To configure the default fleet for macOS, iOS, and iPadOS hosts:
 
 1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
 

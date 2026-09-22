@@ -1220,22 +1220,21 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	// if nil after two attempts, return an error.
-	if ssoErr != nil && auth == nil {
+	if auth == nil {
+		reason := "no assertion returned for SAML response"
+		if ssoErr != nil {
+			reason = ssoErr.Error()
+		}
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(ssoErr.Error()))
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(reason))
 	}
 
-	// Store information for automatic account population/creation
-	//
-	// For now, we just grab whatever comes before the `@` in UserID, which
-	// must be an email.
-	//
-	// For more details, check https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
-	username, _, found := strings.Cut(auth.UserID(), "@")
-	if !found {
+	// Store information for automatic account population/creation, see
+	// https://github.com/fleetdm/fleet/issues/10744#issuecomment-1540605146
+	username := fleet.EmailLocalPart(auth.UserID())
+	if username == auth.UserID() {
 		svc.logger.InfoContext(ctx, "IdP UserID doesn't look like an email, using raw value", "component", "mdm-sso-callback")
-		username = auth.UserID()
 	}
 
 	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
@@ -1985,6 +1984,67 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
+	}
+
+	return token, nil
+}
+
+func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// require an explicit value: an omitted field would otherwise read as
+	// false and silently clear the default
+	if isDefault == nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("default", "missing required argument"))
+	}
+
+	// reads here decide what gets written (token count, app config sync), so
+	// don't risk stale replica reads
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ABM token to set default")
+	}
+
+	switch {
+	case *isDefault:
+		if err := svc.ds.SetABMTokenDefault(ctx, tokenID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "setting default ABM token")
+		}
+	case token.IsDefault:
+		count, err := svc.ds.GetABMTokenCount(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "counting ABM tokens")
+		}
+		if count == 1 {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("default",
+				"Couldn't unset the default. The only Apple Business (AB) token is always the default."))
+		}
+		if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clearing default ABM token")
+		}
+	default:
+		// asked to unset a token that isn't the default: nothing to do
+		return token, nil
+	}
+	token.IsDefault = *isDefault
+
+	// Changing the default can flip another token's flag off, so sync the app
+	// config from all tokens, not just this one.
+	tokens, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens to sync app config")
+	}
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	syncABMTokensToAppConfig(appCfg, tokens)
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token default update")
 	}
 
 	return token, nil

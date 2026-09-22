@@ -1,9 +1,9 @@
 import React from "react";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
 
-import { IHostPolicy } from "interfaces/policy";
+import Button from "components/buttons/Button";
 import ClickableUrls from "components/ClickableUrls/ClickableUrls";
+import Modal from "components/Modal";
+import { IHostPolicy } from "interfaces/policy";
 
 interface IPolicyDetailsProps {
   onCancel: () => void;

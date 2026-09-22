@@ -14,7 +14,7 @@ Also shipped in August: Android OS versions and vulnerabilities in software inve
 
 ## 🗺️ What we plan to ship this month
 
-Fleet 4.92.0 is scheduled for September 11. These are planned, not promised, and scope changes as the release comes together.
+Fleet 4.92.0 is scheduled for September 15. These are planned, not promised, and scope changes as the release comes together.
 
 - **Windows: force standard account.** Keep end users off local administrator accounts on Windows hosts.
 - **iOS and iPadOS vulnerabilities.** See vulnerabilities for iOS and iPadOS on **Software > OS**, alongside the Android coverage that landed last month.
@@ -28,7 +28,6 @@ Want to see how these are coming along at Fleet? We plan everything in the open.
 
 Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert.
 
-- **GitOps, Washington, DC.** September 10, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-washington-dc-tickets-1992169659078)
 - **GitOps speed run, Kansas City.** September 24, 8:30am to 10:30am CDT. [Register](https://www.eventbrite.com/e/speed-run-gitops-jnuc-tickets-1992170088362)
 - **GitOps, Gothenburg.** September 28, 1pm to 5pm GMT+2. [Register](https://www.eventbrite.com/e/gitops-macsysadmins-tickets-1993054810590)
 - **GitOps, Richmond.** October 13, 1pm to 5pm EDT. [Register](https://www.eventbrite.com/e/gitops-richmond-tickets-1993052268988)
@@ -60,8 +59,8 @@ The best way to learn Fleet is by building with it! [Request a workshop](https:/
 Thanks to everyone who shared what they are building.
 
 <meta name="articleTitle" value="Fleet news: September 2026">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="publishedOn" value="2026-09-01">
 <meta name="category" value="newsletter">
 <meta name="description" value="What shipped in Fleet 4.90.0, what's planned for 4.92.0, upcoming Apple and GitOps workshops, and August's best guides and customer stories.">

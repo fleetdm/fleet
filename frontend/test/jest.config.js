@@ -71,6 +71,7 @@ const config = {
     "<rootDir>/frontend/utilities/osquery_sql_parser/osquery_sql_parser.generated.js",
   ],
   setupFilesAfterEnv: ["<rootDir>/frontend/test/test-setup.ts"],
+  reporters: ["<rootDir>/frontend/test/trimConsoleStackReporter.js", "default"],
   clearMocks: true,
   testEnvironmentOptions: {
     url: "http://fleettest.test:9876",

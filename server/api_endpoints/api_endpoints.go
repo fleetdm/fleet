@@ -48,6 +48,11 @@ func IsInCatalog(fingerprint string) bool {
 	return ok
 }
 
+// routerProvider is implemented by handlers that wrap the gorilla router rather than being one.
+type routerProvider interface {
+	Router() *mux.Router
+}
+
 // Validate checks that every endpoint in the embedded catalog is registered
 // on the provided handler or one of the given feature routes. Feature routes
 // are walked on a throwaway router so callers can validate routes that are
@@ -55,7 +60,12 @@ func IsInCatalog(fingerprint string) bool {
 func Validate(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 	r, ok := h.(*mux.Router)
 	if !ok {
-		return fmt.Errorf("expected *mux.Router, got %T", h)
+		// The API handler may be wrapped by a faster router that keeps the gorilla route table for introspection.
+		provider, isProvider := h.(routerProvider)
+		if !isProvider {
+			return fmt.Errorf("expected *mux.Router, got %T", h)
+		}
+		r = provider.Router()
 	}
 
 	registered := make(map[string]struct{})

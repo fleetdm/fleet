@@ -1,6 +1,6 @@
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
-import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { Colors } from "styles/var/colors";
 
 const withName = (base: string, name?: string) =>

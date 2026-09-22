@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
+import { createMockMdmConfig } from "__mocks__/configMock";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import { createSetupExperienceSoftwareHandler } from "test/handlers/setup-experience-handlers";
+import { createGetTeamHandler } from "test/handlers/team-handlers";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { createSetupExperienceSoftwareHandler } from "test/handlers/setup-experience-handlers";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import { createGetTeamHandler } from "test/handlers/team-handlers";
-import { createMockMdmConfig } from "__mocks__/configMock";
 
 import InstallSoftware from "./InstallSoftware";
 

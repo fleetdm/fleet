@@ -1,3 +1,6 @@
+import { AxiosError } from "axios";
+
+import { getErrorReason } from "interfaces/errors";
 import { ISetupStep } from "interfaces/setup";
 import { SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
 
@@ -132,3 +135,7 @@ export const clearDeviceSSOAttempt = (deviceAuthToken: string): boolean => {
     return false;
   }
 };
+
+export const isMismatchedSSOUserError = (error: AxiosError | null): boolean =>
+  error?.status === 400 &&
+  getErrorReason(error) === "mismatched SSO user for this device";
