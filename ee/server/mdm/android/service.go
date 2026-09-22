@@ -21,7 +21,7 @@ import (
 var _ android.Service = (*Service)(nil)
 
 // zeroTouchTokenDuration is ~100 years in seconds.
-const zeroTouchTokenDuration = "3153600000s"
+const zeroTouchTokenDuration = "31536000000s"
 
 // Service wraps a core android.Service with premium feature implementations.
 type Service struct {
@@ -61,6 +61,7 @@ type teamEnrollmentRequest struct {
 
 func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*android.ZeroTouchConfigurationResponse, error) {
 	if !licensectx.IsPremium(ctx) {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -108,6 +109,8 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 		return nil, ctxerr.Wrap(ctx, err, "marshalling zero-touch additional data")
 	}
 
+	// Zero-touch intentionally bypasses end-user authentication (RequiresEnrollOTAAuthentication)
+	// because there is no browser-based IdP flow during zero-touch provisioning.
 	amapiToken := &androidmanagement.EnrollmentToken{
 		Duration:           zeroTouchTokenDuration,
 		AdditionalData:     string(additionalData),

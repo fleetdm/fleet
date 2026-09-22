@@ -19,7 +19,8 @@ func zeroTouchConfigurationEndpoint(ctx context.Context, _ any, svc android.Serv
 
 // GetZeroTouchConfiguration is a stub that returns ErrMissingLicense.
 // The real implementation lives in ee/server/mdm/android/.
-func (svc *Service) GetZeroTouchConfiguration(_ context.Context, _ *uint) (*android.ZeroTouchConfigurationResponse, error) {
+func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, _ *uint) (*android.ZeroTouchConfigurationResponse, error) {
+	svc.authz.SkipAuthorization(ctx)
 	return nil, fleet.ErrMissingLicense
 }
 
