@@ -423,6 +423,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("shows the query-fail copy for an install stopped by its own pre-install query", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{ ...failedSoftwareActivity, pre_install_output: "" }}
         onCancel={jest.fn()}
       />
@@ -430,5 +431,23 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
     expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
     expect(screen.getByText(/Install stopped/)).toBeInTheDocument();
+  });
+
+  it("omits the pre-install query output section for a successful install even though its output is empty", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
+        activity={{
+          ...failedSoftwareActivity,
+          status: "success",
+          pre_install_output: "",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.queryByText("Pre-install query output")
+    ).not.toBeInTheDocument();
   });
 });

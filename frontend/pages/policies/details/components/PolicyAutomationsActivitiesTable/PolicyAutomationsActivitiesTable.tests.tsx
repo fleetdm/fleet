@@ -391,6 +391,31 @@ describe("getDetailOutputText", () => {
       )
     ).toBe("");
   });
+
+  it("returns empty text for a successful install even though its pre-install output is empty", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "success",
+          pre_install_output: "",
+          details: { policy_id: 123, software_title: "1Password" },
+        })
+      )
+    ).toBe("");
+  });
+
+  it("does not report the query-fail copy for a non-install activity even with an empty pre-install output", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.RanScript,
+          status: "error",
+          pre_install_output: "",
+          details: { policy_id: 123, script_name: "remediate.sh" },
+        })
+      )
+    ).toBe("");
+  });
 });
 
 describe("PolicyAutomationsActivitiesTable", () => {

@@ -138,7 +138,12 @@ export const getDetailOutputText = (
     return activity.details.error_response;
   }
   // An empty (not null) pre-install output means the installer's own query ran and returned nothing.
-  if (activity.status === "error" && activity.pre_install_output === "") {
+  // Only a software install activity carries a pre-install query at all.
+  if (
+    activity.type === ActivityType.InstalledSoftware &&
+    activity.status === "error" &&
+    activity.pre_install_output === ""
+  ) {
     return PRE_INSTALL_QUERY_FAIL_OUTPUT;
   }
   // Fall back through the install stages so the failing stage's output shows.
