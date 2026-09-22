@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260921192418(t *testing.T) {
+func TestUp_20260922124827(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	applyNext(t, db)
