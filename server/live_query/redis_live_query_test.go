@@ -1,7 +1,9 @@
 package live_query
 
 import (
+	"fmt"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -366,4 +368,127 @@ func TestIsQueryTargetingHostAfterStopQuery(t *testing.T) {
 			}
 		})
 	}
+}
+
+// With a long cache expiration, the targeting check is served from the cached
+// bitfield; a campaign created after the last reload falls back to Redis.
+func TestIsQueryTargetingHostFromCache(t *testing.T) {
+	for _, cluster := range []bool{false, true} {
+		clusterName := "standalone"
+		if cluster {
+			clusterName = "cluster"
+		}
+		t.Run(clusterName, func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "*livequery", cluster, true, true)
+			store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Hour, 0)
+
+			require.NoError(t, store.RunQuery("cached", "SELECT 1", []uint{1, 3}))
+
+			targeted, err := store.IsQueryTargetingHost("cached", 1)
+			require.NoError(t, err)
+			require.True(t, targeted)
+			targeted, err = store.IsQueryTargetingHost("cached", 2)
+			require.NoError(t, err)
+			require.False(t, targeted)
+			targeted, err = store.IsQueryTargetingHost("cached", 1000)
+			require.NoError(t, err)
+			require.False(t, targeted, "host beyond the bitfield length")
+
+			// Created after the cache was loaded: a miss must go to Redis, not reject.
+			require.NoError(t, store.RunQuery("fresh", "SELECT 2", []uint{1}))
+			targeted, err = store.IsQueryTargetingHost("fresh", 1)
+			require.NoError(t, err)
+			require.True(t, targeted)
+			targeted, err = store.IsQueryTargetingHost("fresh", 2)
+			require.NoError(t, err)
+			require.False(t, targeted)
+
+			// Known staleness: a completion is not visible until the next reload.
+			require.NoError(t, store.QueryCompletedByHost("cached", 1))
+			targeted, err = store.IsQueryTargetingHost("cached", 1)
+			require.NoError(t, err)
+			require.True(t, targeted, "stale within the cache window")
+			store.cache.mu.Lock()
+			store.cache.cacheExp = time.Time{}
+			store.cache.mu.Unlock()
+			targeted, err = store.IsQueryTargetingHost("cached", 1)
+			require.NoError(t, err)
+			require.False(t, targeted, "after reload")
+		})
+	}
+}
+
+func TestBitSet(t *testing.T) {
+	field := mapBitfield([]uint{0, 1, 9, 15, 16})
+	for id := range uint(24) {
+		want := id == 0 || id == 1 || id == 9 || id == 15 || id == 16
+		require.Equal(t, want, bitSet(field, id), "host %d", id)
+	}
+	require.False(t, bitSet(field, 500))
+	require.False(t, bitSet(nil, 0))
+}
+
+// Many goroutines noticing an expired cache at once must produce one rebuild.
+func TestCacheReloadCoalesced(t *testing.T) {
+	pool := redistest.SetupRedis(t, "*livequery", false, true, true)
+	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Hour, 0)
+	require.NoError(t, store.RunQuery("a", "SELECT 1", []uint{1, 2, 3}))
+
+	const readers = 50
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make(chan error, readers)
+	for range readers {
+		wg.Go(func() {
+			<-start
+			queries, err := store.QueriesForHost(1)
+			if err == nil && len(queries) != 1 {
+				err = fmt.Errorf("unexpected queries: %v", queries)
+			}
+			errs <- err
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	require.EqualValues(t, 1, store.cacheReloads.Load(), "one rebuild for the initial expiry")
+
+	_, err := store.QueriesForHost(2)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, store.cacheReloads.Load(), "fresh cache is not rebuilt")
+
+	store.cache.mu.Lock()
+	store.cache.cacheExp = time.Time{}
+	store.cache.mu.Unlock()
+	_, err = store.IsQueryTargetingHost("a", 1)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, store.cacheReloads.Load(), "next expiry rebuilds once")
+}
+
+// A broadcast campaign whose bitfield is gone can never match a host, so the
+// reload retires it instead of serving it from the cache or the fallback.
+func TestLoadCacheRetiresCampaignWithoutBitfield(t *testing.T) {
+	pool := redistest.SetupRedis(t, "*livequery", false, true, true)
+	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), 0, 0)
+	require.NoError(t, store.RunQuery("a", "SELECT 1", []uint{1}))
+	require.NoError(t, store.RunQuery("b", "SELECT 2", []uint{1}))
+
+	conn := store.pool.Get()
+	defer conn.Close()
+	_, err := conn.Do("DEL", queryKeyPrefix+"{a}")
+	require.NoError(t, err)
+
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"b": "SELECT 2"}, queries)
+
+	targeted, err := store.IsQueryTargetingHost("a", 1)
+	require.NoError(t, err)
+	require.False(t, targeted)
+	targeted, err = store.IsQueryTargetingHost("b", 1)
+	require.NoError(t, err)
+	require.True(t, targeted)
 }
