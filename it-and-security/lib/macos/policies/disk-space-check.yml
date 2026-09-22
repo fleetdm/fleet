@@ -9,6 +9,7 @@
     Keeping sufficient free space ensures reliable performance and prevents data loss.
   resolution: |-
     Free up disk space by removing unnecessary files, emptying the Trash, or uninstalling unused applications.
+    Consider using mole (https://github.com/tw93/mole) to cleanup space by running `brew install mole && mole` on a terminal.
 
     If the issue persists, please reach out in #help-it.
   platform: darwin
