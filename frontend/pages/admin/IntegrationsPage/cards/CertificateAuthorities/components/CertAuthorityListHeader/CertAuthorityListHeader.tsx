@@ -1,6 +1,7 @@
+import React from "react";
+
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import React from "react";
 
 const baseClass = "cert-authority-list-header";
 

@@ -1,7 +1,7 @@
 import React from "react";
 
-import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
 
 const baseClass = "apple-bm-renewal-message";
 

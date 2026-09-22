@@ -149,6 +149,7 @@ type ServerConfig struct {
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
 	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
+	AllowRequestCertificateAnyIdP    bool          `yaml:"allow_request_certificate_any_idp"`
 	EndpointRequestSizeOverrides     EndpointRequestSizeOverrides
 }
 
@@ -249,6 +250,7 @@ type AuthConfig struct {
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
+	UseOneTimeEnrollSecrets     bool          `yaml:"use_one_time_enroll_secrets"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1060,6 +1062,20 @@ type MDMConfig struct {
 	// which walks enabled enrollments in daily laps and re-pushes any silent
 	// for more than a day.
 	AppleAPNsSweepInterval time.Duration `yaml:"apple_apns_sweep_interval"`
+	// AppleCommandCleanupShortRetention is how long completed recurring Apple
+	// MDM commands (refetches, device renames, VPP verifications, DDM tickles)
+	// and inactive queue rows are kept before the hourly cleanup deletes them.
+	// Zero disables the tier; otherwise the floor is one hour.
+	AppleCommandCleanupShortRetention time.Duration `yaml:"apple_command_cleanup_short_retention"`
+	// AppleCommandCleanupStandardRetention is the same window for every other
+	// completed command type on the deletion allowlist.
+	AppleCommandCleanupStandardRetention time.Duration `yaml:"apple_command_cleanup_standard_retention"`
+	// AppleCommandCleanupMaxRowDeletionsPerRun caps queue/result pairs deleted
+	// per cleanup run; zero stops pair deletion.
+	AppleCommandCleanupMaxRowDeletionsPerRun int `yaml:"apple_command_cleanup_max_row_deletions_per_run"`
+	// AppleCommandCleanupMaxCmdDeletionsPerRun caps nano_commands rows deleted
+	// per cleanup run; zero stops command deletion.
+	AppleCommandCleanupMaxCmdDeletionsPerRun int `yaml:"apple_command_cleanup_max_command_deletions_per_run"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -1081,6 +1097,11 @@ type MDMConfig struct {
 	// WindowsWSTEPIdentityKey is the content of the private key used to sign
 	// WSTEP responses.
 	WindowsWSTEPIdentityKeyBytes string `yaml:"windows_wstep_identity_key_bytes"`
+	// WindowsEnrollmentRetention is the minimum time since an orphaned or
+	// superseded Windows MDM enrollment row was last updated before the hourly
+	// cleanup deletes it. It is measured from the row's updated_at, not from
+	// when it became orphaned. Zero or negative disables the cleanup.
+	WindowsEnrollmentRetention time.Duration `yaml:"windows_enrollment_retention"`
 
 	// the following fields hold the parsed, validated TLS certificate set the
 	// first time Microsoft WSTEP is called, as well as the PEM-encoded
@@ -1125,6 +1146,42 @@ func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string
 	if m.AndroidBatchSize < 0 {
 		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
 			"Android MDM configuration")
+	}
+}
+
+// appleCommandCleanupMinRetention is the floor for a non-zero retention window:
+// a mistyped short value must not sweep commands out from under in-flight
+// operations.
+const appleCommandCleanupMinRetention = time.Hour
+
+// ValidateAppleCommandCleanup checks the Apple MDM command cleanup knobs: a
+// retention window is either 0 (tier disabled) or at least one hour, and the
+// per-run deletion caps are non-negative.
+func (m MDMConfig) ValidateAppleCommandCleanup(initFatal func(err error, msg string)) {
+	const msg = "Apple MDM configuration"
+	retentions := []struct {
+		key string
+		val time.Duration
+	}{
+		{"mdm.apple_command_cleanup_short_retention", m.AppleCommandCleanupShortRetention},
+		{"mdm.apple_command_cleanup_standard_retention", m.AppleCommandCleanupStandardRetention},
+	}
+	for _, r := range retentions {
+		if r.val != 0 && r.val < appleCommandCleanupMinRetention {
+			initFatal(fmt.Errorf("%s must be 0 (disabled) or at least %s", r.key, appleCommandCleanupMinRetention), msg)
+		}
+	}
+	caps := []struct {
+		key string
+		val int
+	}{
+		{"mdm.apple_command_cleanup_max_row_deletions_per_run", m.AppleCommandCleanupMaxRowDeletionsPerRun},
+		{"mdm.apple_command_cleanup_max_command_deletions_per_run", m.AppleCommandCleanupMaxCmdDeletionsPerRun},
+	}
+	for _, c := range caps {
+		if c.val < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no deletions)", c.key), msg)
+		}
 	}
 }
 
@@ -1623,6 +1680,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
+	man.addConfigBool("server.allow_request_certificate_any_idp", false,
+		"Disable the request certificate API identity safeguards: accept IdP credentials for any introspection endpoint and do not bind device-authenticated requests to the host's end user")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 	man.addConfigString(EndpointRequestSizeOverridesKey, "", "Per-endpoint max request body size overrides, as a list of {endpoint, max_request_size} objects")
 
@@ -1640,6 +1699,8 @@ func (man Manager) addConfigs() {
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
+	man.addConfigBool("auth.use_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -2021,10 +2082,15 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.apple_apns_push_expiration")
 	man.addConfigDuration("mdm.apple_apns_sweep_interval", 1*time.Minute, "Tick interval of the APNs sweep cron, which re-pushes Apple MDM enrollments that have been silent for more than a day")
 	man.hideConfig("mdm.apple_apns_sweep_interval")
+	man.addConfigDuration("mdm.apple_command_cleanup_short_retention", 24*time.Hour, "How long completed recurring Apple MDM commands (refetches, device renames, VPP verifications, DeclarativeManagement) and inactive queue rows are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigDuration("mdm.apple_command_cleanup_standard_retention", 30*24*time.Hour, "How long other completed Apple MDM commands on the deletion allowlist are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run", 1000, "Maximum Apple MDM command queue entries (one command to one host, with its result) deleted per hourly cleanup run (0 = none)")
+	man.addConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run", 1000, "Maximum unreferenced Apple MDM commands deleted per hourly cleanup run (0 = none)")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "Minimum time since an orphaned or superseded Windows MDM enrollment was last updated before the hourly cleanup deletes it (0 disables the cleanup)")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
@@ -2182,6 +2248,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
 			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
+			AllowRequestCertificateAnyIdP:    man.getConfigBool("server.allow_request_certificate_any_idp"),
 			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
@@ -2190,6 +2257,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			UseOneTimeEnrollSecrets:     man.getConfigBool("auth.use_one_time_enroll_secrets"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2408,6 +2476,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			WindowsEnrollmentRetention:        man.getConfigDuration("mdm.windows_enrollment_retention"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
@@ -2421,6 +2490,11 @@ func (man Manager) LoadConfig() FleetConfig {
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
 			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
+
+			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
+			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),
+			AppleCommandCleanupMaxRowDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run"),
+			AppleCommandCleanupMaxCmdDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

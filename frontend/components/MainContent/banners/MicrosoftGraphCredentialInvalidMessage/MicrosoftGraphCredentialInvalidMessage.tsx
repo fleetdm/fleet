@@ -1,8 +1,8 @@
 import React from "react";
 
-import PATHS from "router/paths";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import PATHS from "router/paths";
 
 const baseClass = "microsoft-graph-credential-invalid-message";
 

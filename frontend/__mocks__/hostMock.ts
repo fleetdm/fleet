@@ -1,15 +1,16 @@
-import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
-import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
-import { normalizeEmptyValues } from "utilities/helpers";
-import { HOST_SUMMARY_DATA } from "utilities/constants";
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
+import { IHostMdmProfile } from "interfaces/mdm";
 import {
   IHostAppStoreApp,
   IHostSoftware,
   IHostSoftwarePackage,
+  ISoftwareInstallVersion,
 } from "interfaces/software";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { HOST_SUMMARY_DATA } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -221,9 +222,38 @@ export const DEFAULT_INSTALLED_VERSION = {
       installed_path: "/Applications/mock.app",
       team_identifier: "12345TEAMIDENT",
       hash_sha256: "mockhashhere",
+      executable_sha256: null,
+      executable_path: null,
     },
   ],
 };
+
+export const HOMEBREW_KEG_PATH = "/opt/homebrew/Cellar/git";
+
+/** A Homebrew formula's keg: one installed path, one signature entry per Mach-O
+ * executable under it, and no cdhash. The hashes differ in their first seven
+ * characters so truncated renderings stay distinguishable. */
+export const createMockHomebrewInstalledVersion = (
+  overrides?: Partial<ISoftwareInstallVersion>
+): ISoftwareInstallVersion => ({
+  version: "2.46.0",
+  vulnerabilities: null,
+  installed_paths: [HOMEBREW_KEG_PATH],
+  bundle_identifier: "",
+  signature_information: [
+    ["git", "aaaaaaa"],
+    ["git-cvsserver", "bbbbbbb"],
+    ["git-upload-pack", "ccccccc"],
+  ].map(([name, prefix]) => ({
+    installed_path: HOMEBREW_KEG_PATH,
+    team_identifier: "",
+    hash_sha256: null,
+    executable_sha256: prefix.padEnd(64, "0"),
+    executable_path: `${HOMEBREW_KEG_PATH}/2.46.0/bin/${name}`,
+  })),
+  ...overrides,
+});
+
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",

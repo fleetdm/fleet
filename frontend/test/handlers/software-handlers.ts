@@ -1,7 +1,8 @@
 import { http, HttpResponse } from "msw";
-import { baseUrl } from "test/test-utils";
-import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
+
 import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
+import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
+import { baseUrl } from "test/test-utils";
 
 // ---- Software Install Handlers ----
 

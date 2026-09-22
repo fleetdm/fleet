@@ -5,14 +5,10 @@
 
   &__preview {
     display: flex;
-    padding: 40px;
     flex-direction: column;
     align-items: flex-start;
     gap: 24px;
     align-self: stretch;
-    border-radius: 16px;
-    border: 1px solid $ui-fleet-black-10;
-    background: $core-fleet-white;
   }
 
   &__preview-header {

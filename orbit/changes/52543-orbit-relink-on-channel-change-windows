@@ -1,0 +1,1 @@
+- Fixed orbit on Windows not switching back to a previously downloaded version when the `orbit` update channel is changed back to it (e.g. `stable` -> `1.52.1` -> `stable`). The symlink is now updated even when the binary for the channel is already cached locally.

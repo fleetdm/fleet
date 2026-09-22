@@ -1,9 +1,35 @@
 // Used in AddPackageModal.tsx and EditSoftwareModal.tsx
-import React, { useState, useEffect, useCallback, useContext } from "react";
-import classnames from "classnames";
 
+import classnames from "classnames";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
+import InfoBanner from "components/InfoBanner";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import { isScriptOnlyPackageType } from "interfaces/package_type";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  SoftwareCategory,
+} from "interfaces/software";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
+import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
+import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
+import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import {
   formatFileSize,
@@ -12,41 +38,15 @@ import {
 } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
-import { ILabelSummary } from "interfaces/label";
-
-import {
-  IAppStoreApp,
-  ISoftwarePackage,
-  SoftwareCategory,
-} from "interfaces/software";
-import { isScriptOnlyPackageType } from "interfaces/package_type";
-
-import { notify } from "components/ToastNotification";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import FileUploader from "components/FileUploader";
-import {
-  CUSTOM_TARGET_OPTIONS,
-  generateHelpText,
-  generateSelectedLabels,
-  getCustomTarget,
-  getTargetType,
-} from "pages/SoftwarePage/helpers";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import { GitOpsCustomPackageBanner } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/SoftwareCustomPackage";
-import { ADD_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareAddPage/helpers";
-import { EDIT_SOFTWARE_ERROR_PREFIX } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/helpers";
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
+
 import {
   createTooltipContent,
   estimateUploadSize,
   generateFormValidation,
 } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 export const baseClass = "package-form";
 
@@ -519,7 +519,6 @@ const PackageForm = ({
           icon="info-outline"
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
-          borderRadius="medium"
         >
           If multiple packages of the same software target the same host, Fleet
           will install the one that was added first.
