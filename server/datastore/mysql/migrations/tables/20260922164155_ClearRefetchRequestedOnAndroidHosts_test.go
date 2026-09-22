@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260921171134(t *testing.T) {
+func TestUp_20260922164155(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertHost := func(name, platform string, refetchRequested bool) {
