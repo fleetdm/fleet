@@ -168,15 +168,13 @@ SELECT
 FROM
 	patch_notifications pn
 	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
--- a notification with no deadline was never displayed, so nothing is due for it yet
 WHERE
 	pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
-	-- failed and expired notifications will never be patched
 	AND (
 		-- still being delivered
 		neu.status IN (?, ?)
-		-- or acted on and left with an app whose install never queued
+		-- status is acted (user clicked update now) and left with an app whose install never queued
 		OR (
 			neu.status = ?
 			AND EXISTS (
@@ -186,9 +184,9 @@ WHERE
 			)
 		)
 	)
-	-- the reminder needs a displayed first notice and the install needs a displayed reminder, so a
-	-- null displayed_at rules out both
-	AND neu.displayed_at IS NOT NULL
+	-- notification already displayed, or was a dispatched 5 minute reminder that didn't get displayed 
+	-- which we need to check if we want to reset the notification back to 1 hour left
+	AND (neu.displayed_at IS NOT NULL OR (neu.status = ? AND neu.payload->>'$.reminder' = 'true'))
 ORDER BY pn.install_at
 LIMIT ?
 `
@@ -197,7 +195,7 @@ LIMIT ?
 	// reads the primary because the display that sets the deadline can be seconds old
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
 		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
-		notifications_api.EndUserNotificationActed, limit,
+		notifications_api.EndUserNotificationActed, notifications_api.EndUserNotificationDispatched, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
 	}

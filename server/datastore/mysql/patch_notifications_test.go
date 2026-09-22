@@ -428,6 +428,15 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		})
 	}
 
+	setReminderPayload := func(notificationUUID string) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE notifications_end_user SET payload = '{"reminder":true}' WHERE uuid = ?`, notificationUUID)
+			return err
+		})
+	}
+
 	host := test.NewHost(t, ds, "due-host", "", "due-key", "due-uuid", now)
 
 	// A deadline 6 minutes out is outside the reminder window, one exactly 5 minutes out sits on its
@@ -457,12 +466,23 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatched reminder has a null displayed_at until it is displayed, so it stays out of the
-	// batch either side of install_at
+	// a first notice has nothing to count down until it is displayed, so it stays out of the batch
+	// either side of install_at
 	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(notDisplayed, now.Add(-time.Minute))
 	reminderQueued := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(reminderQueued, now.Add(time.Minute))
+
+	// a reminder the host never ran comes back undisplayed, so the caller can put it back to the
+	// first notice
+	reminderNeverRan := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(reminderNeverRan, now.Add(-2*time.Minute))
+	setReminderPayload(reminderNeverRan)
+
+	// a pending reminder has no script queued for the host to have missed
+	reminderPending := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
+	setInstallAt(reminderPending, now.Add(-2*time.Minute))
+	setReminderPayload(reminderPending)
 
 	// an app left unhandled on an acted notification is what a pass stopping between acting and
 	// queueing leaves behind, so this notification comes back to be finished
@@ -490,11 +510,12 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	for _, notification := range due {
 		byUUID[notification.NotificationUUID] = notification
 	}
-	require.Len(t, byUUID, 3)
+	require.Len(t, byUUID, 4)
 	require.NotContains(t, byUUID, tooEarly)
 	require.NotContains(t, byUUID, noDeadline)
 	require.NotContains(t, byUUID, reminderQueued)
 	require.NotContains(t, byUUID, notDisplayed)
+	require.NotContains(t, byUUID, reminderPending)
 	require.NotContains(t, byUUID, actedHandled)
 	require.Contains(t, byUUID, actedUnhandled)
 	for _, notificationUUID := range terminal {
@@ -509,8 +530,11 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	require.Contains(t, byUUID, pastDeadline)
 	require.NotNil(t, byUUID[pastDeadline].DisplayedAt)
 
+	require.Contains(t, byUUID, reminderNeverRan)
+	require.Nil(t, byUUID[reminderNeverRan].DisplayedAt)
+
 	// the batch is ordered by deadline, so the oldest deadline is handled first
-	require.Len(t, due, 3)
+	require.Len(t, due, 4)
 	require.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 
 	// the limit caps the batch

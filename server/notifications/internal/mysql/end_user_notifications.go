@@ -373,6 +373,20 @@ WHERE uuid = ?
 	return nil
 }
 
+func (ds *Datastore) SetEndUserNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET payload = ?
+WHERE uuid = ? AND status = ? AND displayed_at IS NULL
+`
+
+	_, err := ds.primary.ExecContext(ctx, updateStmt, payload, notificationUUID, api.EndUserNotificationDispatched)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification payload")
+	}
+	return nil
+}
+
 // The status check is in the statement rather than a read beforehand, so two
 // actions at once can't both get true.
 func (ds *Datastore) ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error) {

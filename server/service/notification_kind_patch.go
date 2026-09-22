@@ -57,6 +57,7 @@ type patchNotificationService interface {
 	notifications_api.DelayNotificationService
 	notifications_api.ActOnNotificationService
 	notifications_api.SetNotificationStatusService
+	notifications_api.SetNotificationPayloadService
 }
 
 type patchNotificationKind struct {
@@ -378,15 +379,20 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
 	now time.Time,
 ) error {
+	notificationIsReminder, err := patchNotificationIsReminder(duePatch.Payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
+
+	// Put a reminder the host never ran back to the first notice, so the end user gets the full hour again.
+	if duePatch.DisplayedAt == nil && notificationIsReminder && now.After(duePatch.InstallAt) {
+		return k.notificationSvc.SetNotificationPayload(ctx, duePatch.NotificationUUID, patchNotificationFirstNoticePayload)
+	}
+
 	// A re-dispatch clears displayed_at, so a null one means the reminder has been queued but not
 	// displayed yet.
 	if duePatch.DisplayedAt == nil {
 		return nil
-	}
-
-	notificationIsReminder, err := patchNotificationIsReminder(duePatch.Payload)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
 
 	// Which notice was displayed last decides what happens next.

@@ -36,6 +36,7 @@ type stubNotificationService struct {
 	failedReason string
 	delayInvoked bool
 	delayPayload json.RawMessage
+	setPayload   json.RawMessage
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
@@ -48,6 +49,11 @@ func (s *stubNotificationService) SetNotificationStatus(_ context.Context, _ str
 	if reason != nil {
 		s.failedReason = *reason
 	}
+	return nil
+}
+
+func (s *stubNotificationService) SetNotificationPayload(_ context.Context, _ string, payload json.RawMessage) error {
+	s.setPayload = payload
 	return nil
 }
 
@@ -839,7 +845,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		statusActed bool
 
 		wantReminder bool
-		wantInstalls []uint
+		// the notification is put back to the first notice
+		wantFirstNoticeAgain bool
+		wantInstalls         []uint
 		// the pass tried to take the notification, whether or not it got it
 		wantActed       bool
 		wantAppsDropped []uint
@@ -963,11 +971,23 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantActed:         true,
 		},
 		{
-			// an offline host and a reminder still on its way both leave displayed_at null, and
-			// neither has been seen, so the pass waits for the reminder to reach the screen
-			name:              "a notification past install_at with no displayed_at does nothing",
-			untilDeadline:     -time.Minute,
+			// the reminder sat in the host's queue unseen, so its five minutes never happened
+			name:                 "a reminder whose deadline passed with nothing displayed goes back to the first notice",
+			untilDeadline:        -time.Minute,
+			reminder:             true,
+			installedVersions:    behind,
+			wantFirstNoticeAgain: true,
+		},
+		{
+			// the reminder is on its way and still has time to reach the screen
+			name:              "a reminder not displayed yet with its deadline ahead is left alone",
+			untilDeadline:     time.Minute,
 			reminder:          true,
+			installedVersions: behind,
+		},
+		{
+			name:              "a first notice not displayed yet is left alone past install_at",
+			untilDeadline:     -time.Minute,
 			installedVersions: behind,
 		},
 	}
@@ -1105,6 +1125,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			require.ElementsMatch(t, c.wantInstalls, installs)
 			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
 			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
+
+			if c.wantFirstNoticeAgain {
+				require.JSONEq(t, string(patchNotificationFirstNoticePayload), string(notificationSvc.setPayload))
+			} else {
+				require.Nil(t, notificationSvc.setPayload)
+			}
 
 			if !c.wantReminder {
 				require.False(t, notificationSvc.delayInvoked)
