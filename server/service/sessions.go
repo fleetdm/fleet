@@ -951,5 +951,5 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 		return fleet.NewAuthRequiredError("expired session")
 	}
 
-	return svc.ds.MarkSessionAccessed(ctx, session)
+	return nil
 }
