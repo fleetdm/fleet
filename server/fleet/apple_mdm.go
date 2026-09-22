@@ -248,6 +248,9 @@ type MDMAppleConfigProfile struct {
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
+
+	SelfService bool `db:"self_service" json:"self_service"`
+	Hidden      bool `db:"hidden" json:"hidden"`
 }
 
 // MDMProfilesUpdates flags updates that were done during batch processing of profiles.
@@ -520,9 +523,12 @@ type AppleProfileForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (p *AppleProfileForReconcile) GetTeamID() uint                          { return p.TeamID }
-func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode  { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetTeamID() uint { return p.TeamID }
+
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode { return p.IncludeMode }
+
 func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
+
 func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
 
 // HasBrokenLabel reports whether any include or exclude label on the
@@ -573,8 +579,10 @@ type AppleDeclarationForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (d *AppleDeclarationForReconcile) GetTeamID() uint                         { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetTeamID() uint { return d.TeamID }
+
 func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
+
 func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
 	return d.IncludeLabels
 }
@@ -1063,7 +1071,8 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	if len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen {
 		return NewInvalidArgumentError("Identifier", fmt.Sprintf(
-			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen,
+		))
 	}
 
 	return err
@@ -1147,7 +1156,8 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 		invalid.Append("Identifier", "The custom activation must include an Identifier.")
 	case len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen:
 		invalid.Append("Identifier", fmt.Sprintf(
-			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen,
+		))
 	}
 
 	switch configs := r.Payload.StandardConfigurations; {
@@ -1158,7 +1168,8 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 	case configs[0] != configurationIdentifier:
 		invalid.Append("StandardConfigurations", fmt.Sprintf(
 			"The custom activation must reference the identifier of the configuration profile used to upload it. Expected %q, got %q.",
-			configurationIdentifier, configs[0]))
+			configurationIdentifier, configs[0],
+		))
 	}
 
 	if invalid.HasErrors() {
