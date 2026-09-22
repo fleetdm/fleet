@@ -54,7 +54,7 @@ func EnsureEnrollSecretKey() error {
 }
 
 func ensureEnrollSecretKey(root registry.Key, path string) error {
-	key, _, err := registry.CreateKey(root, path, registry.SET_VALUE)
+	key, openedExisting, err := registry.CreateKey(root, path, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
 	}
@@ -82,6 +82,17 @@ func ensureEnrollSecretKey(root registry.Key, path string) error {
 		nil, nil, dacl, nil,
 	); err != nil {
 		return fmt.Errorf("set permissions on %s: %w", objectName, err)
+	}
+
+	// Creating the key and securing it are two operations, so a key we just created was briefly
+	// readable through whatever it inherited. A value present now can only have been written in that
+	// window, which means it was exposed: discard it so Fleet delivers a fresh secret into the key now
+	// that it is protected. A key that already existed is left alone, because its value may be a
+	// legitimately delivered secret and there is no way to tell from here.
+	if !openedExisting {
+		if err := clearEnrollSecret(root, path); err != nil {
+			return fmt.Errorf("discard a secret delivered before %s was protected: %w", path, err)
+		}
 	}
 	return nil
 }
@@ -146,24 +157,32 @@ func getEnrollSecret(root registry.Key, path string) (string, error) {
 // A single notification is all Windows guarantees per registration, so callers must re-arm by
 // calling this again. It returns nil when something changed and when ctx is done, because both mean
 // "go look again"; only a failure to register is an error.
-func WaitForEnrollSecretChange(ctx context.Context) error {
-	return waitForEnrollSecretChange(ctx, registry.LOCAL_MACHINE, enrollSecretKeyPath)
+func ArmEnrollSecretWatch() (*EnrollSecretWatch, error) {
+	return armEnrollSecretWatch(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-func waitForEnrollSecretChange(ctx context.Context, root registry.Key, path string) error {
+// EnrollSecretWatch is an armed, one-shot registration for changes to the key that carries the
+// enroll secret. Arming is separate from waiting on purpose: a caller must arm, *then* read, then
+// wait. Reading first leaves a gap in which a write is seen by neither the read nor the not-yet-armed
+// registration, and the change would not be noticed until something else woke the caller.
+type EnrollSecretWatch struct {
+	key   registry.Key
+	event windows.Handle
+	path  string
+}
+
+func armEnrollSecretWatch(root registry.Key, path string) (*EnrollSecretWatch, error) {
 	key, err := registry.OpenKey(root, path, registry.NOTIFY)
 	if err != nil {
-		// The key is created by the installer, so its absence is not something waiting will fix.
-		return fmt.Errorf("open %s to watch: %w", path, err)
+		return nil, fmt.Errorf("open %s to watch: %w", path, err)
 	}
-	defer key.Close()
 
-	// Manual-reset, initially unsignalled: the wait below is the only consumer.
+	// Manual-reset, initially unsignalled: Wait is the only consumer.
 	event, err := windows.CreateEvent(nil, 1, 0, nil)
 	if err != nil {
-		return fmt.Errorf("create registry change event: %w", err)
+		key.Close()
+		return nil, fmt.Errorf("create registry change event: %w", err)
 	}
-	defer windows.CloseHandle(event) //nolint:errcheck // nothing actionable on close failure
 
 	if err := windows.RegNotifyChangeKeyValue(
 		windows.Handle(key),
@@ -172,25 +191,48 @@ func waitForEnrollSecretChange(ctx context.Context, root registry.Key, path stri
 		event,
 		true, // asynchronous: signal the event rather than blocking this call
 	); err != nil {
-		return fmt.Errorf("watch %s for changes: %w", path, err)
+		windows.CloseHandle(event) //nolint:errcheck // nothing actionable on close failure
+		key.Close()
+		return nil, fmt.Errorf("watch %s for changes: %w", path, err)
 	}
+	return &EnrollSecretWatch{key: key, event: event, path: path}, nil
+}
 
+// Wait blocks until the watched key changes or ctx is done, whichever comes first. Both mean "go look
+// again", so only a failed wait is an error. The registration is spent afterwards either way, so a
+// caller that wants to keep watching must Close this one and arm another.
+func (w *EnrollSecretWatch) Wait(ctx context.Context) error {
 	// Cancelling the context has to wake the wait, so signal the same event when ctx is done. The
-	// watcher goroutine is stopped on return so it cannot outlive this call.
+	// goroutine is joined before returning, because Close releases the event handle and signalling a
+	// released handle could reach whatever Windows recycled it for.
 	stop := make(chan struct{})
-	defer close(stop)
+	joined := make(chan struct{})
 	go func() {
+		defer close(joined)
 		select {
 		case <-ctx.Done():
-			_ = windows.SetEvent(event)
+			_ = windows.SetEvent(w.event)
 		case <-stop:
 		}
 	}()
+	defer func() {
+		close(stop)
+		<-joined
+	}()
 
-	if _, err := windows.WaitForSingleObject(event, windows.INFINITE); err != nil {
-		return fmt.Errorf("wait for %s to change: %w", path, err)
+	if _, err := windows.WaitForSingleObject(w.event, windows.INFINITE); err != nil {
+		return fmt.Errorf("wait for %s to change: %w", w.path, err)
 	}
 	return nil
+}
+
+// Close releases the registration. It is safe to call after Wait and must be called exactly once.
+func (w *EnrollSecretWatch) Close() error {
+	err := windows.CloseHandle(w.event)
+	if closeErr := w.key.Close(); err == nil {
+		err = closeErr
+	}
+	return err
 }
 
 func clearEnrollSecret(root registry.Key, path string) error {

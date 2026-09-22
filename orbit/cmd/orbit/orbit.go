@@ -413,23 +413,46 @@ func waitForMDMDeliveredEnrollSecret(disableKeystore bool, setSecret func(string
 	log.Info().Msg("no enroll secret yet, waiting for Fleet MDM to deliver one")
 
 	for started := time.Now(); ; {
+		// Arm the watch before reading. Reading first leaves a gap in which a delivery is seen by
+		// neither the read nor the not-yet-armed registration, which would strand an already delivered
+		// secret until the backstop expired.
+		watch, watchErr := profiles.ArmEnrollSecretWatch()
+		if watchErr != nil {
+			log.Error().Err(watchErr).Msg("failed to watch for an MDM-delivered enroll secret")
+		}
+
 		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setSecret)
 		switch {
 		case err != nil:
 			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
 		case adopted:
+			if watch != nil {
+				watch.Close() //nolint:errcheck // nothing actionable, and the secret is already adopted
+			}
 			log.Info().Dur("waited", time.Since(started)).Msg("adopted an enroll secret delivered by Fleet MDM")
 			return
 		}
 
-		// Arm the watch before the next read so a value written while we were reading is not missed.
-		ctx, cancel := context.WithTimeout(context.Background(), mdmSecretWaitBackstop)
-		waitErr := profiles.WaitForEnrollSecretChange(ctx)
-		cancel()
-		if waitErr != nil {
+		// Unenrolling removes the channel this wait depends on, so stop rather than block on a delivery
+		// that can no longer happen. orbit then fails startup the way it does without a secret.
+		if !update.HasActiveFleetMDMEnrollment() {
+			if watch != nil {
+				watch.Close() //nolint:errcheck // nothing actionable while giving up on the wait
+			}
+			log.Warn().Msg("host is no longer enrolled in Fleet MDM, so no enroll secret can be delivered")
+			return
+		}
+
+		if watch == nil {
 			// Registration failed, so fall back to sleeping rather than spinning on a broken watch.
-			log.Error().Err(waitErr).Msg("failed to watch for an MDM-delivered enroll secret")
 			time.Sleep(mdmSecretWaitBackstop)
+		} else {
+			ctx, cancel := context.WithTimeout(context.Background(), mdmSecretWaitBackstop)
+			if err := watch.Wait(ctx); err != nil {
+				log.Error().Err(err).Msg("failed waiting for an MDM-delivered enroll secret")
+			}
+			cancel()
+			watch.Close() //nolint:errcheck // the registration is spent; a fresh one is armed next pass
 		}
 
 		if waited := time.Since(started); waited > mdmSecretSlowDelivery {
@@ -449,7 +472,20 @@ const mdmSecretSlowDelivery = 10 * time.Minute
 // registry value is cleared once the secret is in the keystore, so its presence means a secret is
 // waiting and its absence means orbit already took it.
 func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) (bool, error) {
-	secret, err := profiles.GetEnrollSecret()
+	return adoptDeliveredEnrollSecret(profiles.GetEnrollSecret, profiles.ClearEnrollSecret, ks, disableKeystore, setSecret)
+}
+
+// adoptDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without
+// reading or clearing the host's real enroll secret, which on Windows lives in HKLM and would make the
+// result depend on the state of whatever machine the test happens to run on.
+func adoptDeliveredEnrollSecret(
+	readDelivered func() (string, error),
+	clearDelivered func() error,
+	ks enrollSecretKeystore,
+	disableKeystore bool,
+	setSecret func(string) error,
+) (bool, error) {
+	secret, err := readDelivered()
 	switch {
 	case errors.Is(err, profiles.ErrEnrollSecretNotFound), errors.Is(err, profiles.ErrNotImplemented):
 		return false, nil
@@ -459,7 +495,7 @@ func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool
 
 	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
 	if err := adoptEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
-		if err := profiles.ClearEnrollSecret(); err != nil {
+		if err := clearDelivered(); err != nil {
 			// Not fatal: the secret is already in the keystore, so orbit can enroll. The value
 			// lingering only means it will be adopted again, harmlessly, on the next start.
 			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
@@ -569,19 +605,28 @@ func orbitAction(c *cli.Context) error {
 	// one is waiting Fleet MDM put it there for this device, so there is no case where reading it is
 	// the wrong thing to do.
 	adoptedMDMSecret := false
+	// Cleared when the registry key cannot be secured, so the wait below does not invite a secret into it.
+	mdmSecretChannelUsable := true
 	if runtime.GOOS == "windows" {
 		// Create the key before reading it, so a secret delivered later lands somewhere only SYSTEM and
 		// Administrators can read rather than in a key created implicitly with inherited permissions.
+		//
+		// Fail closed. If the key cannot be secured, do not use the registry channel at all: reading or
+		// waiting on it would invite Fleet to deliver a plaintext secret into a key a local non-admin
+		// can read. orbit falls through to the file and keystore instead, which is the same position a
+		// host is in before any secret has been delivered.
 		if err := profiles.EnsureEnrollSecretKey(); err != nil {
-			log.Error().Err(err).Msg("failed to prepare the registry key for an MDM-delivered enroll secret")
+			log.Error().Err(err).Msg(
+				"not using the registry channel for an MDM-delivered enroll secret: its key could not be secured")
+			mdmSecretChannelUsable = false
+		} else {
+			adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setEnrollSecret)
+			if err != nil {
+				// Not fatal: fall through to the file and keystore, which may still hold a usable secret.
+				log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
+			}
+			adoptedMDMSecret = adopted
 		}
-
-		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setEnrollSecret)
-		if err != nil {
-			// Not fatal: fall through to the file and keystore, which may still hold a usable secret.
-			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
-		}
-		adoptedMDMSecret = adopted
 	}
 
 	// Skipped entirely when a secret was just adopted from MDM: the MSI always sets
@@ -611,7 +656,7 @@ func orbitAction(c *cli.Context) error {
 	// is whether a secret can still arrive, and only the host knows that. Without an enrollment there
 	// is no channel to wait on, so orbit keeps today's behavior and fails fast with a clear error
 	// rather than blocking forever.
-	if runtime.GOOS == "windows" && c.String("enroll-secret") == "" && update.HasActiveFleetMDMEnrollment() {
+	if runtime.GOOS == "windows" && mdmSecretChannelUsable && c.String("enroll-secret") == "" && update.HasActiveFleetMDMEnrollment() {
 		waitForMDMDeliveredEnrollSecret(disableKeystore, setEnrollSecret)
 	}
 
