@@ -1046,6 +1046,130 @@ func TestAndroidBatchSizeValidate(t *testing.T) {
 	})
 }
 
+func TestAppleCommandCleanupValidate(t *testing.T) {
+	t.Parallel()
+
+	valid := MDMConfig{
+		AppleCommandCleanupShortRetention:        24 * time.Hour,
+		AppleCommandCleanupStandardRetention:     720 * time.Hour,
+		AppleCommandCleanupMaxRowDeletionsPerRun: 1000,
+		AppleCommandCleanupMaxCmdDeletionsPerRun: 1000,
+	}
+
+	cases := []struct {
+		desc    string
+		mutate  func(*MDMConfig)
+		wantErr string
+	}{
+		{"defaults", func(*MDMConfig) {}, ""},
+		{"zero short retention disables tier", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = 0 }, ""},
+		{"zero standard retention disables tier", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 0 }, ""},
+		{"exactly one hour is the floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Hour }, ""},
+		{"zero caps stop deletions", func(c *MDMConfig) {
+			c.AppleCommandCleanupMaxRowDeletionsPerRun = 0
+			c.AppleCommandCleanupMaxCmdDeletionsPerRun = 0
+		}, ""},
+		{"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
+		{"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
+			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s"},
+		{"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
+		{"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)"},
+		{"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)"},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			cfg := valid
+			c.mutate(&cfg)
+			var got []string
+			cfg.ValidateAppleCommandCleanup(func(err error, msg string) {
+				require.Equal(t, "Apple MDM configuration", msg)
+				got = append(got, err.Error())
+			})
+			if c.wantErr == "" {
+				require.Empty(t, got)
+				return
+			}
+			require.Equal(t, []string{c.wantErr}, got)
+		})
+	}
+}
+
+// loadConfigWithOverrides parses the config the way the server does at
+// startup: yaml first, then environment variables on top. The process
+// environment is cleared for the duration of the test so only envVars apply.
+func loadConfigWithOverrides(t *testing.T, yaml string, envVars []string) FleetConfig {
+	var cmd cobra.Command
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+	man := NewManager(&cmd)
+
+	man.viper.SetConfigType("yaml")
+	require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	for _, env := range envVars {
+		kv := strings.SplitN(env, "=", 2)
+		t.Setenv(kv[0], kv[1])
+	}
+
+	return man.LoadConfig()
+}
+
+func TestAppleCommandCleanupConfig(t *testing.T) {
+	type knobs struct {
+		short, standard time.Duration
+		rows, cmds      int
+	}
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    knobs
+	}{
+		{
+			desc: "defaults",
+			want: knobs{short: 24 * time.Hour, standard: 720 * time.Hour, rows: 1000, cmds: 1000},
+		},
+		{
+			desc: "yaml overrides",
+			yaml: `
+mdm:
+  apple_command_cleanup_short_retention: 48h
+  apple_command_cleanup_standard_retention: 2160h
+  apple_command_cleanup_max_row_deletions_per_run: 5000
+  apple_command_cleanup_max_command_deletions_per_run: 50`,
+			want: knobs{short: 48 * time.Hour, standard: 2160 * time.Hour, rows: 5000, cmds: 50},
+		},
+		{
+			desc: "env overrides",
+			envVars: []string{
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION=1h",
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION=0",
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN=0",
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN=10",
+			},
+			want: knobs{short: time.Hour, standard: 0, rows: 0, cmds: 10},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			mdm := loadConfigWithOverrides(t, c.yaml, c.envVars).MDM
+			got := knobs{
+				short:    mdm.AppleCommandCleanupShortRetention,
+				standard: mdm.AppleCommandCleanupStandardRetention,
+				rows:     mdm.AppleCommandCleanupMaxRowDeletionsPerRun,
+				cmds:     mdm.AppleCommandCleanupMaxCmdDeletionsPerRun,
+			}
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
 func TestGoogleWorkspaceConfig(t *testing.T) {
 	cases := []struct {
 		desc    string
@@ -1096,21 +1220,7 @@ google_workspace:
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			var cmd cobra.Command
-			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			man := NewManager(&cmd)
-
-			man.viper.SetConfigType("yaml")
-			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
-
-			testutils.SaveEnv(t)
-			os.Clearenv()
-			for _, env := range c.envVars {
-				kv := strings.SplitN(env, "=", 2)
-				t.Setenv(kv[0], kv[1])
-			}
-
-			require.Equal(t, c.want, man.LoadConfig().GoogleWorkspace)
+			require.Equal(t, c.want, loadConfigWithOverrides(t, c.yaml, c.envVars).GoogleWorkspace)
 		})
 	}
 }
