@@ -38,8 +38,8 @@ CVE-2026-87491 is the seventh Chrome zero-day patched this year. Whatever number
 - **Explore the software catalog** Fleet already builds from every host: [fleetdm.com/software-catalog](https://fleetdm.com/software-catalog)
 
 <meta name="articleTitle" value="Google shipped a fix for Chrome's seventh 2026 zero-day. Most fleets can't say which hosts got it.">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-09-10">
 <meta name="description" value="CVE-2026-87491 is Chrome's seventh 2026 zero-day. See how to confirm the fix reached every host instead of trusting auto-update.">
