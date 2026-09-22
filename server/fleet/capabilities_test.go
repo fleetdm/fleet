@@ -84,3 +84,20 @@ func TestCapabilityConcurrentWrites(t *testing.T) {
 
 	require.ElementsMatch(t, []string{"test", "foo", "bar"}, strings.Split(c.String(), ","))
 }
+
+func TestOrbitClientCapabilitiesBitLockerPIN(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		goos string
+		want bool
+	}{
+		{goos: "windows", want: true},
+		{goos: "darwin"},
+		{goos: "linux"},
+	} {
+		t.Run(tc.goos, func(t *testing.T) {
+			require.Equal(t, tc.want, orbitClientCapabilitiesForOS(tc.goos).Has(CapabilityWindowsBitLockerPIN))
+		})
+	}
+}

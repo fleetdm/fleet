@@ -2,28 +2,24 @@
 
 import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 import { Row } from "react-table";
 
-import PATHS from "router/paths";
-
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-
 import CustomLink from "components/CustomLink";
-import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import { IOSVersionsResponse } from "services/entities/operating_systems";
-
-import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
-import { getPathWithQueryParams } from "utilities/url";
-import { getNextLocationPath } from "utilities/helpers";
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import { SelectedPlatform } from "interfaces/platform";
+import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import PATHS from "router/paths";
+import { IOSVersionsResponse } from "services/entities/operating_systems";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-os-table";
 

@@ -1,8 +1,9 @@
-import { userTeamStub } from "test/stubs";
 import createMockUser from "__mocks__/userMock";
 import { IUserUpdateFormData } from "interfaces/user";
+import { userTeamStub } from "test/stubs";
 
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
+
 import userManagementHelpers from "./userManagementHelpers";
 
 describe("userManagementHelpers module", () => {

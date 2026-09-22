@@ -108,9 +108,13 @@ type MDMAndroidCommand struct {
 type MDMAndroidCommandType string
 
 const (
-	MDMAndroidCommandTypeLock          MDMAndroidCommandType = "LOCK"
-	MDMAndroidCommandTypeResetPassword MDMAndroidCommandType = "RESET_PASSWORD"
-	MDMAndroidCommandTypeWipe          MDMAndroidCommandType = "WIPE"
+	MDMAndroidCommandTypeLock                MDMAndroidCommandType = "LOCK"
+	MDMAndroidCommandTypeResetPassword       MDMAndroidCommandType = "RESET_PASSWORD"
+	MDMAndroidCommandTypeWipe                MDMAndroidCommandType = "WIPE"
+	MDMAndroidCommandTypeReboot              MDMAndroidCommandType = "REBOOT"
+	MDMAndroidCommandTypeRelinquishOwnership MDMAndroidCommandType = "RELINQUISH_OWNERSHIP"
+	MDMAndroidCommandTypeStartLostMode       MDMAndroidCommandType = "START_LOST_MODE"
+	MDMAndroidCommandTypeStopLostMode        MDMAndroidCommandType = "STOP_LOST_MODE"
 )
 
 // AndroidMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
@@ -124,11 +128,11 @@ type MDMAndroidCommandStatus string
 const (
 	// MDMAndroidCommandStatusPending — Fleet has called IssueCommand and AMAPI accepted, but the Pub/Sub COMMAND
 	// notification with the device-side result has not yet arrived.
-	MDMAndroidCommandStatusPending MDMAndroidCommandStatus = "pending"
+	MDMAndroidCommandStatusPending MDMAndroidCommandStatus = "Pending"
 	// MDMAndroidCommandStatusAcknowledged — Pub/Sub COMMAND notification arrived and the device successfully executed the
 	// command (no AMAPI error_code). server/fleet imports this constant in HostLockWipeStatus.IsLocked/IsWiped.
-	MDMAndroidCommandStatusAcknowledged MDMAndroidCommandStatus = "acknowledged"
+	MDMAndroidCommandStatusAcknowledged MDMAndroidCommandStatus = "Acknowledged"
 	// MDMAndroidCommandStatusError — Pub/Sub COMMAND notification arrived with a non-empty AMAPI error_code (e.g.
 	// UNSUPPORTED, API_LEVEL, INVALID_VALUE).
-	MDMAndroidCommandStatusError MDMAndroidCommandStatus = "error"
+	MDMAndroidCommandStatusError MDMAndroidCommandStatus = "Error"
 )

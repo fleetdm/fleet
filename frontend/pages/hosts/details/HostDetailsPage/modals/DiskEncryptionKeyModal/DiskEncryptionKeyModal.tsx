@@ -1,17 +1,16 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import Modal from "components/Modal";
 import { getErrorReason } from "interfaces/errors";
 import { IHostEncrpytionKeyResponse } from "interfaces/host";
-import hostAPI from "services/entities/hosts";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-import DataError from "components/DataError";
-import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { HostPlatform } from "interfaces/platform";
+import hostAPI from "services/entities/hosts";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "disk-encryption-key-modal";
 

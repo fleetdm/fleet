@@ -4,36 +4,34 @@
 */
 
 import React from "react";
-import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
+import { CellProps, Column } from "react-table";
 
-import { getPathWithQueryParams } from "utilities/url";
-import PATHS from "router/paths";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
-import {
-  ISoftwareVulnerability,
-  ROLLING_ARCH_LINUX_NAMES,
-} from "interfaces/software";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
-
-import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import {
   IHeaderProps,
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 import { isVulnUnsupportedPlatform } from "interfaces/platform";
-import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
+import {
+  ISoftwareVulnerability,
+  ROLLING_ARCH_LINUX_NAMES,
+} from "interfaces/software";
+import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 

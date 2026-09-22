@@ -1,6 +1,6 @@
+import { ICommand, ICommandResult } from "interfaces/command";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { ICommand, ICommandResult } from "interfaces/command";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { PaginationParams } from "./common";
@@ -23,7 +23,9 @@ export interface IGetCommandsResponse {
 }
 
 export interface IGetCommandResultsResponse {
-  results: ICommandResult[];
+  /** Omitted by the API (`json:"results,omitempty"`) when there is nothing to
+   * return, so the response body is `{}` rather than an empty array. */
+  results?: ICommandResult[];
 }
 
 export interface IGetCommandResultsParams {

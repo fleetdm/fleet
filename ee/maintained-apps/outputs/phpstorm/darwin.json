@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2",
+      "version": "2026.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.PhpStorm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.PhpStorm' AND version_compare(bundle_short_version, '2026.2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.PhpStorm' AND version_compare(bundle_short_version, '2026.2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.PhpStorm' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2026.2.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2026.2.3-aarch64.dmg",
       "install_script_ref": "fc06193f",
       "uninstall_script_ref": "f235d0be",
-      "sha256": "e331f5ea210db713d44b906306b32bf839d88d084fc47bceceb60a9dae3c4671",
+      "sha256": "9207ad5d1fc6e2b6fa06fb6f41b824e64596e1b16475df22f0e207a654f8df73",
       "default_categories": [
         "Developer tools"
       ]

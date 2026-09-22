@@ -133,6 +133,17 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
+// CanWriteSecretVariables reports whether the caller may set a secret variable's
+// value, which is the gate for resolving a $FLEET_SECRET_* reference into
+// content other users can read.
+//
+// Call it only after the request's own Authorize call: Authorize marks the
+// authorization context as checked, so an earlier probe would satisfy the
+// middleware even when the primary check would have failed.
+func (a *Authorizer) CanWriteSecretVariables(ctx context.Context) bool {
+	return a.Authorize(ctx, &fleet.SecretVariable{}, fleet.ActionWrite) == nil
+}
+
 // AuthorizeOrNotFound authorizes action on object. If that fails, it also
 // checks fleet.ActionRead on the same object; if the caller can't even read
 // it, notFoundErr is returned instead of the original failure, so a resource

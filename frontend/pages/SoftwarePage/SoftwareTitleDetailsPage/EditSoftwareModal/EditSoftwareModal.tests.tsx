@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import EditSoftwareModal from "./EditSoftwareModal";
 

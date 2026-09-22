@@ -395,7 +395,7 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 		// Cancel pending AMAPI commands. These are keyed by host_uuid, and the device that
 		// just re-enrolled will never acknowledge a command issued to the previous install.
 		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM mdm_android_commands WHERE host_uuid = ? AND status = 'pending'`, hostUUID); err != nil {
+			`DELETE FROM mdm_android_commands WHERE host_uuid = ? AND status = 'Pending'`, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "cancel pending android commands on reenroll")
 		}
 
@@ -1334,12 +1334,7 @@ func (ds *Datastore) GetMDMAndroidCommandResults(ctx context.Context, commandUUI
 		SELECT
 			c.host_uuid,
 			c.command_uuid,
-			CASE c.status
-				WHEN 'pending' THEN 'Pending'
-				WHEN 'acknowledged' THEN 'Acknowledged'
-				WHEN 'error' THEN 'Error'
-				ELSE c.status
-			END AS status,
+			c.status,
 			c.updated_at,
 			c.command_type AS request_type,
 			c.raw_command  AS payload,

@@ -1,7 +1,11 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup, createCustomRenderer } from "test/test-utils";
-import { createMockHostSoftware } from "__mocks__/hostMock";
+import { noop } from "lodash";
+import React from "react";
+
+import {
+  createMockHostSoftware,
+  DEFAULT_INSTALLED_VERSION,
+} from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
   getDefaultSoftwareInstallHandler,
@@ -15,7 +19,7 @@ import {
   getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
-import { noop } from "lodash";
+import { renderWithSetup, createCustomRenderer } from "test/test-utils";
 
 import SoftwareInstallDetailsModal, {
   StatusMessage,
@@ -396,6 +400,30 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.queryByText("Install stopped")).not.toBeInTheDocument();
     });
 
+    it("keeps the Details button on a skip whose host inventory reports an installed version (regression)", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+            installed_versions: [DEFAULT_INSTALLED_VERSION],
+          })}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
+    });
+
     it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {
       mockServer.use(getDefaultSoftwareInstallHandler);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
@@ -498,6 +526,34 @@ describe("SoftwareInstallDetailsModal", () => {
         await screen.findByRole("button", { name: /Details/i })
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
+
+    it("renders the patch-skipped message even when the host reports the app as installed (skip beats the installed-override)", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      // Host DOES report an installed version, which would normally collapse a
+      // failed_install to "is installed." on the admin surface (4.82 #31663). A
+      // patch-when-closed skip must beat that override so the deferred state
+      // isn't masked (#52297).
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+          })}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText(/Fleet skipped install of/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
     });
   });
 

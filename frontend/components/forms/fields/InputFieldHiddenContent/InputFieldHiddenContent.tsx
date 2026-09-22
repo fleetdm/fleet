@@ -1,7 +1,7 @@
+import classnames from "classnames";
 import React from "react";
 
 import InputField from "components/forms/fields/InputField";
-import classnames from "classnames";
 
 const baseClass = "input-field-hidden-content";
 

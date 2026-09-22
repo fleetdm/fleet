@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -198,7 +199,7 @@ UPDATE host_disk_encryption_keys SET
   key_slot = ?,
   client_error = '',
   escrow_sent_at = NULL,
-  /* a request still pending once a key exists can only be a stale duplicate: new ones are refused while a key is stored */
+  /* a request still pending once a key exists is a stale duplicate: none are accepted while a key is stored */
   reset_requested = FALSE
 WHERE host_id = ?
 `, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
@@ -209,8 +210,7 @@ WHERE host_id = ?
 }
 
 func (ds *Datastore) GetHostEscrowState(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
-	// client_error is deliberately not consulted: a stale error from an earlier attempt must not
-	// hide a retry in flight.
+	// client_error is ignored on purpose: a stale error must not hide a retry in flight.
 	var row struct {
 		Pending     bool   `db:"reset_requested"`
 		SinceMicros *int64 `db:"since_micros"`
@@ -241,7 +241,7 @@ UPDATE host_disk_encryption_keys SET reset_requested = FALSE, escrow_sent_at = N
 func (ds *Datastore) SetEscrowInFlight(ctx context.Context, hostID uint, inFlight bool) error {
 	stmt := `UPDATE host_disk_encryption_keys SET escrow_sent_at = NULL WHERE host_id = ?`
 	if inFlight {
-		// only a host still in flight is refreshed, so a late heartbeat cannot revive a finished escrow
+		// only a host still in flight is refreshed, so a late report cannot revive a finished escrow
 		stmt = `UPDATE host_disk_encryption_keys SET escrow_sent_at = NOW(6) WHERE host_id = ? AND escrow_sent_at IS NOT NULL`
 	}
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
@@ -346,7 +346,7 @@ WHERE host_id = ?`, hostID)
 	return &key, nil
 }
 
-func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 	// TODO: Are we sure that host id is the right way to find the archived key? Are we concerned
 	// about cases where host with the same hardware serial has been deleted and recreated? If we
 	// learn that this is a real world concern, we should consider using the hardware serial as the primary
@@ -365,7 +365,7 @@ LIMIT 1`
 
 	var key fleet.HostArchivedDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`), host.ID)
-	if err == sql.ErrNoRows && host.HardwareSerial != "" {
+	if err == sql.ErrNoRows && host.HardwareSerial != "" && allowArchivedSerialLookup {
 		// If we didn't find a key by host ID, try to find it by hardware serial.
 		ds.logger.DebugContext(ctx, "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)
 		err = sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE hardware_serial = ?`), host.HardwareSerial)
@@ -461,4 +461,197 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 
 	_, err = tx.ExecContext(ctx, deleteStmt, deleteArgs...)
 	return err
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// BitLocker startup PIN handoff
+/////////////////////////////////////////////////////////////////////////////////
+
+// setBitLockerPINPendingFlag keeps mdm_windows_enrollments.bitlocker_pin_request_pending in step with
+// host_bitlocker_pin_requests. The flag exists so the orbit config check-in can answer "is a PIN waiting?" from the enrollment
+// row it already reads every poll.
+func setBitLockerPINPendingFlag(ctx context.Context, tx sqlx.ExtContext, hostUUID string, pending bool) error {
+	if hostUUID == "" {
+		return ctxerr.Wrap(ctx, errors.New("missing host UUID"), "set bitlocker pin request pending flag")
+	}
+	if _, err := tx.ExecContext(ctx, `
+UPDATE mdm_windows_enrollments SET bitlocker_pin_request_pending = ?
+WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, pending, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set bitlocker pin request pending flag")
+	}
+	return nil
+}
+
+// QueueBitLockerPINRequest stores the end user's encrypted BitLocker startup PIN for the agent to collect.
+func (ds *Datastore) QueueBitLockerPINRequest(ctx context.Context, host *fleet.Host, encryptedPIN string) error {
+	const stmt = `
+INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted, status, client_error, created_at, updated_at)
+VALUES (?, ?, ?, ?, '', NOW(6), NOW(6))
+ON DUPLICATE KEY UPDATE
+	request_uuid = VALUES(request_uuid),
+	pin_encrypted = VALUES(pin_encrypted),
+	status = VALUES(status),
+	client_error = '',
+	created_at = NOW(6),
+	updated_at = NOW(6)`
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// A fresh id per submission is what lets a late outcome for a superseded PIN be recognized and ignored.
+		requestID := uuid.NewV7()
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, requestID[:], encryptedPIN, fleet.BitLockerPINRequestPending); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue bitlocker pin request")
+		}
+		return setBitLockerPINPendingFlag(ctx, tx, host.UUID, true)
+	})
+}
+
+// GetBitLockerPINRequest returns where a host's PIN submission stands, for the My device page to poll. It never returns the PIN
+// itself, and reports notFound when the host has no submission.
+func (ds *Datastore) GetBitLockerPINRequest(ctx context.Context, hostID uint) (*fleet.HostBitLockerPINRequest, error) {
+	var req fleet.HostBitLockerPINRequest
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, `
+SELECT status, client_error, created_at, updated_at FROM host_bitlocker_pin_requests WHERE host_id = ?`, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(hostID))
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "get bitlocker pin request")
+	}
+	return &req, nil
+}
+
+// TakeBitLockerPINRequest hands the encrypted PIN to the agent exactly once, then clears it.
+func (ds *Datastore) TakeBitLockerPINRequest(ctx context.Context, host *fleet.Host) (string, string, error) {
+	var (
+		encryptedPIN string
+		requestUUID  string
+		collected    bool
+	)
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var row struct {
+			PIN         string `db:"pin_encrypted"`
+			RequestUUID []byte `db:"request_uuid"`
+		}
+		err := sqlx.GetContext(ctx, tx, &row, `
+SELECT pin_encrypted, request_uuid
+FROM host_bitlocker_pin_requests
+WHERE host_id = ?
+	AND status = ?
+	AND pin_encrypted IS NOT NULL
+	AND created_at > DATE_SUB(NOW(6), INTERVAL ? SECOND)
+FOR UPDATE`, host.ID, fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds()))
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// Nothing to collect. Commit the cleared flag rather than returning an error.
+			return setBitLockerPINPendingFlag(ctx, tx, host.UUID, false)
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "select bitlocker pin request for update")
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+UPDATE host_bitlocker_pin_requests SET status = ?, pin_encrypted = NULL WHERE host_id = ?`,
+			fleet.BitLockerPINRequestDelivered, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark bitlocker pin request delivered")
+		}
+		if err := setBitLockerPINPendingFlag(ctx, tx, host.UUID, false); err != nil {
+			return err
+		}
+
+		encryptedPIN, requestUUID, collected = row.PIN, uuid.UUID(row.RequestUUID).String(), true
+		return nil
+	})
+	switch {
+	case err != nil:
+		return "", "", err
+	case !collected:
+		return "", "", ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(host.ID))
+	}
+	return encryptedPIN, requestUUID, nil
+}
+
+// SetBitLockerPINRequestOutcome records what the agent did with the PIN it collected. The row is kept on success
+// rather than deleted, so the waiting page has a positive signal to poll for.
+func (ds *Datastore) SetBitLockerPINRequestOutcome(
+	ctx context.Context, host *fleet.Host, requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string,
+) error {
+	// The age guard matches HostBitLockerPINRequest.Expired, so an outcome the My device page has already reported as timed
+	// out cannot be accepted between the timeout and the hourly cleanup and flip the page back.
+	const stmt = `
+UPDATE host_bitlocker_pin_requests
+SET status = ?, client_error = ?, pin_encrypted = NULL
+WHERE host_id = ? AND request_uuid = ? AND status = ?
+	AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND)`
+	// The id comes from the agent. Make sure it is valid.
+	requestID, err := uuid.Parse(requestUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(host.ID))
+	}
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt, outcome, clientError, host.ID, requestID[:], fleet.BitLockerPINRequestDelivered,
+			int(fleet.BitLockerPINResultTimeout.Seconds()))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set bitlocker pin request outcome")
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected setting bitlocker pin request outcome")
+		}
+		if affected == 0 {
+			return ctxerr.Wrap(ctx, notFound("BitLockerPINRequest").WithID(host.ID))
+		}
+		// Both outcomes are terminal, so there is nothing left for the agent to collect.
+		return setBitLockerPINPendingFlag(ctx, tx, host.UUID, false)
+	})
+}
+
+// bitLockerPINRequestRetention is how long a finished PIN submission is kept so the My device page can show its outcome.
+const bitLockerPINRequestRetention = 24 * time.Hour
+
+// CleanupExpiredBitLockerPINRequests runs on the hourly cleanups cron. It retires submissions the agent never collected, and
+// ones it collected but never reported on, and clears the enrollment flag that pointed at them. It also deletes finished
+// submissions a day after they finish.
+func (ds *Datastore) CleanupExpiredBitLockerPINRequests(ctx context.Context) error {
+	// Collecting a PIN sets status to delivered, which moves updated_at to the collection time.
+	const expireStmt = `
+UPDATE host_bitlocker_pin_requests
+SET status = ?, pin_encrypted = NULL, client_error = ?
+WHERE (status = ? AND created_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))
+	OR (status = ? AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND))`
+	if _, err := ds.writer(ctx).ExecContext(ctx, expireStmt, fleet.BitLockerPINRequestFailed, fleet.BitLockerPINRequestTimedOutError,
+		fleet.BitLockerPINRequestPending, int(fleet.BitLockerPINRequestTTL.Seconds()),
+		fleet.BitLockerPINRequestDelivered, int(fleet.BitLockerPINResultTimeout.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "expire unfinished bitlocker pin requests")
+	}
+
+	// Retiring a submission above does not touch the enrollment row, so clear the flag for any host whose submission is no
+	// longer collectable.
+	const clearFlagStmt = `
+UPDATE host_bitlocker_pin_requests r
+JOIN hosts h ON h.id = r.host_id
+JOIN mdm_windows_enrollments e ON e.host_uuid = h.uuid
+SET e.bitlocker_pin_request_pending = 0
+WHERE r.status != ? AND e.bitlocker_pin_request_pending = 1`
+	if _, err := ds.writer(ctx).ExecContext(ctx, clearFlagStmt, fleet.BitLockerPINRequestPending); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear stale bitlocker pin pending flags")
+	}
+
+	const reapStmt = `
+DELETE FROM host_bitlocker_pin_requests
+WHERE status IN (?, ?) AND updated_at <= DATE_SUB(NOW(6), INTERVAL ? SECOND)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, reapStmt, fleet.BitLockerPINRequestSet, fleet.BitLockerPINRequestFailed,
+		int(bitLockerPINRequestRetention.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "reap finished bitlocker pin requests")
+	}
+	return nil
+}
+
+// DeleteBitLockerPINRequest drops a host's PIN submission.
+func (ds *Datastore) DeleteBitLockerPINRequest(ctx context.Context, host *fleet.Host) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM host_bitlocker_pin_requests WHERE host_id = ?`, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete bitlocker pin request")
+		}
+		return setBitLockerPINPendingFlag(ctx, tx, host.UUID, false)
+	})
 }

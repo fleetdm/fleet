@@ -1,17 +1,17 @@
-import React, { useCallback } from "react";
 import classnames from "classnames";
+import React, { useCallback } from "react";
 
-import { IHostUser } from "interfaces/host_users";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import {
   DEFAULT_PAGE_SIZE,
   ITableQueryData,
 } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
+import { IHostUser } from "interfaces/host_users";
 
 import generateTableHeaders from "./LocalUserAccountsTable/LocalUserAccountsTableConfig";
 
@@ -42,11 +42,7 @@ const LocalUserAccounts = ({
 
   if (!hostUsersEnabled) {
     return (
-      <Card
-        className={baseClass}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-      >
+      <Card className={baseClass} paddingSize="xlarge">
         <CardHeader header="Local user accounts" />
         <EmptyState
           header="User collection has been disabled"
@@ -68,11 +64,7 @@ const LocalUserAccounts = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <>
         <CardHeader header="Local user accounts" />
         {users?.length ? (

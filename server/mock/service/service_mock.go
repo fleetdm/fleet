@@ -199,11 +199,11 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListOptions, teamID *ui
 
 type GetQueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error)
+type GetQueryReportResultsFunc func(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) (results []fleet.HostQueryResultRow, count int, meta *fleet.PaginationMetadata, reportClipped bool, err error)
 
 type GetHostQueryReportResultsFunc func(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error)
 
-type QueryReportIsClippedFunc func(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+type QueryReportIsClippedFunc func(ctx context.Context, queryID uint) (bool, error)
 
 type ListHostReportsFunc func(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error)
 
@@ -293,7 +293,7 @@ type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolutio
 
 type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error)
 
-type HostEncryptionKeyFunc func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error)
+type HostEncryptionKeyFunc func(ctx context.Context, id uint, archivedFallbackToSerial bool) (*fleet.HostDiskEncryptionKey, error)
 
 type EscrowLUKSDataFunc func(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
@@ -342,6 +342,8 @@ type VersionFunc func(ctx context.Context) (*version.Info, error)
 type LicenseFunc func(ctx context.Context) (*fleet.LicenseInfo, error)
 
 type PartnershipsConfigFunc func(ctx context.Context) (*fleet.Partnerships, error)
+
+type AuthSettingsFunc func(ctx context.Context) (*fleet.AuthSettings, error)
 
 type LoggingConfigFunc func(ctx context.Context) (*fleet.Logging, error)
 
@@ -479,7 +481,7 @@ type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPol
 
 type GetPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
-type ResetPolicyFunc func(ctx context.Context, policyID uint) error
+type ResetPolicyFunc func(ctx context.Context, policyID uint, hostID *uint) error
 
 type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error)
 
@@ -663,6 +665,8 @@ type CountABMTokensFunc func(ctx context.Context) (int, error)
 
 type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint, byodTeamID *uint) (*fleet.ABMToken, error)
 
+type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error)
+
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error)
@@ -731,6 +735,10 @@ type GetMDMManualEnrollmentProfileFunc func(ctx context.Context, personal bool) 
 
 type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.Host) error
 
+type SubmitBitLockerPINFunc func(ctx context.Context, host *fleet.Host, pin string) error
+
+type BitLockerPINStateForDeviceFunc func(ctx context.Context, host *fleet.Host) (fleetdCanSetPIN bool, request *fleet.HostBitLockerPINRequest, err error)
+
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
 
 type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
@@ -764,6 +772,10 @@ type ListMDMCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOpt
 type SetOrUpdateDiskEncryptionKeyFunc func(ctx context.Context, encryptionKey string, clientError string) error
 
 type SetOrUpdateDiskEncryptionProtectionFunc func(ctx context.Context, outcome fleet.DiskEncryptionProtectionOutcome, clientError string) error
+
+type GetBitLockerPINForHostFunc func(ctx context.Context) (pin string, requestUUID string, err error)
+
+type SetBitLockerPINOutcomeFunc func(ctx context.Context, requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string) error
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -1501,6 +1513,9 @@ type Service struct {
 	PartnershipsConfigFunc        PartnershipsConfigFunc
 	PartnershipsConfigFuncInvoked bool
 
+	AuthSettingsFunc        AuthSettingsFunc
+	AuthSettingsFuncInvoked bool
+
 	LoggingConfigFunc        LoggingConfigFunc
 	LoggingConfigFuncInvoked bool
 
@@ -1981,6 +1996,9 @@ type Service struct {
 	UpdateABMTokenTeamsFunc        UpdateABMTokenTeamsFunc
 	UpdateABMTokenTeamsFuncInvoked bool
 
+	SetABMTokenDefaultFunc        SetABMTokenDefaultFunc
+	SetABMTokenDefaultFuncInvoked bool
+
 	DeleteABMTokenFunc        DeleteABMTokenFunc
 	DeleteABMTokenFuncInvoked bool
 
@@ -2083,6 +2101,12 @@ type Service struct {
 	TriggerLinuxDiskEncryptionEscrowFunc        TriggerLinuxDiskEncryptionEscrowFunc
 	TriggerLinuxDiskEncryptionEscrowFuncInvoked bool
 
+	SubmitBitLockerPINFunc        SubmitBitLockerPINFunc
+	SubmitBitLockerPINFuncInvoked bool
+
+	BitLockerPINStateForDeviceFunc        BitLockerPINStateForDeviceFunc
+	BitLockerPINStateForDeviceFuncInvoked bool
+
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFunc        CheckMDMAppleEnrollmentWithMinimumOSVersionFunc
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked bool
 
@@ -2133,6 +2157,12 @@ type Service struct {
 
 	SetOrUpdateDiskEncryptionProtectionFunc        SetOrUpdateDiskEncryptionProtectionFunc
 	SetOrUpdateDiskEncryptionProtectionFuncInvoked bool
+
+	GetBitLockerPINForHostFunc        GetBitLockerPINForHostFunc
+	GetBitLockerPINForHostFuncInvoked bool
+
+	SetBitLockerPINOutcomeFunc        SetBitLockerPINOutcomeFunc
+	SetBitLockerPINOutcomeFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -3138,11 +3168,11 @@ func (s *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
 	return s.GetQueryFunc(ctx, id)
 }
 
-func (s *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]fleet.HostQueryResultRow, bool, error) {
+func (s *Service) GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts fleet.ListOptions) (results []fleet.HostQueryResultRow, count int, meta *fleet.PaginationMetadata, reportClipped bool, err error) {
 	s.mu.Lock()
 	s.GetQueryReportResultsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetQueryReportResultsFunc(ctx, id, teamID)
+	return s.GetQueryReportResultsFunc(ctx, id, teamID, opts)
 }
 
 func (s *Service) GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []fleet.HostQueryReportResult, lastFetched *time.Time, err error) {
@@ -3152,11 +3182,11 @@ func (s *Service) GetHostQueryReportResults(ctx context.Context, hid uint, query
 	return s.GetHostQueryReportResultsFunc(ctx, hid, queryID)
 }
 
-func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error) {
+func (s *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
 	s.mu.Lock()
 	s.QueryReportIsClippedFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueryReportIsClippedFunc(ctx, queryID, maxQueryReportRows)
+	return s.QueryReportIsClippedFunc(ctx, queryID)
 }
 
 func (s *Service) ListHostReports(ctx context.Context, hostID uint, opts fleet.ListHostReportsOptions) (rows []*fleet.HostReport, total int, metadata *fleet.PaginationMetadata, err error) {
@@ -3467,11 +3497,11 @@ func (s *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.
 	return s.GetMunkiIssueFunc(ctx, munkiIssueID)
 }
 
-func (s *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+func (s *Service) HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*fleet.HostDiskEncryptionKey, error) {
 	s.mu.Lock()
 	s.HostEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostEncryptionKeyFunc(ctx, id)
+	return s.HostEncryptionKeyFunc(ctx, id, archivedFallbackToSerial)
 }
 
 func (s *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error {
@@ -3640,6 +3670,13 @@ func (s *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships, 
 	s.PartnershipsConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.PartnershipsConfigFunc(ctx)
+}
+
+func (s *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, error) {
+	s.mu.Lock()
+	s.AuthSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AuthSettingsFunc(ctx)
 }
 
 func (s *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
@@ -4118,11 +4155,11 @@ func (s *Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Poli
 	return s.GetPolicyByIDFunc(ctx, policyID)
 }
 
-func (s *Service) ResetPolicy(ctx context.Context, policyID uint) error {
+func (s *Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error {
 	s.mu.Lock()
 	s.ResetPolicyFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResetPolicyFunc(ctx, policyID)
+	return s.ResetPolicyFunc(ctx, policyID, hostID)
 }
 
 func (s *Service) ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
@@ -4762,6 +4799,13 @@ func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTe
 	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID)
 }
 
+func (s *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
+	s.mu.Lock()
+	s.SetABMTokenDefaultFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenDefaultFunc(ctx, tokenID, isDefault)
+}
+
 func (s *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 	s.mu.Lock()
 	s.DeleteABMTokenFuncInvoked = true
@@ -5000,6 +5044,20 @@ func (s *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fl
 	return s.TriggerLinuxDiskEncryptionEscrowFunc(ctx, host)
 }
 
+func (s *Service) SubmitBitLockerPIN(ctx context.Context, host *fleet.Host, pin string) error {
+	s.mu.Lock()
+	s.SubmitBitLockerPINFuncInvoked = true
+	s.mu.Unlock()
+	return s.SubmitBitLockerPINFunc(ctx, host, pin)
+}
+
+func (s *Service) BitLockerPINStateForDevice(ctx context.Context, host *fleet.Host) (fleetdCanSetPIN bool, request *fleet.HostBitLockerPINRequest, err error) {
+	s.mu.Lock()
+	s.BitLockerPINStateForDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.BitLockerPINStateForDeviceFunc(ctx, host)
+}
+
 func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
 	s.mu.Lock()
 	s.CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked = true
@@ -5117,6 +5175,20 @@ func (s *Service) SetOrUpdateDiskEncryptionProtection(ctx context.Context, outco
 	s.SetOrUpdateDiskEncryptionProtectionFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateDiskEncryptionProtectionFunc(ctx, outcome, clientError)
+}
+
+func (s *Service) GetBitLockerPINForHost(ctx context.Context) (pin string, requestUUID string, err error) {
+	s.mu.Lock()
+	s.GetBitLockerPINForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetBitLockerPINForHostFunc(ctx)
+}
+
+func (s *Service) SetBitLockerPINOutcome(ctx context.Context, requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string) error {
+	s.mu.Lock()
+	s.SetBitLockerPINOutcomeFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetBitLockerPINOutcomeFunc(ctx, requestUUID, outcome, clientError)
 }
 
 func (s *Service) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
