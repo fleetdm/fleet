@@ -2951,6 +2951,12 @@ type Datastore interface {
 	// A nil state resets it (pass complete).
 	SetMDMAppleAPNsSweepState(ctx context.Context, state *MDMAppleAPNsSweepState) error
 
+	// CleanupNanoCommands runs the Apple MDM command cleanup sweeps: it deletes
+	// inactive queue rows (and their results) older than the short retention
+	// window, then the nano_commands rows that no longer have any reference,
+	// within the per-run deletion caps.
+	CleanupNanoCommands(ctx context.Context, opts MDMAppleCommandCleanupOptions) (MDMAppleCommandCleanupStats, error)
+
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
 	// of the bounded host window, every Apple declaration with its label
