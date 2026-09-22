@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Generate merged schema',
 
 
-  description: 'Merge the osquery schema from the osquery/osquery-site GitHub repo with Fleet\'s overrides (/schema/tables/) and save the merged schema to /schema/osquery_fleet_schema.json',
+  description: 'Merge the osquery schema from the osquery/osquery-site GitHub repo with Fleet\'s overrides (/schema/tables/) and save the merged schema to /schema/osquery_fleet_schema.json and the fleet-mcp embedded copy at /cmd/fleet-mcp/osquery_fleet_schema.json',
 
 
 
@@ -13,6 +13,8 @@ module.exports = {
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
     let mergedSchemaOutputPath = path.resolve(topLvlRepoPath+'/schema', 'osquery_fleet_schema.json');
+    // fleet-mcp embeds its own copy because //go:embed can't reach files outside its module.
+    let fleetMcpSchemaOutputPath = path.resolve(topLvlRepoPath+'/cmd/fleet-mcp', 'osquery_fleet_schema.json');
 
     let mergedSchemaTables = await sails.helpers.getExtendedOsquerySchema();
 
@@ -23,7 +25,13 @@ module.exports = {
       force: true
     });
 
-    sails.log(`osquery schema successfully merged with Fleet\'s overrides. The merged schema has been saved at ${mergedSchemaOutputPath}`);
+    await sails.helpers.fs.writeJson.with({
+      destination: fleetMcpSchemaOutputPath,
+      json: mergedSchemaTables,
+      force: true
+    });
+
+    sails.log(`osquery schema successfully merged with Fleet\'s overrides. The merged schema has been saved at ${mergedSchemaOutputPath} and ${fleetMcpSchemaOutputPath}`);
   }
 
 };

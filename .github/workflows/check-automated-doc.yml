@@ -12,6 +12,7 @@ on:
       - ".github/workflows/check-automated-doc.yml"
       - "schema/tables/**"
       - "schema/osquery_fleet_schema.json"
+      - "cmd/fleet-mcp/osquery_fleet_schema.json"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs

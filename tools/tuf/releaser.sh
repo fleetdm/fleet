@@ -134,6 +134,7 @@ update_osquery_schema_and_flags () {
     popd
     git add ./website/config/custom.js
     git add ./schema/osquery_fleet_schema.json
+    git add ./cmd/fleet-mcp/osquery_fleet_schema.json
 
     # 2. Update cli/flags.
     "$GO_TOOLS_DIRECTORY/replace" ./tools/osquery-agent-options/main.go "osqueryVersion = .+\n" "osqueryVersion = \"$version\"\n"
