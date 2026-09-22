@@ -316,13 +316,36 @@ release_to_production () {
     echo "These temporary failures are expected because it takes some time for caches to be invalidated (these errors should go away after a few minutes minutes)."
 
     if [[ $COMPONENT == "fleetd" ]]; then
-        milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+        milestone=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r "[.[]|select(.title | contains(\"$VERSION\"))][0] // empty")
+        milestone_title=$(jq -r '.title // empty' <<< "$milestone")
+        milestone_url=$(jq -r '.html_url // empty' <<< "$milestone")
         prompt "Sleep 5 minutes and trigger workflow to update orbit/TUF.md"
         # Sleeping 5 minutes to allow for Cloudflare caches to clear.
         sleep 300
         gh workflow run "Update documentation of current versions of TUF fleetd components"
-        prompt "When releasing to stable, make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+        conclude_fleetd_milestone
     fi
+}
+
+# Stories must go through confirm and celebrate instead of being closed with the rest of the milestone.
+conclude_fleetd_milestone () {
+    if [[ -z $milestone_title ]]; then
+        prompt "No milestone found for fleetd $VERSION. When releasing to stable, conclude the milestone manually following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+        return
+    fi
+    printf "Is this a stable release? If so, move %s stories to 'Confirm and celebrate' and close its bugs and sub-tasks now. [yes/no] " "$milestone_title"
+    while read -r word; do
+        if [[ "$word" == "yes" ]]; then
+            printf "\n"
+            break
+        elif [[ "$word" == "no" ]]; then
+            printf "\n"
+            return
+        fi
+    done
+    echo "Running 'gm milestone view $milestone_title --all-issues --workflow milestone-close' (press q to exit when it finishes)..."
+    (cd "$GIT_REPOSITORY_DIRECTORY/tools/github-manage" && go run ./cmd/gm milestone view "$milestone_title" --all-issues --workflow milestone-close)
+    prompt "Confirm all $milestone_title stories are in 'Confirm and celebrate' on https://github.com/orgs/fleetdm/projects/67, then close the $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
 }
 
 prompt () {

@@ -417,7 +417,9 @@ var milestoneViewCmd = &cobra.Command{
 
 		// Run the TUI with milestone mode so we can enforce limit and warn when overflow
 		lim, _ := cmd.Flags().GetInt("limit")
-		tui.RunTUI(tui.MilestoneCommand, 0, lim, title, false, "")
+		allIssues, _ := cmd.Flags().GetBool("all-issues")
+		workflow, _ := cmd.Flags().GetString("workflow")
+		tui.RunTUI(tui.MilestoneCommand, 0, lim, title, allIssues, workflow)
 		return nil
 	},
 }
@@ -426,6 +428,8 @@ func init() {
 	milestoneCmd.AddCommand(milestoneReportCmd)
 	milestoneCmd.AddCommand(milestoneViewCmd)
 	milestoneViewCmd.Flags().Int("limit", 300, "Maximum number of issues to fetch for the milestone (shows warning if more exist)")
+	milestoneViewCmd.Flags().BoolP("all-issues", "a", false, "Select all issues once the view is populated")
+	milestoneViewCmd.Flags().StringP("workflow", "w", "", "Run this workflow immediately instead of waiting for input (e.g. 'milestone-close')")
 	milestoneReportCmd.Flags().StringVar(&milestoneFormat, "format", "tsv", "Output format: tsv (default) or md")
 	milestoneReportCmd.Flags().BoolVar(&milestoneStripEmojis, "strip-emojis", false, "Strip emojis from project titles and statuses")
 	milestoneReportCmd.Flags().StringVar(&milestoneSummarySort, "summary-sort", "count", "Summary sort: count (default) or name")
