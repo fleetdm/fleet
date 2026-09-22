@@ -242,11 +242,9 @@ func TriggerWindowsMDMSync() error {
 	return nil
 }
 
-// HasActiveFleetMDMEnrollment reports whether this host currently has an active Fleet Windows MDM
-// enrollment. It answers "could Fleet deliver configuration to me?", which is what callers need
-// before waiting on something Fleet is expected to send over the MDM channel. A registry read that
-// fails is reported as "not enrolled" rather than surfaced: the only sensible response either way is
-// not to wait.
+// HasActiveFleetMDMEnrollment reports whether this host currently has an active Fleet Windows MDM enrollment. It answers "could
+// Fleet deliver configuration to me?", which is what callers need before waiting on something Fleet is expected to send over the
+// MDM channel.
 func HasActiveFleetMDMEnrollment() bool {
 	_, err := fleetMDMEnrollmentGUID()
 	return err == nil
