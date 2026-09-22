@@ -329,18 +329,18 @@ func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, 
 	if secret == "" {
 		return nil
 	}
-	return adoptEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+	return loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
 		deleteSecretPathIfExists(enrollSecretPath)
 	})
 }
 
-// adoptEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding it when the keystore holds
+// loadEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding it when the keystore holds
 // none and updating it when it holds a different one. The update branch is what lets a freshly delivered secret supersede a
 // stored one.
 //
 // onDelivered is called once the secret is safely in the keystore, to discard the copy it arrived in: the file for a
 // package-delivered secret, the registry value for an MDM-delivered one.
-func adoptEnrollSecret(
+func loadEnrollSecret(
 	secret string,
 	ks enrollSecretKeystore,
 	disableKeystore bool,
@@ -396,10 +396,9 @@ func adoptEnrollSecret(
 	return nil
 }
 
-// adoptDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without
-// reading or clearing the host's real enroll secret, which on Windows lives in HKLM and would make the
-// result depend on the state of whatever machine the test happens to run on.
-func adoptDeliveredEnrollSecret(
+// loadDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without reading or clearing the
+// host's real enroll secret.
+func loadDeliveredEnrollSecret(
 	readDelivered func() (string, error),
 	clearDelivered func() error,
 	enrollSecretPath string,
@@ -416,10 +415,9 @@ func adoptDeliveredEnrollSecret(
 	}
 
 	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
-	if err := adoptEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+	if err := loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
 		if err := clearDelivered(); err != nil {
-			// Not fatal: the secret is already in the keystore, so orbit can enroll. The value
-			// lingering only means it will be adopted again, harmlessly, on the next start.
+			// Not fatal: the secret is already in the keystore, so orbit can enroll.
 			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
 		}
 		if enrollSecretPath != "" {
@@ -522,15 +520,12 @@ func orbitAction(c *cli.Context) error {
 
 	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
 	disableKeystore := c.Bool("disable-keystore")
-	// Read before the MDM channel below, which retires this file along with the registry value when it adopts a secret. Fleet may
-	// write the same secret to both so that an older fleetd, which cannot read the registry, still enrolls.
 	enrollSecretPath := c.String("enroll-secret-path")
 
-	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored. Run before the file and
-	// keystore so a freshly delivered value wins rather than being masked by them. See enroll_secret_mdm_windows.go.
-	adoptedMDMSecret, mdmSecretChannelUsable := adoptMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
+	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
+	loadedMDMSecret, mdmSecretChannelUsable := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
 
-	if enrollSecretPath != "" && !adoptedMDMSecret {
+	if enrollSecretPath != "" && !loadedMDMSecret {
 		if c.String("enroll-secret") != "" {
 			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 		}
@@ -544,8 +539,7 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
-	// Decided here, where the rest of the secret resolution happens, but acted on after the Windows service manager is running.
-	// See the call site for why the wait cannot happen this early.
+	// Decide if we can wait for an MDM-delivered enroll secret. This is only true on Windows, where the registry channel is available.
 	waitForMDMSecret := canWaitForMDMSecret(mdmSecretChannelUsable, c.String("enroll-secret"))
 
 	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {

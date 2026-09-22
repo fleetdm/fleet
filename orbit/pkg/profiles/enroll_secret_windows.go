@@ -14,12 +14,12 @@ import (
 )
 
 // On Windows MDM the enroll secret is delivered by a Fleet-managed configuration profile that writes it to the registry. orbit
-// adopts the value and then clears it, so the presence of the value means "a secret is waiting" and its absence means orbit
+// loads the value and then clears it, so the presence of the value means "a secret is waiting" and its absence means orbit
 // already took it. That makes one channel serve both first enrollment and recovery: an administrator resends the profile (with a
 // new secret) and the value reappears.
 //
 // Fleet already owns SOFTWARE\FleetDM\Orbit (the installer records the install path there), so the delivered secret lives
-// alongside it rather than in a new hive. A non-admin local user cannot read a secret that has not been adopted yet.
+// alongside it rather than in a new hive. A non-admin local user cannot read a secret that has not been loaded yet.
 const (
 	enrollSecretKeyPath   = `SOFTWARE\FleetDM\Orbit`
 	enrollSecretValueName = "EnrollSecret"
@@ -108,7 +108,7 @@ func GetEnrollSecret() (string, error) {
 	return getEnrollSecret(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-// ClearEnrollSecret removes the delivered secret. It is called once orbit has adopted the value.
+// ClearEnrollSecret removes the delivered secret. It is called once orbit has loaded the value.
 func ClearEnrollSecret() error {
 	return clearEnrollSecret(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }

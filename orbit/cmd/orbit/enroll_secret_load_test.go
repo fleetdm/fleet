@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// adoptEnrollSecret is shared by the two delivery channels (the packaged secret file and, on
+// loadEnrollSecret is shared by the two delivery channels (the packaged secret file and, on
 // Windows, the registry value Fleet MDM writes). onDelivered is what discards the delivery copy, so
 // the contract that matters is when it does and does not fire: never while the secret might still be
 // needed for another attempt.
-func TestAdoptEnrollSecretDiscardsTheDeliveryCopyOnlyOnceStored(t *testing.T) {
+func TestLoadEnrollSecretDiscardsTheDeliveryCopyOnlyOnceStored(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
 		keystore        *fakeKeystore
@@ -75,7 +75,7 @@ func TestAdoptEnrollSecretDiscardsTheDeliveryCopyOnlyOnceStored(t *testing.T) {
 			var set string
 			delivered := false
 
-			err := adoptEnrollSecret("delivered", tc.keystore, tc.disableKeystore,
+			err := loadEnrollSecret("delivered", tc.keystore, tc.disableKeystore,
 				func(secret string) error { set = secret; return nil },
 				func() { delivered = true },
 			)
@@ -89,10 +89,10 @@ func TestAdoptEnrollSecretDiscardsTheDeliveryCopyOnlyOnceStored(t *testing.T) {
 	}
 }
 
-func TestAdoptEnrollSecretPropagatesSetFailure(t *testing.T) {
+func TestLoadEnrollSecretPropagatesSetFailure(t *testing.T) {
 	delivered := false
 
-	err := adoptEnrollSecret("delivered", &fakeKeystore{supported: true}, false,
+	err := loadEnrollSecret("delivered", &fakeKeystore{supported: true}, false,
 		func(string) error { return errors.New("boom") },
 		func() { delivered = true },
 	)
@@ -104,17 +104,17 @@ func TestAdoptEnrollSecretPropagatesSetFailure(t *testing.T) {
 // The delivery channel is injected so this never reads or clears the host's real enroll secret. On
 // Windows that lives in HKLM, so calling the production path here would make the result depend on
 // whatever machine the test runs on, and could clear a secret the host still needs.
-func TestAdoptDeliveredEnrollSecret(t *testing.T) {
+func TestLoadDeliveredEnrollSecret(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		readErr     error
-		wantAdopted bool
+		wantLoaded  bool
 		wantAdds    int
 		wantCleared bool
 		wantErr     bool
 	}{
 		{
-			// The ordinary state on a host that has already adopted its secret: nothing waiting is not
+			// The ordinary state on a host that has already loaded its secret: nothing waiting is not
 			// an error, so orbit falls through to the file and keystore rather than failing to start.
 			name:    "nothing waiting",
 			readErr: profiles.ErrEnrollSecretNotFound,
@@ -131,7 +131,7 @@ func TestAdoptDeliveredEnrollSecret(t *testing.T) {
 		},
 		{
 			name:        "secret waiting",
-			wantAdopted: true,
+			wantLoaded:  true,
 			wantAdds:    1,
 			wantCleared: true,
 		},
@@ -142,11 +142,11 @@ func TestAdoptDeliveredEnrollSecret(t *testing.T) {
 			var set string
 
 			// Fleet may write the same secret to the installer's file as well, so that an older fleetd
-			// that cannot read the registry still enrolls. Adopting has to retire that copy too.
+			// that cannot read the registry still enrolls. Loading has to retire that copy too.
 			secretPath := filepath.Join(t.TempDir(), "secret.txt")
 			require.NoError(t, os.WriteFile(secretPath, []byte("delivered"), 0o600))
 
-			adopted, err := adoptDeliveredEnrollSecret(
+			loaded, err := loadDeliveredEnrollSecret(
 				func() (string, error) { return "delivered", tc.readErr },
 				func() error { cleared = true; return nil },
 				secretPath, ks, false,
@@ -158,21 +158,21 @@ func TestAdoptDeliveredEnrollSecret(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tc.wantAdopted, adopted)
+			require.Equal(t, tc.wantLoaded, loaded)
 			require.Equal(t, tc.wantAdds, ks.addCalls)
 			require.Equal(t, tc.wantCleared, cleared, "the delivery copy is discarded only once stored")
 
 			_, statErr := os.Stat(secretPath)
 			if tc.wantCleared {
-				require.ErrorIs(t, statErr, os.ErrNotExist, "the installer's copy must not outlive adoption")
+				require.ErrorIs(t, statErr, os.ErrNotExist, "the installer's copy must not outlive loading")
 			} else {
-				require.NoError(t, statErr, "an unadopted secret leaves the file for the file path to read")
+				require.NoError(t, statErr, "a secret that was not loaded leaves the file for the file path to read")
 			}
 
-			if tc.wantAdopted {
+			if tc.wantLoaded {
 				require.Equal(t, "delivered", set)
 			} else {
-				require.Empty(t, set, "nothing should be set when no secret was adopted")
+				require.Empty(t, set, "nothing should be set when no secret was loaded")
 			}
 		})
 	}
