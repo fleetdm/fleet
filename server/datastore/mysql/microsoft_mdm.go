@@ -4136,12 +4136,14 @@ LIMIT ?`
 			hitCap = false
 			break
 		}
+		// Counted before the error check: the results delete may have
+		// succeeded when the responses delete fails.
 		results, responses, err := deleteMDMWindowsResponsesByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		counts.Results += results
+		counts.Responses += responses
 		if err != nil {
 			return counts, err
 		}
-		counts.Results += results
-		counts.Responses += responses
 		// No progress means the reader returned rows the delete refused or
 		// that are already gone (replica lag); stop rather than spin.
 		if responses == 0 || len(ids) < batchSize {
