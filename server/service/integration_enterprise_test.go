@@ -7569,7 +7569,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusBadRequest)
 	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
 
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
 		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusOK)
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
 		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
