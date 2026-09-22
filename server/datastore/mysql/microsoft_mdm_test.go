@@ -8331,6 +8331,10 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	const nonReservedName = "enum-test-profile"
 	reservedName := mdm.FleetWindowsOSUpdatesProfileName
 	now := time.Now()
+	var (
+		probeHostID   uint
+		probeHostUUID string
+	)
 	for caseIdx, c := range cases {
 		hostUUID := fmt.Sprintf("enum-host-%04d", caseIdx)
 		h := test.NewHost(t, ds, hostUUID, "1.1.1.1", hostUUID, hostUUID, now, test.WithPlatform("windows"))
@@ -8339,6 +8343,11 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 
 		if filter, ok := bucketFilter[expectedBucketByCase[caseIdx]]; ok {
 			expectedHostsByBucket[filter] = append(expectedHostsByBucket[filter], h.ID)
+		}
+
+		// Remember one verified host for the rollup divergence probe below.
+		if probeHostUUID == "" && expectedBucketByCase[caseIdx] == "verified" {
+			probeHostID, probeHostUUID = h.ID, hostUUID
 		}
 
 		for i, p := range c {
@@ -8379,24 +8388,38 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	// 2) Per-host membership via ListHosts with OSSettingsFilter. This
 	//    catches regressions that preserve aggregate counts but swap two
 	//    hosts between buckets, and also exercises filterHostsByOSSettingsStatus
-	//    (the host-list path uses the same windowsHostProfileStatusSubquery
-	//    helper but a different outer query).
+	//    (the host-list path reads the same host_mdm_windows_profiles_status
+	//    rollup but wraps it in a different outer query).
 	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
-	for _, filter := range []fleet.OSSettingsStatus{
-		fleet.OSSettingsFailed,
-		fleet.OSSettingsPending,
-		fleet.OSSettingsVerifying,
-		fleet.OSSettingsVerified,
-	} {
+	listHostIDs := func(filter fleet.OSSettingsStatus) []uint {
 		gotHosts, err := ds.ListHosts(ctx, teamFilter, fleet.HostListOptions{OSSettingsFilter: filter})
 		require.NoError(t, err)
 		gotIDs := make([]uint, 0, len(gotHosts))
 		for _, h := range gotHosts {
 			gotIDs = append(gotIDs, h.ID)
 		}
-		require.ElementsMatchf(t, expectedHostsByBucket[filter], gotIDs,
+		return gotIDs
+	}
+	for _, filter := range []fleet.OSSettingsStatus{
+		fleet.OSSettingsFailed,
+		fleet.OSSettingsPending,
+		fleet.OSSettingsVerifying,
+		fleet.OSSettingsVerified,
+	} {
+		require.ElementsMatchf(t, expectedHostsByBucket[filter], listHostIDs(filter),
 			"per-host membership mismatch for OSSettingsFilter=%s", filter)
 	}
+
+	// 3) Both checks above reconciled the rollup first, so neither can tell a rollup read apart from a recompute over
+	//    host_mdm_windows_profiles. Diverge the two on one host: only a rollup-backed filter follows the rollup.
+	require.NotEmpty(t, probeHostUUID, "expected at least one verified host to probe")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles_status SET status = ? WHERE host_uuid = ?`,
+			fleet.MDMDeliveryFailed, probeHostUUID)
+		return err
+	})
+	require.Contains(t, listHostIDs(fleet.OSSettingsFailed), probeHostID)
+	require.NotContains(t, listHostIDs(fleet.OSSettingsVerified), probeHostID)
 }
 
 // windowsEnrollmentFixture describes a Windows MDM enrollment row for tests. The non-zero fields below are the
