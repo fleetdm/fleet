@@ -94,12 +94,12 @@ func TestClearEnrollSecretIsIdempotent(t *testing.T) {
 // O:SYG:SYD:PAI(A;;KA;;;SY)(A;;KA;;;BA), with SYSTEM and Administrators holding FullControl,
 // inheritance disabled, and no entry for Users. This test covers the code path and its idempotency;
 // HKCU stands in for HKLM so it runs without elevation.
-func TestEnsureEnrollSecretKeyIsIdempotentAndUsable(t *testing.T) {
+func TestEnsureEnrollSecretKeyIsProtectedIsIdempotent(t *testing.T) {
 	t.Cleanup(func() { _ = registry.DeleteKey(registry.CURRENT_USER, testEnrollSecretKeyPath) })
 
-	require.NoError(t, ensureEnrollSecretKey(registry.CURRENT_USER, testEnrollSecretKeyPath))
+	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 	// Called on every orbit start, so it has to be safe to repeat against a key that already exists.
-	require.NoError(t, ensureEnrollSecretKey(registry.CURRENT_USER, testEnrollSecretKeyPath))
+	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
 
 	// A freshly prepared key holds no secret, and reading it must not look like a failure.
 	_, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
@@ -114,6 +114,23 @@ func TestEnsureEnrollSecretKeyIsIdempotentAndUsable(t *testing.T) {
 	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
 	require.NoError(t, err)
 	require.Equal(t, "s3cret-value", secret)
+}
+
+// A secret found in an unprotected key is kept, not discarded. The MDM write creates the key itself
+// whenever it lands before orbit has ever run, so discarding would fail the enrollment it was sent
+// for. The secret is single use and is spent the moment orbit enrolls with it, which is the control;
+// the DACL is hardening on top of that.
+func TestEnsureEnrollSecretKeyIsProtectedKeepsADeliveredSecret(t *testing.T) {
+	t.Cleanup(func() { _ = registry.DeleteKey(registry.CURRENT_USER, testEnrollSecretKeyPath) })
+
+	// Stand in for the MDM write arriving first and creating the key with inherited permissions.
+	setEnrollSecretValue(t, "delivered-before-orbit-ran")
+
+	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
+
+	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	require.NoError(t, err)
+	require.Equal(t, "delivered-before-orbit-ran", secret, "a delivered secret must survive being secured")
 }
 
 func TestGetEnrollSecretDoesNotLeakTheSecretIntoErrors(t *testing.T) {

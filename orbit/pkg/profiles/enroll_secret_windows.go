@@ -38,13 +38,21 @@ const (
 //	BA  Built-in Administrators
 const enrollSecretKeySDDL = "D:PAI(A;;KA;;;SY)(A;;KA;;;BA)"
 
-// EnsureEnrollSecretKey creates the key that carries the MDM-delivered enroll secret and applies the DACL above.
-func EnsureEnrollSecretKey() error {
-	return ensureEnrollSecretKey(registry.LOCAL_MACHINE, enrollSecretKeyPath)
+// EnsureEnrollSecretKeyIsProtected applies the DACL above to the key that carries the MDM-delivered enroll secret, creating the
+// key first when it is missing. The key has to exist before a secret is wanted.
+func EnsureEnrollSecretKeyIsProtected() error {
+	return ensureEnrollSecretKeyIsProtected(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-func ensureEnrollSecretKey(root registry.Key, path string) error {
-	key, openedExisting, err := registry.CreateKey(root, path, registry.SET_VALUE)
+func ensureEnrollSecretKeyIsProtected(root registry.Key, path string) error {
+	// SetNamedSecurityInfo names registry objects as MACHINE\... rather than HKEY_LOCAL_MACHINE\...
+	objectName := registryObjectName(root, path)
+
+	if enrollSecretKeyWasProtected(objectName) {
+		return nil
+	}
+
+	key, _, err := registry.CreateKey(root, path, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
 	}
@@ -61,46 +69,20 @@ func ensureEnrollSecretKey(root registry.Key, path string) error {
 		return fmt.Errorf("read enroll secret key DACL: %w", err)
 	}
 
-	// SetNamedSecurityInfo names registry objects as MACHINE\... rather than HKEY_LOCAL_MACHINE\...
-	objectName := registryObjectName(root, path)
-
-	// Read the existing protection before overwriting it, so a secret that sat in an unprotected key
-	// can be told apart from one that was protected all along.
-	wasProtected := enrollSecretKeyWasProtected(objectName)
-
 	if err := windows.SetNamedSecurityInfo(
 		objectName,
 		windows.SE_REGISTRY_KEY,
-		// PROTECTED_DACL disables inheritance, which is what keeps a permissive parent from granting
-		// access back to users we just removed.
 		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION,
 		nil, nil, dacl, nil,
 	); err != nil {
 		return fmt.Errorf("set permissions on %s: %w", objectName, err)
 	}
 
-	// Any value that was in the key while it was not protected has to be treated as disclosed, so it is
-	// discarded rather than adopted and Fleet delivers a fresh one into the now-protected key. Two ways
-	// that happens:
-	//
-	//   - We created the key just now. Creating and securing it are separate operations, so it was
-	//     briefly readable through whatever it inherited, and a value present already can only have
-	//     been written in that window.
-	//   - The key already existed without our DACL. The likely author is the MDM write itself landing
-	//     before orbit ever ran, which creates the key with inherited, user-readable permissions.
-	//
-	// A key that already carried our DACL is left alone: its value was protected the whole time.
-	if !openedExisting || !wasProtected {
-		if err := clearEnrollSecret(root, path); err != nil {
-			return fmt.Errorf("discard a secret held in %s before it was protected: %w", path, err)
-		}
-	}
 	return nil
 }
 
-// enrollSecretKeyWasProtected reports whether the key already carried the DACL we apply. A key we
-// cannot read the security of is reported as unprotected, because the point of the check is to prove
-// protection rather than to assume it.
+// enrollSecretKeyWasProtected reports whether the key already carried the DACL we apply. A key we cannot read the security of is
+// reported as unprotected, because the point of the check is to prove protection rather than to assume it.
 func enrollSecretKeyWasProtected(objectName string) bool {
 	securityDescriptor, err := windows.GetNamedSecurityInfo(
 		objectName, windows.SE_REGISTRY_KEY, windows.DACL_SECURITY_INFORMATION,
@@ -121,22 +103,17 @@ func registryObjectName(root registry.Key, path string) string {
 	}
 }
 
-// GetEnrollSecret returns the enroll secret Fleet MDM delivered to this device, or
-// ErrEnrollSecretNotFound when none is waiting. It never puts the value in an error, so a returned
-// error is safe to log.
+// GetEnrollSecret returns the enroll secret Fleet MDM delivered to this device, or ErrEnrollSecretNotFound when none is waiting.
 func GetEnrollSecret() (string, error) {
 	return getEnrollSecret(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-// ClearEnrollSecret removes the delivered secret. It is called once orbit has adopted the value, so
-// the window in which an unconsumed secret sits readable on disk is as short as orbit can make it.
-// Clearing an already-absent value is not an error.
+// ClearEnrollSecret removes the delivered secret. It is called once orbit has adopted the value.
 func ClearEnrollSecret() error {
 	return clearEnrollSecret(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-// getEnrollSecret and clearEnrollSecret take the root and path explicitly so tests can exercise them
-// against a key they can actually create; writing under HKLM needs elevation a test may not have.
+// getEnrollSecret and clearEnrollSecret take the root and path explicitly so tests can exercise them.
 func getEnrollSecret(root registry.Key, path string) (string, error) {
 	key, err := registry.OpenKey(root, path, registry.QUERY_VALUE)
 	if err != nil {
@@ -156,29 +133,21 @@ func getEnrollSecret(root registry.Key, path string) (string, error) {
 	}
 
 	secret = strings.TrimSpace(secret)
-	// The installer seeds unset properties with "dummy"; treat that, and an empty value, as nothing
-	// waiting rather than handing an unusable secret to the enroll path.
+	// The installer seeds unset properties with "dummy"; treat that, and an empty value, as nothing waiting.
 	if secret == "" || secret == constant.UnusedFlagKeyword {
 		return "", ErrEnrollSecretNotFound
 	}
 	return secret, nil
 }
 
-// ArmEnrollSecretWatch registers for the next change to the key that carries the enroll secret and
-// returns immediately. Windows tells us when that happens, so the caller does not poll: the profile
-// that writes the value lands over its own MDM session, and RegNotifyChangeKeyValue reports it as
-// soon as it does rather than on an interval chosen in advance.
-//
-// The caller waits with Wait and releases the registration with Close. Windows guarantees a single
-// notification per registration, so a caller that keeps watching arms a new one each time.
+// ArmEnrollSecretWatch registers for the next change to the key that carries the enroll secret and returns immediately. Windows
+// tells us when that happens, so the caller does not poll: the profile that writes the value lands over its own MDM session, and
+// RegNotifyChangeKeyValue reports it as soon as it does.
 func ArmEnrollSecretWatch() (*EnrollSecretWatch, error) {
 	return armEnrollSecretWatch(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-// EnrollSecretWatch is an armed, one-shot registration for changes to the key that carries the
-// enroll secret. Arming is separate from waiting on purpose: a caller must arm, *then* read, then
-// wait. Reading first leaves a gap in which a write is seen by neither the read nor the not-yet-armed
-// registration, and the change would not be noticed until something else woke the caller.
+// EnrollSecretWatch is an armed, one-shot registration for changes to the key that carries the enroll secret.
 type EnrollSecretWatch struct {
 	key   registry.Key
 	event windows.Handle
@@ -212,14 +181,12 @@ func armEnrollSecretWatch(root registry.Key, path string) (*EnrollSecretWatch, e
 	return &EnrollSecretWatch{key: key, event: event, path: path}, nil
 }
 
-// Wait blocks until the watched key changes or ctx is done, whichever comes first. Both mean "go look
-// again", so only a failed wait is an error. The registration is spent afterwards either way, so a
-// caller that wants to keep watching must Close this one and arm another.
+// Wait blocks until the watched key changes or ctx is done, whichever comes first. Both mean "go look again". The registration is
+// spent afterwards either way, so a caller that wants to keep watching must Close this one and arm another.
 func (w *EnrollSecretWatch) Wait(ctx context.Context) error {
-	// Cancelling the context has to wake the wait, so signal the same event when ctx is done. The
-	// goroutine is joined before returning, because Close releases the event handle and signalling a
-	// released handle could reach whatever Windows recycled it for.
+	// stop signals that registry fired first and we are exiting this function.
 	stop := make(chan struct{})
+	// joined signals that the goroutine has exited and it is safe to close the event handle.
 	joined := make(chan struct{})
 	go func() {
 		defer close(joined)
@@ -234,6 +201,7 @@ func (w *EnrollSecretWatch) Wait(ctx context.Context) error {
 		<-joined
 	}()
 
+	// This is a blocking Win32 call.
 	if _, err := windows.WaitForSingleObject(w.event, windows.INFINITE); err != nil {
 		return fmt.Errorf("wait for %s to change: %w", w.path, err)
 	}

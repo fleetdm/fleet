@@ -635,7 +635,7 @@ func orbitAction(c *cli.Context) error {
 		// waiting on it would invite Fleet to deliver a plaintext secret into a key a local non-admin
 		// can read. orbit falls through to the file and keystore instead, which is the same position a
 		// host is in before any secret has been delivered.
-		if err := profiles.EnsureEnrollSecretKey(); err != nil {
+		if err := profiles.EnsureEnrollSecretKeyIsProtected(); err != nil {
 			log.Error().Err(err).Msg(
 				"not using the registry channel for an MDM-delivered enroll secret: its key could not be secured")
 			mdmSecretChannelUsable = false
