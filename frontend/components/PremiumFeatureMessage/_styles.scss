@@ -1,37 +1,110 @@
 .premium-feature-message-container {
-  font-size: $x-small; // 14px
+  // Default variant (Option B) — empty-state style for pages/sections
+  position: relative;
   width: 100%;
+  height: 270px;
   box-sizing: border-box;
 
-  // Default variant (Option B) — bordered card container
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius-large; // 8px
-  background-color: $ui-off-white;
-  padding: $pad-large; // 24px
-
-  .premium-feature-message {
+  &__ghost-table {
     display: flex;
-    gap: $gap-icon-text; // 4px
-    align-items: center;
+    flex-direction: column;
+    // border-box so the 1px border doesn't push the layer past the container
+    // (Fleet has no global box-sizing reset).
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    overflow: hidden;
+    background-color: var(--core-fleet-white);
 
-    p {
-      line-height: normal;
-      margin: 0;
+    // Fade the decorative layer to whatever is behind the component so dark
+    // mode stays correct (same approach as EmptyState).
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, transparent);
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.5) 0%,
+      transparent
+    );
+  }
+
+  &__ghost-header {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 $pad-large;
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    box-sizing: border-box;
+  }
+
+  &__ghost-cell {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 $pad-large;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    box-sizing: border-box;
+
+    &:last-child {
+      border-bottom: none;
     }
   }
 
-  // Compact variant (Option A) — for modals
+  &__ghost-skeleton {
+    height: 12px;
+    border-radius: 4px;
+    background-color: $ui-fleet-black-10;
+  }
+
+  &__content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-medium; // 16px per Figma
+    text-align: center;
+    padding: $pad-xlarge 4rem; // 32px 64px per Figma
+
+    // Radial glow for legibility over ghost rows; color-mix keeps dark mode correct
+    background: radial-gradient(
+      ellipse at center,
+      var(--core-fleet-white) 0%,
+      color-mix(in srgb, var(--core-fleet-white) 0%, transparent) 70%
+    );
+  }
+
+  &__title {
+    font-size: $small; // 16px per Figma
+    font-weight: $bold;
+    line-height: $line-height;
+    color: $core-fleet-black;
+    margin: 0;
+  }
+
+  // Compact variant (Option A) — left-aligned bordered card for modals
   &--compact {
+    position: static;
     width: auto;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    padding: 0;
+    height: auto;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    background-color: $ui-off-white;
+    padding: $pad-medium $pad-large; // 16px 24px per Figma
 
     .premium-feature-message {
       display: flex;
       gap: $gap-icon-text;
       align-items: center;
+
+      p {
+        font-size: $x-small;
+        line-height: $line-height;
+        color: $ui-fleet-black-75;
+        margin: 0;
+      }
     }
   }
 }

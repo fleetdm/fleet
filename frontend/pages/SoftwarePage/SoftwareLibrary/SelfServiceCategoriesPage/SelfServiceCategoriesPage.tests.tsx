@@ -77,7 +77,7 @@ describe("SelfServiceCategoriesPage", () => {
     const { container } = render(<SelfServiceCategoriesPage {...baseProps} />);
 
     expect(
-      screen.getByText("This feature is included in Fleet Premium.")
+      screen.getByText("Included in Fleet Premium")
     ).toBeInTheDocument();
     // Fleet Free has no concept of fleets — the dropdown must be hidden, and
     // a static page title takes its place.

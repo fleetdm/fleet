@@ -67,7 +67,7 @@ describe("AccountProvisioning", () => {
       />
     );
     expect(
-      screen.getByText(/This feature is included in Fleet Premium/i)
+      screen.getByText(/Included in Fleet Premium/i)
     ).toBeInTheDocument();
   });
 

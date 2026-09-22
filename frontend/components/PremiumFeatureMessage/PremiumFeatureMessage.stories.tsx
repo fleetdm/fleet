@@ -17,10 +17,10 @@ export default meta;
 
 type Story = StoryObj<typeof PremiumFeatureMessage>;
 
-/** Option B — bordered card container, used on pages and settings sections. */
+/** Option B — empty-state ghost table, used on pages and settings sections. */
 export const Default: Story = {};
 
-/** Option A — compact left-aligned layout, used inside modals. */
+/** Option A — left-aligned bordered card, used inside modals. */
 export const Compact: Story = {
   args: {
     variant: "compact",
