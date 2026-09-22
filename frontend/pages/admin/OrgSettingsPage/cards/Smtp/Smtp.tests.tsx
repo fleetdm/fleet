@@ -35,9 +35,7 @@ describe("Smtp", () => {
     });
   });
 
-  // Regression: pre-migration the port error was set to the placeholder
-  // string "Port" and shared its message key with the server error, so
-  // fixing one cleared the other. Each field now carries its own copy.
+  // Server and port must carry independent error copy, not share a key.
   describe("validate", () => {
     const baseFormData = {
       enableSMTP: true,

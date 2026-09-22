@@ -130,9 +130,7 @@ describe("notify - sonner toast API", () => {
     expect(element.props.detail).toEqual({ message: "internal" });
   });
 
-  // Regression for #53725: Sonner's default `--width` (inline on the <ol>)
-  // beats class-based CSS, so we must set it via `style` on <Toaster>.
-  // Dropping the style prop shifts every toast right of viewport center.
+  // Sonner sets --width inline on the <ol>, beating class CSS.
   it("sets --width via style on the Toaster wrapper", () => {
     mockedToaster.mockClear();
     render(<ToastNotification />);

@@ -23,8 +23,7 @@ describe("ConfirmInviteForm - component", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
   });
 
-  // Pattern: pristine required fields stay silent until submit.
-  // Blurring another field must not surface errors on untouched ones.
+  // Pristine required fields stay silent until submit.
   it("does not show errors on pristine fields before submit", async () => {
     const { user } = renderWithSetup(
       <ConfirmInviteForm

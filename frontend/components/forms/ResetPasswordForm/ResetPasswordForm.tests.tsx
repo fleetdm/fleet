@@ -121,8 +121,7 @@ describe("ResetPasswordForm - component", () => {
     });
   });
 
-  // Regression: submit was wired via Button onClick, so Enter never
-  // reached the form's onSubmit. Migration moved it to <form onSubmit>.
+  // Enter must reach the form's onSubmit, not a stray Button onClick.
   it("submits when Enter is pressed inside the form", async () => {
     const { user } = renderWithSetup(
       <ResetPasswordForm handleSubmit={submitSpy} />
