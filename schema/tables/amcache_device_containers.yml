@@ -1,0 +1,112 @@
+name: amcache_device_containers
+description: Device containers recorded in the Windows Amcache hive by the Microsoft Compatibility
+  Appraiser, one row per physical device grouping its Plug and Play device nodes.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  A container groups the Plug and Play device nodes that belong to one physical device, so a USB
+  stick or a printer appears here once rather than several times.
+
+  Containers persist after the device is removed, so connected and active describe the state when
+  the appraiser last wrote the record and not the present moment.
+examples: |-
+  List removable drives this host has ever seen, most recently recorded first.
+
+  ```
+  SELECT container_id, friendly_name, manufacturer, model_name, connected,
+         last_write_time
+  FROM amcache_device_containers
+  WHERE primary_category LIKE 'Storage.Removable%'
+  ORDER BY last_write_time DESC;
+  ```
+columns:
+  - name: container_id
+    type: text
+    description: Container GUID, lowercased, taken from the Amcache subkey name. Joins
+      amcache_device_pnp.container_id.
+    required: false
+  - name: friendly_name
+    type: text
+    description: Friendly name of the device as Windows displays it.
+    required: false
+  - name: manufacturer
+    type: text
+    description: Manufacturer of the device.
+    required: false
+  - name: model_name
+    type: text
+    description: Model name of the device.
+    required: false
+  - name: model_number
+    type: text
+    description: Model number of the device.
+    required: false
+  - name: model_id
+    type: text
+    description: Model identifier of the device.
+    required: false
+  - name: primary_category
+    type: text
+    description: Primary category Windows assigned to the device, for example the removable drive
+      category, which is what makes USB storage history queryable from this table.
+    required: false
+  - name: categories
+    type: text
+    description: All categories Windows assigned to the device, as a comma-separated list.
+    required: false
+  - name: discovery_method
+    type: text
+    description: How Windows discovered the device.
+    required: false
+  - name: state
+    type: bigint
+    description: Container state flags word. This is a flags word rather than a small integer, which
+      is why the column is bigint. The bits confirmed by measurement on the reference hives are 0x1
+      connected, 0x2 networked, 0x4 paired, 0x8 active and 0x10 machine container, and each agrees
+      with the matching boolean column on every record observed. No higher bit is set on any record
+      observed, so treat one as unknown rather than as unset.
+    required: false
+  - name: active
+    type: integer
+    description: Value is 1 if Windows marked the container active. Agrees with bit 0x8 of state on
+      every record observed.
+    required: false
+  - name: connected
+    type: integer
+    description: Value is 1 if the device was connected when the appraiser wrote the record. Agrees
+      with bit 0x1 of state on every record observed. This is not a statement about the present
+      moment.
+    required: false
+  - name: paired
+    type: integer
+    description: Value is 1 if the device is paired. Agrees with bit 0x4 of state on every record
+      observed.
+    required: false
+  - name: networked
+    type: integer
+    description: Value is 1 if the device is reached over the network. Agrees with bit 0x2 of state
+      on every record observed.
+    required: false
+  - name: machine_container
+    type: integer
+    description: Value is 1 if the container represents the machine itself rather than an attached
+      device. Agrees with bit 0x10 of state on every record observed.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false
