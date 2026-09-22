@@ -418,6 +418,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 		desc       string
 		selectStmt string
 		updateStmt string
+		isWindows  bool
 	}{
 		{
 			desc:       "apple profiles",
@@ -432,6 +433,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			updateStmt: `UPDATE host_mdm_windows_profiles
 				SET status = NULL, detail = NULL, command_uuid = ''
 				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
+			isWindows: true,
 		},
 		{
 			desc:       "apple declarations",
@@ -475,6 +477,13 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "reset "+tgt.desc+" for custom host vital resend")
+		}
+
+		if tgt.isWindows {
+			// Resetting status to NULL moves the host into the pending bucket, so we need to update the Windows status rollup table.
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for custom host vital resend")
+			}
 		}
 	}
 
