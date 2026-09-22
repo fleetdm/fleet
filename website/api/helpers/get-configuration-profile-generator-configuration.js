@@ -104,10 +104,33 @@ module.exports = {
 
         // How this key reads when it appears inside a parent's braces.  A key with subkeys renders as
         // `Parent{child, child}`, the way the hand-maintained schemas did -- pulling nested keys onto
-        // their own lines would lose which parent they belong to.  Note the bare name rather than the
-        // label: a parent's shape is already given by its braces.
+        // their own lines would lose which parent they belong to.
+        //
+        // An array's subkeys describe its ELEMENT rather than keys inside it, and Apple gives that element
+        // a name of its own: PayloadContentItem, RangesItem, AllowedExtensionsItem.  Rendering that name
+        // as though it were a key both invites the model to write it into the profile and, since braces
+        // mean dictionary here, describes an array as a dictionary.  So an array keeps its `[]` and its
+        // element is unwrapped: a dictionary element contributes its own keys, and a plain-value element
+        // contributes whatever constrains its values.
         let inlineText;
-        if(key.subkeys && key.subkeys.length > 0) {
+        let arrayElement = (shape === '[]' && key.subkeys && key.subkeys.length > 0) ? _.first(key.subkeys) : undefined;
+        // Checked by type rather than by "has subkeys": ACME and SCEP subjects are arrays whose element is
+        // itself an array, and those render as the plain `Subject[]` the hand-maintained schemas gave them
+        // rather than growing a brace that would claim they are dictionaries.
+        let arrayElementIsADictionary = arrayElement && /dictionary/.test(String(arrayElement.type || '')) && arrayElement.subkeys && arrayElement.subkeys.length > 0;
+        if(arrayElementIsADictionary) {
+          let renderedElementKeys = [];
+          if(depth < MAX_DEPTH) {
+            for (let elementKey of arrayElement.subkeys) {
+              renderedElementKeys.push(renderKey(elementKey, depth + 1).inlineText);
+            }
+          }
+          inlineText = `${labelText}{${renderedElementKeys.join(', ')}}`;
+        } else if(arrayElement) {
+          let elementConstraint = renderKey(arrayElement, depth).constraint;
+          inlineText = `${labelText}${elementConstraint ? `:${elementConstraint}` : ''}`;
+        } else if(key.subkeys && key.subkeys.length > 0) {
+          // A dictionary: the bare name rather than the label, since its braces already give its shape.
           let renderedSubkeys = [];
           if(depth < MAX_DEPTH) {
             for (let subkey of key.subkeys) {
@@ -283,7 +306,9 @@ module.exports = {
         providedSchema: appleSchema,
         providedSchemaDescription: `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
 from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
-dictionary, \`[]\` is an array, and \`Parent{child, child}\` gives a dictionary's contents.  CommonPayloadKeys and
+dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an
+array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
+constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
 TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
 the keys that belong on the root dict and nowhere else.
 
@@ -338,7 +363,9 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
         providedSchema: appleSchema,
         providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts, taken from Apple's
 own declaration definitions.  Format is a declaration type followed by its keys, where \`*\` marks a required key,
-\`[]\` is an array, and \`Parent{child, child}\` gives a nested dictionary's contents.
+\`[]\` is an array, \`Parent{child, child}\` gives a nested dictionary's contents, and \`Parent[]{child, child}\` an array
+whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what constrains its
+entries after a colon where there is anything to say: \`Name[]:(a|b)\`.
 
 Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
 carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
