@@ -163,6 +163,7 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 			{
 				ProfileUUID: "global-windows-profile-uuid",
 				Name:        "Global Windows Profile",
+				Description: "Blocks inbound connections",
 				Platform:    "windows",
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",

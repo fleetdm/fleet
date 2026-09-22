@@ -1370,3 +1370,23 @@ func TestGetEffectiveQueryReportCap(t *testing.T) {
 		require.Equal(t, c.want, s.GetEffectiveQueryReportCap(c.hostCount), "cap=%d hosts=%d", c.configCap, c.hostCount)
 	}
 }
+
+func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
+	// fleet specs arrive as a map, so every spec field has to be copied here
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
+		{"path": "a", "name": "Wi-Fi", "description": "Office network", "labels_include_any": ["L1"]},
+		{"path": "b"},
+		"c"
+	]}`), &raw))
+
+	var s MacOSSettings
+	set, err := s.FromMap(raw)
+	require.NoError(t, err)
+	require.True(t, set["custom_settings"])
+	require.Equal(t, []MDMProfileSpec{
+		{Path: "a", Name: "Wi-Fi", Description: "Office network", LabelsIncludeAny: []string{"L1"}},
+		{Path: "b"},
+		{Path: "c"},
+	}, s.CustomSettings)
+}

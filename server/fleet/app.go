@@ -916,6 +916,12 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					if path, ok := m["path"].(string); ok {
 						spec.Path = path
 					}
+					if name, ok := m["name"].(string); ok {
+						spec.Name = name
+					}
+					if description, ok := m["description"].(string); ok {
+						spec.Description = description
+					}
 
 					spec.Labels = extractLabelField(m, "labels")
 					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")

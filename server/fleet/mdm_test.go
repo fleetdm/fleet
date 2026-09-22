@@ -574,6 +574,26 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "Name Or Description Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "office"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "home"},
+			},
+			expected: false,
+		},
+		{
+			name: "Name And Description Compared Trimmed",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "office"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: " Wi-Fi ", Description: "office\n"},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range tests {
