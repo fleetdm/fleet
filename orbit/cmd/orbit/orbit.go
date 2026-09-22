@@ -417,7 +417,9 @@ const mdmSecretWaitTimeout = time.Hour
 // interval. The registration is good for one notification, so it is re-armed each time around.
 // stop is closed when the service manager asks orbit to stop; the wait gives up then so a stop
 // request is not held up by a secret that may never arrive.
-func waitForMDMDeliveredEnrollSecret(stop <-chan struct{}, disableKeystore bool, setSecret func(string) error) {
+func waitForMDMDeliveredEnrollSecret(
+	stop <-chan struct{}, enrollSecretPath string, disableKeystore bool, setSecret func(string) error,
+) {
 	log.Info().Msg("no enroll secret yet, waiting for Fleet MDM to deliver one")
 
 	// A stop request has to interrupt the in-flight Wait, not just be noticed between iterations.
@@ -462,7 +464,7 @@ func waitForMDMDeliveredEnrollSecret(stop <-chan struct{}, disableKeystore bool,
 			log.Error().Err(watchErr).Msg("failed to watch for an MDM-delivered enroll secret")
 		}
 
-		adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setSecret)
+		adopted, err := adoptMDMDeliveredEnrollSecret(enrollSecretPath, realKeystore{}, disableKeystore, setSecret)
 		switch {
 		case err != nil:
 			log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
@@ -525,12 +527,18 @@ func waitForMDMDeliveredEnrollSecret(stop <-chan struct{}, disableKeystore bool,
 // host probably needs help, and the log has to say so rather than staying silent.
 const mdmSecretSlowDelivery = 10 * time.Minute
 
-// adoptMDMDeliveredEnrollSecret adopts an enroll secret that Fleet MDM delivered out of band, if
-// one is waiting. It reports whether a secret was adopted. Only Windows has such a channel; the
-// registry value is cleared once the secret is in the keystore, so its presence means a secret is
-// waiting and its absence means orbit already took it.
-func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) (bool, error) {
-	return adoptDeliveredEnrollSecret(profiles.GetEnrollSecret, profiles.ClearEnrollSecret, ks, disableKeystore, setSecret)
+// adoptMDMDeliveredEnrollSecret adopts an enroll secret that Fleet MDM delivered out of band, if one
+// is waiting. It reports whether a secret was adopted. Only Windows has such a channel.
+//
+// Every other copy of the secret is retired once it is in the keystore: the registry value, so that
+// its presence keeps meaning "a secret is waiting", and the installer's secret file, which Fleet may
+// have written with the same value so an older fleetd that cannot read the registry still enrolls.
+// Leaving that file behind would strand the secret in plaintext on disk of a host that never reads it.
+func adoptMDMDeliveredEnrollSecret(
+	enrollSecretPath string, ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error,
+) (bool, error) {
+	return adoptDeliveredEnrollSecret(
+		profiles.GetEnrollSecret, profiles.ClearEnrollSecret, enrollSecretPath, ks, disableKeystore, setSecret)
 }
 
 // adoptDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without
@@ -539,6 +547,7 @@ func adoptMDMDeliveredEnrollSecret(ks enrollSecretKeystore, disableKeystore bool
 func adoptDeliveredEnrollSecret(
 	readDelivered func() (string, error),
 	clearDelivered func() error,
+	enrollSecretPath string,
 	ks enrollSecretKeystore,
 	disableKeystore bool,
 	setSecret func(string) error,
@@ -557,6 +566,9 @@ func adoptDeliveredEnrollSecret(
 			// Not fatal: the secret is already in the keystore, so orbit can enroll. The value
 			// lingering only means it will be adopted again, harmlessly, on the next start.
 			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+		}
+		if enrollSecretPath != "" {
+			deleteSecretPathIfExists(enrollSecretPath)
 		}
 	}); err != nil {
 		return false, err
@@ -655,30 +667,26 @@ func orbitAction(c *cli.Context) error {
 
 	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
 	disableKeystore := c.Bool("disable-keystore")
+	// Read before the MDM channel below, which retires this file along with the registry value when it adopts a secret. Fleet may
+	// write the same secret to both so that an older fleetd, which cannot read the registry, still enrolls.
+	enrollSecretPath := c.String("enroll-secret-path")
 
-	// A secret Fleet MDM delivered out of band takes precedence over anything already stored, because
-	// a freshly delivered one is how an administrator recovers a host whose secret was spent or lost.
-	// Checked before the file and keystore so the newer value wins rather than being masked by them.
-	// Deliberately not gated on a packaging flag. When no value is waiting this is a no-op, and when
-	// one is waiting Fleet MDM put it there for this device, so there is no case where reading it is
-	// the wrong thing to do.
+	// A secret Fleet Windows MDM delivered out of band takes precedence over anything already stored, because a freshly delivered one
+	// is how an administrator recovers a host whose secret was spent or lost. Checked before the file and keystore so the newer value
+	// wins rather than being masked by them.
 	adoptedMDMSecret := false
-	// Cleared when the registry key cannot be secured, so the wait below does not invite a secret into it.
+	// Cleared when the registry key cannot be secured.
 	mdmSecretChannelUsable := true
 	if runtime.GOOS == "windows" {
-		// Create the key before reading it, so a secret delivered later lands somewhere only SYSTEM and
-		// Administrators can read rather than in a key created implicitly with inherited permissions.
-		//
-		// Fail closed. If the key cannot be secured, do not use the registry channel at all: reading or
-		// waiting on it would invite Fleet to deliver a plaintext secret into a key a local non-admin
-		// can read. orbit falls through to the file and keystore instead, which is the same position a
-		// host is in before any secret has been delivered.
+		// Create the key before reading it, so a secret delivered later lands somewhere only SYSTEM and Administrators can read rather
+		// than in a key created implicitly with inherited permissions.
 		if err := profiles.EnsureEnrollSecretKeyIsProtected(); err != nil {
+			// This should not happen.
 			log.Error().Err(err).Msg(
 				"not using the registry channel for an MDM-delivered enroll secret: its key could not be secured")
 			mdmSecretChannelUsable = false
 		} else {
-			adopted, err := adoptMDMDeliveredEnrollSecret(realKeystore{}, disableKeystore, setEnrollSecret)
+			adopted, err := adoptMDMDeliveredEnrollSecret(enrollSecretPath, realKeystore{}, disableKeystore, setEnrollSecret)
 			if err != nil {
 				// Not fatal: fall through to the file and keystore, which may still hold a usable secret.
 				log.Error().Err(err).Msg("failed to adopt an MDM-delivered enroll secret")
@@ -687,10 +695,10 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
-	// Skipped entirely when a secret was just adopted from MDM: the MSI always sets
-	// enroll-secret-path, so the mutual-exclusion check below would otherwise reject the very
-	// secret Fleet delivered, and the file holds nothing worth preferring over it.
-	enrollSecretPath := c.String("enroll-secret-path")
+	// Skipped entirely when a secret was just adopted from MDM. fleetd-base.msi is built with a
+	// placeholder enroll secret, which is enough to set enroll-secret-path even though it never writes
+	// the file it points at, so the mutual-exclusion check below would otherwise reject the very secret
+	// Fleet delivered. The file is already gone by now anyway: adopting retires it too.
 	if enrollSecretPath != "" && !adoptedMDMSecret {
 		if c.String("enroll-secret") != "" {
 			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
@@ -904,7 +912,7 @@ func orbitAction(c *cli.Context) error {
 	// Nothing between the earlier secret resolution and this point consumes the enroll secret on
 	// Windows, and everything that does consume it runs later.
 	if waitForMDMSecret {
-		waitForMDMDeliveredEnrollSecret(svcInterruptCh, disableKeystore, setEnrollSecret)
+		waitForMDMDeliveredEnrollSecret(svcInterruptCh, enrollSecretPath, disableKeystore, setEnrollSecret)
 	}
 
 	// sofwareupdated is a macOS daemon that automatically updates Apple software.

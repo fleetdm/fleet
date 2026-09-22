@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
@@ -139,10 +141,15 @@ func TestAdoptDeliveredEnrollSecret(t *testing.T) {
 			cleared := false
 			var set string
 
+			// Fleet may write the same secret to the installer's file as well, so that an older fleetd
+			// that cannot read the registry still enrolls. Adopting has to retire that copy too.
+			secretPath := filepath.Join(t.TempDir(), "secret.txt")
+			require.NoError(t, os.WriteFile(secretPath, []byte("delivered"), 0o600))
+
 			adopted, err := adoptDeliveredEnrollSecret(
 				func() (string, error) { return "delivered", tc.readErr },
 				func() error { cleared = true; return nil },
-				ks, false,
+				secretPath, ks, false,
 				func(secret string) error { set = secret; return nil },
 			)
 
@@ -154,6 +161,14 @@ func TestAdoptDeliveredEnrollSecret(t *testing.T) {
 			require.Equal(t, tc.wantAdopted, adopted)
 			require.Equal(t, tc.wantAdds, ks.addCalls)
 			require.Equal(t, tc.wantCleared, cleared, "the delivery copy is discarded only once stored")
+
+			_, statErr := os.Stat(secretPath)
+			if tc.wantCleared {
+				require.ErrorIs(t, statErr, os.ErrNotExist, "the installer's copy must not outlive adoption")
+			} else {
+				require.NoError(t, statErr, "an unadopted secret leaves the file for the file path to read")
+			}
+
 			if tc.wantAdopted {
 				require.Equal(t, "delivered", set)
 			} else {
