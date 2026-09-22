@@ -107,12 +107,14 @@ const SaveNewPolicyModal = ({
     lastEditedQueryDescription,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     setLastEditedQueryName,
     setLastEditedQueryPlatform,
     // TODO: Keep last edited query platform from resetting when cancelling out of modal and clicking save again
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
   } = useContext(PolicyContext);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -128,6 +130,13 @@ const SaveNewPolicyModal = ({
 
   const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const [conditionalAccessOn, setConditionalAccessOn] = useState(false);
+
+  useEffect(() => {
+    if (conditionalAccessOn) {
+      setLastEditedQueryHidden(false);
+    }
+  }, [conditionalAccessOn, setLastEditedQueryHidden]);
 
   const newPolicyStub = useMemo(
     () =>
@@ -195,6 +204,9 @@ const SaveNewPolicyModal = ({
     };
     if (isPremiumTier) {
       Object.assign(payload, getLabelsPayload());
+      if (!isGlobalPolicy) {
+        payload.hidden = lastEditedQueryHidden;
+      }
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -384,6 +396,7 @@ const SaveNewPolicyModal = ({
               globalConfig={globalConfig}
               fleetName={fleetName}
               selectedPlatforms={platformSelector.getSelectedPlatforms()}
+              onConditionalAccessChange={setConditionalAccessOn}
             />
           </div>
         ) : (
@@ -416,6 +429,26 @@ const SaveNewPolicyModal = ({
                 }
               >
                 Critical
+              </TooltipWrapper>
+            </Checkbox>
+          </div>
+        )}
+        {isPremiumTier && !isGlobalPolicy && (
+          <div className="hidden-checkbox-wrapper">
+            <Checkbox
+              name="hidden-policy"
+              onChange={(value: boolean) => setLastEditedQueryHidden(value)}
+              value={lastEditedQueryHidden}
+              disabled={disableForm || conditionalAccessOn}
+            >
+              <TooltipWrapper
+                tipContent={
+                  conditionalAccessOn
+                    ? "This setting is not compatible with the conditional access automation."
+                    : "Does not require action from the end user and is hidden in Fleet Desktop."
+                }
+              >
+                Hide from end user
               </TooltipWrapper>
             </Checkbox>
           </div>

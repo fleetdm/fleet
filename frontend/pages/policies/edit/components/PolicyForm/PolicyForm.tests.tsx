@@ -139,6 +139,88 @@ describe("PolicyForm - component", () => {
       mockServer.use(labelSummariesHandler);
     });
 
+    const renderEditForm = (
+      storedPolicy: ReturnType<typeof createMockPolicy>,
+      lastEditedQueryHidden: boolean
+    ) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: storedPolicy.team_id ?? undefined,
+            lastEditedQueryId: storedPolicy.id,
+            lastEditedQueryName: storedPolicy.name,
+            lastEditedQueryDescription: storedPolicy.description,
+            lastEditedQueryBody: storedPolicy.query,
+            lastEditedQueryResolution: storedPolicy.resolution,
+            lastEditedQueryCritical: storedPolicy.critical,
+            lastEditedQueryHidden,
+            lastEditedQueryPlatform: storedPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryHidden: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalAdmin: true,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            config: createMockConfig(),
+          },
+        },
+      });
+      return render(
+        <PolicyForm
+          {...defaultProps}
+          teamIdForApi={storedPolicy.team_id ?? undefined}
+          policyIdForEdit={storedPolicy.id}
+          storedPolicy={storedPolicy}
+        />
+      );
+    };
+
+    it("shows Hide from end user checked for a hidden fleet policy", async () => {
+      renderEditForm(createMockPolicy({ team_id: 2, hidden: true }), true);
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toBeChecked();
+      expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "false");
+    });
+
+    it("disables Hide from end user when the policy uses conditional access", async () => {
+      renderEditForm(
+        createMockPolicy({ team_id: 2, conditional_access_enabled: true }),
+        false
+      );
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "true");
+      expect(hiddenCheckbox).not.toBeChecked();
+    });
+
+    it("does not offer Hide from end user for an All fleets policy", async () => {
+      renderEditForm(createMockPolicy({ team_id: null }), false);
+
+      expect(
+        await screen.findByRole("checkbox", { name: /critical/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("checkbox", { name: "hidden-policy" })
+      ).not.toBeInTheDocument();
+    });
+
     it("disables save button for missing policy name", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,

@@ -169,6 +169,7 @@ const PolicyForm = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     lastEditedQueryLabelsIncludeAny,
     lastEditedQueryLabelsIncludeAll,
@@ -180,6 +181,7 @@ const PolicyForm = ({
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -291,6 +293,17 @@ const PolicyForm = ({
   }
 
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const [conditionalAccessOn, setConditionalAccessOn] = useState(
+    storedPolicy?.conditional_access_enabled ?? false
+  );
+  useEffect(() => {
+    setConditionalAccessOn(storedPolicy?.conditional_access_enabled ?? false);
+  }, [storedPolicy?.conditional_access_enabled]);
+  useEffect(() => {
+    if (conditionalAccessOn) {
+      setLastEditedQueryHidden(false);
+    }
+  }, [conditionalAccessOn, setLastEditedQueryHidden]);
 
   const {
     mutate: saveAutomations,
@@ -519,6 +532,9 @@ const PolicyForm = ({
       if (isPremiumTier) {
         Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
+        if (!isGlobalPolicy) {
+          payload.hidden = lastEditedQueryHidden;
+        }
       }
       await onUpdate(payload);
       persistAutomations();
@@ -651,6 +667,31 @@ const PolicyForm = ({
     );
   };
 
+  const renderHiddenPolicy = () => {
+    return (
+      <div className={`${baseClass}__hidden-checkbox-wrapper`}>
+        <Checkbox
+          name="hidden-policy"
+          className="hidden-policy"
+          onChange={(value: boolean) => setLastEditedQueryHidden(value)}
+          value={lastEditedQueryHidden}
+          isLeftLabel
+          disabled={gitOpsModeEnabled || conditionalAccessOn}
+        >
+          <TooltipWrapper
+            tipContent={
+              conditionalAccessOn
+                ? "This setting is not compatible with the conditional access automation."
+                : "Does not require action from the end user and is hidden in Fleet Desktop."
+            }
+          >
+            Hide from end user
+          </TooltipWrapper>
+        </Checkbox>
+      </div>
+    );
+  };
+
   const renderPolicyFleetName = () => {
     if (isFreeTier) return null;
 
@@ -771,6 +812,7 @@ const PolicyForm = ({
                 }
                 patchSlot={patchOptions}
                 selectedPlatforms={getSelectedPlatforms()}
+                onConditionalAccessChange={setConditionalAccessOn}
               />
             </div>
           )}
@@ -779,6 +821,11 @@ const PolicyForm = ({
             isPremiumTier &&
             !isPatchPolicy &&
             renderCriticalPolicy()}
+          {isEditMode &&
+            isPremiumTier &&
+            !isPatchPolicy &&
+            !isGlobalPolicy &&
+            renderHiddenPolicy()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}

@@ -62,6 +62,7 @@ const QueryEditor = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     policyTeamId,
     setLastEditedQueryDescription,
@@ -216,6 +217,7 @@ const QueryEditor = ({
       lastEditedQueryBody,
       lastEditedQueryResolution,
       lastEditedQueryCritical,
+      lastEditedQueryHidden,
       lastEditedQueryPlatform,
     });
 

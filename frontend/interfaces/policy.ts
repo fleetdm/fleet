@@ -69,6 +69,8 @@ export interface IPolicy {
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
+  /** Hidden from end users in Fleet Desktop. Absent on device (My device) policies. */
+  hidden?: boolean;
   type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
@@ -154,6 +156,7 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  hidden?: boolean;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
   software_title_id?: number | null;

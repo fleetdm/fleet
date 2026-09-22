@@ -175,6 +175,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showHiddenPolicies, setShowHiddenPolicies] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -301,14 +302,16 @@ const DeviceUserPage = ({
     error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
-    ["host", deviceAuthToken],
+    ["host", deviceAuthToken, showHiddenPolicies],
     () =>
       deviceUserAPI.loadHostDetails({
         token: deviceAuthToken,
         exclude_software: true,
+        include_hidden_policies: showHiddenPolicies,
       }),
     {
       enabled: !!deviceAuthToken,
+      keepPreviousData: true,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -686,7 +689,10 @@ const DeviceUserPage = ({
   );
 
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    const failingPoliciesCount =
+      host?.issues?.failing_unhidden_policies_count ??
+      host?.issues?.failing_policies_count ??
+      0;
 
     const failedControlsCount = countFailedControls(controls);
 
@@ -985,6 +991,10 @@ const DeviceUserPage = ({
                     policies={host?.policies || []}
                     isLoading={isLoadingDupDetails}
                     deviceUser
+                    showHiddenPolicies={showHiddenPolicies}
+                    onToggleShowHiddenPolicies={() =>
+                      setShowHiddenPolicies((current) => !current)
+                    }
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}

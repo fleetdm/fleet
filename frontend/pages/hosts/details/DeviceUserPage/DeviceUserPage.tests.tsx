@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
@@ -11,11 +12,13 @@ import {
 } from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
+  createDefaultDeviceResponse,
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
@@ -26,7 +29,11 @@ import {
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
@@ -416,6 +423,51 @@ describe("Device User Page", () => {
       });
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+  });
+
+  describe("hidden policies toggle", () => {
+    it("requests hidden policies only after the toggle is switched on", async () => {
+      const requestedUrls: string[] = [];
+      // With software inventory off, the Software tab is not rendered but its
+      // path stays in the tab list, so deep-linking to Policies selects no tab.
+      const response = createDefaultDeviceResponse();
+      response.global_config.features.enable_software_inventory = true;
+      mockServer.use(
+        http.get(baseUrl("/device/:token"), ({ request }) => {
+          requestedUrls.push(request.url);
+          return HttpResponse.json(response);
+        })
+      );
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      // Tabs are route-driven, so land directly on the Policies tab.
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS_POLICIES("testToken"),
+          }}
+        />
+      );
+      await screen.findByText(/Details/);
+      expect(
+        requestedUrls.some((url) => url.includes("include_hidden_policies"))
+      ).toBe(false);
+
+      await user.click(await screen.findByRole("switch"));
+
+      await waitFor(() => {
+        expect(
+          requestedUrls.some((url) =>
+            url.includes("include_hidden_policies=true")
+          )
+        ).toBe(true);
+      });
     });
   });
 
