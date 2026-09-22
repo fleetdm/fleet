@@ -74,8 +74,7 @@ func TestUp_20260922170154(t *testing.T) {
 	}
 
 	// updated_at is ON UPDATE CURRENT_TIMESTAMP and the migration assigns it to itself, so clearing
-	// the detail doesn't make the certificate look freshly delivered. The retry backoff is computed
-	// off updated_at, so moving it would delay a retry that is actually due.
+	// the detail doesn't make the certificate look freshly delivered.
 	require.Equal(t,
 		before["delivered-with-stale-detail"].UpdatedAt,
 		after["delivered-with-stale-detail"].UpdatedAt,
