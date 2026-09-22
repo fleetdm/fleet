@@ -275,6 +275,7 @@ import DanteController from "./png/DanteController.png";
 import Darkmodebuddy from "./png/Darkmodebuddy.png";
 import Darktable from "./png/Darktable.png";
 import Dash from "./png/Dash.png";
+import DatadogAgent from "./png/DatadogAgent.png";
 import Dataflare from "./png/Dataflare.png";
 import DataGrip from "./png/DataGrip.png";
 import Dataspell from "./png/Dataspell.png";
@@ -1432,6 +1433,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,
+  "datadog agent": DatadogAgent,
   dataflare: Dataflare,
   datagrip: DataGrip,
   dataspell: Dataspell,

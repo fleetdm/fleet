@@ -221,6 +221,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Beyond Compare":                    "= 'bcompare.exe'",
 	"CLion":                             "IN ('clion.exe','clion64.exe')",
 	"Connect Fonts":                     "= 'monotype connect.exe'",
+	"Datadog Agent":                     "= 'ddtray.exe'",
 	"DataGrip":                          "IN ('datagrip.exe','datagrip64.exe')",
 	"DataSpell":                         "IN ('dataspell.exe','dataspell64.exe')",
 	"DAX Studio":                        "= 'daxstudio.exe'",
