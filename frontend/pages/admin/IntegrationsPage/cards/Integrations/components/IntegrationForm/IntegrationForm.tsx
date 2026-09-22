@@ -204,7 +204,7 @@ const IntegrationForm = ({
   if (testingConnection) {
     return (
       <div className={`${baseClass}__testing-connection`}>
-        <b>Testing connection</b>
+        <strong>Testing connection</strong>
         <Spinner />
       </div>
     );
@@ -282,10 +282,9 @@ const IntegrationForm = ({
           disabled={gitOpsModeEnabled || isSubmitting}
           tooltip={
             <>
-              To find the Jira project key, head to your project in <br />
-              Jira. Your project key is located in the URL. For example, in{" "}
-              <br />
-              &ldquo;jira.example.com/projects/JRAEXAMPLE,&rdquo; <br />
+              To find the Jira project key, head to your project in Jira. Your
+              project key is located in the URL. For example, in
+              &ldquo;jira.example.com/projects/JRAEXAMPLE,&rdquo;
               &ldquo;JRAEXAMPLE&rdquo; is your project key.
             </>
           }
@@ -307,8 +306,8 @@ const IntegrationForm = ({
           tooltip={
             <>
               To find the Zendesk group ID, select{" "}
-              <strong>Admin &gt; People &gt; Groups</strong>. Find the group and
-              select it. The group ID will appear in the search field.
+              <strong>Admin &gt; People &gt; Groups</strong>. Find the group
+              and select it. The group ID will appear in the search field.
             </>
           }
         />
