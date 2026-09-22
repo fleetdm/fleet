@@ -49,6 +49,7 @@ export interface ISoftware {
   installed_paths?: string[];
   extension_for?: string;
   vendor?: string;
+  release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
@@ -62,6 +63,7 @@ export type IVulnerabilitySoftware = Omit<
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
+  release?: string;
   vulnerabilities: string[] | null; // TODO: does this return null or is it omitted?
   hosts_count?: number;
 }
@@ -212,6 +214,7 @@ export interface ISoftwareTitle {
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
+  bundle_identifier?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
@@ -282,7 +285,8 @@ export interface ISoftwareVersion {
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
   extension_for: SoftwareExtensionFor;
-  release: string; // TODO: on software/verions/:id?
+  /** OS release ("30.el7") or, for go_binaries, the Go toolchain version ("go1.26.1"). */
+  release: string;
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
   generated_cpe: string;
@@ -425,6 +429,20 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
 export type SoftwareExtensionFor =
   | keyof typeof EXTENSION_FOR_TYPE_CONVERSION
   | "";
+
+/** For go_binaries the toolchain version is part of the row's identity, so it's shown
+ * alongside the version. rpm_packages also populates `release` and must not be.
+ * Version entries carry no source of their own; spread the entry and add the row's. */
+export const formatSoftwareVersion = ({
+  version,
+  release,
+  source,
+}: {
+  version: string;
+  release?: string;
+  source?: string;
+}) =>
+  source === "go_binaries" && release ? `${version} (${release})` : version;
 
 export const formatSoftwareType = ({
   source,
@@ -602,7 +620,11 @@ export interface IAppLastInstall {
 interface SignatureInformation {
   installed_path: string;
   team_identifier: string;
+  /** The cdhash of a code-signed app bundle. Null for anything Fleet hashes as
+   * a plain Mach-O file, such as a Homebrew formula's executables. */
   hash_sha256: string | null;
+  executable_sha256: string | null;
+  executable_path: string | null;
 }
 export interface ISoftwareLastUninstall {
   script_execution_id: string;
@@ -611,6 +633,7 @@ export interface ISoftwareLastUninstall {
 
 export interface ISoftwareInstallVersion {
   version: string;
+  release?: string;
   bundle_identifier: string;
   last_opened_at?: string;
   vulnerabilities: string[] | null;
@@ -660,6 +683,12 @@ export interface IHostSoftware {
   extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
+  /**
+   * True when the most recent install was a patch-when-closed skip (the target
+   * app was open); `status` is then `failed_install`. Rendered as "Patch
+   * skipped" rather than "Failed".
+   */
+  skipped_install?: boolean;
   installed_versions: ISoftwareInstallVersion[] | null;
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
@@ -744,6 +773,7 @@ export const isSoftwareSuccessStatus = (
 // Update-available UI status
 export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
   "update_available", // In inventory, but newer fleet installer version is available
+  "skipped_install", // Patch-when-closed skip; renders as a deferred update
 ] as const;
 export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
 export const isSoftwareUpdateAvailableStatus = (

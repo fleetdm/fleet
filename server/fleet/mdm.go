@@ -1248,6 +1248,45 @@ func VerifySoftwareInstallCommandUUID() string {
 	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
 }
 
+// AppleMDMCommandRetentionClass identifies a set of Fleet-generated commands
+// eligible for cleanup. An empty UUIDPrefix matches any command of RequestType.
+type AppleMDMCommandRetentionClass struct {
+	RequestType string
+	UUIDPrefix  string
+}
+
+// AppleMDMShortRetentionClasses are the recurring commands the cleanup deletes
+// after the short retention window. The UUID prefixes separate Fleet's own
+// inventory chatter from customer-run commands of the same request type, which
+// fall under the standard window instead.
+var AppleMDMShortRetentionClasses = []AppleMDMCommandRetentionClass{
+	{RequestType: "DeviceInformation", UUIDPrefix: RefetchDeviceCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: RefetchAppsCommandUUIDPrefix},
+	{RequestType: "CertificateList", UUIDPrefix: RefetchCertsCommandUUIDPrefix},
+	{RequestType: "Settings", UUIDPrefix: DeviceNameCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: VerifySoftwareInstallVPPPrefix},
+	{RequestType: "DeclarativeManagement"},
+}
+
+// AppleMDMStandardRetentionRequestTypes are the request types the cleanup
+// deletes after the standard retention window. Any type not listed here or in
+// the short classes is retained indefinitely, so a new feature's commands are
+// kept until someone reviews them for deletion.
+var AppleMDMStandardRetentionRequestTypes = []string{
+	"InstallProfile", "RemoveProfile", "InstallApplication",
+	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
+	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
+	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
+	"UserList",
+}
+
+// AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows
+// are still read back afterwards (lock/wipe/lost-mode status), so the inactive
+// purge must skip them even at active = 0.
+var AppleMDMInactivePurgeDenylist = []string{
+	"DeviceLock", "EraseDevice", EnableLostModeCmdName, DisableLostModeCmdName, AccountConfigurationCmdName,
+}
+
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
 	OrgName   string `json:"org_name"`
@@ -1398,6 +1437,11 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
@@ -1472,6 +1516,14 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested       bool       `db:"hardware_attested"`
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
+	// Enrollment both produce the "On (manual - personal)" status, so the channel
+	// is the only way to tell them apart.
+	EnrollmentType string `db:"enrollment_type"`
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
+	Enabled bool `db:"enabled"`
 }
 
 // MDM SSO initiator constants identify which enrollment flow initiated the SSO

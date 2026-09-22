@@ -19,6 +19,13 @@
         <div class="dropdown-item d-block"
           @click="preview = 'Tablet (landscape)'">Tablet (landscape)</div>
       </div>
+      <div purpose="newsletter-buttons" class="ml-5 d-flex flex-column" v-if="isTemplateANewsletter">
+        <ajax-button class="btn btn-sm btn-primary" :syncing="syncing" @click="clickSendTestNewsletter()">Send yourself a test email</ajax-button>
+        <% if(isTemplateLatestNewsletter) {%>
+        <ajax-button :syncing="syncing" @click="clickSendNewsletterToSubscribers()" class="btn btn-sm btn-primary mt-3">Send to newsletter subscribers</ajax-button>
+        <% } %>
+        <cloud-error v-if="cloudError"></cloud-error>
+      </div>
     </div>
   </div>
 

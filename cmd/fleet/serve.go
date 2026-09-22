@@ -228,6 +228,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	config.Osquery.Validate(initFatal)
 
+	config.MDM.ValidateAppleCommandCleanup(initFatal)
+
 	config.ConditionalAccess.Validate(initFatal)
 
 	config.WebSocket.Validate(initFatal)
@@ -350,6 +352,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
 		config.MDM.EnableCustomDiskEncryption = false
 		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
+	}
+
+	if config.Auth.UseOneTimeEnrollSecrets && !license.IsPremium() {
+		config.Auth.UseOneTimeEnrollSecrets = false
+		logger.WarnContext(cmd.Context(), "Disabling one-time enroll secrets because Fleet Premium license is not present")
 	}
 
 	apple_mdm.SetMachineInfoVerification(config.MDM.AppleMachineInfoVerify)

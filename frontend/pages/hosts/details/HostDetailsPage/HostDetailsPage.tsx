@@ -36,6 +36,9 @@ import CustomLink from "components/CustomLink/CustomLink";
 import EmptyState from "components/EmptyState";
 import IconStatusMessage from "components/IconStatusMessage";
 import MainContent, { IMainContentConfig } from "components/MainContent";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
@@ -143,6 +146,7 @@ import {
 import HostReportsTab from "../HostReportsTab";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
+import HostOnlineHistoryModal from "../modals/HostOnlineHistoryModal";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
@@ -278,6 +282,7 @@ const HostDetailsPage = ({
     location.query.show_mdm_status === "true"
   );
   const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showOnlineHistoryModal, setShowOnlineHistoryModal] = useState(false);
   // Sync MDM status modal state when the query param changes while mounted
   // (e.g., browser back/forward navigation).
   useEffect(() => {
@@ -336,6 +341,12 @@ const HostDetailsPage = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
   const [rotationFailedDetails, setRotationFailedDetails] = useState<{
     detail: string;
     hostDisplayName: string;
@@ -351,6 +362,9 @@ const HostDetailsPage = ({
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [refetchTimeout, setRefetchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const queryClient = useQueryClient();
 
   const [
@@ -399,15 +413,15 @@ const HostDetailsPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    "teams",
-    () => teamAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL && !!isPremiumTier,
-      retry: false,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isError: isTeamsError } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >("teams", () => teamAPI.loadAll(), {
+    enabled: !!hostIdFromURL && !!isPremiumTier,
+    retry: false,
+    select: (data: ILoadTeamsResponse) => data.teams,
+  });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
@@ -710,6 +724,18 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
+  // undefined = still resolving. Global config must be loaded, and for a
+  // teamed host the teams query must have either succeeded or errored. A
+  // teams-load failure falls back to the global setting rather than spinning
+  // forever; a missing team-level override is treated as "not disabled".
+  const teamFeaturesResolved =
+    !host?.team_id || teams !== undefined || isTeamsError;
+  const uptimeCollectionEnabled: boolean | undefined =
+    config?.features === undefined || !teamFeaturesResolved
+      ? undefined
+      : (config.features.historical_data?.uptime ?? true) &&
+        (featuresConfig?.historical_data?.uptime ?? true);
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -731,6 +757,14 @@ const HostDetailsPage = ({
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, host]);
+
+  useEffect(() => {
+    return () => {
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
+    };
+  }, [refetchTimeout]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -757,6 +791,10 @@ const HostDetailsPage = ({
   const toggleVitalsModal = useCallback(() => {
     setShowVitalsModal(!showVitalsModal);
   }, [showVitalsModal, setShowVitalsModal]);
+
+  const toggleOnlineHistoryModal = useCallback(() => {
+    setShowOnlineHistoryModal((prev) => !prev);
+  }, []);
 
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal((prev) => {
@@ -881,6 +919,7 @@ const HostDetailsPage = ({
     ({
       type,
       details,
+      created_at,
       actor_full_name,
       fleet_initiated,
     }: IShowActivityDetailsData) => {
@@ -979,6 +1018,14 @@ const HostDetailsPage = ({
             command: {
               command_uuid: details?.command_uuid || "",
             },
+          });
+          break;
+        case ActivityType.HostEnrollmentRejected:
+          setEnrollmentRejectedDetails({
+            hostDisplayName: host?.display_name || details?.host_display_name,
+            hostSerial: details?.host_serial,
+            reason: details?.reason,
+            createdAt: created_at,
           });
           break;
         case ActivityType.RanCustomMdmCommand: {
@@ -1172,6 +1219,9 @@ const HostDetailsPage = ({
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
+        }
+        recoveryLockPasswordStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
@@ -1468,7 +1518,9 @@ const HostDetailsPage = ({
   // embeds the device auth token so it acts as a credential, hence global
   // admin only. Also hide it on hosts that have no live end-user surface —
   // no Fleet Desktop (so no token, and no page to load) or wiped.
-  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
+  const canViewMyDeviceLink =
+    isGlobalAdmin &&
+    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
@@ -1607,6 +1659,9 @@ const HostDetailsPage = ({
               macDiskEncryptionStatus={
                 host?.mdm.apple_settings?.disk_encryption
               }
+              diskEncryptionActionRequired={
+                host?.mdm.apple_settings?.action_required
+              }
               connectedToFleetMdm={host?.mdm.connected_to_fleet}
               diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
               diskIsEncrypted={host?.disk_encryption_enabled}
@@ -1664,6 +1719,7 @@ const HostDetailsPage = ({
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                  toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
@@ -1887,6 +1943,9 @@ const HostDetailsPage = ({
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
+              platform={host?.platform}
+              isMdmEnrolledInFleet={!!host?.mdm?.connected_to_fleet}
+              mdmEnrollmentStatus={host?.mdm?.enrollment_status}
               isUpdating={isUpdating}
             />
           )}
@@ -2146,6 +2205,14 @@ const HostDetailsPage = ({
               onDone={() => setEnrollmentProfileFailedDetails(null)}
             />
           )}
+          {enrollmentRejectedDetails && (
+            <EnrollmentAttemptDetailsModal
+              hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+              reason={enrollmentRejectedDetails.reason}
+              createdAt={enrollmentRejectedDetails.createdAt}
+              onDone={() => setEnrollmentRejectedDetails(null)}
+            />
+          )}
           {showLockHostModal && (
             <LockModal
               id={host.id}
@@ -2256,6 +2323,14 @@ const HostDetailsPage = ({
             onExit={toggleVitalsModal}
           />
         )}
+        {showOnlineHistoryModal && (
+          <HostOnlineHistoryModal
+            hostId={host.id}
+            fleetId={host.team_id ?? undefined}
+            uptimeCollectionEnabled={uptimeCollectionEnabled}
+            onExit={toggleOnlineHistoryModal}
+          />
+        )}
         {editingCustomHostVital && (
           <EditHostVitalModal
             hostId={host.id}
@@ -2278,7 +2353,14 @@ const HostDetailsPage = ({
             platform={host.platform}
             lastMDMCheckIn={host.last_mdm_checked_in_at}
             connectedToFleet={host.mdm.connected_to_fleet}
-            onSuccessfulCheckIn={refetchHostDetails}
+            onSuccessfulCheckIn={() => {
+              // Delay the refetch of the host details
+              // so the device has time to check in.
+              const timeout = setTimeout(() => {
+                refetchHostDetails();
+              }, 5000);
+              setRefetchTimeout(timeout);
+            }}
             user={currentUser}
             router={router}
             onExit={toggleMDMStatusModal}

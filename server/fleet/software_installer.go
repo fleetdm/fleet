@@ -656,6 +656,9 @@ type UploadSoftwareInstallerPayload struct {
 	UserID               uint
 	URL                  string
 	FleetMaintainedAppID *uint
+	// FMAName is the FMA's catalog name, for user-facing errors. Title is the
+	// software title name, which on Windows is often the registry DisplayName instead.
+	FMAName string
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
 	RollbackVersion string
@@ -699,6 +702,14 @@ type UploadSoftwareInstallerPayload struct {
 	AppOpenQuery          string
 	InstallScriptEdited   bool
 	UninstallScriptEdited bool
+}
+
+// FMADisplayName returns the name to show users for a Fleet-maintained app payload.
+func (p *UploadSoftwareInstallerPayload) FMADisplayName() string {
+	if p.FMAName != "" {
+		return p.FMAName
+	}
+	return p.Title
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -902,13 +913,17 @@ func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 // host with installer information if a matching installer exists. This is the
 // payload returned by the "Get host's (device's) software" endpoints.
 type HostSoftwareWithInstaller struct {
-	ID                uint                            `json:"id" db:"id"`
-	Name              string                          `json:"name" db:"name"`
-	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
-	IconUrl           *string                         `json:"icon_url" db:"-"`
-	Source            string                          `json:"source" db:"source"`
-	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
-	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
+	ID               uint                     `json:"id" db:"id"`
+	Name             string                   `json:"name" db:"name"`
+	BundleIdentifier string                   `json:"bundle_identifier,omitempty" db:"-"`
+	IconUrl          *string                  `json:"icon_url" db:"-"`
+	Source           string                   `json:"source" db:"source"`
+	ExtensionFor     string                   `json:"extension_for" db:"extension_for"`
+	Status           *SoftwareInstallerStatus `json:"status" db:"status"`
+	// SkippedInstall is set when the last install was a patch-when-closed skip
+	// (the target app was open); Status is then "failed_install". The UI keys on
+	// this to render "Patch skipped" instead of "Failed".
+	SkippedInstall    bool                            `json:"skipped_install,omitempty" db:"skipped_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
@@ -1187,6 +1202,7 @@ type HostSoftwareInstalledVersion struct {
 	SoftwareTitleID  uint       `json:"-" db:"software_title_id"`
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
+	Release          string     `json:"release,omitempty" db:"release"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
@@ -1380,7 +1396,7 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		if p.FleetMaintainedAppID != nil {
 			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
 				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
-				fmaNames = append(fmaNames, p.Title)
+				fmaNames = append(fmaNames, p.FMADisplayName())
 			}
 			continue
 		}
@@ -1390,8 +1406,8 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
-	// inventory app, so only one can be added.
+	// Two FMAs on one title share a bundle identifier (Firefox and Firefox ESR) or a Windows
+	// DisplayName (x64 and ARM64 Firefox Nightly): same inventory app, so only one can be added.
 	if len(fmaNames) > 1 {
 		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
 	}

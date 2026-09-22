@@ -615,10 +615,10 @@ func renameHostIdPEmails(
 	// an authenticated and a manual row may now hold the same address; the
 	// authenticated one wins
 	delStmt, delArgs, err := sqlx.In(
-		`DELETE manual FROM host_emails manual
+		`DELETE he FROM host_emails he
 		 JOIN host_emails authenticated
-		   ON authenticated.host_id = manual.host_id AND authenticated.source = ? AND authenticated.email = ?
-		 WHERE manual.host_id IN (?) AND manual.source = ? AND manual.email = ?`,
+		   ON authenticated.host_id = he.host_id AND authenticated.source = ? AND authenticated.email = ?
+		 WHERE he.host_id IN (?) AND he.source = ? AND he.email = ?`,
 		fleet.DeviceMappingMDMIdpAccounts, newEmail, slices.Sorted(maps.Keys(dedupe)), fleet.DeviceMappingIDP, newEmail)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "prepare delete duplicate host idp device mappings arguments")
@@ -2105,8 +2105,17 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery, androidUpdateStatusQuery} {
-		updateStmt, args, err := sqlx.Named(query, namedParams)
+	var windowsRowsAffected int64
+	for _, update := range []struct {
+		query     string
+		isWindows bool
+	}{
+		{appleUpdateStatusQuery, false},
+		{windowsUpdateStatusQuery, true},
+		{declarationUpdateStatusQuery, false},
+		{androidUpdateStatusQuery, false},
+	} {
+		updateStmt, args, err := sqlx.Named(update.query, namedParams)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
 		}
@@ -2116,9 +2125,30 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 			return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
 		}
 
-		_, err = tx.ExecContext(ctx, updateStmt, args...)
+		res, err := tx.ExecContext(ctx, updateStmt, args...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "execute resend profiles")
+		}
+		if update.isWindows {
+			windowsRowsAffected, _ = res.RowsAffected()
+		}
+	}
+
+	// The Windows update reset status to NULL, so only hosts now holding a pending row can have a stale rollup.
+	if windowsRowsAffected > 0 {
+		windowsHostUUIDStmt, windowsHostUUIDArgs, err := sqlx.In(
+			`SELECT DISTINCT h.uuid FROM hosts h JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = h.uuid
+			 WHERE h.id IN (?) AND hmwp.status IS NULL`,
+			hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare windows hosts lookup for profiles status rollup")
+		}
+		var windowsHostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs, windowsHostUUIDStmt, windowsHostUUIDArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select windows hosts for profiles status rollup")
+		}
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for variable resend")
 		}
 	}
 

@@ -29,7 +29,20 @@ const mockLabels = [
   { id: 2, name: "Label B", description: "", label_type: "regular" as const },
 ];
 
-const render = createCustomRenderer({ withBackendMock: true });
+const render = createCustomRenderer({
+  withBackendMock: true,
+  context: {
+    app: {
+      config: {
+        mdm: {
+          enabled_and_configured: true,
+          windows_enabled_and_configured: true,
+          android_enabled_and_configured: true,
+        },
+      },
+    },
+  },
+});
 
 describe("EditProfileModal", () => {
   beforeEach(() => {
@@ -284,6 +297,40 @@ describe("EditProfileModal", () => {
     expect(
       screen.getByRole("button", { name: "Update profile" })
     ).toBeDisabled();
+  });
+
+  it("disables update button with MDM disabled", async () => {
+    const renderer = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: false,
+            },
+          },
+        },
+      },
+    });
+
+    const { user } = renderer(
+      <EditProfileModal
+        profile={baseProfile}
+        currentTeamId={0}
+        isPremiumTier={false}
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    const element = screen.getByRole("button", { name: "Update profile" });
+    expect(element).toBeDisabled();
+
+    await user.hover(element);
+
+    await waitFor(() => {
+      expect(screen.getByText(/To enable, first turn on/)).toBeInTheDocument();
+    });
   });
 });
 
