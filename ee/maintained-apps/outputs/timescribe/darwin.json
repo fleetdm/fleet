@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.17.0",
+      "version": "1.17.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'de.amplussoftware.timescribe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.amplussoftware.timescribe' AND version_compare(bundle_short_version, '1.17.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'de.amplussoftware.timescribe' AND version_compare(bundle_short_version, '1.17.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'de.amplussoftware.timescribe' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/WINBIGFOX/TimeScribe/releases/download/v1.17.0/TimeScribe-1.17.0-arm64.zip",
+      "installer_url": "https://github.com/WINBIGFOX/TimeScribe/releases/download/v1.17.1/TimeScribe-1.17.1-arm64.zip",
       "install_script_ref": "5015178b",
       "uninstall_script_ref": "d9e61a45",
-      "sha256": "6a5b16f9f3976bdbc0bcd7cdb7e18e20fa4316d269b8f452360814f5e1a97102",
+      "sha256": "c59a369771cd42155a61a24762b92062b8226ed26ddb07a82842fc2036b750df",
       "default_categories": [
         "Productivity"
       ]
