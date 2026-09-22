@@ -929,6 +929,10 @@ func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Ses
 		return nil, err
 	}
 
+	if err := svc.ds.MarkSessionAccessed(ctx, session); err != nil {
+		return nil, err
+	}
+
 	return session, nil
 }
 
