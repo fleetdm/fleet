@@ -1,0 +1,4579 @@
+{
+  "generatedAt": "2026-09-22T16:54:05.806Z",
+  "source": "https://github.com/apple/device-management/tree/release/declarative/declarations/configurations",
+  "entries": [
+    {
+      "name": "com.apple.configuration.accessibility.settings",
+      "sourceFile": "declarative/declarations/configurations/accessibility.settings.yaml",
+      "keys": [
+        {
+          "key": "Vision",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AllowLiveRecognition",
+              "type": "boolean",
+              "default": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.caldav",
+      "sourceFile": "declarative/declarations/configurations/account.caldav.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Port",
+          "type": "integer"
+        },
+        {
+          "key": "Path",
+          "type": "string"
+        },
+        {
+          "key": "AuthenticationCredentialsAssetReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.carddav",
+      "sourceFile": "declarative/declarations/configurations/account.carddav.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Port",
+          "type": "integer"
+        },
+        {
+          "key": "Path",
+          "type": "string"
+        },
+        {
+          "key": "AuthenticationCredentialsAssetReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.exchange",
+      "sourceFile": "declarative/declarations/configurations/account.exchange.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "EnabledProtocolTypes",
+          "type": "array",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "EnabledProtocolTypesItem",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "EAS",
+                "EWS"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "UserIdentityAssetReference",
+          "type": "string",
+          "gloss": "The corresponding asset must be of type UserIdentity."
+        },
+        {
+          "key": "HostName",
+          "type": "string"
+        },
+        {
+          "key": "Port",
+          "type": "integer"
+        },
+        {
+          "key": "Path",
+          "type": "string"
+        },
+        {
+          "key": "ExternalHostName",
+          "type": "string"
+        },
+        {
+          "key": "ExternalPort",
+          "type": "integer"
+        },
+        {
+          "key": "External Path",
+          "type": "string"
+        },
+        {
+          "key": "OAuth",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Enabled",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "key": "SignInURL",
+              "type": "string"
+            },
+            {
+              "key": "TokenRequestURL",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "AuthenticationCredentialsAssetReference",
+          "type": "string"
+        },
+        {
+          "key": "AuthenticationIdentityAssetReference",
+          "type": "string"
+        },
+        {
+          "key": "SMIME",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Signing",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "IdentityAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "UserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "IdentityUserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            },
+            {
+              "key": "Encryption",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "IdentityAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "UserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "IdentityUserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "PerMessageSwitchEnabled",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "MailServiceActive",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LockMailService",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "ContactsServiceActive",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LockContactsService",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "CalendarServiceActive",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LockCalendarService",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "RemindersServiceActive",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LockRemindersService",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "NotesServiceActive",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LockNotesService",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.google",
+      "sourceFile": "declarative/declarations/configurations/account.google.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "UserIdentityAssetReference",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.ldap",
+      "sourceFile": "declarative/declarations/configurations/account.ldap.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Port",
+          "type": "integer"
+        },
+        {
+          "key": "AuthenticationCredentialsAssetReference",
+          "type": "string"
+        },
+        {
+          "key": "SearchSettings",
+          "type": "array",
+          "gloss": "There must be at least one node for this account to be useful.",
+          "subkeys": [
+            {
+              "key": "SearchSettingsItem",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "VisibleDescription",
+                  "type": "string"
+                },
+                {
+                  "key": "SearchBase",
+                  "type": "string",
+                  "required": true,
+                  "gloss": "For example, ou=people,o=example corp."
+                },
+                {
+                  "key": "Scope",
+                  "type": "string",
+                  "allowedValues": [
+                    "Base",
+                    "OneLevel",
+                    "Subtree"
+                  ],
+                  "default": "Subtree"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.mail",
+      "sourceFile": "declarative/declarations/configurations/account.mail.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "UserIdentityAssetReference",
+          "type": "string"
+        },
+        {
+          "key": "IncomingServer",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "ServerType",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "IMAP",
+                "POP"
+              ]
+            },
+            {
+              "key": "HostName",
+              "type": "string",
+              "required": true
+            },
+            {
+              "key": "Port",
+              "type": "integer"
+            },
+            {
+              "key": "AuthenticationMethod",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "None",
+                "Password",
+                "CRAMMD5",
+                "NTLM",
+                "HTTPMD5"
+              ]
+            },
+            {
+              "key": "AuthenticationCredentialsAssetReference",
+              "type": "string",
+              "gloss": "The corresponding asset must be of type CredentialUserNameAndPassword. If the AuthenticationMethod is None, this field must be blank."
+            },
+            {
+              "key": "IMAPPathPrefix",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "OutgoingServer",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "HostName",
+              "type": "string",
+              "required": true
+            },
+            {
+              "key": "Port",
+              "type": "integer"
+            },
+            {
+              "key": "AuthenticationMethod",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "None",
+                "Password",
+                "CRAMMD5",
+                "NTLM",
+                "HTTPMD5"
+              ]
+            },
+            {
+              "key": "AuthenticationCredentialsAssetReference",
+              "type": "string",
+              "gloss": "The corresponding asset must be of type CredentialUserNameAndPassword. If the AuthenticationMethod is None, this field must be blank."
+            }
+          ]
+        },
+        {
+          "key": "SMIME",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Signing",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "IdentityAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "UserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "IdentityUserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            },
+            {
+              "key": "Encryption",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "IdentityAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "UserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "IdentityUserOverrideable",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "PerMessageSwitchEnabled",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.account.subscribed-calendar",
+      "sourceFile": "declarative/declarations/configurations/account.subscribed-calendar.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string"
+        },
+        {
+          "key": "CalendarURL",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "AuthenticationCredentialsAssetReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.app.managed",
+      "sourceFile": "declarative/declarations/configurations/app.managed.yaml",
+      "keys": [
+        {
+          "key": "AppStoreID",
+          "type": "string"
+        },
+        {
+          "key": "BundleID",
+          "type": "string"
+        },
+        {
+          "key": "ManifestURL",
+          "type": "string"
+        },
+        {
+          "key": "AppComposedIdentifier",
+          "type": "string",
+          "gloss": "The device uses this to take over management of an app installed by some other process, for example installed manually by the user, or via a package configuration. For example, \"com.example.app\" for the bundle ID format, or \"com.example.app (ABCD1234)\" for…"
+        },
+        {
+          "key": "iOSApp",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "InstallBehavior",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Install",
+              "type": "string",
+              "allowedValues": [
+                "Optional",
+                "Required"
+              ],
+              "default": "Optional"
+            },
+            {
+              "key": "License",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Assignment",
+                  "type": "string",
+                  "allowedValues": [
+                    "Device",
+                    "User"
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "Version",
+              "type": "integer"
+            },
+            {
+              "key": "AllowDownloadsOverCellular",
+              "type": "string",
+              "allowedValues": [
+                "AlwaysOn",
+                "AlwaysOff",
+                "StoreSettings"
+              ],
+              "default": "StoreSettings"
+            }
+          ]
+        },
+        {
+          "key": "UpdateBehavior",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AutomaticAppUpdates",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "AlwaysOn",
+                "AlwaysOff",
+                "StoreSettings"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "IncludeInBackup",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "Attributes",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AssociatedDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "Domain",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "key": "AssociatedDomainsEnableDirectDownloads",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "CellularSliceUUID",
+              "type": "string"
+            },
+            {
+              "key": "ContentFilterUUID",
+              "type": "string"
+            },
+            {
+              "key": "DNSProxyUUID",
+              "type": "string"
+            },
+            {
+              "key": "Hideable",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "Lockable",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "RelayUUID",
+              "type": "string"
+            },
+            {
+              "key": "TapToPayScreenLock",
+              "type": "boolean",
+              "default": false,
+              "gloss": "If true, the device automatically locks after every transaction that requires a customer's card PIN. If false, the user can choose the behavior."
+            },
+            {
+              "key": "VPNUUID",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "AppConfig",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "DataAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "Passwords",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "PasswordAppConfigItem",
+                  "type": "dictionary",
+                  "required": true,
+                  "subkeys": [
+                    {
+                      "key": "Identifier",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "AssetReference",
+                      "type": "string",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "Identities",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "IdentityAppConfigItem",
+                  "type": "dictionary",
+                  "required": true,
+                  "subkeys": [
+                    {
+                      "key": "Identifier",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "AssetReference",
+                      "type": "string",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "Certificates",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "CertificateAppConfigItem",
+                  "type": "dictionary",
+                  "required": true,
+                  "subkeys": [
+                    {
+                      "key": "Identifier",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "AssetReference",
+                      "type": "string",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ExtensionConfigs",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ANY",
+              "type": "dictionary"
+            }
+          ]
+        },
+        {
+          "key": "LegacyAppConfigAssetReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.app.settings",
+      "sourceFile": "declarative/declarations/configurations/app.settings.yaml",
+      "keys": [
+        {
+          "key": "Allowed",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AllowedApps",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "AppIdentifier",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "key": "DeniedApps",
+              "type": "array",
+              "gloss": "For example, denying the App Store app may prevent users from accepting the terms and conditions for the user-based Volume Purchase Program (VPP)."
+            },
+            {
+              "key": "AllowedBinaries",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "BinaryIdentifier",
+                  "type": "dictionary",
+                  "required": true,
+                  "subkeys": [
+                    {
+                      "key": "CDHash",
+                      "type": "string"
+                    },
+                    {
+                      "key": "SigningID",
+                      "type": "string"
+                    },
+                    {
+                      "key": "TeamID",
+                      "type": "string"
+                    },
+                    {
+                      "key": "PathPrefix",
+                      "type": "string"
+                    },
+                    {
+                      "key": "SigningState",
+                      "type": "string",
+                      "allowedValues": [
+                        "All",
+                        "TestFlight",
+                        "DeveloperID",
+                        "Enterprise",
+                        "AppStore",
+                        "Apple"
+                      ],
+                      "default": "All"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "DeniedBinaries",
+              "type": "array"
+            },
+            {
+              "key": "AlwaysAllowManagedApps",
+              "type": "boolean",
+              "default": false
+            }
+          ]
+        },
+        {
+          "key": "Privacy",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "PermissionDefaults",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "ANY",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "OrganizationJustification",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "Accessibility",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    },
+                    {
+                      "key": "Bluetooth",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    },
+                    {
+                      "key": "Camera",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    },
+                    {
+                      "key": "Dictation",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    },
+                    {
+                      "key": "LocalNetwork",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    },
+                    {
+                      "key": "Location",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "WhileUsing",
+                        "Always"
+                      ]
+                    },
+                    {
+                      "key": "LocationAccuracy",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Approximate",
+                        "Precise"
+                      ]
+                    },
+                    {
+                      "key": "Microphone",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.audio-accessory.settings",
+      "sourceFile": "declarative/declarations/configurations/audio-accessory.settings.yaml",
+      "keys": [
+        {
+          "key": "TemporaryPairing",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Disabled",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Configuration",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "UnpairingTime",
+                  "type": "dictionary",
+                  "required": true,
+                  "subkeys": [
+                    {
+                      "key": "Policy",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "None",
+                        "Hour"
+                      ]
+                    },
+                    {
+                      "key": "Hour",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 23
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.content-cache.settings",
+      "sourceFile": "declarative/declarations/configurations/content-cache.settings.yaml",
+      "keys": [
+        {
+          "key": "AllowCacheDelete",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowPersonalCaching",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowSharedCaching",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AutoActivation",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "AutoEnableTetheredCaching",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "CacheLimit",
+          "type": "integer",
+          "default": 0
+        },
+        {
+          "key": "DataPath",
+          "type": "string",
+          "default": "/Library/Application Support/Apple/AssetCache/Data",
+          "gloss": "The value must be (or end with) /Library/Application Support/Apple/AssetCache/Data."
+        },
+        {
+          "key": "DenyActivation",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "DenyTetheredCaching",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "DeclarativeStatusInterval",
+          "type": "integer",
+          "min": 300,
+          "max": 86400,
+          "default": 0
+        },
+        {
+          "key": "DisplayAlerts",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "KeepAwake",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "ListenRanges",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "RangesItem",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "type",
+                  "type": "string",
+                  "allowedValues": [
+                    "IPv4",
+                    "IPv6"
+                  ],
+                  "default": "IPv4"
+                },
+                {
+                  "key": "first",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "last",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ListenRangesOnly",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "ListenWithPeersAndParents",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LocalSubnetsOnly",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "LogClientIdentity",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "Parents",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "ParentsItem",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ParentSelectionPolicy",
+          "type": "string",
+          "allowedValues": [
+            "first-available",
+            "url-path-hash",
+            "random",
+            "round-robin",
+            "sticky-available"
+          ],
+          "default": "round-robin"
+        },
+        {
+          "key": "PeerFilterRanges",
+          "type": "array"
+        },
+        {
+          "key": "PeerListenRanges",
+          "type": "array"
+        },
+        {
+          "key": "PeerLocalSubnetsOnly",
+          "type": "boolean",
+          "default": true,
+          "gloss": "If true, the content cache only peers with other content caches on the same immediate local network, rather than with content caches that use the…"
+        },
+        {
+          "key": "PersonalCacheLimit",
+          "type": "integer",
+          "default": 0
+        },
+        {
+          "key": "Port",
+          "type": "integer",
+          "default": 0
+        },
+        {
+          "key": "PublicRanges",
+          "type": "array"
+        },
+        {
+          "key": "ManagementStatusTarget",
+          "type": "string"
+        },
+        {
+          "key": "ManagementSecurityConfig",
+          "type": "string",
+          "allowedValues": [
+            "no-cert",
+            "signedByCACert",
+            "specificServerCert"
+          ],
+          "default": "no-cert"
+        },
+        {
+          "key": "ManagementReportingInterval",
+          "type": "integer",
+          "min": 60,
+          "max": 86400,
+          "default": 300
+        },
+        {
+          "key": "ManagementStatusCertificateReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.diskmanagement.settings",
+      "sourceFile": "declarative/declarations/configurations/diskmanagement.settings.yaml",
+      "keys": [
+        {
+          "key": "Restrictions",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ExternalStorage",
+              "type": "string",
+              "allowedValues": [
+                "Allowed",
+                "ReadOnly",
+                "Disallowed"
+              ]
+            },
+            {
+              "key": "NetworkStorage",
+              "type": "string",
+              "allowedValues": [
+                "Allowed",
+                "ReadOnly",
+                "Disallowed"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.extensible-sso",
+      "sourceFile": "declarative/declarations/configurations/extensible-sso.yaml",
+      "keys": [
+        {
+          "key": "ExtensionComposedIdentifier",
+          "type": "string",
+          "required": true,
+          "gloss": "In iOS and visionOS, the identifier is a bundle ID, for example, \"com.example.app.sso-extension\". For example, \"com.example.app.sso-extension (ABCD1234)\"."
+        },
+        {
+          "key": "Type",
+          "type": "string",
+          "required": true,
+          "allowedValues": [
+            "Credential",
+            "Redirect"
+          ]
+        },
+        {
+          "key": "Realm",
+          "type": "string"
+        },
+        {
+          "key": "ExtensionData",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ANY",
+              "type": "any"
+            }
+          ]
+        },
+        {
+          "key": "URLs",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "URL",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "Hosts",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "hostname",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "DeniedBundleIdentifiers",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "bundleIdentifier",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "ScreenLockedBehavior",
+          "type": "string",
+          "allowedValues": [
+            "Cancel",
+            "DoNotHandle"
+          ],
+          "default": "Cancel"
+        },
+        {
+          "key": "PlatformSSO",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AuthenticationMethod",
+              "type": "string",
+              "allowedValues": [
+                "Password",
+                "UserSecureEnclaveKey",
+                "SmartCard",
+                "OpenID"
+              ]
+            },
+            {
+              "key": "RegistrationToken",
+              "type": "string"
+            },
+            {
+              "key": "UseSharedDeviceKeys",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "LoginFrequency",
+              "type": "integer",
+              "min": 3600,
+              "default": 64800
+            },
+            {
+              "key": "AllowDeviceIdentifiersInAttestation",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Account",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "DisplayName",
+                  "type": "string"
+                },
+                {
+                  "key": "SynchronizeProfilePicture",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            },
+            {
+              "key": "UserCreation",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "EnableAtLogin",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "EnableFirstUserDuringSetup",
+                  "type": "boolean",
+                  "default": true
+                },
+                {
+                  "key": "EnableRegistrationDuringSetup",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "NewUserAuthenticationMethods",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "NewUserAuthenticationMethod",
+                      "type": "string",
+                      "allowedValues": [
+                        "Password",
+                        "SmartCard",
+                        "AccessKey",
+                        "OpenID"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "key": "NewUserAuthorizationMode",
+                  "type": "string",
+                  "allowedValues": [
+                    "Standard",
+                    "Admin",
+                    "Groups",
+                    "Temporary"
+                  ]
+                },
+                {
+                  "key": "TokenToUserMapping",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "AccountName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "FullName",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "TemporarySessionQuickLogin",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            },
+            {
+              "key": "Authorization",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "EnableIdentityProviderAccounts",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "UserAuthorizationMode",
+                  "type": "string",
+                  "allowedValues": [
+                    "Standard",
+                    "Admin",
+                    "Groups"
+                  ]
+                },
+                {
+                  "key": "AdministratorGroups",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "Group",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "AdditionalGroups",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "Group",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "AuthorizationGroups",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "ANY",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "AccessKey",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "ReaderGroupIdentifier",
+                  "type": "data"
+                },
+                {
+                  "key": "TerminalIdentityAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "ReaderIssuerCertificateAssetReference",
+                  "type": "string",
+                  "gloss": "The key must be an elliptic curve key."
+                },
+                {
+                  "key": "AllowExpressMode",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            },
+            {
+              "key": "Policies",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "FileVault",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "policy",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "AttemptAuthentication",
+                        "RequireAuthentication",
+                        "AllowOfflineGracePeriod",
+                        "AllowAuthenticationGracePeriod",
+                        "RequireTouchID",
+                        "RequireTouchIDOrWatch",
+                        "AllowOpenIDForTouchIDFallback"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "key": "Login",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "policy",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "AttemptAuthentication",
+                        "RequireAuthentication",
+                        "AllowOfflineGracePeriod",
+                        "AllowAuthenticationGracePeriod",
+                        "RequireTouchID",
+                        "RequireTouchIDOrWatch",
+                        "AllowOpenIDForTouchIDFallback"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "key": "Unlock",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "policy",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "AttemptAuthentication",
+                        "RequireAuthentication",
+                        "AllowOfflineGracePeriod",
+                        "AllowAuthenticationGracePeriod",
+                        "AllowTouchIDOrWatchForUnlock",
+                        "RequireTouchID",
+                        "RequireTouchIDOrWatch",
+                        "AllowOpenIDForTouchIDFallback"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "key": "OfflineGracePeriod",
+                  "type": "integer"
+                },
+                {
+                  "key": "AuthenticationGracePeriod",
+                  "type": "integer"
+                },
+                {
+                  "key": "NonPlatformSSOAccounts",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "username",
+                      "type": "string",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "WebAuthentication",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "URLAllowList",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "Hosts",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "AllowPasswordSync",
+                  "type": "boolean",
+                  "default": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.external-intelligence.settings",
+      "sourceFile": "declarative/declarations/configurations/external-intelligence.settings.yaml",
+      "keys": [
+        {
+          "key": "Enabled",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowSignIn",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowedWorkspaceIDs",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "workspaceID",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.intelligence.settings",
+      "sourceFile": "declarative/declarations/configurations/intelligence.settings.yaml",
+      "keys": [
+        {
+          "key": "AllowAppleIntelligenceReport",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowGenmoji",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowImagePlayground",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowImageWand",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowPersonalizedHandwritingResults",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowVisualIntelligence",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowVisualIntelligenceSummary",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowWritingTools",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "Apps",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Calendar",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "AllowNaturalLanguageEditing",
+                  "type": "boolean",
+                  "default": true
+                }
+              ]
+            },
+            {
+              "key": "Mail",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "AllowSmartReplies",
+                  "type": "boolean",
+                  "default": true
+                },
+                {
+                  "key": "AllowSummary",
+                  "type": "boolean",
+                  "default": true
+                }
+              ]
+            },
+            {
+              "key": "Notes",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "AllowTranscription",
+                  "type": "boolean",
+                  "default": true
+                },
+                {
+                  "key": "AllowTranscriptionSummary",
+                  "type": "boolean",
+                  "default": true
+                }
+              ]
+            },
+            {
+              "key": "Safari",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "AllowSummary",
+                  "type": "boolean",
+                  "default": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ForceOnDeviceOnlyDictation",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "ForceOnDeviceOnlyTranslation",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.keyboard.settings",
+      "sourceFile": "declarative/declarations/configurations/keyboard.settings.yaml",
+      "keys": [
+        {
+          "key": "AllowAutoCorrection",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowDefinitionLookup",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowDictation",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowMathKeyboardSuggestions",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowPredictiveText",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowSlideToType",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowSpellCheck",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowTextReplacement",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.legacy",
+      "sourceFile": "declarative/declarations/configurations/legacy.yaml",
+      "keys": [
+        {
+          "key": "ProfileURL",
+          "type": "string"
+        },
+        {
+          "key": "ProfileAssetReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.legacy.interactive",
+      "sourceFile": "declarative/declarations/configurations/legacy.interactive.yaml",
+      "keys": [
+        {
+          "key": "ProfileURL",
+          "type": "string"
+        },
+        {
+          "key": "ProfileAssetReference",
+          "type": "string"
+        },
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.management.status-subscriptions",
+      "sourceFile": "declarative/declarations/configurations/management.status-subscriptions.yaml",
+      "keys": [
+        {
+          "key": "StatusItems",
+          "type": "array",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "StatusItem",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Name",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.management.test",
+      "sourceFile": "declarative/declarations/configurations/management.test.yaml",
+      "keys": [
+        {
+          "key": "Echo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "EchoDataAssetReference",
+          "type": "string"
+        },
+        {
+          "key": "ReturnStatus",
+          "type": "string",
+          "allowedValues": [
+            "Installed",
+            "Failed",
+            "Unlocked"
+          ],
+          "default": "Installed"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.math.settings",
+      "sourceFile": "declarative/declarations/configurations/math.settings.yaml",
+      "keys": [
+        {
+          "key": "Calculator",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "BasicMode",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "AddSquareRoot",
+                  "type": "boolean",
+                  "required": true,
+                  "default": false
+                }
+              ]
+            },
+            {
+              "key": "ScientificMode",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true,
+                  "default": true
+                }
+              ]
+            },
+            {
+              "key": "ProgrammerMode",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true,
+                  "default": true
+                }
+              ]
+            },
+            {
+              "key": "MathNotesMode",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true,
+                  "default": true
+                }
+              ]
+            },
+            {
+              "key": "InputModes",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "UnitConversion",
+                  "type": "boolean",
+                  "required": true,
+                  "default": true
+                },
+                {
+                  "key": "RPN",
+                  "type": "boolean",
+                  "required": true,
+                  "default": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "SystemBehavior",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "KeyboardSuggestions",
+              "type": "boolean",
+              "required": true,
+              "default": true
+            },
+            {
+              "key": "MathNotes",
+              "type": "boolean",
+              "required": true,
+              "default": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.migration-assistant.settings",
+      "sourceFile": "declarative/declarations/configurations/migration-assistant.settings.yaml",
+      "keys": [
+        {
+          "key": "ShouldDoManagedMigration",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "key": "ExcludedAccounts",
+          "type": "array"
+        },
+        {
+          "key": "ExcludedPaths",
+          "type": "array",
+          "gloss": "An array of strings that represent files and directories relative to the user's home directory that the system excludes from migration. Directory paths need to include a trailing \"/\". For example, to exclude the \"Excluded\" directory in the \"Documents\" folder…"
+        },
+        {
+          "key": "RequiredPaths",
+          "type": "array",
+          "gloss": "An array of strings that represent files and directories relative to the user's home directory that the system needs to migrate. Directory paths need to include a trailing \"/\". For example, to require the \"Required\" directory in the \"Documents\" folder of a…"
+        },
+        {
+          "key": "ShouldMigrateSecurityPrivacySettings",
+          "type": "boolean",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.dns-proxy",
+      "sourceFile": "declarative/declarations/configurations/network.dns-proxy.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "AppBundleIdentifier",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "ProviderComposedIdentifier",
+          "type": "string",
+          "gloss": "In iOS and visionOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app\" for the bundle ID format, or \"com.example.app {anchor apple generic}\" for the designated requirement format."
+        },
+        {
+          "key": "ProviderConfiguration",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ANY",
+              "type": "any"
+            }
+          ]
+        },
+        {
+          "key": "DNSProxyUUID",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.dns-settings",
+      "sourceFile": "declarative/declarations/configurations/network.dns-settings.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "DNSSettings",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "DNSProtocol",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "HTTPS",
+                "TLS"
+              ]
+            },
+            {
+              "key": "ServerURL",
+              "type": "string"
+            },
+            {
+              "key": "ServerName",
+              "type": "string",
+              "gloss": "This key must be present only if the DNSProtocol is TLS."
+            },
+            {
+              "key": "ServerAddresses",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "ServerAddressesElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "AllowFailover",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array",
+              "gloss": "For example, both \\*.example.com and example.com match against mydomain.example.com and your.domain.example.com, but don't match against mydomain-example.com.",
+              "subkeys": [
+                {
+                  "key": "SupplementalMatchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "OnDemandRules",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "OnDemandRulesElement",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Action",
+                  "type": "string",
+                  "required": true,
+                  "allowedValues": [
+                    "Connect",
+                    "Disconnect",
+                    "EvaluateConnection"
+                  ]
+                },
+                {
+                  "key": "ActionParameters",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "ActionParameter",
+                      "type": "dictionary"
+                    }
+                  ]
+                },
+                {
+                  "key": "DNSDomainMatch",
+                  "type": "array",
+                  "gloss": "For example, both \\*.example.com and example.com match against mydomain.example.com and your.domain.example.com, but don't match against mydomain-example.com.",
+                  "subkeys": [
+                    {
+                      "key": "DNSDomainMatchElement",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "DNSServerAddressMatch",
+                  "type": "array",
+                  "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet.",
+                  "subkeys": [
+                    {
+                      "key": "DNSServerAddressMatchElement",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "InterfaceTypeMatch",
+                  "type": "string",
+                  "allowedValues": [
+                    "Ethernet",
+                    "WiFi",
+                    "Cellular"
+                  ]
+                },
+                {
+                  "key": "SSIDMatch",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "SSIDMatchElement",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "URLStringProbe",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ProhibitDisablement",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.relay",
+      "sourceFile": "declarative/declarations/configurations/network.relay.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Relays",
+          "type": "array",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "Relay",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "HTTP3RelayURL",
+                  "type": "string"
+                },
+                {
+                  "key": "HTTP2RelayURL",
+                  "type": "string"
+                },
+                {
+                  "key": "AdditionalHTTPHeaderFields",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "ANY",
+                      "type": "string",
+                      "required": true
+                    }
+                  ]
+                },
+                {
+                  "key": "IdentityAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "PublicKeyData",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "PublicKeyDataAssetReference",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "MatchDomains",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "MatchDomainsElement",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "ExcludedDomains",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "ExcludedDomainsElement",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "MatchFQDNs",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "MatchFQDNsElement",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "ExcludedFQDNs",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "ExcludedFQDNsElement",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "RelayUUID",
+          "type": "string"
+        },
+        {
+          "key": "UIToggleEnabled",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowDNSFailover",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.vpn.always-on",
+      "sourceFile": "declarative/declarations/configurations/network.vpn.always-on.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "UIToggleEnabled",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "TunnelConfigurations",
+          "type": "array",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "TunnelConfigurationElement",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "ProtocolType",
+                  "type": "string",
+                  "required": true,
+                  "allowedValues": [
+                    "IKEv2"
+                  ]
+                },
+                {
+                  "key": "Interfaces",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "InterfacesElement",
+                      "type": "string",
+                      "allowedValues": [
+                        "Cellular",
+                        "WiFi"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "key": "IKEV2",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "HostName",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "LocalIdentifier",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "RemoteIdentifier",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "Authentication",
+                      "type": "dictionary",
+                      "required": true
+                    },
+                    {
+                      "key": "Idle",
+                      "type": "dictionary"
+                    },
+                    {
+                      "key": "UseConfigurationAttributeInternalIPSubnet",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "DisableMOBIKE",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "DisableRedirect",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "EnableNATKeepAliveOffload",
+                      "type": "boolean",
+                      "default": true
+                    },
+                    {
+                      "key": "NATKeepAliveInterval",
+                      "type": "integer",
+                      "default": 20
+                    },
+                    {
+                      "key": "EnablePFS",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "EnableCertificateRevocationCheck",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "MTU",
+                      "type": "integer",
+                      "min": 1280,
+                      "max": 1400,
+                      "default": 1280
+                    },
+                    {
+                      "key": "EnforceStrictAlgorithmSelection",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "PostQuantumKeyExchange",
+                      "type": "dictionary"
+                    },
+                    {
+                      "key": "IKESecurityAssociationParameters",
+                      "type": "dictionary"
+                    },
+                    {
+                      "key": "ChildSecurityAssociationParameters",
+                      "type": "dictionary"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ServiceExceptions",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "ServiceExceptionElement",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "ServiceName",
+                  "type": "string",
+                  "required": true,
+                  "allowedValues": [
+                    "VoiceMail",
+                    "AirPrint",
+                    "CellularServices",
+                    "DeviceCommunication"
+                  ]
+                },
+                {
+                  "key": "Action",
+                  "type": "string",
+                  "required": true,
+                  "allowedValues": [
+                    "Allow",
+                    "Drop"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ApplicationExceptions",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "ApplicationExceptionElement",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "BundleIdentifier",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "LimitToProtocols",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "LimitToProtocolElement",
+                      "type": "string",
+                      "allowedValues": [
+                        "UDP"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AllowCaptiveWebSheet",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "AllowAllCaptiveNetworkPlugins",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "AllowedCaptiveNetworkPlugins",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "AllowedCaptiveNetworkPluginElement",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "BundleIdentifier",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.vpn.ikev2",
+      "sourceFile": "declarative/declarations/configurations/network.vpn.ikev2.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "LocalIdentifier",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "RemoteIdentifier",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Authentication",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "Method",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "None",
+                "SharedSecret",
+                "Certificate"
+              ]
+            },
+            {
+              "key": "CredentialsAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "IdentityCertificateType",
+              "type": "string",
+              "allowedValues": [
+                "RSA",
+                "ECDSA256",
+                "ECDSA384",
+                "ECDSA521",
+                "RSA-PSS"
+              ],
+              "default": "RSA"
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "ExtendedAuth",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "default": false
+                },
+                {
+                  "key": "CredentialsAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "ServerCertificateIssuerCommonName",
+                  "type": "string"
+                },
+                {
+                  "key": "ServerCertificateCommonName",
+                  "type": "string"
+                },
+                {
+                  "key": "TLSMinimumVersion",
+                  "type": "string",
+                  "allowedValues": [
+                    "1.0",
+                    "1.1",
+                    "1.2",
+                    "1.3"
+                  ],
+                  "default": "1.0"
+                },
+                {
+                  "key": "TLSMaximumVersion",
+                  "type": "string",
+                  "allowedValues": [
+                    "1.0",
+                    "1.1",
+                    "1.2",
+                    "1.3"
+                  ],
+                  "default": "1.2"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "NetworkRouting",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "EnforceRoutes",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "IncludeAllNetworks",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "ExcludeLocalNetworks",
+              "type": "boolean"
+            },
+            {
+              "key": "ExcludeCellularServices",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "ExcludeAPNs",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "ExcludeDeviceCommunication",
+              "type": "boolean",
+              "default": true
+            }
+          ]
+        },
+        {
+          "key": "Idle",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Disconnect",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Timer",
+              "type": "integer"
+            },
+            {
+              "key": "DeadPeerDetectionRate",
+              "type": "string",
+              "allowedValues": [
+                "None",
+                "Low",
+                "Medium",
+                "High"
+              ],
+              "default": "Medium"
+            }
+          ]
+        },
+        {
+          "key": "OnDemand",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Enabled",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "DisableUserOverride",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Rules",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "RulesElement",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Action",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "Allow",
+                        "Connect",
+                        "Disconnect",
+                        "EvaluateConnection",
+                        "Ignore"
+                      ]
+                    },
+                    {
+                      "key": "ActionParameters",
+                      "type": "array"
+                    },
+                    {
+                      "key": "DNSDomainMatch",
+                      "type": "array",
+                      "gloss": "For example, \\*.example.com matches against either mydomain.example.com or yourdomain.example.com."
+                    },
+                    {
+                      "key": "DNSServerAddressMatch",
+                      "type": "array",
+                      "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet."
+                    },
+                    {
+                      "key": "InterfaceTypeMatch",
+                      "type": "string",
+                      "allowedValues": [
+                        "Ethernet",
+                        "WiFi",
+                        "Cellular"
+                      ]
+                    },
+                    {
+                      "key": "SSIDMatch",
+                      "type": "array"
+                    },
+                    {
+                      "key": "URLStringProbe",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "UseConfigurationAttributeInternalIPSubnet",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "DisableMOBIKE",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "DisableRedirect",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "EnablePFS",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "EnableCertificateRevocationCheck",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "EnableFallback",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "MTU",
+          "type": "integer",
+          "min": 1280,
+          "max": 1400,
+          "default": 1280
+        },
+        {
+          "key": "EnforceStrictAlgorithmSelection",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "PostQuantumKeyExchange",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "PPK",
+              "type": "data"
+            },
+            {
+              "key": "PPKIdentifier",
+              "type": "string"
+            },
+            {
+              "key": "PPKMandatory",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "AllowFallback",
+              "type": "boolean",
+              "default": false
+            }
+          ]
+        },
+        {
+          "key": "IKESecurityAssociationParameters",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "EncryptionAlgorithm",
+              "type": "string",
+              "allowedValues": [
+                "AES-128",
+                "AES-256",
+                "AES-128-GCM",
+                "AES-256-GCM",
+                "ChaCha20Poly1305"
+              ],
+              "default": "AES-256"
+            },
+            {
+              "key": "IntegrityAlgorithm",
+              "type": "string",
+              "allowedValues": [
+                "SHA2-256",
+                "SHA2-384",
+                "SHA2-512"
+              ],
+              "default": "SHA2-256"
+            },
+            {
+              "key": "DiffieHellmanGroup",
+              "type": "integer",
+              "allowedValues": [
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                31,
+                32
+              ],
+              "default": 14
+            },
+            {
+              "key": "PostQuantumKeyExchangeMethods",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "PostQuantumKeyExchangeMethod",
+                  "type": "integer",
+                  "allowedValues": [
+                    0,
+                    36,
+                    37
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "LifeTimeInMinutes",
+              "type": "integer",
+              "min": 10,
+              "max": 1440,
+              "default": 1440
+            }
+          ]
+        },
+        {
+          "key": "ChildSecurityAssociationParameters",
+          "type": "dictionary"
+        },
+        {
+          "key": "DNS",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ServerAddresses",
+              "type": "array",
+              "required": true,
+              "subkeys": [
+                {
+                  "key": "ServerAddressesElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "SearchDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "SearchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "DomainName",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "SupplementalMatchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "SupplementalMatchDomainsNoSearch",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "Proxies",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AutoConfigEnable",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "AutoDiscoveryEnable",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "AutoConfigURLString",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array"
+            },
+            {
+              "key": "Protocol",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "HTTP",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Enable",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "HostName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "Port",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 65535
+                    }
+                  ]
+                },
+                {
+                  "key": "HTTPS",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Enable",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "HostName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "Port",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 65535
+                    }
+                  ]
+                },
+                {
+                  "key": "CredentialsAssetReference",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.vpn.ipsec",
+      "sourceFile": "declarative/declarations/configurations/network.vpn.ipsec.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Authentication",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "Method",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "SharedSecret",
+                "Certificate"
+              ]
+            },
+            {
+              "key": "CredentialsAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "LocalIdentifier",
+              "type": "string"
+            },
+            {
+              "key": "LocalIdentifierType",
+              "type": "string",
+              "allowedValues": [
+                "KeyID"
+              ],
+              "default": "KeyID"
+            },
+            {
+              "key": "PromptForVPNPIN",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "XAuth",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "CredentialsAssetReference",
+                  "type": "string"
+                },
+                {
+                  "key": "PasswordEncryption",
+                  "type": "string",
+                  "allowedValues": [
+                    "Prompt"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "Idle",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Disconnect",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Timer",
+              "type": "integer"
+            }
+          ]
+        },
+        {
+          "key": "OnDemand",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Enabled",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Rules",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "RulesElement",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Action",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "Allow",
+                        "Connect",
+                        "Disconnect",
+                        "EvaluateConnection",
+                        "Ignore"
+                      ]
+                    },
+                    {
+                      "key": "ActionParameters",
+                      "type": "array"
+                    },
+                    {
+                      "key": "DNSDomainMatch",
+                      "type": "array",
+                      "gloss": "For example, \\*.example.com matches against either mydomain.example.com or yourdomain.example.com."
+                    },
+                    {
+                      "key": "DNSServerAddressMatch",
+                      "type": "array",
+                      "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet."
+                    },
+                    {
+                      "key": "InterfaceTypeMatch",
+                      "type": "string",
+                      "allowedValues": [
+                        "Ethernet",
+                        "WiFi",
+                        "Cellular"
+                      ]
+                    },
+                    {
+                      "key": "SSIDMatch",
+                      "type": "array"
+                    },
+                    {
+                      "key": "URLStringProbe",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "DNS",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ServerAddresses",
+              "type": "array",
+              "required": true,
+              "subkeys": [
+                {
+                  "key": "ServerAddressesElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "SearchDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "SearchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "DomainName",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "SupplementalMatchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "SupplementalMatchDomainsNoSearch",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "Proxies",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AutoConfigEnable",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "AutoDiscoveryEnable",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "AutoConfigURLString",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array"
+            },
+            {
+              "key": "Protocol",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "HTTP",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Enable",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "HostName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "Port",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 65535
+                    }
+                  ]
+                },
+                {
+                  "key": "HTTPS",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Enable",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "HostName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "Port",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 65535
+                    }
+                  ]
+                },
+                {
+                  "key": "CredentialsAssetReference",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.network.vpn.vpn-plugin",
+      "sourceFile": "declarative/declarations/configurations/network.vpn.vpn-plugin.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "SubType",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "VendorConfig",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Realm",
+              "type": "string"
+            },
+            {
+              "key": "Role",
+              "type": "string"
+            },
+            {
+              "key": "Group",
+              "type": "string"
+            },
+            {
+              "key": "LoginGroupOrDomain",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "Authentication",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "Method",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "Password",
+                "Certificate",
+                "Password+Certificate"
+              ]
+            },
+            {
+              "key": "CredentialsAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "Provider",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Type",
+              "type": "string",
+              "allowedValues": [
+                "packet-tunnel",
+                "app-proxy"
+              ],
+              "default": "packet-tunnel"
+            },
+            {
+              "key": "ComposedIdentifier",
+              "type": "string",
+              "gloss": "In iOS, tvOS, and visionOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app\" for the bundle ID format, or \"com.example.app {anchor apple generic}\" for the designated requirement format."
+            }
+          ]
+        },
+        {
+          "key": "NetworkRouting",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "EnforceRoutes",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "IncludeAllNetworks",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "ExcludeLocalNetworks",
+              "type": "boolean"
+            },
+            {
+              "key": "ExcludeCellularServices",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "ExcludeAPNs",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "ExcludeDeviceCommunication",
+              "type": "boolean",
+              "default": true
+            }
+          ]
+        },
+        {
+          "key": "Idle",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Disconnect",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Timer",
+              "type": "integer"
+            }
+          ]
+        },
+        {
+          "key": "OnDemand",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Enabled",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "DisableUserOverride",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "Rules",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "RulesElement",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Action",
+                      "type": "string",
+                      "required": true,
+                      "allowedValues": [
+                        "Allow",
+                        "Connect",
+                        "Disconnect",
+                        "EvaluateConnection",
+                        "Ignore"
+                      ]
+                    },
+                    {
+                      "key": "ActionParameters",
+                      "type": "array"
+                    },
+                    {
+                      "key": "DNSDomainMatch",
+                      "type": "array",
+                      "gloss": "For example, \\*.example.com matches against either mydomain.example.com or yourdomain.example.com."
+                    },
+                    {
+                      "key": "DNSServerAddressMatch",
+                      "type": "array",
+                      "gloss": "For example, 17.\\* matches any DNS server in the 17.0.0.0/8 subnet."
+                    },
+                    {
+                      "key": "InterfaceTypeMatch",
+                      "type": "string",
+                      "allowedValues": [
+                        "Ethernet",
+                        "WiFi",
+                        "Cellular"
+                      ]
+                    },
+                    {
+                      "key": "SSIDMatch",
+                      "type": "array"
+                    },
+                    {
+                      "key": "URLStringProbe",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "DNS",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ServerAddresses",
+              "type": "array",
+              "required": true,
+              "subkeys": [
+                {
+                  "key": "ServerAddressesElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "SearchDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "SearchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "DomainName",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "SupplementalMatchDomainsElement",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "SupplementalMatchDomainsNoSearch",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "Proxies",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "AutoConfigEnable",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "AutoDiscoveryEnable",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "AutoConfigURLString",
+              "type": "string"
+            },
+            {
+              "key": "SupplementalMatchDomains",
+              "type": "array"
+            },
+            {
+              "key": "Protocol",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "HTTP",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Enable",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "HostName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "Port",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 65535
+                    }
+                  ]
+                },
+                {
+                  "key": "HTTPS",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "Enable",
+                      "type": "boolean",
+                      "default": false
+                    },
+                    {
+                      "key": "HostName",
+                      "type": "string"
+                    },
+                    {
+                      "key": "Port",
+                      "type": "integer",
+                      "min": 0,
+                      "max": 65535
+                    }
+                  ]
+                },
+                {
+                  "key": "CredentialsAssetReference",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.package",
+      "sourceFile": "declarative/declarations/configurations/package.yaml",
+      "keys": [
+        {
+          "key": "ManifestURL",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "InstallBehavior",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Install",
+              "type": "string",
+              "allowedValues": [
+                "Optional",
+                "Required"
+              ],
+              "default": "Optional"
+            }
+          ]
+        },
+        {
+          "key": "UninstallBehavior",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Remove",
+              "type": "boolean",
+              "default": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.passcode.settings",
+      "sourceFile": "declarative/declarations/configurations/passcode.settings.yaml",
+      "keys": [
+        {
+          "key": "RequirePasscode",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "RequireAlphanumericPasscode",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "RequireComplexPasscode",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "MinimumLength",
+          "type": "integer",
+          "min": 0,
+          "max": 16,
+          "default": 0
+        },
+        {
+          "key": "MinimumComplexCharacters",
+          "type": "integer",
+          "min": 0,
+          "max": 4,
+          "default": 0
+        },
+        {
+          "key": "MaximumFailedAttempts",
+          "type": "integer",
+          "min": 2,
+          "max": 11,
+          "default": 11
+        },
+        {
+          "key": "FailedAttemptsResetInMinutes",
+          "type": "integer"
+        },
+        {
+          "key": "MaximumGracePeriodInMinutes",
+          "type": "integer"
+        },
+        {
+          "key": "MaximumInactivityInMinutes",
+          "type": "integer",
+          "min": 0,
+          "max": 15
+        },
+        {
+          "key": "MaximumPasscodeAgeInDays",
+          "type": "integer",
+          "min": 0,
+          "max": 730
+        },
+        {
+          "key": "PasscodeReuseLimit",
+          "type": "integer",
+          "min": 1,
+          "max": 50
+        },
+        {
+          "key": "ChangeAtNextAuth",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "CustomRegex",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Regex",
+              "type": "string",
+              "required": true
+            },
+            {
+              "key": "Description",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "ANY",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.safari.bookmarks",
+      "sourceFile": "declarative/declarations/configurations/safari.bookmarks.yaml",
+      "keys": [
+        {
+          "key": "ManagedBookmarks",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "BookmarkGroup",
+              "type": "dictionary",
+              "required": true,
+              "subkeys": [
+                {
+                  "key": "GroupIdentifier",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "Title",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "Bookmarks",
+                  "type": "array",
+                  "required": true,
+                  "gloss": "Either a URL or Folder key must be present in each item.",
+                  "subkeys": [
+                    {
+                      "key": "bookmarks-item",
+                      "type": "dictionary",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.safari.extensions.settings",
+      "sourceFile": "declarative/declarations/configurations/safari.extensions.settings.yaml",
+      "keys": [
+        {
+          "key": "ManagedExtensions",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ANY",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "State",
+                  "type": "string",
+                  "allowedValues": [
+                    "Allowed",
+                    "AlwaysOn",
+                    "AlwaysOff"
+                  ]
+                },
+                {
+                  "key": "PrivateBrowsing",
+                  "type": "string",
+                  "allowedValues": [
+                    "Allowed",
+                    "AlwaysOn",
+                    "AlwaysOff"
+                  ]
+                },
+                {
+                  "key": "AllowedDomains",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "Domain",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "DeniedDomains",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "Domain",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.safari.settings",
+      "sourceFile": "declarative/declarations/configurations/safari.settings.yaml",
+      "keys": [
+        {
+          "key": "AcceptCookies",
+          "type": "string",
+          "allowedValues": [
+            "Never",
+            "CurrentWebsite",
+            "VisitedWebsites",
+            "Always"
+          ],
+          "default": "Always"
+        },
+        {
+          "key": "AllowDisablingFraudWarning",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowHistoryClearing",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowJavaScript",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowPrivateBrowsing",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowPopups",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowSummary",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "NewTabStartPage",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "PageType",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "Start",
+                "Home",
+                "Extension"
+              ]
+            },
+            {
+              "key": "HomepageURL",
+              "type": "string"
+            },
+            {
+              "key": "ExtensionIdentifier",
+              "type": "string",
+              "gloss": "The required format is \"Identifier (TeamIdentifier)\", for example \"com.example.app (ABCD1234)\"."
+            }
+          ]
+        },
+        {
+          "key": "Privacy",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "PermissionDefaults",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "ANY",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "OrganizationJustification",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "Camera",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    },
+                    {
+                      "key": "Microphone",
+                      "type": "string",
+                      "allowedValues": [
+                        "None",
+                        "Allow"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.screensharing.connection",
+      "sourceFile": "declarative/declarations/configurations/screensharing.connection.yaml",
+      "keys": [
+        {
+          "key": "ConnectionUUID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "DisplayName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "HostName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Port",
+          "type": "integer"
+        },
+        {
+          "key": "DisplayConfiguration",
+          "type": "dictionary",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "DisplayType",
+              "type": "string",
+              "required": true,
+              "allowedValues": [
+                "Virtual1",
+                "Virtual2"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AuthenticationCredentialsAssetReference",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.screensharing.connection.group",
+      "sourceFile": "declarative/declarations/configurations/screensharing.connection.group.yaml",
+      "keys": [
+        {
+          "key": "ConnectionGroupUUID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "GroupName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "Members",
+          "type": "array",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "ConnectionUUID",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.screensharing.host.settings",
+      "sourceFile": "declarative/declarations/configurations/screensharing.host.settings.yaml",
+      "keys": [
+        {
+          "key": "MaximumVirtualDisplays",
+          "type": "integer",
+          "min": 0,
+          "max": 2
+        },
+        {
+          "key": "PortBase",
+          "type": "integer",
+          "min": 1024,
+          "max": 65535
+        },
+        {
+          "key": "PreventCopyFilesFromHost",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "PreventCopyFilesToHost",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "PreventHighPerformanceConnections",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.security.certificate",
+      "sourceFile": "declarative/declarations/configurations/security.certificate.yaml",
+      "keys": [
+        {
+          "key": "CredentialAssetReference",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.security.identity",
+      "sourceFile": "declarative/declarations/configurations/security.identity.yaml",
+      "keys": [
+        {
+          "key": "CredentialAssetReference",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "AllowAllAppsAccess",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "KeyIsExtractable",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.security.passkey.attestation",
+      "sourceFile": "declarative/declarations/configurations/security.passkey.attestation.yaml",
+      "keys": [
+        {
+          "key": "AttestationIdentityAssetReference",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "AttestationIdentityKeyIsExtractable",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "RelyingParties",
+          "type": "array",
+          "required": true,
+          "subkeys": [
+            {
+              "key": "RelyingParty",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.services.background-tasks",
+      "sourceFile": "declarative/declarations/configurations/services.background-tasks.yaml",
+      "keys": [
+        {
+          "key": "TaskType",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "TaskDescription",
+          "type": "string"
+        },
+        {
+          "key": "ExecutableAssetReference",
+          "type": "string",
+          "gloss": "The corresponding asset must be of type com.apple.asset.data. The referenced data must be a zip archive of an entire directory that the device expands and stores in a well known location for the background task."
+        },
+        {
+          "key": "LaunchdConfigurations",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "launchd-item",
+              "type": "dictionary",
+              "required": true,
+              "subkeys": [
+                {
+                  "key": "FileAssetReference",
+                  "type": "string",
+                  "required": true,
+                  "gloss": "The referenced data must be a property list file conforming to the launchd.plist format."
+                },
+                {
+                  "key": "Context",
+                  "type": "string",
+                  "required": true,
+                  "allowedValues": [
+                    "daemon",
+                    "agent"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.services.configuration-files",
+      "sourceFile": "declarative/declarations/configurations/services.configuration-files.yaml",
+      "keys": [
+        {
+          "key": "ServiceType",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "DataAssetReference",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.siri.settings",
+      "sourceFile": "declarative/declarations/configurations/siri.settings.yaml",
+      "keys": [
+        {
+          "key": "Enabled",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowSiriAI",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowUserGeneratedContent",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "AllowWhileLocked",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "ForceProfanityFilter",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "ForceReduceSensitiveContent",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.softwareupdate.enforcement.specific",
+      "sourceFile": "declarative/declarations/configurations/softwareupdate.enforcement.specific.yaml",
+      "keys": [
+        {
+          "key": "TargetOSVersion",
+          "type": "string",
+          "required": true,
+          "gloss": "This is the OS version number, for example, 16.1."
+        },
+        {
+          "key": "TargetBuildVersion",
+          "type": "string",
+          "gloss": "The target build version to update the device to by the appropriate time, for example, 20A242. The build version can include a supplemental version identifier, for example, 20A242a."
+        },
+        {
+          "key": "TargetLocalDateTime",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "DetailsURL",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.softwareupdate.settings",
+      "sourceFile": "declarative/declarations/configurations/softwareupdate.settings.yaml",
+      "keys": [
+        {
+          "key": "Notifications",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "Deferrals",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "CombinedPeriodInDays",
+              "type": "integer",
+              "min": 1,
+              "max": 90
+            },
+            {
+              "key": "MajorPeriodInDays",
+              "type": "integer",
+              "min": 1,
+              "max": 90
+            },
+            {
+              "key": "MinorPeriodInDays",
+              "type": "integer",
+              "min": 1,
+              "max": 90
+            },
+            {
+              "key": "SystemPeriodInDays",
+              "type": "integer",
+              "min": 1,
+              "max": 90
+            }
+          ]
+        },
+        {
+          "key": "RecommendedCadence",
+          "type": "string",
+          "allowedValues": [
+            "All",
+            "Oldest",
+            "Newest"
+          ]
+        },
+        {
+          "key": "AutomaticActions",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Download",
+              "type": "string",
+              "allowedValues": [
+                "Allowed",
+                "AlwaysOn",
+                "AlwaysOff"
+              ],
+              "default": "Allowed"
+            },
+            {
+              "key": "InstallOSUpdates",
+              "type": "string",
+              "allowedValues": [
+                "Allowed",
+                "AlwaysOn",
+                "AlwaysOff"
+              ],
+              "default": "Allowed"
+            },
+            {
+              "key": "InstallSecurityUpdate",
+              "type": "string",
+              "allowedValues": [
+                "Allowed",
+                "AlwaysOn",
+                "AlwaysOff"
+              ],
+              "default": "Allowed"
+            }
+          ]
+        },
+        {
+          "key": "RapidSecurityResponse",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Enable",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "EnableRollback",
+              "type": "boolean",
+              "default": true
+            }
+          ]
+        },
+        {
+          "key": "AllowStandardUserOSUpdates",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "Beta",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ProgramEnrollment",
+              "type": "string",
+              "allowedValues": [
+                "Allowed",
+                "AlwaysOn",
+                "AlwaysOff"
+              ],
+              "default": "Allowed"
+            },
+            {
+              "key": "OfferPrograms",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "Program",
+                  "type": "dictionary",
+                  "required": true,
+                  "subkeys": [
+                    {
+                      "key": "Description",
+                      "type": "string",
+                      "required": true
+                    },
+                    {
+                      "key": "Token",
+                      "type": "string",
+                      "required": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "RequireProgram",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Description",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "key": "Token",
+                  "type": "string",
+                  "required": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.watch.enrollment",
+      "sourceFile": "declarative/declarations/configurations/watch.enrollment.yaml",
+      "keys": [
+        {
+          "key": "EnrollmentProfileURL",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "AnchorCertificateAssetReferences",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "AnchorCertificateAssetReferenceItem",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.configuration.webcontent-filter.plugin",
+      "sourceFile": "declarative/declarations/configurations/webcontent-filter.plugin.yaml",
+      "keys": [
+        {
+          "key": "VisibleName",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "PluginBundleID",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "ContentFilterUUID",
+          "type": "string",
+          "gloss": "This key must be present for unsupervised devices and user enrollment."
+        },
+        {
+          "key": "ServerAddress",
+          "type": "string"
+        },
+        {
+          "key": "Organization",
+          "type": "string"
+        },
+        {
+          "key": "VendorConfig",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "ANY",
+              "type": "any",
+              "required": true
+            }
+          ]
+        },
+        {
+          "key": "Authentication",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "CredentialsAssetReference",
+              "type": "string"
+            },
+            {
+              "key": "IdentityAssetReference",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "key": "Filter",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "Grade",
+              "type": "string",
+              "allowedValues": [
+                "firewall",
+                "inspector"
+              ],
+              "default": "firewall"
+            },
+            {
+              "key": "Browsers",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "key": "Sockets",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "ProviderComposedIdentifier",
+                  "type": "string",
+                  "gloss": "In iOS and visionOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app {anchor apple generic}\"."
+                }
+              ]
+            },
+            {
+              "key": "Packets",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "ProviderComposedIdentifier",
+                  "type": "string",
+                  "gloss": "For example, \"com.example.app {anchor apple generic}\"."
+                }
+              ]
+            },
+            {
+              "key": "URLs",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Enabled",
+                  "type": "boolean",
+                  "required": true
+                },
+                {
+                  "key": "Parameters",
+                  "type": "dictionary",
+                  "subkeys": [
+                    {
+                      "key": "ProviderComposedIdentifier",
+                      "type": "string",
+                      "required": true,
+                      "gloss": "In iOS, the identifier is a bundle ID, for example, \"com.example.app\". For example, \"com.example.app {anchor apple generic}\"."
+                    },
+                    {
+                      "key": "PIR",
+                      "type": "dictionary",
+                      "required": true
+                    },
+                    {
+                      "key": "FailClosed",
+                      "type": "boolean",
+                      "default": false,
+                      "gloss": "If true, the system blocks URLs if the filter is enabled, but it fails to make any filtering decision; for example, if there's a communication…"
+                    },
+                    {
+                      "key": "PrefilterFetchFrequency",
+                      "type": "integer",
+                      "min": 2700,
+                      "default": 86400
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
