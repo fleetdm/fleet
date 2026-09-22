@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import validateEmail from "components/forms/validators/valid_email";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Spinner from "components/Spinner";
@@ -63,6 +64,8 @@ const validateForm = (
   } else {
     if (!data.email) {
       errors.email = "Enter an email";
+    } else if (!validateEmail(data.email)) {
+      errors.email = "Enter a valid email";
     }
     if (!data.groupId) {
       errors.groupId = "Enter a group ID";
