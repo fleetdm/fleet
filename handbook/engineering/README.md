@@ -191,11 +191,12 @@ If a community PR hasn't had any updates or response from the author after one w
 
 #### AI code review
 
-Fleet uses AI code review tools to supplement human review on pull requests. Three options are available:
+Fleet uses AI code review tools to supplement human review on pull requests. Four options are available:
 
 1. **GitHub Copilot**: Automatically reviews every PR for contributors with a Copilot seat. No action needed.
 2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
 3. **Qodo**: Available for free as an open source project. Qodo does not review PRs automatically. To request a review, add a comment on the PR: `/agentic_review`.
+4. **BugBunny**: Focused on potential security issues. Use it when a change touches authentication, authorization, MDM, or other sensitive areas. To request a review, add a comment on the PR: `@BugBunnyBot pull request review`. Reviews take about 20 minutes, and results are posted back to the PR as comments and a check run.
 
 
 #### AI coding tools
