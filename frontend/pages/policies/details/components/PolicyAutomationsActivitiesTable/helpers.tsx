@@ -1,11 +1,21 @@
-import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
-import { getAutomationNotifiedMessage } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  PRE_INSTALL_QUERY_FAIL_OUTPUT,
+  SKIPPED_INSTALL_DETAILS,
+} from "components/ActivityDetails/InstallDetails/constants";
+import {
+  getAutomationNotifiedMessage,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { Colors } from "styles/var/colors";
 
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
+
+// Undefined on pre-4.93 skips, which were all patch-when-closed, so only an explicit false means notify.
+export const isNotifySkip = (activity: IPolicyAutomationActivity): boolean =>
+  activity.details?.patch_when_closed === false;
 
 // One notify activity can cover several policies (bundled toast). The row is
 // scoped to a single policy, so pick the title paired with currentPolicyId
@@ -120,10 +130,16 @@ export const getDetailOutputText = (
     return getAutomationNotifiedMessage(activity.details?.time_before);
   }
   if (activity.details?.skipped_install) {
-    return SKIPPED_INSTALL_DETAILS;
+    return isNotifySkip(activity)
+      ? SKIPPED_INSTALL_NOTIFY_EXPLANATION
+      : SKIPPED_INSTALL_DETAILS;
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;
+  }
+  // An empty (not null) pre-install output means the installer's own query ran and returned nothing.
+  if (activity.status === "error" && activity.pre_install_output === "") {
+    return PRE_INSTALL_QUERY_FAIL_OUTPUT;
   }
   // Fall back through the install stages so the failing stage's output shows.
   return (

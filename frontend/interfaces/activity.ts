@@ -385,6 +385,9 @@ export interface IActivityDetails {
   /** Set on a patch-when-closed skip (the app was open); `status` is then
    * `failed_install`. */
   skipped_install?: boolean;
+  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
+   * because notify before patching did not ship until then. */
+  patch_when_closed?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
