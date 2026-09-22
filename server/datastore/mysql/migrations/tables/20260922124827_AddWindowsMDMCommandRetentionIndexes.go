@@ -35,17 +35,6 @@ func Up_20260922124827(tx *sql.Tx) error {
 		}
 	}
 
-	// The sweep probes wipe_ref once per candidate row, so it needs an index.
-	if !indexExistsTx(tx, "host_mdm_actions", "idx_host_mdm_actions_wipe_ref") {
-		if _, err := tx.Exec(`
-			ALTER TABLE host_mdm_actions
-			ALGORITHM=INPLACE, LOCK=NONE,
-			ADD KEY idx_host_mdm_actions_wipe_ref (wipe_ref)
-		`); err != nil {
-			return fmt.Errorf("adding wipe_ref index to host_mdm_actions: %w", err)
-		}
-	}
-
 	return nil
 }
 
