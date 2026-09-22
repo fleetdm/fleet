@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "7.81.2.1",
+      "version": "7.81.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Datadog Agent' AND publisher = 'Datadog, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Datadog Agent' AND publisher = 'Datadog, Inc.' AND version_compare(version, '7.81.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Datadog Agent' AND publisher = 'Datadog, Inc.' AND version_compare(version, '7.81.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ddtray.exe');"
       },
       "installer_url": "https://s3.amazonaws.com/ddagent-windows-stable/ddagent-cli-7.81.2.msi",
