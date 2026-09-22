@@ -320,7 +320,7 @@ function parseAreaPage(pageHtml) {
   let headingRegExp = /<h([23])[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h\1>/g;
   let headingMatch;
   while ((headingMatch = headingRegExp.exec(pageHtml)) !== null) {
-    headings.push({name: headingMatch[3].replace(/<[^>]+>/g, '').trim(), endsAt: headingRegExp.lastIndex, startsAt: headingMatch.index});
+    headings.push({name: headingMatch[3].replace(/[<>]/g, '').trim(), endsAt: headingRegExp.lastIndex, startsAt: headingMatch.index});
   }
 
   for (let idx = 0; idx < headings.length; idx++) {
