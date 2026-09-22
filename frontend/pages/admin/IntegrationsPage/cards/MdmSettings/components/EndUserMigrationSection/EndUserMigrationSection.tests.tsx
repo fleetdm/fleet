@@ -216,8 +216,6 @@ describe("EndUserMigrationSection", () => {
 
     render(<EndUserMigrationSection router={mockRouter} />);
 
-    expect(
-      screen.getByText("Included in Fleet Premium")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Included in Fleet Premium")).toBeInTheDocument();
   });
 });

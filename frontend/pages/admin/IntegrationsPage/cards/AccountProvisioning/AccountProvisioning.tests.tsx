@@ -66,9 +66,7 @@ describe("AccountProvisioning", () => {
         })}
       />
     );
-    expect(
-      screen.getByText(/Included in Fleet Premium/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Included in Fleet Premium/i)).toBeInTheDocument();
   });
 
   it("renders all three fields and the save button", () => {

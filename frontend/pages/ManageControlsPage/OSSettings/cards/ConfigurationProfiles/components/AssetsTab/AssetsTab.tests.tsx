@@ -34,9 +34,7 @@ describe("AssetsTab", () => {
 
     render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
 
-    expect(
-      screen.getByText(/Included in Fleet Premium/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Included in Fleet Premium/i)).toBeInTheDocument();
     expect(mdmAPI.getAssets).not.toHaveBeenCalled();
   });
 
