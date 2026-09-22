@@ -1,18 +1,37 @@
 .premium-feature-message-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: $x-small;
+  font-size: $x-small; // 14px
+  width: 100%;
+  box-sizing: border-box;
+
+  // Default variant (Option B) — bordered card container
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $border-radius-large; // 8px
+  background-color: $ui-off-white;
+  padding: $pad-large; // 24px
 
   .premium-feature-message {
     display: flex;
-    gap: 4px;
+    gap: $gap-icon-text; // 4px
     align-items: center;
 
     p {
-      // need to set line-height to normal for the icons and text to be aligned
       line-height: normal;
       margin: 0;
+    }
+  }
+
+  // Compact variant (Option A) — for modals
+  &--compact {
+    width: auto;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+
+    .premium-feature-message {
+      display: flex;
+      gap: $gap-icon-text;
+      align-items: center;
     }
   }
 }

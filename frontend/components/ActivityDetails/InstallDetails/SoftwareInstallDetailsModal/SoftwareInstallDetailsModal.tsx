@@ -467,7 +467,7 @@ export const SoftwareInstallDetailsModal = ({
           ) : (
             <>
               <p>Couldn&apos;t get install details.</p>
-              <PremiumFeatureMessage />
+              <PremiumFeatureMessage variant="compact" />
             </>
           );
         }
