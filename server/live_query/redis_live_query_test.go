@@ -1,14 +1,17 @@
 package live_query
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
@@ -403,11 +406,28 @@ func TestIsQueryTargetingHostFromCache(t *testing.T) {
 			require.NoError(t, err)
 			require.False(t, targeted)
 
-			// Known staleness: a completion is not visible until the next reload.
+			// A completion recorded on this server is mirrored into its cache, so
+			// the host is rejected without waiting for the next reload, and other
+			// hosts are unaffected.
 			require.NoError(t, store.QueryCompletedByHost("cached", 1))
 			targeted, err = store.IsQueryTargetingHost("cached", 1)
 			require.NoError(t, err)
-			require.True(t, targeted, "stale within the cache window")
+			require.False(t, targeted, "completed host, same server")
+			targeted, err = store.IsQueryTargetingHost("cached", 3)
+			require.NoError(t, err)
+			require.True(t, targeted, "other host still targeted")
+			queries, err := store.QueriesForHost(1)
+			require.NoError(t, err)
+			require.NotContains(t, queries, "cached", "completed host is not re-sent the query")
+
+			// Simulate another server's cache, which still has the bit set until
+			// its own reload, then reload it.
+			store.cache.mu.Lock()
+			store.cache.targetsCache["cached"] = mapBitfield([]uint{1, 3})
+			store.cache.mu.Unlock()
+			targeted, err = store.IsQueryTargetingHost("cached", 1)
+			require.NoError(t, err)
+			require.True(t, targeted, "stale on another server until its reload")
 			store.cache.mu.Lock()
 			store.cache.cacheExp = time.Time{}
 			store.cache.mu.Unlock()
@@ -491,4 +511,71 @@ func TestLoadCacheRetiresCampaignWithoutBitfield(t *testing.T) {
 	targeted, err = store.IsQueryTargetingHost("b", 1)
 	require.NoError(t, err)
 	require.True(t, targeted)
+}
+
+type failingPool struct {
+	fail atomic.Bool
+}
+
+func (p *failingPool) Get() redigo.Conn                 { return &failingConn{pool: p} }
+func (*failingPool) Close() error                       { return nil }
+func (*failingPool) Stats() map[string]redigo.PoolStats { return nil }
+func (*failingPool) Mode() fleet.RedisMode              { return fleet.RedisStandalone }
+
+type failingConn struct {
+	pool *failingPool
+}
+
+func (*failingConn) Close() error { return nil }
+func (*failingConn) Err() error   { return nil }
+func (c *failingConn) Do(_ string, _ ...any) (any, error) {
+	if c.pool.fail.Load() {
+		return nil, errors.New("redis down")
+	}
+	return nil, nil
+}
+func (*failingConn) Send(_ string, _ ...any) error { return nil }
+func (*failingConn) Flush() error                  { return nil }
+func (*failingConn) Receive() (any, error)         { return nil, nil }
+
+// A failed rebuild is shared with concurrent callers for one cache period, so
+// an outage costs one Redis timeout per period rather than one per caller.
+func TestCacheReloadFailureCoalesced(t *testing.T) {
+	pool := &failingPool{}
+	pool.fail.Store(true)
+	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Hour, 0)
+
+	const readers = 50
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make(chan error, readers)
+	for range readers {
+		wg.Go(func() {
+			<-start
+			_, err := store.QueriesForHost(1)
+			errs <- err
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.ErrorContains(t, err, "redis down")
+	}
+	require.EqualValues(t, 1, store.cacheReloads.Load(), "one failed rebuild for all callers")
+
+	// Within the cache period the failure is still returned without a retry.
+	_, err := store.QueriesForHost(1)
+	require.ErrorContains(t, err, "redis down")
+	require.EqualValues(t, 1, store.cacheReloads.Load())
+
+	// Once the period has passed, the next caller retries and recovers.
+	pool.fail.Store(false)
+	store.reloadMu.Lock()
+	store.lastReloadAt = time.Time{}
+	store.reloadMu.Unlock()
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Empty(t, queries)
+	require.EqualValues(t, 2, store.cacheReloads.Load())
 }

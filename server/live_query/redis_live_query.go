@@ -105,9 +105,13 @@ type redisLiveQuery struct {
 	// in memory cache expiration
 	cacheExpiration time.Duration
 	// reloadMu serializes cache rebuilds so an expiry triggers one, not one per
-	// goroutine that noticed it. cacheReloads counts them for tests.
-	reloadMu     sync.Mutex
-	cacheReloads atomic.Int64
+	// goroutine that noticed it. A failed rebuild is remembered for one cache
+	// period and returned to later callers, otherwise an outage would queue them
+	// behind serial Redis timeouts. cacheReloads counts rebuilds for tests.
+	reloadMu      sync.Mutex
+	lastReloadErr error
+	lastReloadAt  time.Time
+	cacheReloads  atomic.Int64
 
 	// smallTargetThreshold is the maximum number of targeted hosts for a query to
 	// use the per-host reverse index instead of the bitfield. A value of 0
@@ -149,8 +153,13 @@ func (r *redisLiveQuery) refreshCacheIfExpired() error {
 	if !r.cacheIsExpired() {
 		return nil
 	}
+	if r.lastReloadErr != nil && time.Since(r.lastReloadAt) < r.cacheExpiration {
+		return r.lastReloadErr
+	}
 	r.cacheReloads.Add(1)
-	return r.loadCache()
+	err := r.loadCache()
+	r.lastReloadErr, r.lastReloadAt = err, time.Now()
+	return err
 }
 
 // cacheIsExpired is a thread-safe method to check if the cache is expired.
@@ -169,21 +178,37 @@ func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
 	return sql, found
 }
 
-// cachedTargets returns the cached bitfield of an active broadcast campaign.
-// active is false when the campaign is not in the cache at all, which means it
-// is stopped or was created since the last reload. reverse campaigns have no
-// bitfield.
-func (r *redisLiveQuery) cachedTargets(campaignID string) (targets []byte, active, reverse bool) {
+// cachedTarget reports whether the cached bitfield of an active broadcast
+// campaign has the host's bit set. active is false when the campaign is not in
+// the cache at all, which means it is stopped or was created since the last
+// reload. reverse campaigns have no bitfield. The bit is tested under the lock
+// because clearCachedTarget mutates the bitfield in place.
+func (r *redisLiveQuery) cachedTarget(campaignID string, hostID uint) (targeted, active, reverse bool) {
 	r.cache.mu.RLock()
 	defer r.cache.mu.RUnlock()
 
 	if _, ok := r.cache.sqlCache[campaignID]; !ok {
-		return nil, false, false
+		return false, false, false
 	}
 	if _, ok := r.cache.reverseActiveCache[campaignID]; ok {
-		return nil, true, true
+		return false, true, true
 	}
-	return r.cache.targetsCache[campaignID], true, false
+	return bitSet(r.cache.targetsCache[campaignID], hostID), true, false
+}
+
+// clearCachedTarget mirrors a completion into this server's cached bitfield so
+// the host is rejected here right away rather than after the next reload.
+// Other servers keep seeing the bit until their own reload.
+func (r *redisLiveQuery) clearCachedTarget(campaignID string, hostID uint) {
+	r.cache.mu.Lock()
+	defer r.cache.mu.Unlock()
+
+	field := r.cache.targetsCache[campaignID]
+	byteIndex := hostID / bitsInByte
+	if byteIndex >= uint(len(field)) {
+		return
+	}
+	field[byteIndex] &^= 1 << (bitsInByte - (hostID % bitsInByte) - 1)
 }
 
 // bitSet must agree with mapBitfield and with Redis's SETBIT/GETBIT numbering
@@ -327,8 +352,8 @@ func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) 
 	// no Redis round trip for them. Reverse (small-target) queries have no
 	// bitfield and are read from the host's own set below.
 	for _, name := range names {
-		targets, active, reverse := r.cachedTargets(name)
-		if !active || reverse || !bitSet(targets, hostID) {
+		targeted, active, reverse := r.cachedTarget(name, hostID)
+		if !active || reverse || !targeted {
 			continue
 		}
 		if sql, found := r.getSQLByCampaignID(name); found {
@@ -383,7 +408,7 @@ func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, e
 		return false, fmt.Errorf("load cache: %w", err)
 	}
 
-	targets, active, reverse := r.cachedTargets(name)
+	targeted, active, reverse := r.cachedTarget(name, hostID)
 	switch {
 	case !active:
 		// Not in the cache means stopped, or created since the last reload. Only
@@ -407,9 +432,10 @@ func (r *redisLiveQuery) IsQueryTargetingHost(name string, hostID uint) (bool, e
 	default:
 		// A campaign's targets are fixed at creation and only ever cleared by
 		// completions, so a clear bit in the snapshot means never targeted or
-		// already completed. A set bit may be up to one reload stale, which at
-		// worst accepts a duplicate row from a host that just completed.
-		return bitSet(targets, hostID), nil
+		// already completed. A set bit may be up to one reload stale on servers
+		// other than the one that recorded the completion, which at worst
+		// accepts a duplicate row from a host that just completed.
+		return targeted, nil
 	}
 }
 
@@ -484,6 +510,7 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	if _, err := conn.Do("EVAL", setBitScript, 1, targetKey, hostID, 0); err != nil {
 		return fmt.Errorf("setbit query key: %w", err)
 	}
+	r.clearCachedTarget(name, hostID)
 
 	// NOTE(mna): we could remove the query here if all bits are now off, meaning
 	// that all hosts have completed this query, but the BITCOUNT command can be
