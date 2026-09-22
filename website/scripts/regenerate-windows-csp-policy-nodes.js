@@ -289,7 +289,12 @@ function parseAreaPage(pageHtml) {
   const LOOKS_LIKE_A_VALUE_CELL = /^[0-9A-Fa-fxX.-]{1,12}( \(Default\))?$/;
 
   let stripTags = (fragment)=>{
-    let withoutScripts = fragment.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+    let withoutScripts = fragment;
+    let previous;
+    do {
+      previous = withoutScripts;
+      withoutScripts = withoutScripts.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+    } while (withoutScripts !== previous);
     return _.filter(
       _.map(withoutScripts.replace(/<[^>]+>/g, '\u0000').split('\u0000'), (cell)=>{ return cell.trim(); }),
       (cell)=>{ return cell !== ''; }
