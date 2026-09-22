@@ -257,6 +257,7 @@ REDIS_EXT_DEFS=(
 # Other
 OTHER_DEFS=(
   ".fleet_server_errors.error_count|Fleet Server Errors||0|0|true|eq|0"
+  ".apns_mock_errors.error_count|apns-mock Errors||0|0|true|eq|0"
   ".container_health.abnormal_stops|Container Stops||0|0|true|eq|0"
   ".container_health.start_spread_min|Container Start Spread|min|5|10|false|lt|10"
 )
