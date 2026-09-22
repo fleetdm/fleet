@@ -120,4 +120,23 @@ describe("ResetPasswordForm - component", () => {
       new_password_confirmation: newPassword,
     });
   });
+
+  // Regression: submit was wired via Button onClick, so Enter never
+  // reached the form's onSubmit. Migration moved it to <form onSubmit>.
+  it("submits when Enter is pressed inside the form", async () => {
+    const { user } = renderWithSetup(
+      <ResetPasswordForm handleSubmit={submitSpy} />
+    );
+
+    await user.type(screen.getByPlaceholderText("New password"), newPassword);
+    await user.type(
+      screen.getByPlaceholderText("Confirm password"),
+      `${newPassword}{Enter}`
+    );
+
+    expect(submitSpy).toHaveBeenCalledWith({
+      new_password: newPassword,
+      new_password_confirmation: newPassword,
+    });
+  });
 });

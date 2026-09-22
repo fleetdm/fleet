@@ -11,34 +11,6 @@ const password = "p@ssw0rd";
 describe("LoginForm - component", () => {
   const settings = { sso_enabled: false };
   const submitSpy = jest.fn();
-  const baseError = "Unable to authenticate the current user";
-
-  it("renders the base error", () => {
-    render(
-      <LoginForm
-        baseError={baseError}
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
-    );
-
-    expect(screen.getByText(baseError)).toBeInTheDocument();
-  });
-
-  it("should not render the base error", () => {
-    render(
-      <LoginForm
-        handleSubmit={submitSpy}
-        isSubmitting={false}
-        pendingEmail={false}
-        ssoSettings={settings}
-      />
-    );
-
-    expect(screen.queryByText(baseError)).not.toBeInTheDocument();
-  });
 
   it("renders 2 InputField components", () => {
     render(

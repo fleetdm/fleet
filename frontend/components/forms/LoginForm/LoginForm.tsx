@@ -15,7 +15,6 @@ import paths from "router/paths";
 const baseClass = "login-form";
 
 interface ILoginFormProps {
-  baseError?: string;
   handleSubmit: (formData: ILoginUserData) => Promise<false | void>;
   isSubmitting: boolean;
   pendingEmail: boolean;
@@ -40,9 +39,8 @@ const validate = ({ email, password }: ILoginUserData): IFormErrors => {
 };
 
 const LoginForm = ({
-  baseError,
   handleSubmit,
-  isSubmitting: isSubmittingExternal,
+  isSubmitting: isRequestPending,
   pendingEmail,
   ssoSettings,
   handleSSOSignOn,
@@ -66,7 +64,7 @@ const LoginForm = ({
   } = useFormValidation<ILoginUserData>({
     initialFormData: { email: "", password: "" },
     validate,
-    isSubmitting: isSubmittingExternal,
+    isSubmitting: isRequestPending,
     skipTrim: ["password"],
   });
 
@@ -139,7 +137,6 @@ const LoginForm = ({
       className={loginFormClass}
       noValidate
     >
-      {baseError && <div className="form__base-error">{baseError}</div>}
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
           error={getError("email")}
@@ -148,7 +145,7 @@ const LoginForm = ({
           label="Email"
           placeholder="Email"
           value={formData.email}
-          onChange={(value: string) => setField("email", value)}
+          onChange={(value) => setField("email", value)}
           onFocus={() => clearFieldError("email")}
           onBlur={() => validateField("email")}
           ignore1Password={false}
@@ -160,7 +157,7 @@ const LoginForm = ({
           placeholder="Password"
           type="password"
           value={formData.password}
-          onChange={(value: string) => setField("password", value)}
+          onChange={(value) => setField("password", value)}
           onFocus={() => clearFieldError("password")}
           onBlur={() => validateField("password")}
           ignore1Password={false}

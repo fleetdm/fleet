@@ -33,7 +33,7 @@ interface ISmtpConfigFormData {
   smtpAuthenticationMethod: string;
 }
 
-const validate = (data: ISmtpConfigFormData): IFormErrors => {
+export const validate = (data: ISmtpConfigFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
   const {

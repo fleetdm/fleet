@@ -1,21 +1,25 @@
 /**
  * Tests the notify imperative API that wraps sonner's toast system.
  * Covers: success/error creation, empty-message fallback, batch,
- * dismiss, and response detail resolution.
+ * dismiss, response detail resolution, and Toaster props.
  */
-import { toast } from "sonner";
 
-import { notify } from "./ToastNotification";
+import { render } from "@testing-library/react";
+import React from "react";
+import { Toaster, toast } from "sonner";
+
+import ToastNotification, { notify } from "./ToastNotification";
 
 jest.mock("sonner", () => ({
   toast: {
     custom: jest.fn(),
     dismiss: jest.fn(),
   },
-  Toaster: () => null,
+  Toaster: jest.fn(() => null),
 }));
 
 const mockedToast = jest.mocked(toast);
+const mockedToaster = (Toaster as unknown) as jest.Mock;
 
 describe("notify - sonner toast API", () => {
   beforeEach(() => {
@@ -124,5 +128,15 @@ describe("notify - sonner toast API", () => {
     const renderFn = mockedToast.custom.mock.calls[0][0];
     const element = renderFn("test-id");
     expect(element.props.detail).toEqual({ message: "internal" });
+  });
+
+  // Regression for #53725: Sonner's default `--width` (inline on the <ol>)
+  // beats class-based CSS, so we must set it via `style` on <Toaster>.
+  // Dropping the style prop shifts every toast right of viewport center.
+  it("sets --width via style on the Toaster wrapper", () => {
+    mockedToaster.mockClear();
+    render(<ToastNotification />);
+    const props = mockedToaster.mock.calls[0][0];
+    expect(props.style).toMatchObject({ "--width": "500px" });
   });
 });

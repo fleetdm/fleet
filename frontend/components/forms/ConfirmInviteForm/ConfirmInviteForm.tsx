@@ -17,7 +17,6 @@ export interface IConfirmInviteFormData {
 interface IConfirmInviteFormProps {
   defaultFormData?: Partial<IConfirmInviteFormData>;
   handleSubmit: (data: IConfirmInviteFormData) => void | Promise<unknown>;
-  ancestorError?: string;
 }
 
 const validate = (formData: IConfirmInviteFormData): IFormErrors => {
@@ -44,7 +43,6 @@ const validate = (formData: IConfirmInviteFormData): IFormErrors => {
 const ConfirmInviteForm = ({
   defaultFormData,
   handleSubmit,
-  ancestorError,
 }: IConfirmInviteFormProps) => {
   const {
     formData,
@@ -70,7 +68,6 @@ const ConfirmInviteForm = ({
       className={baseClass}
       autoComplete="off"
     >
-      {ancestorError && <div className="form__base-error">{ancestorError}</div>}
       <InputField
         label="Full name"
         autofocus

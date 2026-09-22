@@ -21,7 +21,7 @@ interface IIntegrationFormProps {
   onSubmit: (
     integrationSubmitData: IIntegration[],
     integrationDestination: string
-  ) => void;
+  ) => void | Promise<unknown>;
   integrationEditing?: IIntegrationTableData;
   integrations: IZendeskJiraIntegrations;
   integrationEditingUrl?: string;
@@ -62,7 +62,7 @@ const validateForm = (
     }
   } else {
     if (!data.email) {
-      errors.email = "Enter your email";
+      errors.email = "Enter an email";
     }
     if (!data.groupId) {
       errors.groupId = "Enter a group ID";
@@ -122,6 +122,18 @@ const IntegrationForm = ({
     isSubmitting: testingConnection,
     skipTrim: ["apiToken"],
   });
+
+  // Flipping destination unmounts the other shape's fields; drop their errors
+  // so a lingering value can't reappear on a flip back.
+  useEffect(() => {
+    if (integrationDestination === "jira") {
+      clearFieldError("email");
+      clearFieldError("groupId");
+    } else {
+      clearFieldError("username");
+      clearFieldError("projectKey");
+    }
+  }, [integrationDestination, clearFieldError]);
 
   // IntegrationForm component can be used to create a new integration or edit
   // an existing integration, so submitData will be assembled accordingly.
@@ -186,9 +198,8 @@ const IntegrationForm = ({
     return zendeskIntegrationSubmitData;
   };
 
-  const onValidSubmit = (data: IIntegrationFormData) => {
+  const onValidSubmit = (data: IIntegrationFormData) =>
     onSubmit(createSubmitData(data), integrationDestination);
-  };
 
   if (testingConnection) {
     return (
@@ -285,7 +296,7 @@ const IntegrationForm = ({
           label="Group ID"
           placeholder="28134038"
           type="number"
-          value={formData.groupId ? formData.groupId : null}
+          value={formData.groupId || ""}
           onChange={(value: string) =>
             setField("groupId", value ? Number(value) : 0)
           }

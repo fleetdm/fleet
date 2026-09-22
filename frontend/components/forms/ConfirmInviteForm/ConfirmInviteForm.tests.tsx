@@ -23,16 +23,22 @@ describe("ConfirmInviteForm - component", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
   });
 
-  it("renders the base error", () => {
-    const baseError = "Unable to authenticate the current user";
-    render(
+  // Pattern: pristine required fields stay silent until submit.
+  // Blurring another field must not surface errors on untouched ones.
+  it("does not show errors on pristine fields before submit", async () => {
+    const { user } = renderWithSetup(
       <ConfirmInviteForm
-        ancestorError={baseError}
+        defaultFormData={{ name: "" }}
         handleSubmit={handleSubmitSpy}
       />
     );
 
-    expect(screen.getByText(baseError)).toBeInTheDocument();
+    await user.click(screen.getByRole("textbox", { name: "Full name" }));
+    await user.tab();
+
+    expect(screen.queryByText("Enter your full name")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enter a password")).not.toBeInTheDocument();
+    expect(screen.queryByText("Confirm your password")).not.toBeInTheDocument();
   });
 
   it("calls the handleSubmit prop when valid", async () => {

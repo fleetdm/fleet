@@ -10,19 +10,12 @@ import { IResetPasswordForm } from "interfaces/user";
 
 const baseClass = "reset-password-form";
 
-// Response created by utilities/format_error_response
-export interface IOldApiError {
-  http_status: number;
-  base: string;
-}
-
 export interface IFormData {
   new_password: string;
   new_password_confirmation: string;
 }
 
 interface IResetPasswordFormProps {
-  serverErrors?: IOldApiError;
   handleSubmit: (formData: IFormData) => void | Promise<unknown>;
 }
 
@@ -61,7 +54,6 @@ const validate = (formData: IFormData): IFormErrors => {
 };
 
 const ResetPasswordForm = ({
-  serverErrors,
   handleSubmit,
 }: IResetPasswordFormProps): JSX.Element => {
   const {
@@ -83,18 +75,15 @@ const ResetPasswordForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmit(handleSubmit)}>
-      {serverErrors?.base && (
-        <div className="form__base-error">{serverErrors.base}</div>
-      )}
       <InputFieldWithIcon
         error={getError("new_password")}
         autofocus
         label="New password"
         placeholder="New password"
-        onChange={(value: string) => setField("new_password", value)}
+        onChange={(value) => setField("new_password", value)}
         onFocus={() => clearFieldError("new_password")}
         onBlur={() => validateField("new_password")}
-        value={formData.new_password || ""}
+        value={formData.new_password}
         className={`${baseClass}__input`}
         type="password"
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
@@ -105,12 +94,10 @@ const ResetPasswordForm = ({
         error={getError("new_password_confirmation")}
         label="Confirm password"
         placeholder="Confirm password"
-        onChange={(value: string) =>
-          setField("new_password_confirmation", value)
-        }
+        onChange={(value) => setField("new_password_confirmation", value)}
         onFocus={() => clearFieldError("new_password_confirmation")}
         onBlur={() => validateField("new_password_confirmation")}
-        value={formData.new_password_confirmation || ""}
+        value={formData.new_password_confirmation}
         className={`${baseClass}__input`}
         type="password"
         ignore1Password={false}
