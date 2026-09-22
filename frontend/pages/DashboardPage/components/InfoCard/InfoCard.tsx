@@ -128,7 +128,7 @@ const useInfoCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card className={classNames} paddingSize="xlarge" borderRadiusSize="large">
+    <Card className={classNames} paddingSize="xlarge">
       {showTitle && (
         <div>
           <div className={`${baseClass}__section-title-cta`}>

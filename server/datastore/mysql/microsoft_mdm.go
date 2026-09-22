@@ -2518,58 +2518,32 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	return nil
 }
 
-// windowsHostProfileStatusSubquery returns a correlated SQL scalar subquery
-// that resolves to one of `<statusPrefix>failed`, `<statusPrefix>pending`,
-// `<statusPrefix>verifying`, `<statusPrefix>verified`, or '<empty>' for the host
-// identified by h.uuid in the outer query.
-//
-// The subquery does a single aggregation pass over host_mdm_windows_profiles
-// via the PK(host_uuid, profile_uuid) prefix.
-//
-// The returned SQL does NOT include outer parentheses; callers wrap in
-// `(...)` as needed for the context (scalar subquery or CASE switch).
-//
-// Priority logic:
-//   - failed: any non-reserved profile has status='failed'.
-//   - pending: any non-reserved profile has status NULL or 'pending'.
-//   - verifying: at least one non-reserved install-type profile has
-//     status='verifying'.
-//     At this CASE branch we already know failed=0 and pending=0, so no
-//     profile has status NULL/pending/failed; since profile status is always
-//     one of {NULL,pending,failed,verifying,verified}, that leaves only
-//     verifying and verified for install-type rows.
-//   - verified: at least one non-reserved install-type profile has
-//     status='verified' and no install verifying exists (enforced by the
-//     earlier verifying branch).
-func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error) {
-	caseExpr, args := windowsHostProfileStatusCaseExpr(statusPrefix)
-	stmt := fmt.Sprintf(`
-        SELECT %s
-        FROM host_mdm_windows_profiles hmwp
-        WHERE hmwp.host_uuid = h.uuid`, caseExpr)
-	return sqlx.In(stmt, args...)
+// sqlJoinMDMWindowsProfilesStatus returns a SQL snippet that joins the maintained host_mdm_windows_profiles_status
+// rollup, which holds one aggregate status bucket per host.
+func sqlJoinMDMWindowsProfilesStatus() string {
+	return `
+	LEFT JOIN host_mdm_windows_profiles_status hmwps ON hmwps.host_uuid = h.uuid
+`
 }
 
 // windowsHostProfileStatusCaseExpr returns the SQL CASE expression (and its as-yet-unexpanded args) that reduces a group of
 // host_mdm_windows_profiles rows to a single status bucket. It is the single source of truth for the Windows
 // profile status priority logic (failed > pending > verifying > verified, reserved profiles excluded, install-only for
 // verifying/verified, NULL treated as pending).
-func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
+func windowsHostProfileStatusCaseExpr() (string, []any) {
 	reserved := mdm.ListFleetReservedWindowsProfileNames()
 
-	stmt := fmt.Sprintf(`CASE
+	stmt := `CASE
             WHEN SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sfailed'
+                THEN 'failed'
             WHEN SUM(CASE WHEN (hmwp.status IS NULL OR hmwp.status = ?) AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%spending'
+                THEN 'pending'
             WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sverifying'
+                THEN 'verifying'
             WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sverified'
+                THEN 'verified'
             ELSE ''
-        END`,
-		statusPrefix, statusPrefix, statusPrefix, statusPrefix,
-	)
+        END`
 
 	args := []any{
 		fleet.MDMDeliveryFailed, reserved,
@@ -2584,7 +2558,7 @@ func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 // windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that recomputes
 // host_mdm_windows_profiles_status rows for a set of hosts from their current host_mdm_windows_profiles rows.
 func windowsProfilesStatusUpsertStmtAndArgs() (string, []any) {
-	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
+	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr()
 	stmt := fmt.Sprintf(`
 INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
 SELECT hmwp.host_uuid, %s

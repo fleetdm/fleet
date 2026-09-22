@@ -10,7 +10,11 @@ import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { ISoftwareTitleVersion } from "interfaces/software";
+import {
+  formatSoftwareVersion,
+  ISoftwareTitleVersion,
+  SoftwareSource,
+} from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -19,6 +23,8 @@ import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 interface ISoftwareTitleVersionsTableConfigProps {
   teamId?: number;
   isIPadOSOrIOSApp: boolean;
+  /** Versions carry no source of their own; the title's applies to every row. */
+  source: SoftwareSource;
 }
 
 type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
@@ -30,6 +36,7 @@ type ITableHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
   isIPadOSOrIOSApp,
+  source,
 }: ISoftwareTitleVersionsTableConfigProps) => {
   const tableHeaders = [
     {
@@ -58,7 +65,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
           <LinkCell
             className="name-link"
             path={softwareVersionDetailsPath}
-            value={cellProps.cell.value}
+            value={formatSoftwareVersion({ ...cellProps.row.original, source })}
           />
         );
       },

@@ -98,11 +98,7 @@ const Activity = ({
   const commandCount = commands?.count ?? 0;
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
+    <Card paddingSize="xlarge" className={classNames}>
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
           <Spinner centered />

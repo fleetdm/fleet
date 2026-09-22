@@ -1997,6 +1997,13 @@
       "description": "Connect Fonts is an app that manages fonts and digital assets."
     },
     {
+      "name": "Connect Fonts",
+      "slug": "connect-fonts/windows",
+      "platform": "windows",
+      "unique_identifier": "Monotype Connect",
+      "description": "Connect Fonts (Monotype Connect on Windows) is a font management platform for discovering, licensing, organizing, and activating fonts."
+    },
+    {
       "name": "Copilot",
       "slug": "copilot-money/darwin",
       "platform": "darwin",

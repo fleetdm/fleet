@@ -17,6 +17,7 @@ import { DisplayPlatform } from "interfaces/platform";
 import {
   ISoftwareVersion,
   formatSoftwareType,
+  formatSoftwareVersion,
   isIpadOrIphoneSoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
@@ -172,16 +173,13 @@ const SoftwareVersionDetailsPage = ({
           />
         ) : (
           <>
-            <Card
-              borderRadiusSize="xxlarge"
-              className={`${baseClass}__summary-section`}
-            >
+            <Card className={`${baseClass}__summary-section`}>
               <SoftwareDetailsSummary
                 displayName={`${getDisplayedSoftwareName(
                   softwareVersion.name,
                   softwareVersion.display_name,
                   softwareVersion.bundle_identifier
-                )}, ${softwareVersion.version}`}
+                )}, ${formatSoftwareVersion(softwareVersion)}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
                 queryParams={{
@@ -192,10 +190,7 @@ const SoftwareVersionDetailsPage = ({
                 source={softwareVersion.source}
               />
             </Card>
-            <Card
-              borderRadiusSize="xxlarge"
-              className={`${baseClass}__vulnerabilities-section`}
-            >
+            <Card className={`${baseClass}__vulnerabilities-section`}>
               <h2 className="section__header">Vulnerabilities</h2>
               {renderVulnTable(softwareVersion)}
             </Card>

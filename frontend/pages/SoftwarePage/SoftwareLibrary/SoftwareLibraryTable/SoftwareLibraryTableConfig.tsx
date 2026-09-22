@@ -18,14 +18,13 @@ import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import VersionCell from "../../components/tables/VersionCell";
+import { VersionsColumnCell } from "../../components/tables/VersionCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 
 type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
-type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
 type IHostCountCellProps = CellProps<
   ISoftwareTitle,
   ISoftwareTitle["hosts_count"]
@@ -153,9 +152,7 @@ const generateTableHeaders = (
       Header: "Installed version",
       disableSortBy: true,
       accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Library version",
