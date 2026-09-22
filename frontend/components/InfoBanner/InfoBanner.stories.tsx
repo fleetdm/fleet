@@ -15,10 +15,6 @@ const meta: Meta<typeof InfoBanner> = {
       control: { type: "select" },
       options: ["yellow", "grey"],
     },
-    borderRadius: {
-      control: { type: "select" },
-      options: ["medium", "xlarge"],
-    },
     pageLevel: { control: "boolean" },
     closable: { control: "boolean" },
     icon: {
@@ -63,7 +59,6 @@ export const Playground: Story = {
     children: defaultChildren,
     cta: sampleCta,
     color: "grey",
-    borderRadius: "medium",
     pageLevel: false,
     closable: true,
     icon: "info",
