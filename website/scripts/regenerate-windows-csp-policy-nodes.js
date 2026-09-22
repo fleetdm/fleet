@@ -25,11 +25,6 @@ policy surface, and read the diff before committing.`,
 
   inputs: {
 
-    areaLimit: {
-      type: 'number',
-      description: 'Only scrape this many areas.  For checking a change to the parser without fetching all 269 pages.'
-    },
-
     dry: {
       type: 'boolean',
       defaultsTo: false,
@@ -39,7 +34,7 @@ policy surface, and read the diff before committing.`,
   },
 
 
-  fn: async function ({areaLimit, dry}) {
+  fn: async function ({dry}) {
 
     let path = require('path');
     let LEARN_BASE_URL = 'https://learn.microsoft.com/en-us/windows/client-management/mdm';
@@ -67,10 +62,6 @@ policy surface, and read the diff before committing.`,
 
     let areaSlugs = await getPolicyAreaSlugs(LEARN_BASE_URL);
     sails.log(`Found ${areaSlugs.length} Policy CSP area pages.`);
-    if(areaLimit) {
-      areaSlugs = areaSlugs.slice(0, areaLimit);
-      sails.log(`Limiting this run to ${areaSlugs.length} of them.`);
-    }
 
     // Microsoft's CDN throttles a sustained burst rather than a fast one: at eight concurrent it starts
     // erroring a third of the way into a 269-page run, and even at four the last twenty areas fail.  So
@@ -135,10 +126,8 @@ policy surface, and read the diff before committing.`,
     let areaNames = _.uniq(_.pluck(nodesWithAPath, 'area'));
     sails.log(`Parsed ${nodesWithAPath.length} nodes across ${areaNames.length} areas.`);
 
-    // Both sanity checks describe a complete run, so a deliberately partial one skips them: with
-    // --areaLimit the point is to exercise the parser, and every check below would fail by construction.
     let missing = [];
-    for (let expectedPath of (areaLimit ? [] : Object.keys(NODES_THAT_MUST_PARSE))) {
+    for (let expectedPath of Object.keys(NODES_THAT_MUST_PARSE)) {
       let found = _.find(nodesWithAPath, (node)=>{ return `${node.area}/${node.name}` === expectedPath; });
       if(!found) {
         missing.push(`${expectedPath} -- not found at all`);
@@ -147,7 +136,7 @@ policy surface, and read the diff before committing.`,
       }
     }
 
-    if(!areaLimit && (areaNames.length < MINIMUM_PLAUSIBLE_AREA_COUNT || nodesWithAPath.length < MINIMUM_PLAUSIBLE_NODE_COUNT)) {
+    if(areaNames.length < MINIMUM_PLAUSIBLE_AREA_COUNT || nodesWithAPath.length < MINIMUM_PLAUSIBLE_NODE_COUNT) {
       throw new Error(
         `Refusing to overwrite the committed node file: this run parsed ${nodesWithAPath.length} nodes across ` +
         `${areaNames.length} areas, below the ${MINIMUM_PLAUSIBLE_NODE_COUNT}/${MINIMUM_PLAUSIBLE_AREA_COUNT} floor.  ` +
