@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260921170812, Down_20260921170812)
+	MigrationClient.AddMigration(Up_20260922140736, Down_20260922140736)
 }
 
-func Up_20260921170812(tx *sql.Tx) error {
+func Up_20260922140736(tx *sql.Tx) error {
 	if !columnExists(tx, "policies", "notify_before_patching") {
 		if _, err := tx.Exec(`
 			ALTER TABLE policies
@@ -45,6 +45,6 @@ func Up_20260921170812(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260921170812(tx *sql.Tx) error {
+func Down_20260922140736(tx *sql.Tx) error {
 	return nil
 }

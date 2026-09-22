@@ -173,10 +173,7 @@ const SoftwareVersionDetailsPage = ({
           />
         ) : (
           <>
-            <Card
-              borderRadiusSize="xxlarge"
-              className={`${baseClass}__summary-section`}
-            >
+            <Card className={`${baseClass}__summary-section`}>
               <SoftwareDetailsSummary
                 displayName={`${getDisplayedSoftwareName(
                   softwareVersion.name,
@@ -193,10 +190,7 @@ const SoftwareVersionDetailsPage = ({
                 source={softwareVersion.source}
               />
             </Card>
-            <Card
-              borderRadiusSize="xxlarge"
-              className={`${baseClass}__vulnerabilities-section`}
-            >
+            <Card className={`${baseClass}__vulnerabilities-section`}>
               <h2 className="section__header">Vulnerabilities</h2>
               {renderVulnTable(softwareVersion)}
             </Card>

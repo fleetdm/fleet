@@ -344,11 +344,7 @@ const DiskEncryption = ({
       <>
         {!isTechnician &&
           (mdmRequiredEmptyState || (
-            <Card
-              className={`${baseClass}__settings-card`}
-              color="white"
-              borderRadiusSize="large"
-            >
+            <Card className={`${baseClass}__settings-card`} color="white">
               <div className={`${baseClass}__form-fields`}>{formFields}</div>
               {renderSaveButton(platform)}
             </Card>

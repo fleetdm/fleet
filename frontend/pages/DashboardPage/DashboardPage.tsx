@@ -594,7 +594,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   );
 
   const HostCountCards = errorHosts ? (
-    <Card borderRadiusSize="large">
+    <Card>
       <DataError verticalPaddingSize="pad-large" />
     </Card>
   ) : (
@@ -910,7 +910,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           </div>
         </div>
         <div className={`${baseClass}__charts-row`}>
-          <Card paddingSize="xlarge" borderRadiusSize="large">
+          <Card paddingSize="xlarge">
             <HostsEnrolledCard
               counts={totalCounts}
               totalHostCount={hostSummaryTotals?.totals_hosts_count || 0}
@@ -919,7 +919,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               router={router}
             />
           </Card>
-          <Card paddingSize="xlarge" borderRadiusSize="large">
+          <Card paddingSize="xlarge">
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}

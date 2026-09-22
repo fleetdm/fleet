@@ -58,11 +58,7 @@ const InventoryVersion = ({
     );
 
   return (
-    <Card
-      className={`${baseClass}__version`}
-      color="grey"
-      borderRadiusSize="medium"
-    >
+    <Card className={`${baseClass}__version`} color="grey">
       <div className={`${baseClass}__row`}>
         <DataSet
           title="Version"
@@ -194,11 +190,7 @@ const InventoryVersions = ({
   if (!installedVersions || installedVersions.length === 0) {
     return (
       <div className={baseClass}>
-        <Card
-          className={`${baseClass}__version-details`}
-          color="grey"
-          borderRadiusSize="medium"
-        >
+        <Card className={`${baseClass}__version-details`} color="grey">
           <div className={`${baseClass}__row`}>
             <DataSet
               title="Type"
