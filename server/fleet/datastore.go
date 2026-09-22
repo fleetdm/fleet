@@ -2907,6 +2907,16 @@ type Datastore interface {
 	// A nil state resets it (pass complete).
 	SetMDMAppleAPNsSweepState(ctx context.Context, state *MDMAppleAPNsSweepState) error
 
+	// GetMDMAppleCommandCleanupState returns the Apple MDM command cleanup
+	// cron's persisted cursors, or nil when none are stored. The bare
+	// mysql.Datastore always returns nil; the mysqlredis wrapper backs it
+	// with Redis.
+	GetMDMAppleCommandCleanupState(ctx context.Context) (*MDMAppleCommandCleanupState, error)
+
+	// SetMDMAppleCommandCleanupState persists the Apple MDM command cleanup
+	// cron's cursors. A nil state resets them.
+	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
+
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
 	// of the bounded host window, every Apple declaration with its label
