@@ -43,329 +43,137 @@ module.exports = {
 
   fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape}) {
 
-    // Apple's published DDM configuration declarations, pruned to what a generator must not get wrong:
-    // exact key name, type, and whatever constrains the value.  Titles, prose and per-OS availability are
-    // dropped.  Regenerate by walking apple/device-management's declarative/declarations/configurations.
-    const DDM_DECLARATION_SCHEMA_V1 = `com.apple.configuration.account.caldav
-      VisibleName:string, HostName:string*, Port:integer, Path:string, AuthenticationCredentialsAssetReference:string
-    com.apple.configuration.account.carddav
-      VisibleName:string, HostName:string*, Port:integer, Path:string, AuthenticationCredentialsAssetReference:string
-    com.apple.configuration.account.exchange
-      VisibleName:string, EnabledProtocolTypes[], UserIdentityAssetReference:string, HostName:string, Port:integer, Path:string, ExternalHostName:string, ExternalPort:integer, External Path:string, OAuth{Enabled:boolean*, SignInURL:string, TokenRequestURL:string}, AuthenticationCredentialsAssetReference:string, AuthenticationIdentityAssetReference:string, SMIME{Signing{Enabled:boolean*, IdentityAssetReference:string, UserOverrideable:boolean, IdentityUserOverrideable:boolean}, Encryption{Enabled:boolean*, IdentityAssetReference:string, UserOverrideable:boolean, IdentityUserOverrideable:boolean, PerMessageSwitchEnabled:boolean}}, MailServiceActive:boolean, LockMailService:boolean, ContactsServiceActive:boolean, LockContactsService:boolean, CalendarServiceActive:boolean, LockCalendarService:boolean, RemindersServiceActive:boolean, LockRemindersService:boolean, NotesServiceActive:boolean, LockNotesService:boolean
-    com.apple.configuration.account.google
-      VisibleName:string, UserIdentityAssetReference:string*
-    com.apple.configuration.account.ldap
-      VisibleName:string, HostName:string*, Port:integer, AuthenticationCredentialsAssetReference:string, SearchSettings[]
-    com.apple.configuration.account.mail
-      VisibleName:string, UserIdentityAssetReference:string, IncomingServer{ServerType:string(IMAP|POP)*, HostName:string*, Port:integer, AuthenticationMethod:string(None|Password|CRAMMD5|NTLM|HTTPMD5)*, AuthenticationCredentialsAssetReference:string, IMAPPathPrefix:string}, OutgoingServer{HostName:string*, Port:integer, AuthenticationMethod:string(None|Password|CRAMMD5|NTLM|HTTPMD5)*, AuthenticationCredentialsAssetReference:string}, SMIME{Signing{Enabled:boolean*, IdentityAssetReference:string, UserOverrideable:boolean, IdentityUserOverrideable:boolean}, Encryption{Enabled:boolean*, IdentityAssetReference:string, UserOverrideable:boolean, IdentityUserOverrideable:boolean, PerMessageSwitchEnabled:boolean}}
-    com.apple.configuration.account.subscribed-calendar
-      VisibleName:string, CalendarURL:string*, AuthenticationCredentialsAssetReference:string
-    com.apple.configuration.app.managed
-      AppStoreID:string, BundleID:string, ManifestURL:string, AppComposedIdentifier:string, iOSApp:boolean, InstallBehavior{Install:string(Optional|Required), License{Assignment:string(Device|User), VPPType:string(Device|User)}, Version:integer, AllowDownloadsOverCellular:string(AlwaysOn|AlwaysOff|StoreSettings)}, UpdateBehavior{AutomaticAppUpdates:string(AlwaysOn|AlwaysOff|StoreSettings)*}, IncludeInBackup:boolean, Attributes{AssociatedDomains[], AssociatedDomainsEnableDirectDownloads:boolean, CellularSliceUUID:string, ContentFilterUUID:string, DNSProxyUUID:string, Hideable:boolean, Lockable:boolean, RelayUUID:string, TapToPayScreenLock:boolean, VPNUUID:string}, AppConfig{DataAssetReference:string, Passwords[], Identities[], Certificates[]}, ExtensionConfigs{ANY{DataAssetReference:string, Passwords[], Identities[], Certificates[]}}, LegacyAppConfigAssetReference:string
-    com.apple.configuration.audio-accessory.settings
-      TemporaryPairing{Disabled:boolean, Configuration{UnpairingTime{Policy:string(None|Hour)*, Hour:integer(0-23)}}}
-    com.apple.configuration.diskmanagement.settings
-      Restrictions{ExternalStorage:string(Allowed|ReadOnly|Disallowed), NetworkStorage:string(Allowed|ReadOnly|Disallowed)}
-    com.apple.configuration.external-intelligence.settings
-      Enabled:boolean, AllowSignIn:boolean, AllowedWorkspaceIDs[]
-    com.apple.configuration.intelligence.settings
-      AllowAppleIntelligenceReport:boolean, AllowGenmoji:boolean, AllowImagePlayground:boolean, AllowImageWand:boolean, AllowPersonalizedHandwritingResults:boolean, AllowVisualIntelligenceSummary:boolean, AllowWritingTools:boolean, Apps{Mail{AllowSmartReplies:boolean, AllowSummary:boolean}, Notes{AllowTranscription:boolean, AllowTranscriptionSummary:boolean}, Safari{AllowSummary:boolean}}, ForceOnDeviceOnlyDictation:boolean, ForceOnDeviceOnlyTranslation:boolean
-    com.apple.configuration.keyboard.settings
-      AllowAutoCorrection:boolean, AllowDefinitionLookup:boolean, AllowDictation:boolean, AllowMathKeyboardSuggestions:boolean, AllowPredictiveText:boolean, AllowSlideToType:boolean, AllowSpellCheck:boolean, AllowTextReplacement:boolean
-    com.apple.configuration.legacy
-      ProfileURL:string*
-    com.apple.configuration.legacy.interactive
-      ProfileURL:string*, VisibleName:string*
-    com.apple.configuration.management.status-subscriptions
-      StatusItems[]
-    com.apple.configuration.management.test
-      Echo:string*, EchoDataAssetReference:string, ReturnStatus:string(Installed|Failed|Unlocked)
-    com.apple.configuration.math.settings
-      Calculator{BasicMode{AddSquareRoot:boolean*}, ScientificMode{Enabled:boolean*}, ProgrammerMode{Enabled:boolean*}, MathNotesMode{Enabled:boolean*}, InputModes{UnitConversion:boolean*, RPN:boolean*}}, SystemBehavior{KeyboardSuggestions:boolean*, MathNotes:boolean*}
-    com.apple.configuration.migration-assistant.settings
-      ShouldDoManagedMigration:boolean*, ExcludedAccounts[], ExcludedPaths[], RequiredPaths[], ShouldMigrateSecurityPrivacySettings:boolean*
-    com.apple.configuration.package
-      ManifestURL:string*, InstallBehavior{Install:string(Optional|Required)}
-    com.apple.configuration.passcode.settings
-      RequirePasscode:boolean, RequireAlphanumericPasscode:boolean, RequireComplexPasscode:boolean, MinimumLength:integer(0-16), MinimumComplexCharacters:integer(0-4), MaximumFailedAttempts:integer(2-11), FailedAttemptsResetInMinutes:integer, MaximumGracePeriodInMinutes:integer, MaximumInactivityInMinutes:integer(0-15), MaximumPasscodeAgeInDays:integer(0-730), PasscodeReuseLimit:integer(1-50), ChangeAtNextAuth:boolean, CustomRegex{Regex:string*, Description{ANY:string}}
-    com.apple.configuration.safari.bookmarks
-      ManagedBookmarks[]
-    com.apple.configuration.safari.extensions.settings
-      ManagedExtensions{ANY{State:string(Allowed|AlwaysOn|AlwaysOff), PrivateBrowsing:string(Allowed|AlwaysOn|AlwaysOff), AllowedDomains[], DeniedDomains[]}}
-    com.apple.configuration.safari.settings
-      AcceptCookies:string(Never|CurrentWebsite|VisitedWebsites|Always), AllowDisablingFraudWarning:boolean, AllowHistoryClearing:boolean, AllowJavaScript:boolean, AllowPrivateBrowsing:boolean, AllowPopups:boolean, AllowSummary:boolean, NewTabStartPage{PageType:string(Start|Home|Extension)*, HomepageURL:string, ExtensionIdentifier:string}
-    com.apple.configuration.screensharing.connection
-      ConnectionUUID:string*, DisplayName:string*, HostName:string*, Port:integer, DisplayConfiguration{DisplayType:string(Virtual1|Virtual2)*}, AuthenticationCredentialsAssetReference:string
-    com.apple.configuration.screensharing.connection.group
-      ConnectionGroupUUID:string*, GroupName:string*, Members[]
-    com.apple.configuration.screensharing.host.settings
-      MaximumVirtualDisplays:integer(0-2), PortBase:integer(1024-65535), PreventCopyFilesFromHost:boolean, PreventCopyFilesToHost:boolean, PreventHighPerformanceConnections:boolean
-    com.apple.configuration.security.certificate
-      CredentialAssetReference:string*
-    com.apple.configuration.security.identity
-      CredentialAssetReference:string*, AllowAllAppsAccess:boolean, KeyIsExtractable:boolean
-    com.apple.configuration.security.passkey.attestation
-      AttestationIdentityAssetReference:string*, AttestationIdentityKeyIsExtractable:boolean, RelyingParties[]
-    com.apple.configuration.services.background-tasks
-      TaskType:string*, TaskDescription:string, ExecutableAssetReference:string, LaunchdConfigurations[]
-    com.apple.configuration.services.configuration-files
-      ServiceType:string*, DataAssetReference:string*
-    com.apple.configuration.siri.settings
-      Enabled:boolean, AllowUserGeneratedContent:boolean, AllowWhileLocked:boolean, ForceProfanityFilter:boolean
-    com.apple.configuration.softwareupdate.enforcement.specific
-      TargetOSVersion:string*, TargetBuildVersion:string, TargetLocalDateTime:string*, DetailsURL:string
-    com.apple.configuration.softwareupdate.settings
-      Notifications:boolean, Deferrals{CombinedPeriodInDays:integer(1-90), MajorPeriodInDays:integer(1-90), MinorPeriodInDays:integer(1-90), SystemPeriodInDays:integer(1-90)}, RecommendedCadence:string(All|Oldest|Newest), AutomaticActions{Download:string(Allowed|AlwaysOn|AlwaysOff), InstallOSUpdates:string(Allowed|AlwaysOn|AlwaysOff), InstallSecurityUpdate:string(Allowed|AlwaysOn|AlwaysOff)}, RapidSecurityResponse{Enable:boolean, EnableRollback:boolean}, AllowStandardUserOSUpdates:boolean, Beta{ProgramEnrollment:string(Allowed|AlwaysOn|AlwaysOff), OfferPrograms[], RequireProgram{Description:string*, Token:string*}}
-    com.apple.configuration.watch.enrollment
-      EnrollmentProfileURL:string*, AnchorCertificateAssetReferences[]`;
+    let path = require('path');
 
-    // Apple's published .mobileconfig payloads, pruned to the one thing a generator cannot recover on its own:
-    // the exact key names a payload accepts, cased as Apple cases them.  Value types, ranges, per-OS availability
-    // and the keys nested inside dictionaries and arrays are dropped -- this list settles what exists, not what it
-    // accepts.  Regenerate by walking apple/device-management's mdm/profiles, including CommonPayloadKeys.yaml and
-    // TopLevel.yaml, whose keys lead the list because they are the ones a payload manifest never repeats.
-    //eslint-disable-next-line camelcase
-    const MOBILECONFIG_PAYLOAD_SCHEMA_v1 = `(common keys -- valid on every dict inside PayloadContent)
-      PayloadIdentifier*, PayloadUUID*, PayloadType*, PayloadVersion*, PayloadDescription, PayloadDisplayName, PayloadOrganization
-    (root dict only -- never inside PayloadContent)
-      PayloadContent[]*, EncryptedPayloadContent, PayloadRemovalDisallowed, PayloadScope, RemovalDate, DurationUntilRemoval,
-      PayloadExpirationDate, TargetDeviceType, ConsentText{}
-    com.apple.ADCertificate.managed
-      CertServer*, CertTemplate*, Description, CertificateRenewalTimeInterval, CertificateAuthority, CertificateAcquisitionMechanism, AllowAllAppsAccess, PromptForCredentials, KeyIsExtractable, Keysize, EnableAutoRenewal
-    com.apple.AIM.account
-      AIMAccountDescription, AIMHostName*, AIMUserName, AIMPassword, AIMUseSSL, AIMPort, AIMAuthentication*
-    com.apple.AssetCache.managed
-      AllowCacheDelete, AllowPersonalCaching, AllowSharedCaching, AutoActivation, AutoEnableTetheredCaching, CacheLimit, DataPath, DenyTetheredCaching, DisplayAlerts, KeepAwake, ListenRanges[], ListenRangesOnly, ListenWithPeersAndParents, LocalSubnetsOnly, LogClientIdentity, Parents[], ParentSelectionPolicy, PeerFilterRanges[], PeerListenRanges[], PeerLocalSubnetsOnly, Port, PublicRanges[]
-    com.apple.Dictionary
-      parentalControl*
-    com.apple.DirectoryService.managed
-      HostName*, UserName, Password, ClientID, Description, ADOrganizationalUnit, ADMountStyle, ADCreateMobileAccountAtLoginFlag, ADCreateMobileAccountAtLogin, ADWarnUserBeforeCreatingMAFlag, ADWarnUserBeforeCreatingMA, ADForceHomeLocalFlag, ADForceHomeLocal, ADUseWindowsUNCPathFlag, ADUseWindowsUNCPath, ADAllowMultiDomainAuthFlag, ADAllowMultiDomainAuth, ADDefaultUserShellFlag, ADDefaultUserShell, ADMapUIDAttributeFlag, ADMapUIDAttribute, ADMapGIDAttributeFlag, ADMapGIDAttribute, ADMapGGIDAttributeFlag, ADMapGGIDAttribute, ADPreferredDCServerFlag, ADPreferredDCServer, ADDomainAdminGroupListFlag, ADDomainAdminGroupList[], ADNamespaceFlag, ADNamespace, ADPacketSignFlag, ADPacketSign, ADPacketEncryptFlag, ADPacketEncrypt, ADRestrictDDNSFlag, ADRestrictDDNS[], ADTrustChangePassIntervalDaysFlag, ADTrustChangePassIntervalDays
-    com.apple.DiscRecording
-      BurnSupport*
-    com.apple.MCX
-      EnableGuestAccount, DisableGuestAccount, com.apple.EnergySaver.desktop.ACPower{}, com.apple.EnergySaver.portable.ACPower{}, com.apple.EnergySaver.portable.BatteryPower{}, com.apple.EnergySaver.desktop.Schedule{}, SleepDisabled, dontAllowFDEDisable, dontAllowFDEEnable, DestroyFVKeyOnStandby, com.apple.cachedaccounts.CreateAtLogin, com.apple.cachedaccounts.WarnOnCreate, cachedaccounts.WarnOnCreate.allowNever, cachedaccounts.expiry.delete.disusedSeconds, cachedaccounts.askForSecureTokenAuthBypass, timeServer, timeZone, RequireAdminForIBSS, RequireAdminForAirPortNetworkChange, RequireAdminToTurnAirPortOnOff
-    com.apple.MCX.FileVault2
-      Enable*, Defer, UserEntersMissingInfo, UseRecoveryKey, ShowRecoveryKey, OutputPath, Certificate, PayloadCertificateUUID, Username, Password, UseKeychain, DeferForceAtUserLoginMaxBypassAttempts, DeferDontAskAtUserLogout, ForceEnableInSetupAssistant
-    com.apple.MCX.TimeMachine
-      AutoBackup, BackupAllVolumes, BackupDestURL*, BackupSizeMB, BackupSkipSys, MobileBackups, BasePaths[], SkipPaths[]
-    com.apple.ManagedClient.preferences
-      PayloadContent{}*
-    com.apple.NSExtension
-      AllowedExtensions[], DeniedExtensions[], DeniedExtensionPoints[]
-    com.apple.SetupAssistant.managed
-      SkipCloudSetup, SkipSiriSetup, SkipPrivacySetup, SkipiCloudStorageSetup, SkipTrueTone, SkipAppearance, SkipTouchIDSetup, SkipScreenTime, SkipAccessibility, SkipSetupItems[], SkipUnlockWithWatch, SkipWallpaper
-    com.apple.ShareKitHelper
-      SHKAllowedShareServices[], SHKDeniedShareServices[]
-    com.apple.SoftwareUpdate
-      CatalogURL, AllowPreReleaseInstallation, restrict-software-update-require-admin-to-install, AutomaticallyInstallMacOSUpdates, AutomaticallyInstallAppUpdates, AutomaticCheckEnabled, AutomaticDownload, CriticalUpdateInstall, ConfigDataInstall
-    com.apple.SystemConfiguration
-      Proxies{}*
-    com.apple.TCC.configuration-profile-policy
-      Services{}*
-    com.apple.airplay.security
-      SecurityType*, AccessType*, Password
-    com.apple.airplay
-      AllowList[], Passwords[], Whitelist[]
-    com.apple.airprint
-      AirPrint[]*
-    com.apple.apn.managed
-      DefaultsData{}*, DefaultsDomainName*
-    com.apple.app.lock
-      App{}*
-    com.apple.applicationaccess.new
-      familyControlsEnabled*, allowList[], whiteList[], pathDenyList[], pathBlackList[], pathAllowList[], pathWhiteList[]
-    com.apple.applicationaccess
-      allowAccountModification, allowActivityContinuation, allowAddingGameCenterFriends, allowAirDrop, allowAirPlayIncomingRequests, allowAirPrint, allowAirPrintCredentialsStorage, allowAirPrintiBeaconDiscovery, allowAppCellularDataModification, allowAppClips, allowAppInstallation, allowAppleIntelligenceReport, allowApplePersonalizedAdvertising, allowAppRemoval, allowAppsToBeHidden, allowAppsToBeLocked, allowARDRemoteManagementModification, allowAssistant, allowAssistantUserGeneratedContent, allowAssistantWhileLocked, allowAutoCorrection, allowAutoDim, allowAutomaticAppDownloads, allowAutomaticScreenSaver, allowAutoUnlock, allowBluetoothModification, allowBluetoothSharingModification, allowBookstore, allowBookstoreErotica, allowCallRecording, allowCamera, allowCellularPlanModification, allowChat, allowCloudAddressBook, allowCloudBackup, allowCloudBookmarks, allowCloudCalendar, allowCloudDesktopAndDocuments, allowCloudDocumentSync, allowCloudFreeform, allowCloudKeychainSync, allowCloudMail, allowCloudNotes, allowCloudPhotoLibrary, allowCloudPrivateRelay, allowCloudReminders, allowContentCaching, allowContinuousPathKeyboard, allowDefaultBrowserModification, allowDefaultCallingAppModification, allowDefaultMessagingAppModification, allowDefinitionLookup, allowDeviceNameModification, allowDeviceSleep, allowDiagnosticSubmission, allowDiagnosticSubmissionModification, allowDictation, allowedCameraRestrictionBundleIDs[], allowedExternalIntelligenceWorkspaceIDs[], allowEnablingRestrictions, allowEnterpriseAppTrust, allowEnterpriseBookBackup, allowEnterpriseBookMetadataSync, allowEraseContentAndSettings, allowESIMModification, allowESIMOutgoingTransfers, allowExplicitContent, allowExternalIntelligenceIntegrations, allowExternalIntelligenceIntegrationsSignIn, allowFileSharingModification, allowFilesNetworkDriveAccess, allowFilesUSBDriveAccess, allowFindMyDevice, allowFindMyFriends, allowFindMyFriendsModification, allowFingerprintForUnlock, allowFingerprintModification, allowGameCenter, allowGenmoji, allowGlobalBackgroundFetchWhenRoaming, allowHostPairing, allowImagePlayground, allowImageWand, allowInAppPurchases, allowInternetSharingModification, allowiPhoneMirroring, allowiPhoneWidgetsOnMac, allowiTunes, allowiTunesFileSharing, allowKeyboardShortcuts, allowListedAppBundleIDs[], allowLiveVoicemail, allowLocalUserCreation, allowLockScreenControlCenter, allowLockScreenNotificationsView, allowLockScreenTodayView, allowMailPrivacyProtection, allowMailSmartReplies, allowMailSummary, allowManagedAppsCloudSync, allowManagedToWriteUnmanagedContacts, allowMarketplaceAppInstallation, allowMediaSharingModification, allowMultiplayerGaming, allowMusicService, allowNews, allowNFC, allowNotesTranscription, allowNotesTranscriptionSummary, allowNotificationsModification, allowOpenFromManagedToUnmanaged, allowOpenFromUnmanagedToManaged, allowOTAPKIUpdates, allowPairedWatch, allowPassbookWhileLocked, allowPasscodeModification, allowPasswordAutoFill, allowPasswordProximityRequests, allowPasswordSharing, allowPersonalHotspotModification, allowPersonalizedHandwritingResults, allowPhotoStream, allowPodcasts, allowPredictiveKeyboard, allowPrinterSharingModification, allowProximitySetupToNewDevice, allowRadioService, allowRapidSecurityResponseInstallation, allowRapidSecurityResponseRemoval, allowRCSMessaging, allowRemoteAppleEventsModification, allowRemoteAppPairing, allowRemoteScreenObservation, allowRosettaUsageAwareness, allowSafari, allowSafariHistoryClearing, allowSafariPrivateBrowsing, allowSafariSummary, allowSatelliteConnection, allowScreenShot, allowSharedDeviceTemporarySession, allowSharedStream, allowSiriAI, allowSpellCheck, allowSpotlightInternetResults, allowStartupDiskModification, allowSystemAppRemoval, allowTimeMachineBackup, allowUIAppInstallation, allowUIConfigurationProfileInstallation, allowUniversalControl, allowUnmanagedToReadManagedContacts, allowUnpairedExternalBootToRecovery, allowUntrustedTLSPrompt, allowUSBRestrictedMode, allowVideoConferencing, allowVideoConferencingRemoteControl, allowVisualIntelligenceSummary, allowVoiceDialing, allowVPNCreation, allowWallpaperModification, allowWebDistributionAppInstallation, allowWritingTools, autonomousSingleAppModePermittedAppIDs[], blacklistedAppBundleIDs[], blockedAppBundleIDs[], deniedICCIDsForiMessageFaceTime[], deniedICCIDsForRCS[], enforcedFingerprintTimeout, enforcedSoftwareUpdateDelay, enforcedSoftwareUpdateMajorOSDeferredInstallDelay, enforcedSoftwareUpdateMinorOSDeferredInstallDelay, enforcedSoftwareUpdateNonOSDeferredInstallDelay, forceAirDropUnmanaged, forceAirPlayIncomingRequestsPairingPassword, forceAirPlayOutgoingRequestsPairingPassword, forceAirPrintTrustedTLSRequirement, forceAssistantProfanityFilter, forceAuthenticationBeforeAutoFill, forceAutomaticDateAndTime, forceBypassScreenCaptureAlert, forceClassroomAutomaticallyJoinClasses, forceClassroomRequestPermissionToLeaveClasses, forceClassroomUnpromptedAppAndDeviceLock, forceClassroomUnpromptedScreenObservation, forceDelayedAppSoftwareUpdates, forceDelayedMajorSoftwareUpdates, forceDelayedSoftwareUpdates, forceEncryptedBackup, forceITunesStorePasswordEntry, forceLimitAdTracking, forceOnDeviceOnlyDictation, forceOnDeviceOnlyTranslation, forcePreserveESIMOnErase, forceWatchWristDetection, forceWiFiPowerOn, forceWiFiToAllowedNetworksOnly, forceWiFiWhitelisting, ratingApps, ratingAppsExemptedBundleIDs[], ratingMovies, ratingRegion, ratingTVShows, requireManagedPasteboard, safariAcceptCookies, safariAllowAutoFill, safariAllowJavaScript, safariAllowPopups, safariForceFraudWarning, whitelistedAppBundleIDs[]
-    com.apple.appstore
-      restrict-store-require-admin-to-install, restrict-store-softwareupdate-only, restrict-store-disable-app-adoption, DisableSoftwareUpdateNotifications
-    com.apple.asam
-      AllowedApplications[]*
-    com.apple.associated-domains
-      Configuration[]*
-    com.apple.caldav.account
-      CalDAVAccountDescription, CalDAVHostName*, CalDAVUsername, CalDAVPassword, CalDAVPrincipalURL, CalDAVUseSSL, CalDAVPort, VPNUUID
-    com.apple.carddav.account
-      CardDAVAccountDescription, CardDAVHostName*, CardDAVUsername, CardDAVPassword, CardDAVPrincipalURL, CardDAVUseSSL, CardDAVPort, CommunicationServiceRules{}, VPNUUID
-    com.apple.cellular
-      AttachAPN{}, APNs[]
-    com.apple.cellularprivatenetwork.managed
-      Geofences[], DataSetName*, VersionNumber*, CellularDataPreferred, EnableNRStandalone, NetworkIdentifier, CsgNetworkIdentifier
-    com.apple.conferenceroomdisplay
-      Message
-    com.apple.configurationprofile.identification
-      PayloadIdentification{}*
-    com.apple.dashboard
-      whiteListEnabled*, WhiteList[]*
-    com.apple.declarations
-      Declarations[]*
-    com.apple.desktop
-      locked, override-picture-path
-    com.apple.dnsProxy.managed
-      AppBundleIdentifier*, ProviderBundleIdentifier, ProviderDesignatedRequirement, ProviderConfiguration{}, DNSProxyUUID
-    com.apple.dnsSettings.managed
-      DNSSettings{}*, OnDemandRules[], ProhibitDisablement
-    com.apple.dock
-      tilesize, size-immutable, magnification, magnify-immutable, largesize, magsize-immutable, orientation, position-immutable, mineffect, mineffect-immutable, windowtabbing, windowtabbing-immutable, dblclickbehavior, dblclickbehavior-immutable, minimize-to-application, minintoapp-immutable, launchanim, launchanim-immutable, autohide, autohide-immutable, show-process-indicators, showindicators-immutable, show-recents, showrecents-immutable, contents-immutable, MCXDockSpecialFolders[], AllowDockFixupOverride, static-only, static-others[], static-apps[], persistent-apps[], persistent-others[]
-    com.apple.domains
-      EmailDomains[], WebDomains[], SafariPasswordAutoFillDomains[], CrossSiteTrackingPreventionRelaxedDomains[], CrossSiteTrackingPreventionRelaxedApps[]
-    com.apple.eas.account
-      EmailAddress, Host, SSL, OAuth, UserName, Password, Certificate, CertificateName, CertificatePassword, PreventMove, PreventAppSheet, PayloadCertificateUUID, SMIMEEnabled, SMIMESigningEnabled, SMIMESigningCertificateUUID, SMIMEEncryptionEnabled, SMIMEEncryptionCertificateUUID, SMIMEEnablePerMessageSwitch, disableMailRecentsSyncing, MailNumberOfPastDaysToSync, HeaderMagic, CommunicationServiceRules{}, allowMailDrop, SMIMESigningUserOverrideable, SMIMESigningCertificateUUIDUserOverrideable, SMIMEEncryptByDefault, SMIMEEncryptByDefaultUserOverrideable, SMIMEEncryptionCertificateUUIDUserOverrideable, SMIMEEnableEncryptionPerMessageSwitch, EnableMail, EnableContacts, EnableCalendars, EnableReminders, EnableNotes, EnableMailUserOverridable, EnableContactsUserOverridable, EnableCalendarsUserOverridable, EnableRemindersUserOverridable, EnableNotesUserOverridable, OAuthSignInURL, OAuthTokenRequestURL, OverridePreviousPassword, VPNUUID
-    com.apple.education
-      OrganizationUUID*, OrganizationName*, PayloadCertificateUUID, LeaderPayloadCertificateAnchorUUID[], MemberPayloadCertificateAnchorUUID[], ResourcePayloadCertificateUUID, UserIdentifier*, Departments[], Groups[]*, Users[]*, DeviceGroups[], ScreenObservationPermissionModificationAllowed
-    com.apple.ews.account
-      EmailAddress, Host, SSL, OAuth, OAuthSignInURL, UserName, Password, PayloadCertificateUUID, AuthenticationCertificateUUID, allowMailDrop, Path, Port, ExternalHost, ExternalSSL, ExternalPath, ExternalPort
-    com.apple.extensiblesso
-      ExtensionIdentifier*, TeamIdentifier*, Type*, Realm*, ExtensionData{}, Hosts[], TeamIdentifier, Realm, URLs[], ScreenLockedBehavior, DeniedBundleIdentifiers[], AuthenticationMethod, RegistrationToken, PlatformSSO{}
-    com.apple.familycontrols.contentfilter
-      restrictWeb*, useContentFilter, allowListEnabled, whitelistEnabled, siteAllowList[], siteWhitelist[], filterAllowList[], filterWhitelist[], filterDenyList[], filterBlacklist[]
-    com.apple.familycontrols.timelimits.v2
-      familyControlsEnabled*, time-limits{}
-    com.apple.fileproviderd
-      ManagementAllowsRemoteSyncing, ManagementRemoteSyncingAllowList[], AllowManagedFileProvidersToRequestAttribution, ManagementAllowsKnownFolderSyncing, ManagementKnownFolderSyncingAllowList[], ManagementAllowsExternalVolumeSyncing, ManagementExternalVolumeSyncingAllowList[], ManagementDomainAutoEnablementList[]
-    com.apple.finder
-      ProhibitBurn, ProhibitConnectTo, ProhibitEject, ProhibitGoToFolder, ShowExternalHardDrivesOnDesktop, ShowHardDrivesOnDesktop, ShowMountedServersOnDesktop, ShowRemovableMediaOnDesktop, WarnOnEmptyTrash
-    com.apple.firstactiveethernet.managed
-      ANY
-    com.apple.firstethernet.managed
-      ANY
-    com.apple.font
-      Name, Font*
-    com.apple.gamed
-      GKFeatureGameCenterAllowed, GKFeatureAccountModificationAllowed, GKFeatureAddingGameCenterFriendsAllowed, GKFeatureMultiplayerGamingAllowed
-    com.apple.globalethernet.managed
-      ANY
-    com.apple.google-oauth
-      AccountDescription, AccountName, EmailAddress*, CommunicationServiceRules{}, VPNUUID
-    com.apple.homescreenlayout
-      Dock[], Pages[]*
-    com.apple.ironwood.support
-      Profanity Allowed, Ironwood Allowed
-    com.apple.jabber.account
-      JabberAccountDescription, JabberHostName*, JabberUserName, JabberPassword, JabberUseSSL, JabberPort, JabberAuthentication*
-    com.apple.ldap.account
-      LDAPAccountDescription, LDAPAccountHostName*, LDAPAccountUserName, LDAPAccountPassword, LDAPAccountUseSSL, LDAPSearchSettings[], VPNUUID
-    com.apple.loginitems.managed
-      AutoLaunchedApplicationDictionary-managed[]*
-    com.apple.loginwindow
-      SHOWFULLNAME, HideLocalUsers, IncludeNetworkUser, HideAdminUsers, SHOWOTHERUSERS_MANAGED, AdminHostInfo, AdminMayDisableMCX, AllowList[], DenyList[], HideMobileAccounts, ShutDownDisabled, RestartDisabled, RetriesUntilHint, SleepDisabled, DisableConsoleAccess, LoginwindowText, ShutDownDisabledWhileLoggedIn, RestartDisabledWhileLoggedIn, PowerOffDisabledWhileLoggedIn, LogOutDisabledWhileLoggedIn, DisableScreenLockImmediate, showInputMenu, DisableFDEAutoLogin, AutologinUsername, AutologinPassword, ForceWifiConfigurationOnLockScreen, ForceCaptivePortalConnectionFromLockScreen
-    com.apple.lom
-      DeviceCertificateUUID, ControllerCertificateUUID, DeviceCACertificateUUIDs[], ControllerCACertificateUUIDs[]
-    com.apple.mail.managed
-      EmailAccountDescription, EmailAccountName, EmailAccountType*, EmailAddress, IncomingMailServerAuthentication*, IncomingMailServerHostName*, IncomingMailServerPortNumber, IncomingMailServerUseSSL, IncomingMailServerUsername, IncomingPassword, OutgoingPassword, OutgoingPasswordSameAsIncomingPassword, OutgoingMailServerAuthentication*, OutgoingMailServerHostName*, OutgoingMailServerPortNumber, OutgoingMailServerUseSSL, OutgoingMailServerUsername, PreventMove, PreventAppSheet, SMIMEEnabled, SMIMESigningEnabled, SMIMESigningCertificateUUID, SMIMEEncryptionEnabled, SMIMEEncryptionCertificateUUID, SMIMEEnablePerMessageSwitch, disableMailRecentsSyncing, allowMailDrop, IncomingMailServerIMAPPathPrefix, SMIMESigningUserOverrideable, SMIMESigningCertificateUUIDUserOverrideable, SMIMEEncryptByDefault, SMIMEEncryptByDefaultUserOverrideable, SMIMEEncryptionCertificateUUIDUserOverrideable, SMIMEEnableEncryptionPerMessageSwitch, VPNUUID
-    com.apple.mcxMenuExtras
-      delaySeconds, maxWaitSeconds, AirPort.menu, Battery.menu, Bluetooth.menu, CPU.menu, Clock.menu, Displays.menu, Eject.menu, Fax.menu, HomeSync.menu, iChat.menu, Ink.menu, IrDA.menu, PCCard.menu, PPP.menu, PPPoE.menu, RemoteDesktop.menu, Script Menu.menu, Spaces.menu, Sync.menu, TextInput.menu, TimeMachine.menu, UniversalAccess.menu, User.menu, VPN.menu, Volume.menu, WWAN.menu
-    com.apple.mcxloginscripts
-      loginscripts[], logoutscripts[], skipLoginHook, skipLogoutHook
-    com.apple.mcxprinting
-      RequireAdminToAddPrinters, AllowLocalPrinters, RequireAdminToPrintLocally, ShowOnlyManagedPrinters, PrintFooter, PrintMACAddress, FooterFontSize, FooterFontName, DefaultPrinter{}, UserPrinterList{}
-    com.apple.mdm
-      IdentityCertificateUUID*, Topic*, ServerURL*, CheckInURL, SignMessage, AccessRights, UseDevelopmentAPNS, ManagedAppleID, AssignedManagedAppleID, EnrollmentMode, ServerURLPinningCertificateUUIDs[], CheckInURLPinningCertificateUUIDs[], PinningRevocationCheckRequired, ServerCapabilities[], CheckOutWhenRemoved, RequiredAppIDForMDM, PromptUserToAllowBootstrapTokenForAuthentication
-    com.apple.mobiledevice.passwordpolicy
-      allowSimple, forcePIN, maxFailedAttempts, maxInactivity, maxPINAgeInDays, minComplexChars, minLength, requireAlphanumeric, pinHistory, maxGracePeriod, minutesUntilFailedLoginReset, changeAtNextAuth, customRegex{}
-    com.apple.networkusagerules
-      ApplicationRules[], SIMRules[]
-    com.apple.notificationsettings
-      NotificationSettings[]*
-    com.apple.osxserver.account
-      HostName*, UserName*, Password, AccountDescription, ConfiguredAccounts[]*
-    com.apple.preference.security
-      dontAllowPasswordResetUI, dontAllowLockMessageUI, dontAllowFireWallUI
-    com.apple.preference.users
-      DisableUsingiCloudPassword
-    com.apple.profileRemovalPassword
-      RemovalPassword
-    com.apple.proxy.http.global
-      ProxyType, ProxyServer, ProxyServerPort, ProxyUsername, ProxyPassword, ProxyPACURL, ProxyPACFallbackAllowed, ProxyCaptiveLoginAllowed
-    com.apple.relay.managed
-      Relays[]*, MatchDomains[], ExcludedDomains[], MatchFQDNs[], ExcludedFQDNs[], RelayUUID, UIToggleEnabled, AllowDNSFailover
-    com.apple.screensaver.user
-      moduleName*, modulePath, idleTime
-    com.apple.screensaver
-      askForPassword, askForPasswordDelay, idleTime, loginWindowModulePath, moduleName*
-    com.apple.secondactiveethernet.managed
-      ANY
-    com.apple.secondethernet.managed
-      ANY
-    com.apple.security.FDERecoveryKeyEscrow
-      Location*, EncryptCertPayloadUUID*, DeviceKey
-    com.apple.security.FDERecoveryRedirect
-      RedirectURL*, EncryptCertPayloadUUID*
-    com.apple.security.acme
-      DirectoryURL*, ClientIdentifier*, KeySize*, KeyType*, HardwareBound*, Subject[]*, SubjectAltName{}, UsageFlags, ExtendedKeyUsage[], Attest, KeyIsExtractable, AllowAllAppsAccess
-    com.apple.security.certificatepreference
-      Name*, PayloadCertificateUUID*
-    com.apple.security.certificaterevocation
-      EnabledForCerts[]
-    com.apple.security.certificatetransparency
-      DisabledForCerts[], DisabledForDomains[]
-    com.apple.security.firewall
-      EnableFirewall*, BlockAllIncoming, EnableStealthMode, Applications[], AllowSigned, AllowSignedApp
-    com.apple.security.identitypreference
-      Name*, PayloadCertificateUUID*
-    com.apple.security.pem
-      PayloadCertificateFileName, PayloadContent*
-    com.apple.security.pkcs1
-      PayloadCertificateFileName, PayloadContent*
-    com.apple.security.pkcs12
-      PayloadCertificateFileName, PayloadContent*, Password, AllowAllAppsAccess, KeyIsExtractable
-    com.apple.security.root
-      PayloadCertificateFileName, PayloadContent*
-    com.apple.security.scep
-      PayloadContent{}*
-    com.apple.security.smartcard
-      UserPairing, allowSmartCard, checkCertificateTrust, oneCardPerUser, tokenRemovalAction, enforceSmartCard
-    com.apple.servicemanagement
-      Rules[]*
-    com.apple.shareddeviceconfiguration
-      AssetTagInformation, IfLostReturnToMessage, LockScreenFootnote
-    com.apple.sso
-      Name*, Kerberos{}
-    com.apple.subscribedcalendar.account
-      SubCalAccountDescription, SubCalAccountHostName*, SubCalAccountUsername, SubCalAccountPassword, SubCalAccountUseSSL, VPNUUID
-    com.apple.syspolicy.kernel-extension-policy
-      AllowNonAdminUserApprovals, AllowUserOverrides, AllowedTeamIdentifiers[], AllowedKernelExtensions{}
-    com.apple.system-extension-policy
-      AllowUserOverrides, AllowedTeamIdentifiers[], AllowedSystemExtensionTypes{}, AllowedSystemExtensions{}, RemovableSystemExtensions{}, NonRemovableSystemExtensions{}, NonRemovableFromUISystemExtensions{}
-    com.apple.system.logging
-      Subsystems{}, System{}
-    com.apple.systemmigration
-      CustomBehavior[]
-    com.apple.systempolicy.control
-      EnableAssessment, AllowIdentifiedDevelopers, EnableXProtectMalwareUpload
-    com.apple.systempolicy.managed
-      DisableOverride
-    com.apple.systempolicy.rule
-      Requirement, Comment, Priority, Expiration, OperationType, LeafCertificate
-    com.apple.systempreferences
-      EnabledPreferencePanes[], DisabledPreferencePanes[], DisabledSystemSettings[]
-    com.apple.systemuiserver
-      logout-eject{}, mount-controls{}, unmount-controls{}
-    com.apple.thirdactiveethernet.managed
-      ANY
-    com.apple.thirdethernet.managed
-      ANY
-    com.apple.tvremote
-      AllowedRemotes[], AllowedTVs[]
-    com.apple.universalaccess
-      closeViewFarPoint, closeViewHotkeysEnabled, closeViewNearPoint, closeViewScrollWheelToggle, closeViewShowPreview, closeViewSmoothImages, contrast, flashScreen, grayscale, mouseDriver, mouseDriverCursorSize, mouseDriverIgnoreTrackpad, mouseDriverInitialDelay, mouseDriverMaxSpeed, slowKey, slowKeyBeepOn, slowKeyDelay, stereoAsMono, stickyKey, stickyKeyBeepOnModifier, stickyKeyShowWindow, voiceOverOnOffKey, whiteOnBlack
-    com.apple.vpn.managed.applayer
-      VPNUUID*, CellularSliceUUID, SafariDomains[], MailDomains[], CalendarDomains[], ContactsDomains[], AssociatedDomains[], ExcludedDomains[], OnDemandMatchAppEnabled, SMBDomains[]
-    com.apple.vpn.managed.appmapping
-      AppLayerVPNMapping[]*
-    com.apple.vpn.managed
-      VPNType*, VPNSubType, UserDefinedName*, VendorConfig{}, VPN{}, IPv4{}, PPP{}, IPSec{}, IKEv2{}, DNS{}, Proxies{}, AlwaysOn{}, TransparentProxy{}
-    com.apple.webClip.managed
-      Precomposed, FullScreen, URL*, Icon, IsRemovable, Label*, IgnoreManifestScope, TargetApplicationBundleIdentifier
-    com.apple.webcontent-filter
-      FilterType, SafariHistoryRetentionEnabled, AutoFilterEnabled, PermittedURLs[], BlacklistedURLs[], DenyListURLs[], HideDenyListURLs, WhitelistedBookmarks[], AllowListBookmarks[], UserDefinedName, PluginBundleID, ServerAddress, UserName, Password, PayloadCertificateUUID, Organization, VendorConfig{}, FilterBrowsers, FilterSockets, FilterDataProviderDesignatedRequirement, FilterDataProviderBundleIdentifier, FilterPackets, FilterPacketProviderDesignatedRequirement, FilterPacketProviderBundleIdentifier, FilterGrade, ContentFilterUUID, FilterURLs, URLFilterParameters{}
-    com.apple.wifi.managed
-      AutoJoin, SSID_STR, HIDDEN_NETWORK, ProxyType, EncryptionType, Password, PayloadCertificateUUID, EAPClientConfiguration{}, DisplayedOperatorName, DomainName, RoamingConsortiumOIs[], ServiceProviderRoamingEnabled, IsHotspot, HESSID, NAIRealmNames[], MCCAndMNCs[], CaptiveBypass, QoSMarkingPolicy{}, SetupModes[], EnableIPv6, TLSCertificateRequired, ProxyServer, ProxyServerPort, ProxyUsername, ProxyPassword, ProxyPACURL, ProxyPACFallbackAllowed, DisableAssociationMACRandomization, AllowJoinBeforeFirstUnlock
-    com.apple.xsan.preferences
-      onlyMount[], denyMount[], denyDLC[], preferDLC[], useDLC
-    com.apple.xsan
-      sanName*, sanConfigURLs[], fsnameservers[], sanAuthMethod, sharedSecret*
-    loginwindow
-      DisableLoginItemsSuppression`;
+    // Both Apple schemas are generated from apple/device-management by
+    // `sails run regenerate-apple-profile-schemas` rather than maintained here by hand.  The
+    // hand-maintained versions gave key names and types only, which stops the model inventing a key but
+    // not picking the wrong real one -- and they had already drifted, still listing VPPType after Apple
+    // removed it.
+    //
+    // The whole schema goes in.  That is the difference from the Windows reference below, which has to
+    // look up the areas a request needs because its table is 155KB: these render to ~13k and ~6k tokens,
+    // so narrowing them would only remove context the model can already see, and add a lookup that can
+    // pick wrong.
+    let appleSchema;
+    if(profileType === 'mobileconfig' || profileType === 'ddm') {
+
+      let filename = profileType === 'ddm' ? 'apple-ddm-declarations.json' : 'apple-payload-manifests.json';
+      let schemaFilePath = path.resolve(sails.config.appPath, `profile-generator/schema/${filename}`);
+      let schemaFile;
+      try {
+        schemaFile = require(schemaFilePath);
+      } catch (err) {
+        throw new Error(
+          `Could not read the Apple ${profileType} schema at ${schemaFilePath}.  Run ` +
+          `\`sails run regenerate-apple-profile-schemas\` to build it.  Full error: ${err.message}`
+        );
+      }
+
+      // A nested key renders inside its parent's braces, so no parent can be rendered until every one of
+      // its children has been.  The tree is flattened onto an explicit stack rather than walked
+      // recursively: a key is appended to visitOrder before its own subkeys are pushed, so walking that
+      // list backwards guarantees a child is rendered before the parent that has to quote it.
+      //
+      // MAX_DEPTH is where nesting stops paying for itself.  Keys at that depth still render, as
+      // `Parent{}`, but their contents do not: past three levels the braces describe the shape of Apple's
+      // YAML rather than anything the model has to get right.
+      const MAX_DEPTH = 3;
+      let keysToVisit = [];
+      for (let entry of schemaFile.entries) {
+        for (let key of entry.keys) {
+          keysToVisit.push({key, depth: 0});
+        }
+      }
+      let visitOrder = [];
+      while (keysToVisit.length > 0) {
+        let keyToVisit = keysToVisit.pop();
+        visitOrder.push(keyToVisit);
+        if(keyToVisit.depth < MAX_DEPTH && keyToVisit.key.subkeys && keyToVisit.key.subkeys.length > 0) {
+          for (let subkey of keyToVisit.key.subkeys) {
+            keysToVisit.push({key: subkey, depth: keyToVisit.depth + 1});
+          }
+        }
+      }
+
+      // Keyed by the key itself, so a key's label and constraint are worked out once and both the inline
+      // rendering below and the per-entry rendering after it read the same answer.
+      let renderedKeys = new Map();
+      for (let i = visitOrder.length - 1; i >= 0; i--) {
+        let key = visitOrder[i].key;
+
+        // The name, with the suffixes that mark its shape.
+        let type = String(key.type || '');
+        let shape = /array/.test(type) ? '[]' : (/dictionary/.test(type) ? '{}' : '');
+        let labelText = `${key.key}${shape}${key.required ? '*' : ''}`;
+
+        // Whatever constrains the key's value, or nothing when its name is the whole story.  The default
+        // rides along with an allowed-value list or a numeric range but not with a gloss, because a gloss
+        // is a sentence of Apple's prose and `d=` tacked onto the end of one reads as part of the sentence.
+        let constraint;
+        if(key.allowedValues && key.allowedValues.length > 0) {
+          constraint = `(${key.allowedValues.join('|')})`;
+        } else if(key.min !== undefined || key.max !== undefined) {
+          constraint = `(${key.min !== undefined ? key.min : ''}-${key.max !== undefined ? key.max : ''})`;
+        }
+        if(constraint !== undefined) {
+          if(key.default !== undefined) {
+            constraint = `${constraint} d=${key.default}`;
+          }
+        } else {
+          constraint = key.gloss;
+        }
+
+        // How this key reads when it appears inside a parent's braces.  A key with subkeys renders as
+        // `Parent{child, child}`, the way the hand-maintained schemas did -- pulling nested keys onto
+        // their own lines would lose which parent they belong to.  Note the bare name rather than the
+        // label: a parent's shape is already given by its braces.
+        let inlineText;
+        if(key.subkeys && key.subkeys.length > 0) {
+          let renderedSubkeys = [];
+          if(visitOrder[i].depth < MAX_DEPTH) {
+            for (let subkey of key.subkeys) {
+              renderedSubkeys.push(renderedKeys.get(subkey).inlineText);
+            }
+          }
+          inlineText = `${key.key}${key.required ? '*' : ''}{${renderedSubkeys.join(', ')}}`;
+        } else {
+          inlineText = `${labelText}${constraint ? `:${constraint}` : ''}`;
+        }
+
+        renderedKeys.set(key, {labelText, constraint, inlineText});
+      }
+
+      // Most keys render as a bare name in a comma-separated run, the way the hand-maintained schemas
+      // did.  A key earns its own line only when it carries something a name cannot: an allowed-value
+      // list, a numeric range, or a sentence of Apple's own prose about what its values mean.  That keeps
+      // the cost where it buys something -- SHOWFULLNAME earns a line because false shows a list of
+      // users, while allowCamera does not earn one.
+      let appleSchemaLines = [];
+      for (let entry of schemaFile.entries) {
+        appleSchemaLines.push(entry.name);
+
+        let plainKeys = [];
+        let keysWithTheirOwnLine = [];
+        for (let key of entry.keys) {
+          let renderedKey = renderedKeys.get(key);
+          if(key.subkeys && key.subkeys.length > 0) {
+            plainKeys.push(renderedKey.inlineText);
+          } else if(renderedKey.constraint) {
+            keysWithTheirOwnLine.push(`    ${renderedKey.labelText}  ${renderedKey.constraint}`);
+          } else {
+            plainKeys.push(renderedKey.labelText);
+          }
+        }
+
+        if(plainKeys.length > 0) {
+          appleSchemaLines.push('    ' + plainKeys.join(', '));
+        }
+        appleSchemaLines = appleSchemaLines.concat(keysWithTheirOwnLine);
+      }
+
+      appleSchema = appleSchemaLines.join('\n');
+    }
 
 
     // The tail of the system prompt.
@@ -494,21 +302,24 @@ module.exports = {
       'mobileconfig': {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
         firstPartySettingDescription: 'a key in an Apple-published payload',
-        providedSchema: MOBILECONFIG_PAYLOAD_SCHEMA_v1,//eslint-disable-line camelcase
-        providedSchemaDescription: `Provided context: every payload type Apple publishes a manifest for, and the top-level keys each one accepts.
-Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a dictionary, and \`[]\` is
-an array.  The two parenthesized blocks that open the list are not payload types: the first gives the keys every dict
-inside PayloadContent may carry, and the second the keys that belong on the root dict and nowhere else.
+        providedSchema: appleSchema,
+        providedSchemaDescription: `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
+from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
+dictionary, \`[]\` is an array, and \`Parent{child, child}\` gives a dictionary's contents.  CommonPayloadKeys and
+TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
+the keys that belong on the root dict and nowhere else.
 
-This list is names only.  It settles how a listed payload type's keys are spelled and cased, and for a listed payload
-type it is complete: a top-level key not listed under it does not exist in it.  It does not give value types, allowed
-values, or the keys nested inside a \`{}\` or \`[]\`, so recall those from the payload's documentation as usual, or
-return the "couldNotGenerateProfile" shape.
+Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
+carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
+and a sentence is Apple's own description of what its values mean.  Where such a sentence is given, it decides the
+value -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the opposite.
 
-Absence from this list is not proof a domain is unusable.  Apple preference domains that have no MDM payload manifest
-are managed as preference domains and are not listed here, and neither are third-party domains, which come from the ProfileManifests reference.
-What absence does rule out is a first-party payload type of your own invention.
-When a listed payload type covers the setting, use it, and fall back to an unlisted preference domain only when nothing listed does.`,
+For a listed payload type this is complete: a key not listed under it does not exist in it.  Absence of a payload type
+is not proof a domain is unusable -- Apple preference domains with no MDM manifest are managed as preference domains
+and are not listed, and neither are third-party domains, which come from the ProfileManifests reference.  What absence
+does rule out is a first-party payload type of your own invention.  When a listed payload type covers the setting, use
+it, and fall back to an unlisted preference domain only when nothing listed does.  If you cannot recall the keys of an
+unlisted preference domain, return the "couldNotGenerateProfile" shape rather than guessing.`,
         references: [
           'First-party Apple payloads: the payload types and their top-level keys are provided below -- https://github.com/apple/device-management/tree/release/mdm/profiles is where a human can check them.',
           'Third-party Apple payloads: https://github.com/ProfileManifests/ProfileManifests',
@@ -524,8 +335,9 @@ When a listed payload type covers the setting, use it, and fall back to an unlis
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
           'When more than one key in a payload could plausibly satisfy the request, choose by documented meaning, say what the chosen value actually does in valueMeaning, and return couldNotGenerateProfile rather than guessing between them.',
-          'When the payload type you need appears in the provided list, copy it and its top-level keys character for character, casing included, and use no top-level key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
-          'The provided list stops at the top level, and it does not cover preference domains that have no payload manifest.  If you cannot recall the keys inside a dictionary or array member, the keys of an unlisted preference domain, or the value type or allowed values of any key, do not guess and do not adapt a key from a DDM declaration -- return the "couldNotGenerateProfile" shape and name the payload type you were unsure about.',
+          'When the payload type you need appears in the provided list, copy it and its keys character for character, casing included, and use no key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
+          'Where the provided list describes what a key\'s values mean, that description decides the value and your own reading of the key name does not.  Several of these keys are named in a way that implies the opposite of what they do.',
+          'The provided list does not cover preference domains that have no payload manifest.  If you cannot recall the keys of an unlisted preference domain, do not guess and do not adapt a key from a DDM declaration -- return the "couldNotGenerateProfile" shape and name the payload type you were unsure about.',
           // Value typing.
           'Type every value as plist: <true/> or <false/> for booleans, never <string>true</string>; <integer> for whole numbers; <real> for decimals; <data> with base64 for binary; <date> with an ISO 8601 timestamp.',
           // Dependencies
@@ -545,10 +357,16 @@ When a listed payload type covers the setting, use it, and fall back to an unlis
       'ddm': {
         description: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
         firstPartySettingDescription: 'a key in an Apple-published declaration type',
-        providedSchema: DDM_DECLARATION_SCHEMA_V1,
-        providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts.  Format is \`Key:type\`,
-where \`*\` marks a required key, \`(a|b|c)\` lists the allowed values, \`(min-max)\` gives the allowed range,
-\`{...}\` is a nested dictionary, and \`[]\` is an array.
+        providedSchema: appleSchema,
+        providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts, taken from Apple's
+own declaration definitions.  Format is a declaration type followed by its keys, where \`*\` marks a required key,
+\`[]\` is an array, and \`Parent{child, child}\` gives a nested dictionary's contents.
+
+Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
+carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
+and a sentence is Apple's own description of what the value must look like.  Where such a sentence is given, it
+decides the value -- ExcludedPaths reads as though it takes any path, and Apple's text says entries are relative to
+the home directory and directories need a trailing slash.
 
 This is the complete set.  A declaration type or key that does not appear here does not exist.`,
         references: [
@@ -572,6 +390,182 @@ This is the complete set.  A declaration type or key that does not appear here d
 
 
     let promptConfig = promptConfigByProfileType[profileType];
+
+    // Windows is the one profile type whose settings were never provided, only pointed at: the model was
+    // given a documentation URL it cannot open and asked to recall node paths, formats and polarities from
+    // memory, and it recalled them wrong often enough that CSP passed 12/45 of its cases where the two
+    // types with a provided schema passed ~90%.  The whole table is ~155KB, too much to put in front of the
+    // model that writes the profile, so the areas this request needs are looked up first and only those go
+    // in.  An area averages 587 bytes, so three or four cost less than a tenth of what the whole table would.
+    let windowsCspAreasProvided = [];
+    if(profileType === 'csp') {
+
+      // Scraped from Microsoft's published reference by `sails run regenerate-windows-csp-policy-nodes`.
+      let nodeFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/windows-csp-policy-nodes.json');
+      let nodeFile;
+      try {
+        nodeFile = require(nodeFilePath);
+      } catch (err) {
+        throw new Error(
+          `Could not read the Windows CSP node reference at ${nodeFilePath}.  Run ` +
+          `\`sails run regenerate-windows-csp-policy-nodes\` to build it.  Full error: ${err.message}`
+        );
+      }
+      let nodesByArea = _.groupBy(nodeFile.nodes, 'area');
+
+      // Node names rather than area names, deliberately.  Picking from an index of area names alone was
+      // measured at 10/27 on the generator's csp cases, against 21/27 for picking from node names:
+      // Microsoft's area naming does not follow from what a policy does (RemovableDiskDenyWriteAccess is in
+      // Storage, not ADMX_RemovableStorage; the sign-in banner is in LocalPoliciesSecurityOptions, not any
+      // of the four areas with "Logon" in the name), so an area-name index asks the model to recall the
+      // taxonomy -- which is the failure this whole reference exists to remove.  Given node names it can
+      // find the setting and read off the area instead.  The index is ~95KB and identical on every request,
+      // so it wants to be a cached prompt prefix.
+      let nodeNameIndex = _.map(nodesByArea, (nodesInThisArea, areaName)=>{
+        return `${areaName}: ${_.pluck(nodesInThisArea, 'name').sort().join(' ')}`;
+      }).join('\n');
+
+      // The small model on purpose: this is a lookup rather than a judgement.
+      let picked = await sails.helpers.ai.prompt.with({
+        systemPrompt:
+`Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not
+include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
+
+Below is every Windows Policy CSP node, grouped by the area it belongs to.  An IT admin has asked for a
+configuration profile, and another model is about to write it -- but it can only be shown a few areas'
+worth of nodes, so your job is to say which areas those should be.
+
+Find the nodes that would actually satisfy the request and name the areas holding them.  Read the node
+lists to do it: an area's name frequently does not follow from what its nodes do, so an area that sounds
+right often is not the one, and the area that is right often sounds unrelated.
+
+Name three to five areas, not one.  This is a shortlist, not an answer -- the model that writes the
+profile picks the node out of what you send, so a second and third candidate cost it nothing, while
+naming only the area you thought of first is how the right one gets left out.  After the area you are
+most confident in, add the ones holding any other node that could plausibly do what was asked, including
+ones you half-rejected.  Every area you name must appear verbatim below; do not invent one.
+
+Return an empty array, naming nothing, when the request is not a Policy CSP request at all.  Windows has
+many other CSPs, and some of the most common requests belong to them: provisioning a Wi-Fi network is the
+WiFi CSP, a VPN is VPNv2, installing a certificate or an ADMX file has its own CSP too.  The Policy CSP
+has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFiDirect -- and naming one of those for a
+request that needs a different CSP is worse than naming nothing, because it answers a question that was
+not asked and buries the one that was.  An empty array is a real answer here, not a failure.
+
+${nodeNameIndex}
+
+Respond in JSON with this data shape:
+{
+  "areas": ["TODO"]
+}`,
+        prompt: `Here are the instructions from an IT admin:
+\`\`\`
+${naturalLanguageInstructions}
+\`\`\``,
+        baseModel: 'claude-haiku-4-5',
+        expectJson: true,
+      })
+      .tolerate((err)=>{
+        // Not fatal: the generator falls back to the prompt it had before this reference existed, which is
+        // worse but still generates.  Failing here would turn a degraded profile into no profile.
+        sails.log.warn(`When trying to work out which Windows CSP areas a request touches, an error occurred.  The profile will be generated without the node reference.  Full error: ${require('util').inspect(err, {depth: 2})}`);
+        return undefined;
+      });
+
+      // Filtered against the real area names rather than trusted: the model invents plausible ones
+      // (Telemetry, WinLogon, WindowsStore are all things it has asked for and none of them exist).  An
+      // invented name is dropped rather than thrown on, since a dropped name costs detail the model then
+      // has to abstain over, while an error would cost the whole profile.
+      if(picked && _.isArray(picked.areas)) {
+        let realAreaNames = Object.keys(nodesByArea);
+        for (let candidate of picked.areas) {
+          let matched = _.find(realAreaNames, (areaName)=>{ return areaName.toLowerCase() === String(candidate).toLowerCase(); });
+          if(matched && !_.contains(windowsCspAreasProvided, matched)) {
+            windowsCspAreasProvided.push(matched);
+          }
+        }
+      }
+
+      if(windowsCspAreasProvided.length > 0) {
+
+        // Rendered in area order, off a copy: windowsCspAreasProvided goes back to the caller in the order
+        // the model named the areas, and sorting it in place would throw that away.
+        //
+        // Value descriptions are the reason this reference exists -- a node like DevicePasswordEnabled takes
+        // 0 to mean enabled, and no amount of prose in the prompt stops a model inferring the opposite from
+        // the name -- so they are kept, but trimmed to their first clause.  The full sentence is
+        // documentation, not a constraint.
+        let schemaLines = [];
+        for (let areaName of _.clone(windowsCspAreasProvided).sort()) {
+          schemaLines.push(areaName);
+          for (let node of _.sortBy(nodesByArea[areaName], 'name')) {
+            let parts = [node.name, node.format];
+            if(!_.contains(node.scopes, 'Device')) {
+              parts.push('@User');
+            }
+            if(node.mustBeWrappedInAtomic) {
+              parts.push('atomic');
+            }
+            if(node.allowedValues && node.allowedValues.length > 0) {
+              // Six is enough for every boolean and every small enum.  The handful of nodes with longer
+              // value lists are ones whose meaning a line of prompt was never going to settle anyway.
+              parts.push(_.map(node.allowedValues.slice(0, 6), (allowedValue)=>{
+                let firstClause = String(allowedValue.description || '').trim().replace(/\.$/, '').split(/(?<=[a-z])\.\s/)[0];
+                let summarizedDescription = _.trunc(firstClause.replace(/\s+/g, ' '), {length: 52, omission: ''}).trim().replace(/[,;:]$/, '');
+                return `${allowedValue.value}${allowedValue.isDefault ? '*' : ''}=${summarizedDescription}`;
+              }).join(' '));
+            } else if(node.defaultValue !== undefined) {
+              parts.push(`d=${node.defaultValue}`);
+            }
+            if(node.dependsOn) {
+              parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}=${node.dependsOn.allowedValue}`);
+            }
+            schemaLines.push('  ' + parts.join(' '));
+          }
+        }
+
+        promptConfig.providedSchemaDescription =
+`Provided context: the Windows Policy CSP nodes this request looks like it needs, straight from
+Microsoft's published reference.  A node's LocURI is ./Device/Vendor/MSFT/Policy/Config/<Area>/<NodeName>
+-- never a shortened form of that path, and never an area segment you inferred from a policy's name.
+
+Format is an area, then one node per line:
+  <NodeName> <format> [flags] [values or default] [dependency]
+\`*\` marks a value as that node's default.  \`@User\` marks a node that exists only under ./User/ --
+writing it under ./Device/ deploys cleanly and enforces nothing.  \`atomic\` marks a node Microsoft
+documents as requiring an <Atomic> wrapper.  \`needs X=Y\` is a node the setting depends on, which
+belongs in the profile alongside it.  The format on each line is the node's declared DFFormat: emit it
+verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
+
+This is authoritative for the areas below and settles their node names, paths, formats and values.  It is
+not the whole Policy CSP, and what is missing decides between two different answers.  If no node here
+enforces what was asked, return the "couldNotGenerateProfile" shape and name what you were looking for,
+rather than recalling a node from an area you were not given.  But if a node here does enforce it and the
+request merely describes the effect in words the node does not use -- asking to wipe after failed
+passcode attempts, where the node sets the failed-attempt threshold that produces that outcome -- then
+that is the node, so use it and put what it actually does, and anything the admin should know about the
+gap, in "valueMeaning" and "caveats".  Abstaining is for a setting you cannot find, not for one whose
+published name is less specific than the request.
+
+Every area that exists, with its node count, is listed after the detail.  Use it only to tell whether
+a setting you cannot find lives somewhere that was not provided -- the names alone do not tell you what
+is in an area, and an area's name is often not what you would guess.`;
+
+        promptConfig.providedSchema = `${schemaLines.join('\n')}\n\nAll areas: ${_.map(Object.keys(nodesByArea).sort(), (areaName)=>{ return `${areaName}(${nodesByArea[areaName].length})`; }).join(' ')}`;
+
+        // Ahead of the existing rules on purpose.  Several of those tell the model how to decide a format
+        // or a polarity from memory -- sound advice when nothing was provided, and a licence to override
+        // the provided data if it is left to rank itself against them.
+        promptConfig.rules = [
+          'Every node name, LocURI, format and allowed value in the provided list is authoritative.  Where the list and your own recollection differ, the list is right and you are wrong -- copy the path, the format and the value from it character for character.  The rules below about choosing a format or working out what a value means apply only to a setting the list does not cover.',
+        ].concat(promptConfig.rules);
+        // The URL stays useful as somewhere a human can check the work, but it is no longer where the
+        // model is being told to get the settings from.
+        promptConfig.references = [
+          'Windows CSP nodes, formats, and allowed values: the nodes for this request are provided below -- https://learn.microsoft.com/en-us/windows/client-management/mdm/ is where a human can check them.',
+        ];
+      }
+    }
 
     // Generated list of UUIDs this profile can use.
     // Note: This is generated here and sent to the LLM to prevent it from adding invalid/placeholder UUIDs
@@ -627,7 +621,10 @@ ${uuidsToUse}
     \`\`\``;
 
     // promptConfig comes back because the action's triage call needs description and firstPartySettingDescription; suppliedPayloadUuids so a caller can check what the model was given.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids };
+    // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
+    // written from the right areas badly -- the two look identical in the generated profile, and the first
+    // is a lookup problem while the second is a prompt problem.
+    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided };
 
   }
 
