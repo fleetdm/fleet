@@ -5,6 +5,7 @@ import (
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDatadogAgentVersionFixer(t *testing.T) {
@@ -15,7 +16,7 @@ func TestDatadogAgentVersionFixer(t *testing.T) {
 			Version:          "7.81.2.1",
 		}
 		result, err := DatadogAgentVersionFixer(app)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "7.81.2.0", result.Version)
 	})
 
@@ -26,7 +27,7 @@ func TestDatadogAgentVersionFixer(t *testing.T) {
 			Version:          "7.82.0.0",
 		}
 		result, err := DatadogAgentVersionFixer(app)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "expected Datadog Agent winget version to be '7.81.2.1' but found '7.82.0.0'")
 		assert.Equal(t, "7.82.0.0", result.Version) // Version unchanged on error
 	})
