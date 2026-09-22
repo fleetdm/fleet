@@ -316,8 +316,7 @@ cmd/fleet-mcp/
   mcp_tools_queries.go     # query-domain MCP tools
   mcp_tools_policies.go    # policy/vuln MCP tools
   mcp_tools_inventory.go   # inventory MCP tools
-  schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
-  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./cmd/fleet-mcp/...`.
+  schema.go                # canonical osquery schema (embedded fallback from the monorepo's schema/osquery_fleet_schema.json via the github.com/fleetdm/fleet/schema module + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
   vetted_queries.go        # vetted CIS-8.1 query library
   seed_fleet.go            # -seed mode
 ```

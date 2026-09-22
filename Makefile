@@ -1093,6 +1093,7 @@ UPDATE_GO_MODS := \
 	./tools/screencap/go.mod \
 	./tools/hangar/go.mod \
 	./cmd/fleet-mcp/go.mod \
+	./schema/go.mod \
 	./tools/dibble/go.mod \
 	./tools/gitops-auto-complete/go.mod \
 	./tools/upgrade/go.mod

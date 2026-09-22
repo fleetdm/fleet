@@ -6,10 +6,16 @@ on:
       - main
     paths:
       - 'cmd/fleet-mcp/**'
+      - 'schema/go.mod'
+      - 'schema/*.go'
+      - 'schema/osquery_fleet_schema.json'
       - '.github/workflows/test-fleet-mcp.yml'
   pull_request:
     paths:
       - 'cmd/fleet-mcp/**'
+      - 'schema/go.mod'
+      - 'schema/*.go'
+      - 'schema/osquery_fleet_schema.json'
       - '.github/workflows/test-fleet-mcp.yml'
   workflow_dispatch: # Manual
 

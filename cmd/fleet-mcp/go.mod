@@ -3,6 +3,7 @@ module fleet-mcp
 go 1.27.1
 
 require (
+	github.com/fleetdm/fleet/schema v0.0.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/mark3labs/mcp-go v0.44.0
@@ -21,3 +22,7 @@ require (
 	golang.org/x/sys v0.46.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// The canonical osquery schema lives in the monorepo; embed it from there
+// instead of vendoring a copy.
+replace github.com/fleetdm/fleet/schema => ../../schema

@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/schema"
 	"github.com/sirupsen/logrus"
 )
 
@@ -67,16 +67,6 @@ const (
 	fetchTimeout           = 15 * time.Second
 )
 
-// The vendored copy next to this file is what //go:embed pulls into the
-// binary as the offline fallback. Refresh from the canonical Fleet monorepo
-// via `go generate ./cmd/fleet-mcp/...` whenever Fleet upstream rebuilds
-// the schema.
-
-//go:generate cp ../../schema/osquery_fleet_schema.json ./osquery_fleet_schema.json
-
-//go:embed osquery_fleet_schema.json
-var embeddedSchemaJSON []byte
-
 var (
 	schemaMu     sync.RWMutex
 	schemaTables []SchemaTable
@@ -112,10 +102,11 @@ var defaultCuratedTables = []string{
 }
 
 func init() {
-	// Always load the embedded snapshot synchronously so the rest of the
+	// Always load the embedded snapshot (the monorepo's canonical
+	// schema/osquery_fleet_schema.json) synchronously so the rest of the
 	// binary can serve schema lookups immediately, even if the live fetch
 	// later fails or the process runs offline.
-	tables, err := parseSchemaJSON(embeddedSchemaJSON)
+	tables, err := parseSchemaJSON(schema.OsqueryFleetSchemaJSON)
 	if err != nil {
 		panic(fmt.Sprintf("fleet-mcp: failed to parse embedded osquery schema: %v", err))
 	}
