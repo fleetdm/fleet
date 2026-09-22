@@ -14655,15 +14655,89 @@ For Fleet-maintained apps, software package objects include two additional field
 
 For in-house iOS apps, the `software_package` field is populated with package information.
 
-For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_app` is populated with information from the store. For example:
+For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_apps` is populated with information from the store.
+
+A software title can have more than one app store apps on the same fleet for iOS, iPadOS, and Android. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
+
+`app_store_app` is kept for backwards compatibility and contains the first-added version.
+
+For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
+
+If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
+
+> Install, pending, and failed counts in `app_store_apps.status` are separate for each version.
+
+For example:
 
 ```json
 {
+  "app_store_apps": [
+    {
+      "id": 41,
+      "name": "Production",
+      "app_store_id": "6443476492",
+      "platform": "ios",
+      "version": "2.6.0",
+      "status": {
+        "installed": 13,
+        "pending": 0,
+        "failed": 2
+      },
+      "self_service": true,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": [
+        {
+          "name": "IT team",
+          "id": 12
+        }
+      ],
+      "labels_include_all": null,
+      "auto_update_enabled": true,
+      "auto_update_window_start": "00:00",
+      "auto_update_window_end": "04:00",
+      "created_at": "2026-01-28T21:49:04.145909Z",
+      "categories": [
+        "🔐 Security"
+      ],
+      "display_name": "Cloudflare One Agent",
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
+    },
+    {
+      "id": 42,
+      "name": "Test",
+      "app_store_id": "6443476492",
+      "platform": "ios",
+      "version": "2.6.0",
+      "status": {
+        "installed": 2,
+        "pending": 1,
+        "failed": 0
+      },
+      "self_service": false,
+      "automatic_install_policies": null,
+      "labels_include_any": [
+        {
+          "name": "IT team",
+          "id": 12
+        }
+      ],
+      "labels_exclude_any": null,
+      "labels_include_all": null,
+      "auto_update_enabled": false,
+      "auto_update_window_start": null,
+      "auto_update_window_end": null,
+      "created_at": "2026-02-03T10:14:22.882031Z",
+      "categories": null,
+      "display_name": "Cloudflare One Agent",
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+    }
+  ],
   "app_store_app": {
-    "app_store_id": "361285480",
-    "platform": "darwin",
-    "name": "Keynote: Design Presentations",
-    "latest_version": "15.2.1",
+    "app_store_id": "6443476492",
+    "platform": "ios",
+    "name": "Cloudflare One Agent",
+    "latest_version": "2.6.0",
     "status": {
       "installed": 13,
       "pending": 0,
@@ -14672,13 +14746,19 @@ For Apple App Store and Google Play apps, the `software_package` field is `null`
     "self_service": true,
     "automatic_install_policies": null,
     "labels_include_any": null,
-    "labels_exclude_any": null,
+    "labels_exclude_any": [
+      {
+        "name": "IT team",
+        "id": 12
+      }
+    ],
     "labels_include_all": null,
     "created_at": "2026-01-28T21:49:04.145909Z",
     "categories": [
-      "Productivity"
+      "🔐 Security"
     ],
-    "display_name": "Keynote"
+    "display_name": "Cloudflare One Agent",
+    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
   }
 }
 ```
@@ -15195,6 +15275,8 @@ _Available in Fleet Premium._
 
 Add Apple App Store or Google Play store app. Apple apps must be added in Apple Business (AB) before adding them to Fleet.
 
+You can add more than one version of the same app to a fleet. Fleet always installs the latest version available in the store, so versions don't differ by the app version that's installed. Instead, each version has its own `name`, `self_service`, `categories`, labels, automatic update settings, and managed app configuration. This lets you give different groups of hosts different settings (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
+
 `POST /api/v1/fleet/software/app_store_apps`
 
 #### Parameters
@@ -15203,13 +15285,14 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | ---- | ---- | -- | ----------- |
 | app_store_id   | string | body | **Required.** The ID of the Apple App Store app or Google Play app. |
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
+| name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | form | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | form | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -15227,6 +15310,21 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "team_id": 2,
   "platform": "ipados",
   "self_service": true
+}
+```
+
+##### Request body adding a version with a managed app configuration
+
+To add more than one version of the same app, call this endpoint once per version with the same `app_store_id` and `platform`, and a different `name`.
+
+```json
+{
+  "app_store_id": "546505307",
+  "team_id": 2,
+  "platform": "ios",
+  "name": "Test",
+  "labels_include_any": ["Test"],
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
 }
 ```
 
@@ -15258,6 +15356,7 @@ _Available in Fleet Premium._
 
 Modify an Apple App Store (VPP) or a Google Play app's options.
 
+A software title can have more than one version of the same App Store app on a fleet. Use `version_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -15266,6 +15365,8 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
+| version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
+| name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
@@ -15275,11 +15376,15 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| configuration | object | body | The app's managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+
+All settings are set per version, so updating one version doesn't change any other version of the same app.
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
-`configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+`configuration` only supports `managedConfiguration` and `workProfileWidgets` from the [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+If a host is in scope for more than one version, Fleet installs the one that was added first. Fleet generates each version's `id` when it's added, and the response includes the `id` and a `created_at` timestamp so you can confirm which version takes precedence.
 
 #### Example
 
@@ -15299,6 +15404,18 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 }
 ```
 
+##### Request body updating a specific version
+
+```json
+{
+  "team_id": 2,
+  "version_id": 42,
+  "name": "Test",
+  "labels_include_any": ["Test"],
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+}
+```
+
 ##### Default response
 
 `Status: 200`
@@ -15306,23 +15423,27 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 ```json
 {
   "app_store_app": {
-    "name": "Logic Pro",
+    "id": 42,
+    "name": "Test",
     "display_name": "",
     "icon_url": null,
     "app_store_id": 1091189122,
     "categories": ["Browser"],
-    "latest_version": "2.04",
+    "version": "2.04",
     "self_service": true,
     "labels_include_any": [
       {
-        "name": "Product",
-        "id": 12
-      },
-      {
-        "name": "Marketing",
+        "name": "Test",
         "id": 17
       }
     ],
+    "labels_exclude_any": null,
+    "labels_include_all": null,
+    "auto_update_enabled": false,
+    "auto_update_window_start": null,
+    "auto_update_window_end": null,
+    "created_at": "2026-08-25T14:22:03Z",
+    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->",
     "automatic_install_policies": [
       {
         "id": 345,
@@ -15691,6 +15812,7 @@ Deletes software that's available for install. This won't uninstall the software
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
+| version_id | integer | query | Deletes only the specified version of an App Store app. If omitted, all of the title's App Store app versions on the fleet are deleted. |
 
 #### Example
 
