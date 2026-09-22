@@ -188,13 +188,13 @@ describe("DeviceNotificationPage", () => {
     const primary = await screen.findByRole("button", { name: "Update now" });
     await user.click(primary);
 
-    // Server returns the Installing... view (statuses on every item), which
+    // Server returns the Updating... view (statuses on every item), which
     // we render by writing the response into the query cache.
-    const installing = await screen.findAllByText("Installing...");
-    expect(installing.length).toBeGreaterThan(0);
+    const updating = await screen.findAllByText("Updating...");
+    expect(updating.length).toBeGreaterThan(0);
 
     // Both `primary` and `dismiss` fade the toast out in Swift, so update_now
-    // must post neither — the window has to stay open on the Installing view.
+    // must post neither — the window has to stay open on the Updating view.
     const closingCalls = postMessage.mock.calls.filter(
       ([msg]) => msg.action === "primary" || msg.action === "dismiss"
     );
@@ -210,14 +210,14 @@ describe("DeviceNotificationPage", () => {
 
     renderPage();
 
-    expect((await screen.findAllByText("Installing...")).length).toBe(3);
+    expect((await screen.findAllByText("Updating...")).length).toBe(3);
     expect(state.requestCount).toBe(1);
 
     jest.advanceTimersByTime(5000);
 
     expect(await screen.findByText("Failed")).toBeInTheDocument();
-    expect((await screen.findAllByText("Installed")).length).toBe(2);
-    expect(screen.queryByText("Installing...")).not.toBeInTheDocument();
+    expect((await screen.findAllByText("Updated")).length).toBe(2);
+    expect(screen.queryByText("Updating...")).not.toBeInTheDocument();
 
     // Nothing is pending now, so the interval stops rather than polling forever.
     const settledRequestCount = state.requestCount;

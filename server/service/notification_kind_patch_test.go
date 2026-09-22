@@ -247,7 +247,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 		wantErr       bool
 		wantInstalls  int
 		wantActionTry bool
-		// the status shown against the app in the returned view, "Installing..." when empty
+		// the status shown against the app in the returned view, "Updating..." when empty
 		wantItemStatus string
 	}{
 		{
@@ -275,7 +275,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			lastInstalledAt: new(appJoinedAt.Add(time.Minute)),
 			wantInstalls:    0,
 			wantActionTry:   true,
-			wantItemStatus:  "Installed",
+			wantItemStatus:  "Updated",
 		},
 		{
 			name:            "an app last updated before it joined the notification is still installed",
@@ -409,7 +409,7 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			require.Len(t, view.Items, 1)
 			wantItemStatus := c.wantItemStatus
 			if wantItemStatus == "" {
-				wantItemStatus = "Installing..."
+				wantItemStatus = "Updating..."
 			}
 			require.Equal(t, wantItemStatus, view.Items[0].Status)
 			require.Equal(t, []notifications_api.NotificationAction{
@@ -506,7 +506,7 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 }
 
 // Once the installs are out the toast polls Render, so each app reports where its own install got
-// to rather than every app reading "Installing..." until the toast is closed.
+// to rather than every app reading "Updating..." until the toast is closed.
 func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 	const (
 		hostID  = uint(1)
@@ -533,23 +533,23 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			wantInstallStatus:  "",
 		},
 		{
-			name:               "an app whose install is still queued shows installing",
+			name:               "an app whose install is still queued shows updating",
 			notificationStatus: notifications_api.EndUserNotificationActed,
 			installStatus:      new(fleet.SoftwareInstallPending),
-			wantStatus:         "Installing...",
+			wantStatus:         "Updating...",
 			wantInstallStatus:  "pending_install",
 		},
 		{
-			name:               "an app Fleet has no install record for yet shows installing",
+			name:               "an app Fleet has no install record for yet shows updating",
 			notificationStatus: notifications_api.EndUserNotificationActed,
-			wantStatus:         "Installing...",
+			wantStatus:         "Updating...",
 			wantInstallStatus:  "pending_install",
 		},
 		{
-			name:               "an app whose install finished shows installed",
+			name:               "an app whose install finished shows updated",
 			notificationStatus: notifications_api.EndUserNotificationActed,
 			installStatus:      new(fleet.SoftwareInstalled),
-			wantStatus:         "Installed",
+			wantStatus:         "Updated",
 			wantInstallStatus:  "installed",
 		},
 		{
@@ -567,14 +567,14 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			wantInstallStatus:  "",
 		},
 		{
-			name:               "an app whose install reports a status other than installed or failed shows installing",
+			name:               "an app whose install reports a status other than installed or failed shows updating",
 			notificationStatus: notifications_api.EndUserNotificationActed,
 			installStatus:      new(fleet.SoftwareInstallerStatus("pending_uninstall")),
-			wantStatus:         "Installing...",
+			wantStatus:         "Updating...",
 			wantInstallStatus:  "pending_install",
 		},
 		{
-			name:               "an app whose installer was deleted shows failed rather than installing forever",
+			name:               "an app whose installer was deleted shows failed rather than updating forever",
 			notificationStatus: notifications_api.EndUserNotificationActed,
 			noInstaller:        true,
 			wantStatus:         "Failed",

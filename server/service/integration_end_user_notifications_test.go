@@ -726,7 +726,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		s.DoJSONWithoutAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
 			json.RawMessage(`{"action": "update_now"}`), http.StatusOK, &view)
 		require.Len(t, view.Items, 1)
-		require.Equal(t, "Installing...", view.Items[0].Status)
+		require.Equal(t, "Updating...", view.Items[0].Status)
 		require.Equal(t, []notifications_api.NotificationAction{{ID: "dismiss", Label: "Hide"}}, view.Actions)
 
 		var queuedInstalls []struct {
