@@ -47,7 +47,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
     let path = require('path');
     let YAML = require('yaml');
 
-    const GITHUB_API_BASE_URL = 'https://api.github.com/repos/apple/device-management/contents';
+    const GITHUB_API_BASE_URL = 'https://api.github.com/repos/apple/device-management';
     const RAW_BASE_URL = 'https://raw.githubusercontent.com/apple/device-management/release';
 
     // Both schemas come from one repo, so they are regenerated together -- their upstream moves as a unit,
@@ -60,8 +60,6 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
         nameFrom: (doc, filename)=>{ return (doc.payload && doc.payload.payloadtype) || filename.replace(/\.yaml$/, ''); },
         // Sized off the current published set, with headroom for Apple adding or retiring payloads.
         minimumPlausibleCount: 100,
-        // Keys whose absence would mean the parse silently stopped working.  SHOWFULLNAME is the one this
-        // whole exercise started from; the other two are payloads no realistic run should be missing.
         mustInclude: ['com.apple.loginwindow/SHOWFULLNAME', 'com.apple.mobiledevice.passwordpolicy/forcePIN', 'com.apple.applicationaccess/allowCamera'],
       },
       {
@@ -81,10 +79,16 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
     for (let schemaToBuild of SCHEMAS_TO_BUILD) {
       sails.log(`\nReading ${schemaToBuild.label} from apple/device-management...`);
 
-      // GitHub rejects API requests with no User-Agent, so this is required rather than decorative.  No
-      // token: this reads a public repo, and needing credentials to regenerate a schema would be a reason
-      // not to regenerate it.
-      let listing = await sails.helpers.http.get(`${GITHUB_API_BASE_URL}/${schemaToBuild.directory}?ref=release`, {}, {
+      // The git trees API rather than the contents API, because a listing that comes back short has to be
+      // detectable.  The contents API ignores per_page and page -- it answers with the whole directory
+      // however it is asked -- and stops at 1,000 files with nothing in the response to say so, which
+      // would quietly drop payloads from a file this script then overwrites.  A tree is addressed as
+      // `<ref>:<path>` and carries `truncated` for the same failure at its own (much larger) ceiling.
+      //
+      // GitHub rejects API requests with no User-Agent, so that header is required rather than decorative.
+      // No token: this reads a public repo, and needing credentials to regenerate a schema would be a
+      // reason not to regenerate it.
+      let tree = await sails.helpers.http.get(`${GITHUB_API_BASE_URL}/git/trees/release:${schemaToBuild.directory}`, {}, {
         'User-Agent': 'Fleet configuration profile generator schema build',
         'Accept': 'application/vnd.github+json',
       })
@@ -96,7 +100,15 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
         );
       });
 
-      let filenames = _.filter(_.pluck(listing, 'name'), (name)=>{ return _.endsWith(name, '.yaml'); }).sort();
+      if(tree.truncated) {
+        throw new Error(
+          `Refusing to overwrite ${schemaToBuild.outputFilename}: GitHub truncated its listing of ` +
+          `${schemaToBuild.directory}, so an unknown number of payloads were never offered to this script.  ` +
+          `That directory has outgrown a single tree request and this script needs to walk it in pieces.`
+        );
+      }
+
+      let filenames = _.filter(_.pluck(tree.tree, 'path'), (name)=>{ return _.endsWith(name, '.yaml'); }).sort();
       sails.log(`  ${filenames.length} file(s) to read.`);
 
       // Eight at a time against raw.githubusercontent, which is a CDN and does not object to this the way
@@ -165,7 +177,12 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
         );
       }
 
-      let sortedEntries = _.sortBy(entries, 'name');
+      // Sorted by source file as well as by name so that two runs of this script produce the same file.
+      // Entries arrive in whatever order the concurrent fetches finish in, and eight of them share a name
+      // -- six payloads are com.apple.MCX -- so a sort on name alone leaves those in arrival order and
+      // reshuffles them run to run.  That turns a regeneration into a 900-line diff of moved text, which
+      // is the one thing this script asks a human to read.
+      let sortedEntries = _.sortByAll(entries, ['name', 'sourceFile']);
       sails.log(`  ${sortedEntries.length} entries, ${_.reduce(sortedEntries, (total, entry)=>{ return total + countKeys(entry.keys); }, 0)} keys.`);
       results.push({schemaToBuild, sortedEntries});
     }

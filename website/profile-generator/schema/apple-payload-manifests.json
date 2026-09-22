@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T16:54:05.801Z",
+  "generatedAt": "2026-09-22T20:37:01.366Z",
   "source": "https://github.com/apple/device-management/tree/release/mdm/profiles",
   "entries": [
     {
@@ -667,79 +667,6 @@
     },
     {
       "name": "com.apple.MCX",
-      "sourceFile": "mdm/profiles/com.apple.MCX(WiFi).yaml",
-      "keys": [
-        {
-          "key": "RequireAdminForIBSS",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "RequireAdminForAirPortNetworkChange",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "RequireAdminToTurnAirPortOnOff",
-          "type": "boolean",
-          "default": false
-        }
-      ]
-    },
-    {
-      "name": "com.apple.MCX",
-      "sourceFile": "mdm/profiles/com.apple.MCX(Mobility).yaml",
-      "keys": [
-        {
-          "key": "com.apple.cachedaccounts.CreateAtLogin",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "com.apple.cachedaccounts.WarnOnCreate",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "cachedaccounts.WarnOnCreate.allowNever",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "cachedaccounts.expiry.delete.disusedSeconds",
-          "type": "integer",
-          "default": -1
-        },
-        {
-          "key": "cachedaccounts.askForSecureTokenAuthBypass",
-          "type": "boolean",
-          "default": false
-        }
-      ]
-    },
-    {
-      "name": "com.apple.MCX",
-      "sourceFile": "mdm/profiles/com.apple.MCX(FileVault2).yaml",
-      "keys": [
-        {
-          "key": "dontAllowFDEDisable",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "dontAllowFDEEnable",
-          "type": "boolean",
-          "default": false
-        },
-        {
-          "key": "DestroyFVKeyOnStandby",
-          "type": "boolean",
-          "default": false
-        }
-      ]
-    },
-    {
-      "name": "com.apple.MCX",
       "sourceFile": "mdm/profiles/com.apple.MCX(Accounts).yaml",
       "keys": [
         {
@@ -751,21 +678,6 @@
           "key": "DisableGuestAccount",
           "type": "boolean",
           "default": false
-        }
-      ]
-    },
-    {
-      "name": "com.apple.MCX",
-      "sourceFile": "mdm/profiles/com.apple.MCX(TimeServer).yaml",
-      "keys": [
-        {
-          "key": "timeServer",
-          "type": "string"
-        },
-        {
-          "key": "timeZone",
-          "type": "string",
-          "gloss": "The time zone path location string in /usr/share/zoneinfo/; for example, America/Denver or Zulu."
         }
       ]
     },
@@ -884,6 +796,94 @@
         },
         {
           "key": "SleepDisabled",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.MCX",
+      "sourceFile": "mdm/profiles/com.apple.MCX(FileVault2).yaml",
+      "keys": [
+        {
+          "key": "dontAllowFDEDisable",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "dontAllowFDEEnable",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "DestroyFVKeyOnStandby",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.MCX",
+      "sourceFile": "mdm/profiles/com.apple.MCX(Mobility).yaml",
+      "keys": [
+        {
+          "key": "com.apple.cachedaccounts.CreateAtLogin",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "com.apple.cachedaccounts.WarnOnCreate",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "cachedaccounts.WarnOnCreate.allowNever",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "cachedaccounts.expiry.delete.disusedSeconds",
+          "type": "integer",
+          "default": -1
+        },
+        {
+          "key": "cachedaccounts.askForSecureTokenAuthBypass",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "name": "com.apple.MCX",
+      "sourceFile": "mdm/profiles/com.apple.MCX(TimeServer).yaml",
+      "keys": [
+        {
+          "key": "timeServer",
+          "type": "string"
+        },
+        {
+          "key": "timeZone",
+          "type": "string",
+          "gloss": "The time zone path location string in /usr/share/zoneinfo/; for example, America/Denver or Zulu."
+        }
+      ]
+    },
+    {
+      "name": "com.apple.MCX",
+      "sourceFile": "mdm/profiles/com.apple.MCX(WiFi).yaml",
+      "keys": [
+        {
+          "key": "RequireAdminForIBSS",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "RequireAdminForAirPortNetworkChange",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "RequireAdminToTurnAirPortOnOff",
           "type": "boolean",
           "default": false
         }
@@ -4618,6 +4618,263 @@
     },
     {
       "name": "com.apple.extensiblesso",
+      "sourceFile": "mdm/profiles/com.apple.extensiblesso(kerberos).yaml",
+      "keys": [
+        {
+          "key": "ExtensionIdentifier",
+          "type": "string",
+          "required": true,
+          "allowedValues": [
+            "com.apple.AppSSOKerberos.KerberosExtension"
+          ]
+        },
+        {
+          "key": "TeamIdentifier",
+          "type": "string",
+          "required": true,
+          "allowedValues": [
+            "apple"
+          ]
+        },
+        {
+          "key": "Type",
+          "type": "string",
+          "required": true,
+          "allowedValues": [
+            "Credential"
+          ]
+        },
+        {
+          "key": "Realm",
+          "type": "string",
+          "required": true
+        },
+        {
+          "key": "ExtensionData",
+          "type": "dictionary",
+          "subkeys": [
+            {
+              "key": "cacheName",
+              "type": "string"
+            },
+            {
+              "key": "principalName",
+              "type": "string"
+            },
+            {
+              "key": "siteCode",
+              "type": "string"
+            },
+            {
+              "key": "certificateUUID",
+              "type": "string"
+            },
+            {
+              "key": "useSiteAutoDiscovery",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "credentialBundleIdACL",
+              "type": "array",
+              "subkeys": [
+                {
+                  "key": "credentialBundleIdACLItem",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "key": "includeManagedAppsInBundleIdACL",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "includeKerberosAppsInBundleIdACL",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "domainRealmMapping",
+              "type": "dictionary",
+              "subkeys": [
+                {
+                  "key": "Realm",
+                  "type": "array",
+                  "subkeys": [
+                    {
+                      "key": "RealmItem",
+                      "type": "string"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "isDefaultRealm",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "customUsernameLabel",
+              "type": "string"
+            },
+            {
+              "key": "helpText",
+              "type": "string"
+            },
+            {
+              "key": "allowPasswordChange",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "allowAutomaticLogin",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "requireUserPresence",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "pwExpireOverride",
+              "type": "integer"
+            },
+            {
+              "key": "pwNotificationDays",
+              "type": "integer",
+              "default": 15
+            },
+            {
+              "key": "pwReqLength",
+              "type": "integer"
+            },
+            {
+              "key": "pwReqComplexity",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "pwReqMinAge",
+              "type": "integer"
+            },
+            {
+              "key": "pwReqHistory",
+              "type": "integer"
+            },
+            {
+              "key": "pwReqText",
+              "type": "string"
+            },
+            {
+              "key": "pwReqRTFData",
+              "type": "data"
+            },
+            {
+              "key": "pwChangeURL",
+              "type": "string"
+            },
+            {
+              "key": "syncLocalPassword",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "replicationTime",
+              "type": "integer",
+              "default": 900
+            },
+            {
+              "key": "delayUserSetup",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "monitorCredentialsCache",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "requireTLSForLDAP",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "credentialUseMode",
+              "type": "string",
+              "allowedValues": [
+                "always",
+                "whenNotSpecified",
+                "kerberosDefault"
+              ],
+              "default": "always"
+            },
+            {
+              "key": "preferredKDCs",
+              "type": "array",
+              "gloss": "Format each entry the same as it would be in a krb5.conf file, for example: - adserver1.example.com - tcp/adserver1.example.com:88 - kkdcp://kerberosproxy.example.com:443/kkdcp",
+              "subkeys": [
+                {
+                  "key": "preferredKDC",
+                  "type": "string",
+                  "required": true,
+                  "gloss": "A host or domain name in the format of [protocol/]hostname[:port][/path]"
+                }
+              ]
+            },
+            {
+              "key": "usePlatformSSOTGT",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "allowPlatformSSOAuthFallback",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "performKerberosOnly",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "key": "identityIssuerAutoSelectFilter",
+              "type": "string"
+            },
+            {
+              "key": "allowSmartCard",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "allowPassword",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "key": "startInSmartCardMode",
+              "type": "boolean",
+              "default": false
+            }
+          ]
+        },
+        {
+          "key": "Hosts",
+          "type": "array",
+          "subkeys": [
+            {
+              "key": "hostname",
+              "type": "string",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "com.apple.extensiblesso",
       "sourceFile": "mdm/profiles/com.apple.extensiblesso.yaml",
       "keys": [
         {
@@ -4963,263 +5220,6 @@
               "key": "AllowWebLoginPasswordSync",
               "type": "boolean",
               "default": false
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "com.apple.extensiblesso",
-      "sourceFile": "mdm/profiles/com.apple.extensiblesso(kerberos).yaml",
-      "keys": [
-        {
-          "key": "ExtensionIdentifier",
-          "type": "string",
-          "required": true,
-          "allowedValues": [
-            "com.apple.AppSSOKerberos.KerberosExtension"
-          ]
-        },
-        {
-          "key": "TeamIdentifier",
-          "type": "string",
-          "required": true,
-          "allowedValues": [
-            "apple"
-          ]
-        },
-        {
-          "key": "Type",
-          "type": "string",
-          "required": true,
-          "allowedValues": [
-            "Credential"
-          ]
-        },
-        {
-          "key": "Realm",
-          "type": "string",
-          "required": true
-        },
-        {
-          "key": "ExtensionData",
-          "type": "dictionary",
-          "subkeys": [
-            {
-              "key": "cacheName",
-              "type": "string"
-            },
-            {
-              "key": "principalName",
-              "type": "string"
-            },
-            {
-              "key": "siteCode",
-              "type": "string"
-            },
-            {
-              "key": "certificateUUID",
-              "type": "string"
-            },
-            {
-              "key": "useSiteAutoDiscovery",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "credentialBundleIdACL",
-              "type": "array",
-              "subkeys": [
-                {
-                  "key": "credentialBundleIdACLItem",
-                  "type": "string"
-                }
-              ]
-            },
-            {
-              "key": "includeManagedAppsInBundleIdACL",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "includeKerberosAppsInBundleIdACL",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "domainRealmMapping",
-              "type": "dictionary",
-              "subkeys": [
-                {
-                  "key": "Realm",
-                  "type": "array",
-                  "subkeys": [
-                    {
-                      "key": "RealmItem",
-                      "type": "string"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "key": "isDefaultRealm",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "customUsernameLabel",
-              "type": "string"
-            },
-            {
-              "key": "helpText",
-              "type": "string"
-            },
-            {
-              "key": "allowPasswordChange",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "allowAutomaticLogin",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "requireUserPresence",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "pwExpireOverride",
-              "type": "integer"
-            },
-            {
-              "key": "pwNotificationDays",
-              "type": "integer",
-              "default": 15
-            },
-            {
-              "key": "pwReqLength",
-              "type": "integer"
-            },
-            {
-              "key": "pwReqComplexity",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "pwReqMinAge",
-              "type": "integer"
-            },
-            {
-              "key": "pwReqHistory",
-              "type": "integer"
-            },
-            {
-              "key": "pwReqText",
-              "type": "string"
-            },
-            {
-              "key": "pwReqRTFData",
-              "type": "data"
-            },
-            {
-              "key": "pwChangeURL",
-              "type": "string"
-            },
-            {
-              "key": "syncLocalPassword",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "replicationTime",
-              "type": "integer",
-              "default": 900
-            },
-            {
-              "key": "delayUserSetup",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "monitorCredentialsCache",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "requireTLSForLDAP",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "credentialUseMode",
-              "type": "string",
-              "allowedValues": [
-                "always",
-                "whenNotSpecified",
-                "kerberosDefault"
-              ],
-              "default": "always"
-            },
-            {
-              "key": "preferredKDCs",
-              "type": "array",
-              "gloss": "Format each entry the same as it would be in a krb5.conf file, for example: - adserver1.example.com - tcp/adserver1.example.com:88 - kkdcp://kerberosproxy.example.com:443/kkdcp",
-              "subkeys": [
-                {
-                  "key": "preferredKDC",
-                  "type": "string",
-                  "required": true,
-                  "gloss": "A host or domain name in the format of [protocol/]hostname[:port][/path]"
-                }
-              ]
-            },
-            {
-              "key": "usePlatformSSOTGT",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "allowPlatformSSOAuthFallback",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "performKerberosOnly",
-              "type": "boolean",
-              "default": false
-            },
-            {
-              "key": "identityIssuerAutoSelectFilter",
-              "type": "string"
-            },
-            {
-              "key": "allowSmartCard",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "allowPassword",
-              "type": "boolean",
-              "default": true
-            },
-            {
-              "key": "startInSmartCardMode",
-              "type": "boolean",
-              "default": false
-            }
-          ]
-        },
-        {
-          "key": "Hosts",
-          "type": "array",
-          "subkeys": [
-            {
-              "key": "hostname",
-              "type": "string",
-              "required": true
             }
           ]
         }
