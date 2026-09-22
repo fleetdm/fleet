@@ -78,6 +78,7 @@ const ResetPasswordForm = ({
       <InputFieldWithIcon
         error={getError("new_password")}
         autofocus
+        name="new_password"
         label="New password"
         placeholder="New password"
         onChange={(value) => setField("new_password", value)}
@@ -92,6 +93,7 @@ const ResetPasswordForm = ({
       />
       <InputFieldWithIcon
         error={getError("new_password_confirmation")}
+        name="new_password_confirmation"
         label="Confirm password"
         placeholder="Confirm password"
         onChange={(value) => setField("new_password_confirmation", value)}

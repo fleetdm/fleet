@@ -141,6 +141,7 @@ const LoginForm = ({
         <InputFieldWithIcon
           error={getError("email")}
           autofocus
+          name="email"
           type="email"
           label="Email"
           placeholder="Email"
@@ -153,6 +154,7 @@ const LoginForm = ({
         />
         <InputFieldWithIcon
           error={getError("password")}
+          name="password"
           label="Password"
           placeholder="Password"
           type="password"

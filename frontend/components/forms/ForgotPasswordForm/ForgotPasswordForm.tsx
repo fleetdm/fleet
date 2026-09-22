@@ -57,11 +57,12 @@ const ForgotPasswordForm = ({
       </p>
       <InputFieldWithIcon
         autofocus
+        name="email"
         label="Email"
         placeholder="Email"
         type="email"
         value={formData.email}
-        onChange={(value: string) => setField("email", value)}
+        onChange={(value) => setField("email", value)}
         onFocus={() => clearFieldError("email")}
         onBlur={() => validateField("email")}
         error={getError("email")}
