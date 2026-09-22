@@ -2004,9 +2004,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		// Force clear results for labels that do not apply to the host anymore.
+		// Discard results for labels that do not apply to the host: manual labels,
+		// labels of another team or platform, or unknown IDs. Agent-reported
+		// results must never change manual membership, and the result must be
+		// dropped rather than recorded as false: a false becomes a DELETE, which
+		// is how a host could remove itself from a manual label.
 		//
-		// There could be a timing bug where:
+		// This also covers a timing bug where:
 		// 1. Host receives a "team label" query to run (distributed/read).
 		// 2. Host is transferred to another team (all its label/policy membership are cleared).
 		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
@@ -2017,13 +2021,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		for labelID := range labelResults {
 			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
-				svc.logger.DebugContext(ctx, "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
-				labelResults[labelID] = ptr.Bool(false)
+				svc.logger.InfoContext(ctx, "discarding result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				delete(labelResults, labelID)
 			}
 		}
 
-		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-			logging.WithErr(ctx, err)
+		if len(labelResults) > 0 {
+			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
