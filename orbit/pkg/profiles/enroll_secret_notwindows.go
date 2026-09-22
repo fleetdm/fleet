@@ -4,8 +4,7 @@ package profiles
 
 import "context"
 
-// GetEnrollSecret is not implemented outside Windows. macOS carries its enroll secret in the fleetd
-// configuration profile instead, read via GetFleetdConfig.
+// GetEnrollSecret is not implemented outside Windows.
 func GetEnrollSecret() (string, error) {
 	return "", ErrNotImplemented
 }
@@ -15,7 +14,7 @@ func ClearEnrollSecret() error {
 	return ErrNotImplemented
 }
 
-// EnrollSecretWatch has no non-Windows implementation; ArmEnrollSecretWatch never returns one.
+// EnrollSecretWatch has no non-Windows implementations.
 type EnrollSecretWatch struct{}
 
 // Wait is not implemented outside Windows.

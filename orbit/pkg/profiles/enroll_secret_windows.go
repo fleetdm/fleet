@@ -13,42 +13,32 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// On Windows the enroll secret is delivered by a Fleet-managed configuration profile that writes it
-// to the registry, rather than as an MSI property, so it is never visible to process listing at
-// install time and never comes to rest in an MSI log or in secret.txt. orbit adopts the value and
-// then clears it, so the presence of the value means "a secret is waiting" and its absence means
-// orbit already took it. That makes one channel serve both first enrollment and recovery: an
-// administrator resends the profile and the value reappears.
+// On Windows MDM the enroll secret is delivered by a Fleet-managed configuration profile that writes it to the registry. orbit
+// adopts the value and then clears it, so the presence of the value means "a secret is waiting" and its absence means orbit
+// already took it. That makes one channel serve both first enrollment and recovery: an administrator resends the profile (with a
+// new secret) and the value reappears.
 //
-// Fleet already owns SOFTWARE\FleetDM\Orbit (the installer records the install path there), so the
-// delivered secret lives alongside it rather than in a new hive. The MSI creates the key with a DACL
-// restricted to SYSTEM and Administrators, matching the ACL it puts on secret.txt, so a non-admin
-// local user cannot read a secret that has not been adopted yet.
+// Fleet already owns SOFTWARE\FleetDM\Orbit (the installer records the install path there), so the delivered secret lives
+// alongside it rather than in a new hive. A non-admin local user cannot read a secret that has not been adopted yet.
 const (
 	enrollSecretKeyPath   = `SOFTWARE\FleetDM\Orbit`
 	enrollSecretValueName = "EnrollSecret"
 )
 
-// enrollSecretKeySDDL keeps the key readable only by SYSTEM and Administrators, with inheritance
-// disabled. It is the registry counterpart of the ACL the installer puts on secret.txt
-// (O:SYG:SYD:PAI(A;;FA;;;SY)(A;;FA;;;BA) in orbit/pkg/packaging/wix/transform.go), with KA
-// (KEY_ALL_ACCESS) standing in for FA (FILE_ALL_ACCESS). Fleet deliberately strips regular users
-// from secret.txt while every other orbit file leaves them read access, and a delivered secret that
-// has not been adopted yet deserves the same treatment.
+// enrollSecretKeySDDL keeps the key readable only by SYSTEM and Administrators, with inheritance disabled.
+// Reference: https://learn.microsoft.com/en-us/windows/win32/secauthz/security-descriptor-string-format
 //
-// DACL only: EnsureEnrollSecretKey sets DACL_SECURITY_INFORMATION and passes no owner or group, so
-// an owner in this string would be silently ignored. The key ends up owned by whoever created it.
+// DACL (Discretionary Access Control List) only:
+//
+//	P   protected, inheritance blocked
+//	AI  auto-inherited
+//	A   access allowed
+//	KA  KEY_ALL_ACCESS
+//	SY  Local System
+//	BA  Built-in Administrators
 const enrollSecretKeySDDL = "D:PAI(A;;KA;;;SY)(A;;KA;;;BA)"
 
-// EnsureEnrollSecretKey creates the key that carries the MDM-delivered enroll secret and applies the
-// DACL above. orbit runs as LocalSystem, so it can both create the key and set its permissions;
-// doing it here rather than in the installer means a fleetd that upgraded in place is protected
-// without waiting for a new MSI, and it closes the window where a profile that arrives before orbit
-// has ever run would otherwise create the key with inherited, world-readable permissions.
-//
-// The DACL is reapplied even when the key already exists, because the key may have been created
-// implicitly by the write that delivered a secret into it. SYSTEM keeps full control, so reapplying
-// never locks out the MDM channel that writes the value.
+// EnsureEnrollSecretKey creates the key that carries the MDM-delivered enroll secret and applies the DACL above.
 func EnsureEnrollSecretKey() error {
 	return ensureEnrollSecretKey(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
