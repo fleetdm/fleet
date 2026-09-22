@@ -425,15 +425,11 @@ const EditIconModal = ({
     } = previewInfo;
     return (
       <Card
-        borderRadiusSize="medium"
         color="grey"
         className={`${baseClass}__preview-card`}
         paddingSize="xlarge"
       >
-        <Card
-          borderRadiusSize="xxlarge"
-          className={`${baseClass}__preview-card__fleet`}
-        >
+        <Card className={`${baseClass}__preview-card__fleet`}>
           <SoftwareDetailsSummary
             displayName={displayName || previewInfo.titleName}
             name={previewInfo.titleName}

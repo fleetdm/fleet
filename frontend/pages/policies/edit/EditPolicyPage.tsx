@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 import MainContent from "components/MainContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import SidePanelContent from "components/SidePanelContent";
@@ -259,19 +260,16 @@ const PolicyPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live report. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live report. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+          variant="banner-link"
+        />
+      </InfoBanner>
     );
   };
 

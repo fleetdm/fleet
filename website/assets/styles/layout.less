@@ -290,6 +290,7 @@ html, body {
         border-bottom-right-radius: 6px;
         border: 1px solid @core-fleet-black-25;
         background: #FFF;
+        align-items: center;
         &:focus-within {
           border: 1px solid @core-vibrant-green;
         }
@@ -302,14 +303,7 @@ html, body {
         border: none;
       }
       [purpose='searchbar-submit'] {
-        border-left: 1px solid @core-fleet-black-25;
-        border-right: none;
-        border-top: none;
-        border-bottom: none;
-        color: @core-fleet-black-75;
-        padding: 4px 6px 4px 4px;
-        background-color: transparent;
-        cursor: pointer;
+        .searchbar-submit-btn();
       }
     }
     [purpose='mobile-dropdown-toggle'] {

@@ -167,10 +167,9 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-screensaver',
     profileType: 'mobileconfig',
-    instructions: 'Lock the screen after 10 minutes of inactivity and require a password immediately.',
+    instructions: 'Show the "Flurry" screensaver after 10 minutes of inactivity and require a password immediately.',
     expect: {
-      mustContain: ['idleTime', 'askForPassword', '<key>askForPasswordDelay</key><integer>0</integer>'],
-      mustContainElement: [['integer', '600']]
+      mustContain: ['idleTime', 'askForPassword', 'moduleName', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
     }
   },
   {
@@ -188,15 +187,15 @@ const TEST_CASES = [
     instructions: 'Disable AirDrop and turn off Siri.',
     readByEye: 'Two dicts, each with a distinct uppercase PayloadUUID and an identifier that is the root identifier plus a suffix.  Duplicate UUIDs install unpredictably and nothing here can detect them.',
     expect: {
-      mustContain: ['PayloadUUID', 'PayloadIdentifier']
+      mustContain: ['com.apple.applicationaccess', 'allowAirDrop', 'allowAssistant'],
     }
   },
   {
     id: 'mobileconfig-diagnostics',
     profileType: 'mobileconfig',
-    instructions: 'Stop sending diagnostic and usage data to Apple.',
+    instructions: 'Don\'t send diagnostic reports to Apple.',
     expect: {
-      mustContain: ['com.apple.SubmitDiagInfo', 'AutoSubmit']
+      mustContain: ['com.apple.applicationaccess', 'allowDiagnosticSubmission', '<false/>'],
     }
   },
   {
@@ -208,6 +207,28 @@ const TEST_CASES = [
       mustContain: ['com.apple.dock'],
       mustContainElement: [['key', 'autohide'], ['key', 'orientation']],
       mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation']]
+    }
+  },
+  {
+    id: 'mobileconfig-app-store',
+    profileType: 'mobileconfig',
+    instructions: 'Prevent users from downloading books tagged as erotica from the Apple Books store',
+    expect: {
+      mustContain: ['com.apple.applicationaccess', 'allowBookstoreErotica'],
+    }
+  },
+  {
+    id: 'mobileconfig-allow-bookstore',
+    profileType: 'mobileconfig',
+    instructions: 'Enable access to Bookstore app',
+    // The adjacent pair binds the value to the key -- a lone '<true/>' could be satisfied by any
+    // other key -- and pins the exact key, since 'allowBookstore' is a substring-prefix of
+    // 'allowBookstoreErotica'.  "Enable" means true here -- the tempting failure is inverting to
+    // false because the payload is named "restrictions".
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>allowBookstore</key><true/>'],
+      mustNotContain: ['allowBookstoreErotica', '<false/>'],
+      mustNotContainElement: [['key', 'AllowBookstore'], ['string', 'true']]
     }
   },
 
@@ -809,8 +830,8 @@ csp cases report as not-checked either way.`
     }
     let transcriptPath = path.resolve(
       sails.config.appPath,
-      'test-results',
-      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - ${baseModel}${whatWasRunForFilename}.txt`
+      `test-results/${profileType ? profileType : 'all'}`,
+      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - (${testLighterResponse ? 'light-response' : 'full-response'}) ${baseModel}${whatWasRunForFilename}.txt`
     );
     // The reordering the three sections exist for: what ran, then how it went, then the evidence.
     await sails.helpers.fs.write(transcriptPath, headerLines.concat(summaryLines, detailLines).join('\n'), true);

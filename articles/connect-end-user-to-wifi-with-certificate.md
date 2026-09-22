@@ -35,7 +35,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
   
 ### Step 2: Connect Fleet to Okta's CA
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. Okta uses NDES under the hood.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your Okta CA should appear in the list in Fleet.
@@ -77,7 +77,7 @@ The following steps show how to deploy DigiCert certificates.
 
 ### Step 3: Connect Fleet to DigiCert
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select **Add CA** and then choose **DigiCert** in the dropdown.
 3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 4. If you're using DigiCert One's cloud offering, keep the default **URL**. If you're using a self-hosted (on-prem) DigiCert One, update the URL to match the one you use to log in to your DigiCert One.
@@ -211,7 +211,7 @@ Set-Date -Date "2026-03-16 12:00:00"
 
 ### Step 2: Connect Fleet to NDES
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your NDES certificate authority (CA) should appear in the list in Fleet.
@@ -448,7 +448,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 ### Step 2: Configure Fleet with Smallstep information
 
-1. In Fleet, go to **Settings > Integrations > Certificate enrollment** and click **Add CA**. 
+1. In Fleet, go to **Settings > Integrations > Certificate authorities** and click **Add CA**. 
 
 2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 
@@ -537,8 +537,8 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 The following steps show how to deploy [Hydrant](https://www.hidglobal.com/solutions/pki-service) certificates.
 
 The flow for Hydrant differs from the other certificate authorities (CA's). While other CAs in Fleet use a configuration profile to request a certificate, Hydrant uses:
-- A custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint. 
-- A custom policy that triggers the script on hosts that don't have a certificate.
+- A script-only software package that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint and installs at enrollment.
+- A custom policy that triggers the same script on hosts whose certificate is missing or expiring, so it's automatically renewed.
 
 ### Step 1: Create a Hydrant user and obtain its API credentials
 
@@ -549,23 +549,23 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 2: Connect Fleet to Hydrant
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
 4. Add your Hydrant EST **URL**.
 5. Add the Hydrant ID and Key as the **Client ID** and **Client secret** in Fleet respectively.
 6. Click **Add CA**. Your Hydrant certificate authority (CA) should appear in the list in Fleet.
 
-### Step 3: Create a custom script
+### Step 3: Deploy the certificate with a script-only package
 
-To deploy certificates automatically to Linux hosts at enrollment, create a script that writes the certificate to the filesystem. Use a policy to trigger this script on any host that doesn’t have a certificate.
+A script-only software package installs during setup experience, before the host finishes enrolling. That means the certificate is ready the moment the end user starts using the host.
 
 This custom script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
 1. Create an API-only user with the global maintainer role. Learn how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
 3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
-4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
+4. In your text editor, copy the script below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
 Example script:
 
@@ -613,18 +613,23 @@ CLIENT_ID="<OAuth-IdP-client-ID>"
 
 Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e. if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com")
 
-### Step 4: Create a custom policy
+5. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script above as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
+6. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically during enrollment.
 
+### Step 4: Renew or restore the certificate automatically
 
-1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence and if it expires in the next 30 days:
+Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only installs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Wire that same package to a policy, so Fleet reinstalls it, and renews the certificate, whenever a host fails the check.
+
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 
 ```sql
 SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
-2. Select **Save** and select only **Linux** as its target. Select **Save** again to create your policy.
-3. On the **Policies** page, select **Manage automations > Scripts**. Select your newly-created policy and then in the dropdown to the right, select your newly created certificate issuance script.
-4. Now, any host that doesn't have a certificate in `/opt/company/certificate.pem` or has a certificate that expires in the next 30 days will fail the policy. When the policy fails, Fleet will run the script to deploy a new certificate!
+2. Select **Save**, target only **Linux**, then select **Save** again.
+3. On the **Policies** page, select **Manage automations**, then select **Install software**.
+4. Select your new policy, then in the dropdown, choose the script-only package you uploaded in Step 3.
+5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
 
 ## Any SCEP (Simple Certificate Enrollment Protocol) CA
 
@@ -632,7 +637,7 @@ The following steps show how to deploy certificates from any certificate authori
 
 ### Step 1: Connect Fleet to a SCEP CA
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select the **Add CA** button and select **Custom Simple Certificate Enrollment Protocol (SCEP)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
 4. Add your **SCEP URL** and **Challenge**.
@@ -644,7 +649,7 @@ To deploy SCEP certificates to macOS, iOS, iPadOS, and Windows hosts, we'll foll
 
 For Android hosts, we use a configuration profile and a certificate template. Follow the [Android steps](#android-deploy-certificate) instead.
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
 2. Replace the `{CA_NAME}` with the name you created in step 1. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
@@ -882,8 +887,8 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
 The following steps show how to deploy certificates from any certificate authority (CA) that supports the [EST protocol](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport).
 
 The flow for EST is similar to Hydrant, and differs from the other certificate authorities. While other CAs in Fleet use a configuration profile to request a certificate, EST uses:
-- A custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint.
-- A custom policy that triggers the script on hosts that don't have a certificate.
+- A script-only software package that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint and installs at enrollment.
+- A custom policy that triggers the same script on hosts whose certificate is missing or expiring, so it's automatically renewed.
 
 ### Step 1: Obtain API credentials
 
@@ -891,23 +896,23 @@ This step will vary between providers. EST servers require a `username` and `pas
 
 ### Step 2: Connect Fleet to the EST server
 
-1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
+1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select **Add CA** and then choose **Custom Enrollment over Secure Transport (EST)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
 4. Add your EST **URL**.
 5. Add the username and password as the **Username** and **Password** in Fleet respectively.
 6. Click **Add CA**. Your EST certificate authority (CA) should appear in the list in Fleet.
 
-### Step 3: Create a custom script
+### Step 3: Deploy the certificate with a script-only package
 
-To deploy certificates automatically to Linux hosts at enrollment, create a script that writes the certificate to the filesystem. Use a policy to trigger this script on any host that doesn’t have a certificate.
+A script-only software package installs during setup experience, before the host finishes enrolling. That means the certificate is ready the moment the end user starts using the host.
 
 The script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
 1. Create an API-only user with the global maintainer role. Learn how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script. Optionally, you can use HTTP signatures instead of an API token. [Learn more](#http-signatures).
 3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your EST CA. You'll use this `id` in your script.
-4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
+4. In your text editor, copy the script below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
 Example script:
 
@@ -955,17 +960,23 @@ CLIENT_ID="<OAuth-IdP-client-ID>"
 
 Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e., if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com").
 
-### Step 4: Create a custom policy
+5. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script above as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
+6. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically during enrollment.
 
-1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence and if it expires in the next 30 days:
+### Step 4: Renew or restore the certificate automatically
+
+Linux isn't covered by Fleet's [automatic certificate renewal](#renewal). The script-only package in Step 3 only installs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Wire that same package to a policy, so Fleet reinstalls it, and renews the certificate, whenever a host fails the check.
+
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 
 ```sql
 SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_valid_after > (CAST(strftime('%s', 'now') AS INTEGER) + 2592000);
 ```
 
-2. Select **Save** and select only **Linux** as its target. Select **Save** again to create your policy.
-3. On the **Policies** page, select **Manage automations > Scripts**. Select your newly-created policy and then in the dropdown to the right, select your newly created certificate issuance script.
-4. Now, any host that doesn't have a certificate in `/opt/company/certificate.pem` or has a certificate that expires in the next 30 days will fail the policy. When the policy fails, Fleet will run the script to deploy a new certificate!
+2. Select **Save**, target only **Linux**, then select **Save** again.
+3. On the **Policies** page, select **Manage automations**, then select **Install software**.
+4. Select your new policy, then in the dropdown, choose the script-only package you uploaded in Step 3.
+5. Now, any host missing `/opt/company/certificate.pem`, or whose certificate expires within 30 days, fails the policy, and Fleet reinstalls the package to renew it.
 
 ## Renewal
 
@@ -1040,7 +1051,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet supports one proxied certificate per configuration profile. To deploy multiple certificates to a host, use a separate configuration profile for each certificate.
-* On **Windows** hosts, Fleet verifies proxied SCEP certificates (Custom SCEP proxy and NDES) by observing the issued certificate on the host via osquery, and marks the profile **Failed** if the certificate never appears or if the upstream CA returns an error. This requires osquery 5.23.1 or later on the host. See [Verifying Windows SCEP certificates](#verifying-windows-scep-certificates).
+* On **Windows** hosts, Fleet verifies proxied SCEP certificates (Custom SCEP proxy and NDES) by observing the issued certificate on the host via osquery. If the certificate never appears, or if the upstream CA returns an error, Fleet resends the profile and tries again, up to 3 times, before marking it **Failed**. This requires osquery 5.23.1 or later on the host. See [Verifying Windows SCEP certificates](#verifying-windows-scep-certificates).
 * On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another fleet.
 
 ### Troubleshooting NDES on Windows
@@ -1053,6 +1064,11 @@ If SCEP enrollment fails on a Windows device, the error `0x800B0101` ("A require
 
 If NDES returns `pkiStatus=FAILURE, failInfo=badRequest`, the NDES password cache may be full. Increase the cache size on the NDES server (see [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts)).
 
+Fleet treats challenge-fetch errors differently depending on whether waiting is likely to help:
+
+- **Temporary errors** from the NDES admin URL, such as a timeout or a 5xx while NDES is restarting, leave the profile **Pending**. Fleet tries again on its next attempt and does not use up one of the profile's [retries](#retries).
+- **Errors that need an admin to act** fail the profile right away, with the same message as before: invalid NDES admin credentials, an account without permission to enroll on behalf of others, and a full password cache. A full cache fails immediately on purpose, because retrying into a full cache only adds to the pressure that filled it.
+
 ### How the SCEP proxy works
 
 Fleet acts as a middleman between the host and the NDES or SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or SCEP server, retrieves the certificate, and sends it back to the host.
@@ -1064,7 +1080,7 @@ In addition, Fleet does the following:
 NDES SCEP proxy:
 
 - Retrieves the one-time challenge password from NDES. The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface. Retrieving passwords for many hosts at once may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
-  - Restarting NDES will clear the password cache and may cause outstanding SCEP profiles to fail.
+  - Restarting NDES clears the password cache, which can make a SCEP request that uses an already-issued challenge fail. Fleet retries these profiles with a new challenge, so they usually recover on their own once NDES is back.
 - Resends the configuration profile to the host if the one-time challenge password has expired.
   - If the host has been offline and the one-time challenge password is more than 60 minutes old, Fleet assumes the password has expired and will resend the profile to the host with a new one-time challenge password.
 
@@ -1081,10 +1097,10 @@ SCEP proxy:
 
 When Fleet proxies SCEP certificate issuance for a Windows host (Custom SCEP proxy or Microsoft NDES), it confirms that the certificate was actually issued before reporting the profile as **Verified**. Each host's profile moves through the following statuses, visible on **Host details > OS settings**:
 
-- **Pending**: the profile is queued for delivery to the host.
+- **Pending**: the profile is queued for delivery to the host. A profile that is being retried also shows **Pending**, with no error in **Details**.
 - **Verifying**: the host acknowledged the profile and the SCEP exchange is in progress. Fleet has not yet observed the issued certificate on the host.
 - **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_SCEP_RENEWAL_ID` value in the certificate's OU.
-- **Failed**: either Fleet's SCEP proxy observed an error from the upstream CA during certificate issuance (for example, `SCEP PKIOperation failed: HTTP 500`), or the certificate was not observed on the host within one hour of delivery (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
+- **Failed**: the profile ran out of retries. **Details** shows the last error Fleet saw, either an error the SCEP proxy observed from the upstream CA (for example, `SCEP PKIOperation failed: HTTP 500`) or a certificate that never arrived (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
 
 To verify Windows SCEP certificates, Fleet requires:
 
@@ -1092,6 +1108,15 @@ To verify Windows SCEP certificates, Fleet requires:
 - The `$FLEET_VAR_SCEP_RENEWAL_ID` variable in the profile's `SubjectName` OU (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
 
 For [user-scoped certificates](#user-scoped-certificates), Fleet can only observe the certificate while the target user is signed in, so the profile stays **Verifying** until the user logs in. Fleet assumes a single primary user per Windows host.
+
+### Retries
+
+A certificate that fails to issue is usually a temporary problem: the CA is restarting, the network dropped, or the host was busy. Fleet does not fail the profile on the first error. Instead it puts the profile back in the queue and sends it again, up to 3 times. Only after those retries are used up does the profile move to **Failed**. While Fleet is retrying, the profile shows **Pending** with an empty **Details** column.
+
+Two things do not use up a retry:
+
+- Resending a profile because its one-time challenge expired. This is Fleet refreshing a stale challenge, not a failure to issue.
+- A temporary error from the NDES admin URL when Fleet fetches a challenge (see [Troubleshooting NDES on Windows](#troubleshooting-ndes-on-windows)).
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 

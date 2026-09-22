@@ -245,48 +245,62 @@ software:
       icon:
         path: ../lib/all/icons/touch-id.png
     # Linux apps
-    - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
+    - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu (amd64)
       self_service: true
       setup_experience: true
       categories:
         - Security
-      labels_include_any:
+      labels_include_all:
         - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat (x86_64)
       self_service: true
       setup_experience: true
       categories:
         - Security
-      labels_include_any:
+      labels_include_all:
         - "RPM-based Linux hosts"
-    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu (amd64)
       self_service: true
       setup_experience: true
       categories:
         - Communication
-      labels_include_any:
+      labels_include_all:
         - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat (x86_64)
       self_service: true
       setup_experience: true
       categories:
         - Communication
-      labels_include_any:
+      labels_include_all:
         - "RPM-based Linux hosts"
-    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu (amd64)
       self_service: true
       setup_experience: true
       categories:
         - Communication
-      labels_include_any:
+      labels_include_all:
         - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat (x86_64)
       self_service: true
       setup_experience: true
       categories:
         - Communication
-      labels_include_any:
+      labels_include_all:
         - "RPM-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu (amd64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_all:
+        - "Debian-based Linux hosts"
+        - "x86-based Linux hosts"
     - path: ../lib/linux/scripts/install-claude-desktop.sh # Claude for Debian-based Linux (script-only package)
       display_name: Claude
       self_service: true

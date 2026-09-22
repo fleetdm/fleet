@@ -410,7 +410,8 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 			TeamName:          actTeamName,
 			ProfileName:       newCP.Name,
 			ProfileIdentifier: newCP.Identifier,
-		}); err != nil {
+		},
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
 
@@ -635,12 +636,14 @@ func validatePSSORegistrationTokenVariable(contents string) error {
 		if !strings.HasPrefix(p.ExtensionIdentifier, "com.fleetdm") {
 			return &fleet.BadRequestError{Message: fmt.Sprintf(
 				"Variable %s is only allowed in a Fleet Platform SSO payload (the ExtensionIdentifier must start with \"com.fleetdm\").",
-				varWithPrefix)}
+				varWithPrefix,
+			)}
 		}
 		if !p.PlatformSSO.UseSharedDeviceKeys {
 			return &fleet.BadRequestError{Message: fmt.Sprintf(
 				"Variable %s requires the Platform SSO payload to set UseSharedDeviceKeys to true.",
-				varWithPrefix)}
+				varWithPrefix,
+			)}
 		}
 		validPlacements++
 	}
@@ -648,7 +651,8 @@ func validatePSSORegistrationTokenVariable(contents string) error {
 	if validPlacements != totalOccurrences {
 		return &fleet.BadRequestError{Message: fmt.Sprintf(
 			"Variable %s is only allowed in the RegistrationToken of a Fleet Platform SSO payload.",
-			varWithPrefix)}
+			varWithPrefix,
+		)}
 	}
 	return nil
 }
@@ -1099,7 +1103,8 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 			TeamName:    actTeamName,
 			ProfileName: decl.Name,
 			Identifier:  decl.Identifier,
-		}); err != nil {
+		},
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple declaration")
 	}
 
@@ -1226,6 +1231,10 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return err
+	}
+
 	existing, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1346,7 +1355,8 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			TeamName:          actTeamName,
 			ProfileName:       decl.Name,
 			ProfileIdentifier: decl.Identifier,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm apple declaration")
 	}
 
@@ -1964,6 +1974,10 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return err
+	}
+
 	existing, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -2043,7 +2057,8 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 			TeamName:          actTeamName,
 			ProfileName:       cp.Name,
 			ProfileIdentifier: cp.Identifier,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm apple config profile")
 	}
 
@@ -2118,7 +2133,8 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 			TeamName:          actTeamName,
 			ProfileName:       cp.Name,
 			ProfileIdentifier: cp.Identifier,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
 
@@ -2184,7 +2200,8 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 			TeamName:    actTeamName,
 			ProfileName: decl.Name,
 			Identifier:  decl.Identifier,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple declaration")
 	}
 
@@ -2702,7 +2719,8 @@ func verifyMachineInfoSignature(ctx context.Context, p7 *pkcs7.PKCS7, info *flee
 	if !apple_mdm.MachineInfoVerificationEnabled() {
 		// surface the failure in the request log at warn level
 		logging.WithLevel(ctx, slog.LevelWarn)
-		logging.WithExtras(ctx,
+		logging.WithExtras(
+			ctx,
 			"machine_info_verify", "failed",
 			"machine_info_verify_reason", err.Error(),
 			"lane", lane,
@@ -2869,7 +2887,8 @@ type mdmAppleAccountEnrollResponse struct {
 func (r mdmAppleAccountEnrollResponse) Error() error { return r.Err }
 
 func (r mdmAppleAccountEnrollResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("WWW-Authenticate",
+	w.Header().Set(
+		"WWW-Authenticate",
 		`Bearer method="apple-as-web" `+
 			`url="`+r.mdmSSOUrl+`"`,
 	)
@@ -3282,7 +3301,8 @@ func (svc *Service) shouldOSUpdateForDEPEnrollment(ctx context.Context, m fleet.
 	platform, settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			svc.logger.InfoContext(ctx, "checking os updates settings, settings not found",
+			svc.logger.InfoContext(
+				ctx, "checking os updates settings, settings not found",
 				"serial", m.Serial,
 			)
 			return false, nil
@@ -3674,7 +3694,8 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
 		if len(prof) > 1024*1024 {
-			return ctxerr.Wrap(ctx,
+			return ctxerr.Wrap(
+				ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fleet.MaxProfileSizeErrMsg),
 			)
 		}
@@ -3718,7 +3739,8 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		if vars := variables.FindKeepDuplicates(expanded); len(vars) > 0 {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(
-					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch"))
+					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch",
+				))
 		}
 
 		// Store original unexpanded profile
@@ -3758,11 +3780,13 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 					continue
 				case strings.HasPrefix(p.ProfileUUID, "w"):
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit configuration_profiles. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit configuration_profiles. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name,
+					))
 					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
 				default:
 					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name))
+						"Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name,
+					))
 					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
 				}
 			}
@@ -3788,7 +3812,8 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 			TeamID:   tmID,
 			TeamName: tmName,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
 	return nil
@@ -6162,7 +6187,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	if host.Platform == string(fleet.IPadOSPlatform) {
 		source = "ipados_apps"
 	}
-	softwaresWithAutoUpdateSchedule, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx,
+	softwaresWithAutoUpdateSchedule, err := svc.ds.ListSoftwareAutoUpdateSchedules(
+		ctx,
 		teamID,
 		source,
 		fleet.SoftwareAutoUpdateScheduleFilter{
@@ -6181,7 +6207,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Nothing else to do.
 		return nil
 	}
-	logger.DebugContext(ctx, "found software with auto update scheduled",
+	logger.DebugContext(
+		ctx, "found software with auto update scheduled",
 		"count", len(softwaresWithAutoUpdateSchedule),
 	)
 
@@ -6201,13 +6228,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			"update_window_end", softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
 			"host_timezone", *host.TimeZone,
 		)
-		ok, err := isTimezoneInWindow(ctx,
+		ok, err := isTimezoneInWindow(
+			ctx,
 			*host.TimeZone,
 			*softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
 			*softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
 		)
 		if err != nil {
-			logger.ErrorContext(ctx, "skipping software, failed to check if timezone is in window",
+			logger.ErrorContext(
+				ctx, "skipping software, failed to check if timezone is in window",
 				"err", err,
 			)
 			continue
@@ -6222,7 +6251,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Nothing else to do.
 		return nil
 	}
-	logger.DebugContext(ctx, "found software with auto update scheduled, with host local time currently in window",
+	logger.DebugContext(
+		ctx, "found software with auto update scheduled, with host local time currently in window",
 		"count", len(softwaresWithinUpdateSchedule),
 	)
 
@@ -6239,7 +6269,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, teamID, fleet.TeamFilter{})
 		if err != nil {
-			logger.ErrorContext(ctx, "software title by id",
+			logger.ErrorContext(
+				ctx, "software title by id",
 				"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
 				"team_id", host.TeamID,
 				"err", err,
@@ -6258,13 +6289,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		case err == nil:
 			// OK
 		case fleet.IsNotFound(err):
-			logger.ErrorContext(ctx, "title should be VPP app",
+			logger.ErrorContext(
+				ctx, "title should be VPP app",
 				"software_title_id", softwareTitle.ID,
 				"team_id", host.TeamID,
 			)
 			continue
 		default:
-			logger.ErrorContext(ctx, "get VPP app metadata by team and title",
+			logger.ErrorContext(
+				ctx, "get VPP app metadata by team and title",
 				"software_title_id", softwareTitle.ID,
 				"team_id", host.TeamID,
 				"err", err,
@@ -6283,7 +6316,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			// There are some cases where InstalledApplicationList skips the software from the list
 			// when the update is ocurring. It seems the software is probably being skipped because
 			// it's on a temporary state of installation/replacement.
-			logger.DebugContext(ctx, "software title not installed on device or currently in the process of updating, skipping from update",
+			logger.DebugContext(
+				ctx, "software title not installed on device or currently in the process of updating, skipping from update",
 				"name", softwareTitle.Name,
 				"bundle_identifier", bundleIdentifier,
 				"source", softwareTitle.Source,
@@ -6309,21 +6343,24 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			continue
 		}
 		if _, err := fleet.VersionToSemverVersion(installedVersion); err != nil {
-			logger.ErrorContext(ctx, "invalid installed version",
+			logger.ErrorContext(
+				ctx, "invalid installed version",
 				"version", installedVersion,
 			)
 			continue
 		}
 		latestVersion := toValidSemVer(softwareTitle.AppStoreApp.LatestVersion)
 		if _, err := fleet.VersionToSemverVersion(latestVersion); err != nil {
-			logger.ErrorContext(ctx, "invalid latest version",
+			logger.ErrorContext(
+				ctx, "invalid latest version",
 				"version", latestVersion,
 			)
 			continue
 		}
 		if fleet.CompareVersions(latestVersion, installedVersion) != 1 {
 			// Installed version is equal or higher than latest version, so nothing to do here.
-			logger.DebugContext(ctx, "skipping software version",
+			logger.DebugContext(
+				ctx, "skipping software version",
 				"latest_version", latestVersion,
 				"installed_version", installedVersion,
 			)
@@ -6336,7 +6373,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Nothing else to do.
 		return nil
 	}
-	logger.DebugContext(ctx, "found software with auto update scheduled, with host local time currently in window, that need update",
+	logger.DebugContext(
+		ctx, "found software with auto update scheduled, with host local time currently in window, that need update",
 		"count", len(softwaresWithinUpdateWindowThatNeedUpdate),
 	)
 
@@ -6356,13 +6394,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
 		if !ok {
 			// "Should not happen", so we log it just in case.
-			logger.ErrorContext(ctx, "missing title ID from map",
+			logger.ErrorContext(
+				ctx, "missing title ID from map",
 				"software_title_id", softwareWithinUpdateSchedule.TitleID,
 			)
 			continue
 		}
 		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
-			logger.DebugContext(ctx, "skipping software, recent install for title",
+			logger.DebugContext(
+				ctx, "skipping software, recent install for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)
@@ -6374,7 +6414,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Nothing else to do.
 		return nil
 	}
-	logger.DebugContext(ctx, "found software with auto update scheduled, with host local time currently in window, that need update, no recent install",
+	logger.DebugContext(
+		ctx, "found software with auto update scheduled, with host local time currently in window, that need update, no recent install",
 		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
 	)
 
@@ -6397,20 +6438,23 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
 		if !ok {
 			// "Should not happen", so we log it just in case.
-			logger.ErrorContext(ctx, "missing title ID from map",
+			logger.ErrorContext(
+				ctx, "missing title ID from map",
 				"software_title_id", softwareWithinUpdateSchedule.TitleID,
 			)
 			continue
 		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
-			logger.DebugContext(ctx, "skipping software, pending install for title",
+			logger.DebugContext(
+				ctx, "skipping software, pending install for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)
 			continue
 		}
 		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
-			logger.DebugContext(ctx, "skipping software, install already queued for title",
+			logger.DebugContext(
+				ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
 				"adam_id", softwareTitle.AppStoreApp.AdamID,
 			)
@@ -6422,7 +6466,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Nothing else to do.
 		return nil
 	}
-	logger.DebugContext(ctx,
+	logger.DebugContext(
+		ctx,
 		"found software with auto update scheduled, with host local time currently in window, that need update, no recent install, no pending installation",
 		"count", len(softwaresWithinUpdateScheduleToInstall),
 	)
@@ -6443,7 +6488,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 
 		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
 		if err != nil {
-			logger.ErrorContext(ctx, "get VPP app by team and title",
+			logger.ErrorContext(
+				ctx, "get VPP app by team and title",
 				"err", err,
 			)
 			continue
@@ -6452,7 +6498,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		// Check the label scoping for this VPP app and host.
 		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 		if err != nil {
-			logger.ErrorContext(ctx, "get VPP app by team and title",
+			logger.ErrorContext(
+				ctx, "get VPP app by team and title",
 				"err", err,
 			)
 			continue
@@ -6469,13 +6516,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			DeferActivation: svc.deferFleetInitiatedActivation,
 		})
 		if err != nil {
-			logger.ErrorContext(ctx, "install VPP app post validation",
+			logger.ErrorContext(
+				ctx, "install VPP app post validation",
 				"err", err,
 			)
 			continue
 		}
 
-		logger.DebugContext(ctx, "update scheduled",
+		logger.DebugContext(
+			ctx, "update scheduled",
 			"command_uuid", commandUUID,
 		)
 	}
@@ -6854,7 +6903,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		missingFields = append(missingFields, "ProductName")
 	}
 	if len(missingFields) > 0 {
-		svc.logger.WarnContext(ctx, "DeviceInformation response missing or unexpectedly typed fields; preserving existing host values",
+		svc.logger.WarnContext(
+			ctx, "DeviceInformation response missing or unexpectedly typed fields; preserving existing host values",
 			"host_id", host.ID,
 			"host_uuid", host.UUID,
 			"missing_or_invalid_fields", missingFields,

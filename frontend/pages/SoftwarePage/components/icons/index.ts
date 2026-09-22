@@ -23,6 +23,7 @@ import Excel from "./Excel";
 import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
+import GoBinary from "./GoBinary";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
@@ -732,6 +733,7 @@ import Nudge from "./png/Nudge.png";
 import Numi from "./png/Numi.png";
 import Nvda from "./png/Nvda.png";
 import NvidiaGeforceNow from "./png/NvidiaGeforceNow.png";
+import NvidiaSync from "./png/NvidiaSync.png";
 import Obs from "./png/Obs.png";
 import Obsidian from "./png/Obsidian.png";
 import Ocenaudio from "./png/Ocenaudio.png";
@@ -1912,6 +1914,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   numi: Numi,
   nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
+  "nvidia sync": NvidiaSync,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
@@ -2388,6 +2391,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
+  go_binaries: GoBinary,
 } as const;
 
 /**
@@ -2419,11 +2423,11 @@ const matchStrictNameSourceToIcon = ({
  * Sources whose own icon wins over any name match, strict or loose, because their names
  * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
  * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
- * so showing the other application's icon would misrepresent the row. Other extension
- * sources keep matching on name first, so e.g. a VSCode extension named "Docker" still
- * gets the Docker icon.
+ * so showing the other application's icon would misrepresent the row; a Go binary named
+ * "zoom" is the same case. Other extension sources keep matching on name first, so e.g.
+ * a VSCode extension named "Docker" still gets the Docker icon.
  */
-const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins"];
+const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins", "go_binaries"];
 
 /**
  * This returns the icon component for a given software name and source. If a strict match is found,

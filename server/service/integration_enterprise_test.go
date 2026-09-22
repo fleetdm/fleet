@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -910,6 +911,35 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+// applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
+// reaches the caller as a 413 while that wrapper still unwraps to the size error underneath. Without
+// it the request is answered with a 400 carrying the raw read error.
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsBodySizeLimit() {
+	t := s.T()
+
+	// The limit the /spec/fleets route is registered with.
+	const limit = 5 * units.MiB
+
+	// The padding sits inside a JSON string value so the body stays syntactically valid up to the
+	// point where the reader is cut off.
+	prefix := `{"specs":[{"name":"`
+	suffix := `"}]}`
+	padSize := limit + 1 - len(prefix) - len(suffix)
+	require.Positive(t, padSize, "padding must be positive")
+
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/fleets",
+		[]byte(prefix+strings.Repeat("x", padSize)+suffix), http.StatusRequestEntityTooLarge)
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "exceeds the max size limit")
+	assert.NotContains(t, string(body), "request body too large")
+
+	// A malformed body within the limit is still a 400, so the size error isn't reported for a
+	// reader that simply ran out early.
+	s.DoRaw("POST", "/api/latest/fleet/spec/fleets", []byte(prefix), http.StatusBadRequest)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
@@ -7617,17 +7647,24 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NoError(t, err)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "fooextensionid"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		// A Go binary carries its toolchain version in release and its module path in
+		// extension_id, which is suppressed for this source only.
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
-	bar := host.Software[0]
-	if bar.Name != "bar" {
-		bar = host.Software[1]
+	var bar fleet.HostSoftwareEntry
+	for _, sw := range host.Software {
+		if sw.Name == "bar" {
+			bar = sw
+			break
+		}
 	}
+	require.NotZero(t, bar.ID)
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
@@ -7654,13 +7691,15 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
 	require.NotNil(t, resp)
 
-	var fooPayload, barPayload fleet.Software
+	var fooPayload, barPayload, airPayload fleet.Software
 	for _, s := range resp.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7676,17 +7715,26 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
 	require.NotNil(t, resp)
 
-	for _, s := range resp.Software {
+	// Reset so a payload missing from this response can't be satisfied by the value the
+	// software-list loop above left behind.
+	fooPayload, barPayload, airPayload = fleet.Software{}, fleet.Software{}, fleet.Software{}
+	for _, s := range respVersions.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7702,6 +7750,10 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	// vulnerable param required when using vulnerability filters
 	respVersions = listSoftwareVersionsResponse{}
