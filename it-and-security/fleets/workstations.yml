@@ -204,6 +204,7 @@ policies:
   - path: ../lib/linux/policies/removable-storage-read-only.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
   - path: ../lib/linux/policies/update-claude.yml
+  - path: ../lib/linux/policies/okta-verify-installed.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
@@ -292,6 +293,14 @@ software:
         - Communication
       labels_include_all:
         - "RPM-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu (amd64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_all:
+        - "Ubuntu hosts"
         - "x86-based Linux hosts"
     - path: ../lib/linux/scripts/install-claude-desktop.sh # Claude for Debian-based Linux (script-only package)
       display_name: Claude

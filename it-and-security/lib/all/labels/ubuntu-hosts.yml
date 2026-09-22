@@ -1,0 +1,5 @@
+- name: Ubuntu hosts
+  description: Linux hosts running Ubuntu
+  query: SELECT 1 FROM os_version WHERE platform = 'ubuntu';
+  label_membership_type: dynamic
+  platform: linux

@@ -108,6 +108,7 @@ labels:
   - path: ./lib/all/labels/arm-based-windows-hosts.yml
   - path: ./lib/all/labels/arm-based-linux-hosts.yml
   - path: ./lib/all/labels/debian-based-linux-hosts.yml
+  - path: ./lib/all/labels/ubuntu-hosts.yml
   - path: ./lib/all/labels/macs-with-1password-installed.yml
   - path: ./lib/all/labels/rpm-based-linux-hosts.yml
   - path: ./lib/all/labels/virtual-machines.yml
