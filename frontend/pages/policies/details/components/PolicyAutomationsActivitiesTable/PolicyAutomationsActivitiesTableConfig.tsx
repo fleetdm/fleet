@@ -25,7 +25,8 @@ type ICellProps = CellProps<IPolicyAutomationActivity>;
 
 const generateColumnConfigs = (
   baseClass: string,
-  onShowDetails: (activity: IPolicyAutomationActivity) => void
+  onShowDetails: (activity: IPolicyAutomationActivity) => void,
+  currentPolicyId: number
 ): ITableConfig[] => [
   {
     Header: (cellProps: ITableHeaderProps) => (
@@ -42,7 +43,9 @@ const generateColumnConfigs = (
       return (
         <div className={`${baseClass}__automation-cell`}>
           <Icon name={statusIcon.name} color={statusIcon.color} />
-          <TooltipTruncatedText value={getAutomationRunDisplayName(activity)} />
+          <TooltipTruncatedText
+            value={getAutomationRunDisplayName(activity, currentPolicyId)}
+          />
         </div>
       );
     },

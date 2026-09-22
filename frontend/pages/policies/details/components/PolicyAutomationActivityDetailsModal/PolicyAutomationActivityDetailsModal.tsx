@@ -38,6 +38,9 @@ const baseClass = "policy-automation-activity-details-modal";
 
 interface IPolicyAutomationActivityDetailsModalProps {
   activity: IPolicyAutomationActivity;
+  /** The policy whose runs table opened this modal. Scopes multi-title notify
+   *  activities to the title patched by that policy. */
+  currentPolicyId: number;
   onCancel: () => void;
   /** When provided, renders a "Reset policy" action in the footer. */
   onResetPolicy?: () => void;
@@ -45,6 +48,7 @@ interface IPolicyAutomationActivityDetailsModalProps {
 
 const PolicyAutomationActivityDetailsModal = ({
   activity,
+  currentPolicyId,
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
@@ -230,7 +234,7 @@ const PolicyAutomationActivityDetailsModal = ({
           value={
             <span className={`${baseClass}__status`}>
               <Icon name={statusIcon.name} color={statusIcon.color} />
-              {getAutomationRunDisplayName(activity)}
+              {getAutomationRunDisplayName(activity, currentPolicyId)}
             </span>
           }
         />
