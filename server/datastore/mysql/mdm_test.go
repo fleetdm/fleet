@@ -52,6 +52,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchSetMDMProfilesSoftwareUpdateTracking", testBatchSetMDMProfilesSoftwareUpdateTracking},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestMDMConfigProfilesDescription", testMDMConfigProfilesDescription},
+		{"TestMDMConfigProfileRenameShowsOnHosts", testMDMConfigProfileRenameShowsOnHosts},
 		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestMDMEULA", testMDMEULA},
@@ -2072,6 +2073,91 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "android desc 2", updAndroid.Description)
 	require.Equal(t, gotAndroid.UploadedAt, updAndroid.UploadedAt)
+
+	// a rename without content keeps uploaded_at and checksums too, and is
+	// checked against the other platforms' names
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        "apple renamed",
+		Description: "apple desc 2",
+	}, nil)
+	require.NoError(t, err)
+	renamedApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple renamed", renamedApple.Name)
+	require.Equal(t, gotApple.UploadedAt, renamedApple.UploadedAt)
+	require.Equal(t, gotApple.Checksum, renamedApple.Checksum)
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        "windows",
+	}, nil)
+	require.Error(t, err)
+	var existsErr *existsError
+	require.ErrorAs(t, err, &existsErr)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        "windows renamed",
+		Description: "windows desc 2",
+	}, nil)
+	require.NoError(t, err)
+	renamedWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows renamed", renamedWin.Name)
+	require.Equal(t, gotWin.UploadedAt, renamedWin.UploadedAt)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        "android",
+	}, nil)
+	require.ErrorAs(t, err, &existsErr)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        "android renamed",
+		Description: "android desc 2",
+	}, nil)
+	require.NoError(t, err)
+	renamedAndroid, err := ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "android renamed", renamedAndroid.Name)
+	require.Equal(t, gotAndroid.UploadedAt, renamedAndroid.UploadedAt)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        "decl",
+	}, nil)
+	require.ErrorAs(t, err, &existsErr)
+
+	// declarations are renamed through the upsert, which must land on the
+	// existing row (same identifier) and refuse another declaration's name
+	gotDecl.Name = "decl renamed"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	renamedDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "decl renamed", renamedDecl.Name)
+	// the declaration upsert counts a rename as an upload, like the batch
+	// path; the token (what drives delivery) is unchanged
+	require.Equal(t, gotDecl.Token, renamedDecl.Token)
+	otherDecl := declForTest("other decl", "other", "other")
+	otherDecl, err = ds.NewMDMAppleDeclaration(ctx, otherDecl, nil)
+	require.NoError(t, err)
+	gotDecl.Name = "other decl"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+	require.ErrorAs(t, err, &existsErr)
+	// ...and onto another platform's name, which the INSERT's NOT EXISTS
+	// clauses don't cover on the update side of the upsert
+	for _, taken := range []string{"windows renamed", "android renamed", "apple renamed"} {
+		gotDecl.Name = taken
+		_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+		require.ErrorAs(t, err, &existsErr, taken)
+	}
+	gotDecl.Name = "decl renamed"
+	stillOther, err := ds.GetMDMAppleDeclaration(ctx, otherDecl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, decl.Identifier+"", renamedDecl.Identifier)
+	require.Equal(t, otherDecl.Identifier, stillOther.Identifier)
 
 	// the batch path writes the description too, and a description-only
 	// change there is not reported as an update to the profiles' content
@@ -6671,4 +6757,87 @@ func testGetDeviceInfoForACMERenewal(t *testing.T, ds *Datastore) {
 		{HostUUID: iOS.UUID, HardwareSerial: iOS.HardwareSerial, HardwareModel: "iPhone14,2", OSVersion: "17.5.1"},
 		{HostUUID: iPadOS.UUID, HardwareSerial: iPadOS.HardwareSerial, HardwareModel: "iPad13,1", OSVersion: "17.5.1"},
 	}, got)
+}
+
+func testMDMConfigProfileRenameShowsOnHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "apple",
+		Identifier:   "com.example.apple",
+		Mobileconfig: mobileconfig.Mobileconfig("<plist/>"),
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	decl, err := ds.NewMDMAppleDeclaration(ctx, declForTest("decl", "decl", "decl"), nil)
+	require.NoError(t, err)
+	android := androidConfigProfileForTest(t, "android", nil)
+	android, err = ds.NewMDMAndroidConfigProfile(ctx, *android, nil)
+	require.NoError(t, err)
+
+	// each profile is installed on a host, which keeps a copy of its name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+			(host_uuid, profile_uuid, profile_identifier, profile_name, command_uuid, checksum, operation_type)
+			VALUES ('host-1', ?, ?, 'apple', 'cmd-1', UNHEX(MD5('x')), 'install')`,
+			apple.ProfileUUID, apple.Identifier); err != nil {
+			return err
+		}
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
+			(host_uuid, declaration_uuid, declaration_identifier, declaration_name, token, operation_type)
+			VALUES ('host-1', ?, ?, 'decl', UNHEX(MD5('x')), 'install')`,
+			decl.DeclarationUUID, decl.Identifier); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles
+			(host_uuid, profile_uuid, profile_name, operation_type)
+			VALUES ('host-1', ?, 'android', 'install')`, android.ProfileUUID)
+		return err
+	})
+
+	// renames without new contents are never resent, so host details must
+	// still show the new name
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        "apple renamed",
+	}, nil)
+	require.NoError(t, err)
+	decl.Name = "decl renamed"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        "android renamed",
+	}, nil)
+	require.NoError(t, err)
+
+	appleNames := func() []string {
+		profs, err := ds.GetHostMDMAppleProfiles(ctx, "host-1")
+		require.NoError(t, err)
+		names := make([]string, 0, len(profs))
+		for _, p := range profs {
+			names = append(names, p.Name)
+		}
+		return names
+	}
+	require.ElementsMatch(t, []string{"apple renamed", "decl renamed"}, appleNames())
+	androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, "host-1")
+	require.NoError(t, err)
+	require.Len(t, androidProfs, 1)
+	require.Equal(t, "android renamed", androidProfs[0].Name)
+
+	// a batch (GitOps) rename with unchanged contents shows on hosts too, and
+	// isn't treated as a new upload
+	before, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	batchApple := *before
+	batchApple.Name = "apple batch renamed"
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{&batchApple}, nil, []*fleet.MDMAppleDeclaration{decl}, nil, nil)
+	require.NoError(t, err)
+	after, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple batch renamed", after.Name)
+	require.Equal(t, before.UploadedAt, after.UploadedAt)
+	require.ElementsMatch(t, []string{"apple batch renamed", "decl renamed"}, appleNames())
 }

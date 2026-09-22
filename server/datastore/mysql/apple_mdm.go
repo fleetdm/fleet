@@ -315,6 +315,34 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 				Message: "The new profile's PayloadIdentifier must match the existing profile's.",
 			})
 		}
+		if cp.Name == "" {
+			cp.Name = existing.Name
+		}
+
+		// A name is unique per team across all four profile tables and no index
+		// spans them, so a rename re-checks the other tables in the statement
+		// itself, keeping check and write atomic.
+		var teamID uint
+		if cp.TeamID != nil {
+			teamID = *cp.TeamID
+		}
+		nameChanged := cp.Name != existing.Name
+		nameGuard := ""
+		var nameGuardArgs []any
+		if nameChanged {
+			nameGuard = `
+	AND NOT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
+			nameGuardArgs = []any{cp.Name, teamID, cp.Name, teamID, cp.Name, teamID}
+		}
+		nameExists := func() error {
+			return ctxerr.Wrap(ctx, &existsError{
+				ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
+			})
+		}
 
 		if len(cp.Mobileconfig) > 0 {
 			// Reject a changed PayloadScope like the create/GitOps paths do: the
@@ -328,34 +356,6 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 				return ctxerr.Wrap(ctx, err, "verifying payload scope on update")
 			}
 
-			// A rename (via the content's PayloadDisplayName) is allowed, but
-			// must re-check name uniqueness against the other platforms' tables
-			// -- the UPDATE below can only rely on this table's unique index.
-			if cp.Name != existing.Name {
-				var teamID uint
-				if cp.TeamID != nil {
-					teamID = *cp.TeamID
-				}
-				var collides bool
-				err := sqlx.GetContext(ctx, tx, &collides, `SELECT EXISTS (
-	SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
-) OR EXISTS (
-	SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
-) OR EXISTS (
-	SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?
-)`, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "checking cross-platform profile name collision")
-				}
-				if collides {
-					return ctxerr.Wrap(ctx, &existsError{
-						ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
-						Identifier:   cp.Name,
-						TeamID:       cp.TeamID,
-					})
-				}
-			}
-
 			// Preserve uploaded_at on a no-op edit (matching the batch upsert)
 			// so it doesn't read as a fresh upload; the IF sees the pre-update
 			// values since SET evaluates left to right.
@@ -363,8 +363,9 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 UPDATE mdm_apple_configuration_profiles
 SET uploaded_at = IF(checksum = UNHEX(MD5(?)) AND name = ?, uploaded_at, CURRENT_TIMESTAMP()),
 	mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, description = ?, secrets_updated_at = ?
-WHERE profile_uuid = ? AND identifier = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.Mobileconfig, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.Description, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier)
+WHERE profile_uuid = ? AND identifier = ?` + nameGuard
+			args := append([]any{cp.Mobileconfig, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.Description, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				switch {
 				case IsDuplicate(err):
@@ -374,28 +375,30 @@ WHERE profile_uuid = ? AND identifier = ?`
 				}
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				// A rename blocked by the guard matches no row; the
+				// profile is known to exist from the SELECT above.
+				if nameChanged {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
 			}
 		} else {
-			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at: a bump would re-verify every installed copy.
-			res, err := tx.ExecContext(ctx,
-				`UPDATE mdm_apple_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID)
+			// Name and description are not part of the checksum, so they are
+			// written without touching uploaded_at: a bump would re-verify every
+			// installed copy.
+			stmt := `UPDATE mdm_apple_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "updating apple mdm config profile description")
+				if IsDuplicate(err) {
+					return ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
+				}
+				return ctxerr.Wrap(ctx, err, "updating apple mdm config profile metadata")
 			}
-			if aff, _ := res.RowsAffected(); aff == 0 {
-				// 0 rows also means "unchanged", so only fail when the row is gone.
-				var exists bool
-				if err := sqlx.GetContext(ctx, tx, &exists,
-					`SELECT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?)`,
-					cp.ProfileUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "checking apple mdm config profile exists")
-				}
-				if !exists {
-					return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithName(cp.ProfileUUID))
-				}
+			// 0 rows also means "unchanged"; the row is known to exist from the
+			// SELECT above, so only a blocked rename is an error here.
+			if aff, _ := res.RowsAffected(); aff == 0 && nameChanged {
+				return nameExists()
 			}
 		}
 
@@ -1029,51 +1032,55 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+	// The live profile is the source of truth for the name, since a rename
+	// isn't resent; the host row's copy covers profiles already deleted.
 	stmt := fmt.Sprintf(
 		`
 SELECT
-	profile_uuid,
-	profile_name AS name,
-	profile_identifier AS identifier,
+	hmap.profile_uuid,
+	COALESCE(macp.name, hmap.profile_name) AS name,
+	hmap.profile_identifier AS identifier,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	scope,
+	COALESCE(hmap.status, '%s') AS status,
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail,
+	hmap.scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
+		WHEN hmap.scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = hmap.host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
 	END AS managed_local_account
 FROM
-	host_mdm_apple_profiles
+	host_mdm_apple_profiles hmap
+	LEFT JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+	hmap.host_uuid = ? AND NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s'))
 
 UNION ALL
 
 SELECT
-	declaration_uuid AS profile_uuid,
-	declaration_name AS name,
-	declaration_identifier AS identifier,
+	hmad.declaration_uuid AS profile_uuid,
+	COALESCE(mad.name, hmad.declaration_name) AS name,
+	hmad.declaration_identifier AS identifier,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	scope,
+	COALESCE(hmad.status, '%s') AS status,
+	COALESCE(hmad.operation_type, '') AS operation_type,
+	COALESCE(hmad.detail, '') AS detail,
+	hmad.scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
+		WHEN hmad.scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = hmad.host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
 	END AS managed_local_account
 FROM
-	host_mdm_apple_declarations
+	host_mdm_apple_declarations hmad
+	LEFT JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
 WHERE
-	host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+	hmad.host_uuid = ? AND hmad.declaration_name NOT IN (?) AND NOT (hmad.operation_type = '%s' AND COALESCE(hmad.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -2990,7 +2997,8 @@ VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
   ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
+  -- a rename alone isn't resent, so it doesn't count as a new upload
+  uploaded_at = IF(checksum = VALUES(checksum), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   checksum = VALUES(checksum),
   name = VALUES(name),
@@ -5453,6 +5461,7 @@ ON DUPLICATE KEY UPDATE
 	description = VALUES(description),
 	scope = VALUES(scope),
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
+	name = VALUES(name),
 	raw_json = VALUES(raw_json)`
 
 	// OS-update tracking must follow the new content so an edit away from (or
@@ -5486,9 +5495,43 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 		scope = fleet.PayloadScopeSystem
 	}
 
-	const reloadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE name = ? AND team_id = ?`
+	// Keyed on the identifier: the upsert may have renamed the row, and
+	// whichever key it matched, the row now carries this identifier.
+	const reloadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE identifier = ? AND team_id = ?`
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Both (team_id, identifier) and (team_id, name) are unique, so a name
+		// owned by one declaration and an identifier owned by another would let
+		// ON DUPLICATE KEY UPDATE pick either row. The other platforms' tables
+		// are checked too: the INSERT's NOT EXISTS only guards a fresh insert.
+		var nameTaken bool
+		if err := sqlx.GetContext(ctx, tx, &nameTaken,
+			`SELECT (EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE team_id = ? AND name = ? AND identifier != ?)
+		AND EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?))
+	OR EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE team_id = ? AND name = ?)
+	OR EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE team_id = ? AND name = ?)
+	OR EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE team_id = ? AND name = ?)`,
+			tmID, declaration.Name, declaration.Identifier, tmID, declaration.Identifier,
+			tmID, declaration.Name, tmID, declaration.Name, tmID, declaration.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "checking apple mdm declaration name")
+		}
+		if nameTaken {
+			return &existsError{
+				ResourceType: "MDMAppleDeclaration.Name",
+				Identifier:   declaration.Name,
+				TeamID:       declaration.TeamID,
+			}
+		}
+
+		var prevName string
+		err := sqlx.GetContext(ctx, tx, &prevName,
+			`SELECT name FROM mdm_apple_declarations WHERE identifier = ? AND team_id = ?`,
+			declaration.Identifier, tmID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "get existing apple mdm declaration name")
+		}
+		renamed := err == nil && prevName != declaration.Name
+
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.Description, declaration.RawJSON,
 			scope, declaration.SecretsUpdatedAt,
@@ -5513,8 +5556,19 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 		// An upsert keeps the existing row's UUID, so everything keyed on the
 		// declaration must use the reloaded UUID, not the one generated above.
-		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Name, tmID); err != nil {
+		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Identifier, tmID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
+		}
+
+		// The host rows carry a copy of the name; keep it current after a
+		// rename, as the batch path does. Only on a rename: the table has no
+		// index on declaration_uuid.
+		if renamed {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE host_mdm_apple_declarations SET declaration_name = ? WHERE declaration_uuid = ?`,
+				declaration.Name, declUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update host declaration names")
+			}
 		}
 
 		if _, err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, declUUID, declaration.AssetReferenceUUIDs); err != nil {

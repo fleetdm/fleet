@@ -3312,6 +3312,9 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 			}
 			return ctxerr.Wrap(ctx, err, "get existing windows config profile")
 		}
+		if cp.Name == "" {
+			cp.Name = existing.Name
+		}
 		if len(cp.SyncML) > 0 {
 			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
 			nameChanged := existing.Name != cp.Name
@@ -3405,13 +3408,38 @@ WHERE profile_uuid = ?`
 				return ctxerr.Wrap(ctx, err, "updating windows profile variable associations")
 			}
 		} else {
-			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at. Zero affected rows only means it was
-			// unchanged: the SELECT above already confirmed the profile exists.
-			if _, err := tx.ExecContext(ctx,
-				`UPDATE mdm_windows_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile description")
+			// Name and description are not part of the checksum, so they are
+			// written without touching uploaded_at. A rename re-checks
+			// cross-platform uniqueness in the statement, as on content.
+			stmt := `UPDATE mdm_windows_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?`
+			args := []any{cp.Name, cp.Description, cp.ProfileUUID}
+			nameChanged := existing.Name != cp.Name
+			if nameChanged {
+				stmt += `
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?)`
+				args = append(args, cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
+			}
+			res, err := tx.ExecContext(ctx, stmt, args...)
+			if err != nil {
+				if IsDuplicate(err) {
+					return ctxerr.Wrap(ctx, &existsError{
+						ResourceType: "MDMWindowsConfigProfile.Name",
+						Identifier:   cp.Name,
+						TeamID:       cp.TeamID,
+					})
+				}
+				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile metadata")
+			}
+			// A rename blocked by the NOT EXISTS guard matches no row; the
+			// profile itself is known to exist from the SELECT above.
+			if aff, _ := res.RowsAffected(); aff == 0 && nameChanged {
+				return ctxerr.Wrap(ctx, &existsError{
+					ResourceType: "MDMWindowsConfigProfile.Name",
+					Identifier:   cp.Name,
+					TeamID:       cp.TeamID,
+				})
 			}
 		}
 

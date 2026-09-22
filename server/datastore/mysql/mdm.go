@@ -911,6 +911,34 @@ FROM (
 		return nil, nil, err
 	}
 
+	// PayloadDisplayName can differ from the stored name once an admin renames
+	// the profile. Read it for this page only, rather than pulling every
+	// mobileconfig through the paginated UNION.
+	if len(macProfUUIDs) > 0 {
+		var contents []struct {
+			ProfileUUID  string `db:"profile_uuid"`
+			Mobileconfig []byte `db:"mobileconfig"`
+		}
+		stmt, args, err := sqlx.In(
+			`SELECT profile_uuid, mobileconfig FROM mdm_apple_configuration_profiles WHERE profile_uuid IN (?)`,
+			macProfUUIDs)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In profile contents")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &contents, stmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "select profile contents")
+		}
+		displayNames := make(map[string]string, len(contents))
+		for _, c := range contents {
+			displayNames[c.ProfileUUID] = fleet.PayloadDisplayNameFromMobileconfig(c.Mobileconfig)
+		}
+		for _, prof := range profs {
+			if name, ok := displayNames[prof.ProfileUUID]; ok {
+				prof.PayloadDisplayName = name
+			}
+		}
+	}
+
 	// match the labels with their profiles
 	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
 	for _, prof := range profs {

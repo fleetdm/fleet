@@ -954,10 +954,14 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 }
 
 // UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
-// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
-// match the existing profile's -- name is an Android profile's only
-// identity, so it never changes on this path.
+// cp.RawJSON is non-empty), name, description and/or label targeting in
+// place, keyed by cp.ProfileUUID so a rename keeps the same row.
 func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
 			Name string `db:"name"`
@@ -970,9 +974,27 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}
 			return ctxerr.Wrap(ctx, err, "get existing android config profile")
 		}
-		if existing.Name != cp.Name {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: "The new profile's name must match the existing profile's name.",
+		if cp.Name == "" {
+			cp.Name = existing.Name
+		}
+
+		// A name is unique per team across all four profile tables and no index
+		// spans them, so a rename re-checks the other tables in the statement.
+		nameChanged := existing.Name != cp.Name
+		nameGuard := ""
+		var nameGuardArgs []any
+		if nameChanged {
+			nameGuard = `
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?)
+	AND NOT EXISTS (SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?)`
+			nameGuardArgs = []any{cp.Name, teamID, cp.Name, teamID, cp.Name, teamID}
+		}
+		nameExists := func() error {
+			return ctxerr.Wrap(ctx, &existsError{
+				ResourceType: "MDMAndroidConfigProfile.Name",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
 			})
 		}
 
@@ -982,12 +1004,19 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			// the pre-update raw_json (SET evaluates left to right), and the
 			// parameter must be CAST to JSON -- a json column never equals a
 			// bare string.
-			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, description = ? WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.Description, cp.ProfileUUID, cp.Name)
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ?, name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.RawJSON, cp.RawJSON, cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
+				if IsDuplicate(err) {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
 			}
 			if aff, _ := res.RowsAffected(); aff == 0 {
+				if nameChanged {
+					return nameExists()
+				}
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 
@@ -1001,13 +1030,21 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
 			}
 		} else {
-			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at. Zero affected rows only means it was
-			// unchanged: the SELECT above already confirmed the profile exists.
-			if _, err := tx.ExecContext(ctx,
-				`UPDATE mdm_android_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
-				cp.Description, cp.ProfileUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating android mdm config profile description")
+			// Name and description are not part of the checksum, so they are
+			// written without touching uploaded_at.
+			stmt := `UPDATE mdm_android_configuration_profiles SET name = ?, description = ? WHERE profile_uuid = ?` + nameGuard
+			args := append([]any{cp.Name, cp.Description, cp.ProfileUUID}, nameGuardArgs...)
+			res, err := tx.ExecContext(ctx, stmt, args...)
+			if err != nil {
+				if IsDuplicate(err) {
+					return nameExists()
+				}
+				return ctxerr.Wrap(ctx, err, "updating android mdm config profile metadata")
+			}
+			// A rename blocked by the guard matches no row; the profile
+			// is known to exist from the SELECT above.
+			if aff, _ := res.RowsAffected(); aff == 0 && nameChanged {
+				return nameExists()
 			}
 		}
 
@@ -2063,19 +2100,22 @@ func (ds *Datastore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID str
 	// for other platforms
 	stmt := fmt.Sprintf(`
 SELECT
-	profile_uuid,
-	profile_name AS name,
+	hmap.profile_uuid,
+	-- the live profile is the source of truth for the name, since a rename
+	-- isn't resent; the host row's copy covers profiles already deleted
+	COALESCE(macp.name, hmap.profile_name) AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail
+	COALESCE(hmap.status, '%s') AS status,
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail
 FROM
-	host_mdm_android_profiles
+	host_mdm_android_profiles hmap
+	LEFT JOIN mdm_android_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
 WHERE
-host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+hmap.host_uuid = ? AND NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
