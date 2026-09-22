@@ -20,8 +20,13 @@ type EnrollSecretWatch struct{}
 // Wait is not implemented outside Windows.
 func (w *EnrollSecretWatch) Wait(_ context.Context) error { return ErrNotImplemented }
 
-// Close is not implemented outside Windows.
-func (w *EnrollSecretWatch) Close() error { return ErrNotImplemented }
+// Close is not implemented outside Windows. A nil receiver is a no-op, matching the Windows contract.
+func (w *EnrollSecretWatch) Close() error {
+	if w == nil {
+		return nil
+	}
+	return ErrNotImplemented
+}
 
 // ArmEnrollSecretWatch is not implemented outside Windows.
 func ArmEnrollSecretWatch() (*EnrollSecretWatch, error) {

@@ -199,6 +199,8 @@ func TestEnrollSecretWatchUnblocksWhenTheContextIsAlreadyDone(t *testing.T) {
 func TestArmEnrollSecretWatchFailsWhenTheKeyIsMissing(t *testing.T) {
 	deleteTestKey()
 
-	_, err := armEnrollSecretWatch(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	watch, err := armEnrollSecretWatch(registry.CURRENT_USER, testEnrollSecretKeyPath)
 	require.Error(t, err)
+
+	require.NoError(t, watch.Close(), "closing a watch that was never armed must be a no-op")
 }

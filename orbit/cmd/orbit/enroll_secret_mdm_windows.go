@@ -117,9 +117,7 @@ func waitForMDMDeliveredEnrollSecret(
 		case err != nil:
 			log.Error().Err(err).Msg("failed to load an MDM-delivered enroll secret")
 		case loaded:
-			if watch != nil {
-				watch.Close() //nolint:errcheck // nothing actionable, and the secret is already loaded
-			}
+			watch.Close() //nolint:errcheck // nothing actionable, and the secret is already loaded
 			log.Info().Dur("waited", time.Since(started)).Msg("loaded the enroll secret delivered by Fleet MDM")
 			return
 		}
@@ -127,9 +125,7 @@ func waitForMDMDeliveredEnrollSecret(
 		// Unenrolling removes the channel this wait depends on, so stop rather than block on a delivery that can no longer happen. orbit
 		// then fails startup the way it does without a secret.
 		if !update.HasActiveFleetMDMEnrollment() {
-			if watch != nil {
-				watch.Close() //nolint:errcheck // nothing actionable while giving up on the wait
-			}
+			watch.Close() //nolint:errcheck // nothing actionable while giving up on the wait
 			log.Warn().Msg("host is no longer enrolled in Fleet MDM, so no enroll secret can be delivered")
 			return
 		}

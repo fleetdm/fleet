@@ -210,6 +210,9 @@ func (w *EnrollSecretWatch) Wait(ctx context.Context) error {
 
 // Close releases the registration. It is safe to call after Wait and must be called exactly once.
 func (w *EnrollSecretWatch) Close() error {
+	if w == nil {
+		return nil
+	}
 	err := windows.CloseHandle(w.event)
 	if closeErr := w.key.Close(); err == nil {
 		err = closeErr
