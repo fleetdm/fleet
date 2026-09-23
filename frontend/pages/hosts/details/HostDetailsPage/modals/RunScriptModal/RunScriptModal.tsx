@@ -10,6 +10,7 @@ import TableContainer, {
   ITableQueryData,
 } from "components/TableContainer/TableContainer";
 import { AppContext } from "context/app";
+import { isLinuxLike } from "interfaces/platform";
 import { IHostScript } from "interfaces/script";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -25,6 +26,7 @@ const baseClass = "run-script-modal";
 interface IRunScriptModalProps {
   currentUser: IUser | null;
   hostTeamId: number | null;
+  hostPlatform?: string;
   onClose: () => void;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
@@ -41,9 +43,20 @@ interface IRunScriptModalProps {
 
 const EmptyComponent = () => <></>;
 
+// Mirrors the extension filter applied server-side when listing a host's scripts.
+const getCompatibleScriptTypes = (platform?: string) => {
+  if (!platform) return undefined;
+  if (platform === "windows") return "PowerShell (.ps1)";
+  if (platform === "darwin" || isLinuxLike(platform)) {
+    return "shell (.sh) and Python (.py)";
+  }
+  return undefined;
+};
+
 const RunScriptModal = ({
   currentUser,
   hostTeamId,
+  hostPlatform,
   onClose,
   page,
   setPage,
@@ -121,6 +134,25 @@ const RunScriptModal = ({
       : undefined
   );
 
+  const compatibleScriptTypes = getCompatibleScriptTypes(hostPlatform);
+
+  const renderEmptyStateInfo = () => {
+    const addScriptInfo = canAddScript ? (
+      <>
+        <CustomLink url={addScriptUrl} text="Add a script" /> available to this
+        host.
+      </>
+    ) : (
+      "Ask your admin to add a script for this host."
+    );
+    if (!compatibleScriptTypes) return addScriptInfo;
+    return (
+      <>
+        This host can only run {compatibleScriptTypes} scripts. {addScriptInfo}
+      </>
+    );
+  };
+
   return (
     <Modal
       title="Run script"
@@ -138,17 +170,12 @@ const RunScriptModal = ({
           (!tableData || tableData.length === 0) && (
             <EmptyState
               variant="header-list"
-              header="No scripts available"
-              info={
-                canAddScript ? (
-                  <>
-                    <CustomLink url={addScriptUrl} text="Add a script" />{" "}
-                    available to this host.
-                  </>
-                ) : (
-                  "Ask your admin to add a script for this host."
-                )
+              header={
+                compatibleScriptTypes
+                  ? "No compatible scripts"
+                  : "No scripts available"
               }
+              info={renderEmptyStateInfo()}
             />
           )}
         {!isLoadingHostScripts &&

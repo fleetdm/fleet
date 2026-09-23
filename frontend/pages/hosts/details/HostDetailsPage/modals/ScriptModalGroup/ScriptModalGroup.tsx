@@ -167,6 +167,7 @@ const ScriptModalGroup = ({
       <RunScriptModal
         currentUser={currentUser}
         hostTeamId={host.team_id}
+        hostPlatform={host.platform}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
         onClickViewScript={onClickViewScript}
