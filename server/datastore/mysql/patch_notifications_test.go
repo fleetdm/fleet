@@ -480,7 +480,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatched reminder has a null displayed_at until it is displayed, so it stays out of the
+	// a delayed reminder has a null displayed_at until it is displayed, so it stays out of the
 	// batch either side of install_at
 	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(notDisplayed, now.Add(-time.Minute))

@@ -30,22 +30,27 @@ const (
 	duePatchNotificationBatchSize = 500
 )
 
-// Which of the two notices was last displayed, recorded when the script result comes back.
+// Which of the two notices was last displayed. The deadline pass sets the 1 hour notice when it delays an offline host, whose next display is a 1 hour notice.
 var (
 	patchNotificationFirstNoticePayload = json.RawMessage(`{"reminder":false}`)
 	patchNotificationReminderPayload    = json.RawMessage(`{"reminder":true}`)
 )
 
-func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, displayedReminder bool, now time.Time) bool {
+func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, payloadIsReminder bool, now time.Time) bool {
 	if patchNotification == nil || patchNotification.InstallAt == nil {
 		return false
 	}
-	// If the deadline has not passed and is within 5 minutes, the notification is the 5 minute reminder.
-	if now.Before(*patchNotification.InstallAt) {
-		return patchNotification.InstallAt.Sub(now) <= patchNotificationReminderBefore
+	// If the deadline is more than 5 minutes away, the notification should be the 1 hour notice.
+	if patchNotification.InstallAt.Sub(now) > patchNotificationReminderBefore {
+		return false
 	}
-	// If the deadline has passed, a notification already displayed as the reminder stays the 5 minute reminder.
-	return displayedReminder
+	// If the deadline has not passed and is within 5 minutes, the notification should be the 5 minute reminder.
+	if now.Before(*patchNotification.InstallAt) {
+		return true
+	}
+	// If install_at is set and has passed, a notification displayed as the reminder is still the 5 minute reminder.
+	// The deadline cron job delays an offline host with the 1 hour notice payload, so this only applies to a host that was online at the deadline.
+	return payloadIsReminder
 }
 
 func patchNotificationIsReminder(payload json.RawMessage) (bool, error) {
@@ -144,11 +149,11 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get patch notification")
 		}
-		awaitingDisplayedReminder, err := patchNotificationIsReminder(awaiting.Payload)
+		payloadIsReminder, err := patchNotificationIsReminder(awaiting.Payload)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "read patch notification payload")
 		}
-		if shouldNotificationBeReminder(patchNotification, awaitingDisplayedReminder, time.Now().UTC()) {
+		if shouldNotificationBeReminder(patchNotification, payloadIsReminder, time.Now().UTC()) {
 			awaiting = nil
 		}
 	}
@@ -230,11 +235,11 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
 	}
-	displayedReminder, err := patchNotificationIsReminder(notification.Payload)
+	payloadIsReminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
-	reminder := shouldNotificationBeReminder(patchNotification, displayedReminder, time.Now().UTC())
+	reminder := shouldNotificationBeReminder(patchNotification, payloadIsReminder, time.Now().UTC())
 
 	// Read each app's own install so an item shows where that install got to, not the notification's single acted flag.
 	// Skip it until the installs are out, because nothing has been queued to report before then.
@@ -404,8 +409,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
 
-	// A re-dispatch clears displayed_at, so a null one means the reminder has been queued but not
-	// displayed yet.
+	// Skip a notification not displayed since its last delay, a delay clears displayed_at.
 	if duePatch.DisplayedAt == nil {
 		return nil
 	}
@@ -421,13 +425,10 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 			return nil
 		}
 
-		// the host is offline, so clear install_at and re-dispatch, and with no install_at the next display is a 1 hour notice
-		if !duePatch.HostOnline {
-			err = k.ds.ClearPatchNotificationInstallAt(ctx, duePatch.NotificationUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "clear patch notification install at for an offline host")
-			}
-			err = k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, nil)
+		// Delay an offline host with the 1 hour notice payload, if install_at has passed. Its next display should be a 1 hour notice.
+		// Skip this for an acted notification, its installs were only partly queued and the rest are queued below.
+		if !duePatch.HostOnline && duePatch.Status == notifications_api.EndUserNotificationDispatched {
+			err = k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationFirstNoticePayload)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "send the patch notification again to an offline host")
 			}
@@ -489,8 +490,8 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 				return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
 			}
 		} else {
-			// re-dispatch with no payload change, the notice comes from install_at at display time
-			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, nil)
+			// Delay to send the 5 minute reminder, and set the payload to the 1 hour notice since the reminder has not been displayed yet.
+			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationFirstNoticePayload)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "send patch notification reminder")
 			}
@@ -689,7 +690,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get patch notification")
 	}
-	displayedReminder, err := patchNotificationIsReminder(notification.Payload)
+	payloadIsReminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
@@ -698,7 +699,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 
 	timeBefore := patchNotificationFirstNoticeBefore
 	displayedPayload := patchNotificationFirstNoticePayload
-	if shouldNotificationBeReminder(patchNotification, displayedReminder, now) {
+	if shouldNotificationBeReminder(patchNotification, payloadIsReminder, now) {
 		timeBefore = patchNotificationReminderBefore
 		displayedPayload = patchNotificationReminderPayload
 	}

@@ -143,16 +143,6 @@ func (ds *Datastore) GetPatchNotification(ctx context.Context, notificationUUID 
 	return &patchNotification, nil
 }
 
-func (ds *Datastore) ClearPatchNotificationInstallAt(ctx context.Context, notificationUUID string) error {
-	const updateStmt = `UPDATE patch_notifications SET install_at = NULL WHERE notification_uuid = ?`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "clear patch notification install at")
-	}
-	return nil
-}
-
 func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
 	// GREATEST means the deadline only ever moves later, so every notice the end user actually sees
 	// gets its full lead time even when the toast takes a while to reach the screen.

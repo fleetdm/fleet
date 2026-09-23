@@ -578,8 +578,6 @@ type DeletePatchNotificationAppsFunc func(ctx context.Context, notificationUUID 
 
 type GetPatchNotificationFunc func(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error)
 
-type ClearPatchNotificationInstallAtFunc func(ctx context.Context, notificationUUID string) error
-
 type SetPatchNotificationInstallAtFunc func(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
 
 type ListPatchNotificationsDueFunc func(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error)
@@ -3307,9 +3305,6 @@ type DataStore struct {
 
 	GetPatchNotificationFunc        GetPatchNotificationFunc
 	GetPatchNotificationFuncInvoked bool
-
-	ClearPatchNotificationInstallAtFunc        ClearPatchNotificationInstallAtFunc
-	ClearPatchNotificationInstallAtFuncInvoked bool
 
 	SetPatchNotificationInstallAtFunc        SetPatchNotificationInstallAtFunc
 	SetPatchNotificationInstallAtFuncInvoked bool
@@ -8095,13 +8090,6 @@ func (s *DataStore) GetPatchNotification(ctx context.Context, notificationUUID s
 	s.GetPatchNotificationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPatchNotificationFunc(ctx, notificationUUID)
-}
-
-func (s *DataStore) ClearPatchNotificationInstallAt(ctx context.Context, notificationUUID string) error {
-	s.mu.Lock()
-	s.ClearPatchNotificationInstallAtFuncInvoked = true
-	s.mu.Unlock()
-	return s.ClearPatchNotificationInstallAtFunc(ctx, notificationUUID)
 }
 
 func (s *DataStore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {

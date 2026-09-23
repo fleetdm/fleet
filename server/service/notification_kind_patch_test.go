@@ -680,7 +680,7 @@ func TestShouldNotificationBeReminder(t *testing.T) {
 	cases := []struct {
 		name              string
 		installAt         *time.Time
-		displayedReminder bool
+		payloadIsReminder bool
 		want              bool
 	}{
 		{"a notification with no install_at is not the reminder", nil, true, false},
@@ -692,7 +692,7 @@ func TestShouldNotificationBeReminder(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, c.displayedReminder, now)
+			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, c.payloadIsReminder, now)
 			require.Equal(t, c.want, got)
 		})
 	}
@@ -914,9 +914,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		statusActed bool
 		hostOffline bool
 
-		wantReminder        bool
-		wantDeadlineCleared bool
-		wantInstalls        []uint
+		wantReminder bool
+		wantInstalls []uint
 		// the pass tried to take the notification, whether or not it got it
 		wantActed       bool
 		wantAppsDropped []uint
@@ -1040,14 +1039,26 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantActed:         true,
 		},
 		{
-			name:                "a deadline reached on an offline host drops the deadline and sends the notification again",
-			untilDeadline:       -time.Minute,
-			displayed:           true,
-			reminder:            true,
-			installedVersions:   behind,
-			hostOffline:         true,
-			wantReminder:        true,
-			wantDeadlineCleared: true,
+			name:              "a deadline reached on an offline host sends the notification again instead of installing",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			hostOffline:       true,
+			wantReminder:      true,
+		},
+		{
+			// the installs are partly queued already, so the rest go out even with the host offline
+			name:              "an acted notification with an app still unhandled on an offline host has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			statusActed:       true,
+			alreadyActed:      true,
+			hostOffline:       true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
 			// an offline host and a reminder still on its way both leave displayed_at null, and
@@ -1093,8 +1104,6 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 					HostOnline:       !c.hostOffline,
 				}}, nil
 			}
-
-			ds.ClearPatchNotificationInstallAtFunc = func(_ context.Context, _ string) error { return nil }
 
 			// dropped software titles stop being returned, as deleting their rows would do
 			dropped := make(map[uint]struct{})
@@ -1195,14 +1204,13 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			require.ElementsMatch(t, c.wantInstalls, installs)
 			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
 			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
-			require.Equal(t, c.wantDeadlineCleared, ds.ClearPatchNotificationInstallAtFuncInvoked)
 
 			if !c.wantReminder {
 				require.False(t, notificationSvc.delayInvoked)
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
-			require.Nil(t, notificationSvc.delayPayload, "the deadline decides the notice when the toast is rendered")
+			require.JSONEq(t, string(patchNotificationFirstNoticePayload), string(notificationSvc.delayPayload))
 		})
 	}
 }

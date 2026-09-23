@@ -868,7 +868,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		assert.JSONEq(t, `{"title": "5 minutes left"}`, string(got.Payload))
 	})
 
-	t.Run("a re-dispatched notification still blocks the host", func(t *testing.T) {
+	t.Run("a notification dispatched again after a delay still blocks the host", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "delay-inflight", true)
 		first := env.InsertNotification(t, hostID, "k", nil, nil)
 		second := env.InsertNotification(t, hostID, "k", nil, nil)
@@ -877,13 +877,13 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, first, time.Now()))
 		require.NoError(t, env.ds.DelayEndUserNotification(ctx, first, time.Now().Add(-time.Minute), nil))
 
-		redispatch := first + "-exec2"
+		secondExecutionID := first + "-exec2"
 		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx,
-			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &redispatch}}))
+			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &secondExecutionID}}))
 
 		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
 		require.NoError(t, err)
-		assert.Empty(t, due, "%s went out while the re-dispatched one was still in flight", second)
+		assert.Empty(t, due, "%s went out while the delayed notification was dispatched again and not yet displayed", second)
 	})
 
 	t.Run("does not resurrect an already-expired notification", func(t *testing.T) {
