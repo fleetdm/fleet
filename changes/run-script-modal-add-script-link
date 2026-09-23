@@ -1,1 +1,2 @@
 - Added an "Add script" link to the host details **Run script** modal when the host already has scripts.
+- Updated the **Run script** modal's empty state to explain which script types the host can run (e.g. only PowerShell scripts on Windows hosts).

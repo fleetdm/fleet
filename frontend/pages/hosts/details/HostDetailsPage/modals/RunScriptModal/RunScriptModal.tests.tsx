@@ -180,6 +180,70 @@ describe("RunScriptModal", () => {
     });
   });
 
+  describe("platform-aware empty state", () => {
+    it("tells an admin that a Windows host only runs PowerShell scripts", () => {
+      const adminUser = createMockUser({ global_role: "admin" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: adminUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={adminUser}
+          hostPlatform="windows"
+        />
+      );
+
+      expect(screen.getByText("No compatible scripts")).toBeInTheDocument();
+      expect(
+        screen.getByText(/can only run PowerShell \(\.ps1\) scripts/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /Add a script/i })
+      ).toBeInTheDocument();
+    });
+
+    it("tells a technician that a macOS host only runs shell and Python scripts", () => {
+      const technicianUser = createMockUser({ global_role: "technician" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: technicianUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={technicianUser}
+          hostPlatform="darwin"
+        />
+      );
+
+      expect(screen.getByText("No compatible scripts")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /can only run shell \(\.sh\) and Python \(\.py\) scripts/i
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Ask your admin to add a script for this host/i)
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("table state", () => {
     it("renders the script table instead of the empty state when scripts exist", () => {
       const adminUser = createMockUser({ global_role: "admin" });
