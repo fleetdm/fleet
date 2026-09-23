@@ -3460,6 +3460,13 @@
       "description": "f.lux is a screen colour temperature controller."
     },
     {
+      "name": "Flycut",
+      "slug": "flycut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.generalarcade.flycut",
+      "description": "Flycut is a clipboard manager for developers."
+    },
+    {
       "name": "Focusrite Control 2",
       "slug": "focusrite-control-2/darwin",
       "platform": "darwin",
