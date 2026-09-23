@@ -1,0 +1,2 @@
+- Fixed Fleet storing the Fleet server URL and Apple server URL with a trailing slash or surrounding whitespace.
+- Fixed the GitOps starter's CI jobs failing when the `FLEET_URL` secret ended in a slash.
