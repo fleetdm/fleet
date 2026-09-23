@@ -1,6 +1,5 @@
 # Provision Windows devices with Fleet, Okta, and a partner
 
-
 When a hardware partner prepares your Windows devices, you want each one to arrive ready for its end user: enrolled in Fleet, with Okta Verify and Okta's device certificate installed, and ready to sign in with the end user's Okta username. This guide covers what you set up in Fleet and Okta, and what you share with your partner.
 
 Here's how it works:
