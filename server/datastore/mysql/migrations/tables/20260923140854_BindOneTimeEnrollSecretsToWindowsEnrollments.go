@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260923013300, Down_20260923013300)
+	MigrationClient.AddMigration(Up_20260923140854, Down_20260923140854)
 }
 
 // Windows MDM mints a one-time enroll secret before a hosts row exists: the automatic enrollment flows carry no Fleet host UUID
@@ -16,7 +16,7 @@ func init() {
 // The foreign key is what invalidates a secret when the device re-enrolls: MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes
 // the enrollment row, and the cascade takes the secrets with it. That is the Windows equivalent of the explicit delete the Apple
 // path does on re-enroll, and it cannot be forgotten by a future caller.
-func Up_20260923013300(tx *sql.Tx) error {
+func Up_20260923140854(tx *sql.Tx) error {
 	// mdm_windows_enrollments.id is INT UNSIGNED, so the referencing column must match exactly or the FK is rejected.
 	_, err := tx.Exec(`
 		ALTER TABLE host_one_time_enroll_secrets
@@ -30,6 +30,6 @@ func Up_20260923013300(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260923013300(tx *sql.Tx) error {
+func Down_20260923140854(tx *sql.Tx) error {
 	return nil
 }
