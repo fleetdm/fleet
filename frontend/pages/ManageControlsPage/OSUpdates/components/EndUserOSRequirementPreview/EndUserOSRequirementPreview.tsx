@@ -1,5 +1,6 @@
 import React from "react";
 
+import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 
 import IOSUpdateScreenshot from "../../../../../../assets/images/ios-updates-preview.png";
@@ -100,10 +101,10 @@ const EndUserOSRequirementPreview = ({
   // mismatch between the text and the image when switching between platforms. We should load the
   // image first and then the text.
   return (
-    <div className={baseClass}>
+    <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <OSRequirementDescription platform={platform} />
       <OSRequirementImage platform={platform} />
-    </div>
+    </Card>
   );
 };
 

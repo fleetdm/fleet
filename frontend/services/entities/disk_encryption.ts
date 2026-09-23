@@ -59,6 +59,10 @@ const diskEncryptionService = {
       DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW(token)
     );
   },
+  submitBitLockerPIN: (token: string, pin: string) => {
+    const { DEVICE_DISK_ENCRYPTION_PIN } = endpoints;
+    return sendRequest("POST", DEVICE_DISK_ENCRYPTION_PIN(token), { pin });
+  },
 };
 
 export default diskEncryptionService;

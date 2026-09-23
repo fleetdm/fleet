@@ -12,6 +12,10 @@ import (
 
 // writeFakeNsdiag installs a stand-in nsdiag shell script in dir so the exec
 // path can be exercised without a Netskope install.
+//
+// Tests that call this must not use t.Parallel: a fork in one test while
+// another still has the script open for writing makes the child inherit the
+// write descriptor, and exec then fails with ETXTBSY (golang/go#22315).
 func writeFakeNsdiag(t *testing.T, dir, body string) {
 	t.Helper()
 
@@ -32,7 +36,6 @@ func TestDefaultRunNsdiag(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the stand-in nsdiag is a POSIX shell script")
 	}
-	t.Parallel()
 
 	dir := t.TempDir()
 	writeFakeNsdiag(t, dir, `printf 'Client status:: enable.\nClient version:: 117.1.0.1234.\n'`)
@@ -49,7 +52,6 @@ func TestDefaultRunNsdiagSurfacesStderr(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the stand-in nsdiag is a POSIX shell script")
 	}
-	t.Parallel()
 
 	dir := t.TempDir()
 	writeFakeNsdiag(t, dir, `printf 'nsdiag: access denied' >&2; exit 1`)

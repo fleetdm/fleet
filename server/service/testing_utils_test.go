@@ -34,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
@@ -66,6 +67,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/notifications"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -390,6 +393,14 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real service module.
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
 
+	// Set up mock notifications service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	notificationsMock := &fleet_mock.MockNotificationsService{}
+	svc.SetNotificationsService(notificationsMock)
+	if len(opts) > 0 {
+		opts[0].NotificationsMock = notificationsMock
+	}
+
 	return svc, ctx
 }
 
@@ -545,6 +556,33 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
 	}
 
+	// Notifications routes. Same DBConns-gated pattern as the activity bounded
+	// context above, but auth is device-token based rather than user-session
+	// based.
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		notificationsACLAdapter := notificationsacl.NewFleetServiceAdapter(ds)
+		notificationsSvc, notificationsRoutesFn := notifications_bootstrap.New(
+			opts[0].DBConns,
+			notificationsACLAdapter,
+			logger,
+		)
+		svc.SetNotificationsService(notificationsSvc)
+		patchNotificationKind := NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+		notificationsSvc.RegisterKind(patchNotificationKind)
+		notificationsAuthMiddleware := DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, notificationsRoutesFn(notificationsAuthMiddleware))
+		opts[0].NotificationsSvc = notificationsSvc
+		opts[0].PatchNotificationKind = patchNotificationKind
+	} else {
+		_, notificationsRoutesFn := notifications_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(notificationsRoutesFn(noopAuth)))
+	}
+
 	// The chart bounded context is wired into the real server in serve.go but not into
 	// this test handler, so build a path-only stub (regardless of DBConns) so that
 	// apiendpoints.Validate can see the chart routes declared in api_endpoints.yml.
@@ -600,8 +638,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+			var notificationsSvc fleet.NotificationsWriteService = opts[0].NotificationsMock
+			if opts[0].NotificationsSvc != nil {
+				notificationsSvc = opts[0].NotificationsSvc
+			}
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
-				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0, notificationsSvc)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, commander))
@@ -892,7 +934,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		premiumOnly         bool
 	}{
 		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/commandresults", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
@@ -1457,6 +1498,12 @@ type fmaTestState struct {
 	installScript string
 	// installerDelay holds each installer download for this long, standing in for a slow but reachable CDN.
 	installerDelay time.Duration
+	// noCheckSHA publishes Homebrew's no_check sentinel instead of the computed
+	// digest, the way a cask without a hash does. sha256 still holds the real
+	// digest of installerBytes so assertions can compare against it.
+	noCheckSHA bool
+	// contentDisposition stands in for a vendor whose download URL carries no filename.
+	contentDisposition string
 }
 
 func (s *fmaTestState) ComputeSHA(b []byte) {
@@ -1465,7 +1512,10 @@ func (s *fmaTestState) ComputeSHA(b []byte) {
 	s.sha256 = hex.EncodeToString(h.Sum(nil))
 }
 
-func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) {
+// startFMAServers returns a func reporting how many installer downloads have
+// been served for an installerPath, so a test can assert that a re-apply moved
+// no bytes.
+func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTestState) func(installerPath string) int {
 	if len(states) == 0 {
 		states = make(map[string]*fmaTestState, 1)
 		states["/zoom/windows.json"] = &fmaTestState{
@@ -1479,6 +1529,7 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		state.ComputeSHA(state.installerBytes)
 	}
 	var downloadMu sync.Mutex
+	downloads := make(map[string]int)
 
 	// Mock installer server — routes by path to serve per-FMA bytes. The lookup
 	// happens per request so a test can change a state's installerPath or bytes
@@ -1489,6 +1540,10 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 
 		for _, state := range states {
 			if state.installerPath == r.URL.Path {
+				downloads[r.URL.Path]++
+				if state.contentDisposition != "" {
+					w.Header().Set("Content-Disposition", state.contentDisposition)
+				}
 				if state.installerDelay > 0 {
 					select {
 					case <-time.After(state.installerDelay):
@@ -1529,6 +1584,11 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 			return
 		}
 
+		manifestSHA := state.sha256
+		if state.noCheckSHA {
+			manifestSHA = "no_check"
+		}
+
 		versions := []*ma.FMAManifestApp{
 			{
 				Version: state.version,
@@ -1539,7 +1599,7 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 				InstallerURL:       installerServer.URL + state.installerPath,
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",
-				SHA256:             state.sha256,
+				SHA256:             manifestSHA,
 				DefaultCategories:  []string{"Productivity"},
 			},
 		}
@@ -1561,6 +1621,12 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
 
 	require.NoError(t, maintained_apps.SyncAppsList(t.Context(), ds))
+
+	return func(installerPath string) int {
+		downloadMu.Lock()
+		defer downloadMu.Unlock()
+		return downloads[installerPath]
+	}
 }
 
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.

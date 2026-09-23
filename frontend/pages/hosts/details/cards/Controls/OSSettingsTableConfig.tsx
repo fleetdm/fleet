@@ -8,6 +8,7 @@ import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
   isEnrolledInMdm,
   isLinuxDiskEncryptionStatus,
@@ -86,7 +87,8 @@ export const getRowActionProps = (
   row: IHostMdmProfileWithAddedStatus,
   canResendProfiles: boolean,
   canRotateRecoveryLockPassword?: boolean,
-  canResendHostNameTemplate?: boolean
+  canResendHostNameTemplate?: boolean,
+  canResendFleetdWhileVerifying?: boolean
 ) => {
   const { platform, profile_uuid: profileUUID } = row;
 
@@ -96,18 +98,31 @@ export const getRowActionProps = (
   const isAndroidCertificate =
     platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+  // Android config profiles (unlike certificates) are delivered via AMAPI
+  // policy sync rather than pushed by Fleet, so they can never be resent.
+  const isAndroidConfigProfile =
+    platform === "android" && !isAndroidCertificate;
 
   return {
     canResendProfiles:
       canResendProfiles &&
       !SYNTHETIC_PROFILE_UUIDS.includes(profileUUID) &&
       (isWindowsProfile || isAppleMobileConfigProfile || isAndroidCertificate),
+    // With one-time enroll secrets, resending the Fleetd configuration profile
+    // is how an admin gives a host a usable enroll secret, and that profile
+    // sits in "verifying" until osquery's next profile refetch.
+    canResendWhileVerifying:
+      !!canResendFleetdWhileVerifying &&
+      isAppleMobileConfigProfile &&
+      row.name === FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME,
     canRotateRecoveryLockPassword:
       profileUUID === REC_LOCK_SYNTHETIC_PROFILE_UUID &&
       canRotateRecoveryLockPassword,
     canResendHostNameTemplate:
       profileUUID === HOST_NAME_SYNTHETIC_PROFILE_UUID &&
       canResendHostNameTemplate,
+    showDisabledResendForAndroidProfile:
+      canResendProfiles && isAndroidConfigProfile,
   };
 };
 
@@ -119,7 +134,8 @@ const generateTableConfig = (
   canRotateRecoveryLockPassword?: boolean,
   rotateRecoveryLockPassword?: () => Promise<void>,
   canResendHostNameTemplate?: boolean,
-  resendHostNameTemplate?: () => Promise<void>
+  resendHostNameTemplate?: () => Promise<void>,
+  canResendFleetdWhileVerifying?: boolean
 ): ITableColumnConfig[] => {
   return [
     {
@@ -174,16 +190,21 @@ const generateTableConfig = (
           cellProps.row.original,
           canResendProfiles,
           canRotateRecoveryLockPassword,
-          canResendHostNameTemplate
+          canResendHostNameTemplate,
+          canResendFleetdWhileVerifying
         );
 
         return (
           <OSSettingsResendCell
             canResendProfiles={rowActions.canResendProfiles}
+            canResendWhileVerifying={rowActions.canResendWhileVerifying}
             canRotateRecoveryLockPassword={
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}

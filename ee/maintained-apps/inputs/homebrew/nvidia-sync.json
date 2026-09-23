@@ -1,0 +1,10 @@
+{
+  "name": "NVIDIA Sync",
+  "unique_identifier": "com.nvidia.nvidia-sync",
+  "token": "nvidia-sync",
+  "installer_format": "dmg",
+  "slug": "nvidia-sync/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

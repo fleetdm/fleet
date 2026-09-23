@@ -966,6 +966,10 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 // returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
 // host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string, enrollType fleet.WindowsMDMEnrollType, err error) {
+	if svc.wstepCertManager == nil {
+		return "", "", 0, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
+	}
+
 	if authToken == nil {
 		return "", "", 0, errors.New("authToken is empty")
 	}
@@ -1044,7 +1048,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		}
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
+		tokenData, err := svc.wstepCertManager.GetAzureAuthTokenClaims(ctx, authToken.Content)
 		if err != nil {
 			return "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
 		}
@@ -1885,8 +1889,9 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "wipe succeeded: get host by identifier")
 				}
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return err
 				}
 			}
 		}

@@ -1,5 +1,6 @@
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import { IHostMdmData, IHostMdmHostNameSetting } from "interfaces/host";
+import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import {
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
@@ -202,6 +203,45 @@ describe("getRowActionProps", () => {
     });
   });
 
+  describe("canResendWhileVerifying", () => {
+    const fleetdRow = () =>
+      createMockHostMdmProfile({
+        profile_uuid: "a-fleetd",
+        name: "Fleetd configuration",
+        platform: "darwin",
+        status: "verifying",
+      });
+
+    it("is offered for the Fleetd configuration profile when one-time enroll secrets are on", () => {
+      expect(
+        getRowActionProps(fleetdRow(), true, false, false, true)
+          .canResendWhileVerifying
+      ).toBe(true);
+    });
+
+    it("is not offered when one-time enroll secrets are off", () => {
+      expect(
+        getRowActionProps(fleetdRow(), true, false, false, false)
+          .canResendWhileVerifying
+      ).toBe(false);
+      expect(getRowActionProps(fleetdRow(), true).canResendWhileVerifying).toBe(
+        false
+      );
+    });
+
+    it("is not offered for other profiles", () => {
+      const row = createMockHostMdmProfile({
+        profile_uuid: "a-custom",
+        name: "Custom profile",
+        platform: "darwin",
+        status: "verifying",
+      });
+      expect(
+        getRowActionProps(row, true, false, false, true).canResendWhileVerifying
+      ).toBe(false);
+    });
+  });
+
   it("offers resend on a real windows profile", () => {
     const row = createMockHostMdmProfile({
       profile_uuid: "w1234",
@@ -211,5 +251,44 @@ describe("getRowActionProps", () => {
     });
 
     expect(getRowActionProps(row, true).canResendProfiles).toBe(true);
+  });
+
+  it("offers a disabled resend for an Android configuration profile, not the real resend", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: "a1234",
+      platform: "android",
+      status: "failed",
+    });
+
+    expect(getRowActionProps(row, true)).toMatchObject({
+      canResendProfiles: false,
+      showDisabledResendForAndroidProfile: true,
+    });
+  });
+
+  it("does not offer a disabled resend for an Android configuration profile when the caller lacks permission", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: "a1234",
+      platform: "android",
+      status: "failed",
+    });
+
+    expect(
+      getRowActionProps(row, false).showDisabledResendForAndroidProfile
+    ).toBe(false);
+  });
+
+  it("offers the real resend, not the disabled Android state, for an Android certificate row", () => {
+    const row = createMockHostMdmProfile({
+      profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+      platform: "android",
+      status: "failed",
+      certificate_template_id: 1,
+    });
+
+    expect(getRowActionProps(row, true)).toMatchObject({
+      canResendProfiles: true,
+      showDisabledResendForAndroidProfile: false,
+    });
   });
 });

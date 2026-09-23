@@ -27,6 +27,7 @@ interface IControlDetailsModalProps {
   /** Fleet setting for macOS: disk encryption enforced without key escrow. */
   isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
+  canResendFleetdWhileVerifying?: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
   resendRequest: (profileUUID: string) => Promise<void>;
@@ -44,6 +45,7 @@ const ControlDetailsModal = ({
   isDeviceUser = false,
   isMacOSDiskEncryptionEnforceOnly = false,
   canResendProfiles,
+  canResendFleetdWhileVerifying = false,
   canRotateRecoveryLockPassword,
   canResendHostNameTemplate,
   resendRequest,
@@ -102,7 +104,8 @@ const ControlDetailsModal = ({
     control,
     canResendProfiles,
     canRotateRecoveryLockPassword,
-    canResendHostNameTemplate
+    canResendHostNameTemplate,
+    canResendFleetdWhileVerifying
   );
 
   // Guidance that quotes the detail makes the block below it redundant.
@@ -146,10 +149,14 @@ const ControlDetailsModal = ({
           <Button onClick={onExit}>Close</Button>
           <OSSettingsResendCell
             canResendProfiles={rowActions.canResendProfiles}
+            canResendWhileVerifying={rowActions.canResendWhileVerifying}
             canRotateRecoveryLockPassword={
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={control}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
