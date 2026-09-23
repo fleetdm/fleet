@@ -88,6 +88,11 @@ const (
 	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
 	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
 
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
+	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
+
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same

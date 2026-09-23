@@ -2566,10 +2566,11 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
-		ds:            ds,
-		mdmLifecycle:  mdmLifecycle,
-		keyValueStore: redis_key_value.New(redistest.NopRedis()),
-		logger:        slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		keyValueStore:    redis_key_value.New(redistest.NopRedis()),
+		logger:           slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -2623,10 +2624,11 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
-		ds:            ds,
-		mdmLifecycle:  mdmLifecycle,
-		keyValueStore: redis_key_value.New(redistest.NopRedis()),
-		logger:        slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		keyValueStore:    redis_key_value.New(redistest.NopRedis()),
+		logger:           slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -2684,9 +2686,10 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 		return nil
 	})
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -2748,9 +2751,10 @@ func TestMDMAuthenticateSCEPRenewalWithNewEnrollmentCert(t *testing.T) {
 	})
 
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -2926,10 +2930,11 @@ func TestMDMTokenUpdate(t *testing.T) {
 		return nil
 	})
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		commander:    cmdr,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		commander:        cmdr,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
@@ -3126,10 +3131,11 @@ func TestMDMTokenUpdateResetOnReenrollment(t *testing.T) {
 		cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 		mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil })
 		svc := &MDMAppleCheckinAndCommandService{
-			ds:           ds,
-			mdmLifecycle: mdmLifecycle,
-			commander:    cmdr,
-			logger:       slog.New(slog.DiscardHandler),
+			notificationsSvc: &mock.MockNotificationsService{},
+			ds:               ds,
+			mdmLifecycle:     mdmLifecycle,
+			commander:        cmdr,
+			logger:           slog.New(slog.DiscardHandler),
 		}
 
 		// Defaults: each case overrides the fields it cares about.
@@ -3333,10 +3339,11 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		commander:    cmdr,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		commander:        cmdr,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 
@@ -3501,10 +3508,11 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		commander:    cmdr,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		commander:        cmdr,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 
 	const (
@@ -3698,10 +3706,11 @@ func TestMDMTokenUpdateUserEnrollmentSetupExperience(t *testing.T) {
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		commander:    cmdr,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		commander:        cmdr,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 
 	const (
@@ -3789,9 +3798,10 @@ func TestMDMCheckout(t *testing.T) {
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	var newActivityFuncInvoked bool
 	svc := MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		mdmLifecycle: mdmLifecycle,
-		logger:       slog.New(slog.DiscardHandler),
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		logger:           slog.New(slog.DiscardHandler),
 	}
 	ctx := context.Background()
 	uuid, serial, installedFromDEP, displayName, platform := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook", "darwin"
@@ -3949,7 +3959,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%s%s-%d", c.requestType, c.status, i), func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 			ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
 				require.Equal(t, commandUUID, targetCmd)
 				return c.requestType, nil
@@ -4255,9 +4265,10 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 			}
 
 			svc := &MDMAppleCheckinAndCommandService{
-				ds:        ds,
-				logger:    slog.New(slog.DiscardHandler),
-				commander: cmdr,
+				notificationsSvc: &mock.MockNotificationsService{},
+				ds:               ds,
+				logger:           slog.New(slog.DiscardHandler),
+				commander:        cmdr,
 			}
 			err := svc.maybeQueueCertificateListForACMEProfile(ctx, hostUUID, commandUUID)
 			if c.expectErr {
@@ -4511,7 +4522,7 @@ func TestMDMCommandAndReportResultsRemoveProfileQueuesCertificateList(t *testing
 		return false, nil
 	}
 
-	svc := &MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), commander: cmdr}
+	svc := &MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), commander: cmdr, notificationsSvc: &mock.MockNotificationsService{}}
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
 		&mdm.CommandResults{
@@ -4538,9 +4549,10 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 	noopActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil }
 	newSvc := func(ds *mock.Store) MDMAppleCheckinAndCommandService {
 		return MDMAppleCheckinAndCommandService{
-			ds:            ds,
-			logger:        slog.New(slog.DiscardHandler),
-			newActivityFn: noopActivityFn,
+			notificationsSvc: &mock.MockNotificationsService{},
+			ds:               ds,
+			logger:           slog.New(slog.DiscardHandler),
+			newActivityFn:    noopActivityFn,
 		}
 	}
 
@@ -7252,7 +7264,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -7427,7 +7439,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "SUPP-UUID"
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -7704,7 +7716,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			ds := new(mock.Store)
-			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 			ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 				return &fleet.Host{
@@ -7797,7 +7809,7 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "IPHONE-UUID"
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -7966,7 +7978,7 @@ func TestHandleDeviceNameCommandResult(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 			var gotAcknowledged bool
 			var gotDetail string
@@ -8014,7 +8026,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "SUPP-UUID"
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -8101,7 +8113,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	truncated := strings.Repeat("a", 150)
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{ID: hostID, UUID: hostUUID}, nil
@@ -8182,7 +8194,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "VITALS-UUID"
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "ipados"}, nil
@@ -8452,7 +8464,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *t
 	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler), notificationsSvc: &mock.MockNotificationsService{}}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -10298,10 +10310,11 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			return nil
 		})
 		svc := MDMAppleCheckinAndCommandService{
-			ds:           ds,
-			mdmLifecycle: mdmLifecycle,
-			commander:    cmdr,
-			logger:       logger,
+			notificationsSvc: &mock.MockNotificationsService{},
+			ds:               ds,
+			mdmLifecycle:     mdmLifecycle,
+			commander:        cmdr,
+			logger:           logger,
 		}
 		scepRenewalInProgress := true
 		ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
@@ -10381,10 +10394,11 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			return nil
 		})
 		svc := MDMAppleCheckinAndCommandService{
-			ds:           ds,
-			mdmLifecycle: mdmLifecycle,
-			commander:    cmdr,
-			logger:       logger,
+			notificationsSvc: &mock.MockNotificationsService{},
+			ds:               ds,
+			mdmLifecycle:     mdmLifecycle,
+			commander:        cmdr,
+			logger:           logger,
 		}
 
 		ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
@@ -11143,9 +11157,10 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 		ds := new(mock.Store)
 		installer := &scheduledUpdatesVPPInstaller{}
 		svc := &MDMAppleCheckinAndCommandService{
-			ds:           ds,
-			vppInstaller: installer,
-			logger:       slog.New(slog.DiscardHandler),
+			notificationsSvc: &mock.MockNotificationsService{},
+			ds:               ds,
+			vppInstaller:     installer,
+			logger:           slog.New(slog.DiscardHandler),
 		}
 
 		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
