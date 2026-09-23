@@ -24,8 +24,6 @@ const (
 // HostOneTimeEnrollSecret is a per-device, single-use enroll secret minted when an MDM-enrolled host is handed the credential it
 // will enroll with: an Apple host fetching its fleetd configuration profile, or a Windows host being sent the fleetd installer.
 // It may be used once per enrollment plane.
-//
-// What it binds to differs by platform, because Apple has a host to bind to and Windows does not yet. See MatchesHost.
 type HostOneTimeEnrollSecret struct {
 	ID     uint   `db:"id"`
 	Secret string `db:"secret"`

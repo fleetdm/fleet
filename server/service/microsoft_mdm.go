@@ -1511,7 +1511,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	//
 	// The global secret is not even looked up in that mode, so a deployment that has none can still install fleetd.
 	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
-	if !svc.config.Auth.UseOneTimeEnrollSecrets {
+	if !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
 		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting enroll secrets")

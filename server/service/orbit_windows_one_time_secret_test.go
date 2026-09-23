@@ -49,7 +49,8 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 			},
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = true
+		// The Windows switch alone, so this stays a test of the Windows path rather than passing on the macOS one.
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = true
 		serverOpts := &TestServerOpts{KeyValueStore: memoryKVStore()}
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, serverOpts)
 

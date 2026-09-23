@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -128,15 +129,18 @@ func isFleetdConfigProfile(profileUUID, profileName string) bool {
 // configuration profile on Apple, the enroll secret profile on Windows. Both names are reserved, so users cannot upload a
 // profile that impersonates one, which is what makes the name a reliable discriminator.
 //
+// Each platform is judged by its own switch, because they roll out independently. A profile whose platform is switched off
+// carries no secret to protect, and the ordinary resend rules apply to it.
+//
 // This is deliberately broader than isFleetdConfigProfile, which stays Apple-only because it also guards the resend-from-
 // verifying carve-out. That carve-out exists because an Apple profile is verified by osquery and can sit in verifying forever
 // when osquery is the broken part. A Windows profile reaches verified on the SyncML ack, so it never needs it.
-func deliversOneTimeEnrollSecret(profileUUID, profileName string) bool {
+func deliversOneTimeEnrollSecret(auth config.AuthConfig, profileUUID, profileName string) bool {
 	switch {
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
-		return profileName == mdm.FleetdConfigProfileName
+		return auth.UseOneTimeEnrollSecrets && profileName == mdm.FleetdConfigProfileName
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
-		return profileName == mdm.FleetWindowsEnrollSecretProfileName
+		return auth.MDMWindowsOneTimeEnrollSecrets && profileName == mdm.FleetWindowsEnrollSecretProfileName
 	}
 	return false
 }

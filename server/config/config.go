@@ -251,6 +251,16 @@ type AuthConfig struct {
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
 	UseOneTimeEnrollSecrets     bool          `yaml:"use_one_time_enroll_secrets"`
+	// MDMWindowsOneTimeEnrollSecrets is the Windows counterpart of UseOneTimeEnrollSecrets. The two are separate switches
+	// because the platforms deliver the secret by different mechanisms and can be rolled out independently.
+	MDMWindowsOneTimeEnrollSecrets bool `yaml:"mdm_windows_one_time_enroll_secrets"`
+}
+
+// OneTimeEnrollSecretsEnabled reports whether either platform mints one-time enroll secrets. An enrolling agent presents a
+// secret without saying which platform minted it, so the lookup has to run whenever either switch is on. It also keeps a secret
+// already delivered usable after its own switch is turned off, rather than failing the enrollment it was minted for.
+func (a AuthConfig) OneTimeEnrollSecretsEnabled() bool {
+	return a.UseOneTimeEnrollSecrets || a.MDMWindowsOneTimeEnrollSecrets
 }
 
 // AppConfig defines configs related to HTTP
@@ -1700,7 +1710,9 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 	man.addConfigBool("auth.use_one_time_enroll_secrets", false,
-		"Deliver one-time, device-scoped enroll secrets to macOS and Windows MDM hosts instead of shared enroll secrets")
+		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
+	man.addConfigBool("auth.mdm_windows_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to Windows MDM hosts instead of shared enroll secrets")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -2252,12 +2264,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
-			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
-			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
-			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
-			UseOneTimeEnrollSecrets:     man.getConfigBool("auth.use_one_time_enroll_secrets"),
+			BcryptCost:                     man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                    man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:       man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature:    man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:          man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			UseOneTimeEnrollSecrets:        man.getConfigBool("auth.use_one_time_enroll_secrets"),
+			MDMWindowsOneTimeEnrollSecrets: man.getConfigBool("auth.mdm_windows_one_time_enroll_secrets"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),

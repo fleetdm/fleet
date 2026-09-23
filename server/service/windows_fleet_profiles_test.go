@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -110,22 +111,47 @@ func TestEnsureFleetWindowsProfiles(t *testing.T) {
 }
 
 func TestDeliversOneTimeEnrollSecret(t *testing.T) {
+	bothOn := config.AuthConfig{UseOneTimeEnrollSecrets: true, MDMWindowsOneTimeEnrollSecrets: true}
+
 	for _, tc := range []struct {
 		name        string
+		auth        config.AuthConfig
 		profileUUID string
 		profileName string
 		want        bool
 	}{
-		{"apple fleetd config", "a" + "-1", mdm.FleetdConfigProfileName, true},
-		{"windows enroll secret", "w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, true},
-		{"windows os updates carries no secret", "w" + "-1", mdm.FleetWindowsOSUpdatesProfileName, false},
-		{"apple profile with the windows name", "a" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false},
-		{"windows profile with the apple name", "w" + "-1", mdm.FleetdConfigProfileName, false},
-		{"a user profile that copied the name", "w" + "-1", "Fleetd enroll secret " + strings.Repeat("x", 3), false},
-		{"declaration", "d" + "-1", mdm.FleetdConfigProfileName, false},
+		{"apple fleetd config", bothOn, "a" + "-1", mdm.FleetdConfigProfileName, true},
+		{"windows enroll secret", bothOn, "w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, true},
+		{"windows os updates carries no secret", bothOn, "w" + "-1", mdm.FleetWindowsOSUpdatesProfileName, false},
+		{"apple profile with the windows name", bothOn, "a" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false},
+		{"windows profile with the apple name", bothOn, "w" + "-1", mdm.FleetdConfigProfileName, false},
+		{"a user profile that copied the name", bothOn, "w" + "-1", "Fleetd enroll secret " + strings.Repeat("x", 3), false},
+		{"declaration", bothOn, "d" + "-1", mdm.FleetdConfigProfileName, false},
+
+		// Each platform answers to its own switch, so one being on must not gate the other in.
+		{
+			"windows off leaves the windows profile to the ordinary resend rules",
+			config.AuthConfig{UseOneTimeEnrollSecrets: true},
+			"w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false,
+		},
+		{
+			"apple off leaves the apple profile to the ordinary resend rules",
+			config.AuthConfig{MDMWindowsOneTimeEnrollSecrets: true},
+			"a" + "-1", mdm.FleetdConfigProfileName, false,
+		},
+		{
+			"windows on, apple off still guards the windows profile",
+			config.AuthConfig{MDMWindowsOneTimeEnrollSecrets: true},
+			"w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, true,
+		},
+		{
+			"both off guards nothing",
+			config.AuthConfig{},
+			"w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, deliversOneTimeEnrollSecret(tc.profileUUID, tc.profileName))
+			require.Equal(t, tc.want, deliversOneTimeEnrollSecret(tc.auth, tc.profileUUID, tc.profileName))
 		})
 	}
 

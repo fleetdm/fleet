@@ -3807,7 +3807,7 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 	// With one-time enroll secrets, resending the profile that carries one mints a new enrollment credential for the device,
 	// which is an admin decision. On Windows this is the whole recovery story: the MSI's fixed product GUID means a resent
 	// install never re-runs, so an admin resending this profile is the only way a host whose secret was spent gets another.
-	if svc.config.Auth.UseOneTimeEnrollSecrets && deliversOneTimeEnrollSecret(profileUUID, profileName) {
+	if deliversOneTimeEnrollSecret(svc.config.Auth, profileUUID, profileName) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
 			fmt.Sprintf("The %s profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.", profileName)).
 			WithStatus(http.StatusForbidden), "check one-time enroll secret profile device resend")
