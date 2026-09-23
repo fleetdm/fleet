@@ -1452,26 +1452,33 @@ func TestNDESRetryableStatus(t *testing.T) {
 // while a 401 stays terminal with the credentials message.
 func TestGetNDESSCEPChallengeStatusClassification(t *testing.T) {
 	for _, tc := range []struct {
-		name         string
-		code         int
-		wantTerminal bool
+		name          string
+		code          int // 0 means the admin URL gives no response
+		wantTerminal  bool
+		wantTransient bool
 	}{
-		{"service unavailable is transient", http.StatusServiceUnavailable, false},
-		{"unauthorized is terminal", http.StatusUnauthorized, true},
+		{"service unavailable is transient", http.StatusServiceUnavailable, false, true},
+		{"unauthorized is terminal", http.StatusUnauthorized, true, false},
+		{"no response is transient", 0, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.code)
 			}))
 			defer srv.Close()
+			if tc.code == 0 {
+				srv.Close()
+			}
 
 			timeout := 5 * time.Second
 			svc := NewSCEPConfigService(slog.New(slog.DiscardHandler), &timeout)
-			_, err := svc.GetNDESSCEPChallenge(context.Background(), fleet.NDESSCEPProxyCA{
+			_, err := svc.GetNDESSCEPChallenge(t.Context(), fleet.NDESSCEPProxyCA{
 				AdminURL: srv.URL, Username: "u", Password: "p",
 			})
 			require.Error(t, err)
-			assert.Equal(t, tc.wantTerminal, IsTerminalNDESChallengeError(err))
+			require.Equal(t, tc.wantTerminal, IsTerminalNDESChallengeError(err))
+			_, transient := errors.AsType[NDESTransientError](err)
+			require.Equal(t, tc.wantTransient, transient)
 		})
 	}
 }

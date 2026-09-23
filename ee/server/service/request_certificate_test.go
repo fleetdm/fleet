@@ -1206,6 +1206,12 @@ func TestRequestCertificateChallenge(t *testing.T) {
 
 	ndesCA := newNDESCA(sceptest.NewTestNDESAdminServer(t, "mscep_admin_password", http.StatusOK).URL)
 	cacheFullCA := newNDESCA(sceptest.NewTestNDESAdminServer(t, "mscep_admin_cache_full", http.StatusOK).URL)
+	badCredentialsCA := newNDESCA(sceptest.NewTestNDESAdminServerWithAuth(t, func(string, string) bool { return false }, nil).URL)
+	unavailableServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(unavailableServer.Close)
+	unavailableCA := newNDESCA(unavailableServer.URL)
 	unreachableServer := httptest.NewServer(http.NotFoundHandler())
 	unreachableServer.Close()
 	unreachableCA := newNDESCA(unreachableServer.URL)
@@ -1314,14 +1320,13 @@ func TestRequestCertificateChallenge(t *testing.T) {
 		require.True(t, fleet.IsNotFound(err))
 	})
 
-	t.Run("NDES failures are bad requests", func(t *testing.T) {
+	t.Run("NDES failures that need someone to act are bad requests", func(t *testing.T) {
 		for name, tc := range map[string]struct {
 			ca          *fleet.CertificateAuthority
 			wantMessage string
 		}{
 			"CA without an admin URL": {ca: noAdminURLCA, wantMessage: "Certificate authority does not have an admin URL configured."},
-			"password cache full":     {ca: cacheFullCA, wantMessage: "NDES challenge request failed: parsing challenge from response: the password cache is full"},
-			"NDES unreachable":        {ca: unreachableCA, wantMessage: "NDES challenge request failed: sending request"},
+			"invalid credentials":     {ca: badCredentialsCA, wantMessage: "NDES challenge request failed: checking response status: unexpected status code: 401"},
 		} {
 			t.Run(name, func(t *testing.T) {
 				svc, _, ctx := adminSetup(t)
@@ -1329,6 +1334,28 @@ func TestRequestCertificateChallenge(t *testing.T) {
 				var badRequest *fleet.BadRequestError
 				require.ErrorAs(t, err, &badRequest)
 				require.Contains(t, badRequest.Message, tc.wantMessage)
+				require.Empty(t, got)
+			})
+		}
+	})
+
+	t.Run("NDES failures expected to clear are a 503 with Retry-After", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			ca          *fleet.CertificateAuthority
+			wantMessage string
+		}{
+			"password cache full": {ca: cacheFullCA, wantMessage: "NDES challenge request failed: parsing challenge from response: the password cache is full"},
+			"NDES unavailable":    {ca: unavailableCA, wantMessage: "NDES challenge request failed: checking response status: NDES admin URL returned status 503"},
+			"NDES unreachable":    {ca: unreachableCA, wantMessage: "NDES challenge request failed: sending request"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := adminSetup(t)
+				got, err := svc.RequestCertificateChallenge(ctx, tc.ca.ID)
+				transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+				require.True(t, ok, "got %v", err)
+				require.Equal(t, http.StatusServiceUnavailable, transient.StatusCode())
+				require.Equal(t, 30, transient.RetryAfter())
+				require.Contains(t, transient.Message, tc.wantMessage)
 				require.Empty(t, got)
 			})
 		}

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -95,6 +96,13 @@ func (svc *Service) RequestCertificateChallenge(ctx context.Context, caID uint) 
 	if err != nil {
 		err = ctxerr.Wrap(ctx, err, "NDES challenge request failed")
 		svc.logger.ErrorContext(ctx, "Certificate challenge request to the certificate authority failed", "ca_id", ca.ID, "ca_type", ca.Type, "err", err)
+		// Unlike for profiles, a full password cache is worth retrying here: callers use their
+		// challenge within seconds, which frees its slot.
+		_, transient := errors.AsType[scep.NDESTransientError](err)
+		_, cacheFull := errors.AsType[scep.NDESPasswordCacheFullError](err)
+		if transient || cacheFull {
+			return "", fleet.CertificateAuthorityTransientError{Message: err.Error(), RetryAfterSeconds: scep.TransientRetryAfterSeconds}
+		}
 		return "", &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
 	}
 	return challenge, nil

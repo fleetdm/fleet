@@ -235,7 +235,7 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 				transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
 				require.Equal(t, tc.wantTransient, ok)
 				if ok {
-					require.Equal(t, enrollmentRetryAfterSeconds, transient.RetryAfterSeconds)
+					require.Equal(t, TransientRetryAfterSeconds, transient.RetryAfterSeconds)
 				}
 			})
 		}

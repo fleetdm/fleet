@@ -644,7 +644,11 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	resp, err := client.Do(req)
 	endRequestTime := time.Now()
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "sending request")
+		if errors.Is(err, context.Canceled) {
+			return "", ctxerr.Wrap(ctx, err, "sending request")
+		}
+		// No response at all is expected to clear on its own, like a 5xx.
+		return "", ctxerr.Wrap(ctx, NDESTransientError{msg: err.Error(), cause: err}, "sending request")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -778,11 +782,16 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 // NDESTransientError is a challenge-fetch failure where NDES answered but could not serve the request, so it is
 // expected to clear without anyone acting.
 type NDESTransientError struct {
-	msg string
+	msg   string
+	cause error
 }
 
 func (e NDESTransientError) Error() string {
 	return e.msg
+}
+
+func (e NDESTransientError) Unwrap() error {
+	return e.cause
 }
 
 func NewNDESTransientError(msg string) NDESTransientError {
