@@ -1,0 +1,1 @@
+- Fixed the Dashboard's "Welcome to Fleet" card repeating the "vitals are taking longer than expected" toast on every subsequent host re-fetch (e.g. on window focus) instead of once per refetch attempt.
