@@ -99,6 +99,9 @@ interface IPolicyAutomationsFieldsProps {
   patchSlot?: React.ReactNode;
   /** The platforms of the updated policy, used to filter automation fields by platform */
   selectedPlatforms: QueryablePlatform[];
+  /** Fired with the raw toggle value (not ANDed with the team's setting), because the
+   *  backend rejects hidden + conditional_access_enabled on the stored policy either way. */
+  onConditionalAccessChange?: (enabled: boolean) => void;
 }
 
 const PolicyAutomationsFields = forwardRef<
@@ -116,6 +119,7 @@ const PolicyAutomationsFields = forwardRef<
       patchOption,
       patchSlot,
       selectedPlatforms,
+      onConditionalAccessChange,
     },
     ref
   ) => {
@@ -630,7 +634,10 @@ const PolicyAutomationsFields = forwardRef<
             />
           ),
           checked: conditionalAccess && isConditionalAccessEnabledForTeam,
-          onToggle: setConditionalAccess,
+          onToggle: (enabled: boolean) => {
+            setConditionalAccess(enabled);
+            onConditionalAccessChange?.(enabled);
+          },
           isDisabled: !isConditionalAccessEnabledForTeam,
         }
       );
