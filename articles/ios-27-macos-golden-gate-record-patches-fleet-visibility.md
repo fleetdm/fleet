@@ -1,4 +1,4 @@
-# iOS 27 fixes 126 flaws, macOS 27 Golden Gate fixes 210, and most fleets can't say who's updated
+# 126 iOS bugs, 210 macOS bugs, and a Golden Gate most fleets haven't crossed
 
 *Apple's newest releases patched more vulnerabilities than almost any release in recent memory, including kernel bugs, a sandbox escape, and a Gatekeeper bypass. Here's how to find out which of your Macs, iPhones, and iPads actually installed it.*
 
@@ -14,7 +14,7 @@
 
 Apple shipped iOS 27, iPadOS 27, and macOS 27 Golden Gate on September 14, and the security changelogs that came with them are long. iOS 27 and iPadOS 27 fix about 126 vulnerabilities, 20 of them in the kernel. macOS 27 Golden Gate fixes 210, roughly 100 of which are shared with the iOS release. Apple hasn't reported active exploitation of any of them, but the fix count alone makes this one of the larger patch days in recent memory.
 
-For a fleet of any size, a release like this raises a question that a changelog can't answer: how many of your devices actually have it installed.
+For a fleet of any size, a release like this raises a question that a changelog can't answer: how many of your devices have it installed.
 
 ## What these bugs would have let an attacker do
 
@@ -22,7 +22,7 @@ Apple's advisories describe fixes across more than 90 platform components, inclu
 
 None of this is Apple-specific hyperbole. It's the difference between "install this when convenient" and "confirm this landed everywhere it needs to."
 
-## Finding out who's actually on Golden Gate
+## Finding out who's on Golden Gate
 
 Fleet already collects OS name, version, and build for every enrolled host, macOS, iOS, and iPadOS included. You don't have to wait on a survey or a help-desk ticket to know how far the rollout has gotten.
 
@@ -53,7 +53,7 @@ The same `ios_updates` and `ipados_updates` keys apply to iPhones and iPads. Bec
 
 ## The rollout isn't finished when Apple ships it
 
-A record patch count is only good news for the devices that actually installed it. Hardware compatibility, deferred update prompts, and uneven MDM enforcement mean a meaningful share of any fleet is still running last year's OS weeks after a release like this one. Knowing the exact build on every device, and having a deadline in place to close the gap, is what turns "Apple shipped a fix" into "our fleet has it."
+A record patch count is only good news for the devices that installed it. Hardware compatibility, deferred update prompts, and uneven MDM enforcement mean a meaningful share of any fleet is still running last year's OS weeks after a release like this one. Knowing the exact build on every device, and having a deadline in place to close the gap, is what turns "Apple shipped a fix" into "our fleet has it."
 
 ## See it live
 
@@ -66,9 +66,9 @@ A record patch count is only good news for the devices that actually installed i
 - 9to5Mac, [macOS 27 Golden Gate, macOS Tahoe 26.7, and macOS Sequoia 15.8 fix 200+ vulnerabilities](https://9to5mac.com/2026/09/14/macos-27-golden-gate-macos-tahoe-26-7-and-macos-sequoia-15-8-fix-200-vulnerabilities/).
 - MacRumors, [iOS 27 and iOS 26.7 Fix More Than 100 Security Bugs](https://www.macrumors.com/2026/09/14/ios-27-bug-fixes/).
 
-<meta name="articleTitle" value="iOS 27 fixes 126 flaws, macOS 27 Golden Gate fixes 210, and most fleets can't say who's updated">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="articleTitle" value="126 iOS bugs, 210 macOS bugs, and a Golden Gate most fleets haven't crossed">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-09-15">
-<meta name="description" value="Apple patched 126 iOS and 210 macOS flaws in one release. See how to confirm which Macs, iPhones, and iPads actually installed the fix.">
+<meta name="description" value="Apple patched 126 iOS and 210 macOS flaws in one release. See how to confirm which Macs, iPhones, and iPads installed the fix.">
