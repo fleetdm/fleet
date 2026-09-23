@@ -185,7 +185,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
-		})
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
@@ -224,7 +225,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
-		})
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
@@ -1379,7 +1381,8 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 	)
 
 	// Test Case 8: Clear profiles for a specific team
-	applyAndExpect(nil, nil, nil, nil, ptr.Uint(1), nil, nil, nil, nil,
+	applyAndExpect(
+		nil, nil, nil, nil, new(uint(1)), nil, nil, nil, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
@@ -1399,10 +1402,11 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 
 	// we only care about declarations here, as batch-setting labels for profiles
 	// is tested elsewhere.
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
-		declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
+			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
 			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
@@ -1411,19 +1415,21 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
-		declForTest("D2", "D2", "foo"),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
+			declForTest("D2", "D2", "foo"),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
 			declForTest("D2", "D2", "foo"),
 		}, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true, AndroidConfigProfile: false},
 	)
-	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
-		declForTest("D1", "D1", "foo"),
-	}, nil, nil,
+	applyAndExpect(
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo"),
+		}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo"),
 		}, nil,
@@ -1974,7 +1980,8 @@ func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.
 		// Only select remove rows for hosts in the current assertion's want map.
 		stmt, args, err := sqlx.In(
 			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove' AND host_uuid IN (?)`,
-			wantWindowsHostUUIDs)
+			wantWindowsHostUUIDs,
+		)
 		if err != nil {
 			return err
 		}
@@ -2620,8 +2627,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 	macosSelfServiceSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-7",
-			OsqueryHostID: ptr.String("osquery-macos-7"),
-			NodeKey:       ptr.String("node-key-macos-7"),
+			OsqueryHostID: new("osquery-macos-7"),
+			NodeKey:       new("node-key-macos-7"),
 			UUID:          uuid.NewString(),
 			Platform:      "darwin",
 		})
@@ -2659,26 +2666,30 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			if _, err := q.ExecContext(ctx,
+			if _, err := q.ExecContext(
+				ctx,
 				`INSERT INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)`,
 				host.ID, includeAny.ID, host.ID, includeAll.ID,
 			); err != nil {
 				return err
 			}
-			if _, err := q.ExecContext(ctx,
+			if _, err := q.ExecContext(
+				ctx,
 				`UPDATE mdm_apple_configuration_profiles SET self_service = 1 WHERE team_id = ? AND identifier LIKE 'ss\_%'`,
 				team.ID,
 			); err != nil {
 				return err
 			}
-			if _, err := q.ExecContext(ctx, `
+			if _, err := q.ExecContext(
+				ctx, `
 				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
 				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_opt'`,
 				host.UUID, team.ID,
 			); err != nil {
 				return err
 			}
-			_, err := q.ExecContext(ctx, `
+			_, err := q.ExecContext(
+				ctx, `
 				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
 				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_noopt'`,
 				uuid.NewString(), team.ID,
@@ -2746,12 +2757,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			name:      "macos labels include any/all and exclude rules",
 			setupFunc: macosLabeledProfileRulesSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":                         {Identifier: "T6.1"},
-				"T6.2":                         {Identifier: "T6.2"},
-				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
-				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
-				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
-				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
+				"T6.1":                                    {Identifier: "T6.1"},
+				"T6.2":                                    {Identifier: "T6.2"},
+				"include_any_all_match_prof":              {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof":            {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":              {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":                 {Identifier: "exclude_none_match_prof"},
 				"include_all_and_exclude_none_match_prof": {Identifier: "include_all_and_exclude_none_match_prof"},
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},

@@ -101,7 +101,7 @@ func ComputeReconcileDeltas(
 		optIns := optInsByHost[host.UUID]
 		for _, p := range teamProfiles {
 			c, present := currentByProfile[p.ProfileUUID]
-			onHost := present && c.OperationType == fleet.MDMOperationTypeInstall
+			onHost := present && c.OperationType == fleet.MDMOperationTypeInstall // nolint:nilaway // the present check is what gates on existence therefore c can not be nil.
 
 			adoptedFromOtherTeam := false
 			if p.SelfService {

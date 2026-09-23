@@ -1040,6 +1040,8 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 	ids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
 	require.Empty(t, ids)
+	require.NotNil(t, deviceProfiles)
+	require.NotNil(t, userProfiles)
 
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 
