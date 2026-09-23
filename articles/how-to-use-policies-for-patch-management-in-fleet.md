@@ -44,8 +44,6 @@ Key benefits:
 - **Force patch**: Automatically installs updates when the policy fails, whether the app is running or not.
 - **End user initiated (manual)**: Creates a patch policy that fails if the installed app is outdated, without installing a new version.
 
-> Currently, there's a bug in which **Patch when app is closed** can install an update while the app is still open. Follow [fleetdm/fleet#53919](https://github.com/fleetdm/fleet/issues/53919) for updates.
-
 Change this option later at **Actions > Deploy** or by navigating to **Policies > [policy] > Edit policy > Patch**.
 
 ### Via GitOps
