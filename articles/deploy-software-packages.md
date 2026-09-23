@@ -66,8 +66,6 @@ If an `install_script` is provided when uploading a script package, it will be i
 
 A pre-install query is a valid osquery SQL statement that will be evaluated on the host before installing the software. If provided, the installation will proceed only if the query returns any value.
 
-> **Note:** A pre-install query can currently return a result that the same live query on the host doesn't, so software may install when it shouldn't. Follow [fleetdm/fleet#53919](https://github.com/fleetdm/fleet/issues/53919) for updates.
-
 ### Install script
 
 After selecting a file, a default install script will be pre-filled for most installer types. If the software package requires a custom installation process (for example, for .tar.gz archives and [EXE-based Windows installers](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run. `$INSTALLER_PATH` will be inside a temporary directory created by the operating system (e.g. `/tmp/[random string]` on Linux hosts).
