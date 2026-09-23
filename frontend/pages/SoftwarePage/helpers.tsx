@@ -19,6 +19,7 @@ import {
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
   ISoftwareInstallPolicy,
+  SCRIPT_PACKAGE_SOURCES,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -344,6 +345,18 @@ export const getDisplayedSoftwareName = (
   }
 
   return "Software";
+};
+
+export const getSoftwareListName = (title: ISoftwareTitle): string => {
+  const name = getDisplayedSoftwareName(
+    title.name,
+    title.display_name,
+    title.bundle_identifier
+  );
+  const filename = SCRIPT_PACKAGE_SOURCES.includes(title.source)
+    ? title.software_package?.name
+    : null;
+  return filename && filename !== name ? `${name} (${filename})` : name;
 };
 
 export const isAndroidWebApp = (androidPlayStoreId?: string) =>
