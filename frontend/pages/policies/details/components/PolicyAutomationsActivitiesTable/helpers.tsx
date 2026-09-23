@@ -7,16 +7,34 @@ import { Colors } from "styles/var/colors";
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
 
-// BE joins per-policy so rows usually carry a singular software_title;
-// software_titles[0] is a safety net.
+// One notify activity can cover several policies (bundled toast). The row is
+// scoped to a single policy, so pick the title paired with currentPolicyId
+// from the parallel software_titles / policy_ids arrays. Pairing is only safe
+// when the two arrays are the same length (the BE skips policy_ids entries
+// for deleted policies, which desyncs indexing).
 const getNotifySoftwareName = (
-  details: IPolicyAutomationActivity["details"] | undefined
-): string | undefined =>
-  details?.software_title || details?.software_titles?.[0];
+  details: IPolicyAutomationActivity["details"] | undefined,
+  currentPolicyId?: number
+): string | undefined => {
+  const titles = details?.software_titles;
+  const policyIds = details?.policy_ids;
+  if (
+    currentPolicyId !== undefined &&
+    titles &&
+    policyIds &&
+    titles.length === policyIds.length
+  ) {
+    const i = policyIds.indexOf(currentPolicyId);
+    if (i !== -1) return titles[i];
+  }
+  return details?.software_title || titles?.[0];
+};
 
-/** Label for the "Automation" column. */
+/** Label for the "Automation" column. `currentPolicyId` scopes multi-title
+ *  notify activities to the title patched by that policy. */
 export const getAutomationRunDisplayName = (
-  activity: IPolicyAutomationActivity
+  activity: IPolicyAutomationActivity,
+  currentPolicyId?: number
 ): string => {
   const { type, status, details } = activity;
   const failed = status === "error";
@@ -35,7 +53,7 @@ export const getAutomationRunDisplayName = (
     case ActivityType.NotifiedEndUserBeforePatching:
       return withName(
         failed ? "Failed to notify" : "Notified end user",
-        getNotifySoftwareName(details)
+        getNotifySoftwareName(details, currentPolicyId)
       );
     case ActivityType.RanScript:
       return withName(

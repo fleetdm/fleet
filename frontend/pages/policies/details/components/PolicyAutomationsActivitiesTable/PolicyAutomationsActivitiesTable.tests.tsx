@@ -107,7 +107,7 @@ describe("getAutomationRunDisplayName", () => {
     ).toBe("Failed to notify (1Password)");
   });
 
-  it("falls back to software_titles[0] on notify rows when software_title is absent", () => {
+  it("falls back to software_titles[0] on notify rows when software_title is absent and no policy scope is passed", () => {
     expect(
       getAutomationRunDisplayName(
         mockActivity({
@@ -118,6 +118,41 @@ describe("getAutomationRunDisplayName", () => {
             software_titles: ["1Password", "Slack"],
           },
         })
+      )
+    ).toBe("Notified end user (1Password)");
+  });
+
+  it("scopes a multi-title notify to the title paired with the current policy", () => {
+    expect(
+      getAutomationRunDisplayName(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "success",
+          details: {
+            software_titles: ["1Password", "Slack"],
+            policy_ids: [222, 123],
+          },
+        }),
+        123
+      )
+    ).toBe("Notified end user (Slack)");
+  });
+
+  it("falls back to the first title when policy_ids and software_titles are desynced", () => {
+    // A deleted policy leaves patch_notification_apps.policy_id NULL, so the
+    // BE emits fewer policy_ids than software_titles and index-alignment is
+    // no longer safe. Fall back to the first title rather than mismatching.
+    expect(
+      getAutomationRunDisplayName(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "success",
+          details: {
+            software_titles: ["1Password", "Slack"],
+            policy_ids: [123],
+          },
+        }),
+        123
       )
     ).toBe("Notified end user (1Password)");
   });
