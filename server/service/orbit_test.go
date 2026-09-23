@@ -1501,6 +1501,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+		require.True(t, act.PatchWhenClosed, "a skip must record which patch option its install ran under")
 
 		// The host software list must surface the skip so the UI can render "Patch
 		// skipped" instead of "Failed" for the row (issue #52297).
@@ -1587,6 +1588,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		act, ok := installedActivities[installUUID]
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+		require.False(t, act.PatchWhenClosed, "a notify before patching skip records patch_when_closed false")
 
 		// The two patch options are told apart by the pre-install output the details modal shows.
 		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
