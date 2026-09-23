@@ -20544,7 +20544,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"source": "apps",
 		"policy_id": %d,
 		"policy_name": "%s",
-		"from_setup_experience": false
+		"from_setup_experience": false,
+		"patch_when_closed": false
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1InstallerHash, host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	var activityCount int
