@@ -722,6 +722,12 @@ func orbitAction(c *cli.Context) error {
 	// hears from the service and kills it for failing to start in time.
 	if waitForMDMSecret {
 		waitForMDMDeliveredEnrollSecret(svcInterruptCh, enrollSecretPath, disableKeystore, setEnrollSecret)
+		select {
+		case <-svcInterruptCh:
+			log.Info().Msg("stop requested while waiting for an enroll secret, exiting")
+			return nil
+		default:
+		}
 	}
 
 	// sofwareupdated is a macOS daemon that automatically updates Apple software.

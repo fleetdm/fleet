@@ -90,8 +90,7 @@ func enrollSecretKeyWasProtected(objectName string) bool {
 	if err != nil {
 		return false
 	}
-	// The owner and group vary by whoever created the key, so compare only the DACL we set.
-	return strings.Contains(securityDescriptor.String(), enrollSecretKeySDDL)
+	return securityDescriptor.String() == enrollSecretKeySDDL
 }
 
 func registryObjectName(root registry.Key, path string) string {
