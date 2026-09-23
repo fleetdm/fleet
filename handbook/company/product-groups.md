@@ -428,7 +428,7 @@ cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
 
-This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). The MCP needs its own copy because it builds the schema into its binary as an offline fallback, and Go can only embed files from inside the MCP's own folder. Commit both files.
+This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). Commit both files. The MCP needs its own copy because it builds the schema into its binary as an offline fallback for air-gapped deployments of the MCP server.
 
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 
