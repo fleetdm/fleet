@@ -3430,6 +3430,7 @@ Lists the policies applied to the current device. Policies are returned in a dev
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+| include_hidden_policies | boolean | query | If `true`, the response includes policies marked `hidden`. Hidden policies are omitted by default. |
 
 ##### Example
 
