@@ -63,4 +63,6 @@ jobs:
       - run: cd website/ && npm install
 
       # Run the configuration profile generator tests
-      - run: cd website/ && sails_custom__anthropicSecret=${{ secrets.ANTHROPIC_TOKEN_FOR_PROFILE_GENERATOR_TESTS }}" npm run test-profile-generator
+      - run: cd website/ && npm run test-profile-generator
+        env:
+          sails_custom__anthropicSecret: ${{ secrets.ANTHROPIC_TOKEN_FOR_PROFILE_GENERATOR_TESTS }}
