@@ -345,7 +345,7 @@ conclude_fleetd_milestone () {
         prompt "When releasing to stable, conclude the milestone manually following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
         return
     fi
-    printf "Is this a stable release? If so, move %s stories to 'Confirm and celebrate' and close its bugs and sub-tasks now. [yes/no] " "$milestone_title"
+    printf "Is this a stable release? If so, this script will attempt to move %s stories to 'Confirm and celebrate' and close its bugs and sub-tasks now. [yes/no] " "$milestone_title"
     confirmed=false
     while read -r word; do
         if [[ "$word" == "yes" ]]; then
