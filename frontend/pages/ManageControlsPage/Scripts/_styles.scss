@@ -26,9 +26,11 @@
     padding: 0;
     .script-list-item {
       padding: 1rem 1.5rem;
+      // Row hover background is painted by the shared .upload-list__list-item
+      // hover. Don't duplicate it here, or the child paint spills over the
+      // container's rounded corners on the first/last row.
       &:hover,
       &:focus-within {
-        background-color: $ui-off-white;
         .list-item__actions {
           opacity: 1;
           pointer-events: auto;

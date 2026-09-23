@@ -21,8 +21,15 @@
     padding: $pad-medium $pad-large;
     border-bottom: 1px solid $ui-fleet-black-10;
 
+    &:first-child {
+      border-top-left-radius: $border-radius-large;
+      border-top-right-radius: $border-radius-large;
+    }
+
     &:last-child {
       border-bottom: initial;
+      border-bottom-left-radius: $border-radius-large;
+      border-bottom-right-radius: $border-radius-large;
     }
 
     &:hover {
