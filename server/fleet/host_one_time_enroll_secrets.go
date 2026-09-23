@@ -62,16 +62,18 @@ func (s *HostOneTimeEnrollSecret) IsMDMEnrollmentBound() bool {
 	return s.MDMWindowsEnrollmentID != nil
 }
 
-// matchesCapturedIdentifiers compares only the identifiers that were known when the secret was minted. An enrollment-bound
-// secret is minted before the device has reported most of them: the hardware UUID is never known at that point, and the serial
-// only if a DevDetail response already landed. Comparing an uncaptured identifier against the one the agent presents would
-// reject every legitimate enrollment, so an empty stored value means "not captured" and is skipped.
+// matchesCapturedIdentifiers compares only the identifiers both sides actually have. An enrollment-bound secret is minted before
+// the device has reported most of them: the hardware UUID is never known at that point, and the serial only if a DevDetail
+// response already landed. The agent is equally partial in the other direction, and on Windows always is: OrbitHostInfo
+// documents HardwareSerial as set on macOS and Linux only, so it arrives empty from every Windows host. Requiring a captured
+// serial to equal a presented one therefore rejects exactly the hosts furthest along in enrollment, the ones whose DevDetail
+// landed before the secret was minted. An empty value on either side means "nothing to compare" and is skipped.
 //
 // What makes that safe is that the binding is the enrollment itself: the secret was delivered only over that device's own MDM
 // channel, and possession is the credential. The identifiers are provenance, recorded on first use.
 func (s *HostOneTimeEnrollSecret) matchesCapturedIdentifiers(platform, hardwareUUID, hardwareSerial string) bool {
 	captured := func(stored, presented string) bool {
-		return stored == "" || strings.EqualFold(stored, presented)
+		return stored == "" || presented == "" || strings.EqualFold(stored, presented)
 	}
 	return captured(s.Platform, platform) &&
 		captured(s.HardwareUUID, hardwareUUID) &&

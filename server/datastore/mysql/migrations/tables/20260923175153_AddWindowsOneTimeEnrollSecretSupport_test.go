@@ -94,10 +94,10 @@ func TestUp_20260923175153(t *testing.T) {
 
 	// Renamed out of the way, and the denormalized copy on the host row moved with it. Leaving those out of step would show
 	// the old name everywhere the host's profiles are listed.
-	require.Equal(t, "Fleetd enroll secret (renamed 11111111)", name(conflicting))
-	require.Equal(t, "Fleetd enroll secret (renamed 11111111)", hostName(conflicting))
-	require.Equal(t, "Fleetd enroll secret (renamed 22222222)", name(conflictingTeam))
-	require.Equal(t, "Fleetd enroll secret (renamed 22222222)", hostName(conflictingTeam))
+	require.Equal(t, "Fleetd enroll secret (renamed w11111111-1111-1111-1111-111111111111)", name(conflicting))
+	require.Equal(t, "Fleetd enroll secret (renamed w11111111-1111-1111-1111-111111111111)", hostName(conflicting))
+	require.Equal(t, "Fleetd enroll secret (renamed w22222222-2222-2222-2222-222222222222)", name(conflictingTeam))
+	require.Equal(t, "Fleetd enroll secret (renamed w22222222-2222-2222-2222-222222222222)", hostName(conflictingTeam))
 
 	require.Equal(t, "Fleetd enroll secret backup", name(untouched))
 	require.Equal(t, "Fleetd enroll secret backup", hostName(untouched))

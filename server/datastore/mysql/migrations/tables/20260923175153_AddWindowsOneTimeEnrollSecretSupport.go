@@ -94,11 +94,14 @@ func renameConflictingWindowsEnrollSecretProfiles(tx *sql.Tx) error {
 		return nil
 	}
 
-	// The uuid fragment keeps the new name unique under the (team_id, name) key without having to probe for a free one, and
-	// keeps it clear of the Apple and Android names that a Windows profile name also has to avoid. Both tables carry a
-	// profile_uuid, so the column is qualified per statement rather than shared as one expression.
+	// The whole profile_uuid goes in the name, not a fragment of it. profile_uuid is the primary key, so the result cannot
+	// collide with another row under the (team_id, name) unique key, and needs no probing for a free name: a clash would
+	// require a customer to have already named a different profile after this one's uuid. A fragment gave no such guarantee,
+	// and a duplicate there would fail the migration and block the upgrade. It also keeps the name clear of the Apple and
+	// Android names a Windows profile name has to avoid. Both tables carry a profile_uuid, so the column is qualified per
+	// statement rather than shared as one expression.
 	renamed := func(alias string) string {
-		return `CONCAT('Fleetd enroll secret (renamed ', SUBSTRING(` + alias + `profile_uuid, 2, 8), ')')`
+		return `CONCAT('Fleetd enroll secret (renamed ', ` + alias + `profile_uuid, ')')`
 	}
 
 	// The host rows carry a denormalized copy of the name, so they move first, while the definitions still hold the old one.
