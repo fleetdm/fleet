@@ -572,6 +572,23 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	rotated, err := ds.mintWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
 	require.NoError(t, err)
 	require.NotEqual(t, secret, rotated)
+
+	// The cleanup cron sweeps a spent secret once a newer one for the same device exists and the second-plane window has
+	// passed. It has to key on the enrollment: a Windows secret carries no host_id until it is consumed, so the host-keyed
+	// sweep the Apple path uses would never match it.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) - INTERVAL 2 HOUR WHERE secret = ?`, secret)
+		return err
+	})
+	deleted, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, deleted)
+
+	_, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
+	require.True(t, fleet.IsNotFound(err), "the superseded secret must be swept")
+	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated)
+	require.NoError(t, err, "the live secret must survive the sweep")
 }
 
 func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {

@@ -44,6 +44,9 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // window, so a late osquery enrollment is not orphaned) and secrets whose host
 // no longer exists. Unconsumed secrets whose host records still exist are never
 // removed here: a host holds at most one and it stays valid until used.
+//
+// Windows secrets are swept by their MDM enrollment rather than by host, since
+// they carry no host until they are consumed.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
 	windowSeconds := int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow / time.Second)
@@ -74,6 +77,23 @@ func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64
 				) AS orphaned
 			)`,
 			args: []any{batchSize},
+		},
+		{
+			// The superseded sweep above joins on host_id, which a Windows secret does not have until it is consumed, so
+			// a spent one is never matched by a newer secret for the same device. Sweep those by their enrollment
+			// instead. Orphaned Windows rows need no sweep: the enrollment foreign key cascades.
+			stmt: `DELETE FROM host_one_time_enroll_secrets WHERE id IN (
+				SELECT id FROM (
+					SELECT DISTINCT s.id
+					FROM host_one_time_enroll_secrets s
+					JOIN host_one_time_enroll_secrets newer
+						ON newer.mdm_windows_enrollment_id = s.mdm_windows_enrollment_id AND newer.id > s.id
+					WHERE s.mdm_windows_enrollment_id IS NOT NULL
+						AND s.consumed_at IS NOT NULL AND s.consumed_at < NOW(6) - INTERVAL ? SECOND
+					LIMIT ?
+				) AS supersededWindows
+			)`,
+			args: []any{windowSeconds, batchSize},
 		},
 	}
 
