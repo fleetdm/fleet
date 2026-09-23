@@ -976,11 +976,21 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		{
 			// if an earlier pass set the status to acted and then stopped before queueing, the apps
 			// are still unhandled. ActOnNotification returns false against that status, and
-			// isStatusActed is what lets this pass carry on and queue them.
+			// the acted status read with the notification is what lets this pass carry on and queue them.
 			name:              "an acted notification with an app still unhandled has its installs queued",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
 			reminder:          true,
+			statusActed:       true,
+			alreadyActed:      true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
+		},
+		{
+			name:              "a notification acted on from the 1 hour notice with an app still unhandled has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
 			statusActed:       true,
 			alreadyActed:      true,
 			installedVersions: behind,

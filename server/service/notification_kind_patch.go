@@ -425,8 +425,8 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		return nil
 	}
 
-	// Which notice was displayed last decides what happens next.
-	if !notificationIsReminder {
+	// Handle an acted notification like a reminder even with the 1 hour notice payload, since Update now can be pressed on either notice.
+	if !notificationIsReminder && duePatch.Status != notifications_api.EndUserNotificationActed {
 		if duePatch.Status != notifications_api.EndUserNotificationDispatched {
 			return nil
 		}
@@ -493,7 +493,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 	}
 
-	if !notificationIsReminder {
+	if !notificationIsReminder && duePatch.Status != notifications_api.EndUserNotificationActed {
 		// nothing left to update, so the notification closes instead of reminding
 		if len(remaining) == 0 {
 			_, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
@@ -512,7 +512,6 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 
 	// Moving the status to acted is what claims the queueing, so an Update now press and this pass
 	// cannot both send the same installs.
-	isStatusActed := duePatch.Status == notifications_api.EndUserNotificationActed
 	actedInThisPass, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "act on patch notification")
@@ -520,7 +519,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 	// Not claiming the queueing has two causes. Acted at read time is an earlier pass that stopped
 	// part way, which this one finishes. Acted only now is an Update now press, which queues the
 	// installs instead. Or verify dropped every app.
-	if (!actedInThisPass && !isStatusActed) || len(remaining) == 0 {
+	if (!actedInThisPass && duePatch.Status != notifications_api.EndUserNotificationActed) || len(remaining) == 0 {
 		return nil
 	}
 

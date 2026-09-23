@@ -1419,6 +1419,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// the first reminder is displayed, which sets its displayed_at and ends the first reason to wait
 		firstDispatched := getTestNotification(t, s.ds, firstUUID)
 		require.NotNil(t, firstDispatched.ExecutionID)
+		fetchScript(t, host, *firstDispatched.ExecutionID)
 		postScriptResult(host, *firstDispatched.ExecutionID, 0)
 		firstShown := getTestNotification(t, s.ds, firstUUID)
 		require.NotNil(t, firstShown.DisplayedAt)
@@ -1436,6 +1437,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, notifications_api.EndUserNotificationDispatched, secondDispatched.Status,
 			"the second reminder is sent once the first reminder's toast has closed")
 		require.NotNil(t, secondDispatched.ExecutionID)
+		fetchScript(t, host, *secondDispatched.ExecutionID)
 		postScriptResult(host, *secondDispatched.ExecutionID, 0)
 		secondShown := getTestNotification(t, s.ds, secondUUID)
 		require.NotNil(t, secondShown.DisplayedAt, "the second reminder reaches the end user rather than being lost")
