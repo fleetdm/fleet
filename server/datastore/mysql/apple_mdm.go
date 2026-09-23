@@ -9071,7 +9071,7 @@ func (ds *Datastore) BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs 
 	err := common_mysql.BatchProcessSimple(hostUUIDs, 5000, func(batch []string) error {
 		q, args, err := sqlx.In(stmt, batch)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build host mdm apple profiles query")
+			return ctxerr.Wrap(ctx, err, "build host mdm profile opt-ins")
 		}
 
 		var rows []struct {

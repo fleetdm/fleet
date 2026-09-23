@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -35,6 +36,8 @@ func ReconcileAppleProfilesBatched(
 	certProfilesLimit int,
 	useOneTimeEnrollSecrets bool,
 ) (err error) {
+	// Require primary here for reconciling apple profiles, to avoid read-write races and stale opt-in installs
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)

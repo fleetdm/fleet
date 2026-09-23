@@ -202,6 +202,7 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			TeamID:            r.TeamID,
 			Checksum:          r.Checksum,
 			Scope:             r.Scope,
+			SelfService:       r.SelfService,
 		}
 		if r.SecretsUpdatedAt.Valid {
 			t := r.SecretsUpdatedAt.Time
