@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.1.0",
+      "version": "5.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ruben2776.picview';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ruben2776.picview' AND version_compare(bundle_short_version, '5.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ruben2776.picview' AND version_compare(bundle_short_version, '5.1.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ruben2776.picview' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Ruben2776/PicView/releases/download/5.1.0/PicView-5.1.0-macOS-arm64.dmg",
+      "installer_url": "https://github.com/Ruben2776/PicView/releases/download/5.1.2/PicView-5.1.2-macOS-arm64.dmg",
       "install_script_ref": "51eb5fcf",
       "uninstall_script_ref": "48e04b56",
-      "sha256": "d115321d41088e12a9e067f37658eaeb5c4ef2c56f8b450f78105feafa8aaf37",
+      "sha256": "ed7d7a59ad80d4edef6d617e360b4f9170643ce56ef354656b8773f4a3c41440",
       "default_categories": [
         "Productivity"
       ]

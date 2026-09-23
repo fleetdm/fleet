@@ -1,0 +1,1 @@
+- Fixed the free-tier premium license error naming a renamed field by its old name when the request used the new one.

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.7.2",
+      "version": "1.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.slab.slab';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.slab.slab' AND version_compare(bundle_short_version, '1.7.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.slab.slab' AND version_compare(bundle_short_version, '1.8.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.slab.slab' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/slab/desktop-releases/releases/download/v1.7.2/Slab-1.7.2-darwin-arm64.dmg",
+      "installer_url": "https://github.com/slab/desktop-releases/releases/download/v1.8.0/Slab-1.8.0-darwin-arm64.dmg",
       "install_script_ref": "c0fce97d",
       "uninstall_script_ref": "2d235bb3",
-      "sha256": "f26cc76229610e27b96a4ad286c590598105a2986e614faa83d1b3e8580f5056",
+      "sha256": "d11ed9ee57487132d098e8d424bba0ccca0c67c13cee4c1a6709174b5ea729a7",
       "default_categories": [
         "Productivity"
       ]

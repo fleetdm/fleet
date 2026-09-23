@@ -35,6 +35,7 @@ export interface IMdmAbToken {
   renew_date: string;
   terms_expired: boolean;
   token_invalid: boolean;
+  default: boolean;
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
@@ -322,6 +323,7 @@ export const isLinuxDiskEncryptionStatus = (
   ["verified", "failed", "action_required"].includes(status);
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
+export const FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME = "Fleetd configuration";
 export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
   "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =

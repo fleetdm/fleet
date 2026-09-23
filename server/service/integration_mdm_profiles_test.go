@@ -4668,6 +4668,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 
 	checkHostsFilteredByOSSettingsStatus := func(t *testing.T, wantHosts []string, wantStatus fleet.MDMDeliveryStatus, teamID *uint, labels ...*fleet.Label) {
+		// Filtering hosts by OS settings reads the maintained host_mdm_windows_profiles_status rollup, same as the profiles
+		// summary. This test simulates device reports by writing host_mdm_windows_profiles directly, bypassing the write paths
+		// that maintain the rollup, so reconcile it before reading.
+		require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 		var teamFilter string
 		if teamID != nil {
 			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
@@ -6119,7 +6124,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -6199,7 +6204,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)

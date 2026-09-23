@@ -22,11 +22,17 @@ describe("Button component", () => {
     fireEvent.click(screen.getByText("Click me"));
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
-  it("calls onClick when Enter key is pressed", () => {
+  it("does not synthesize onClick on a bare Enter keydown", () => {
+    // Regression: an earlier keydown handler synthesized a click on Enter,
+    // which double-fired in real browsers because native <button> also
+    // dispatches click for Enter — silently no-oping toggle handlers
+    // (open then immediately close). jsdom doesn't fire the native click
+    // from a synthetic keydown, so we assert here that the handler is gone;
+    // real-browser Enter → click behavior is provided by the platform.
     const handleClick = jest.fn();
     render(<Button onClick={handleClick}>Press enter</Button>);
     fireEvent.keyDown(screen.getByText("Press enter"), { key: "Enter" });
-    expect(handleClick).toHaveBeenCalledTimes(1);
+    expect(handleClick).not.toHaveBeenCalled();
   });
   it("does not call onClick when disabled", () => {
     const handleClick = jest.fn();

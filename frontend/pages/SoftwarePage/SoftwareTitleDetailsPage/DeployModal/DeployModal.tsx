@@ -6,8 +6,12 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
-import { ISoftwareTitleDetails } from "interfaces/software";
 import {
+  getInstallablePlatform,
+  ISoftwareTitleDetails,
+} from "interfaces/software";
+import {
+  EndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   SoftwareDeploySelector,
@@ -57,12 +61,25 @@ const DeployModal = ({
     initialPatchOption = "force";
   }
 
+  // If a legacy policy stored both flags (invariant violation), Patch when
+  // closed wins the radio and the dropdown stays hidden — carrying "notify"
+  // in state would reveal it the moment the user picked Force patch.
+  const initialEndUserExperience: EndUserExperience =
+    patchPolicy?.notify_before_patching && !patchPolicy?.patch_when_closed
+      ? "notify"
+      : "immediate";
+
   const [forceInstall, setForceInstall] = useState(!!forceInstallPolicy);
   const [patch, setPatch] = useState(!!patchPolicy);
   const [patchOption, setPatchOption] = useState<PatchOption>(
     initialPatchOption
   );
+  const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
+    initialEndUserExperience
+  );
   const [isSaving, setIsSaving] = useState(false);
+
+  const platform = getInstallablePlatform(softwareTitle.source);
 
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
   const {
@@ -85,6 +102,7 @@ const DeployModal = ({
   const onSave = async () => {
     setIsSaving(true);
     let savedAnyChange = false;
+    const patchFlags = getPatchPolicyFlags(patchOption, endUserExperience);
     try {
       if (forceInstall !== !!forceInstallPolicy) {
         if (forceInstall) {
@@ -120,7 +138,7 @@ const DeployModal = ({
             ...(patchOption !== "manual" && {
               software_title_id: softwareTitle.id,
             }),
-            ...getPatchPolicyFlags(patchOption),
+            ...patchFlags,
           });
         } else if (patchPolicy) {
           await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
@@ -130,16 +148,18 @@ const DeployModal = ({
         patch &&
         patchPolicy &&
         (patchOption !== initialPatchOption ||
+          endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
-          patchPolicy.patch_when_closed !==
-            getPatchPolicyFlags(patchOption).patch_when_closed ||
+          patchPolicy.patch_when_closed !== patchFlags.patch_when_closed ||
+          patchPolicy.notify_before_patching !==
+            patchFlags.notify_before_patching ||
           patchPolicy.continuous_automations_enabled !==
-            getPatchPolicyFlags(patchOption).continuous_automations_enabled)
+            patchFlags.continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
           team_id: teamId,
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
-          ...getPatchPolicyFlags(patchOption),
+          ...patchFlags,
         });
         savedAnyChange = true;
       }
@@ -184,9 +204,12 @@ const DeployModal = ({
               forceInstall={forceInstall}
               patch={patch}
               patchOption={patchOption}
+              platform={platform}
+              endUserExperience={endUserExperience}
               onToggleForceInstall={setForceInstall}
               onTogglePatch={setPatch}
               onSelectPatchOption={setPatchOption}
+              onSelectEndUserExperience={setEndUserExperience}
               disabled={disableChildren || isLoadingFleetMaintainedApp}
               showPatchWhenClosedNotice
               hideLabel

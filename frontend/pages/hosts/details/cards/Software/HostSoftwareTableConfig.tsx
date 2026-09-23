@@ -16,7 +16,7 @@ import {
 } from "interfaces/software";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
@@ -58,6 +58,7 @@ export const generateSoftwareTableHeaders = ({
           id,
           name,
           display_name,
+          bundle_identifier,
           source,
           app_store_app,
           software_package,
@@ -85,6 +86,7 @@ export const generateSoftwareTableHeaders = ({
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -111,9 +113,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",
@@ -136,6 +136,7 @@ export const generateSoftwareTableHeaders = ({
                 apps don&apos;t report this information.
               </>
             }
+            fixedPositionStrategy
           >
             Last opened
           </TooltipWrapper>
