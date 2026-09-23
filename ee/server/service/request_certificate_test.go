@@ -253,8 +253,8 @@ func TestRequestCertificate(t *testing.T) {
 		ndesCAs = append(ndesCAs, ca)
 		return ca
 	}
-	ndesCA := newNDESCA(new(sceptest.NewTestSCEPServerWithChallenge(t, ndesChallenge).URL + "/scep"))
-	raNDESCA := newNDESCA(new(sceptest.NewTestNDESSCEPServer(t, ndesChallenge).URL + "/scep"))
+	ndesCA := newNDESCA(new(sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(ndesChallenge)).URL + "/scep"))
+	raNDESCA := newNDESCA(new(sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(ndesChallenge), sceptest.WithRAChain()).URL + "/scep"))
 	unreachableSCEPServer := httptest.NewServer(http.NotFoundHandler())
 	unreachableSCEPServer.Close()
 	unreachableNDESCA := newNDESCA(new(unreachableSCEPServer.URL + "/scep"))

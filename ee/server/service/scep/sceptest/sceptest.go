@@ -14,7 +14,6 @@ import (
 	"crypto/x509/pkix"
 	_ "embed"
 	"encoding/binary"
-	"encoding/pem"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -28,6 +27,7 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
@@ -50,28 +50,52 @@ var mscepAdminInsufficientPermissions []byte
 //go:embed testdata/mscep_admin_password.html
 var mscepAdminPassword []byte
 
+// TestSCEPServerOption configures NewTestSCEPServer.
+type TestSCEPServerOption func(*testSCEPServerConfig)
+
+type testSCEPServerConfig struct {
+	issue     bool
+	challenge *string
+	raChain   bool
+}
+
+// WithIssuance makes the server issue real certificates from the test CA (see CACertificate).
+// Without it, every PKIOperation gets a FAILURE CertRep.
+func WithIssuance() TestSCEPServerOption {
+	return func(c *testSCEPServerConfig) { c.issue = true }
+}
+
+// WithChallenge makes the server reject CSRs whose challengePassword is not challenge.
+func WithChallenge(challenge string) TestSCEPServerOption {
+	return func(c *testSCEPServerConfig) { c.challenge = &challenge }
+}
+
+// WithRAChain makes GetCACert return an NDES-shaped chain: an RA encryption certificate, then the
+// test CA.
+func WithRAChain() TestSCEPServerOption {
+	return func(c *testSCEPServerConfig) { c.raChain = true }
+}
+
 // NewTestSCEPServer creates a new SCEP server for testing purposes, backed by
 // an in-temp-dir CA built from embedded test certs.
-func NewTestSCEPServer(t *testing.T) *httptest.Server {
+func NewTestSCEPServer(t *testing.T, opts ...TestSCEPServerOption) *httptest.Server {
 	t.Helper()
-	_, key, crt := newTestCADepot(t)
-	return newTestSCEPHTTPServer(t, crt, key, scepserver.NopCSRSigner())
-}
-
-// NewTestSCEPServerWithChallenge issues real certificates from the test CA, only for CSRs whose
-// challengePassword equals challenge.
-func NewTestSCEPServerWithChallenge(t *testing.T, challenge string) *httptest.Server {
-	t.Helper()
-	certDepot, key, crt := newTestCADepot(t)
-	signer := scepserver.StaticChallengeMiddleware(challenge, scepserver.SignCSRAdapter(depot.NewSigner(certDepot)))
-	return newTestSCEPHTTPServer(t, crt, key, signer)
-}
-
-// NewTestNDESSCEPServer is NewTestSCEPServerWithChallenge with an NDES-shaped chain: an RA
-// encryption certificate, then the test CA.
-func NewTestNDESSCEPServer(t *testing.T, challenge string) *httptest.Server {
-	t.Helper()
+	var cfg testSCEPServerConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 	certDepot, key, caCert := newTestCADepot(t)
+
+	var signer scepserver.CSRSignerContext = scepserver.NopCSRSigner()
+	if cfg.issue {
+		signer = scepserver.SignCSRAdapter(depot.NewSigner(certDepot))
+	}
+	if cfg.challenge != nil {
+		signer = scepserver.StaticChallengeMiddleware(*cfg.challenge, signer)
+	}
+	if !cfg.raChain {
+		return newTestSCEPHTTPServer(t, caCert, key, signer)
+	}
 
 	// Reusing the CA key lets the server decrypt requests encrypted to the RA certificate.
 	serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
@@ -87,17 +111,13 @@ func NewTestNDESSCEPServer(t *testing.T, challenge string) *httptest.Server {
 	require.NoError(t, err)
 	raCert, err := x509.ParseCertificate(raDER)
 	require.NoError(t, err)
-
-	signer := scepserver.StaticChallengeMiddleware(challenge, scepserver.SignCSRAdapter(depot.NewSigner(certDepot)))
 	return newTestSCEPHTTPServer(t, raCert, key, signer, scepserver.WithAddlCA(caCert))
 }
 
 // CACertificate returns the embedded test CA certificate that the SCEP test servers issue from.
 func CACertificate(t *testing.T) *x509.Certificate {
 	t.Helper()
-	block, _ := pem.Decode(caPem)
-	require.NotNil(t, block)
-	crt, err := x509.ParseCertificate(block.Bytes)
+	crt, err := cryptoutil.DecodePEMCertificate(caPem)
 	require.NoError(t, err)
 	return crt
 }
