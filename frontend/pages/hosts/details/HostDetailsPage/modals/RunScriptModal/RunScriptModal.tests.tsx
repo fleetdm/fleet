@@ -211,6 +211,66 @@ describe("RunScriptModal", () => {
       // TooltipTruncatedTextCell renders the script name in both the cell and tooltip
       expect(screen.getAllByText("cleanup.sh").length).toBeGreaterThan(0);
     });
+
+    it("shows the 'Add script' link with fleet_id for an admin", () => {
+      const adminUser = createMockUser({ global_role: "admin" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: adminUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={adminUser}
+          hostScriptResponse={{
+            scripts: [createMockHostScript({ name: "cleanup.sh" })],
+            meta: { has_next_results: false, has_previous_results: false },
+          }}
+        />
+      );
+
+      const link = screen.getByRole("link", { name: /Add script/i });
+      expect(link).toHaveAttribute(
+        "href",
+        expect.stringContaining("fleet_id=7")
+      );
+    });
+
+    it("hides the 'Add script' link for a global technician", () => {
+      const technicianUser = createMockUser({ global_role: "technician" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: technicianUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={technicianUser}
+          hostScriptResponse={{
+            scripts: [createMockHostScript({ name: "cleanup.sh" })],
+            meta: { has_next_results: false, has_previous_results: false },
+          }}
+        />
+      );
+
+      expect(
+        screen.queryByRole("link", { name: /Add script/i })
+      ).not.toBeInTheDocument();
+    });
   });
 
   describe("error and loading states", () => {

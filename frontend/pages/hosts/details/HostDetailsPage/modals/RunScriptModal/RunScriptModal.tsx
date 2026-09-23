@@ -114,6 +114,13 @@ const RunScriptModal = ({
       permissions.isTeamAdmin(currentUser, hostTeamId) ||
       permissions.isTeamMaintainer(currentUser, hostTeamId));
 
+  const addScriptUrl = getPathWithQueryParams(
+    PATHS.CONTROLS_SCRIPTS,
+    isPremiumTier
+      ? { fleet_id: hostTeamId ?? APP_CONTEXT_NO_TEAM_ID }
+      : undefined
+  );
+
   return (
     <Modal
       title="Run script"
@@ -135,15 +142,7 @@ const RunScriptModal = ({
               info={
                 canAddScript ? (
                   <>
-                    <CustomLink
-                      url={getPathWithQueryParams(
-                        PATHS.CONTROLS_SCRIPTS,
-                        isPremiumTier
-                          ? { fleet_id: hostTeamId ?? APP_CONTEXT_NO_TEAM_ID }
-                          : undefined
-                      )}
-                      text="Add a script"
-                    />{" "}
+                    <CustomLink url={addScriptUrl} text="Add a script" />{" "}
                     available to this host.
                   </>
                 ) : (
@@ -156,21 +155,28 @@ const RunScriptModal = ({
           !isError &&
           tableData &&
           tableData.length > 0 && (
-            <TableContainer
-              resultsTitle=""
-              emptyComponent={EmptyComponent}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              columnConfigs={scriptColumnConfigs}
-              data={tableData}
-              isLoading={isRunningScript || isFetchingHostScripts}
-              onQueryChange={onQueryChange}
-              disableNextPage={!hostScriptResponse?.meta.has_next_results}
-              pageIndex={page}
-              pageSize={10}
-              disableCount
-              disableTableHeader
-            />
+            <>
+              {canAddScript && (
+                <div className={`${baseClass}__add-script`}>
+                  <CustomLink url={addScriptUrl} text="Add script" />
+                </div>
+              )}
+              <TableContainer
+                resultsTitle=""
+                emptyComponent={EmptyComponent}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                columnConfigs={scriptColumnConfigs}
+                data={tableData}
+                isLoading={isRunningScript || isFetchingHostScripts}
+                onQueryChange={onQueryChange}
+                disableNextPage={!hostScriptResponse?.meta.has_next_results}
+                pageIndex={page}
+                pageSize={10}
+                disableCount
+                disableTableHeader
+              />
+            </>
           )}
       </div>
       <div className="modal-cta-wrap">

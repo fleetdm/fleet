@@ -10,6 +10,10 @@
     margin-bottom: 9px; // Fixes cut off dropdown
   }
 
+  &__add-script {
+    align-self: flex-end;
+  }
+
   .modal-cta-wrap {
     margin: $pad-xsmall 0 0 0;
   }
