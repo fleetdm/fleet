@@ -532,9 +532,7 @@ const PolicyForm = ({
       if (isPremiumTier) {
         Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
-        if (!isGlobalPolicy) {
-          payload.hidden = lastEditedQueryHidden;
-        }
+        payload.hidden = lastEditedQueryHidden;
       }
       await onUpdate(payload);
       persistAutomations();
@@ -824,7 +822,6 @@ const PolicyForm = ({
           {isEditMode &&
             isPremiumTier &&
             !isPatchPolicy &&
-            !isGlobalPolicy &&
             renderHiddenPolicy()}
           <SQLEditor
             value={lastEditedQueryBody}

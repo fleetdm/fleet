@@ -204,9 +204,7 @@ const SaveNewPolicyModal = ({
     };
     if (isPremiumTier) {
       Object.assign(payload, getLabelsPayload());
-      if (!isGlobalPolicy) {
-        payload.hidden = lastEditedQueryHidden;
-      }
+      payload.hidden = lastEditedQueryHidden;
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -433,7 +431,7 @@ const SaveNewPolicyModal = ({
             </Checkbox>
           </div>
         )}
-        {isPremiumTier && !isGlobalPolicy && (
+        {isPremiumTier && (
           <div className="hidden-checkbox-wrapper">
             <Checkbox
               name="hidden-policy"

@@ -217,22 +217,30 @@ describe("SaveNewPolicyModal", () => {
       expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
     });
 
-    it("does not offer Hide from end user for an All fleets policy", async () => {
+    it("sends hidden for an All fleets policy too", async () => {
+      const onCreatePolicy = jest.fn();
       render(
         <PolicyProvider>
-          <SaveNewPolicyModal {...defaultProps} />
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+          />
         </PolicyProvider>
       );
       await waitFor(() => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByRole("checkbox", { name: /critical/i })
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByRole("checkbox", { name: "hidden-policy" })
-      ).not.toBeInTheDocument();
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+      await userEvent.click(
+        screen.getByRole("checkbox", { name: "hidden-policy" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
     });
 
     it("should send labels when saving a new policy in Custom target mode (include any)", async () => {

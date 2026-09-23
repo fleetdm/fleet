@@ -210,15 +210,13 @@ describe("PolicyForm - component", () => {
       expect(hiddenCheckbox).not.toBeChecked();
     });
 
-    it("does not offer Hide from end user for an All fleets policy", async () => {
-      renderEditForm(createMockPolicy({ team_id: null }), false);
+    it("offers Hide from end user for an All fleets policy", async () => {
+      renderEditForm(createMockPolicy({ team_id: null, hidden: true }), true);
 
-      expect(
-        await screen.findByRole("checkbox", { name: /critical/i })
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByRole("checkbox", { name: "hidden-policy" })
-      ).not.toBeInTheDocument();
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toBeChecked();
     });
 
     it("disables save button for missing policy name", async () => {
