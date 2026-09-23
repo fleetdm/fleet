@@ -8,11 +8,15 @@
 package sceptest
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	_ "embed"
 	"encoding/binary"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,8 +24,10 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 	"unicode/utf16"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
@@ -44,9 +50,79 @@ var mscepAdminInsufficientPermissions []byte
 //go:embed testdata/mscep_admin_password.html
 var mscepAdminPassword []byte
 
+// TestSCEPServerOption configures NewTestSCEPServer.
+type TestSCEPServerOption func(*testSCEPServerConfig)
+
+type testSCEPServerConfig struct {
+	issue     bool
+	challenge *string
+	raChain   bool
+}
+
+// WithIssuance makes the server issue real certificates from the test CA (see CACertificate).
+// Without it, every PKIOperation gets a FAILURE CertRep.
+func WithIssuance() TestSCEPServerOption {
+	return func(c *testSCEPServerConfig) { c.issue = true }
+}
+
+// WithChallenge makes the server reject CSRs whose challengePassword is not challenge.
+func WithChallenge(challenge string) TestSCEPServerOption {
+	return func(c *testSCEPServerConfig) { c.challenge = &challenge }
+}
+
+// WithRAChain makes GetCACert return an NDES-shaped chain: an RA encryption certificate, then the
+// test CA.
+func WithRAChain() TestSCEPServerOption {
+	return func(c *testSCEPServerConfig) { c.raChain = true }
+}
+
 // NewTestSCEPServer creates a new SCEP server for testing purposes, backed by
 // an in-temp-dir CA built from embedded test certs.
-func NewTestSCEPServer(t *testing.T) *httptest.Server {
+func NewTestSCEPServer(t *testing.T, opts ...TestSCEPServerOption) *httptest.Server {
+	t.Helper()
+	var cfg testSCEPServerConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	certDepot, key, caCert := newTestCADepot(t)
+
+	var signer scepserver.CSRSignerContext = scepserver.NopCSRSigner()
+	if cfg.issue {
+		signer = scepserver.SignCSRAdapter(depot.NewSigner(certDepot))
+	}
+	if cfg.challenge != nil {
+		signer = scepserver.StaticChallengeMiddleware(*cfg.challenge, signer)
+	}
+	if !cfg.raChain {
+		return newTestSCEPHTTPServer(t, caCert, key, signer)
+	}
+
+	// Reusing the CA key lets the server decrypt requests encrypted to the RA certificate.
+	serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+	require.NoError(t, err)
+	raTemplate := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "Test NDES RA"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	}
+	raDER, err := x509.CreateCertificate(rand.Reader, raTemplate, caCert, &key.PublicKey, key)
+	require.NoError(t, err)
+	raCert, err := x509.ParseCertificate(raDER)
+	require.NoError(t, err)
+	return newTestSCEPHTTPServer(t, raCert, key, signer, scepserver.WithAddlCA(caCert))
+}
+
+// CACertificate returns the embedded test CA certificate that the SCEP test servers issue from.
+func CACertificate(t *testing.T) *x509.Certificate {
+	t.Helper()
+	crt, err := cryptoutil.DecodePEMCertificate(caPem)
+	require.NoError(t, err)
+	return crt
+}
+
+func newTestCADepot(t *testing.T) (depot.Depot, *rsa.PrivateKey, *x509.Certificate) {
 	t.Helper()
 
 	caDir := t.TempDir()
@@ -56,23 +132,24 @@ func NewTestSCEPServer(t *testing.T) *httptest.Server {
 	if err := os.WriteFile(filepath.Join(caDir, "ca.pem"), caPem, 0o644); err != nil {
 		t.Fatalf("failed to write ca.pem: %v", err)
 	}
-
-	var err error
-	var certDepot depot.Depot // cert storage
-	t.Cleanup(func() {
-		_ = os.Remove(caDir)
-	})
-	certDepot, err = filedepot.NewFileDepot(caDir)
+	fileDepot, err := filedepot.NewFileDepot(caDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	certDepot = &noopDepot{certDepot}
+	certDepot := &noopDepot{fileDepot}
 	crt, key, err := certDepot.CA([]byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var svc scepserver.Service // scep service
-	svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
+	return certDepot, key, crt[0]
+}
+
+func newTestSCEPHTTPServer(t *testing.T, crt *x509.Certificate, key *rsa.PrivateKey, signer scepserver.CSRSignerContext,
+	opts ...scepserver.ServiceOption,
+) *httptest.Server {
+	t.Helper()
+
+	svc, err := scepserver.NewService(crt, key, signer, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}

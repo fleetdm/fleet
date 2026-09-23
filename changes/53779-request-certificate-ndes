@@ -1,0 +1,1 @@
+- Added support for NDES certificate authority type in the "Request certificate" API.
