@@ -1,0 +1,1 @@
+- Fixed the GitOps starter's CI jobs failing when the `FLEET_URL` secret ended in a slash.

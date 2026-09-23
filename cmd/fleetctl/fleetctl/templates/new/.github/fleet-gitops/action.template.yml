@@ -19,7 +19,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        FLEET_URL="${FLEET_URL%/}"
+        FLEET_URL="$(printf '%s' "$FLEET_URL" | sed 's:/*$::')"
         FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
         DEFAULT_FLEETCTL_VERSION="latest"
 
