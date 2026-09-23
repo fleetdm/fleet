@@ -36,11 +36,16 @@ var (
 	patchNotificationReminderPayload    = json.RawMessage(`{"reminder":true}`)
 )
 
-func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, now time.Time) bool {
-	// If the deadline is set, has not passed, and is within 5 minutes, the notification is the 5 minute reminder.
-	return patchNotification != nil && patchNotification.InstallAt != nil &&
-		now.Before(*patchNotification.InstallAt) &&
-		patchNotification.InstallAt.Sub(now) <= patchNotificationReminderBefore
+func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, displayedReminder bool, now time.Time) bool {
+	if patchNotification == nil || patchNotification.InstallAt == nil {
+		return false
+	}
+	// If the deadline has not passed and is within 5 minutes, the notification is the 5 minute reminder.
+	if now.Before(*patchNotification.InstallAt) {
+		return patchNotification.InstallAt.Sub(now) <= patchNotificationReminderBefore
+	}
+	// If the deadline has passed, a notification already displayed as the reminder stays the 5 minute reminder.
+	return displayedReminder
 }
 
 func patchNotificationIsReminder(payload json.RawMessage) (bool, error) {
@@ -139,7 +144,11 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get patch notification")
 		}
-		if shouldNotificationBeReminder(patchNotification, time.Now().UTC()) {
+		awaitingDisplayedReminder, err := patchNotificationIsReminder(awaiting.Payload)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "read patch notification payload")
+		}
+		if shouldNotificationBeReminder(patchNotification, awaitingDisplayedReminder, time.Now().UTC()) {
 			awaiting = nil
 		}
 	}
@@ -221,7 +230,11 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
 	}
-	reminder := shouldNotificationBeReminder(patchNotification, time.Now().UTC())
+	displayedReminder, err := patchNotificationIsReminder(notification.Payload)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
+	reminder := shouldNotificationBeReminder(patchNotification, displayedReminder, time.Now().UTC())
 
 	// Read each app's own install so an item shows where that install got to, not the notification's single acted flag.
 	// Skip it until the installs are out, because nothing has been queued to report before then.
@@ -676,12 +689,16 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get patch notification")
 	}
+	displayedReminder, err := patchNotificationIsReminder(notification.Payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "read patch notification payload")
+	}
 
 	now := time.Now().UTC()
 
 	timeBefore := patchNotificationFirstNoticeBefore
 	displayedPayload := patchNotificationFirstNoticePayload
-	if shouldNotificationBeReminder(patchNotification, now) {
+	if shouldNotificationBeReminder(patchNotification, displayedReminder, now) {
 		timeBefore = patchNotificationReminderBefore
 		displayedPayload = patchNotificationReminderPayload
 	}

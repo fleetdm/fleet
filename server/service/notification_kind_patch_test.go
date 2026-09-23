@@ -674,6 +674,30 @@ func TestPatchNotificationRenderWithNoApps(t *testing.T) {
 	require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, notificationSvc.failedReason)
 }
 
+func TestShouldNotificationBeReminder(t *testing.T) {
+	now := time.Now().UTC()
+
+	cases := []struct {
+		name              string
+		installAt         *time.Time
+		displayedReminder bool
+		want              bool
+	}{
+		{"a notification with no install_at is not the reminder", nil, true, false},
+		{"a notification with install_at more than 5 minutes ahead is not the reminder", new(now.Add(6 * time.Minute)), false, false},
+		{"a notification with install_at within 5 minutes is the reminder", new(now.Add(4 * time.Minute)), false, true},
+		{"a displayed reminder past install_at is still the reminder", new(now.Add(-time.Minute)), true, true},
+		{"a notification past install_at that was not displayed as the reminder is not the reminder", new(now.Add(-time.Minute)), false, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, c.displayedReminder, now)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
 // What the activity OnOutcome records: which apps and policies it names, which
 // of the two notices it was for, and whether the outcome was a success or a
 // failure. TestSaveHostSoftwareInstallResultAppOpenSkip and the integration
