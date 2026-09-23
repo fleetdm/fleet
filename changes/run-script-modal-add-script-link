@@ -1,2 +1,3 @@
-- Added an "Add script" link to the host details **Run script** modal when the host already has scripts.
+- Updated the host details **Run script** modal: added a "Scripts" header with an "Add script" button, removed the **Close** button, show 20 scripts per page, and made the **Name** column sortable.
 - Updated the **Run script** modal's empty state to explain which script types the host can run (e.g. only PowerShell scripts on Windows hosts).
+- `GET /api/v1/fleet/hosts/:id/scripts` now supports `order_direction` (with `order_key=name`) to sort scripts by name in ascending or descending order.

@@ -33,6 +33,8 @@ interface IRunScriptModalProps {
   onClose: () => void;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
+  sortDirection: "asc" | "desc";
+  setSortDirection: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
   hostScriptResponse?: IHostScriptsResponse;
   isFetchingHostScripts: boolean;
   isLoadingHostScripts: boolean;
@@ -63,6 +65,8 @@ const RunScriptModal = ({
   onClose,
   page,
   setPage,
+  sortDirection,
+  setSortDirection,
   hostScriptResponse,
   isFetchingHostScripts,
   isLoadingHostScripts,
@@ -93,9 +97,18 @@ const RunScriptModal = ({
     [onClickRun, onClickRunDetails]
   );
 
-  const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
-    setPage(pageIndex);
-  }, []);
+  const onQueryChange = useCallback(
+    ({ pageIndex, sortDirection: newSortDirection }: ITableQueryData) => {
+      const direction = newSortDirection === "desc" ? "desc" : "asc";
+      if (direction !== sortDirection) {
+        setSortDirection(direction);
+        setPage(0);
+        return;
+      }
+      setPage(pageIndex);
+    },
+    [sortDirection, setSortDirection, setPage]
+  );
 
   const scriptColumnConfigs = useMemo(
     () =>
@@ -210,6 +223,9 @@ const RunScriptModal = ({
                 disableNextPage={!hostScriptResponse?.meta.has_next_results}
                 pageIndex={page}
                 pageSize={RUN_SCRIPT_PAGE_SIZE}
+                manualSortBy
+                defaultSortHeader="name"
+                defaultSortDirection={sortDirection}
                 disableCount
                 disableTableHeader
               />
