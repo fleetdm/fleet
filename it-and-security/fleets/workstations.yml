@@ -163,6 +163,7 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
     - path: ../lib/linux/scripts/update-claude-desktop.sh
+    - path: ../lib/linux/scripts/configure-okta-verify-org-url.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:
@@ -301,6 +302,8 @@ software:
       labels_include_all:
         - "Debian-based Linux hosts"
         - "x86-based Linux hosts"
+      post_install_script:
+        path: ../lib/linux/scripts/configure-okta-verify-org-url.sh
     - path: ../lib/linux/scripts/install-claude-desktop.sh # Claude for Debian-based Linux (script-only package)
       display_name: Claude
       self_service: true
