@@ -145,7 +145,7 @@ func NewAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string)
 	} else {
 		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, getEnv)
 	}
-	return client
+	return androidmgmt.NewRetryClient(client, logger)
 }
 
 func newErrResponse(err error) android.DefaultResponse {

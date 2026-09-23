@@ -1,0 +1,1 @@
+- Fleet now retries Android Management API calls that fail because the API rate limit was exceeded (HTTP 429), waiting 60 seconds and then backing off exponentially, so commands like lock and wipe and profile updates are no longer dropped on a transient rate limit.
