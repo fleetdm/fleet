@@ -186,6 +186,35 @@ func ServeEndUserEnrollOTA(
 	})
 }
 
+// ServeEndUserEnrollNextSteps implements the entrypoint handler for the
+// /enroll/next-steps path, shown after an Android end user selects Enroll on
+// the /enroll page.
+//
+// The page is informational, so it deliberately skips the enroll secret lookup,
+// app config load and IdP session handling that /enroll performs. Reusing that
+// handler would send a user who has already authenticated back through their
+// IdP just to read the instructions.
+func ServeEndUserEnrollNextSteps(urlPrefix string, logger *slog.Logger, serveCSP bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, serveCSP)
+		if err != nil {
+			err = fmt.Errorf("write browser security headers err: %w", err)
+			logger.ErrorContext(r.Context(), err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := executeEnrollTemplate(w, enrollPageData{
+			URLPrefix: urlPrefix,
+			CSPNonce:  nonce,
+			NextSteps: true,
+		}); err != nil {
+			logger.ErrorContext(r.Context(), err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+}
+
 func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/enrollment_profiles/ota")
 	if err != nil {
@@ -203,7 +232,19 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string, appleManualEnrollmentBlocked bool) error {
+type enrollPageData struct {
+	EnrollURL                    string
+	URLPrefix                    string
+	ErrorMessage                 string
+	AndroidMDMEnabled            bool
+	MacMDMEnabled                bool
+	AndroidFeatureEnabled        bool
+	CSPNonce                     string
+	AppleManualEnrollmentBlocked bool
+	NextSteps                    bool
+}
+
+func executeEnrollTemplate(w io.Writer, pageData enrollPageData) error {
 	fs := newBinaryFileSystem("/frontend")
 	file, err := fs.Open("templates/enroll-ota.html")
 	if err != nil {
@@ -220,20 +261,18 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		return fmt.Errorf("create react template: %w", err)
 	}
 
+	if err := t.Execute(w, pageData); err != nil {
+		return fmt.Errorf("execute react template: %w", err)
+	}
+	return nil
+}
+
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string, appleManualEnrollmentBlocked bool) error {
 	enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
 	if err != nil {
 		return fmt.Errorf("generate enroll ota url: %w", err)
 	}
-	if err := t.Execute(w, struct {
-		EnrollURL                    string
-		URLPrefix                    string
-		ErrorMessage                 string
-		AndroidMDMEnabled            bool
-		MacMDMEnabled                bool
-		AndroidFeatureEnabled        bool
-		CSPNonce                     string
-		AppleManualEnrollmentBlocked bool
-	}{
+	return executeEnrollTemplate(w, enrollPageData{
 		URLPrefix:                    urlPrefix,
 		EnrollURL:                    enrollURL,
 		ErrorMessage:                 errorMessage,
@@ -242,10 +281,7 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		AndroidFeatureEnabled:        true,
 		CSPNonce:                     nonce,
 		AppleManualEnrollmentBlocked: appleManualEnrollmentBlocked,
-	}); err != nil {
-		return fmt.Errorf("execute react template: %w", err)
-	}
-	return nil
+	})
 }
 
 func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Request, enrollSecret string) error {

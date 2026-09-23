@@ -154,6 +154,55 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	}
 }
 
+// The next-steps page is informational, so it must render for anyone who lands
+// on it: no enroll secret, no datastore lookup, and above all no IdP redirect,
+// which would bounce a user who already authenticated back through SSO just to
+// read the instructions.
+func TestServeEndUserEnrollNextSteps(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	ds := new(mock.DataStore)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ts := httptest.NewServer(ServeEndUserEnrollNextSteps("", logger, false))
+	t.Cleanup(ts.Close)
+
+	for _, tc := range []struct {
+		name  string
+		query string
+	}{
+		{name: "with enroll secret", query: "?enroll_secret=foo"},
+		{name: "without enroll secret", query: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &http.Client{
+				CheckRedirect: func(*http.Request, []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			}
+			response, err := client.Get(ts.URL + tc.query)
+			require.NoError(t, err)
+			defer response.Body.Close()
+
+			assert.Equal(t, http.StatusOK, response.StatusCode)
+			assert.Equal(t, "text/html; charset=utf-8", response.Header.Get("Content-Type"))
+
+			bodyBytes, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			bodyString := string(bodyBytes)
+			assert.Contains(t, bodyString, `const IS_NEXT_STEPS = "true" === "true";`)
+			assert.Contains(t, bodyString, "Next steps...")
+			assert.Contains(t, bodyString, "You can close this page.")
+		})
+	}
+
+	// The page takes no datastore dependency; adding one would also mean it can
+	// fail while the user is mid-enrollment.
+	assert.False(t, ds.AppConfigFuncInvoked)
+	assert.False(t, ds.VerifyEnrollSecretFuncInvoked)
+}
+
 // ssoURLCaptureService captures the customOriginalURL passed to InitiateMDMSSO so
 // tests can assert which query parameters survive into the SAML round-trip.
 type ssoURLCaptureService struct {
