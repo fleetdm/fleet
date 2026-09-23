@@ -2040,6 +2040,50 @@ type MDMAppleAPNsSweepState struct {
 	BatchSize int    `json:"batch_size"`
 }
 
+// MDMAppleCommandCleanupCursor is a keyset position in a nano_command_results
+// scan ordered by (updated_at, id, command_uuid): the order the
+// (status, updated_at) index yields once InnoDB appends the primary key.
+type MDMAppleCommandCleanupCursor struct {
+	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	CommandUUID string    `json:"command_uuid"`
+}
+
+// MDMAppleCommandOrphanCursor is a keyset position in a nano_commands scan
+// ordered by (created_at, command_uuid).
+type MDMAppleCommandOrphanCursor struct {
+	CreatedAt   time.Time `json:"created_at"`
+	CommandUUID string    `json:"command_uuid"`
+}
+
+// MDMAppleCommandCleanupState is the Apple MDM command cleanup cron's persisted
+// position between runs. Each retention scan keeps its own cursor so rows
+// pinned at the front of one scan (never-swept types, guarded references)
+// cannot starve the eligible rows behind them; a scan that reaches rows
+// younger than its window resets its cursor and laps again. A nil state means
+// every scan starts from the oldest rows.
+type MDMAppleCommandCleanupState struct {
+	// Retention is keyed by "<tier>:<status>", e.g. "short:Acknowledged". It
+	// may be nil after a round trip through storage; a missing key means that
+	// scan starts from the oldest rows.
+	Retention map[string]MDMAppleCommandCleanupCursor `json:"retention"`
+	Orphan    MDMAppleCommandOrphanCursor             `json:"orphan"`
+}
+
+// MDMAppleCommandCleanupStateStore persists the Apple MDM command cleanup
+// cron's cursors between runs. Only the Redis-backed datastore implements it;
+// like EnrollHostLimiter it is handed to the cron on its own rather than
+// through Datastore, so deployments without it simply pass nil and every run
+// starts from the oldest rows.
+type MDMAppleCommandCleanupStateStore interface {
+	// GetMDMAppleCommandCleanupState returns the stored cursors, or nil when
+	// none are stored.
+	GetMDMAppleCommandCleanupState(ctx context.Context) (*MDMAppleCommandCleanupState, error)
+	// SetMDMAppleCommandCleanupState stores the cursors. A nil state resets
+	// them.
+	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
+}
+
 // The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.
 //
 // [1] https://developer.apple.com/documentation/devicemanagement/get-token#Discussion
