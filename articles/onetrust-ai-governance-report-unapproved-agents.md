@@ -1,4 +1,4 @@
-# Nine in 10 companies encourage AI agents. Fewer than half can govern them.
+# 9 in 10 companies encourage AI agents, fewer than half can govern them.
 
 *OneTrust's new AI governance research finds most companies are adopting AI agents faster than they can oversee them. Fleet's inventory is how you find out where those agents landed, instead of waiting for the next incident to tell you.*
 
@@ -60,7 +60,7 @@ OneTrust's numbers are a reasonable description of the industry, but they're not
 - Help Net Security, [Your employees are already using AI tools you never approved](https://www.helpnetsecurity.com/2026/09/15/onetrust-enterprise-ai-governance-trends-report/).
 - GlobeNewswire, [OneTrust Research: 86% of Organizations Experienced AI-Related Incidents, Yet Few Slowed Deployment](https://www.globenewswire.com/news-release/2026/09/14/3361166/0/en/onetrust-research-86-of-organizations-experienced-ai-related-incidents-yet-few-slowed-deployment.html).
 
-<meta name="articleTitle" value="Nine in 10 companies encourage AI agents. Fewer than half can govern them.">
+<meta name="articleTitle" value="9 in 10 companies encourage AI agents, fewer than half can govern them.">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
