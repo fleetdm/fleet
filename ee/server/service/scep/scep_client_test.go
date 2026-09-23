@@ -23,8 +23,6 @@ import (
 )
 
 func TestSCEPEnrollmentRejectedError(t *testing.T) {
-	t.Parallel()
-
 	for name, tc := range map[string]struct {
 		err  SCEPEnrollmentRejectedError
 		want string
@@ -53,13 +51,11 @@ func TestSCEPEnrollmentRejectedError(t *testing.T) {
 	}
 }
 
-// craftedSCEPService is a SCEP server whose PKIOperation answer is chosen per test. The request
-// it hands to respond has already been decrypted with the CA key.
+// craftedSCEPService answers PKIOperation with whatever respond returns.
 type craftedSCEPService struct {
 	caCert *x509.Certificate
 	caKey  *rsa.PrivateKey
-	// caCertResponse overrides the GetCACert body and certificate count, which sets the
-	// Content-Type: a count above 1 is served as a chain.
+	// caCertResponse overrides GetCACert; a count above 1 is served as a chain.
 	caCertResponse func() ([]byte, int)
 	respond        func(req *smallstepscep.PKIMessage) ([]byte, error)
 }
@@ -111,8 +107,7 @@ func newSelfSignedTestCert(t *testing.T, cn string, keyUsage x509.KeyUsage) (*x5
 	return cert, key
 }
 
-// pendingCertRep builds a signed CertRep with pkiStatus PENDING, which the SCEP library has no
-// constructor for. The attributes mirror PKIMessage.Fail.
+// pendingCertRep builds a PENDING CertRep, which the SCEP library has no constructor for.
 func pendingCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Certificate, caKey *rsa.PrivateKey) []byte {
 	t.Helper()
 	scepOID := func(n int) asn1.ObjectIdentifier { return asn1.ObjectIdentifier{2, 16, 840, 1, 113733, 1, 9, n} }
@@ -130,8 +125,7 @@ func pendingCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Ce
 	return raw
 }
 
-// successCertRep builds a signed SUCCESS CertRep carrying certs, in order, encrypted to the
-// requester. PKIMessage.Success always sends exactly one certificate.
+// successCertRep builds a SUCCESS CertRep carrying certs; PKIMessage.Success sends only one.
 func successCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Certificate, caKey *rsa.PrivateKey, certs []*x509.Certificate) []byte {
 	t.Helper()
 	var chain []byte
@@ -161,8 +155,6 @@ func successCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Ce
 }
 
 func TestEnrollmentClientGetCertificate(t *testing.T) {
-	t.Parallel()
-
 	caCert, caKey := newSelfSignedTestCert(t, "Crafted SCEP CA",
 		x509.KeyUsageCertSign|x509.KeyUsageKeyEncipherment|x509.KeyUsageDigitalSignature)
 

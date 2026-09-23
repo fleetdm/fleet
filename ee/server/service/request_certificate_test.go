@@ -1183,13 +1183,12 @@ func TestRequestCertificate(t *testing.T) {
 	})
 }
 
-// Nothing depends on NDES test CSRs having distinct keys, so the keygen runs once.
+// Generated once; nothing needs distinct keys.
 var ndesTestCSRKey = sync.OnceValues(func() (*rsa.PrivateKey, error) {
 	return rsa.GenerateKey(rand.Reader, 2048)
 })
 
-// newNDESTestCSR returns a PEM CSR in the shape the Okta FastPass guides build, carrying challenge
-// as its challengePassword attribute when non-empty.
+// newNDESTestCSR returns a PEM CSR with challenge as its challengePassword, when non-empty.
 func newNDESTestCSR(t *testing.T, challenge string) string {
 	t.Helper()
 	key, err := ndesTestCSRKey()

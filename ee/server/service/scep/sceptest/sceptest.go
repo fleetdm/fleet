@@ -58,9 +58,8 @@ func NewTestSCEPServer(t *testing.T) *httptest.Server {
 	return newTestSCEPHTTPServer(t, crt, key, scepserver.NopCSRSigner())
 }
 
-// NewTestSCEPServerWithChallenge creates a SCEP server that issues real certificates from the
-// embedded test CA (see CACertificate), but only for CSRs whose challengePassword equals
-// challenge; any other CSR gets a FAILURE CertRep.
+// NewTestSCEPServerWithChallenge issues real certificates from the test CA, only for CSRs whose
+// challengePassword equals challenge.
 func NewTestSCEPServerWithChallenge(t *testing.T, challenge string) *httptest.Server {
 	t.Helper()
 	certDepot, key, crt := newTestCADepot(t)
@@ -68,9 +67,8 @@ func NewTestSCEPServerWithChallenge(t *testing.T, challenge string) *httptest.Se
 	return newTestSCEPHTTPServer(t, crt, key, signer)
 }
 
-// NewTestNDESSCEPServer is NewTestSCEPServerWithChallenge shaped like NDES: GetCACert returns a
-// PKCS7 chain whose first certificate is an RA certificate for key encipherment, followed by the
-// test CA, which carries no encipherment usage.
+// NewTestNDESSCEPServer is NewTestSCEPServerWithChallenge with an NDES-shaped chain: an RA
+// encryption certificate, then the test CA.
 func NewTestNDESSCEPServer(t *testing.T, challenge string) *httptest.Server {
 	t.Helper()
 	certDepot, key, caCert := newTestCADepot(t)

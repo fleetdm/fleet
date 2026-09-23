@@ -187,8 +187,6 @@ func TestRequestCertificatePayloadIdPCredentialsProvided(t *testing.T) {
 }
 
 func TestCertificateAuthorityESTProxyCA(t *testing.T) {
-	t.Parallel()
-
 	for name, tc := range map[string]struct {
 		ca      CertificateAuthority
 		want    ESTProxyCA
