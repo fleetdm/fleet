@@ -6711,8 +6711,8 @@ Fleet uses the host's current key to authorize the rotation, so the current key 
 
 Requirements:
 - macOS host enrolled in Fleet MDM
-- Key escrow is turned on for the host's fleet. Disk encryption enforcement doesn't need to be turned on.
-- The host's current key is decryptable by Fleet
+- Key escrow is turned on for the host's fleet.
+- The host's current key has been escrowed and is decryptable by Fleet
 
 `POST /api/v1/fleet/hosts/:id/encryption_key/rotate`
 
