@@ -3519,7 +3519,7 @@ This activity contains the following fields:
 
 ## rotated_disk_encryption_key
 
-Generated when a disk encryption key is rotated.
+Generated when a user triggers rotation of a host's disk encryption key.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -3531,6 +3531,25 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_to_rotate_disk_encryption_key
+
+Generated when Fleet can't rotate a host's disk encryption key after a rotation was triggered. Fleet then prompts the end user for their password at their next login to escrow a new key.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": Why the rotation failed, as reported by the host or by Fleet.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro",
+	"detail": "The host reported an error: NSTaskExitCode 34"
 }
 ```
 
