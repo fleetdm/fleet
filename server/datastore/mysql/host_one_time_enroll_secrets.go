@@ -46,8 +46,8 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // no longer exists. Unconsumed secrets whose host records still exist are never
 // removed here: a host holds at most one and it stays valid until used.
 //
-// Windows secrets are swept by their MDM enrollment rather than by host, since
-// they carry no host until they are consumed.
+// Windows secrets need no sweep of their own: consuming one records its host,
+// and deleting the enrollment cascades to its secrets.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
 	windowSeconds := int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow / time.Second)
@@ -78,23 +78,6 @@ func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64
 				) AS orphaned
 			)`,
 			args: []any{batchSize},
-		},
-		{
-			// The superseded sweep above joins on host_id, which a Windows secret does not have until it is consumed, so
-			// a spent one is never matched by a newer secret for the same device. Sweep those by their enrollment
-			// instead. Orphaned Windows rows need no sweep: the enrollment foreign key cascades.
-			stmt: `DELETE FROM host_one_time_enroll_secrets WHERE id IN (
-				SELECT id FROM (
-					SELECT DISTINCT s.id
-					FROM host_one_time_enroll_secrets s
-					JOIN host_one_time_enroll_secrets newer
-						ON newer.mdm_windows_enrollment_id = s.mdm_windows_enrollment_id AND newer.id > s.id
-					WHERE s.mdm_windows_enrollment_id IS NOT NULL
-						AND s.consumed_at IS NOT NULL AND s.consumed_at < NOW(6) - INTERVAL ? SECOND
-					LIMIT ?
-				) AS supersededWindows
-			)`,
-			args: []any{windowSeconds, batchSize},
 		},
 	}
 
@@ -203,20 +186,8 @@ func (ds *Datastore) mintHostOneTimeEnrollSecret(ctx context.Context, enrollment
 	return secret, nil
 }
 
-// A Windows one-time enroll secret is minted only when something has decided the device needs one, never as a side effect of
-// delivery. There are exactly two such decisions: Fleet is about to install fleetd on a device that does not have it
-// (MintWindowsMDMOneTimeEnrollSecret), and an administrator resends the Fleetd enroll secret profile to recover a host
-// (mintWindowsEnrollSecretOnResendDB, and windowsEnrollSecretBatchResendTargetsDB for a batch). Delivery only looks up what those decisions
-// left behind (liveWindowsMDMOneTimeEnrollSecret), and delivers nothing when there is nothing.
-//
-// The distinction matters because the profile goes to every Windows MDM host in the team, including the many that already run
-// fleetd and need no secret. Minting on delivery handed each of them a live, unconsumed secret in a registry value any local user
-// can read, and a Windows secret binds to an enrollment rather than to identifiers the agent presents, so another machine could
-// have used it to claim that enrollment.
-
 // MintWindowsMDMOneTimeEnrollSecret makes sure the given Windows MDM enrollment has a live one-time enroll secret, for the
-// fleetd install Fleet is about to send it. The installer command carries only the placeholder; getPendingMDMCmds resolves it
-// to this secret when the command is delivered.
+// fleetd install Fleet is about to send it.
 func (ds *Datastore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		minted, err := mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, []uint{enrollmentID})

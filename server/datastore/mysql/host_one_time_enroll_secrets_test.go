@@ -669,23 +669,6 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	}))
 	require.Equal(t, windowsOneTimeEnrollSecretMintResult{found: 2, inserted: 1}, result, "device already had a live secret")
 
-	// The cleanup cron sweeps a spent secret once a newer one for the same device exists and the second-plane window has
-	// passed. It has to key on the enrollment: a Windows secret carries no host_id until it is consumed, so the host-keyed
-	// sweep the Apple path uses would never match it.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) - INTERVAL 2 HOUR WHERE secret = ?`, secret)
-		return err
-	})
-	deleted, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
-	require.NoError(t, err)
-	require.EqualValues(t, 1, deleted)
-
-	_, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
-	require.True(t, fleet.IsNotFound(err), "the superseded secret must be swept")
-	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated)
-	require.NoError(t, err, "the live secret must survive the sweep")
-
 	// Re-enrollment deletes the enrollment row, and the foreign key cascade is what invalidates the secret minted for it.
 	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)
 	require.NoError(t, err)
@@ -840,6 +823,36 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		linkEnrollment(deviceAgain.ID, sharedAgain)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, deviceAgain.ID))
 		require.Equal(t, lowest.ID, *liveRow(deviceAgain.ID).HostID, "with no identifier match, the lowest id")
+	})
+	t.Run("a spent secret is swept by host once a resend supersedes it", func(t *testing.T) {
+		// The first-install secret is minted unbound, and consuming it records the host. That is what lets the host-keyed sweep
+		// the Apple path uses cover Windows too.
+		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := insertWindowsEnrollment(t, ds, "hw-bind-sweep")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		spent := liveRow(device.ID)
+		require.Nil(t, spent.HostID)
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(spent.ID))...)
+		require.NoError(t, err)
+		consumed, err := ds.GetHostOneTimeEnrollSecret(ctx, spent.Secret)
+		require.NoError(t, err)
+		require.Equal(t, h.ID, *consumed.HostID)
+
+		linkEnrollment(device.ID, h.UUID)
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		live := liveRow(device.ID)
+		require.NotEqual(t, spent.ID, live.ID)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) - INTERVAL 2 HOUR WHERE id = ?`, spent.ID)
+			return err
+		})
+		_, err = ds.CleanupHostOneTimeEnrollSecrets(ctx)
+		require.NoError(t, err)
+		_, err = ds.GetHostOneTimeEnrollSecret(ctx, spent.Secret)
+		require.True(t, fleet.IsNotFound(err), "the superseded secret must be swept")
+		_, err = ds.GetHostOneTimeEnrollSecret(ctx, live.Secret)
+		require.NoError(t, err, "the live secret must survive the sweep")
 	})
 }
 
