@@ -4162,10 +4162,7 @@ LIMIT ?`
 	const selectCommandsStmt = `
 SELECT wmc.command_uuid
 FROM windows_mdm_commands wmc
-WHERE wmc.created_at < ?
-	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
-	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
-	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)
+WHERE wmc.created_at < ? AND ` + unreferencedWindowsMDMCommandPredicate + `
 ORDER BY wmc.created_at
 LIMIT ?`
 
@@ -4234,15 +4231,19 @@ WHERE wmr.id IN (?) AND r.response_id IS NULL`
 	return results, responses, nil
 }
 
+// unreferencedWindowsMDMCommandPredicate matches a command (aliased wmc) that
+// nothing points at any more. Shared by the select and the delete so the
+// re-check on the primary can never drift from what the reader selected.
+const unreferencedWindowsMDMCommandPredicate = `NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)`
+
 // deleteMDMWindowsCommandsByUUIDs re-checks that nothing references the
 // command, since the delete cascades to the queue.
 func deleteMDMWindowsCommandsByUUIDs(ctx context.Context, q sqlx.ExecerContext, uuids []string) (int64, error) {
 	const deleteStmt = `
 DELETE wmc FROM windows_mdm_commands wmc
-WHERE wmc.command_uuid IN (?)
-	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
-	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
-	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)`
+WHERE wmc.command_uuid IN (?) AND ` + unreferencedWindowsMDMCommandPredicate
 	stmt, args, err := sqlx.In(deleteStmt, uuids)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm commands")
