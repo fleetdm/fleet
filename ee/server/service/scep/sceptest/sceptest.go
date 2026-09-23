@@ -8,11 +8,16 @@
 package sceptest
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	_ "embed"
 	"encoding/binary"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,6 +25,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 	"unicode/utf16"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -48,6 +54,58 @@ var mscepAdminPassword []byte
 // an in-temp-dir CA built from embedded test certs.
 func NewTestSCEPServer(t *testing.T) *httptest.Server {
 	t.Helper()
+	_, key, crt := newTestCADepot(t)
+	return newTestSCEPHTTPServer(t, crt, key, scepserver.NopCSRSigner())
+}
+
+// NewTestSCEPServerWithChallenge creates a SCEP server that issues real certificates from the
+// embedded test CA (see CACertificate), but only for CSRs whose challengePassword equals
+// challenge; any other CSR gets a FAILURE CertRep.
+func NewTestSCEPServerWithChallenge(t *testing.T, challenge string) *httptest.Server {
+	t.Helper()
+	certDepot, key, crt := newTestCADepot(t)
+	signer := scepserver.StaticChallengeMiddleware(challenge, scepserver.SignCSRAdapter(depot.NewSigner(certDepot)))
+	return newTestSCEPHTTPServer(t, crt, key, signer)
+}
+
+// NewTestNDESSCEPServer is NewTestSCEPServerWithChallenge shaped like NDES: GetCACert returns a
+// PKCS7 chain whose first certificate is an RA certificate for key encipherment, followed by the
+// test CA, which carries no encipherment usage.
+func NewTestNDESSCEPServer(t *testing.T, challenge string) *httptest.Server {
+	t.Helper()
+	certDepot, key, caCert := newTestCADepot(t)
+
+	// Reusing the CA key lets the server decrypt requests encrypted to the RA certificate.
+	serial, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+	require.NoError(t, err)
+	raTemplate := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "Test NDES RA"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	}
+	raDER, err := x509.CreateCertificate(rand.Reader, raTemplate, caCert, &key.PublicKey, key)
+	require.NoError(t, err)
+	raCert, err := x509.ParseCertificate(raDER)
+	require.NoError(t, err)
+
+	signer := scepserver.StaticChallengeMiddleware(challenge, scepserver.SignCSRAdapter(depot.NewSigner(certDepot)))
+	return newTestSCEPHTTPServer(t, raCert, key, signer, scepserver.WithAddlCA(caCert))
+}
+
+// CACertificate returns the embedded test CA certificate that the SCEP test servers issue from.
+func CACertificate(t *testing.T) *x509.Certificate {
+	t.Helper()
+	block, _ := pem.Decode(caPem)
+	require.NotNil(t, block)
+	crt, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	return crt
+}
+
+func newTestCADepot(t *testing.T) (depot.Depot, *rsa.PrivateKey, *x509.Certificate) {
+	t.Helper()
 
 	caDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(caDir, "ca.key"), caKey, 0o644); err != nil {
@@ -56,23 +114,24 @@ func NewTestSCEPServer(t *testing.T) *httptest.Server {
 	if err := os.WriteFile(filepath.Join(caDir, "ca.pem"), caPem, 0o644); err != nil {
 		t.Fatalf("failed to write ca.pem: %v", err)
 	}
-
-	var err error
-	var certDepot depot.Depot // cert storage
-	t.Cleanup(func() {
-		_ = os.Remove(caDir)
-	})
-	certDepot, err = filedepot.NewFileDepot(caDir)
+	fileDepot, err := filedepot.NewFileDepot(caDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	certDepot = &noopDepot{certDepot}
+	certDepot := &noopDepot{fileDepot}
 	crt, key, err := certDepot.CA([]byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var svc scepserver.Service // scep service
-	svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
+	return certDepot, key, crt[0]
+}
+
+func newTestSCEPHTTPServer(t *testing.T, crt *x509.Certificate, key *rsa.PrivateKey, signer scepserver.CSRSignerContext,
+	opts ...scepserver.ServiceOption,
+) *httptest.Server {
+	t.Helper()
+
+	svc, err := scepserver.NewService(crt, key, signer, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
