@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft OLE DB Driver 19 for SQL Server' AND publisher = 'Microsoft Corporation' AND version LIKE '19.%' AND version_compare(version, '19.4.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft ole db driver 19 for sql server.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/8cfb79d5-7e2f-48aa-9d38-47098f6a7cc7/amd64/1031/msoledbsql.msi",
+      "installer_url": "https://download.microsoft.com/download/7bf55274-18ac-4b26-9783-45453a1ab64f/amd64/1033/msoledbsql.msi",
       "install_script_ref": "02225125",
       "uninstall_script_ref": "ddad8488",
-      "sha256": "4f0acad6a29d3f6151d6c038a1f6c069515278bb5b8d54ac5b211c2c4e49b9bb",
+      "sha256": "409adfd93165dd3622b2d7cd0b9c4d96a27b04f9f3fb5599d99acbe90ade0638",
       "default_categories": [
         "Developer tools"
       ],
