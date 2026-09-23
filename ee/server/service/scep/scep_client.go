@@ -1,6 +1,7 @@
 package scep
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
+	"github.com/smallstep/pkcs7"
 	smallstepscep "github.com/smallstep/scep"
 )
 
@@ -79,13 +81,46 @@ func (c *EnrollmentClient) GetCertificate(ctx context.Context, url string, csr *
 	if resp.PKIStatus != smallstepscep.SUCCESS {
 		return nil, ctxerr.Wrap(ctx, SCEPEnrollmentRejectedError{Status: resp.PKIStatus, FailInfo: resp.FailInfo}, "SCEP server rejected the request")
 	}
-	if err := resp.DecryptPKIEnvelope(signerCert, signerKey); err != nil {
+	certs, err := decryptCertRepCertificates(respBytes, signerCert, signerKey)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting SCEP CertRep")
 	}
-	if resp.CertRepMessage.Certificate == nil {
-		return nil, ctxerr.New(ctx, "SCEP CertRep did not contain a certificate")
+	return certificateForCSR(ctx, certs, csr)
+}
+
+// decryptCertRepCertificates returns every certificate in a CertRep that ParsePKIMessage has already
+// verified. PKIMessage.DecryptPKIEnvelope keeps only the first certificate, and panics when there
+// is none, while RFC 8894 lets a CA send its own certificates alongside the issued one in any order.
+func decryptCertRepCertificates(certRep []byte, signerCert *x509.Certificate, signerKey *rsa.PrivateKey) ([]*x509.Certificate, error) {
+	signed, err := pkcs7.Parse(certRep)
+	if err != nil {
+		return nil, err
 	}
-	return resp.CertRepMessage.Certificate, nil
+	enveloped, err := pkcs7.Parse(signed.Content)
+	if err != nil {
+		return nil, err
+	}
+	degenerate, err := enveloped.Decrypt(signerCert, signerKey)
+	if err != nil {
+		return nil, err
+	}
+	return smallstepscep.CACerts(degenerate)
+}
+
+// certificateForCSR returns the certificate issued for csr's public key, so a CA certificate sent
+// alongside it, or a certificate for another key, is never handed back as the caller's.
+func certificateForCSR(ctx context.Context, certs []*x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	csrKey, err := x509.MarshalPKIXPublicKey(csr.PublicKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encoding CSR public key")
+	}
+	for _, cert := range certs {
+		certKey, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+		if err == nil && bytes.Equal(certKey, csrKey) {
+			return cert, nil
+		}
+	}
+	return nil, ctxerr.New(ctx, "SCEP CertRep has no certificate for the CSR's public key")
 }
 
 // fetchCACerts returns the SCEP server's GetCACert chain. A lone CA certificate is served as raw

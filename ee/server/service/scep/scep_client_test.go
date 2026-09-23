@@ -130,6 +130,36 @@ func pendingCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Ce
 	return raw
 }
 
+// successCertRep builds a signed SUCCESS CertRep carrying certs, in order, encrypted to the
+// requester. PKIMessage.Success always sends exactly one certificate.
+func successCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Certificate, caKey *rsa.PrivateKey, certs []*x509.Certificate) []byte {
+	t.Helper()
+	var chain []byte
+	for _, c := range certs {
+		chain = append(chain, c.Raw...)
+	}
+	degenerate, err := pkcs7.DegenerateCertificate(chain)
+	require.NoError(t, err)
+	reqP7, err := pkcs7.Parse(req.Raw)
+	require.NoError(t, err)
+	enveloped, err := pkcs7.Encrypt(degenerate, reqP7.Certificates)
+	require.NoError(t, err)
+
+	scepOID := func(n int) asn1.ObjectIdentifier { return asn1.ObjectIdentifier{2, 16, 840, 1, 113733, 1, 9, n} }
+	sd, err := pkcs7.NewSignedData(enveloped)
+	require.NoError(t, err)
+	require.NoError(t, sd.AddSigner(caCert, caKey, pkcs7.SignerInfoConfig{ExtraSignedAttributes: []pkcs7.Attribute{
+		{Type: scepOID(7), Value: req.TransactionID},
+		{Type: scepOID(3), Value: smallstepscep.SUCCESS},
+		{Type: scepOID(2), Value: smallstepscep.CertRep},
+		{Type: scepOID(5), Value: req.SenderNonce},
+		{Type: scepOID(6), Value: req.SenderNonce},
+	}}))
+	raw, err := sd.Finish()
+	require.NoError(t, err)
+	return raw
+}
+
 func TestEnrollmentClientGetCertificate(t *testing.T) {
 	t.Parallel()
 
@@ -203,6 +233,34 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 		url := newServerWithCACert(t, func() ([]byte, int) { return []byte("not a certificate"), 1 }, succeed)
 		_, err := newClient().GetCertificate(t.Context(), url, csr)
 		require.ErrorContains(t, err, "parsing CA certificates from SCEP URL")
+	})
+
+	t.Run("the certificate for the CSR's key is returned when the CA's certificate comes first", func(t *testing.T) {
+		var issued *x509.Certificate
+		url := newServer(t, func(req *smallstepscep.PKIMessage) ([]byte, error) {
+			issued = issue(t, req)
+			return successCertRep(t, req, caCert, caKey, []*x509.Certificate{caCert, issued}), nil
+		})
+		cert, err := newClient().GetCertificate(t.Context(), url, csr)
+		require.NoError(t, err)
+		require.Equal(t, issued.Raw, cert.Raw)
+	})
+
+	t.Run("a certificate for another key is rejected", func(t *testing.T) {
+		other, _ := newSelfSignedTestCert(t, "someone else", x509.KeyUsageDigitalSignature)
+		url := newServer(t, func(req *smallstepscep.PKIMessage) ([]byte, error) {
+			return successCertRep(t, req, caCert, caKey, []*x509.Certificate{other}), nil
+		})
+		_, err := newClient().GetCertificate(t.Context(), url, csr)
+		require.ErrorContains(t, err, "SCEP CertRep has no certificate for the CSR's public key")
+	})
+
+	t.Run("an empty certificate bundle is an error, not a panic", func(t *testing.T) {
+		url := newServer(t, func(req *smallstepscep.PKIMessage) ([]byte, error) {
+			return successCertRep(t, req, caCert, caKey, nil), nil
+		})
+		_, err := newClient().GetCertificate(t.Context(), url, csr)
+		require.ErrorContains(t, err, "SCEP CertRep has no certificate for the CSR's public key")
 	})
 
 	t.Run("PENDING is a rejection", func(t *testing.T) {
