@@ -130,30 +130,24 @@ func (m *model) HandleStateChange(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Update overall progress
 			completedTasks := 0
+			failedTasks := 0
 			for _, task := range m.tasks {
-				if task.Status == TaskSuccess {
+				switch task.Status {
+				case TaskSuccess:
 					completedTasks++
+				case TaskError:
+					failedTasks++
 				}
 			}
 			overallPercent := float64(completedTasks) / float64(len(m.tasks))
 			cmds = append(cmds, m.overallProgress.SetPercent(overallPercent))
-
-			// Check if we have an error
-			if msg.status.State == "error" {
-				m.workflowState = WorkflowComplete
-				m.errorMessage = fmt.Sprintf("Task %d failed", msg.status.Index)
-				// Channel will be closed by AsyncManager
-				m.statusChan = nil
-			} else if completedTasks == len(m.tasks) {
-				// All tasks completed successfully
-				m.workflowState = WorkflowComplete
-				// Channel will be closed by AsyncManager
-				m.statusChan = nil
-			} else {
-				// Continue listening for more status updates
-				cmds = append(cmds, m.listenForAsyncStatus())
+			if failedTasks > 0 {
+				m.errorMessage = fmt.Sprintf("%d task(s) failed, see dgm.log for details", failedTasks)
 			}
 		}
+		// Keep draining the channel until AsyncManager closes it: it keeps going after a failed
+		// action, and stopping here would leave it blocked on its next send.
+		cmds = append(cmds, m.listenForAsyncStatus())
 	case taskUpdateMsg:
 		if msg.taskID < len(m.tasks) {
 			m.tasks[msg.taskID].Progress = msg.progress

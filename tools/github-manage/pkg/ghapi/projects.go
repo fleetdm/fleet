@@ -396,7 +396,8 @@ func SetProjectItemFieldValue(itemID string, projectID int, fieldName, value str
 }
 
 // GetProjectItemID finds the project item ID for a given issue number in a project with caching.
-// Uses GitHub API directly for better performance and reliability.
+// It looks the item up from the issue side because a project's items connection can omit
+// recently added items, even after paging through all of them.
 func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 	// Check cache first
 	cacheKey := generateProjectItemCacheKey(issueNumber, projectID)
@@ -407,60 +408,41 @@ func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 	}
 	projectItemIDMutex.RUnlock()
 
-	// Not in cache, fetch from API
-
-	// First, we need to get the project's node ID
-	projectNodeID, err := getProjectNodeID(projectID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get project node ID: %v", err)
-	}
-
-	// GraphQL query to find the project item for the specific issue
 	query := fmt.Sprintf(`{
-		node(id: "%s") {
-			... on ProjectV2 {
-				items(first: 100) {
+		repository(owner: "fleetdm", name: "fleet") {
+			issue(number: %d) {
+				projectItems(first: 100, includeArchived: false) {
 					nodes {
 						id
-						content {
-							... on Issue {
-								number
-							}
+						project {
+							number
 						}
-					}
-					pageInfo {
-						hasNextPage
-						endCursor
 					}
 				}
 			}
 		}
-	}`, projectNodeID)
+	}`, issueNumber)
 
-	// Use gh api to execute the GraphQL query
 	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
 	output, err := RunCommandAndReturnOutput(command)
 	if err != nil {
-		return "", fmt.Errorf("failed to query project items via API: %v", err)
+		return "", fmt.Errorf("failed to query issue project items via API: %v", err)
 	}
 
-	// Parse the GraphQL response
 	var response struct {
 		Data struct {
-			Node struct {
-				Items struct {
-					Nodes []struct {
-						ID      string `json:"id"`
-						Content struct {
-							Number int `json:"number"`
-						} `json:"content"`
-					} `json:"nodes"`
-					PageInfo struct {
-						HasNextPage bool   `json:"hasNextPage"`
-						EndCursor   string `json:"endCursor"`
-					} `json:"pageInfo"`
-				} `json:"items"`
-			} `json:"node"`
+			Repository struct {
+				Issue struct {
+					ProjectItems struct {
+						Nodes []struct {
+							ID      string `json:"id"`
+							Project struct {
+								Number int `json:"number"`
+							} `json:"project"`
+						} `json:"nodes"`
+					} `json:"projectItems"`
+				} `json:"issue"`
+			} `json:"repository"`
 		} `json:"data"`
 	}
 
@@ -469,21 +451,14 @@ func GetProjectItemID(issueNumber int, projectID int) (string, error) {
 		return "", fmt.Errorf("failed to parse GraphQL response: %v", err)
 	}
 
-	// Search through the items to find the matching issue number
-	for _, item := range response.Data.Node.Items.Nodes {
-		if item.Content.Number == issueNumber {
-			// Cache the result
+	for _, item := range response.Data.Repository.Issue.ProjectItems.Nodes {
+		if item.Project.Number == projectID {
 			projectItemIDMutex.Lock()
 			projectItemIDCache[cacheKey] = item.ID
 			projectItemIDMutex.Unlock()
 
 			return item.ID, nil
 		}
-	}
-
-	// If we have more pages, we should search them too
-	if response.Data.Node.Items.PageInfo.HasNextPage {
-		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor, cacheKey)
 	}
 
 	return "", fmt.Errorf("issue #%d not found in project %d", issueNumber, projectID)
@@ -525,79 +500,6 @@ func getProjectNodeID(projectID int) (string, error) {
 	projectNodeIDMutex.Unlock()
 
 	return response.ID, nil
-}
-
-// getProjectItemIDWithPagination handles pagination when searching for project items with caching.
-func getProjectItemIDWithPagination(issueNumber int, projectNodeID, cursor, cacheKey string) (string, error) {
-	query := fmt.Sprintf(`{
-		node(id: "%s") {
-			... on ProjectV2 {
-				items(first: 100, after: "%s") {
-					nodes {
-						id
-						content {
-							... on Issue {
-								number
-							}
-						}
-					}
-					pageInfo {
-						hasNextPage
-						endCursor
-					}
-				}
-			}
-		}
-	}`, projectNodeID, cursor)
-
-	command := fmt.Sprintf(`gh api graphql -f query='%s'`, query)
-	output, err := RunCommandAndReturnOutput(command)
-	if err != nil {
-		return "", fmt.Errorf("failed to query project items via API (pagination): %v", err)
-	}
-
-	var response struct {
-		Data struct {
-			Node struct {
-				Items struct {
-					Nodes []struct {
-						ID      string `json:"id"`
-						Content struct {
-							Number int `json:"number"`
-						} `json:"content"`
-					} `json:"nodes"`
-					PageInfo struct {
-						HasNextPage bool   `json:"hasNextPage"`
-						EndCursor   string `json:"endCursor"`
-					} `json:"pageInfo"`
-				} `json:"items"`
-			} `json:"node"`
-		} `json:"data"`
-	}
-
-	err = json.Unmarshal(output, &response)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse GraphQL response (pagination): %v", err)
-	}
-
-	// Search through this page of items
-	for _, item := range response.Data.Node.Items.Nodes {
-		if item.Content.Number == issueNumber {
-			// Cache the result
-			projectItemIDMutex.Lock()
-			projectItemIDCache[cacheKey] = item.ID
-			projectItemIDMutex.Unlock()
-
-			return item.ID, nil
-		}
-	}
-
-	// If there are more pages, continue searching
-	if response.Data.Node.Items.PageInfo.HasNextPage {
-		return getProjectItemIDWithPagination(issueNumber, projectNodeID, response.Data.Node.Items.PageInfo.EndCursor, cacheKey)
-	}
-
-	return "", fmt.Errorf("issue #%d not found in project after searching all pages", issueNumber)
 }
 
 // GetProjectItemFieldValue retrieves the value of a specific field for a project item.
