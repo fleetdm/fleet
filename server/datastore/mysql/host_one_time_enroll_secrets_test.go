@@ -685,6 +685,12 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err), "the superseded secret must be swept")
 	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated)
 	require.NoError(t, err, "the live secret must survive the sweep")
+
+	// Re-enrollment deletes the enrollment row, and the foreign key cascade is what invalidates the secret minted for it.
+	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)
+	require.NoError(t, err)
+	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated)
+	require.True(t, fleet.IsNotFound(err), "the secret must go with its enrollment")
 }
 
 func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
