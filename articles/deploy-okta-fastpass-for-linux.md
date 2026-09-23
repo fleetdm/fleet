@@ -1,4 +1,4 @@
-# Configure Okta FastPass for Linux
+# Deploy Okta FastPass for Linux
 
 Okta's FastPass can require a managed device, confirmed by a certificate from MDM, in addition to a verified user. This guide installs Okta Verify and deploys that device certificate with Fleet, so Linux hosts meet the same managed-device requirement as macOS and Windows. 
 
@@ -181,7 +181,7 @@ SELECT 1 FROM certificates WHERE path = '/etc/okta/device.pem' AND not_valid_aft
 3. On the host, open Okta Verify and confirm FastPass is available for sign-in.
 4. After Steps 3 through 5 are available, confirm `/etc/okta/device.pem` exists on the host and is a valid certificate: `openssl x509 -in /etc/okta/device.pem -noout -text` (or `openssl pkcs7 -print_certs -in /etc/okta/device.pem` if Fleet returned a PKCS7 envelope).
 
-<meta name="articleTitle" value="Configure Okta FastPass for Linux">
+<meta name="articleTitle" value="Deploy Okta FastPass for Linux">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
