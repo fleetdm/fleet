@@ -646,7 +646,6 @@ const PolicyForm = ({
           className="critical-policy"
           onChange={(value: boolean) => setLastEditedQueryCritical(value)}
           value={lastEditedQueryCritical}
-          isLeftLabel
           disabled={gitOpsModeEnabled}
         >
           <TooltipWrapper
@@ -673,7 +672,6 @@ const PolicyForm = ({
           className="hidden-policy"
           onChange={(value: boolean) => setLastEditedQueryHidden(value)}
           value={lastEditedQueryHidden}
-          isLeftLabel
           disabled={gitOpsModeEnabled || conditionalAccessOn}
         >
           <TooltipWrapper
