@@ -47,8 +47,8 @@ type Service interface {
 type CollectScopeFn func(datasetName string) (skip bool, disabledFleetIDs []uint)
 
 // PlatformExpanderFn maps one platform filter value to the hosts.platform
-// values it covers. Linux hosts store their distro ("ubuntu", "rhel", ...) in
-// hosts.platform, never "linux", so the caller must expand that family; other
+// values it covers. Linux hosts store their distro ("ubuntu", "rhel", ...,
+// even "linux") in hosts.platform, so the caller must expand that family; other
 // platforms map to themselves. Implemented in server/acl/chartacl.
 type PlatformExpanderFn func(platform string) []string
 
