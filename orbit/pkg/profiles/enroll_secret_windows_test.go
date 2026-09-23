@@ -41,9 +41,7 @@ func createTestKey(t *testing.T) {
 	deleteTestKey() // a run that could not clean up must not decide this one
 	t.Cleanup(deleteTestKey)
 
-	key, _, err := registry.CreateKey(registry.CURRENT_USER, testEnrollSecretKeyPath, registry.SET_VALUE)
-	require.NoError(t, err)
-	require.NoError(t, key.Close())
+	require.NoError(t, ensureEnrollSecretKeyExists(registry.CURRENT_USER, testEnrollSecretKeyPath))
 }
 
 func deleteTestKey() {
