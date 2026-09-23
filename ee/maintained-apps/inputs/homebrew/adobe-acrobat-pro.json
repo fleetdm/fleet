@@ -4,5 +4,6 @@
   "token": "adobe-acrobat-pro",
   "installer_format": "dmg",
   "slug": "adobe-acrobat-pro/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }
