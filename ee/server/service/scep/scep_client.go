@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"log/slog"
-	"math/big"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -79,7 +78,7 @@ func (c *EnrollmentClient) GetCertificate(ctx context.Context, url string, csr *
 		return nil, ctxerr.Errorf(ctx, "SCEP server responded with message type %q instead of CertRep", string(resp.MessageType))
 	}
 	if resp.PKIStatus != smallstepscep.SUCCESS {
-		return nil, ctxerr.Wrap(ctx, SCEPEnrollmentRejectedError{Status: resp.PKIStatus, FailInfo: resp.FailInfo}, "SCEP server rejected the request")
+		return nil, ctxerr.Wrap(ctx, enrollmentRejectedError{Status: resp.PKIStatus, FailInfo: resp.FailInfo}, "SCEP server rejected the request")
 	}
 	certs, err := decryptCertRepCertificates(respBytes, signerCert, signerKey)
 	if err != nil {
@@ -152,13 +151,8 @@ func newEphemeralSigner(ctx context.Context, subject pkix.Name) (*rsa.PrivateKey
 		return nil, nil, ctxerr.Wrap(ctx, err, "generating SCEP signer key")
 	}
 
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "generating SCEP signer serial number")
-	}
 	now := time.Now()
 	template := &x509.Certificate{
-		SerialNumber:          serial,
 		Subject:               subject,
 		NotBefore:             now.Add(-5 * time.Minute),
 		NotAfter:              now.Add(10 * time.Minute),
@@ -190,34 +184,29 @@ func recipientCertsSelector() smallstepscep.CertsSelectorFunc {
 	}
 }
 
-// SCEPEnrollmentRejectedError is a CertRep whose status is not SUCCESS: the CA answered and
-// declined, or deferred, the request.
-type SCEPEnrollmentRejectedError struct {
+// enrollmentRejectedError is a CertRep whose status is not SUCCESS: the CA answered and declined,
+// or deferred, the request.
+type enrollmentRejectedError struct {
 	Status   smallstepscep.PKIStatus
 	FailInfo smallstepscep.FailInfo
 }
 
-func (e SCEPEnrollmentRejectedError) Error() string {
+func (e enrollmentRejectedError) Error() string {
 	switch e.Status {
 	case smallstepscep.FAILURE:
+		// FailInfo.String panics on values outside the RFC 8894 set, so those are printed raw.
+		failInfo := fmt.Sprintf("%q", string(e.FailInfo))
+		switch e.FailInfo {
+		case smallstepscep.BadAlg, smallstepscep.BadMessageCheck, smallstepscep.BadRequest, smallstepscep.BadTime, smallstepscep.BadCertID:
+			failInfo = e.FailInfo.String()
+		}
 		// Not every SCEP CA requires a challenge, so Fleet cannot check for one up front, but a
 		// missing or wrong one is the likeliest cause of a rejection.
 		return fmt.Sprintf("status FAILURE with fail info %s; if this certificate authority requires a challenge, "+
-			"include it as the CSR's challengePassword attribute", failInfoString(e.FailInfo))
+			"include it as the CSR's challengePassword attribute", failInfo)
 	case smallstepscep.PENDING:
 		return "status PENDING; requests that need manual approval are not supported"
 	default:
 		return fmt.Sprintf("unknown status %q", string(e.Status))
-	}
-}
-
-// failInfoString formats a CA-supplied failInfo. FailInfo.String panics on values outside the
-// RFC 8894 set, so those are printed raw.
-func failInfoString(info smallstepscep.FailInfo) string {
-	switch info {
-	case smallstepscep.BadAlg, smallstepscep.BadMessageCheck, smallstepscep.BadRequest, smallstepscep.BadTime, smallstepscep.BadCertID:
-		return info.String()
-	default:
-		return fmt.Sprintf("%q", string(info))
 	}
 }

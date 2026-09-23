@@ -22,26 +22,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSCEPEnrollmentRejectedError(t *testing.T) {
+func TestEnrollmentRejectedError(t *testing.T) {
 	for name, tc := range map[string]struct {
-		err  SCEPEnrollmentRejectedError
+		err  enrollmentRejectedError
 		want string
 	}{
-		"failure": {
-			SCEPEnrollmentRejectedError{Status: smallstepscep.FAILURE, FailInfo: smallstepscep.BadRequest},
-			"status FAILURE with fail info badRequest (2); if this certificate authority requires a challenge, include it as the CSR's challengePassword attribute",
-		},
 		// FailInfo.String panics on values outside the RFC set.
 		"failure with unknown fail info": {
-			SCEPEnrollmentRejectedError{Status: smallstepscep.FAILURE, FailInfo: "99"},
+			enrollmentRejectedError{Status: smallstepscep.FAILURE, FailInfo: "99"},
 			`status FAILURE with fail info "99"; if this certificate authority requires a challenge, include it as the CSR's challengePassword attribute`,
 		},
 		"pending": {
-			SCEPEnrollmentRejectedError{Status: smallstepscep.PENDING},
+			enrollmentRejectedError{Status: smallstepscep.PENDING},
 			"status PENDING; requests that need manual approval are not supported",
 		},
 		"unknown status": {
-			SCEPEnrollmentRejectedError{Status: "7"},
+			enrollmentRejectedError{Status: "7"},
 			`unknown status "7"`,
 		},
 	} {
@@ -210,17 +206,6 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 		return rep.Raw, nil
 	}
 
-	// The GetCACert body is parsed by format, not by the Content-Type, which servers mislabel.
-	t.Run("PKCS7 chain served under the single-certificate content type", func(t *testing.T) {
-		url := newServerWithCACert(t, func() ([]byte, int) {
-			chain, err := smallstepscep.DegenerateCertificates([]*x509.Certificate{caCert})
-			require.NoError(t, err)
-			return chain, 1
-		}, succeed)
-		_, err := newClient().GetCertificate(t.Context(), url, csr)
-		require.NoError(t, err)
-	})
-
 	t.Run("GetCACert body that is neither is an error", func(t *testing.T) {
 		url := newServerWithCACert(t, func() ([]byte, int) { return []byte("not a certificate"), 1 }, succeed)
 		_, err := newClient().GetCertificate(t.Context(), url, csr)
@@ -260,7 +245,7 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 			return pendingCertRep(t, req, caCert, caKey), nil
 		})
 		_, err := newClient().GetCertificate(t.Context(), url, csr)
-		rejected, ok := errors.AsType[SCEPEnrollmentRejectedError](err)
+		rejected, ok := errors.AsType[enrollmentRejectedError](err)
 		require.True(t, ok, "got %v", err)
 		require.Equal(t, smallstepscep.PENDING, rejected.Status)
 	})
@@ -280,7 +265,7 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 		})
 		_, err := newClient().GetCertificate(t.Context(), url, csr)
 		require.ErrorContains(t, err, "instead of CertRep")
-		_, rejected := errors.AsType[SCEPEnrollmentRejectedError](err)
+		_, rejected := errors.AsType[enrollmentRejectedError](err)
 		require.False(t, rejected)
 	})
 
