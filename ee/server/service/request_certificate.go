@@ -72,6 +72,11 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	envelope, err := issueCert(ctx, certificateRequest)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "Certificate request to the certificate authority failed", "ca_id", ca.ID, "ca_type", ca.Type, "err", err)
+		// A CA that could not serve the request gets a 503 with Retry-After, so curl --retry and
+		// similar clients wait and retry instead of failing the install.
+		if _, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err); ok {
+			return nil, err
+		}
 		return nil, &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
 	}
 

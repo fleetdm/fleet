@@ -7,14 +7,17 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/smallstep/pkcs7"
 	smallstepscep "github.com/smallstep/scep"
 )
@@ -62,7 +65,7 @@ func (c *EnrollmentClient) GetCertificate(ctx context.Context, url string, csr *
 
 	respBytes, err := client.PKIOperation(ctx, msg.Raw)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sending SCEP PKCSReq")
+		return nil, wrapRequestError(ctx, err, "sending SCEP PKCSReq")
 	}
 	// Verified against the whole GetCACert chain, not just the recipients: NDES signs the CertRep
 	// with its signing RA certificate, which the encipherment selector leaves out.
@@ -119,13 +122,34 @@ func certificateForCSR(ctx context.Context, certs []*x509.Certificate, csr *x509
 	return nil, ctxerr.New(ctx, "SCEP CertRep has no certificate for the CSR's public key")
 }
 
+// enrollmentRetryAfterSeconds is the Retry-After for a transient SCEP request failure.
+const enrollmentRetryAfterSeconds = 30
+
+// wrapRequestError marks a GetCACert or PKIOperation failure that should clear on its own as
+// transient. The cause is kept as text because wrapping a *net.OpError makes the encoder answer 408,
+// and the response shows only this error's message.
+func wrapRequestError(ctx context.Context, err error, msg string) error {
+	transient := !errors.Is(err, context.Canceled)
+	if statusErr, ok := errors.AsType[scepserver.ResponseStatusError](err); ok {
+		transient = statusErr.Code >= http.StatusInternalServerError ||
+			statusErr.Code == http.StatusRequestTimeout || statusErr.Code == http.StatusTooManyRequests
+	}
+	if !transient {
+		return ctxerr.Wrap(ctx, err, msg)
+	}
+	return fleet.CertificateAuthorityTransientError{
+		Message:           msg + ": " + err.Error(),
+		RetryAfterSeconds: enrollmentRetryAfterSeconds,
+	}
+}
+
 // fetchCACerts returns the SCEP server's GetCACert chain. A lone CA certificate is served as raw
 // DER; a CA with an RA, the usual NDES setup, serves a PKCS7 chain. Each parser rejects the
 // other format, so both are tried rather than trusting the Content-Type, which servers mislabel.
 func fetchCACerts(ctx context.Context, client scepclient.Client) ([]*x509.Certificate, error) {
 	data, _, err := client.GetCACert(ctx, "")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting CA certificates from SCEP URL")
+		return nil, wrapRequestError(ctx, err, "getting CA certificates from SCEP URL")
 	}
 	caCerts, err := x509.ParseCertificates(data)
 	if err != nil {

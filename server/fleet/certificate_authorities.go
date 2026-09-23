@@ -279,7 +279,8 @@ type SCEPConfigService interface {
 // behalf.
 type SCEPEnrollmentClient interface {
 	// GetCertificate enrolls csr, which must already carry any challenge the CA requires, against
-	// the SCEP server at url and returns the issued certificate.
+	// the SCEP server at url and returns the issued certificate. A failure expected to clear on its
+	// own is a CertificateAuthorityTransientError.
 	GetCertificate(ctx context.Context, url string, csr *x509.CertificateRequest) (*x509.Certificate, error)
 }
 

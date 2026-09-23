@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"log/slog"
 	"math/big"
@@ -1142,6 +1143,21 @@ func TestRequestCertificate(t *testing.T) {
 		}
 	})
 
+	t.Run("Request a certificate - NDES, unreachable SCEP URL is a 503 with Retry-After", func(t *testing.T) {
+		svc, _, ctx := baseSetupForTests()
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: unreachableNDESCA.ID, CSR: newNDESTestCSR(t, ndesChallenge)})
+		transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+		require.True(t, ok, "got %v", err)
+		require.Equal(t, http.StatusServiceUnavailable, transient.StatusCode())
+		require.Equal(t, 30, transient.RetryAfter())
+		// The response carries the innermost message; the full chain is for the logs.
+		require.True(t, strings.HasPrefix(transient.Message, "getting CA certificates from SCEP URL: "), transient.Message)
+		require.Contains(t, err.Error(), "SCEP certificate request failed: getting CA certificates from SCEP URL: ")
+		require.NotContains(t, err.Error(), "getting CA certificates from SCEP URL: getting CA certificates")
+		require.Nil(t, cert)
+	})
+
 	t.Run("Request a certificate - NDES failures are bad requests", func(t *testing.T) {
 		// A missing challenge and a wrong one are the same rejection from the CA's side.
 		for name, tc := range map[string]struct {
@@ -1153,7 +1169,6 @@ func TestRequestCertificate(t *testing.T) {
 				ca: ndesCA, wantMessage: "SCEP server rejected the request: status FAILURE with fail info badRequest (2); " +
 					"if this certificate authority requires a challenge, include it as the CSR's challengePassword attribute",
 			},
-			"SCEP URL unreachable":  {ca: unreachableNDESCA, challenge: ndesChallenge, wantMessage: "getting CA certificates from SCEP URL"},
 			"CA without a SCEP URL": {ca: noURLNDESCA, challenge: ndesChallenge, wantMessage: "Certificate authority does not have a SCEP URL configured."},
 		} {
 			t.Run(name, func(t *testing.T) {

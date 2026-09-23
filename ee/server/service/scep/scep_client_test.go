@@ -10,10 +10,12 @@ import (
 	"errors"
 	"log/slog"
 	"math/big"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/gorilla/mux"
@@ -121,6 +123,14 @@ func pendingCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Ce
 	return raw
 }
 
+// statusServer returns a SCEP URL whose server answers every request with status.
+func statusServer(t *testing.T, status int) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status) }))
+	t.Cleanup(srv.Close)
+	return srv.URL + "/scep"
+}
+
 // successCertRep builds a SUCCESS CertRep carrying certs; PKIMessage.Success sends only one.
 func successCertRep(t *testing.T, req *smallstepscep.PKIMessage, caCert *x509.Certificate, caKey *rsa.PrivateKey, certs []*x509.Certificate) []byte {
 	t.Helper()
@@ -205,6 +215,31 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 		}
 		return rep.Raw, nil
 	}
+
+	t.Run("request failures that clear on their own are CA transient, others are not", func(t *testing.T) {
+		closed := httptest.NewServer(http.NotFoundHandler())
+		closed.Close()
+		for name, tc := range map[string]struct {
+			url           string
+			wantTransient bool
+		}{
+			"no response": {url: closed.URL + "/scep", wantTransient: true},
+			"HTTP 503":    {url: statusServer(t, http.StatusServiceUnavailable), wantTransient: true},
+			"HTTP 429":    {url: statusServer(t, http.StatusTooManyRequests), wantTransient: true},
+			"HTTP 404":    {url: statusServer(t, http.StatusNotFound), wantTransient: false},
+			"HTTP 401":    {url: statusServer(t, http.StatusUnauthorized), wantTransient: false},
+		} {
+			t.Run(name, func(t *testing.T) {
+				_, err := newClient().GetCertificate(t.Context(), tc.url, csr)
+				require.ErrorContains(t, err, "getting CA certificates from SCEP URL")
+				transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+				require.Equal(t, tc.wantTransient, ok)
+				if ok {
+					require.Equal(t, enrollmentRetryAfterSeconds, transient.RetryAfterSeconds)
+				}
+			})
+		}
+	})
 
 	t.Run("GetCACert body that is neither is an error", func(t *testing.T) {
 		url := newServerWithCACert(t, func() ([]byte, int) { return []byte("not a certificate"), 1 }, succeed)
