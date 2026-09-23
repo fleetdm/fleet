@@ -2,6 +2,7 @@ name: Test configuration profile generator changes
 
 on:
   pull_request:
+    paths:
       - ".github/workflows/test-configuration-profile-generator.yml"
       - "website/profile-generator/**"
       - "website/api/helpers/get-configuration-profile-generator-configuration.js"
