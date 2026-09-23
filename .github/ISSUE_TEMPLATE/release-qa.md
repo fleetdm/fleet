@@ -570,8 +570,9 @@ Reference: https://fleetdm.com/pricing
 1. Configure and verify that certificates deploy to hosts with the following CAs and that they appear on the Host Details page:
     1. DigiCert
     2. NDES
-    3. SmallStep
-    4. Hydrant (ACME)
+    3. Okta Dynamic SCEP
+    4. SmallStep
+    5. Custom SCEP
 
 </td>
 </tr>
