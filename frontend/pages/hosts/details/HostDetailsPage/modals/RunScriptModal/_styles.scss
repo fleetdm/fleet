@@ -10,6 +10,12 @@
     margin-bottom: 9px; // Fixes cut off dropdown
   }
 
+  &__table {
+    display: flex;
+    flex-direction: column;
+    gap: $gap-page-component-inner;
+  }
+
   &__table-header {
     display: flex;
     justify-content: space-between;
