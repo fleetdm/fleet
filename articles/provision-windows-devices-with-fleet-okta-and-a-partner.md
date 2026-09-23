@@ -12,6 +12,8 @@ Here's how it works:
 
 In Okta, the device appears as **Managed**.
 
+> **Note:** Okta's local account provisioning for Windows, which lets the end user sign in with their Okta username, is coming soon. Until it's available, skip Step 2, and the lock screen won't prompt for an Okta username.
+
 ## Prerequisites
 
 - Fleet Premium, with [Windows MDM turned on](https://fleetdm.com/guides/windows-mdm-setup).
@@ -26,16 +28,16 @@ In Okta, the device appears as **Managed**.
 
 ## Step 2: Add Okta's local account provisioning
 
-<!-- TODO: Okta's docs don't list a Windows feature that creates the local account from the end user's Okta credentials (Just-In-Time Local Account Creation is macOS only: https://help.okta.com/oie/en-us/content/topics/oda/oda-overview.htm). Link the Okta feature, or add the script-only package, before publishing. -->
+> **Note:** This Okta feature is coming soon. Until it's available, skip this step.
 
-TODO: Set up Okta's local account provisioning for Windows, so the lock screen prompts for the end user's Okta username.
+Set up Okta's local account provisioning for Windows, so the lock screen prompts for the end user's Okta username.
 
 ## Step 3: Install Okta Verify during setup
 
 1. Head to **Controls > Setup experience > 3. Install software** and select the **Windows** tab.
-2. Select **Add software**, check **Okta Verify** and the local account provisioning from Step 2, then select **Save**.
+2. Select **Add software**, check **Okta Verify** (and the local account provisioning from Step 2, if you set it up), then select **Save**.
 
-Fleet installs both automatically as soon as fleetd enrolls the device. Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#install-software).
+Fleet installs them automatically as soon as fleetd enrolls the device. Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#install-software).
 
 ## Step 4: Deploy the Okta SCEP certificate
 
@@ -63,7 +65,7 @@ Send your partner:
   1. Apply the package at the first Windows setup screen. Follow [Apply the package and ship the device](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package#apply-the-package-and-ship-the-device) through the step that removes the USB drive.
   2. Instead of shutting down, finish Windows setup with the temporary admin account.
   3. At the desktop, wait while the **Setting up your device** page installs Okta Verify and the certificate. Don't restart or shut down the device during this step.
-  4. When the device restarts and the lock screen prompts for an Okta username, shut down the device and ship it.
+  4. When the device restarts and reaches the lock screen, shut down the device and ship it.
 
 ## Verify
 
