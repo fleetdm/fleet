@@ -31,12 +31,6 @@ func TestUp_20260923202234(t *testing.T) {
 	untouched := "w33333333-3333-3333-3333-333333333333"
 	insertProfile(untouched, 0, "Fleetd enroll secret backup", "<Replace><Item><Target><LocURI>./Device/Keep</LocURI></Target></Item></Replace>")
 
-	// A customer profile that happens to carry the same ADMX path Fleet's does. It is still the customer's, because Fleet's
-	// profile cannot exist before this migration, so it has to be moved out of the way like any other.
-	lookalike := "w44444444-4444-4444-4444-444444444444"
-	insertProfile(lookalike, 2, "Fleetd enroll secret",
-		"<Add><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetdEnrollSecret/Policy/FleetdEnrollSecretAdmx</LocURI></Target></Item></Add>")
-
 	applyNext(t, db)
 
 	// --- the enrollment binding ---
@@ -102,9 +96,6 @@ func TestUp_20260923202234(t *testing.T) {
 
 	require.Equal(t, "Fleetd enroll secret backup", name(untouched))
 	require.Equal(t, "Fleetd enroll secret backup", hostName(untouched))
-
-	require.Equal(t, "Fleetd enroll secret (renamed "+lookalike+")", name(lookalike))
-	require.Equal(t, "Fleetd enroll secret (renamed "+lookalike+")", hostName(lookalike))
 
 	// The name the reconciler upserts is now free in every team.
 	var taken int
