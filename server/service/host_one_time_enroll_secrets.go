@@ -124,6 +124,23 @@ func isFleetdConfigProfile(profileUUID, profileName string) bool {
 	return strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) && profileName == mdm.FleetdConfigProfileName
 }
 
+// deliversOneTimeEnrollSecret reports whether resending this profile mints a new enrollment credential for the host: the fleetd
+// configuration profile on Apple, the enroll secret profile on Windows. Both names are reserved, so users cannot upload a
+// profile that impersonates one, which is what makes the name a reliable discriminator.
+//
+// This is deliberately broader than isFleetdConfigProfile, which stays Apple-only because it also guards the resend-from-
+// verifying carve-out. That carve-out exists because an Apple profile is verified by osquery and can sit in verifying forever
+// when osquery is the broken part. A Windows profile reaches verified on the SyncML ack, so it never needs it.
+func deliversOneTimeEnrollSecret(profileUUID, profileName string) bool {
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		return profileName == mdm.FleetdConfigProfileName
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return profileName == mdm.FleetWindowsEnrollSecretProfileName
+	}
+	return false
+}
+
 // oneTimeWindowsEnrollmentID returns the Windows MDM enrollment a presented one-time enroll secret was minted for, or nil when
 // there is none: a shared secret is not a one-time secret at all, and an Apple one-time secret binds to a host instead.
 func oneTimeWindowsEnrollmentID(oneTime *fleet.HostOneTimeEnrollSecret) *uint {

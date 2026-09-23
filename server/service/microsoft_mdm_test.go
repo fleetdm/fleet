@@ -698,6 +698,20 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 <Atomic>%s</Atomic>`, data)
 }
 
+// stubFleetWindowsProfileEnsure stubs the datastore calls made by ensureFleetWindowsProfiles, which ReconcileWindowsProfiles
+// now runs before the reconcile pass. These tests exercise the pass, not the ensure step; they just must not panic on the calls.
+func stubFleetWindowsProfileEnsure(ds *mock.Store) {
+	ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, name string) error {
+		return nil
+	}
+}
+
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
 func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
@@ -709,6 +723,7 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, cursor string) error {
 		return nil
 	}
+	stubFleetWindowsProfileEnsure(ds)
 
 	// The cron's batched path loads a snapshot (hosts + profiles + current state) per window and computes install/remove deltas in
 	// memory. Return every host from hostToProfile in a single window, each paired with its profile under a unique team_id so
@@ -864,6 +879,7 @@ func TestProcessClientEventAlertLoginStatus(t *testing.T) {
 
 	newSvc := func(t *testing.T) (*mock.Store, *Service) {
 		ds := new(mock.Store)
+		stubFleetWindowsProfileEnsure(ds)
 		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
 	}
 
@@ -1014,6 +1030,7 @@ func runWindowsUserScopeTickOpts(
 	t.Helper()
 	ctx := t.Context()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 
 	profile := &fleet.MDMWindowsConfigProfile{
 		ProfileUUID: "wuser-scope-profile",
@@ -1065,7 +1082,7 @@ func runWindowsUserScopeTickOpts(
 		return nil
 	}
 
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
 	result.finalUpserts = *finalUpserts
 	return result, ds
 }
@@ -1321,6 +1338,7 @@ func TestReconcileWindowsProfilesHoldsMixedScopeProfilesWhole(t *testing.T) {
 func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Setup test data with a profile containing Fleet variable
@@ -1349,7 +1367,7 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	}
 
 	// Run ReconcileWindowsProfiles
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if insert fails
 
 	// Verify the command was preprocessed (UUID should be substituted)
@@ -1382,6 +1400,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		Tier: fleet.TierPremium,
 	})
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Setup test data with a profile containing a certificate that will fail processing
@@ -1420,7 +1439,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 	}
 
 	// Run ReconcileWindowsProfiles
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if cert processing fails
 
 	// Verify no managed certificates were added due to failure
@@ -1447,6 +1466,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		Tier: fleet.TierPremium,
 	})
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Setup test data with a profile containing a certificate that will fail processing
@@ -1507,7 +1527,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 	}
 
 	// Run ReconcileWindowsProfiles
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if cert processing fails
 
 	// Verify one managed certificates were added, for the successful host, but not for the failing one
@@ -1540,6 +1560,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	deletedProfile := &fleet.MDMWindowsConfigProfile{
@@ -1561,7 +1582,7 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 		return map[string]struct{}{}, nil
 	}
 
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err)
 	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked, "existence pre-check must run")
 	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
@@ -1635,6 +1656,7 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	t.Helper()
 	ctx := t.Context()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	finalUpserts, _ := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
 
 	if snapshot.userContexts != nil {
@@ -1691,7 +1713,7 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 		return nil
 	}
 
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
 	result.finalUpserts = *finalUpserts
 	return result
 }
@@ -2093,6 +2115,7 @@ func TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam(t *testin
 func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	freshProfile := &fleet.MDMWindowsConfigProfile{
@@ -2112,7 +2135,7 @@ func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
 		return map[string]fleet.MDMWindowsProfileContents{}, nil
 	}
 
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err, "insert-lag must not fail the tick; the cursor must advance so the next tick can retry")
 	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
 		"existence pre-check still runs (it confirms the profile exists on primary)")
@@ -2151,6 +2174,7 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			ds := new(mock.Store)
+			stubFleetWindowsProfileEnsure(ds)
 			logger := slog.New(slog.DiscardHandler)
 			cursor := tc.initialCursor
 			var setCalls int
@@ -2178,7 +2202,7 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 				return nil, nil, nil, nil, nil
 			}
 
-			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 			require.Equal(t, tc.wantSetCalls, setCalls)
 			require.Equal(t, tc.wantFinalCursor, cursor)
 		})
@@ -2326,6 +2350,7 @@ func newDrainLoopTestDS(
 func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Large scan window (the whole fleet fits in one window), small delivery cap, no wall-clock limit.
@@ -2348,22 +2373,22 @@ func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 	}
 
 	// Tick 1: deliver the first 3 hosts (contiguous prefix); cursor advances to the last delivered host.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, "h02", cursor)
 	require.Equal(t, [][]string{{"h00", "h01", "h02"}}, deliveredBatches)
 
 	// Ticks 2-3: next 3 hosts each.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, "h05", cursor)
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, "h08", cursor)
 
 	// Tick 4: final host (short window) drains and resets the cursor.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 
 	// Tick 5: empty fleet pass, cursor stays reset, nothing re-delivered.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 
 	// Every host was delivered exactly once across the ticks.
@@ -2381,6 +2406,7 @@ func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	setReconcileWindowsBudgets(t, 2 /*scanBatch*/, 5 /*deliveryCap*/, time.Hour)
@@ -2394,19 +2420,19 @@ func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 
 	// Tick 1: drains 3 windows (2+2+1) to reach the cap of 5, stopping mid-third-window at h4.
 	snapshotCalls = 0
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, 3, snapshotCalls, "one tick should read multiple windows to fill the cap")
 	require.Equal(t, "h4", cursor)
 	require.ElementsMatch(t, []string{"h0", "h1", "h2", "h3", "h4"}, setKeys(delivered))
 
 	// Tick 2: delivers the last host; the short final window resets the cursor.
 	snapshotCalls = 0
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 	require.ElementsMatch(t, allHosts, setKeys(delivered))
 
 	// Tick 3: full no-op pass over the now all-delivered fleet, cursor stays reset.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 }
 
@@ -2416,6 +2442,7 @@ func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Small windows, generous delivery cap (so the cap never governs), and an already-expired scan budget so the loop halts after
@@ -2430,19 +2457,20 @@ func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 	newDrainLoopTestDS(ds, allHosts, nil /*profiles*/, delivered, &cursor, &snapshotCalls)
 
 	// Tick 1: the budget is already spent, so only the first window is scanned and the cursor advances to its last host (not reset).
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, 1, snapshotCalls)
 	require.Equal(t, "h1", cursor)
 
 	// Tick 2: resumes from the persisted cursor, reads the NEXT window and advances again, confirming progress isn't lost.
 	snapshotCalls = 0
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, 1, snapshotCalls)
 	require.Equal(t, "h3", cursor)
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	kv := new(mock.KVStore)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
 		KeyValueStore: kv,
@@ -2661,6 +2689,7 @@ func TestGetESPCommands(t *testing.T) {
 	// assert ds.<Func>Invoked == false (the auto-set flag is independent of the func body).
 	newSvc := func(t *testing.T) (*mock.Store, *Service) {
 		ds := new(mock.Store)
+		stubFleetWindowsProfileEnsure(ds)
 		// HostLiteByIdentifier exposes OsqueryHostID so Stage 3's setupExperienceHostUUID() resolves to the same
 		// key Windows orbit uses as setup_experience_status_results.host_uuid (production data shape).
 		osqueryHostID := "osquery-" + hostUUID
@@ -3363,6 +3392,7 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 			var enqueued *fleet.MDMWindowsCommand
 			var intendedRelaxed *bool
 			ds := new(mock.Store)
+			stubFleetWindowsProfileEnsure(ds)
 			ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
 				ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
 			) error {
@@ -3516,6 +3546,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			}
 
 			ds := new(mock.Store)
+			stubFleetWindowsProfileEnsure(ds)
 			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
 				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
 			}
@@ -3616,6 +3647,7 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
+			stubFleetWindowsProfileEnsure(ds)
 			ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, gotHWID string) (string, error) {
 				require.Equal(t, hwID, gotHWID)
 				if tc.deleteErr != nil {

@@ -3994,13 +3994,19 @@ func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
 // Named return so the deferred SetCursor block sees the actual function-exit error: the cursor is persisted only on a clean (err
 // == nil) tick, so any failure leaves the cursor untouched and the next tick re-scans from the same point. Re-scanning is cheap
 // and idempotent since delivered work is now pending, so it no longer computes as work.
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, useOneTimeEnrollSecrets bool) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
 		return nil
+	}
+
+	// Log and continue, matching the Apple equivalent: a profile that could not be written this tick is retried on the next
+	// one, and that should not stop the reconcile pass that delivers everything else.
+	if err := ensureFleetWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets); err != nil {
+		logger.ErrorContext(ctx, "unable to ensure Fleet-managed Windows profiles are in place", "details", err)
 	}
 
 	// Read the cursor; on error, treat as start-of-pass and continue. A stale or missing cursor is harmless because the in-memory
