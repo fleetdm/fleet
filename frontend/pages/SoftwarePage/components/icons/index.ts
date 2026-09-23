@@ -1099,6 +1099,7 @@ import Webex from "./png/Webex.png";
 import WebStorm from "./png/WebStorm.png";
 import Wechat from "./png/Wechat.png";
 import Weektodo from "./png/Weektodo.png";
+import WezTerm from "./png/WezTerm.png";
 import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
@@ -2295,6 +2296,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
+  wezterm: WezTerm,
   whatroute: Whatroute,
   whatsapp: WhatsApp,
   whisky: Whisky,
