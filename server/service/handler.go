@@ -677,10 +677,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// platform-agnostic POST /mdm/commands/run. It is still supported
 	// indefinitely for backwards compatibility.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
-	// Deprecated: POST /mdm/apple/commandresults is now deprecated, replaced by the
-	// platform-agnostic POST /mdm/commands/commandresults. It is still supported
-	// indefinitely for backwards compatibility.
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 	// Deprecated: POST /mdm/apple/commands is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/commands. It is still supported
 	// indefinitely for backwards compatibility.

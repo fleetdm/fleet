@@ -1083,9 +1083,6 @@ type Service interface {
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
-	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
-
 	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
 	// the specified options.
 	ListMDMAppleCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMAppleCommand, error)

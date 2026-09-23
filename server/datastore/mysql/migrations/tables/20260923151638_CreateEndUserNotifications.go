@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260922140735, Down_20260922140735)
+	MigrationClient.AddMigration(Up_20260923151638, Down_20260923151638)
 }
 
-func Up_20260922140735(tx *sql.Tx) error {
+func Up_20260923151638(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS notifications_end_user (
   id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -44,6 +44,6 @@ CREATE TABLE IF NOT EXISTS notifications_end_user (
 	return nil
 }
 
-func Down_20260922140735(tx *sql.Tx) error {
+func Down_20260923151638(tx *sql.Tx) error {
 	return nil
 }
