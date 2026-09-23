@@ -20,6 +20,8 @@ import (
 // secret is in its keystore. That is what makes this profile the recovery path: an administrator resending it delivers a fresh
 // secret to a host whose previous one was spent, without reinstalling the MSI (whose fixed product GUID would refuse to run
 // again anyway).
+//
+//nolint:gosec // G101 false positive, a policy definition, not a credential
 const windowsEnrollSecretADMX = `<policyDefinitions revision="1.0" schemaVersion="1.0">
   <policyNamespaces>
     <target namespace="FleetDM.Policies.Orbit" prefix="fleetd"/>
@@ -44,8 +46,10 @@ const windowsEnrollSecretADMX = `<policyDefinitions revision="1.0" schemaVersion
 
 const (
 	// windowsEnrollSecretADMXInstallURI ingests the ADMX above. The path is ADMXInstall/{AppName}/{SettingType}/{FileUID}.
+	//nolint:gosec // G101 false positive, an OMA-DM URI, not a credential
 	windowsEnrollSecretADMXInstallURI = "./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetdEnrollSecret/Policy/FleetdEnrollSecretAdmx"
 	// windowsEnrollSecretPolicyURI sets the ingested policy. The area name is {AppName}~{SettingType}~{CategoryFromTheADMX}.
+	//nolint:gosec // G101 false positive, an OMA-DM URI, not a credential
 	windowsEnrollSecretPolicyURI = "./Device/Vendor/MSFT/Policy/Config/FleetdEnrollSecret~Policy~fleetd/EnrollSecret"
 )
 
