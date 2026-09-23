@@ -32,7 +32,7 @@ const windowsEnrollSecretADMX = `<policyDefinitions revision="1.0" schemaVersion
     <category name="fleetd" displayName="Fleet"/>
   </categories>
   <policies>
-    <policy name="EnrollSecret" class="Machine" displayName="Fleet enroll secret"
+    <policy name="EnrollSecret" class="Machine" displayName="Fleetd enroll secret"
             explainText="One-time enroll secret used by fleetd to enroll this host in Fleet."
             key="SOFTWARE\FleetDM\Orbit">
       <parentCategory ref="fleetd"/>

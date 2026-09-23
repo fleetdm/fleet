@@ -121,7 +121,7 @@ func TestDeliversOneTimeEnrollSecret(t *testing.T) {
 		{"windows os updates carries no secret", "w" + "-1", mdm.FleetWindowsOSUpdatesProfileName, false},
 		{"apple profile with the windows name", "a" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false},
 		{"windows profile with the apple name", "w" + "-1", mdm.FleetdConfigProfileName, false},
-		{"a user profile that copied the name", "w" + "-1", "Fleet enroll secret " + strings.Repeat("x", 3), false},
+		{"a user profile that copied the name", "w" + "-1", "Fleetd enroll secret " + strings.Repeat("x", 3), false},
 		{"declaration", "d" + "-1", mdm.FleetdConfigProfileName, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
