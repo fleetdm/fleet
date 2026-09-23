@@ -23,7 +23,9 @@ import AddAbmModal from "./components/AddAbmModal";
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import DeleteAbmModal from "./components/DeleteAbmModal";
 import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
+import RemoveDefaultTokenModal from "./components/RemoveDefaultTokenModal";
 import RenewAbmModal from "./components/RenewAbmModal";
+import SetDefaultTokenModal from "./components/SetDefaultTokenModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -48,6 +50,13 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
   const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
+  const [
+    showRemoveDefaultTokenModal,
+    setShowRemoveDefaultTokenModal,
+  ] = useState(false);
+  const [showSetDefaultTokenModal, setShowSetDefaultTokenModal] = useState(
+    false
+  );
 
   const selectedToken = useRef<IMdmAbToken | null>(null);
 
@@ -104,6 +113,15 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     refetch();
     setShowEditTeamsModal(false);
   }, [refetch]);
+
+  const onClickToggleTokenDefault = (abmToken: IMdmAbToken) => {
+    if (abmToken.default) {
+      setShowRemoveDefaultTokenModal(true);
+    } else {
+      setShowSetDefaultTokenModal(true);
+    }
+    selectedToken.current = abmToken;
+  };
 
   const onToggleTokenDefault = useCallback(
     async (abmToken: IMdmAbToken) => {
@@ -247,7 +265,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <AppleBusinessManagerTable
             abTokens={abTokens}
             onEditTokenTeam={onEditTokenTeam}
-            onToggleTokenDefault={onToggleTokenDefault}
+            onToggleTokenDefault={onClickToggleTokenDefault}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
           />
@@ -308,6 +326,28 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           token={selectedToken.current}
           onCancel={onCancelEditTeam}
           onSuccess={onEditedTeam}
+        />
+      )}
+      {showRemoveDefaultTokenModal && selectedToken.current && (
+        <RemoveDefaultTokenModal
+          onExit={() => setShowRemoveDefaultTokenModal(false)}
+          onRemoveDefault={() => {
+            if (selectedToken.current) {
+              onToggleTokenDefault(selectedToken.current);
+              setShowRemoveDefaultTokenModal(false);
+            }
+          }}
+        />
+      )}
+      {showSetDefaultTokenModal && selectedToken.current && (
+        <SetDefaultTokenModal
+          onExit={() => setShowSetDefaultTokenModal(false)}
+          onSetDefault={() => {
+            if (selectedToken.current) {
+              onToggleTokenDefault(selectedToken.current);
+              setShowSetDefaultTokenModal(false);
+            }
+          }}
         />
       )}
     </MainContent>

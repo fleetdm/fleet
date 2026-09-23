@@ -35,7 +35,9 @@ export const generateActions = (
 
   let toggleDefaultOption: IDropdownOption = {
     value: "toggleDefault",
-    label: token.default ? "Unset default token" : "Set as default token",
+    label: token.default
+      ? "Remove default for sign-in"
+      : "Set as default for sign-in",
     disabled: false,
   };
   if (gitopsModeEnabled) {
@@ -45,7 +47,7 @@ export const generateActions = (
     toggleDefaultOption = {
       ...toggleDefaultOption,
       disabled: true,
-      tooltipContent: "The only AB token is always the default.",
+      tooltipContent: "The only AB token is always the default for sign-in.",
     };
   }
 
@@ -265,6 +267,7 @@ export const generateTableConfig = (
             onChange={(value: string) =>
               actionSelectHandler(value, cellProps.row.original)
             }
+            menuAlign="right"
             placeholder="Actions"
             disabled={false}
             variant="secondary"
