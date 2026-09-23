@@ -139,7 +139,8 @@ func (m *model) HandleStateChange(msg tea.Msg) (tea.Model, tea.Cmd) {
 					failedTasks++
 				}
 			}
-			overallPercent := float64(completedTasks) / float64(len(m.tasks))
+			// Failed tasks are finished too; the summary reports them separately.
+			overallPercent := float64(completedTasks+failedTasks) / float64(len(m.tasks))
 			cmds = append(cmds, m.overallProgress.SetPercent(overallPercent))
 			if failedTasks > 0 {
 				m.errorMessage = fmt.Sprintf("%d task(s) failed, see dgm.log for details", failedTasks)
