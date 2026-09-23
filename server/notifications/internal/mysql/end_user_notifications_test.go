@@ -719,8 +719,7 @@ func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	firstNotice := json.RawMessage(`{"reminder":false}`)
 
-	// the host never ran the queued script, so the notice it will display can still be changed
-	t.Run("a dispatched notification the end user has not seen gets the new payload", func(t *testing.T) {
+	t.Run("a dispatched notification nobody has seen yet gets the new payload", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-payload", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, false)
@@ -732,8 +731,8 @@ func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
 		assert.JSONEq(t, string(firstNotice), string(got.Payload))
 	})
 
-	// the toast reached the screen between the read that chose this write and the write itself
-	t.Run("a notification already displayed keeps its payload", func(t *testing.T) {
+	// the kind records what its host displayed once the result is in, so a display cannot block the write
+	t.Run("a dispatched notification the end user has seen gets the new payload", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-payload-displayed", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, true)
@@ -742,10 +741,10 @@ func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
 
 		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{}`, string(got.Payload))
+		assert.JSONEq(t, string(firstNotice), string(got.Payload))
 	})
 
-	// nothing is queued to display, so there is no notice left to change
+	// a result from a superseded script must not relabel a notification that has moved on
 	t.Run("a notification that is not dispatched keeps its payload", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-payload-pending", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",

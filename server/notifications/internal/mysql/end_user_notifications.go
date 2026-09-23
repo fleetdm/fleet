@@ -377,7 +377,7 @@ func (ds *Datastore) SetEndUserNotificationPayload(ctx context.Context, notifica
 	const updateStmt = `
 UPDATE notifications_end_user
 SET payload = ?
-WHERE uuid = ? AND status = ? AND displayed_at IS NULL
+WHERE uuid = ? AND status = ?
 `
 
 	_, err := ds.primary.ExecContext(ctx, updateStmt, payload, notificationUUID, api.EndUserNotificationDispatched)

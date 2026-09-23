@@ -884,7 +884,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *reminded.LastReason)
 		require.NotNil(t, reminded.ExecutionID, "execution_id is kept so a late script result still resolves the notification")
 		require.Equal(t, *dispatched.ExecutionID, *reminded.ExecutionID)
-		require.JSONEq(t, `{"reminder": true}`, string(reminded.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(reminded.Payload), "the re-dispatch leaves the record alone, the toast picks its notice when it renders")
 
 		untouched := getTestNotification(t, s.ds, otherUUID)
 		require.Equal(t, notifications_api.EndUserNotificationDispatched, untouched.Status,
@@ -914,6 +914,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		postScriptResult(host, *redispatched.ExecutionID, 0)
 		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, reminderDisplayed.DisplayedAt)
+		require.JSONEq(t, `{"reminder": true}`, string(reminderDisplayed.Payload),
+			"the 5 minute toast reaching the screen is what records the reminder")
 		afterReminder := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, afterReminder)
 		require.False(t, afterReminder.Before(reminderDisplayed.DisplayedAt.Add(5*time.Minute)),
@@ -933,7 +935,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		otherReminded := getTestNotification(t, s.ds, otherUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, otherReminded.Status)
-		require.JSONEq(t, `{"reminder": true}`, string(otherReminded.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(otherReminded.Payload), "the re-dispatch leaves the record alone, the toast picks its notice when it renders")
 		require.Empty(t, queuedInstalls(otherHost.ID), "the other host is re-dispatched, not installed")
 
 		installs := queuedInstalls(host.ID)
@@ -1215,7 +1217,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		reminding := getTestNotification(t, s.ds, firstUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, reminding.Status)
 		require.Nil(t, reminding.DisplayedAt)
-		require.JSONEq(t, `{"reminder": true}`, string(reminding.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(reminding.Payload), "the re-dispatch leaves the record alone, the toast picks its notice when it renders")
 		firstDeadline := getTestInstallAt(t, s.ds, firstUUID)
 		require.NotNil(t, firstDeadline)
 
@@ -1385,7 +1387,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		firstReminder := getTestNotification(t, s.ds, firstUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, firstReminder.Status)
 		require.Nil(t, firstReminder.DisplayedAt)
-		require.JSONEq(t, `{"reminder": true}`, string(firstReminder.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(firstReminder.Payload), "the re-dispatch leaves the record alone, the toast picks its notice when it renders")
 
 		dispatch(t)
 		require.Equal(t, notifications_api.EndUserNotificationDispatched,

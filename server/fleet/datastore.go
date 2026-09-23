@@ -850,6 +850,9 @@ type Datastore interface {
 	// DeletePatchNotificationApps drops apps from a notification, so the reminder
 	// stops naming an app the end user already updated.
 	DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// GetPatchNotification returns a notification's patch row, or nil when it has
+	// none.
+	GetPatchNotification(ctx context.Context, notificationUUID string) (*PatchNotification, error)
 	// SetPatchNotificationInstallAt moves when the patch is forced out to installAt,
 	// never earlier, and returns the deadline in effect.
 	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)

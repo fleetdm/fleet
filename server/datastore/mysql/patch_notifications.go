@@ -127,6 +127,21 @@ WHERE notification_uuid = ? AND software_title_id IN (?)
 	return nil
 }
 
+func (ds *Datastore) GetPatchNotification(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error) {
+	const selectStmt = `SELECT notification_uuid, install_at FROM patch_notifications WHERE notification_uuid = ?`
+
+	var patchNotification fleet.PatchNotification
+	// reads the primary because the display that sets the deadline can be seconds old
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &patchNotification, selectStmt, notificationUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
+	}
+	return &patchNotification, nil
+}
+
 func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
 	// GREATEST means the deadline only ever moves later, so every notice the end user actually sees
 	// gets its full lead time even when the toast takes a while to reach the screen.
@@ -184,9 +199,9 @@ WHERE
 			)
 		)
 	)
-	-- notification already displayed, or was a dispatched 5 minute reminder that didn't get displayed 
-	-- which we need to check if we want to reset the notification back to 1 hour left
-	AND (neu.displayed_at IS NOT NULL OR (neu.status = ? AND neu.payload->>'$.reminder' = 'true'))
+	-- For 5 minute reminder: 1 hour notification was displayed
+	-- For force installs: 5 minute reminder was displayed
+	AND neu.displayed_at IS NOT NULL
 ORDER BY pn.install_at
 LIMIT ?
 `
@@ -195,7 +210,7 @@ LIMIT ?
 	// reads the primary because the display that sets the deadline can be seconds old
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &due, selectStmt,
 		cutoff, notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
-		notifications_api.EndUserNotificationActed, notifications_api.EndUserNotificationDispatched, limit,
+		notifications_api.EndUserNotificationActed, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list patch notifications due")
 	}
