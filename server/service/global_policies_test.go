@@ -1166,17 +1166,15 @@ func TestApplyPolicySpecsHidden(t *testing.T) {
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
 
-	t.Run("global policy rejected", func(t *testing.T) {
+	t.Run("global policy accepted", func(t *testing.T) {
 		ds := newDS()
 		svc, ctx := newTestService(t, ds, nil, nil, premium)
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
 		spec := hiddenSpec()
 		spec.Team = ""
 		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{spec})
-		var bre *fleet.BadRequestError
-		require.ErrorAs(t, err, &bre)
-		require.Contains(t, err.Error(), "cannot have hidden set")
-		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+		require.NoError(t, err)
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
 
 	t.Run("conditional access conflict rejected", func(t *testing.T) {

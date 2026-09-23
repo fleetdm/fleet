@@ -67,8 +67,6 @@ type PolicyPayload struct {
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
 	// Hidden hides the policy from end users in Fleet Desktop.
-	//
-	// Only applies to team policies.
 	Hidden bool
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
@@ -415,8 +413,6 @@ type ModifyPolicyPayload struct {
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
 	// Hidden hides the policy from end users in Fleet Desktop.
-	//
-	// Only applies to team policies.
 	Hidden *bool `json:"hidden" premium:"true"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
@@ -522,8 +518,6 @@ type PolicyData struct {
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
 	// Hidden hides the policy from end users in Fleet Desktop.
-	//
-	// Only applies to team policies.
 	Hidden bool `json:"hidden" db:"hidden"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
@@ -800,8 +794,6 @@ type PolicySpec struct {
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 	// Hidden hides the policy from end users in Fleet Desktop.
-	//
-	// Only applies to team policies.
 	Hidden bool `json:"hidden"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.

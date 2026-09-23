@@ -7575,12 +7575,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
 	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
 
-	// "All fleets" policies can't be hidden.
-	gpol, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "global", Query: "SELECT 1;"})
-	s.Require().NoError(err)
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpol.ID),
-		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
-	s.Require().Contains(extractServerErrorText(res.Body), "cannot have hidden set")
+	// "All fleets" policies can be hidden too.
+	gpResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name: "hidden global", Query: "SELECT 1;", Hidden: true,
+	}, http.StatusOK, &gpResp)
+	s.Require().True(gpResp.Policy.Hidden)
+	modGP := &fleet.ModifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID),
+		json.RawMessage(`{"hidden": false}`), http.StatusOK, modGP)
+	s.Require().False(modGP.Policy.Hidden)
+	getGP := &fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), nil, http.StatusOK, getGP)
+	s.Require().False(getGP.Policy.Hidden)
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {

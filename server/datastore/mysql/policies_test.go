@@ -10794,4 +10794,18 @@ func testPoliciesHidden(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hostPolicies, 1)
 	require.True(t, hostPolicies[0].Hidden)
+
+	// Global ("All fleets") policies can be hidden too, via create and GitOps.
+	gp, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{Name: "hidden global", Query: "SELECT 1;", Hidden: true})
+	require.NoError(t, err)
+	require.True(t, gp.Hidden)
+	got, err = ds.Policy(ctx, gp.ID)
+	require.NoError(t, err)
+	require.True(t, got.Hidden)
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: "hidden global", Query: "SELECT 1;", Hidden: false},
+	}))
+	got, err = ds.Policy(ctx, gp.ID)
+	require.NoError(t, err)
+	require.False(t, got.Hidden)
 }

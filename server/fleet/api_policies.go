@@ -12,6 +12,7 @@ type GlobalPolicyRequest struct {
 	Resolution       string   `json:"resolution"`
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
+	Hidden           bool     `json:"hidden" premium:"true"`
 	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`

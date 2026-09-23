@@ -707,12 +707,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	if p.Hidden != nil && *p.Hidden && teamID == nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf(`policy payload verification: %s`, errPolicyAllFleetsForHidden),
-		})
-	}
-
 	// Only reject an actual profile assignment. An explicit null/empty value means
 	// "unset the profile", which is a no-op on a global policy (clients such as the
 	// UI send the full payload, including profile_uuid: null).

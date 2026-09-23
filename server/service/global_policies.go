@@ -35,6 +35,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Resolution:       req.Resolution,
 		Platform:         req.Platform,
 		Critical:         req.Critical,
+		Hidden:           req.Hidden,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
@@ -256,7 +257,6 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 const (
 	errPolicyAllFleetsForConditionalAccess          = "\"All fleets\" policy cannot have conditional_access_enabled set"
 	errPolicyAllFleetsForContinuousAutomations      = "\"All fleets\" policy cannot have continuous_automations_enabled set"
-	errPolicyAllFleetsForHidden                     = "\"All fleets\" policy cannot have hidden set"
 	errPolicyAllFleetsForProfiles                   = "\"All fleets\" policy cannot have profile_uuid set"
 	errPolicyAllFleetsForScripts                    = "\"All fleets\" policy cannot have script_id set"
 	errPatchWhenClosedRequiresContinuousAutomations = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
@@ -485,12 +485,6 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		if policy.Team == "" && policy.ContinuousAutomationsEnabled {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForContinuousAutomations),
-			})
-		}
-
-		if policy.Team == "" && policy.Hidden {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForHidden),
 			})
 		}
 

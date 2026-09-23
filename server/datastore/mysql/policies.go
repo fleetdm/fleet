@@ -121,10 +121,10 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, hidden, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
-		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, args.Hidden,
 	)
 	switch {
 	case err == nil:
