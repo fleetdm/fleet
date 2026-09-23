@@ -30,12 +30,16 @@ import {
   VppInstallDetailsModal,
   IVppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyState from "components/EmptyState";
 import IconStatusMessage from "components/IconStatusMessage";
 import MainContent, { IMainContentConfig } from "components/MainContent";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
@@ -44,7 +48,11 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
+import {
+  ActivityType,
+  IActivityDetails,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -338,6 +346,16 @@ const HostDetailsPage = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
   const [rotationFailedDetails, setRotationFailedDetails] = useState<{
     detail: string;
     hostDisplayName: string;
@@ -910,6 +928,7 @@ const HostDetailsPage = ({
     ({
       type,
       details,
+      created_at,
       actor_full_name,
       fleet_initiated,
     }: IShowActivityDetailsData) => {
@@ -1010,6 +1029,14 @@ const HostDetailsPage = ({
             },
           });
           break;
+        case ActivityType.HostEnrollmentRejected:
+          setEnrollmentRejectedDetails({
+            hostDisplayName: host?.display_name || details?.host_display_name,
+            hostSerial: details?.host_serial,
+            reason: details?.reason,
+            createdAt: created_at,
+          });
+          break;
         case ActivityType.RanCustomMdmCommand: {
           const resolvedHostUuid = details?.host_uuid ?? host?.uuid;
           if (!details?.command_uuid || !resolvedHostUuid) {
@@ -1022,6 +1049,12 @@ const HostDetailsPage = ({
           });
           break;
         }
+        case ActivityType.NotifiedEndUserBeforePatching:
+          setNotifyBeforePatchingDetails({
+            ...details,
+            host_display_name: host?.display_name || details?.host_display_name,
+          });
+          break;
         default: // do nothing
       }
     },
@@ -1201,6 +1234,9 @@ const HostDetailsPage = ({
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
+        }
+        recoveryLockPasswordStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
         }
         isManagedLocalAccountEnabled={
           host.platform === "windows"
@@ -1922,6 +1958,9 @@ const HostDetailsPage = ({
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
+              platform={host?.platform}
+              isMdmEnrolledInFleet={!!host?.mdm?.connected_to_fleet}
+              mdmEnrollmentStatus={host?.mdm?.enrollment_status}
               isUpdating={isUpdating}
             />
           )}
@@ -2079,6 +2118,12 @@ const HostDetailsPage = ({
               onCancel={onCancelSoftwareInstallDetailsModal}
             />
           )}
+          {notifyBeforePatchingDetails && (
+            <NotifyBeforePatchingDetailsModal
+              details={notifyBeforePatchingDetails}
+              onCancel={() => setNotifyBeforePatchingDetails(null)}
+            />
+          )}
           {scriptPackageDetails && (
             <SoftwareScriptDetailsModal
               details={scriptPackageDetails}
@@ -2179,6 +2224,14 @@ const HostDetailsPage = ({
             <FailedEnrollmentProfileModal
               command={enrollmentProfileFailedDetails.command}
               onDone={() => setEnrollmentProfileFailedDetails(null)}
+            />
+          )}
+          {enrollmentRejectedDetails && (
+            <EnrollmentAttemptDetailsModal
+              hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+              reason={enrollmentRejectedDetails.reason}
+              createdAt={enrollmentRejectedDetails.createdAt}
+              onDone={() => setEnrollmentRejectedDetails(null)}
             />
           )}
           {showLockHostModal && (

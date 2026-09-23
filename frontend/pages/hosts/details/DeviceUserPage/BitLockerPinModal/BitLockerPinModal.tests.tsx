@@ -2,20 +2,16 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-import createMockHost from "__mocks__/hostMock";
 import { notify } from "components/ToastNotification";
 import {
   DiskEncryptionActionRequired,
   IBitLockerPINRequest,
-  IDUPDetails,
-  IOSSettings,
+  IDeviceDiskEncryptionSetting,
 } from "interfaces/host";
+import { DiskEncryptionStatus } from "interfaces/mdm";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 
-import BitLockerPinModal, {
-  POLL_INTERVAL_MS,
-  POLL_TIMEOUT_MS,
-} from "./BitLockerPinModal";
+import BitLockerPinModal, { POLL_TIMEOUT_MS } from "./BitLockerPinModal";
 
 jest.mock("services/entities/disk_encryption", () => ({
   __esModule: true,
@@ -28,46 +24,54 @@ jest.mock("components/ToastNotification", () => ({
 
 const submitBitLockerPIN = diskEncryptionAPI.submitBitLockerPIN as jest.Mock;
 
-/** The modal reads only this one path off the device response. */
-const deviceDetails = (
-  diskEncryption: IOSSettings["disk_encryption"]
-): IDUPDetails => {
-  const host = createMockHost();
-  return ({
-    host: {
-      ...host,
-      mdm: {
-        ...host.mdm,
-        os_settings: { certificates: [], disk_encryption: diskEncryption },
-      },
-    },
-  } as unknown) as IDUPDetails;
-};
-
-/** A poll answering with this PIN request. Everything else is what a host still asking for a PIN reports. */
-const pollReturning = (
+/** What a host still asking for a PIN reports, with the parts a test varies. */
+const diskEncryption = (
   pinRequest?: IBitLockerPINRequest,
+  status: DiskEncryptionStatus = "action_required",
   actionRequired: DiskEncryptionActionRequired = "create_pin"
-) =>
-  jest.fn().mockResolvedValue(
-    deviceDetails({
-      status: "action_required",
-      detail: "",
-      action_required: actionRequired,
-      pin_request: pinRequest,
-    })
-  );
+): IDeviceDiskEncryptionSetting => ({
+  status,
+  detail: "",
+  action_required: actionRequired,
+  pin_request: pinRequest,
+});
 
-const renderModal = (onPollHost = jest.fn(), onExit = jest.fn()) => {
-  const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-  render(
+/** A host the agent has taken a PIN for and not reported on yet. */
+const inTheAgentsHands = diskEncryption({ status: "delivered", error: "" });
+
+/** Renders the modal and hands back a way to feed it the page's next fetch. */
+const renderModal = (beforeSubmit = diskEncryption()) => {
+  // delay: null keeps user-event off the fake clock, which otherwise makes typing and clicking flaky under load.
+  const user = userEvent.setup({
+    advanceTimers: jest.advanceTimersByTime,
+    delay: null,
+  });
+  const onWaitingChange = jest.fn();
+  const onExit = jest.fn();
+  // onExit is inline here as it is on the page, so every render hands the modal a different function. A modal that
+  // took that as a signal would restart its deadline on every poll.
+  const modal = (data: IDeviceDiskEncryptionSetting, dataUpdatedAt: number) => (
     <BitLockerPinModal
       deviceAuthToken="token"
-      onPollHost={onPollHost}
-      onExit={onExit}
+      diskEncryption={data}
+      dataUpdatedAt={dataUpdatedAt}
+      onWaitingChange={onWaitingChange}
+      onExit={() => onExit()}
     />
   );
-  return { user, onPollHost, onExit };
+  // Fetched before any submit, so nothing already on screen counts as this submit's answer.
+  const { rerender, unmount } = render(modal(beforeSubmit, 0));
+
+  /** Stands in for the page's query resolving: new data, fetched now. */
+  const pageFetched = (next: IDeviceDiskEncryptionSetting) =>
+    act(() => {
+      // Fake timers freeze Date.now(), so move it on: data fetched in the same millisecond as the submit cannot be
+      // this submit's answer, and the modal is right to ignore it.
+      jest.advanceTimersByTime(1000);
+      rerender(modal(next, Date.now()));
+    });
+
+  return { user, onExit, onWaitingChange, pageFetched, unmount };
 };
 
 const submitPIN = async (
@@ -78,14 +82,35 @@ const submitPIN = async (
   await user.type(screen.getByLabelText("BitLocker PIN"), pin);
   await user.type(screen.getByLabelText("Confirm PIN"), confirmPin);
   await user.click(screen.getByRole("button", { name: "Save" }));
+  // Let the submit request settle so the modal starts waiting. advanceTimersByTimeAsync drains the microtask queue,
+  // which a single awaited Promise does not: the click, the request and the state update are several ticks apart.
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(0);
+  });
 };
 
-/** Settles the submit request, then runs the modal's wait forward. */
-const advanceWait = (ms = POLL_INTERVAL_MS) =>
-  act(async () => {
-    await Promise.resolve();
-    await jest.advanceTimersByTimeAsync(ms);
-  });
+/** Every signal the modal accepts as the PIN having been set. */
+const successCases: [string, IDeviceDiskEncryptionSetting][] = [
+  [
+    "the agent reports the PIN is set",
+    diskEncryption({ status: "set", error: "" }),
+  ],
+  // osquery can see the PIN before the agent's own report reaches Fleet.
+  [
+    "the disk reads as verified",
+    diskEncryption({ status: "delivered", error: "" }, "verified", undefined),
+  ],
+  [
+    "the disk reads as verifying",
+    diskEncryption({ status: "delivered", error: "" }, "verifying", undefined),
+  ],
+];
+
+const stillWaitingCases: [string, IDeviceDiskEncryptionSetting][] = [
+  ["the agent has not answered", inTheAgentsHands],
+  // The request is read from a replica, so the fetch right after a submit can still show nothing in flight.
+  ["a fetch answers from before the submit landed", diskEncryption()],
+];
 
 describe("BitLockerPinModal", () => {
   beforeEach(() => {
@@ -116,64 +141,103 @@ describe("BitLockerPinModal", () => {
     expect(submitBitLockerPIN).not.toHaveBeenCalled();
   });
 
-  it("closes with a success toast once the agent reports the PIN is set", async () => {
-    const { user, onExit } = renderModal(
-      pollReturning({ status: "set", error: "" })
-    );
+  it("tells the page it is waiting, so the page fetches the outcome", async () => {
+    const { user, onWaitingChange } = renderModal();
 
     // Spaces are part of a BitLocker PIN, so the modal must not trim them away.
     await submitPIN(user, " pin 1234 ");
+
     expect(submitBitLockerPIN).toHaveBeenCalledWith("token", " pin 1234 ");
-
-    await advanceWait();
-
-    expect(notify.success).toHaveBeenCalledWith("Successfully created PIN.");
-    expect(onExit).toHaveBeenCalled();
+    expect(onWaitingChange).toHaveBeenLastCalledWith(true);
+    expect(screen.getByText("Setting PIN...")).toBeVisible();
   });
 
-  it("keeps waiting while the agent has not answered", async () => {
-    const { user, onExit } = renderModal(
-      pollReturning({ status: "delivered", error: "" })
-    );
+  it.each(successCases)(
+    "closes with a success toast once %s",
+    async (_, fetched) => {
+      const { user, onExit, onWaitingChange, pageFetched } = renderModal();
+
+      await submitPIN(user, "123456");
+      pageFetched(fetched);
+
+      expect(notify.success).toHaveBeenCalledWith("Successfully created PIN.");
+      expect(onExit).toHaveBeenCalled();
+      expect(onWaitingChange).toHaveBeenLastCalledWith(false);
+    }
+  );
+
+  it.each(stillWaitingCases)("keeps waiting while %s", async (_, fetched) => {
+    const { user, onExit, onWaitingChange, pageFetched } = renderModal();
 
     await submitPIN(user, "123456");
-    await advanceWait();
+    pageFetched(fetched);
 
-    // The Save button carries the waiting state.
     expect(screen.getByText("Setting PIN...")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(notify.success).not.toHaveBeenCalled();
     expect(notify.error).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
+    expect(onWaitingChange).toHaveBeenLastCalledWith(true);
   });
 
-  it("does not claim success when the host stops asking for a PIN for another reason", async () => {
-    // Protection going off drops action_required while the agent still holds the PIN.
+  it("ignores an outcome fetched before the submit", async () => {
+    // A failure from an earlier attempt is still in the page's data when this one is submitted.
     const { user, onExit } = renderModal(
-      jest.fn().mockResolvedValue(
-        deviceDetails({
-          status: "action_required",
-          detail: "",
-          pin_request: { status: "delivered", error: "" },
-        })
-      )
+      diskEncryption({ status: "failed", error: "PIN already set" })
     );
 
     await submitPIN(user, "123456");
-    await advanceWait();
 
-    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.error).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
     expect(screen.getByText("Setting PIN...")).toBeVisible();
   });
 
-  it("closes without claiming failure when the agent has not answered in time", async () => {
-    const { user, onExit } = renderModal(
-      pollReturning({ status: "delivered", error: "" })
-    );
+  it("stays open and reports the agent's reason when the PIN is refused", async () => {
+    const { user, onExit, onWaitingChange, pageFetched } = renderModal();
 
     await submitPIN(user, "123456");
-    await advanceWait(POLL_TIMEOUT_MS + POLL_INTERVAL_MS);
+    pageFetched(
+      diskEncryption({ status: "failed", error: "PIN already set." })
+    );
+
+    expect(notify.error).toHaveBeenCalledWith(
+      "Couldn't set PIN. PIN already set. Try again or contact your IT admin."
+    );
+    expect(onExit).not.toHaveBeenCalled();
+    // Save is offered again, so the button is out of its waiting state.
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    // The wait is over even though the modal stays open, so the page stops polling.
+    expect(onWaitingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("reports the agent's failure ahead of any success signal", async () => {
+    const { user, onExit, pageFetched } = renderModal();
+
+    await submitPIN(user, "123456");
+    // Both signals at once. A host can be encrypting for reasons unrelated to this submission, so success needs the
+    // agent's own report and cannot be read off the disk encryption status alone.
+    pageFetched(
+      diskEncryption(
+        { status: "failed", error: "PIN already set" },
+        "verifying",
+        undefined
+      )
+    );
+
+    expect(notify.error).toHaveBeenCalledWith(
+      "Couldn't set PIN. PIN already set. Try again or contact your IT admin."
+    );
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("closes without claiming failure when the agent has not answered in time", async () => {
+    const { user, onExit } = renderModal();
+
+    await submitPIN(user, "123456");
+    act(() => {
+      jest.advanceTimersByTime(POLL_TIMEOUT_MS);
+    });
 
     // The server keeps the request collectable for far longer, so the PIN may still land.
     expect(notify.error).toHaveBeenCalledWith(
@@ -183,55 +247,48 @@ describe("BitLockerPinModal", () => {
     expect(onExit).toHaveBeenCalled();
   });
 
-  it("stays open and reports the agent's reason when the PIN is refused", async () => {
-    const { user, onExit } = renderModal(
-      pollReturning({ status: "failed", error: "PIN already set." })
-    );
+  it("holds that deadline while the page polls", async () => {
+    const { user, onExit, pageFetched } = renderModal();
 
     await submitPIN(user, "123456");
-    await advanceWait();
+    // Every poll re-renders the modal. A deadline that restarted with them would never be reached.
+    for (let elapsed = 0; elapsed <= POLL_TIMEOUT_MS; elapsed += 1000) {
+      pageFetched(inTheAgentsHands);
+    }
 
-    expect(notify.error).toHaveBeenCalledWith(
-      "Couldn't set PIN. PIN already set. Try again or contact your IT admin."
-    );
-    expect(onExit).not.toHaveBeenCalled();
-    // Save is offered again, so the button is out of its waiting state.
-    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(onExit).toHaveBeenCalled();
   });
 
-  it("reports the agent's failure even once the host stops asking for a PIN", async () => {
-    // A host can stop asking for a PIN for reasons unrelated to this submission.
-    const { user, onExit } = renderModal(
-      pollReturning({ status: "failed", error: "PIN already set" }, "restart")
-    );
+  it("drops the wait when the modal closes mid-flight", async () => {
+    const { user, unmount } = renderModal();
 
     await submitPIN(user, "123456");
-    await advanceWait();
+    unmount();
+    act(() => {
+      jest.advanceTimersByTime(POLL_TIMEOUT_MS);
+    });
 
-    expect(notify.error).toHaveBeenCalledWith(
-      "Couldn't set PIN. PIN already set. Try again or contact your IT admin."
-    );
+    // Nothing is left running to report on a modal the end user has already closed.
+    expect(notify.error).not.toHaveBeenCalled();
     expect(notify.success).not.toHaveBeenCalled();
-    expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("reports the server's reason for a rejected submission without waiting on the agent", async () => {
+  it("reports the server's reason for a rejected submission without waiting", async () => {
     const reason =
       "Fleet's agent on this host is too old to set a BitLocker PIN. Update fleetd and try again.";
     submitBitLockerPIN.mockRejectedValue({
       response: { data: { errors: [{ name: "base", reason }] } },
     });
-    const { user, onPollHost, onExit } = renderModal();
+    const { user, onExit, onWaitingChange } = renderModal();
 
     await submitPIN(user, "123456");
-    await advanceWait();
 
     expect(notify.error).toHaveBeenCalledWith(
       `Couldn't set PIN. ${reason} Try again or contact your IT admin.`,
       expect.anything()
     );
-    // A rejected submission is never in the agent's hands, so nothing is waited on.
-    expect(onPollHost).not.toHaveBeenCalled();
+    // A rejected submission is never in the agent's hands, so the page is not asked to poll for it.
+    expect(onWaitingChange).not.toHaveBeenCalledWith(true);
     expect(onExit).not.toHaveBeenCalled();
   });
 });

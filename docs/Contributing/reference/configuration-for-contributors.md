@@ -216,6 +216,18 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
     otel_logs_enabled: true
   ```
 
+### mdm.apple_machineinfo_verify
+
+Whether Fleet verifies the CMS/PKCS7 signature on Apple's `x-apple-aspen-deviceinfo` (MachineInfo) blob during MDM enrollment. When enabled (the default), enrollment requests whose MachineInfo signature does not verify against Apple's device-identity CA are rejected. Set to `false` to run verification in audit mode, where failures are logged but enrollment is allowed to proceed.
+
+- Default value: true
+- Environment variable: `FLEET_MDM_APPLE_MACHINEINFO_VERIFY`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_machineinfo_verify: false
+  ```
+
 ### mdm.allow_all_declarations
 
 Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) reference.

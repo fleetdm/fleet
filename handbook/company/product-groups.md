@@ -36,7 +36,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product group                              | Goal _(value for customers and/or community)_                                                                          |
 |:-------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|
 | [Orchestration](#orchestration-group)      | Increase Fleet's integration footprint. Measured by the number of configured third-party integrations. |
-| [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet, reduce exposure to vulnerabilities, and ensure compliance across the device lifecycle. Measured by increase in number of software types supported (increase surface area of software inventory, including plugins, including mobile apps, surfaced -- with the goal of preventing supply chain compromises)                                            |
+| [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet, reduce exposure to vulnerabilities, and ensure compliance across the device lifecycle. Measured by increase in number of [software types](https://fleetdm.com/guides/software-inventory-reference) supported (increase surface area of software inventory, including plugins, including mobile apps, surfaced -- with the goal of preventing supply chain compromises)                                            |
 | [Apple @ Work](#apple-work-group)         | Empower Apple users to fully leverage Fleet as an MDM. Measured by Apple devices enrolled with MDM turned on.                                                     |
 | [Auto Patching](#auto-patching-group)      | Reduce the amount of time before software is patched after vulnerabilities are discovered. Measured by number of policies with software automations enabled. |
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
@@ -152,7 +152,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_ [Terry Kwok](https://www.linkedin.com/in/terry-kwok) _([@terry-kwok-code](https://github.com/terry-kwok-code))_
 | Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
@@ -695,11 +695,10 @@ New requests are [triaged daily](https://fleetdm.com/handbook/product-design#tri
 
 To prioritize a new feature, it must meet one of these criteria:
 
-1. Bug
-2. Small UX improvement (`~spiffier` label) that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label)
-4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
-5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
+- Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
+- Contributes to Fleet's [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or [product maturity goals](https://fleetdm.com/handbook/company/product-groups#current-product-groups) goals for the current calendar year (`~product-maturity` label)
+- Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
+- Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
 Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise (`~customer promise` label) or a [high-priority](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) customer request (`P0`, `P1`, or `P2` label).
 

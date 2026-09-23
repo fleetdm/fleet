@@ -219,6 +219,7 @@ func TestHosts(t *testing.T) {
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
+		{"CountAllHosts", testCountAllHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2492,27 +2493,36 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(context.Background(),
+		var created bool
+		h, err := ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 			fleet.WithEnrollOsqueryTeamID(&team.ID),
+			fleet.WithEnrollOsqueryCreated(&created),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
+		assert.True(t, created)
 
 		assert.Equal(t, tt.uuid, *h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
-		_, err = ds.EnrollOsquery(context.Background(),
+		created = false
+		_, err = ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
+			fleet.WithEnrollOsqueryCreated(&created),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
+		assert.False(t, created)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
-		_, err = ds.EnrollOsquery(context.Background(),
+		_, err = ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
 			fleet.WithEnrollOsqueryCooldown(10*time.Second),
@@ -2532,7 +2542,8 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(context.Background(),
+		h, err := ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
@@ -2553,7 +2564,8 @@ func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(context.Background(),
+		h, err := ds.EnrollOsquery(
+			context.Background(),
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
@@ -3970,7 +3982,8 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	hostNoDEP := test.NewHost(t, ds, "nodep.local", "1.1.1.4", "dep-nk-4", "dep-nk-4", now)
 
 	// Upsert DEP assignments for the three hosts that have DEP records.
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx,
+	err = ds.UpsertMDMAppleHostDEPAssignments(
+		ctx,
 		[]fleet.Host{*hostFailed, *hostThrottled, *hostSuccess},
 		abmToken.ID, make(map[uint]time.Time),
 	)
@@ -7034,8 +7047,8 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	}
 
 	// Team 1 hosts (1, 2, 3)
-	seenTime := time.Now().Add(time.Duration(-1*(team1HostExpiryWindow)*24)*time.Hour - time.Hour)         // 1 hour over expiry window
-	seenRecentlyTime := time.Now().Add(time.Duration(-1*(team1HostExpiryWindow)*24)*time.Hour + time.Hour) // 1 hour under expiry window
+	seenTime := time.Now().Add(time.Duration(-1*team1HostExpiryWindow*24)*time.Hour - time.Hour)         // 1 hour over expiry window
+	seenRecentlyTime := time.Now().Add(time.Duration(-1*team1HostExpiryWindow*24)*time.Hour + time.Hour) // 1 hour under expiry window
 	createHost(1, seenTime)
 	createHost(2, seenTime)
 	createHost(3, seenRecentlyTime)
@@ -7330,8 +7343,8 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
-	rowsAdded, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows)
-	require.Equal(t, 2, rowsAdded)
+	res, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows, 0)
+	require.Equal(t, 2, res.RowsAdded)
 	require.NoError(t, err)
 
 	hostResult, err = ds.Host(context.Background(), host.ID)
@@ -7632,7 +7645,7 @@ func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 		QueryID: query.ID,
 		HostID:  host.ID,
 		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
-	}}, fleet.DefaultMaxQueryReportRows)
+	}}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// host should still see just one stats entry at this point, despite seeing stats from both queries in the UNION
@@ -8029,7 +8042,8 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Zero(t, count[0])
 
 	// Enroll existing host.
-	_, err = ds.EnrollOsquery(context.Background(),
+	_, err = ds.EnrollOsquery(
+		context.Background(),
 		fleet.WithEnrollOsqueryHostID("1"),
 		fleet.WithEnrollOsqueryNodeKey("1"),
 	)
@@ -8044,7 +8058,8 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	time.Sleep(1 * time.Second)
 
 	// Enroll again to trigger an update of host_seen_times.
-	_, err = ds.EnrollOsquery(context.Background(),
+	_, err = ds.EnrollOsquery(
+		context.Background(),
 		fleet.WithEnrollOsqueryHostID("1"),
 		fleet.WithEnrollOsqueryNodeKey("1"),
 	)
@@ -10536,7 +10551,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	cmdUUID := uuid.NewString()
 
 	// Raw INSERT into host_vpp_software_installs, so we can isolate testing deletion
-	_, err = ds.writer(ctx).Exec(`
+	_, err = ds.writer(ctx).Exec(
+		`
     INSERT INTO host_vpp_software_installs (
       host_id,
       adam_id,
@@ -10553,7 +10569,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Assert the host_vpp_software_installs row exists to delete along with DeleteHost
 	var count int
-	err = ds.writer(ctx).Get(&count,
+	err = ds.writer(ctx).Get(
+		&count,
 		`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND command_uuid = ?`,
 		host.ID, cmdUUID,
 	)
@@ -10612,6 +10629,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		`INSERT INTO host_bitlocker_pin_requests (host_id, request_uuid, pin_encrypted) VALUES (?, ?, ?)`,
 		host.ID, pinRequestID[:], "encrypted-pin",
 	)
+	require.NoError(t, err)
+
+	// Insert into notifications_end_user table (no host FK, cleaned up via hostRefs).
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+		VALUES (?, ?, 'pending', 'patch', '{}', NOW(6) + INTERVAL 1 HOUR)`,
+		uuid.NewString(), host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -11709,7 +11733,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, abmToken.ID)
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollOsquery(ctx,
+		h, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(tt.uuid),
 			fleet.WithEnrollOsqueryHardwareUUID(tt.uuid),
 			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
@@ -11719,7 +11744,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		orbitKey := uuid.New().String()
 		// on orbit enrollment, the "hardware UUID" is matched with the osquery
 		// host ID to identify the host being enrolled
-		_, err = ds.EnrollOrbit(ctx,
+		_, err = ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   *h.OsqueryHostID,
 				HardwareSerial: h.HardwareSerial,
@@ -11748,7 +11774,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// The BitLocker protection notification decides from these fields rather than from a dedicated query, so dropping
 	// them from this loader's SELECT would silently stop Fleet from ever restoring protection.
 	t.Run("carries bitlocker protection state", func(t *testing.T) {
-		h, err := ds.EnrollOsquery(ctx,
+		h, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID("protection-state-uuid"),
 			fleet.WithEnrollOsqueryHardwareUUID("protection-state-uuid"),
 			fleet.WithEnrollOsqueryNodeKey("protection-state-node-key"),
@@ -11756,7 +11783,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx,
+		_, err = ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   *h.OsqueryHostID,
 				HardwareSerial: h.HardwareSerial,
@@ -11798,7 +11826,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx,
+		_, err = ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   *h.OsqueryHostID,
 				HardwareSerial: h.HardwareSerial,
@@ -12365,7 +12394,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// create and enroll a host with just an osquery ID, no serial
 	hOsqueryNoSerial := createHost(uuid.New().String(), "")
-	h, err := ds.EnrollOrbit(ctx,
+	h, err := ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
@@ -12386,7 +12416,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	// got created this way, but when enrolling in orbit it does have an osquery
 	// ID)
 	hSerialNoOsquery := createHost("", uuid.New().String())
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   uuid.New().String(),
@@ -12400,7 +12431,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// create and enroll a host with both
 	hBoth := createHost(uuid.New().String(), uuid.New().String())
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hBoth.OsqueryHostID,
@@ -12423,7 +12455,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
 	// use the osquery match)
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hBoth.OsqueryHostID,
@@ -12437,7 +12470,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with no match, will create a new one
 	newSerial := uuid.NewString()
-	h, err = ds.EnrollOrbit(ctx,
+	var created bool
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   uuid.New().String(),
@@ -12448,9 +12483,28 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			HardwareModel:  "ABC-3000",
 		}),
 		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitCreated(&created),
 	)
 	require.NoError(t, err)
 	require.Greater(t, h.ID, hBoth.ID)
+	require.True(t, created)
+
+	// re-enrolling the same host doesn't report it as created
+	created = false
+	_, err = ds.EnrollOrbit(
+		ctx,
+		fleet.WithEnrollOrbitMDMEnabled(true),
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   h.UUID,
+			HardwareSerial: newSerial,
+			Hostname:       "foo2",
+			Platform:       "darwin",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		fleet.WithEnrollOrbitCreated(&created),
+	)
+	require.NoError(t, err)
+	require.False(t, created)
 	// Hostname and platform values should be set by the Orbit enroll.
 	h, err = ds.Host(ctx, h.ID)
 	require.NoError(t, err)
@@ -12465,7 +12519,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	hDupSerial1 := createHost("", uuid.New().String())
 	hDupSerial2 := createHost("", hDupSerial1.HardwareSerial)
 	require.Greater(t, hDupSerial2.ID, hDupSerial1.ID)
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   uuid.New().String(),
@@ -12478,7 +12533,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// enroll with osquery ID from hOsqueryNoSerial and the duplicate serial,
 	// will always match osquery ID
-	h, err = ds.EnrollOrbit(ctx,
+	h, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
@@ -12500,7 +12556,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		dupHWSerial := uuid.New().String()
 		randomIdentifierH1 := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12510,7 +12567,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12519,7 +12577,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		randomIdentifierH2 := uuid.New().String()
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12529,7 +12588,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12559,7 +12619,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		randomIdentifierH1 := uuid.New().String()
 
 		// First osquery of the first host enrolls.
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12568,7 +12629,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		randomIdentifierH2 := uuid.New().String()
 		// Then orbit of the second host enrolls.
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12579,7 +12641,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		)
 		require.NoError(t, err)
 		// Then orbit of the first host enrolls.
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
 				HardwareSerial:    dupHWSerial,
@@ -12591,7 +12654,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		// Lastly osquery of the second host enrolls.
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12625,7 +12689,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		randomIdentifierH1 := uuid.New().String()
 		randomIdentifierH2 := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
@@ -12636,7 +12701,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryMDMEnabled(true),
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
@@ -12647,7 +12713,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 
 		// Second host enrolls osquery first, then orbit.
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryMDMEnabled(true),
 			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
@@ -12655,7 +12722,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:      dupUUID,
@@ -12694,7 +12762,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		dupUUID := uuid.New().String()
 		dupHWSerial := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12706,7 +12775,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12718,7 +12788,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NotEqual(t, h1OrbitFetched.LastEnrolledAt, h1OsqueryFetched.LastEnrolledAt)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12733,7 +12804,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		// is to be set by osquery only).
 		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12770,7 +12842,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		dupUUID := uuid.New().String()
 		dupHWSerial := uuid.New().String()
 
-		h1Orbit, err := ds.EnrollOrbit(ctx,
+		h1Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12782,7 +12855,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h1Osquery, err := ds.EnrollOsquery(ctx,
+		h1Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12805,7 +12879,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NotNil(t, h1WithMdmFetched.MDM.ServerURL)
 		require.NotNil(t, h1WithMdmFetched.MDM.EnrollmentStatus)
 
-		h2Orbit, err := ds.EnrollOrbit(ctx,
+		h2Orbit, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   dupUUID,
 				HardwareSerial: dupHWSerial,
@@ -12820,7 +12895,8 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		// is to be set by osquery only).
 		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Osquery, err := ds.EnrollOsquery(ctx,
+		h2Osquery, err := ds.EnrollOsquery(
+			ctx,
 			fleet.WithEnrollOsqueryHostID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
 			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
@@ -12865,7 +12941,8 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	// A Windows host that orbit-enrolled (has an orbit node key) is reported as previously enrolled, matched by its hardware UUID.
 	t.Run("windows host previously orbit-enrolled", func(t *testing.T) {
 		hostUUID := uuid.New().String()
-		_, err := ds.EnrollOrbit(ctx,
+		_, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(false),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID: hostUUID,
@@ -12904,7 +12981,8 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	t.Run("windows enroll does not match an apple host by serial", func(t *testing.T) {
 		serial := uuid.New().String()
 		// An Apple host previously orbit-enrolled with this serial (and an orbit node key).
-		_, err := ds.EnrollOrbit(ctx,
+		_, err := ds.EnrollOrbit(
+			ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 				HardwareUUID:   uuid.New().String(),
@@ -12933,7 +13011,8 @@ func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Enroll orbit first.
-	h, err := ds.EnrollOrbit(ctx,
+	h, err := ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   "some-unique-uuid",
 			HardwareSerial: "some-unique-serial",
@@ -12955,7 +13034,8 @@ func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
 
 	// Enroll osquery after orbit.
 	// Should not clear platform and platform_like.
-	osqueryHost, err := ds.EnrollOsquery(ctx,
+	osqueryHost, err := ds.EnrollOsquery(
+		ctx,
 		fleet.WithEnrollOsqueryHostID("some-unique-uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("some-unique-uuid"),
 		fleet.WithEnrollOsqueryHardwareSerial("some-unique-uuid"),
@@ -13004,7 +13084,8 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// enroll with orbit and a uuid (will match on serial)
-	_, err = ds.EnrollOrbit(ctx,
+	_, err = ds.EnrollOrbit(
+		ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
 		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 			HardwareUUID:   "uuid",
@@ -13027,7 +13108,8 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "darwin", got.Platform)
 
 	// enroll with osquery using uuid identifier, team enroll secret
-	_, err = ds.EnrollOsquery(ctx,
+	_, err = ds.EnrollOsquery(
+		ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(true),
 		fleet.WithEnrollOsqueryHostID("uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("uuid"),
@@ -13898,7 +13980,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		h4Global0Results,
 		h4Query1Results,
 	} {
-		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows)
+		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows, 0)
 		require.NoError(t, err)
 	}
 
@@ -13908,13 +13990,13 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	rows, err := ds.QueryResultRows(ctx, query0Global.ID, tf)
+	rows, _, _, err := ds.QueryResultRows(ctx, query0Global.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 5)
-	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query1Team1.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
-	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query2Team2.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 
@@ -13929,16 +14011,16 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// No global query results should be deleted
-	rows, err = ds.QueryResultRows(ctx, query0Global.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query0Global.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 5)
 	// Results for h1 should be gone, and results for hostStaticOnTeam1 should be here.
-	rows, err = ds.QueryResultRows(ctx, query1Team1.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query1Team1.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, hostStaticOnTeam1.ID, rows[0].HostID)
 	// Results for h2 and h3 should be gone.
-	rows, err = ds.QueryResultRows(ctx, query2Team2.ID, tf)
+	rows, _, _, err = ds.QueryResultRows(ctx, query2Team2.ID, tf, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, rows)
 
@@ -14602,7 +14684,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set IdP username on the host via host_emails (simulates PUT /device_mapping with source=idp)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"scimuser@example.com", host.ID, fleet.DeviceMappingIDP,
 			)
@@ -14639,7 +14722,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set IdP email on the host
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"primary@example.com", host.ID, fleet.DeviceMappingIDP,
 			)
@@ -14682,7 +14766,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set email with custom source (not idp)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"customuser@example.com", host.ID, fleet.DeviceMappingCustomOverride,
 			)
@@ -14718,14 +14803,16 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set up mdm_idp_accounts so any SCIM user with username "shared@example.com" matches this host.
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
 				"mdm-uuid-dup", "shared@example.com", "Shared User", "shared@example.com",
 			)
 			return err
 		})
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
 				host.UUID, "mdm-uuid-dup",
 			)
@@ -14794,14 +14881,16 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Set up mdm_idp_accounts (SSO enrollment path)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
 				"mdm-uuid-1", "scimuser@example.com", "Test User", "scimuser@example.com",
 			)
 			return err
 		})
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
 				host.UUID, "mdm-uuid-1",
 			)
@@ -14810,7 +14899,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 
 		// Also set a different email via host_emails with idp source
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 				"other@example.com", host.ID, fleet.DeviceMappingIDP,
 			)
@@ -15821,4 +15911,20 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 	scimUser, err = ds.ScimUserByHostID(ctx, h4.ID)
 	require.NoError(t, err)
 	require.Equal(t, scimUserID, scimUser.ID)
+}
+
+func testCountAllHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	count, err := ds.CountAllHosts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	test.NewHost(t, ds, "alpha.local", "192.168.1.1", "11111", "UI8XB1221", time.Now())
+	test.NewHost(t, ds, "bravo.local", "192.168.1.2", "22222", "UI8XB1222", time.Now())
+	test.NewHost(t, ds, "charlie.local", "192.168.1.3", "33333", "UI8XB1223", time.Now())
+
+	count, err = ds.CountAllHosts(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
 }

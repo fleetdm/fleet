@@ -166,6 +166,8 @@ const DeviceUserPage = ({
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
+  /** Whether the Create PIN modal is still owed an answer about a PIN it handed to Fleet. */
+  const [isAwaitingPINOutcome, setIsAwaitingPINOutcome] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
@@ -294,6 +296,7 @@ const DeviceUserPage = ({
 
   const {
     data: dupDetails,
+    dataUpdatedAt: dupDetailsUpdatedAt,
     isLoading: isLoadingDupDetails,
     error: dupDetailsError,
     refetch: refetchDupDetails,
@@ -311,8 +314,9 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
+      // A modal still owed an answer keeps polling on its own account. The modal gives up after a deadline, which is what bounds this.
       refetchInterval: (data) =>
-        !showBitLockerPINModal && hasPINRequestInFlight(data)
+        isAwaitingPINOutcome || hasPINRequestInFlight(data)
           ? BITLOCKER_PIN_POLL_INTERVAL
           : false,
       onSuccess: ({ host: responseHost }) => {
@@ -430,14 +434,6 @@ const DeviceUserPage = ({
     );
   }, [host, needsBitLockerPIN, location, router]);
 
-  const pollHostDetails = useCallback(async () => {
-    // A failed refetch resolves rather than rejects, and leaves the last good data in place.
-    const { data, error } = await refetchDupDetails();
-    if (error) {
-      throw error;
-    }
-    return data;
-  }, [refetchDupDetails]);
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
@@ -1010,8 +1006,20 @@ const DeviceUserPage = ({
             (diskEncryptionSetting?.fleetd_can_set_pin ? (
               <BitLockerPinModal
                 deviceAuthToken={deviceAuthToken}
-                onPollHost={pollHostDetails}
-                onExit={() => setShowBitLockerPINModal(false)}
+                diskEncryption={diskEncryptionSetting}
+                dataUpdatedAt={dupDetailsUpdatedAt}
+                onWaitingChange={(isWaiting) => {
+                  setIsAwaitingPINOutcome(isWaiting);
+                  // A request already in flight would answer from before the submit, and react-query hands it back
+                  // rather than starting a second one unless it is cancelled.
+                  if (isWaiting) {
+                    refetchDupDetails({ cancelRefetch: true });
+                  }
+                }}
+                onExit={() => {
+                  setIsAwaitingPINOutcome(false);
+                  setShowBitLockerPINModal(false);
+                }}
               />
             ) : (
               <BitLockerPinInstructionsModal

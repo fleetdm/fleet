@@ -19,6 +19,7 @@ export type IPolicyAutomationUpdate = Pick<
   | "conditional_access_enabled"
   | "continuous_automations_enabled"
   | "patch_when_closed"
+  | "notify_before_patching"
 >;
 
 export interface IUpdatePolicyAutomationsVars {

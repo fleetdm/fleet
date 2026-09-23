@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.3.123",
+      "version": "4.3.144",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.automattic.beeper.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.automattic.beeper.desktop' AND version_compare(bundle_short_version, '4.3.123') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.automattic.beeper.desktop' AND version_compare(bundle_short_version, '4.3.144') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.automattic.beeper.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://beeper-desktop.download.beeper.com/builds/Beeper-4.3.123-arm64-mac.zip",
+      "installer_url": "https://beeper-desktop.download.beeper.com/builds/Beeper-4.3.144-arm64-mac.zip",
       "install_script_ref": "403ed251",
       "uninstall_script_ref": "978d30f8",
-      "sha256": "ee9473ddddeab1bfd3007e4538eba47a48515a04e0e871b518525dd1abfcb88b",
+      "sha256": "57f590ab7cb84c97849d43d527aed78a26499f17736d503f501b8d9c746ee681",
       "default_categories": [
         "Communication"
       ]

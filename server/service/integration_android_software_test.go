@@ -667,7 +667,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 	t.Run("android app configurations", func(t *testing.T) {
 		// Android app with configuration
-		exampleConfiguration := json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)
+		exampleConfiguration := json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED","credentialProviderPolicy":"CREDENTIAL_PROVIDER_ALLOWED"}`)
 		androidAppFoo := &fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{
 				AppTeamID: ptr.ValOrZero(teamID),
@@ -782,6 +782,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		}, http.StatusOK, &titleResp)
 		require.Equal(t, "app_2", *titleResp.SoftwareTitle.ApplicationID)
 		require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`)
+		require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"`)
 
 		// Remove 2 other apps, 2 configurations should be deleted and 2 should be emptied/remain
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
@@ -811,6 +812,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		}, http.StatusOK, &titleResp)
 		require.Equal(t, "app_2", *titleResp.SoftwareTitle.ApplicationID)
 		require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"`)
+		require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), `"credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"`)
 
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
