@@ -1,7 +1,6 @@
 .change-management {
   @include vertical-page-layout;
 
-  // Match the "Git repository URL" form label below it.
   .fleet-checkbox__label {
     color: $core-fleet-black;
   }
