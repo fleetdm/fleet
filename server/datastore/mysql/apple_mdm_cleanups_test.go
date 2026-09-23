@@ -143,6 +143,13 @@ func testNanoCleanupInactivePurge(t *testing.T, ds *Datastore) {
 	// command survives for the user pair
 	fanned := f.enqueue("DeviceInformation", f.deviceID, f.userID)
 	f.deactivate(f.deviceID, fanned, 2*nanoCleanupDay, 2*nanoCleanupDay)
+	// a promoted recovery-lock command is still the host's current one
+	recovery := f.enqueue(fleet.SetRecoveryLockCmdName, f.deviceID)
+	f.deactivate(f.deviceID, recovery, 2*nanoCleanupDay, 2*nanoCleanupDay)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, status, operation_type, set_command_uuid)
+		VALUES (?, 'enc', 'verified', 'install', ?)`, f.deviceID, recovery)
+	require.NoError(t, err)
 
 	stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
 	require.NoError(t, err)
@@ -153,7 +160,7 @@ func testNanoCleanupInactivePurge(t *testing.T, ds *Datastore) {
 		require.Zero(t, f.resultRows(gone), gone)
 		require.Zero(t, f.commandRows(gone), gone)
 	}
-	for _, kept := range []string{freshDead, lockDead, live, guarded} {
+	for _, kept := range []string{freshDead, lockDead, live, guarded, recovery} {
 		require.Equal(t, 1, f.queueRows(kept), kept)
 		require.Equal(t, 1, f.commandRows(kept), kept)
 	}

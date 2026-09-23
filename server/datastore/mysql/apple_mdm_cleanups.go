@@ -42,6 +42,8 @@ const nanoCommandUnreferencedFilter = `
 		AND hihsi.verification_at IS NULL AND hihsi.verification_failed_at IS NULL AND hihsi.canceled = 0)
 	AND NOT EXISTS (SELECT 1 FROM host_recovery_key_passwords rkp WHERE rkp.pending_set_command_uuid = c.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM host_recovery_key_passwords rkp WHERE rkp.pending_verify_command_uuid = c.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_recovery_key_passwords rkp WHERE rkp.set_command_uuid = c.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_recovery_key_passwords rkp WHERE rkp.verify_command_uuid = c.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM host_managed_local_account_passwords hmlap WHERE hmlap.command_uuid = c.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM host_managed_local_account_passwords hmlap WHERE hmlap.pending_command_uuid = c.command_uuid)
 	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr
@@ -98,12 +100,18 @@ func (ds *Datastore) purgeInactiveNanoCommands(ctx context.Context, retention ti
 	// appended primary key, so each scan resumes after the last row seen
 	// without a sort. Without the keyset, a window full of guard-pinned rows
 	// would be re-read every scan and starve the eligible rows behind it.
+	// The keyset is spelled out as nested ORs: a row constructor starting at
+	// the index's second column is only a filter to MySQL, which then walks
+	// the whole active = 0 range up to the cursor on every scan.
 	const candidatesStmt = `
 		SELECT neq.id, neq.command_uuid, neq.priority, neq.created_at
 		FROM nano_enrollment_queue neq
 		JOIN nano_commands nc ON nc.command_uuid = neq.command_uuid
 		WHERE neq.active = 0
-		  AND (neq.priority, neq.created_at, neq.id, neq.command_uuid) > (?, ?, ?, ?)
+		  AND (neq.priority > ?
+		    OR (neq.priority = ? AND (neq.created_at > ?
+		      OR (neq.created_at = ? AND (neq.id > ?
+		        OR (neq.id = ? AND neq.command_uuid > ?))))))
 		  AND neq.updated_at < NOW(6) - INTERVAL ? SECOND
 		  AND nc.request_type NOT IN (?)
 		ORDER BY neq.priority, neq.created_at, neq.id, neq.command_uuid
@@ -115,7 +123,7 @@ func (ds *Datastore) purgeInactiveNanoCommands(ctx context.Context, retention ti
 	for range nanoCleanupMaxScansPerRun {
 		limit := min(nanoCleanupScanBatchSize, budget-deleted)
 		stmt, args, err := sqlx.In(candidatesStmt,
-			cursor.Priority, cursor.CreatedAt, cursor.ID, cursor.CommandUUID,
+			cursor.Priority, cursor.Priority, cursor.CreatedAt, cursor.CreatedAt, cursor.ID, cursor.ID, cursor.CommandUUID,
 			int(retention.Seconds()), fleet.AppleMDMInactivePurgeDenylist, limit)
 		if err != nil {
 			return deleted, touched, false, ctxerr.Wrap(ctx, err, "build inactive nano commands query")
@@ -227,8 +235,10 @@ func (ds *Datastore) deleteNanoQueuePairs(ctx context.Context, pairs []nanoQueue
 
 // mopNanoCommands deletes, among uuids, the nano_commands rows that no queue
 // row, result row, bootstrap package or certificate renewal still references,
-// up to budget. The reference checks are part of the DELETE so a reference
-// appearing between a separate check and the delete can't be cascaded away.
+// up to budget. Those four are the tables a delete would cascade into or
+// FK-fail on, so they are rechecked inside the DELETE itself; the soft
+// references were checked by the pair guard moments earlier, and a finished
+// command does not acquire new ones.
 func (ds *Datastore) mopNanoCommands(ctx context.Context, uuids []string, budget int) (int, bool, error) {
 	const stmt = `
 		DELETE FROM nano_commands
