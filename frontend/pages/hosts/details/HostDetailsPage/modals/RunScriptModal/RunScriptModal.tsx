@@ -24,6 +24,8 @@ import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 
 const baseClass = "run-script-modal";
 
+export const RUN_SCRIPT_PAGE_SIZE = 20;
+
 interface IRunScriptModalProps {
   currentUser: IUser | null;
   hostTeamId: number | null;
@@ -182,34 +184,36 @@ const RunScriptModal = ({
           !isError &&
           tableData &&
           tableData.length > 0 && (
-            <TableContainer
-              resultsTitle=""
-              emptyComponent={EmptyComponent}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              columnConfigs={scriptColumnConfigs}
-              data={tableData}
-              isLoading={isRunningScript || isFetchingHostScripts}
-              onQueryChange={onQueryChange}
-              disableNextPage={!hostScriptResponse?.meta.has_next_results}
-              pageIndex={page}
-              pageSize={10}
-              disableCount
-              disableTableHeader
-            />
+            <>
+              <div className={`${baseClass}__table-header`}>
+                <span className={`${baseClass}__table-title`}>Scripts</span>
+                {canAddScript && (
+                  <Button
+                    variant="secondary"
+                    icon="plus"
+                    onClick={() => browserHistory.push(addScriptUrl)}
+                  >
+                    Add script
+                  </Button>
+                )}
+              </div>
+              <TableContainer
+                resultsTitle=""
+                emptyComponent={EmptyComponent}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                columnConfigs={scriptColumnConfigs}
+                data={tableData}
+                isLoading={isRunningScript || isFetchingHostScripts}
+                onQueryChange={onQueryChange}
+                disableNextPage={!hostScriptResponse?.meta.has_next_results}
+                pageIndex={page}
+                pageSize={RUN_SCRIPT_PAGE_SIZE}
+                disableCount
+                disableTableHeader
+              />
+            </>
           )}
-      </div>
-      <div className="modal-cta-wrap">
-        <Button onClick={onClose}>Close</Button>
-        {canAddScript && !!tableData?.length && (
-          <Button
-            variant="secondary"
-            icon="plus"
-            onClick={() => browserHistory.push(addScriptUrl)}
-          >
-            Add script
-          </Button>
-        )}
       </div>
     </Modal>
   );

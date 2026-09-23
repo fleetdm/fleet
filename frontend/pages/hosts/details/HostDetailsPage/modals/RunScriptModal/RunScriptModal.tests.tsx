@@ -274,6 +274,10 @@ describe("RunScriptModal", () => {
       ).not.toBeInTheDocument();
       // TooltipTruncatedTextCell renders the script name in both the cell and tooltip
       expect(screen.getAllByText("cleanup.sh").length).toBeGreaterThan(0);
+      expect(screen.getByText("Scripts")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Close" })
+      ).not.toBeInTheDocument();
     });
 
     it("shows an 'Add script' button that goes to scripts with fleet_id for an admin", async () => {
