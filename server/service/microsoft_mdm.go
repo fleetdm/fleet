@@ -2115,7 +2115,10 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		// raw_command is returned verbatim as the payload. Resolution never mints; see MintWindowsMDMOneTimeEnrollSecret.
 		rawCommandWithSecret, err = svc.ds.ExpandWindowsMDMHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
 		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "expanding host secrets for Windows pending commands")
+			// Skipped rather than failing the session, like a command that does not parse: one bad command must not hold
+			// back every other command pending for the device. It stays queued and is tried again next session.
+			logging.WithErr(ctx, ctxerr.Wrapf(ctx, err, "expanding host secrets for Windows pending command %s", pendingCmd.CommandUUID))
+			continue
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
 		if err != nil {

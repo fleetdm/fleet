@@ -4,13 +4,16 @@ import (
 	"context"
 	"html"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -159,4 +162,76 @@ func TestDeliversOneTimeEnrollSecret(t *testing.T) {
 	// never gets stuck there and does not need the exemption.
 	require.True(t, isFleetdConfigProfile("a-1", mdm.FleetdConfigProfileName))
 	require.False(t, isFleetdConfigProfile("w-1", mdm.FleetWindowsEnrollSecretProfileName))
+}
+
+func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
+	const secretProfileUUID = "w-secret"
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	newService := func(t *testing.T, windowsSwitch bool) (*Service, *mock.Store) {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			cfg := &fleet.AppConfig{}
+			cfg.MDM.WindowsEnabledAndConfigured = true
+			return cfg, nil
+		}
+		ds.GetHostMDMProfileInstallStatusFunc = func(ctx context.Context, hostUUID, profileUUID string) (fleet.MDMDeliveryStatus, error) {
+			return fleet.MDMDeliveryVerified, nil
+		}
+		ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error { return nil }
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
+			return &fleet.MDMWindowsConfigProfile{ProfileUUID: profileUUID, Name: mdm.FleetWindowsEnrollSecretProfileName}, nil
+		}
+		ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profileUUID string, f fleet.BatchResendMDMProfileFilters) (int64, error) {
+			return 0, nil
+		}
+		cfg := config.TestConfig()
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsSwitch
+		opts := &TestServerOpts{}
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(ctx context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+		return svc.(validationMiddleware).Service.(*Service), ds
+	}
+	resend := func(svc *Service, profileUUID, profileName string) (error, bool) {
+		var gotErr error
+		var rejected bool
+		checkAndResendHostMDMProfile(t.Context(), svc, host, func(err error, r bool) { gotErr, rejected = err, r },
+			profileUUID, profileName, nil)
+		return gotErr, rejected
+	}
+
+	t.Run("switch off refuses the carrier on every resend path, before anything is minted", func(t *testing.T) {
+		// Covers the window before the reconciler deletes the profile, and a delete that failed. The datastore would mint on the
+		// profile's name, so this is the only thing between a resend and a credential for a feature that is off.
+		svc, ds := newService(t, false)
+
+		err, rejected := resend(svc, secretProfileUUID, mdm.FleetWindowsEnrollSecretProfileName)
+		require.True(t, rejected)
+		var status interface{ Status() int }
+		require.ErrorAs(t, err, &status)
+		require.Equal(t, http.StatusConflict, status.Status())
+		require.False(t, ds.ResendHostMDMProfileFuncInvoked)
+
+		err = svc.BatchResendMDMProfileToHosts(test.UserContext(t.Context(), test.UserAdmin), secretProfileUUID,
+			fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+		require.ErrorAs(t, err, &status)
+		require.Equal(t, http.StatusConflict, status.Status())
+		require.False(t, ds.BatchResendMDMProfileToHostsFuncInvoked)
+	})
+
+	t.Run("switch off leaves other Windows profiles alone", func(t *testing.T) {
+		svc, ds := newService(t, false)
+		err, _ := resend(svc, "w-custom", "Custom settings")
+		require.NoError(t, err)
+		require.True(t, ds.ResendHostMDMProfileFuncInvoked)
+	})
+
+	t.Run("switch on lets the carrier through", func(t *testing.T) {
+		svc, ds := newService(t, true)
+		err, _ := resend(svc, secretProfileUUID, mdm.FleetWindowsEnrollSecretProfileName)
+		require.NoError(t, err)
+		require.True(t, ds.ResendHostMDMProfileFuncInvoked)
+	})
 }

@@ -3773,3 +3773,46 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.Empty(t, *events)
 	})
 }
+
+func TestWindowsMDMCommandHostSecretPlaceholders(t *testing.T) {
+	t.Run("a custom command carrying one is refused before anything is queued", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, _ := newTestService(t, ds, nil, nil)
+		for _, placeholder := range []string{
+			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
+			fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword),
+		} {
+			cmd := `<Exec><CmdID>c1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI></Target>` +
+				`<Data>` + placeholder + `</Data></Item></Exec>`
+			_, err := svc.(validationMiddleware).Service.(*Service).enqueueMicrosoftMDMCommand(t.Context(), []byte(cmd), []string{"device-1"})
+			var badRequest *fleet.BadRequestError
+			require.ErrorAs(t, err, &badRequest, placeholder)
+			require.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, placeholder)
+		}
+	})
+
+	t.Run("one command that fails expansion does not hold back the rest", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+			return []*fleet.MDMWindowsCommand{
+				{CommandUUID: "bad", RawCommand: []byte(
+					`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`)},
+				{CommandUUID: "good", RawCommand: []byte(
+					`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
+			}, nil
+		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+		ds.ExpandWindowsMDMHostSecretsFunc = func(ctx context.Context, document string, enrollmentID uint) (string, error) {
+			if strings.Contains(document, "<CmdID>bad</CmdID>") {
+				return "", errors.New("host secret type X is not supported on Windows")
+			}
+			return document, nil
+		}
+		svc, _ := newTestService(t, ds, nil, nil)
+
+		cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+		require.NoError(t, err, "a failed expansion must not fail the whole management session")
+		require.Len(t, cmds, 1)
+		require.Equal(t, "good", cmds[0].CmdID.Value)
+	})
+}

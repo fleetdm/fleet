@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -143,6 +144,21 @@ func deliversOneTimeEnrollSecret(auth config.AuthConfig, profileUUID, profileNam
 		return auth.MDMWindowsOneTimeEnrollSecrets && profileName == mdm.FleetWindowsEnrollSecretProfileName
 	}
 	return false
+}
+
+// isWindowsEnrollSecretProfile reports whether the profile is the Fleet-managed Fleetd enroll secret profile, whatever the switch.
+func isWindowsEnrollSecretProfile(profileUUID, profileName string) bool {
+	return strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) && profileName == mdm.FleetWindowsEnrollSecretProfileName
+}
+
+// errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while
+// auth.mdm_windows_one_time_enroll_secrets is off. The reconciler deletes the profile then, but a resend could still find it in the
+// window before that, or after a delete that failed. It has to be refused here: the datastore mints on the profile's name because
+// it cannot see the switch, so letting the resend through would hand out a credential for a feature that is disabled.
+func errWindowsEnrollSecretProfileOff() error {
+	return fleet.NewInvalidArgumentError("HostMDMProfile",
+		"Couldn’t resend. The "+mdm.FleetWindowsEnrollSecretProfileName+
+			" profile is only used when one-time enroll secrets are enabled for Windows.").WithStatus(http.StatusConflict)
 }
 
 // oneTimeWindowsEnrollmentID returns the Windows MDM enrollment a presented one-time enroll secret was minted for, or nil when

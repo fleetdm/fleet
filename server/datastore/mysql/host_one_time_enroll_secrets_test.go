@@ -822,6 +822,34 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, secret)
 	})
 
+	t.Run("only the enrollment the profile reaches is minted for", func(t *testing.T) {
+		// Delivery goes to the host's most recent enrollment, so a secret for an older row would never reach a device and would
+		// sit as a live credential nobody holds.
+		addNewerEnrollment := func(olderID uint, hw string) uint {
+			newer := insertWindowsEnrollment(t, ds, hw)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, hostUUIDOf(olderID), newer.ID)
+				return err
+			})
+			require.Greater(t, newer.ID, olderID)
+			return newer.ID
+		}
+
+		older := newLinkedHost("two-enrollments", new(fleet.MDMDeliveryVerified), secretProfileUUID)
+		newer := addNewerEnrollment(older, "hw-two-enrollments-newer")
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, hostUUIDOf(older), secretProfileUUID))
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, older))
+		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, newer))
+
+		olderBatch := newLinkedHost("two-enrollments-batch", new(fleet.MDMDeliveryFailed), secretProfileUUID)
+		newerBatch := addNewerEnrollment(olderBatch, "hw-two-enrollments-batch-newer")
+		_, err := ds.BatchResendMDMProfileToHosts(ctx, secretProfileUUID,
+			fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+		require.NoError(t, err)
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, olderBatch))
+		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, newerBatch))
+	})
+
 	t.Run("batch resend", func(t *testing.T) {
 		failed := newLinkedHost("batch-failed", new(fleet.MDMDeliveryFailed), secretProfileUUID)
 		verified := newLinkedHost("batch-verified", new(fleet.MDMDeliveryVerified), secretProfileUUID)

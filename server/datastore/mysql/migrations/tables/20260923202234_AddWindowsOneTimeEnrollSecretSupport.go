@@ -63,13 +63,14 @@ func Up_20260923202234(tx *sql.Tx) error {
 // Reusing the Apple name instead was not an option: NewMDMWindowsConfigProfile refuses a name already present in
 // mdm_apple_configuration_profiles for the same team, and Fleet creates "Fleetd configuration" there for every team.
 func renameConflictingWindowsEnrollSecretProfiles(tx *sql.Tx) error {
-	// Fleet's own profile cannot exist yet, since this release introduces it, but matching on the payload rather than the name
-	// alone keeps the statement honest if this is ever re-run against a database where it does.
+	// Every row with the name is renamed, with no attempt to recognise Fleet's own. This release is what introduces Fleet's
+	// profile, and migrations run before the reconciler that creates it, so on any upgrade a row with this name is a customer's.
+	// Telling them apart by payload would only open a hole: a customer profile that happened to match would be skipped here and
+	// then overwritten by the reconciler.
 	const selectConflicting = `
 		SELECT profile_uuid
 		FROM mdm_windows_configuration_profiles
-		WHERE name = 'Fleetd enroll secret'
-			AND syncml NOT LIKE '%ADMXInstall/FleetdEnrollSecret%'`
+		WHERE name = 'Fleetd enroll secret'`
 
 	var profileUUIDs []string
 	rows, err := tx.Query(selectConflicting)

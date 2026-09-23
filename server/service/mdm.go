@@ -824,6 +824,13 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
 
+	// Host-secret placeholders are Fleet's to write, never an admin's: getPendingMDMCmds expands them per enrollment at
+	// delivery, so one here would have Fleet inject that device's secret into a payload of the caller's choosing, and an
+	// unsupported type would fail expansion for every pending command on the device. Profile uploads already refuse them.
+	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command")
+	}
+
 	if cmdMsg.IsPremium() {
 		lic, err := svc.License(ctx)
 		if err != nil {
@@ -3832,6 +3839,10 @@ type checkAndResendPolicyArgs struct {
 }
 
 func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, onError func(err error, rejected bool), profileUUID string, profileName string, policyArgs *checkAndResendPolicyArgs) {
+	if isWindowsEnrollSecretProfile(profileUUID, profileName) && !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+		onError(errWindowsEnrollSecretProfileOff(), true)
+		return
+	}
 	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -4374,6 +4385,9 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 		if err != nil {
 			return err
+		}
+		if isWindowsEnrollSecretProfile(profileUUID, prof.Name) && !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+			return errWindowsEnrollSecretProfileOff()
 		}
 		teamID = prof.TeamID
 		profileName = prof.Name

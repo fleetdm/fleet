@@ -442,8 +442,8 @@ func (ds *Datastore) liveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enro
 // reserved, so a user cannot author one that passes this check.
 //
 // The resend hooks below key on this rather than on auth.mdm_windows_one_time_enroll_secrets, which the datastore does not see.
-// That is equivalent in practice: the reconciler deletes this profile whenever the switch is off, and a resend has to find the
-// profile first.
+// The service refuses to resend this profile while the switch is off (errWindowsEnrollSecretProfileOff), and the reconciler
+// deletes it, so these hooks only ever run with the switch on.
 func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, profileUUID string) (bool, error) {
 	var names []string
 	if err := sqlx.SelectContext(ctx, tx, &names,
@@ -455,15 +455,18 @@ func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, pro
 
 // mintWindowsEnrollSecretOnResendDB mints for a host whose Fleetd enroll secret profile an administrator just resent. It runs in
 // the transaction that resets the profile's status, so the reconciler cannot deliver the profile before the secret exists.
-func mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID string) error {
+//
+// It mints only for the enrollment the profile will actually reach. A host can have several enrollment rows, and profile delivery
+// goes to the most recent one (getEnrollmentIDsByHostUUIDDB), so a secret for any older row would never be delivered and would sit
+// as a live credential that no device holds. Reusing the delivery lookup keeps the two from drifting apart.
+func (ds *Datastore) mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID string) error {
 	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
 	if err != nil || !isSecretProfile {
 		return err
 	}
-	var enrollmentIDs []uint
-	if err := sqlx.SelectContext(ctx, tx, &enrollmentIDs,
-		`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?`, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "load windows mdm enrollments for resent enroll secret profile")
+	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, []string{hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load windows mdm enrollment for resent enroll secret profile")
 	}
 	_, err = mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, enrollmentIDs)
 	return err
@@ -473,21 +476,24 @@ func mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx sqlx.ExtContext, 
 // is about to reset, or nil for any other profile. It has to run before the status reset: afterwards the targets are
 // indistinguishable from hosts whose first delivery was already pending, and those must not be minted for.
 //
-// FOR UPDATE makes this the same set the reset then updates, rather than a snapshot another transaction could add to.
-func windowsEnrollSecretBatchResendTargetsDB(
+// FOR UPDATE makes this the same set the reset then updates, rather than a snapshot another transaction could add to. Each host
+// maps to its most recent enrollment only, for the same reason as mintWindowsEnrollSecretOnResendDB.
+func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
 	ctx context.Context, tx sqlx.ExtContext, profileUUID string, status fleet.MDMDeliveryStatus,
 ) ([]uint, error) {
 	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
 	if err != nil || !isSecretProfile {
 		return nil, err
 	}
-	var enrollmentIDs []uint
-	if err := sqlx.SelectContext(ctx, tx, &enrollmentIDs, `
-		SELECT DISTINCT e.id
-		FROM host_mdm_windows_profiles hmwp
-		JOIN mdm_windows_enrollments e ON e.host_uuid = hmwp.host_uuid
-		WHERE hmwp.profile_uuid = ? AND hmwp.status = ?
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, `
+		SELECT host_uuid FROM host_mdm_windows_profiles
+		WHERE profile_uuid = ? AND status = ?
 		FOR UPDATE`, profileUUID, status); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load hosts for batch-resent enroll secret profile")
+	}
+	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, hostUUIDs)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load windows mdm enrollments for batch-resent enroll secret profile")
 	}
 	return enrollmentIDs, nil

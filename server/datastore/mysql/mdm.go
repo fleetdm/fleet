@@ -2315,7 +2315,7 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 			// An administrator resending the Fleetd enroll secret profile is how a host whose secret was spent gets another, so
 			// this is one of the two places a Windows one-time enroll secret is minted. See MintWindowsMDMOneTimeEnrollSecret.
 			if rows > 0 {
-				if err := mintWindowsEnrollSecretOnResendDB(ctx, tx, hostUUID, profUUID); err != nil {
+				if err := ds.mintWindowsEnrollSecretOnResendDB(ctx, tx, hostUUID, profUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for resent windows profile")
 				}
 			}
@@ -2604,7 +2604,7 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var secretEnrollmentIDs []uint
 		if table == "host_mdm_windows_profiles" {
-			targets, err := windowsEnrollSecretBatchResendTargetsDB(ctx, tx, profileUUID, filters.ProfileStatus)
+			targets, err := ds.windowsEnrollSecretBatchResendTargetsDB(ctx, tx, profileUUID, filters.ProfileStatus)
 			if err != nil {
 				return err
 			}
