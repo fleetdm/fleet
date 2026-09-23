@@ -15,6 +15,8 @@ import (
 // cleanup cron's cursors, as JSON.
 const appleCommandCleanupStateKey = "mdm:apple:command_cleanup_state"
 
+var _ fleet.MDMAppleCommandCleanupStateStore = (*Datastore)(nil)
+
 // GetMDMAppleCommandCleanupState returns the Apple MDM command cleanup cron's
 // persisted cursors, or nil when none are stored.
 //

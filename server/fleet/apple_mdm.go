@@ -2056,6 +2056,20 @@ type MDMAppleCommandCleanupState struct {
 	Orphan    MDMAppleCommandOrphanCursor             `json:"orphan"`
 }
 
+// MDMAppleCommandCleanupStateStore persists the Apple MDM command cleanup
+// cron's cursors between runs. Only the Redis-backed datastore implements it;
+// like EnrollHostLimiter it is handed to the cron on its own rather than
+// through Datastore, so deployments without it simply pass nil and every run
+// starts from the oldest rows.
+type MDMAppleCommandCleanupStateStore interface {
+	// GetMDMAppleCommandCleanupState returns the stored cursors, or nil when
+	// none are stored.
+	GetMDMAppleCommandCleanupState(ctx context.Context) (*MDMAppleCommandCleanupState, error)
+	// SetMDMAppleCommandCleanupState stores the cursors. A nil state resets
+	// them.
+	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
+}
+
 // The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.
 //
 // [1] https://developer.apple.com/documentation/devicemanagement/get-token#Discussion

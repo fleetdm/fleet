@@ -1632,10 +1632,6 @@ type GetMDMAppleAPNsSweepStateFunc func(ctx context.Context) (*fleet.MDMAppleAPN
 
 type SetMDMAppleAPNsSweepStateFunc func(ctx context.Context, state *fleet.MDMAppleAPNsSweepState) error
 
-type GetMDMAppleCommandCleanupStateFunc func(ctx context.Context) (*fleet.MDMAppleCommandCleanupState, error)
-
-type SetMDMAppleCommandCleanupStateFunc func(ctx context.Context, state *fleet.MDMAppleCommandCleanupState) error
-
 type GetAppleDeclarationReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error)
 
 type BulkUpsertMDMAppleHostDeclarationsFunc func(ctx context.Context, rows []*fleet.MDMAppleHostDeclaration) error
@@ -4860,12 +4856,6 @@ type DataStore struct {
 
 	SetMDMAppleAPNsSweepStateFunc        SetMDMAppleAPNsSweepStateFunc
 	SetMDMAppleAPNsSweepStateFuncInvoked bool
-
-	GetMDMAppleCommandCleanupStateFunc        GetMDMAppleCommandCleanupStateFunc
-	GetMDMAppleCommandCleanupStateFuncInvoked bool
-
-	SetMDMAppleCommandCleanupStateFunc        SetMDMAppleCommandCleanupStateFunc
-	SetMDMAppleCommandCleanupStateFuncInvoked bool
 
 	GetAppleDeclarationReconcileSnapshotFunc        GetAppleDeclarationReconcileSnapshotFunc
 	GetAppleDeclarationReconcileSnapshotFuncInvoked bool
@@ -11714,20 +11704,6 @@ func (s *DataStore) SetMDMAppleAPNsSweepState(ctx context.Context, state *fleet.
 	s.SetMDMAppleAPNsSweepStateFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMAppleAPNsSweepStateFunc(ctx, state)
-}
-
-func (s *DataStore) GetMDMAppleCommandCleanupState(ctx context.Context) (*fleet.MDMAppleCommandCleanupState, error) {
-	s.mu.Lock()
-	s.GetMDMAppleCommandCleanupStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleCommandCleanupStateFunc(ctx)
-}
-
-func (s *DataStore) SetMDMAppleCommandCleanupState(ctx context.Context, state *fleet.MDMAppleCommandCleanupState) error {
-	s.mu.Lock()
-	s.SetMDMAppleCommandCleanupStateFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetMDMAppleCommandCleanupStateFunc(ctx, state)
 }
 
 func (s *DataStore) GetAppleDeclarationReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, pageFull bool, err error) {
