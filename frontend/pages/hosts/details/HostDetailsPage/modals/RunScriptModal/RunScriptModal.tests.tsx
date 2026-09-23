@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import React from "react";
+import { browserHistory } from "react-router";
 
 import createMockConfig from "__mocks__/configMock";
 import { createMockHostScript } from "__mocks__/scriptMock";
@@ -275,7 +276,7 @@ describe("RunScriptModal", () => {
       expect(screen.getAllByText("cleanup.sh").length).toBeGreaterThan(0);
     });
 
-    it("shows the 'Add script' link with fleet_id for an admin", () => {
+    it("shows an 'Add script' button that goes to scripts with fleet_id for an admin", async () => {
       const adminUser = createMockUser({ global_role: "admin" });
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -288,7 +289,11 @@ describe("RunScriptModal", () => {
         },
       });
 
-      render(
+      const pushSpy = jest
+        .spyOn(browserHistory, "push")
+        .mockImplementation(jest.fn());
+
+      const { user } = render(
         <RunScriptModal
           {...baseProps}
           currentUser={adminUser}
@@ -299,14 +304,14 @@ describe("RunScriptModal", () => {
         />
       );
 
-      const link = screen.getByRole("link", { name: /Add script/i });
-      expect(link).toHaveAttribute(
-        "href",
+      await user.click(screen.getByRole("button", { name: /Add script/i }));
+      expect(pushSpy).toHaveBeenCalledWith(
         expect.stringContaining("fleet_id=7")
       );
+      pushSpy.mockRestore();
     });
 
-    it("hides the 'Add script' link for a global technician", () => {
+    it("hides the 'Add script' button for a global technician", () => {
       const technicianUser = createMockUser({ global_role: "technician" });
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -331,7 +336,7 @@ describe("RunScriptModal", () => {
       );
 
       expect(
-        screen.queryByRole("link", { name: /Add script/i })
+        screen.queryByRole("button", { name: /Add script/i })
       ).not.toBeInTheDocument();
     });
   });

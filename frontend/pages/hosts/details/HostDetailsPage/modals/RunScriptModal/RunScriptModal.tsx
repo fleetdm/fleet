@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useMemo } from "react";
+import { browserHistory } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -181,32 +182,35 @@ const RunScriptModal = ({
           !isError &&
           tableData &&
           tableData.length > 0 && (
-            <>
-              {canAddScript && (
-                <div className={`${baseClass}__add-script`}>
-                  <CustomLink url={addScriptUrl} text="Add script" />
-                </div>
-              )}
-              <TableContainer
-                resultsTitle=""
-                emptyComponent={EmptyComponent}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                columnConfigs={scriptColumnConfigs}
-                data={tableData}
-                isLoading={isRunningScript || isFetchingHostScripts}
-                onQueryChange={onQueryChange}
-                disableNextPage={!hostScriptResponse?.meta.has_next_results}
-                pageIndex={page}
-                pageSize={10}
-                disableCount
-                disableTableHeader
-              />
-            </>
+            <TableContainer
+              resultsTitle=""
+              emptyComponent={EmptyComponent}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              columnConfigs={scriptColumnConfigs}
+              data={tableData}
+              isLoading={isRunningScript || isFetchingHostScripts}
+              onQueryChange={onQueryChange}
+              disableNextPage={!hostScriptResponse?.meta.has_next_results}
+              pageIndex={page}
+              pageSize={10}
+              disableCount
+              disableTableHeader
+            />
           )}
       </div>
       <div className="modal-cta-wrap">
         <Button onClick={onClose}>Close</Button>
+        {canAddScript && !!tableData?.length && (
+          <Button
+            variant="secondary"
+            icon="plus"
+            iconPosition="right"
+            onClick={() => browserHistory.push(addScriptUrl)}
+          >
+            Add script
+          </Button>
+        )}
       </div>
     </Modal>
   );
