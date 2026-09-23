@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
 
 // enrollmentRejectedActivityTTL bounds how often a host_enrollment_rejected
@@ -121,4 +122,60 @@ func rejectedHostID(rejected *fleet.EnrollmentRejectedError, oneTime *fleet.Host
 // reliable discriminator.
 func isFleetdConfigProfile(profileUUID, profileName string) bool {
 	return strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) && profileName == mdm.FleetdConfigProfileName
+}
+
+// oneTimeWindowsEnrollmentID returns the Windows MDM enrollment a presented one-time enroll secret was minted for, or nil when
+// there is none: a shared secret is not a one-time secret at all, and an Apple one-time secret binds to a host instead.
+func oneTimeWindowsEnrollmentID(oneTime *fleet.HostOneTimeEnrollSecret) *uint {
+	if oneTime == nil {
+		return nil
+	}
+	return oneTime.MDMWindowsEnrollmentID
+}
+
+// linkWindowsEnrollmentFromOneTimeSecret links the enrolling host to the Windows MDM enrollment its one-time enroll secret was
+// minted for.
+//
+// This is the stronger half of the linkage story. The paths it displaces infer the enrollment from a hardware serial that the
+// device asserted about itself and that nothing corroborates, which is why they need the conflicting-hardware guard. A one-time
+// secret is server-minted and was delivered only over that enrollment's own MDM channel, so presenting it identifies the
+// enrollment rather than suggesting it.
+//
+// The conflicting-hardware guard is kept anyway. It answers a different question than the secret does: the secret proves which
+// enrollment it came from, not that the host row it is landing on belongs to the same physical machine.
+//
+// Failures here are logged, not returned. Linkage is post-enrollment bookkeeping, and refusing the enrollment over it would
+// leave a host that cannot run fleetd at all rather than one that is merely unlinked.
+func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, host *fleet.Host, enrollmentID uint) {
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctx, enrollmentID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to load windows mdm enrollment for one-time enroll secret linkage",
+			"err", err, "host_uuid", host.UUID, "enrollment_id", enrollmentID)
+		return
+	}
+
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
+	switch {
+	case err != nil:
+		svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment during one-time secret linkage",
+			"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+		return
+	case conflicted:
+		svc.logger.WarnContext(ctx, "refusing to link windows mdm enrollment to a host already claimed by other hardware",
+			"host_uuid", host.UUID, "device_id", device.MDMDeviceID, "claimed_by_hardware_id", conflictingHardwareID)
+		return
+	}
+
+	linked, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment from one-time enroll secret",
+			"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+		return
+	}
+	if linked {
+		// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now that there is a
+		// host to attribute it to, rather than waiting for the next management session.
+		device.HostUUID = host.UUID
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+	}
 }

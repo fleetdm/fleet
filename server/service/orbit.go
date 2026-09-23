@@ -419,7 +419,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	if euaDeviceID != "" {
+	if oneTimeEnrollmentID := oneTimeWindowsEnrollmentID(oneTime); oneTimeEnrollmentID != nil {
+		// The secret was minted for a specific Windows MDM enrollment and delivered only over that enrollment's own MDM
+		// channel, so presenting it identifies the enrollment outright. Prefer it over the serial branch below, which infers
+		// the enrollment from a serial the device asserted about itself and which nothing corroborates.
+		svc.linkWindowsEnrollmentFromOneTimeSecret(ctx, host, *oneTimeEnrollmentID)
+	} else if euaDeviceID != "" {
 		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping, plus IdP device mapping, the DEP flag,
 		// and the Windows enrollment default fleet assignment for newly created hosts.
 		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID); err != nil {

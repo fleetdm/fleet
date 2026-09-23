@@ -2567,6 +2567,10 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsGetEnrolledDeviceByID returns the Windows MDM enrollment with the given row id, for resolving the enrollment
+	// a one-time enroll secret was minted for.
+	MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName returns the most recent MDMWindowsEnrolledDevice whose host_uuid
 	// has not yet been populated (i.e. osquery's directIngestMDMDeviceIDWindows has not run since enrollment) and whose
 	// device_name matches the given computer name. Used as a fallback when MDMWindowsGetEnrolledDeviceWithHostUUID can't

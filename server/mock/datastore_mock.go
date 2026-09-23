@@ -1492,6 +1492,8 @@ type ClearMDMWindowsManagedLocalAccountRotationRequestFunc func(ctx context.Cont
 
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsGetEnrolledDeviceByIDFunc func(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error)
+
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
@@ -4648,6 +4650,9 @@ type DataStore struct {
 
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
+
+	MDMWindowsGetEnrolledDeviceByIDFunc        MDMWindowsGetEnrolledDeviceByIDFunc
+	MDMWindowsGetEnrolledDeviceByIDFuncInvoked bool
 
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked bool
@@ -11219,6 +11224,13 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context,
 	s.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetEnrolledDeviceByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetEnrolledDeviceByIDFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
