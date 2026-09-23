@@ -90,7 +90,8 @@ const SoftwareSummaryCard = ({
 
   const softwareDisplayName = getDisplayedSoftwareName(
     softwareTitle.name,
-    softwareTitle.display_name
+    softwareTitle.display_name,
+    softwareTitle.bundle_identifier
   );
 
   // Pre-compute meta-derived values via optional chaining so the hooks below
@@ -276,7 +277,7 @@ const SoftwareSummaryCard = ({
   if (!installerResult) {
     return (
       <>
-        <Card borderRadiusSize="xxlarge" className={baseClass}>
+        <Card className={baseClass}>
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
@@ -322,7 +323,7 @@ const SoftwareSummaryCard = ({
 
   return (
     <>
-      <Card borderRadiusSize="xxlarge" className={baseClass}>
+      <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
@@ -400,7 +401,7 @@ const SoftwareSummaryCard = ({
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
-          patchWhenClosed={
+          preInstallQueryLocked={
             softwareTitle.software_package?.patch_policy?.patch_when_closed
           }
         />

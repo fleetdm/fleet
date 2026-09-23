@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+import { createMockConfig } from "__mocks__/configMock";
 import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
@@ -18,9 +19,21 @@ const control = (
   } as Parameters<typeof createMockHostMdmProfile>[0]);
 
 const renderControls = (
-  props: Partial<React.ComponentProps<typeof Controls>> = {}
+  props: Partial<React.ComponentProps<typeof Controls>> = {},
+  { oneTimeEnrollSecrets = false }: { oneTimeEnrollSecrets?: boolean } = {}
 ) => {
-  const render = createCustomRenderer({ withBackendMock: true });
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        config: createMockConfig(
+          oneTimeEnrollSecrets
+            ? { auth: { use_one_time_enroll_secrets: true } }
+            : {}
+        ),
+      },
+    },
+  });
 
   return render(
     <Controls
@@ -44,6 +57,55 @@ const rowStatuses = () =>
 const rowCount = () => screen.getAllByRole("row").length - 1;
 
 describe("Controls card", () => {
+  describe("Resend while verifying", () => {
+    const verifyingFleetd = control({
+      profile_uuid: "a-fleetd",
+      name: "Fleetd configuration",
+      status: "verifying",
+    });
+
+    it("offers Resend on the Fleetd configuration profile when one-time enroll secrets are on", () => {
+      renderControls(
+        { controls: [verifyingFleetd] },
+        { oneTimeEnrollSecrets: true }
+      );
+      expect(
+        screen.getByRole("button", { name: "Resend" })
+      ).toBeInTheDocument();
+    });
+
+    it("does not offer it when one-time enroll secrets are off", () => {
+      renderControls({ controls: [verifyingFleetd] });
+      expect(
+        screen.queryByRole("button", { name: "Resend" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not offer it to the end user", () => {
+      renderControls(
+        { controls: [verifyingFleetd], isDeviceUser: true },
+        { oneTimeEnrollSecrets: true }
+      );
+      expect(
+        screen.queryByRole("button", { name: "Resend" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not offer it on other verifying profiles", () => {
+      renderControls(
+        {
+          controls: [
+            control({ profile_uuid: "a", name: "Custom", status: "verifying" }),
+          ],
+        },
+        { oneTimeEnrollSecrets: true }
+      );
+      expect(
+        screen.queryByRole("button", { name: "Resend" })
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("counts the controls", () => {
     renderControls({
       controls: [

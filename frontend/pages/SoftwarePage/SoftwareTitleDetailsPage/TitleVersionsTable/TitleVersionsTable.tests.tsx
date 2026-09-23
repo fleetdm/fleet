@@ -1,6 +1,7 @@
 import { screen, render, within } from "@testing-library/react";
 import React from "react";
 
+import { createMockSoftwareTitleVersion } from "__mocks__/softwareMock";
 import { ISoftwareTitleVersion } from "interfaces/software";
 import { createMockRouter, renderWithSetup } from "test/test-utils";
 
@@ -25,6 +26,7 @@ describe("TitleVersionsTable", () => {
         data={data}
         isLoading={false}
         teamIdForApi={42}
+        source="apps"
         isIPadOSOrIOSApp={false}
         countsUpdatedAt="2024-05-08T12:00:00Z"
       />
@@ -101,6 +103,7 @@ describe("TitleVersionsTable", () => {
         data={versions}
         isLoading={false}
         teamIdForApi={42}
+        source="apps"
         isIPadOSOrIOSApp={false}
         countsUpdatedAt="2024-05-08T12:00:00Z"
       />
@@ -129,6 +132,7 @@ describe("TitleVersionsTable", () => {
         data={versions}
         isLoading={false}
         teamIdForApi={42}
+        source="apps"
         isIPadOSOrIOSApp={false}
         countsUpdatedAt="2024-05-08T12:00:00Z"
       />
@@ -145,5 +149,58 @@ describe("TitleVersionsTable", () => {
 
     // Empty state should be shown
     expect(screen.getByText(/no versions detected/i)).toBeInTheDocument();
+  });
+
+  it("appends the Go toolchain version for go_binaries versions", () => {
+    render(
+      <TitleVersionsTable
+        router={mockRouter}
+        data={[
+          createMockSoftwareTitleVersion({
+            id: 1,
+            version: "v0.21.1",
+            release: "go1.26.1",
+            hosts_count: 2,
+          }),
+          createMockSoftwareTitleVersion({
+            id: 2,
+            version: "v0.21.1",
+            release: "go1.25.4",
+            hosts_count: 1,
+          }),
+        ]}
+        source="go_binaries"
+        isLoading={false}
+        teamIdForApi={42}
+        isIPadOSOrIOSApp={false}
+        countsUpdatedAt="2024-05-08T12:00:00Z"
+      />
+    );
+
+    expect(renderedVersions()).toEqual([
+      "v0.21.1 (go1.26.1)",
+      "v0.21.1 (go1.25.4)",
+    ]);
+  });
+
+  it("renders the plain version for a source that also populates release", () => {
+    render(
+      <TitleVersionsTable
+        router={mockRouter}
+        data={[
+          createMockSoftwareTitleVersion({
+            version: "1.2.3",
+            release: "30.el7",
+          }),
+        ]}
+        source="rpm_packages"
+        isLoading={false}
+        teamIdForApi={42}
+        isIPadOSOrIOSApp={false}
+        countsUpdatedAt="2024-05-08T12:00:00Z"
+      />
+    );
+
+    expect(renderedVersions()).toEqual(["1.2.3"]);
   });
 });

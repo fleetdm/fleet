@@ -396,6 +396,25 @@ if [[ -z "$FLEET_LOG_GROUP" ]]; then
 fi
 echo "  Fleet Log Group: ${FLEET_LOG_GROUP:-<not found>}"
 
+# Discover CloudWatch log group for apns-mock server
+# Pattern: <prefix>-apple-apns-mock (bare name, not under /ecs/)
+APNS_LOG_GROUP=""
+if [[ -n "$APNS_MOCK_SERVICE" ]]; then
+  candidate="${PREFIX}-apple-apns-mock"
+  if aws logs describe-log-groups --log-group-name-prefix "$candidate" --region "$REGION" \
+       --query "logGroups[0].logGroupName" --output text 2>/dev/null | grep -q "^${candidate}"; then
+    APNS_LOG_GROUP="$candidate"
+  fi
+  # Fallback: broad search for any log group containing workspace name and "apns-mock",
+  # excluding Container Insights groups (which are metrics, not application logs).
+  if [[ -z "$APNS_LOG_GROUP" ]]; then
+    APNS_LOG_GROUP=$(aws logs describe-log-groups --region "$REGION" --output json 2>/dev/null \
+      | jq -r --arg ws "$WORKSPACE" '.logGroups[].logGroupName | select(contains($ws)) | select(contains("apns-mock") or contains("apple-apns-mock")) | select(contains("containerinsights") | not)' \
+      | head -1)
+  fi
+fi
+echo "  apns-mock Log Group: ${APNS_LOG_GROUP:-<not found>}"
+
 echo ""
 echo "Collecting CloudWatch metrics..."
 
@@ -1334,6 +1353,63 @@ if [[ -n "$FLEET_LOG_GROUP" ]]; then
 fi
 
 # -------------------------------------------------------------------------
+# CloudWatch Logs Insights — apns-mock server error query
+# Queries the apns-mock log group for error-level log entries, filtering
+# out known noise.
+#
+# Returns the total error count and up to 10 sample error messages for
+# manual review. The expected value is 0 errors over at least 1 hour.
+# -------------------------------------------------------------------------
+APNS_LOGS_ERRORS="{}"
+if [[ -n "$APNS_LOG_GROUP" ]]; then
+  echo "  CloudWatch Logs: Querying apns-mock server errors..."
+  # Start the Logs Insights query (async)
+  APNS_LOGS_QUERY_ID=$(aws logs start-query \
+    --log-group-name "$APNS_LOG_GROUP" \
+    --start-time "$START_EPOCH" \
+    --end-time "$END_EPOCH" \
+    --query-string 'fields @timestamp, @message
+| filter @message like /level=(ERROR|error)/
+| sort @timestamp desc
+| limit 10000' \
+    --region "$REGION" \
+    --output text --query 'queryId' 2>/dev/null || echo "")
+
+  if [[ -n "$APNS_LOGS_QUERY_ID" ]]; then
+    # Poll for query completion (typically takes 5-15 seconds)
+    echo "  CloudWatch Logs: Waiting for apns-mock query results..."
+    apns_logs_status="Running"
+    apns_logs_attempts=0
+    while [[ "$apns_logs_status" == "Running" || "$apns_logs_status" == "Scheduled" ]] && [[ $apns_logs_attempts -lt 30 ]]; do
+      sleep 2
+      apns_logs_result=$(aws logs get-query-results --query-id "$APNS_LOGS_QUERY_ID" --region "$REGION" --output json 2>/dev/null || echo '{"status":"Failed"}')
+      apns_logs_status=$(echo "$apns_logs_result" | jq -r '.status')
+      apns_logs_attempts=$((apns_logs_attempts + 1))
+    done
+
+    if [[ "$apns_logs_status" == "Complete" ]]; then
+      # Count total matched records and extract sample messages
+      apns_logs_total=$(echo "$apns_logs_result" | jq '.statistics.recordsMatched // 0')
+      apns_logs_samples=$(echo "$apns_logs_result" | jq '[.results[:10][] | [.[] | select(.field == "@message") | .value] | first // empty]')
+
+      APNS_LOGS_ERRORS=$(jq -n \
+        --argjson total "$apns_logs_total" \
+        --argjson samples "$apns_logs_samples" \
+        '{
+          error_count: $total,
+          sample_messages: $samples
+        }')
+      echo "  CloudWatch Logs: Found $apns_logs_total apns-mock errors"
+    else
+      echo "  CloudWatch Logs: Query did not complete (status: $apns_logs_status)" >&2
+      APNS_LOGS_ERRORS='{"error_count": null, "query_status": "'"$apns_logs_status"'"}'
+    fi
+  else
+    echo "  CloudWatch Logs: Failed to start apns-mock query" >&2
+  fi
+fi
+
+# -------------------------------------------------------------------------
 # Aurora MySQL extended metrics (writer)
 # These track database health indicators that degrade slowly over time
 # and are easy to miss in a single load test run.
@@ -1656,6 +1732,7 @@ jq -n \
   --argjson apns_mock_redis "$APNS_REDIS_METRICS" \
   --argjson alb "$ALB_METRICS" \
   --argjson fleet_server_errors "$LOGS_ERRORS" \
+  --argjson apns_mock_errors "$APNS_LOGS_ERRORS" \
   --argjson rds_writer_ext "$RDS_WRITER_EXT" \
   --argjson rds_readers_ext "$RDS_READERS_EXT" \
   --argjson redis_ext "$REDIS_EXT" \
@@ -1684,6 +1761,7 @@ jq -n \
     apns_mock_redis: $apns_mock_redis,
     alb: $alb,
     fleet_server_errors: $fleet_server_errors,
+    apns_mock_errors: $apns_mock_errors,
     rds_writer_extended: $rds_writer_ext,
     rds_readers_extended: $rds_readers_ext,
     redis_extended: $redis_ext,
@@ -1828,6 +1906,11 @@ if jq -e '.fleet_server_errors.error_count' "$OUTPUT" >/dev/null 2>&1; then
   fi
 fi
 
+if jq -e '.apns_mock_errors.error_count' "$OUTPUT" >/dev/null 2>&1; then
+  apns_err_count=$(jq -r '.apns_mock_errors.error_count // "N/A"' "$OUTPUT")
+  printf "apns-mock Errors: Count=%s\n" "$apns_err_count"
+fi
+
 if jq -e '.rds_writer_extended.freeable_memory' "$OUTPUT" >/dev/null 2>&1; then
   rds_freemem=$(jq -r '.rds_writer_extended.freeable_memory.Average // "N/A" | if type == "number" then (. / 1073741824 * 100 | round / 100 | tostring) + "GB" else . end' "$OUTPUT")
   rds_cache=$(jq -r '.rds_writer_extended.buffer_cache_hit_ratio.Average // "N/A"' "$OUTPUT")
@@ -1915,6 +1998,7 @@ echo '```'
 #   apns-mock Redis Memory    < 70% avg
 #   apns-mock Redis Evictions  == 0
 #   Fleet Server Errors       == 0
+#   apns-mock Errors          == 0
 #   IOPS Utilization          < 80% avg
 #   Container Abnormal Stops   == 0 (loadtest and fleet server, separately)
 #   Failed Health Check Events == 0 (ECS service events; deliberate restarts
@@ -1993,6 +2077,7 @@ for reader_label in $(jq -r '.rds_readers[].instance // empty' "$OUTPUT" 2>/dev/
 done
 
 check_threshold "Fleet Server Errors"      '.fleet_server_errors.error_count' eq 0
+check_threshold "apns-mock Errors"         '.apns_mock_errors.error_count' eq 0
 check_threshold "IOPS Utilization"         '.rds_writer_extended.iops_utilization.utilization_pct' lt 80
 check_threshold "Container Abnormal Stops"  '.container_health.abnormal_stops' eq 0
 check_threshold "Fleet Server Abnormal Stops" '.container_health.fleet_abnormal_stops' eq 0

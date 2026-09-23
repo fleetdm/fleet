@@ -12,8 +12,9 @@ func TestBitLockerPINRequestExpired(t *testing.T) {
 
 	now := time.Now()
 	stale := now.Add(-BitLockerPINRequestTTL - time.Second)
-	request := func(status BitLockerPINRequestStatus, createdAt time.Time) *HostBitLockerPINRequest {
-		return &HostBitLockerPINRequest{Status: status, CreatedAt: createdAt}
+	collectedTooLongAgo := now.Add(-BitLockerPINResultTimeout - time.Second)
+	request := func(status BitLockerPINRequestStatus, createdAt, updatedAt time.Time) *HostBitLockerPINRequest {
+		return &HostBitLockerPINRequest{Status: status, CreatedAt: createdAt, UpdatedAt: updatedAt}
 	}
 
 	for _, tc := range []struct {
@@ -22,12 +23,13 @@ func TestBitLockerPINRequestExpired(t *testing.T) {
 		want bool
 	}{
 		{"nil request", nil, false},
-		{"fresh pending", request(BitLockerPINRequestPending, now), false},
-		{"stale pending", request(BitLockerPINRequestPending, stale), true},
-		// Once the agent has the PIN, the outcome is its to report, so age stops mattering.
-		{"stale delivered", request(BitLockerPINRequestDelivered, stale), false},
-		{"stale set", request(BitLockerPINRequestSet, stale), false},
-		{"stale failed", request(BitLockerPINRequestFailed, stale), false},
+		{"fresh pending", request(BitLockerPINRequestPending, now, now), false},
+		{"stale pending", request(BitLockerPINRequestPending, stale, stale), true},
+		// A delivered request is timed from collection, not submission, so a PIN collected late still gets the full timeout.
+		{"delivered within the result timeout", request(BitLockerPINRequestDelivered, stale, now), false},
+		{"delivered past the result timeout", request(BitLockerPINRequestDelivered, collectedTooLongAgo, collectedTooLongAgo), true},
+		{"stale set", request(BitLockerPINRequestSet, collectedTooLongAgo, collectedTooLongAgo), false},
+		{"stale failed", request(BitLockerPINRequestFailed, collectedTooLongAgo, collectedTooLongAgo), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, tc.req.Expired(now))

@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -910,6 +911,35 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+// applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only
+// reaches the caller as a 413 while that wrapper still unwraps to the size error underneath. Without
+// it the request is answered with a 400 carrying the raw read error.
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsBodySizeLimit() {
+	t := s.T()
+
+	// The limit the /spec/fleets route is registered with.
+	const limit = 5 * units.MiB
+
+	// The padding sits inside a JSON string value so the body stays syntactically valid up to the
+	// point where the reader is cut off.
+	prefix := `{"specs":[{"name":"`
+	suffix := `"}]}`
+	padSize := limit + 1 - len(prefix) - len(suffix)
+	require.Positive(t, padSize, "padding must be positive")
+
+	res := s.DoRaw("POST", "/api/latest/fleet/spec/fleets",
+		[]byte(prefix+strings.Repeat("x", padSize)+suffix), http.StatusRequestEntityTooLarge)
+	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "exceeds the max size limit")
+	assert.NotContains(t, string(body), "request body too large")
+
+	// A malformed body within the limit is still a 400, so the size error isn't reported for a
+	// reader that simply ran out early.
+	s.DoRaw("POST", "/api/latest/fleet/spec/fleets", []byte(prefix), http.StatusBadRequest)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
@@ -7617,17 +7647,24 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NoError(t, err)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "fooextensionid"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		// A Go binary carries its toolchain version in release and its module path in
+		// extension_id, which is suppressed for this source only.
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
-	bar := host.Software[0]
-	if bar.Name != "bar" {
-		bar = host.Software[1]
+	var bar fleet.HostSoftwareEntry
+	for _, sw := range host.Software {
+		if sw.Name == "bar" {
+			bar = sw
+			break
+		}
 	}
+	require.NotZero(t, bar.ID)
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
@@ -7654,13 +7691,15 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
 	require.NotNil(t, resp)
 
-	var fooPayload, barPayload fleet.Software
+	var fooPayload, barPayload, airPayload fleet.Software
 	for _, s := range resp.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7676,17 +7715,26 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
 	require.NotNil(t, resp)
 
-	for _, s := range resp.Software {
+	// Reset so a payload missing from this response can't be satisfied by the value the
+	// software-list loop above left behind.
+	fooPayload, barPayload, airPayload = fleet.Software{}, fleet.Software{}, fleet.Software{}
+	for _, s := range respVersions.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7702,6 +7750,10 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	// vulnerable param required when using vulnerability filters
 	respVersions = listSoftwareVersionsResponse{}
@@ -17578,6 +17630,22 @@ func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincip
 		NodeKey:  *host.NodeKey,
 		Results:  results,
 		Statuses: make(map[string]interface{}),
+		Messages: make(map[string]string),
+		Stats:    map[string]*fleet.Stats{},
+	}
+}
+
+func genDistributedReqWithEntraJoinUser(host *fleet.Host, userEmail string) submitDistributedQueryResultsRequestShim {
+	results := make(map[string]json.RawMessage)
+	rows := "[]"
+	if userEmail != "" {
+		rows = fmt.Sprintf(`[{"user_email": "%s"}]`, userEmail)
+	}
+	results["fleet_detail_query_entra_join_user_windows"] = json.RawMessage(rows)
+	return submitDistributedQueryResultsRequestShim{
+		NodeKey:  *host.NodeKey,
+		Results:  results,
+		Statuses: make(map[string]any),
 		Messages: make(map[string]string),
 		Stats:    map[string]*fleet.Stats{},
 	}
@@ -31143,6 +31211,96 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
 	})
+
+	t.Run("notify_before_patching", func(t *testing.T) {
+		resp := teamResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
+			Name: new("notify_before_patching_team"),
+		}, http.StatusOK, &resp)
+		teamID := resp.Team.ID
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        &teamID,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+		// Own Fleet-maintained app rather than the one an earlier subtest inserts, so this doesn't
+		// depend on subtest order or on what the batch subtests leave behind.
+		fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             "DummyApp",
+			Slug:             "notify-dummy/darwin",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.example.dummy",
+		})
+		require.NoError(t, err)
+		updateInstallerFMAID(fma.ID, teamID, titleID)
+
+		policyPath := func(policyID uint) string {
+			return fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", teamID, policyID)
+		}
+
+		// Creating with the flag forces continuous automations on without the request saying so.
+		policyResp := fleet.TeamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), fleet.TeamPolicyRequest{
+			Type:                         new("patch"),
+			PatchSoftwareTitleID:         &titleID,
+			NotifyBeforePatching:         true,
+			ContinuousAutomationsEnabled: true,
+		}, http.StatusOK, &policyResp)
+		policyID := policyResp.Policy.ID
+		require.True(t, policyResp.Policy.NotifyBeforePatching)
+		require.False(t, policyResp.Policy.PatchWhenClosed)
+		require.True(t, policyResp.Policy.ContinuousAutomationsEnabled)
+
+		// The flag survives a round trip through the wire, not just the create response.
+		getPolicyResp := fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
+
+		// The title reports the flag and shows Fleet's managed app open query read-only, which is
+		// what the End user experience dropdown reads back on load.
+		titleResp := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(teamID))
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy)
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.NotifyBeforePatching)
+
+		// A modify payload carries only the delta, so the stored flag still conflicts.
+		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		res.Body.Close()
+
+		// An explicit continuous_automations_enabled false is rejected while the flag is on.
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`)
+		res.Body.Close()
+
+		// Omitting continuous automations on modify still auto-sets it.
+		s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false, "notify_before_patching": false}, http.StatusOK).Body.Close()
+		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusOK).Body.Close()
+
+		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
+		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+
+		// The flag is only for patch policies.
+		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), map[string]any{
+			"name":                           "dynamic-notify",
+			"query":                          "SELECT 1;",
+			"notify_before_patching":         true,
+			"continuous_automations_enabled": true,
+		}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `"notify_before_patching" is only supported for patch policies`)
+		res.Body.Close()
+	})
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation() {
@@ -37381,4 +37539,88 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsScriptValidation() 
 	for _, p := range globalList.Policies {
 		require.NotEqual(t, "gitops global script", p.Name)
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestEntraJoinUserDetailQueryPopulatesIdPVitals() {
+	t := s.T()
+	ctx := t.Context()
+
+	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "join.user@example.com",
+		GivenName:  new("Join"),
+		FamilyName: new("User"),
+		Department: new("Engineering"),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := s.ds.DeleteScimUser(context.Background(), scimUserID)
+		require.NoError(t, err)
+	})
+
+	host := createOrbitEnrolledHost(t, "windows", "entra-join", s.ds)
+
+	getEndUsers := func() []fleet.HostEndUser {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		return hostResp.Host.EndUsers
+	}
+	submit := func(userEmail string) {
+		var resp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraJoinUser(host, userEmail), http.StatusOK, &resp)
+	}
+
+	// nothing mapped yet
+	require.Empty(t, getEndUsers())
+
+	// the device reports the join user (any casing): vitals come from SCIM
+	submit("Join.User@Example.com")
+	endUsers := getEndUsers()
+	require.Len(t, endUsers, 1)
+	require.Equal(t, "join.user@example.com", endUsers[0].IdpUserName)
+	require.Equal(t, "Join User", endUsers[0].IdpFullName)
+	require.Equal(t, "Engineering", endUsers[0].Department)
+
+	// the mapping is reported under the mdm_idp_accounts source, like the manual one,
+	// on the single-host endpoint and on the hosts list
+	var mappingResp listHostDeviceMappingResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
+	require.Len(t, mappingResp.DeviceMapping, 1)
+	require.Equal(t, "join.user@example.com", mappingResp.DeviceMapping[0].Email)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappingResp.DeviceMapping[0].Source)
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "device_mapping", "true", "query", host.Hostname)
+	require.Len(t, listResp.Hosts, 1)
+	require.NotNil(t, listResp.Hosts[0].DeviceMapping)
+	var listMappings []fleet.HostDeviceMapping
+	require.NoError(t, json.Unmarshal(*listResp.Hosts[0].DeviceMapping, &listMappings))
+	require.Len(t, listMappings, 1)
+	require.Equal(t, "join.user@example.com", listMappings[0].Email)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, listMappings[0].Source)
+
+	// no rows (left Entra, or joined without a user): the mapping is removed
+	submit("")
+	require.Empty(t, getEndUsers())
+
+	// a join user that is not provisioned in SCIM never maps
+	submit("stranger@example.com")
+	require.Empty(t, getEndUsers())
+
+	// mapped again, then an admin clears it and the next refresh refills it
+	submit("join.user@example.com")
+	require.Len(t, getEndUsers(), 1)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
+	require.Empty(t, getEndUsers())
+	submit("join.user@example.com")
+	require.Len(t, getEndUsers(), 1)
+
+	// a manually set IdP username wins over what the device reports
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+		putHostDeviceMappingRequest{Email: "manual.user@example.com", Source: "idp"}, http.StatusOK, &putResp)
+	submit("join.user@example.com")
+	endUsers = getEndUsers()
+	require.Len(t, endUsers, 1)
+	require.Equal(t, "manual.user@example.com", endUsers[0].IdpUserName)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
+	require.Len(t, mappingResp.DeviceMapping, 1)
 }

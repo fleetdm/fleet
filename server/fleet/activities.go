@@ -476,6 +476,38 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 	return "fleet_enrolled"
 }
 
+// ActivityTypeHostEnrollmentRejected is recorded when an orbit or osquery
+// enrollment is refused by the one-time enroll secret rules. Emission is
+// rate-limited per host and reason by the service layer, since a stuck agent
+// retries every few minutes.
+type ActivityTypeHostEnrollmentRejected struct {
+	HostID          *uint  `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostSerial      string `json:"host_serial"`
+	HostUUID        string `json:"host_uuid"`
+	Platform        string `json:"platform"`
+	EnrollmentPlane string `json:"enrollment_plane"`
+	Reason          string `json:"reason"`
+}
+
+func (a ActivityTypeHostEnrollmentRejected) ActivityName() string {
+	return "host_enrollment_rejected"
+}
+
+// HostIDs links the activity to the targeted host's timeline when that host is known.
+func (a ActivityTypeHostEnrollmentRejected) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
+}
+
+// WasFromAutomation marks the activity as Fleet-initiated: enrollment is
+// refused by the server, never by a user.
+func (a ActivityTypeHostEnrollmentRejected) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeMDMEnrolled struct {
 	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
 	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
@@ -1364,6 +1396,30 @@ func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
 
 func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
 	return a.HostID, a.CommandUUID
+}
+
+type ActivityTypeNotifiedEndUserBeforePatching struct {
+	HostID                uint       `json:"host_id"`
+	HostDisplayName       string     `json:"host_display_name"`
+	PatchNotificationUUID string     `json:"patch_notification_uuid"`
+	SoftwareTitles        []string   `json:"software_titles"`
+	PolicyIDs             []uint     `json:"policy_ids"`
+	TimeBefore            int        `json:"time_before"`
+	InstallAt             *time.Time `json:"install_at"`
+	Status                string     `json:"status"`
+	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {
+	return "notified_end_user_before_patching"
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) WasFromAutomation() bool {
+	return len(a.PolicyIDs) > 0
 }
 
 type ActivityTypeUninstalledSoftware struct {

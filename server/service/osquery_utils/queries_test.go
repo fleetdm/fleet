@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -25,6 +26,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -693,6 +695,14 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
+	// the Entra join user query is premium only
+	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
+	premiumQueries := append([]string{}, baseQueries...)
+	premiumQueries = append(premiumQueries, "entra_join_user_windows")
+	require.Len(t, queriesPremium, len(premiumQueries))
+	sortedKeysCompare(t, queriesPremium, premiumQueries)
+
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
@@ -702,7 +712,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -2119,7 +2129,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		t.Run("errors are reported back", func(t *testing.T) {
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 				return errors.New("some error")
 			}
 			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
@@ -2127,12 +2137,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 
 		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
-			var calledWith map[string]struct{}
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
-				calledWith = make(map[string]struct{})
-				for k, v := range sPaths {
-					calledWith[k] = v
-				}
+			var calledWith map[string]fleet.ExecutableHashes
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+				calledWith = maps.Clone(sPaths)
 				return nil
 			}
 
@@ -2182,7 +2189,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				return nil, nil
 			}
 
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 				// NOP - This functionality is tested elsewhere
 				return nil
 			}
@@ -2234,7 +2241,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			require.Len(t, sPaths, 2)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
@@ -2276,6 +2283,52 @@ func TestDirectIngestSoftware(t *testing.T) {
 		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 	})
 
+	t.Run("homebrew keg with several executables", func(t *testing.T) {
+		const kegPath = "/opt/homebrew/Cellar/git"
+		binaries := []string{"git", "git-shell", "git-upload-pack"}
+
+		var data []map[string]string
+		for _, binary := range binaries {
+			data = append(data, map[string]string{
+				"name":              "git",
+				"version":           "2.46.0",
+				"source":            "homebrew_packages",
+				"installed_path":    kegPath,
+				"executable_path":   kegPath + "/2.46.0/bin/" + binary,
+				"executable_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(binary))),
+			})
+		}
+		keg := fleet.Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			// The fanned out rows all describe the same software.
+			require.Len(t, software, len(binaries))
+			for _, s := range software {
+				require.Equal(t, keg.ToUniqueStr(), s.ToUniqueStr())
+			}
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			// ... but each one is its own installed path row, differing only in the executable.
+			require.Len(t, sPaths, len(binaries))
+			for _, row := range data {
+				require.Contains(t, sPaths, fleet.HostSoftwareInstalledPathKey{
+					InstalledPath:     kegPath,
+					ExecutableSHA256:  row["executable_sha256"],
+					ExecutablePath:    row["executable_path"],
+					SoftwareUniqueStr: keg.ToUniqueStr(),
+				}.String())
+			}
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+		require.True(t, ds.UpdateHostSoftwareInstalledPathsFuncInvoked)
+		ds.UpdateHostSoftwareFuncInvoked = false
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
 	t.Run("all software columns are copied properly", func(t *testing.T) {
 		data := []map[string]string{
 			{
@@ -2300,7 +2353,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			return nil, nil
 		}
 
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			return nil
 		}
 
@@ -4265,7 +4318,7 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 		return nil, nil
 	}
 	var gotPaths []string
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 		gotPaths = maps.Keys(sPaths)
 		return nil
 	}
@@ -5436,4 +5489,266 @@ func TestBitlockerKeyProtectorsVerifyDirectIngest(t *testing.T) {
 			require.Equal(t, *tt.wantWrite, *got)
 		})
 	}
+}
+
+func TestDirectIngestEntraJoinUser(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 42, UUID: "entra-join-uuid", Platform: "windows"}
+
+	cases := []struct {
+		name     string
+		rows     []map[string]string
+		wantCall bool
+		wantUPN  string
+	}{
+		{name: "no rows clears the mapping", rows: nil, wantCall: true, wantUPN: ""},
+		{name: "join record without a user clears the mapping", rows: []map[string]string{{"user_email": ""}}, wantCall: true, wantUPN: ""},
+		{name: "upn with entra-allowed punctuation", rows: []map[string]string{{"user_email": "o'brien@example.com"}}, wantCall: true, wantUPN: "o'brien@example.com"},
+		{name: "malformed value clears the mapping", rows: []map[string]string{{"user_email": "DESKTOP-ABC"}}, wantCall: true, wantUPN: ""},
+		{name: "valid upn is normalized", rows: []map[string]string{{"user_email": "  Join.User@Example.COM "}}, wantCall: true, wantUPN: "join.user@example.com"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+				require.Equal(t, host.ID, hostID)
+				require.Equal(t, c.wantUPN, upn)
+				return true, nil
+			}
+			err := directIngestEntraJoinUser(ctx, logger, host, ds, c.rows)
+			require.NoError(t, err)
+			require.Equal(t, c.wantCall, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
+		})
+	}
+
+	t.Run("datastore error is returned", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return false, errors.New("boom")
+		}
+		err := directIngestEntraJoinUser(ctx, logger, host, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.ErrorContains(t, err, "boom")
+	})
+
+	t.Run("results from a non-windows host are ignored", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return true, nil
+		}
+		macHost := &fleet.Host{ID: 43, UUID: "not-windows", Platform: "darwin"}
+		err := directIngestEntraJoinUser(ctx, logger, macHost, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
+	})
+}
+
+func TestMacOSHomebrewExecutableSHA256(t *testing.T) {
+	override := SoftwareOverrideQueries["macos_homebrew_executable_sha256"]
+	require.Equal(t, []string{"darwin"}, override.Platforms)
+	require.Equal(t, `SELECT 1 FROM pragma_table_info('executable_hashes') WHERE name = 'path_type'`, override.Discovery)
+	processFunc := override.SoftwareProcessResults
+
+	keg := func(name, version string) map[string]string {
+		return map[string]string{
+			"name":           name,
+			"version":        version,
+			"source":         "homebrew_packages",
+			"vendor":         "",
+			"installed_path": "/opt/homebrew/Cellar/" + name,
+		}
+	}
+	exec := func(name, version, binary, hash string) map[string]string {
+		return map[string]string{
+			"keg_path":          "/opt/homebrew/Cellar/" + name,
+			"version":           version,
+			"executable_path":   "/opt/homebrew/Cellar/" + name + "/" + version + "/bin/" + binary,
+			"executable_sha256": hash,
+			"hash_state":        "hashed",
+		}
+	}
+	withExecutablePath := func(row map[string]string, path string) map[string]string {
+		out := maps.Clone(row)
+		out["executable_path"] = path
+		return out
+	}
+	deferred := func(name, version, binary string) map[string]string {
+		row := exec(name, version, binary, "")
+		row["hash_state"] = "deferred"
+		return row
+	}
+	withExecs := func(row map[string]string, executables string) map[string]string {
+		out := maps.Clone(row)
+		out["executable_hashes"] = executables
+		return out
+	}
+	safariApp := map[string]string{
+		"name":           "Safari.app",
+		"version":        "18.1",
+		"source":         "apps",
+		"installed_path": "/Applications/Safari.app",
+	}
+
+	for _, tc := range []struct {
+		name     string
+		main     []map[string]string
+		results  []map[string]string
+		expected []map[string]string
+	}{
+		{
+			name:     "no override rows leaves the main results untouched",
+			main:     []map[string]string{keg("git", "2.46.0"), safariApp},
+			results:  nil,
+			expected: []map[string]string{keg("git", "2.46.0"), safariApp},
+		},
+		{
+			name: "a keg carries its executables keyed relative to the Cellar directory",
+			main: []map[string]string{keg("git", "2.46.0")},
+			results: []map[string]string{
+				exec("git", "2.46.0", "git", "aa"),
+				exec("git", "2.46.0", "git-shell", "bb"),
+				exec("git", "2.46.0", "git-upload-pack", "cc"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("git", "2.46.0"), `{"2.46.0/bin/git":"aa","2.46.0/bin/git-shell":"bb","2.46.0/bin/git-upload-pack":"cc"}`),
+			},
+		},
+		{
+			name: "two kegs of the same formula do not mix",
+			main: []map[string]string{keg("git", "2.45.0"), keg("git", "2.46.0")},
+			results: []map[string]string{
+				exec("git", "2.45.0", "git", "aa"),
+				exec("git", "2.46.0", "git", "bb"),
+				exec("git", "2.46.0", "git-shell", "cc"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("git", "2.45.0"), `{"2.45.0/bin/git":"aa"}`),
+				withExecs(keg("git", "2.46.0"), `{"2.46.0/bin/git":"bb","2.46.0/bin/git-shell":"cc"}`),
+			},
+		},
+		{
+			name:    "a formula with no Mach-O executables carries an empty document",
+			main:    []map[string]string{keg("cocoapods", "1.15.2"), keg("jq", "1.7.1")},
+			results: []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
+			expected: []map[string]string{
+				withExecs(keg("cocoapods", "1.15.2"), `{}`),
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"aa"}`),
+			},
+		},
+		{
+			name:    "rows from other sources are untouched",
+			main:    []map[string]string{safariApp, keg("jq", "1.7.1")},
+			results: []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
+			expected: []map[string]string{
+				safariApp,
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"aa"}`),
+			},
+		},
+		{
+			name: "a deferred executable is membership without a hash",
+			main: []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{
+				deferred("jq", "1.7.1", "jq"),
+				exec("jq", "1.7.1", "jq-real", "aa"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"","1.7.1/bin/jq-real":"aa"}`),
+			},
+		},
+		{
+			name:    "a keg whose executables were all deferred still reports them",
+			main:    []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{deferred("jq", "1.7.1", "jq"), deferred("jq", "1.7.1", "jq-real")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"","1.7.1/bin/jq-real":""}`),
+			},
+		},
+		{
+			name: "an executable with neither a hash nor a state is not membership",
+			main: []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{
+				{
+					"keg_path": "/opt/homebrew/Cellar/jq", "version": "1.7.1",
+					"executable_path": "/opt/homebrew/Cellar/jq/1.7.1/bin/jq", "executable_sha256": "",
+					"hash_state": "unavailable",
+				},
+				exec("jq", "1.7.1", "jq-real", "aa"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq-real":"aa"}`),
+			},
+		},
+		{
+			name:    "an executable outside its keg is ignored",
+			main:    []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{withExecutablePath(exec("jq", "1.7.1", "jq", "aa"), "/usr/local/bin/jq")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{}`),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, processFunc(tc.main, tc.results))
+		})
+	}
+}
+
+// TestMacOSHomebrewExecutableSHA256Query runs the Homebrew executable hash override query against
+// sqlite, which osquery embeds, to check that a keg only picks up its own executables.
+func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE homebrew_packages (name TEXT, path TEXT, version TEXT, type TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO homebrew_packages VALUES
+		('git', '/opt/homebrew/Cellar/git', '2.46.0', 'formula'),
+		('git', '/opt/homebrew/Cellar/git', '2.45.0', 'formula'),
+		('node', '/opt/homebrew/Cellar/node', '1.2', 'formula'),
+		('node_exporter', '/opt/homebrew/Cellar/node_exporter', '1.2', 'formula'),
+		('jq', '/usr/local/Cellar/jq', '1.7.1', 'formula'),
+		('docker', '/opt/homebrew/Caskroom/docker', '4.34.0', 'cask')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`CREATE TABLE executable_hashes (path TEXT, executable_path TEXT, executable_sha256 TEXT, path_type TEXT, hash_state TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO executable_hashes VALUES
+		('/opt/homebrew/Cellar/git/2.46.0/bin/git', '/opt/homebrew/Cellar/git/2.46.0/bin/git', 'aaaa', 'file', 'hashed'),
+		('/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', '/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', 'bbbb', 'file', 'hashed'),
+		('/opt/homebrew/Cellar/git/2.45.0/bin/git', '/opt/homebrew/Cellar/git/2.45.0/bin/git', 'cccc', 'file', 'hashed'),
+		('/usr/local/Cellar/jq/1.7.1/bin/jq', '/usr/local/Cellar/jq/1.7.1/bin/jq', 'dddd', 'file', 'hashed'),
+		-- a file the hashing budget did not reach this run, which is still part of its keg
+		('/usr/local/Cellar/jq/1.7.1/bin/jq-deferred', '/usr/local/Cellar/jq/1.7.1/bin/jq-deferred', '', 'file', 'deferred'),
+		-- a keg of the same formula at a version this one is a prefix of
+		('/opt/homebrew/Cellar/node/1.2.3/bin/node', '/opt/homebrew/Cellar/node/1.2.3/bin/node', 'eeee', 'file', 'hashed'),
+		-- a formula whose name starts with another formula's name plus an underscore
+		('/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', '/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', 'ffff', 'file', 'hashed'),
+		-- an app bundle, which the apps override already reports
+		('/Applications/Safari.app', '/Applications/Safari.app/Contents/MacOS/Safari', 'gggg', 'bundle', 'hashed'),
+		-- a cask binary, which is out of scope
+		('/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', '/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', 'hhhh', 'file', 'hashed')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(SoftwareOverrideQueries["macos_homebrew_executable_sha256"].Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type execRow struct{ kegPath, version, executablePath, executableSHA256, hashState string }
+	var got []execRow
+	for rows.Next() {
+		var r execRow
+		require.NoError(t, rows.Scan(&r.kegPath, &r.version, &r.executablePath, &r.executableSHA256, &r.hashState))
+		got = append(got, r)
+	}
+	require.NoError(t, rows.Err())
+
+	require.ElementsMatch(t, []execRow{
+		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/bin/git", "aaaa", "hashed"},
+		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon", "bbbb", "hashed"},
+		{"/opt/homebrew/Cellar/git", "2.45.0", "/opt/homebrew/Cellar/git/2.45.0/bin/git", "cccc", "hashed"},
+		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq", "dddd", "hashed"},
+		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
+		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
+	}, got)
 }
