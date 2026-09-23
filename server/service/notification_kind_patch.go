@@ -30,13 +30,13 @@ const (
 	duePatchNotificationBatchSize = 500
 )
 
-// Which of the two notices was last displayed. The deadline pass sets the 1 hour notice when it delays an offline host, whose next display is a 1 hour notice.
+// Which of the two notices the host displays, set when orbit fetches the notification script.
 var (
 	patchNotificationFirstNoticePayload = json.RawMessage(`{"reminder":false}`)
 	patchNotificationReminderPayload    = json.RawMessage(`{"reminder":true}`)
 )
 
-func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, payloadIsReminder bool, now time.Time) bool {
+func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, now time.Time) bool {
 	if patchNotification == nil || patchNotification.InstallAt == nil {
 		return false
 	}
@@ -48,9 +48,35 @@ func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, pa
 	if now.Before(*patchNotification.InstallAt) {
 		return true
 	}
-	// If install_at is set and has passed, a notification displayed as the reminder is still the 5 minute reminder.
-	// The deadline cron job delays an offline host with the 1 hour notice payload, so this only applies to a host that was online at the deadline.
-	return payloadIsReminder
+	// If the deadline has passed, the host ran the script late, so the notification should be the 1 hour notice.
+	return false
+}
+
+func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, executionID string) (failureMessage string) {
+	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, executionID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", executionID, "err", err)
+		return "Fleet couldn't find the notification this script belongs to."
+	}
+	patchNotification, err := svc.ds.GetPatchNotification(ctx, notificationUUID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to get the patch notification a script belongs to", "notification_uuid", notificationUUID, "err", err)
+		return "Fleet couldn't load the notification this script belongs to."
+	}
+	if patchNotification == nil {
+		return ""
+	}
+
+	payload := patchNotificationFirstNoticePayload
+	if shouldNotificationBeReminder(patchNotification, time.Now().UTC()) {
+		payload = patchNotificationReminderPayload
+	}
+	err = svc.notificationsSvc.SetNotificationPayload(ctx, notificationUUID, payload)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to set the patch notification payload", "notification_uuid", notificationUUID, "err", err)
+		return "Fleet couldn't record which notice this script shows."
+	}
+	return ""
 }
 
 func patchNotificationIsReminder(payload json.RawMessage) (bool, error) {
@@ -73,7 +99,6 @@ type patchNotificationService interface {
 	notifications_api.DelayNotificationService
 	notifications_api.ActOnNotificationService
 	notifications_api.SetNotificationStatusService
-	notifications_api.SetNotificationPayloadService
 }
 
 type patchNotificationKind struct {
@@ -149,11 +174,7 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get patch notification")
 		}
-		payloadIsReminder, err := patchNotificationIsReminder(awaiting.Payload)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "read patch notification payload")
-		}
-		if shouldNotificationBeReminder(patchNotification, payloadIsReminder, time.Now().UTC()) {
+		if shouldNotificationBeReminder(patchNotification, time.Now().UTC()) {
 			awaiting = nil
 		}
 	}
@@ -231,15 +252,10 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 		return nil, ctxerr.Wrap(ctx, err, "get device auth token for patch notification")
 	}
 
-	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
-	}
-	payloadIsReminder, err := patchNotificationIsReminder(notification.Payload)
+	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
-	reminder := shouldNotificationBeReminder(patchNotification, payloadIsReminder, time.Now().UTC())
 
 	// Read each app's own install so an item shows where that install got to, not the notification's single acted flag.
 	// Skip it until the installs are out, because nothing has been queued to report before then.
@@ -425,7 +441,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 			return nil
 		}
 
-		// Delay an offline host with the 1 hour notice payload, if install_at has passed. Its next display should be a 1 hour notice.
+		// Delay an offline host instead of installing, and set the 1 hour notice payload so a reminder toast still open switches to the 1 hour copy.
 		// Skip this for an acted notification, its installs were only partly queued and the rest are queued below.
 		if !duePatch.HostOnline && duePatch.Status == notifications_api.EndUserNotificationDispatched {
 			err = k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationFirstNoticePayload)
@@ -490,8 +506,8 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 				return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
 			}
 		} else {
-			// Delay to send the 5 minute reminder, and set the payload to the 1 hour notice since the reminder has not been displayed yet.
-			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationFirstNoticePayload)
+			// Delay to send the 5 minute reminder.
+			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "send patch notification reminder")
 			}
@@ -686,22 +702,13 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		}
 	}
 
-	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get patch notification")
-	}
-	payloadIsReminder, err := patchNotificationIsReminder(notification.Payload)
+	reminder, err := patchNotificationIsReminder(notification.Payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
-
-	now := time.Now().UTC()
-
 	timeBefore := patchNotificationFirstNoticeBefore
-	displayedPayload := patchNotificationFirstNoticePayload
-	if shouldNotificationBeReminder(patchNotification, payloadIsReminder, now) {
+	if reminder {
 		timeBefore = patchNotificationReminderBefore
-		displayedPayload = patchNotificationReminderPayload
 	}
 
 	status := "failed"
@@ -714,17 +721,11 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	// an update_now must not move install_at. notification.DisplayedAt is nil either way here, since
 	// RecordOutcome loaded that copy before the outcome write.
 	if outcome.Displayed && notification.Status == notifications_api.EndUserNotificationDispatched {
-		deadline, err := k.ds.SetPatchNotificationInstallAt(ctx, notification.UUID, now.Add(timeBefore))
+		deadline, err := k.ds.SetPatchNotificationInstallAt(ctx, notification.UUID, time.Now().UTC().Add(timeBefore))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set patch notification install at")
 		}
 		installAt = &deadline
-
-		// Record which notice was displayed, so the deadline pass can tell a reminder still to send from one ready to install.
-		err = k.notificationSvc.SetNotificationPayload(ctx, notification.UUID, displayedPayload)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "record the patch notification notice displayed")
-		}
 	}
 
 	if err := k.activities.NewActivity(ctx, nil, fleet.ActivityTypeNotifiedEndUserBeforePatching{

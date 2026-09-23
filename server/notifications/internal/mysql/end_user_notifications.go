@@ -102,7 +102,9 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, notificationUUID); err != nil {
+	// Read the primary, orbit's script fetch writes the payload about a second before the device fetches this view,
+	// and a stale replica copy would show the end user a different notice than the outcome records.
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID})
 		}

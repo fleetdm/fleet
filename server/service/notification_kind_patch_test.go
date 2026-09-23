@@ -36,7 +36,6 @@ type stubNotificationService struct {
 	failedReason string
 	delayInvoked bool
 	delayPayload json.RawMessage
-	setPayload   json.RawMessage
 }
 
 func (s *stubNotificationService) ActOnNotification(_ context.Context, _ string) (bool, error) {
@@ -49,11 +48,6 @@ func (s *stubNotificationService) SetNotificationStatus(_ context.Context, _ str
 	if reason != nil {
 		s.failedReason = *reason
 	}
-	return nil
-}
-
-func (s *stubNotificationService) SetNotificationPayload(_ context.Context, _ string, payload json.RawMessage) error {
-	s.setPayload = payload
 	return nil
 }
 
@@ -396,10 +390,6 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
-			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
-				return nil, nil
-			}
-
 			// the end user pressed Update now on this notification
 			view, err := kind.updateNow(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID, Status: c.status,
@@ -505,10 +495,6 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 		return "device-token", nil
 	}
-	ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
-		return nil, nil
-	}
-
 	notification := &notifications_api.EndUserNotification{
 		UUID: "notification-uuid", HostID: hostID,
 		Status:  notifications_api.EndUserNotificationDispatched,
@@ -636,10 +622,6 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
-			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
-				return nil, nil
-			}
-
 			view, err := kind.Render(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID,
 				Status:  c.notificationStatus,
@@ -678,21 +660,19 @@ func TestShouldNotificationBeReminder(t *testing.T) {
 	now := time.Now().UTC()
 
 	cases := []struct {
-		name              string
-		installAt         *time.Time
-		payloadIsReminder bool
-		want              bool
+		name      string
+		installAt *time.Time
+		want      bool
 	}{
-		{"a notification with no install_at is not the reminder", nil, true, false},
-		{"a notification with install_at more than 5 minutes ahead is not the reminder", new(now.Add(6 * time.Minute)), false, false},
-		{"a notification with install_at within 5 minutes is the reminder", new(now.Add(4 * time.Minute)), false, true},
-		{"a displayed reminder past install_at is still the reminder", new(now.Add(-time.Minute)), true, true},
-		{"a notification past install_at that was not displayed as the reminder is not the reminder", new(now.Add(-time.Minute)), false, false},
+		{"a notification with no install_at is not the reminder", nil, false},
+		{"a notification with install_at more than 5 minutes ahead is not the reminder", new(now.Add(6 * time.Minute)), false},
+		{"a notification with install_at within 5 minutes is the reminder", new(now.Add(4 * time.Minute)), true},
+		{"a notification past install_at is not the reminder", new(now.Add(-time.Minute)), false},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, c.payloadIsReminder, now)
+			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, now)
 			require.Equal(t, c.want, got)
 		})
 	}
@@ -711,9 +691,9 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 	}
 
 	cases := []struct {
-		name          string
-		untilDeadline time.Duration
-		noDeadline    bool
+		name string
+		// notification.Payload: the reminder flag the view's copy already keys off
+		reminder bool
 		// the previous attempt's outcome, nil if this is the first attempt
 		lastExitCode *int64
 
@@ -728,7 +708,6 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 	}{
 		{
 			name:           "a displayed first notice records an activity naming every app and policy",
-			noDeadline:     true,
 			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-1"},
 			apps:           twoAppsTwoPolicies,
 			wantStatus:     "success",
@@ -737,22 +716,12 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantPolicyIDs:  []uint{30, 31},
 		},
 		{
-			name:           "a toast displayed inside the reminder window records five minutes as its time before",
-			untilDeadline:  4 * time.Minute,
+			name:           "a displayed reminder records five minutes as its time before",
+			reminder:       true,
 			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-2"},
 			apps:           twoAppsTwoPolicies,
 			wantStatus:     "success",
 			wantTimeBefore: 300,
-			wantTitles:     []string{"AppOne", "AppTwo"},
-			wantPolicyIDs:  []uint{30, 31},
-		},
-		{
-			name:           "a toast displayed after its deadline passed records an hour as its time before",
-			untilDeadline:  -time.Minute,
-			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-7"},
-			apps:           twoAppsTwoPolicies,
-			wantStatus:     "success",
-			wantTimeBefore: 3600,
 			wantTitles:     []string{"AppOne", "AppTwo"},
 			wantPolicyIDs:  []uint{30, 31},
 		},
@@ -815,22 +784,16 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 				return deadline, nil
 			}
 
-			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
-				if c.noDeadline || c.untilDeadline == 0 {
-					return nil, nil
-				}
-				return &fleet.PatchNotification{InstallAt: new(time.Now().UTC().Add(c.untilDeadline))}, nil
-			}
-
 			writer := &capturingActivityWriter{}
-			notificationSvc := &stubNotificationService{}
-			kind := &patchNotificationKind{
-				ds: ds, activities: writer, notificationSvc: notificationSvc, logger: slog.New(slog.DiscardHandler),
-			}
+			kind := &patchNotificationKind{ds: ds, activities: writer, logger: slog.New(slog.DiscardHandler)}
 
+			payload := patchNotificationFirstNoticePayload
+			if c.reminder {
+				payload = patchNotificationReminderPayload
+			}
 			notification := &notifications_api.EndUserNotification{
-				UUID: "notification-uuid", HostID: hostID, Payload: patchNotificationFirstNoticePayload,
-				LastExitCode: c.lastExitCode, Status: notifications_api.EndUserNotificationDispatched,
+				UUID: "notification-uuid", HostID: hostID, Payload: payload, LastExitCode: c.lastExitCode,
+				Status: notifications_api.EndUserNotificationDispatched,
 			}
 
 			err := kind.OnOutcome(context.Background(), notification, c.outcome)
@@ -851,21 +814,16 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			require.Equal(t, c.wantStatus, activity.Status)
 			require.Equal(t, c.wantTimeBefore, activity.TimeBefore)
 
-			// only a displayed outcome sets install_at, from the lead time of the toast that reached the screen
-			wantDisplayedPayload := patchNotificationFirstNoticePayload
-			if c.wantTimeBefore == 300 {
-				wantDisplayedPayload = patchNotificationReminderPayload
-			}
+			// Only a displayed outcome sets install_at, and it is set from the lead time of the
+			// notification that was displayed, so a reminder sets it 5 minutes out, not an hour.
 			if c.wantStatus != "success" {
 				require.False(t, ds.SetPatchNotificationInstallAtFuncInvoked)
 				require.Nil(t, activity.InstallAt)
-				require.Nil(t, notificationSvc.setPayload, "nothing was displayed, so there is nothing to record")
 			} else {
 				require.True(t, ds.SetPatchNotificationInstallAtFuncInvoked)
 				require.Equal(t, time.Duration(c.wantTimeBefore)*time.Second, gotLeadTime)
 				require.NotNil(t, activity.InstallAt)
 				require.Equal(t, deadline, *activity.InstallAt)
-				require.JSONEq(t, string(wantDisplayedPayload), string(notificationSvc.setPayload))
 			}
 			require.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
 
@@ -1210,7 +1168,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
-			require.JSONEq(t, string(patchNotificationFirstNoticePayload), string(notificationSvc.delayPayload))
+			if c.hostOffline {
+				require.JSONEq(t, string(patchNotificationFirstNoticePayload), string(notificationSvc.delayPayload),
+					"a reminder toast still open switches to the 1 hour copy")
+				return
+			}
+			require.Nil(t, notificationSvc.delayPayload, "the notice is set when orbit fetches the script")
 		})
 	}
 }

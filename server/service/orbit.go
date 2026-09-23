@@ -1361,7 +1361,10 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		var failureMessage string
 		// a notification's script is Fleet's own, and carries only its URL variable
 		if isNotificationScript(script) {
-			expanded, failureMessage = svc.expandNotificationURL(ctx, host, script)
+			failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, script.ExecutionID)
+			if failureMessage == "" {
+				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script)
+			}
 		} else {
 			expanded, failureMessage, err = svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
 			if err != nil {
