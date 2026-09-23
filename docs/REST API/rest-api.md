@@ -6693,37 +6693,50 @@ The host will only return a key if its disk encryption status is "Verified." Get
   "host_id": 8,
   "encryption_key": {
     "key": "5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT",
-    "updated_at": "2022-12-01T05:31:43Z"
+    "updated_at": "2022-12-01T05:31:43Z",
+    "rotation_pending": false
   }
 }
 ```
+
+`rotation_pending` is `true` while a [rotation request](#rotate-hosts-disk-encryption-key) is waiting for the host to acknowledge it. `key` is the current key until the host acknowledges the rotation.
 
 ### Rotate host's disk encryption key
 
 _Available in Fleet Premium_
 
-Rotates the FileVault recovery key for a macOS host by sending an MDM `RotateFileVaultKey` command. The new key is picked up within ~60 minutes via the hourly osquery detail query.
+Sends an MDM command that rotates the FileVault recovery key for a macOS host. Fleet escrows the new key as soon as the host acknowledges the command. The host doesn't need a user logged in. Until then, [Get host's disk encryption key](#get-hosts-disk-encryption-key) returns the current key with `rotation_pending` set to `true`.
+
+Fleet uses the host's current key to authorize the rotation, so the current key must be decryptable by Fleet. If the host reports that the rotation failed, Fleet logs a `failed_to_rotate_disk_encryption_key` activity and prompts the end user for their password at their next login to escrow a new key.
 
 Requirements:
 - macOS host enrolled in Fleet MDM
-- Both disk encryption and key escrow enabled for the host's fleet
-- The host's current key must be decryptable by Fleet
+- Key escrow is turned on for the host's fleet.
+- The host's current key has been escrowed and is decryptable by Fleet
 
-POST /api/v1/fleet/hosts/:id/encryption_key/rotate
+`POST /api/v1/fleet/hosts/:id/encryption_key/rotate`
 
 #### Parameters
 
-| Name                          | Type    | In    | Description                                                                                        |
-| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
-| id                            | integer | path  | **Required**. The host ID to rotate the disk encryption key for.                                   |
+| Name | Type    | In   | Description                                                            |
+| ---- | ------- | ---- | ---------------------------------------------------------------------- |
+| id   | integer | path | **Required**. The ID of the host to rotate the disk encryption key for. |
 
 #### Example
 
-`POST /api/v1/fleet/hosts/:id/encryption_key/rotate`
+`POST /api/v1/fleet/hosts/8/encryption_key/rotate`
 
 ##### Default response
 
 `Status: 200`
+
+##### Rotation already in progress
+
+`Status: 409`
+
+##### Key escrow turned off, or key not decryptable
+
+`Status: 422`
 
 ### Get host's Recovery Lock password
 
