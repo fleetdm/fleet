@@ -724,6 +724,7 @@ func orbitAction(c *cli.Context) error {
 		waitForMDMDeliveredEnrollSecret(svcInterruptCh, enrollSecretPath, disableKeystore, setEnrollSecret)
 		select {
 		case <-svcInterruptCh:
+			close(appDoneCh)
 			log.Info().Msg("stop requested while waiting for an enroll secret, exiting")
 			return nil
 		default:
