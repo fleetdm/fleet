@@ -1,28 +1,28 @@
-# Nearly half of companies caught an AI agent doing something no one approved this year
+# Nine in 10 companies encourage AI agents. Fewer than half can govern them.
 
-*OneTrust's new AI governance research finds most companies are adopting AI agents faster than they can oversee them. Fleet's inventory is how you find out where those agents actually landed, instead of waiting for the next incident to tell you.*
+*OneTrust's new AI governance research finds most companies are adopting AI agents faster than they can oversee them. Fleet's inventory is how you find out where those agents landed, instead of waiting for the next incident to tell you.*
 
 ## Key takeaways
 
-- **The gap OneTrust describes is already at your company.** 87% of organizations encourage employees to use AI agents, but only 47% say they have clear governance, oversight, or controls over that use.
-- **This isn't a hypothetical risk.** 86% of organizations reported at least one AI-related incident in the past year, and nearly half had an AI system or agent take an action nobody approved. 28% had two or more.
+- **Adoption is already way ahead of oversight.** Almost nine in ten organizations have opened the door to AI agents, and fewer than half say governance covers what those agents do once they're in.
+- **This isn't a hypothetical risk.** More than eight in ten organizations already had an AI-related incident this year, and over a quarter dealt with more than one.
 - **You don't need a survey to know if you're exposed.** Fleet's agent already inventories the AI apps, browser extensions, IDE extensions, and MCP server configurations installed across your macOS, Windows, and Linux hosts, so you can check your own fleet instead of extrapolating from someone else's.
 - **The unapproved agent is usually hiding in a familiar place.** A browser extension with broad permissions, a plugin wired into an IDE, or a desktop app installed without a ticket, all things Fleet's software inventory already tracks.
 - **A one-time check doesn't close a governance gap, a saved policy does.** Turning a report into a scheduled policy means the next unsanctioned agent gets caught automatically instead of waiting for the next survey to ask about it.
 
 <a purpose="cta-button" href="https://fleetdm.com/reports">Explore the reports library</a>
 
-OneTrust's new AI-Ready Governance Report, based on a survey of 1,200 senior business decision-makers across eight countries, describes a gap a lot of security teams already feel: 87% of organizations encourage employees to use AI agents, but only 47% say they have clear governance, oversight, or controls in place to manage that use. The report also found that 86% of organizations experienced at least one AI-related incident in the past year, and nearly half had an AI system or agent take an unapproved action, with 28% reporting two or more such incidents.
+OneTrust's new AI-Ready Governance Report, based on a survey of 1,200 senior business decision-makers across eight countries, describes a gap a lot of security teams already feel: 87% of organizations encourage employees to use AI agents, but only 47% say they have clear, defined governance in place, and another 40% describe their controls as still developing. The report also found that 86% of organizations experienced at least one AI-related incident in the past year, and nearly half had an AI system or agent take an unapproved action, with 28% reporting two or more such incidents.
 
 Those numbers describe an industry-wide pattern, but the actual exposure is specific to your own fleet, and it doesn't take another survey to find it.
 
-## What "an unapproved action" looks like at the endpoint
+## What "an unapproved action" looks like on the device
 
 A survey response like "an AI agent did something nobody approved" is an abstraction of something much more concrete: a browser extension that summarizes pages and quietly sends their contents to a third-party API, an MCP server wired up to a coding assistant with more repository access than anyone signed off on, or a desktop AI client installed the same afternoon someone read about it. None of these show up in an identity provider or a SaaS catalog, because none of them were ever sanctioned apps to begin with.
 
 That's exactly why the gap OneTrust measured persists: the tools that create it don't route through the systems most companies use to track software.
 
-## Finding out where unapproved agents actually landed
+## Finding out where unapproved agents landed
 
 Fleet's agent turns every macOS, Windows, and Linux host into something you can query directly, which means you don't have to guess whether an unsanctioned AI agent is running somewhere in your fleet. A browser extension inventory is one of the faster places to look, since AI assistants and "summarize this" tools tend to show up there first:
 
@@ -48,7 +48,7 @@ A single query answers "are we exposed today." The 47% gap OneTrust found is a g
 
 ## The gap is real, closing it doesn't require a survey
 
-OneTrust's numbers are a reasonable description of the industry, but they're not a diagnosis of your own environment. The 53% of companies without clear AI oversight and the 47% with it likely look identical on paper, unless someone actually goes and looks at what's installed. Fleet is how you do that look, and how you keep doing it as the next agent, extension, or MCP server shows up.
+OneTrust's numbers are a reasonable description of the industry, but they're not a diagnosis of your own environment. A company with defined governance and one still building toward it can look identical on paper, unless someone goes and looks at what's installed. Fleet is how you do that look, and how you keep doing it as the next agent, extension, or MCP server shows up.
 
 ## See it live
 
@@ -60,9 +60,9 @@ OneTrust's numbers are a reasonable description of the industry, but they're not
 - Help Net Security, [Your employees are already using AI tools you never approved](https://www.helpnetsecurity.com/2026/09/15/onetrust-enterprise-ai-governance-trends-report/).
 - GlobeNewswire, [OneTrust Research: 86% of Organizations Experienced AI-Related Incidents, Yet Few Slowed Deployment](https://www.globenewswire.com/news-release/2026/09/14/3361166/0/en/onetrust-research-86-of-organizations-experienced-ai-related-incidents-yet-few-slowed-deployment.html).
 
-<meta name="articleTitle" value="Nearly half of companies caught an AI agent doing something no one approved this year">
-<meta name="authorFullName" value="Allen Houchins">
-<meta name="authorGitHubUsername" value="allenhouchins">
+<meta name="articleTitle" value="Nine in 10 companies encourage AI agents. Fewer than half can govern them.">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-09-15">
 <meta name="description" value="OneTrust found nearly half of companies had an unapproved AI agent action this year. Here's how to find where those agents landed.">
