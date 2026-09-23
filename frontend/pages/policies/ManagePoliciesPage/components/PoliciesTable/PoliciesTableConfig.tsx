@@ -296,7 +296,6 @@ const generateTableHeaders = (
             suffix={
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
-                {isPremiumTier && hidden && <HiddenPolicyBadge />}
                 {type === "patch" && (
                   <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
                     Patch
@@ -307,6 +306,7 @@ const generateTableHeaders = (
                     Inherited
                   </Tag>
                 )}
+                {isPremiumTier && hidden && <HiddenPolicyBadge />}
               </>
             }
             path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {

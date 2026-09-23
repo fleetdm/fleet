@@ -16,7 +16,12 @@ const HiddenPolicyBadge = () => {
         underline={false}
         fixedPositionStrategy
       >
-        <Icon name="eye-slash" size="small" color="ui-fleet-black-75" />
+        <Icon
+          className="hidden-policy-icon"
+          name="eye-slash"
+          size="small"
+          color="ui-fleet-black-33"
+        />
       </TooltipWrapper>
     </div>
   );
