@@ -2327,7 +2327,7 @@ func TestComputeReconcileDeltasScopeChangeKeepsRemoval(t *testing.T) {
 // has to preserve an un-opted self-service profile on its own.
 func TestComputeReconcileDeltasSelfService(t *testing.T) {
 	ss := &fleet.AppleProfileForReconcile{
-		ProfileUUID: "aSS", ProfileIdentifier: "com.example.ss", TeamID: 1,
+		ProfileUUID: "apple_ss", ProfileIdentifier: "com.example.ss", TeamID: 1,
 		Checksum: []byte("ssss"), Scope: fleet.PayloadScopeSystem, SelfService: true,
 	}
 	variant := func(f func(p *fleet.AppleProfileForReconcile)) *fleet.AppleProfileForReconcile {
@@ -2373,44 +2373,44 @@ func TestComputeReconcileDeltasSelfService(t *testing.T) {
 		wantInstall, wantRemove, wantAdd, wantPurge []string
 	}{
 		{name: "not opted in -> nothing", prof: ss},
-		{name: "opted in -> install", prof: ss, optIns: []string{"aSS"}, wantInstall: []string{"aSS"}},
+		{name: "opted in -> install", prof: ss, optIns: []string{"apple_ss"}, wantInstall: []string{"apple_ss"}},
 		{
-			name: "opted in via install endpoint (NULL status) -> install", prof: ss, optIns: []string{"aSS"},
-			current: row("aSS", "ssss", install, nil), wantInstall: []string{"aSS"},
+			name: "opted in via install endpoint (NULL status) -> install", prof: ss, optIns: []string{"apple_ss"},
+			current: row("apple_ss", "ssss", install, nil), wantInstall: []string{"apple_ss"},
 		},
-		{name: "opted in and verified -> no-op", prof: ss, optIns: []string{"aSS"}, current: row("aSS", "ssss", install, verified)},
-		{name: "installed, opted out -> remove", prof: ss, current: row("aSS", "ssss", install, verified), wantRemove: []string{"aSS"}},
+		{name: "opted in and verified -> no-op", prof: ss, optIns: []string{"apple_ss"}, current: row("apple_ss", "ssss", install, verified)},
+		{name: "installed, opted out -> remove", prof: ss, current: row("apple_ss", "ssss", install, verified), wantRemove: []string{"apple_ss"}},
 		{
 			name: "uninstall endpoint (NULL status remove) -> remove", prof: ss,
-			current: row("aSS", "ssss", remove, nil), wantRemove: []string{"aSS"},
+			current: row("apple_ss", "ssss", remove, nil), wantRemove: []string{"apple_ss"},
 		},
 		{
-			name: "opted in, now excluded by label -> remove and purge", prof: excluded, optIns: []string{"aSS"},
-			current: row("aSS", "ssss", install, verified), wantRemove: []string{"aSS"}, wantPurge: []string{"aSS"},
+			name: "opted in, now excluded by label -> remove and purge", prof: excluded, optIns: []string{"apple_ss"},
+			current: row("apple_ss", "ssss", install, verified), wantRemove: []string{"apple_ss"}, wantPurge: []string{"apple_ss"},
 		},
-		{name: "opted in, broken label -> kept", prof: broken, optIns: []string{"aSS"}, current: row("aSS", "ssss", install, verified)},
+		{name: "opted in, broken label -> kept", prof: broken, optIns: []string{"apple_ss"}, current: row("apple_ss", "ssss", install, verified)},
 		{
 			name: "opt-in for a deleted profile -> remove and purge", prof: ss, optIns: []string{"aGone"},
 			current: row("aGone", "gone", install, verified), wantRemove: []string{"aGone"}, wantPurge: []string{"aGone"},
 		},
 		{
-			name: "flipped to force install -> kept, purge", prof: forced, optIns: []string{"aSS"},
-			current: row("aSS", "ssss", install, verified), wantPurge: []string{"aSS"},
+			name: "flipped to force install -> kept, purge", prof: forced, optIns: []string{"apple_ss"},
+			current: row("apple_ss", "ssss", install, verified), wantPurge: []string{"apple_ss"},
 		},
 		{
-			name: "flipped to force install and excluded -> remove, purge once", prof: forcedExcluded, optIns: []string{"aSS"},
-			current: row("aSS", "ssss", install, verified), wantRemove: []string{"aSS"}, wantPurge: []string{"aSS"},
+			name: "flipped to force install and excluded -> remove, purge once", prof: forcedExcluded, optIns: []string{"apple_ss"},
+			current: row("apple_ss", "ssss", install, verified), wantRemove: []string{"apple_ss"}, wantPurge: []string{"apple_ss"},
 		},
 
 		// Team transfers: the install/remove pair on the same identifier is collapsed later by ExecuteReconcileBatch, so only
 		// the opt-in delta decides whether the payload stays on the device.
 		{
 			name: "transfer from force install to identical self-service -> adopt", prof: ss, current: oldTeam,
-			wantInstall: []string{"aSS"}, wantRemove: []string{"aOld"}, wantAdd: []string{"aSS"},
+			wantInstall: []string{"apple_ss"}, wantRemove: []string{"aOld"}, wantAdd: []string{"apple_ss"},
 		},
 		{
 			name: "transfer from opted-in self-service to identical self-service -> adopt, purge old", prof: ss, current: oldTeam,
-			optIns: []string{"aOld"}, wantInstall: []string{"aSS"}, wantRemove: []string{"aOld"}, wantAdd: []string{"aSS"}, wantPurge: []string{"aOld"},
+			optIns: []string{"aOld"}, wantInstall: []string{"apple_ss"}, wantRemove: []string{"aOld"}, wantAdd: []string{"apple_ss"}, wantPurge: []string{"aOld"},
 		},
 		{
 			name: "transfer to self-service with different contents -> no adopt", prof: ss, current: row("aOld", "xxxx", install, verified),
@@ -2418,11 +2418,11 @@ func TestComputeReconcileDeltasSelfService(t *testing.T) {
 		},
 		{
 			name: "adopt from a pending install", prof: ss, current: row("aOld", "ssss", install, new(fleet.MDMDeliveryPending)),
-			wantInstall: []string{"aSS"}, wantRemove: []string{"aOld"}, wantAdd: []string{"aSS"},
+			wantInstall: []string{"apple_ss"}, wantRemove: []string{"aOld"}, wantAdd: []string{"apple_ss"},
 		},
 		{
 			name: "adopt from a verifying install", prof: ss, current: row("aOld", "ssss", install, new(fleet.MDMDeliveryVerifying)),
-			wantInstall: []string{"aSS"}, wantRemove: []string{"aOld"}, wantAdd: []string{"aSS"},
+			wantInstall: []string{"apple_ss"}, wantRemove: []string{"aOld"}, wantAdd: []string{"apple_ss"},
 		},
 		{name: "no adopt from an unsent install", prof: ss, current: row("aOld", "ssss", install, nil), wantRemove: []string{"aOld"}},
 		{name: "no adopt from a failed install", prof: ss, current: row("aOld", "ssss", install, new(fleet.MDMDeliveryFailed)), wantRemove: []string{"aOld"}},
@@ -2430,11 +2430,12 @@ func TestComputeReconcileDeltasSelfService(t *testing.T) {
 		{name: "no adopt across channels", prof: ss, current: userChannel, wantRemove: []string{"aOld"}},
 		{
 			name: "adoption counts as on-host for unknown dynamic label membership", prof: unknownLabel, current: oldTeam,
-			wantInstall: []string{"aSS"}, wantRemove: []string{"aOld"}, wantAdd: []string{"aSS"},
+			wantInstall: []string{"apple_ss"}, wantRemove: []string{"aOld"}, wantAdd: []string{"apple_ss"},
 		},
 
-		{name: "ios: opt-in doesn't install, purged", platform: "ios", prof: ss, optIns: []string{"aSS"}, wantPurge: []string{"aSS"}},
+		{name: "ios: opt-in doesn't install, purged", platform: "ios", prof: ss, optIns: []string{"apple_ss"}, wantPurge: []string{"apple_ss"}},
 		{name: "ios: no adoption", platform: "ios", prof: ss, current: oldTeam, wantRemove: []string{"aOld"}},
+		{name: "opted in but unknown label membership keeps opt-in", prof: unknownLabel, optIns: []string{"apple_ss"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

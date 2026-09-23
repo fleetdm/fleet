@@ -99,6 +99,7 @@ func ComputeReconcileDeltas(
 		installingChannels := make(map[profileChannelKey]struct{})
 
 		optIns := optInsByHost[host.UUID]
+		unknownMembershipOptIns := make(map[string]struct{})
 		for _, p := range teamProfiles {
 			c, present := currentByProfile[p.ProfileUUID]
 			onHost := present && c.OperationType == fleet.MDMOperationTypeInstall // nolint:nilaway // the present check is what gates on existence therefore c can not be nil.
@@ -120,6 +121,12 @@ func ComputeReconcileDeltas(
 			}
 
 			if !EntityAppliesToHost(p, host, labelsForHost, onHost || adoptedFromOtherTeam) {
+				// Opted in but held back only by unknown dynamic label membership: keep the opt-in.
+				if p.SelfService {
+					if _, optedIn := optIns[p.ProfileUUID]; optedIn && EntityAppliesToHost(p, host, labelsForHost, true) {
+						unknownMembershipOptIns[p.ProfileUUID] = struct{}{}
+					}
+				}
 				continue
 			}
 			desired[p.ProfileUUID] = p
@@ -138,6 +145,9 @@ func ComputeReconcileDeltas(
 				continue
 			}
 			if IsBrokenProfile(profUUID, profilesWithBrokenLabels) {
+				continue
+			}
+			if _, unknown := unknownMembershipOptIns[profUUID]; unknown {
 				continue
 			}
 			optInChanges.Purge = append(optInChanges.Purge, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: profUUID})
