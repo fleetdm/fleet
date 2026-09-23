@@ -184,12 +184,13 @@ const RunScriptModal = ({
           !isError &&
           tableData &&
           tableData.length > 0 && (
-            <>
+            <div className={`${baseClass}__table`}>
               <div className={`${baseClass}__table-header`}>
                 <span className={`${baseClass}__table-title`}>Scripts</span>
                 {canAddScript && (
                   <Button
                     variant="secondary"
+                    size="small"
                     icon="plus"
                     onClick={() => browserHistory.push(addScriptUrl)}
                   >
@@ -212,7 +213,7 @@ const RunScriptModal = ({
                 disableCount
                 disableTableHeader
               />
-            </>
+            </div>
           )}
       </div>
     </Modal>
