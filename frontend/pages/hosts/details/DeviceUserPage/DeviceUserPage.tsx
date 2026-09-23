@@ -299,6 +299,7 @@ const DeviceUserPage = ({
     data: dupDetails,
     dataUpdatedAt: dupDetailsUpdatedAt,
     isLoading: isLoadingDupDetails,
+    isPreviousData: isDupDetailsPreviousData,
     error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
@@ -689,10 +690,15 @@ const DeviceUserPage = ({
   );
 
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount =
-      host?.issues?.failing_unhidden_policies_count ??
-      host?.issues?.failing_policies_count ??
-      0;
+    // While the toggle's refetch is in flight the cached list is for the other
+    // toggle state, so blank the card instead of showing the wrong rows.
+    const displayedPolicies = isDupDetailsPreviousData
+      ? []
+      : host?.policies || [];
+    // Counted from the list the tab shows, so it follows the hidden-policies toggle.
+    const failingPoliciesCount = displayedPolicies.filter(
+      (p) => p.response === "fail"
+    ).length;
 
     const failedControlsCount = countFailedControls(controls);
 
@@ -988,8 +994,8 @@ const DeviceUserPage = ({
               {isPremiumTier && (
                 <TabPanel>
                   <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingDupDetails}
+                    policies={displayedPolicies}
+                    isLoading={isLoadingDupDetails || isDupDetailsPreviousData}
                     deviceUser
                     showHiddenPolicies={showHiddenPolicies}
                     onToggleShowHiddenPolicies={() =>

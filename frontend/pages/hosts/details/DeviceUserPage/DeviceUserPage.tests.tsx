@@ -433,10 +433,36 @@ describe("Device User Page", () => {
       // path stays in the tab list, so deep-linking to Policies selects no tab.
       const response = createDefaultDeviceResponse();
       response.global_config.features.enable_software_inventory = true;
+      const devicePolicy = (id: number, name: string) =>
+        (({
+          id,
+          name,
+          description: "",
+          resolution: "",
+          platform: "darwin",
+          critical: false,
+          conditional_access_enabled: false,
+          response: "fail",
+        } as unknown) as IHostPolicy);
+      const visible = [devicePolicy(1, "Visible policy")];
+      const withHidden = [
+        ...visible,
+        devicePolicy(2, "Hidden policy A"),
+        devicePolicy(3, "Hidden policy B"),
+      ];
       mockServer.use(
         http.get(baseUrl("/device/:token"), ({ request }) => {
           requestedUrls.push(request.url);
-          return HttpResponse.json(response);
+          const includeHidden = request.url.includes(
+            "include_hidden_policies=true"
+          );
+          return HttpResponse.json({
+            ...response,
+            host: {
+              ...response.host,
+              policies: includeHidden ? withHidden : visible,
+            },
+          });
         })
       );
       mockServer.use(defaultDeviceCertificatesHandler);
@@ -458,8 +484,13 @@ describe("Device User Page", () => {
       expect(
         requestedUrls.some((url) => url.includes("include_hidden_policies"))
       ).toBe(false);
+      // The tab count follows the list that is shown.
+      const policiesTab = screen.getByRole("tab", { name: /policies/i });
+      expect(policiesTab).toHaveTextContent(/Policies\s*1$/);
 
-      await user.click(await screen.findByRole("switch"));
+      await user.click(
+        await screen.findByRole("switch", { name: "Show hidden policies" })
+      );
 
       await waitFor(() => {
         expect(
@@ -468,6 +499,10 @@ describe("Device User Page", () => {
           )
         ).toBe(true);
       });
+      await waitFor(() => {
+        expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
+      });
+      expect(screen.getAllByText("Hidden policy A").length).toBeGreaterThan(0);
     });
   });
 

@@ -142,6 +142,7 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
         onChange={props.onToggleShowHiddenPolicies}
         activeText="Show hidden policies"
         inactiveText="Show hidden policies"
+        ariaLabel="Show hidden policies"
         labelTooltip={HIDDEN_POLICIES_TOOLTIP}
       />
     );

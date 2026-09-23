@@ -90,7 +90,7 @@ describe("HostPolicies", () => {
     );
 
     expect(screen.getByText("Show hidden policies")).toBeInTheDocument();
-    const toggle = screen.getByRole("switch");
+    const toggle = screen.getByRole("switch", { name: "Show hidden policies" });
     expect(toggle).not.toBeChecked();
     await user.click(toggle);
     expect(onToggleShowHiddenPolicies).toHaveBeenCalledTimes(1);
