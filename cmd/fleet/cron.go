@@ -34,6 +34,7 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -1371,6 +1372,7 @@ func newCleanupsAndAggregationSchedule(
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
+	notificationsSvc notifications_api.Service,
 	acmeSvc acme_api.Service,
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
@@ -1680,6 +1682,9 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
 			return chartSvc.CleanupData(ctx, 30)
+		}),
+		schedule.WithJob("cleanup_end_user_notifications", func(ctx context.Context) error {
+			return notificationsSvc.CleanupNotifications(ctx, 30*24*time.Hour)
 		}),
 	)
 
@@ -2993,6 +2998,33 @@ func newCleanupExpiredADUEChallengesSchedule(
 				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
 			}
 			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+func newEndUserNotificationsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	notificationsSvc notifications_api.Service,
+	patchNotificationKind service.PatchNotificationKind,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronEndUserNotifications)
+		defaultInterval = 1 * time.Minute
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("expire_and_queue_notifications", func(ctx context.Context) error {
+			return notificationsSvc.ExpireAndQueueNotifications(ctx)
+		}),
+		schedule.WithJob("remind_and_install_due_patches", func(ctx context.Context) error {
+			return patchNotificationKind.RemindAndInstallDuePatches(ctx)
 		}),
 	)
 
