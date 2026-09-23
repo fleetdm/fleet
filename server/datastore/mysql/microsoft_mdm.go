@@ -4107,15 +4107,24 @@ func (ds *Datastore) CleanupMDMWindowsCommandHistory(ctx context.Context, olderT
 func cleanupMDMWindowsCommandHistoryDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
 	var counts fleet.MDMWindowsCommandHistoryCleanupCounts
 
+	// Both loops walk the created_at index behind a keyset cursor, so rows the
+	// sweep keeps are passed once per run rather than once per batch. Kept
+	// rows can be many: a command stays pinned while any offline host still
+	// has it queued, and those are the oldest rows, at the front of the index.
+	// The cursor is (created_at, primary key); created_at alone has ties, and
+	// the secondary index carries the primary key, so the form
+	// "created_at >= last AND (created_at > last OR pk > last_pk)" is a range
+	// on that index.
+
 	// A result is still in use if it was updated inside the retention window
 	// (the device re-acked) or it is the wipe behind host_mdm_actions.wipe_ref,
 	// which is what keeps a host reporting as wiped. Its response stays with
-	// it. Kept rows are excluded here rather than in the delete so the loop
-	// advances without a cursor.
+	// it. Kept rows are excluded here so the delete only sees candidates.
 	const selectResponsesStmt = `
-SELECT wmr.id
+SELECT wmr.id, wmr.created_at
 FROM windows_mdm_responses wmr
 WHERE wmr.created_at < ?
+	AND wmr.created_at >= ? AND (wmr.created_at > ? OR wmr.id > ?)
 	AND NOT EXISTS (
 		SELECT 1
 		FROM windows_mdm_command_results r
@@ -4123,18 +4132,29 @@ WHERE wmr.created_at < ?
 		WHERE r.response_id = wmr.id
 			AND (r.updated_at >= ? OR hma.host_id IS NOT NULL)
 	)
-ORDER BY wmr.created_at
+ORDER BY wmr.created_at, wmr.id
 LIMIT ?`
 
+	type responseKey struct {
+		ID        uint      `db:"id"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	var last responseKey
 	hitCap := true
 	for range maxBatches {
-		var ids []uint
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, selectResponsesStmt, olderThan, olderThan, batchSize); err != nil {
+		var rows []responseKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectResponsesStmt,
+			olderThan, last.CreatedAt, last.CreatedAt, last.ID, olderThan, batchSize); err != nil {
 			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm responses")
 		}
-		if len(ids) == 0 {
+		if len(rows) == 0 {
 			hitCap = false
 			break
+		}
+		last = rows[len(rows)-1]
+		ids := make([]uint, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ID
 		}
 		// Counted before the error check: the results delete may have
 		// succeeded when the responses delete fails.
@@ -4146,7 +4166,7 @@ LIMIT ?`
 		}
 		// No progress means the reader returned rows the delete refused or
 		// that are already gone (replica lag); stop rather than spin.
-		if responses == 0 || len(ids) < batchSize {
+		if responses == 0 || len(rows) < batchSize {
 			hitCap = false
 			break
 		}
@@ -4160,28 +4180,41 @@ LIMIT ?`
 	// command, an unacked wipe keeps its queue row), but this delete cascades
 	// to the queue, so it is checked directly.
 	const selectCommandsStmt = `
-SELECT wmc.command_uuid
+SELECT wmc.command_uuid, wmc.created_at
 FROM windows_mdm_commands wmc
-WHERE wmc.created_at < ? AND ` + unreferencedWindowsMDMCommandPredicate + `
-ORDER BY wmc.created_at
+WHERE wmc.created_at < ?
+	AND wmc.created_at >= ? AND (wmc.created_at > ? OR wmc.command_uuid > ?)
+	AND ` + unreferencedWindowsMDMCommandPredicate + `
+ORDER BY wmc.created_at, wmc.command_uuid
 LIMIT ?`
 
+	type commandKey struct {
+		CommandUUID string    `db:"command_uuid"`
+		CreatedAt   time.Time `db:"created_at"`
+	}
+	var lastCmd commandKey
 	hitCap = true
 	for range maxBatches {
-		var uuids []string
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, selectCommandsStmt, olderThan, batchSize); err != nil {
+		var rows []commandKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectCommandsStmt,
+			olderThan, lastCmd.CreatedAt, lastCmd.CreatedAt, lastCmd.CommandUUID, batchSize); err != nil {
 			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm commands")
 		}
-		if len(uuids) == 0 {
+		if len(rows) == 0 {
 			hitCap = false
 			break
+		}
+		lastCmd = rows[len(rows)-1]
+		uuids := make([]string, len(rows))
+		for i, row := range rows {
+			uuids[i] = row.CommandUUID
 		}
 		n, err := deleteMDMWindowsCommandsByUUIDs(ctx, ds.writer(ctx), uuids)
 		if err != nil {
 			return counts, err
 		}
 		counts.Commands += n
-		if n == 0 || len(uuids) < batchSize {
+		if n == 0 || len(rows) < batchSize {
 			hitCap = false
 			break
 		}
