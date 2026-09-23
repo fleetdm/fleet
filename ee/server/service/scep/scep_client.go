@@ -27,12 +27,9 @@ type EnrollmentClient struct {
 
 var _ fleet.SCEPEnrollmentClient = (*EnrollmentClient)(nil)
 
-// NewEnrollmentClient returns an EnrollmentClient. A nil timeout defaults to 30 seconds.
-func NewEnrollmentClient(logger *slog.Logger, timeout *time.Duration) *EnrollmentClient {
-	if timeout == nil {
-		timeout = new(30 * time.Second)
-	}
-	return &EnrollmentClient{logger: logger, timeout: timeout}
+// NewEnrollmentClient returns an EnrollmentClient whose SCEP requests time out after 30 seconds.
+func NewEnrollmentClient(logger *slog.Logger) *EnrollmentClient {
+	return &EnrollmentClient{logger: logger, timeout: new(30 * time.Second)}
 }
 
 // GetCertificate enrolls csr against the SCEP server at url. The caller holds the CSR's private

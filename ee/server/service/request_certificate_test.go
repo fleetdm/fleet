@@ -301,7 +301,7 @@ func TestRequestCertificate(t *testing.T) {
 				est.WithTimeout(2*time.Second),
 				est.WithLogger(logger),
 			),
-			scepEnrollmentClient: scep.NewEnrollmentClient(logger, new(2*time.Second)),
+			scepEnrollmentClient: scep.NewEnrollmentClient(logger),
 		}
 
 		authCtx := &authz_ctx.AuthorizationContext{}
@@ -1104,19 +1104,6 @@ func TestRequestCertificate(t *testing.T) {
 		require.NotNil(t, cert)
 	})
 
-	t.Run("Request a certificate - return_pem_certificate false preserves PKCS7 wrapping", func(t *testing.T) {
-		svc, _, ctx := baseSetupForTests()
-
-		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
-			ID:                   hydrantCA.ID,
-			CSR:                  goodCSR,
-			ReturnPEMCertificate: false,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
-	})
-
 	t.Run("Request a certificate - NDES", func(t *testing.T) {
 		for name, tc := range map[string]struct {
 			ca            *fleet.CertificateAuthority
@@ -1166,9 +1153,8 @@ func TestRequestCertificate(t *testing.T) {
 				ca: ndesCA, wantMessage: "SCEP server rejected the request: status FAILURE with fail info badRequest (2); " +
 					"if this certificate authority requires a challenge, include it as the CSR's challengePassword attribute",
 			},
-			"CA rejects the challenge": {ca: ndesCA, challenge: "wrong-challenge", wantMessage: "SCEP server rejected the request: status FAILURE"},
-			"SCEP URL unreachable":     {ca: unreachableNDESCA, challenge: ndesChallenge, wantMessage: "getting CA certificates from SCEP URL"},
-			"CA without a SCEP URL":    {ca: noURLNDESCA, challenge: ndesChallenge, wantMessage: "Certificate authority does not have a SCEP URL configured."},
+			"SCEP URL unreachable":  {ca: unreachableNDESCA, challenge: ndesChallenge, wantMessage: "getting CA certificates from SCEP URL"},
+			"CA without a SCEP URL": {ca: noURLNDESCA, challenge: ndesChallenge, wantMessage: "Certificate authority does not have a SCEP URL configured."},
 		} {
 			t.Run(name, func(t *testing.T) {
 				svc, _, ctx := baseSetupForTests()

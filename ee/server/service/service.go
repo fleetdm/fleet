@@ -106,7 +106,7 @@ func NewService(
 		keyValueStore:          keyValueStore,
 		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
-		scepEnrollmentClient:   scep.NewEnrollmentClient(logger, nil),
+		scepEnrollmentClient:   scep.NewEnrollmentClient(logger),
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,

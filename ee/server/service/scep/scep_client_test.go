@@ -195,7 +195,7 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 	require.NoError(t, err)
 
 	newClient := func() *EnrollmentClient {
-		return NewEnrollmentClient(slog.New(slog.DiscardHandler), new(5*time.Second))
+		return NewEnrollmentClient(slog.New(slog.DiscardHandler))
 	}
 
 	succeed := func(req *smallstepscep.PKIMessage) ([]byte, error) {
