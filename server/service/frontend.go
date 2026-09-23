@@ -190,10 +190,10 @@ func ServeEndUserEnrollOTA(
 // /enroll/next-steps path, shown after an Android end user selects Enroll on
 // the /enroll page.
 //
-// The page is informational, so it deliberately skips the enroll secret lookup,
-// app config load and IdP session handling that /enroll performs. Reusing that
-// handler would send a user who has already authenticated back through their
-// IdP just to read the instructions.
+// The page is informational, so it deliberately skips the setup check, enroll
+// secret lookup, app config load and IdP session handling that /enroll
+// performs. Reusing that handler would send a user who has already
+// authenticated back through their IdP just to read the instructions.
 func ServeEndUserEnrollNextSteps(urlPrefix string, logger *slog.Logger, serveCSP bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, serveCSP)

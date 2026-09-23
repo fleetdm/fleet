@@ -20,9 +20,9 @@ const MACOS_USER_AGENT =
 const ENROLL_URL = "https://enterprise.google.com/android/enroll?et=test-token";
 const TOKEN_ENDPOINT = "/api/v1/fleet/android_enterprise/enrollment_token";
 
-// jsdom implements no navigation, so it reports attempts through the virtual
-// console. Collecting them is the only way to observe location.assign and
-// location.replace, whose own properties are unforgeable and cannot be stubbed.
+// What jsdom reports instead of reloading. location's own properties are
+// unforgeable, so a reload can only be observed this way; the page's other two
+// navigations go through the navigateTo seam and are asserted by destination.
 const NAVIGATION_ERROR = "Not implemented: navigation (except hash changes)";
 
 const templateSource = fs.readFileSync(
@@ -30,15 +30,24 @@ const templateSource = fs.readFileSync(
   "utf8"
 );
 
+// Substitutes what the Go handler fills in. This is not Go's escaping, which
+// also backslash-escapes the value for the JS context, so these tests cannot
+// catch an escaping regression -- only that the right value reaches the page.
 const renderTemplate = (values: Record<string, string>) =>
-  templateSource.replace(
-    /{{\.(\w+)}}/g,
-    (_match, name: string) => values[name] ?? ""
-  );
+  templateSource.replace(/{{\.(\w+)}}/g, (_match, name: string) => {
+    if (!(name in values)) {
+      throw new Error(`template variable {{.${name}}} has no test value`);
+    }
+    return values[name];
+  });
 
 let dom: JSDOM;
 let doc: Document;
 let jsdomErrors: string[];
+// Where the page tried to send the browser, via the navigateTo seam. jsdom's
+// location is unforgeable and its navigation error names no URL, so without
+// this the tests could only see that *some* navigation happened.
+let navigations: string[];
 
 /**
  * Loads the page and waits for its DOMContentLoaded handler to finish. `path`
@@ -64,6 +73,7 @@ const loadPage = async ({
     EnrollURL: "https://fleet.example.com/enroll",
   });
 
+  navigations = [];
   jsdomErrors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", (error: Error) => {
@@ -95,12 +105,24 @@ const loadPage = async ({
     (script) => !script.src
   );
   // A top-level `const` inside eval is scoped to that eval and doesn't become a
-  // global, so the page's URL builder is handed out explicitly to be asserted
-  // on. This appends to the evaluated copy only; the template is untouched.
+  // global, so the page's helpers are handed out explicitly. This appends to
+  // the evaluated copy only; the template is untouched.
   dom.window.eval(
     `${inlineScript?.textContent ?? ""}
-     window.__buildEnrollPath = buildEnrollPath;`
+     window.__buildEnrollPath = buildEnrollPath;
+     window.__navigateTo = navigateTo;`
   );
+
+  // Replaced before DOMContentLoaded runs, so the next-steps redirect is
+  // captured too rather than escaping into jsdom's unimplemented navigation.
+  const seam = ((dom.window as unknown) as {
+    __navigateTo: {
+      assign: (url: string) => void;
+      replace: (url: string) => void;
+    };
+  }).__navigateTo;
+  seam.assign = (url: string) => navigations.push(`assign ${url}`);
+  seam.replace = (url: string) => navigations.push(`replace ${url}`);
 
   // jsdom queues its own DOMContentLoaded, so the page's handler is left to run
   // on that. Dispatching one here as well would run the handler twice and
@@ -115,14 +137,16 @@ const loadPage = async ({
 const clickEnroll = () => {
   const enrollLink = doc.querySelector<HTMLAnchorElement>(".enroll-link");
   expect(enrollLink).not.toBeNull();
-  // Added after the page's own listener, so it runs second: the page navigates
-  // this tab, and this stops jsdom also trying to follow the href.
-  enrollLink?.addEventListener("click", (event) => event.preventDefault(), {
-    once: true,
+  const event = new dom.window.MouseEvent("click", {
+    bubbles: true,
+    cancelable: true,
   });
-  enrollLink?.dispatchEvent(
-    new dom.window.MouseEvent("click", { bubbles: true, cancelable: true })
-  );
+  enrollLink?.dispatchEvent(event);
+  // The page must not cancel the click: the link's own target="_blank" default
+  // is what starts enrollment, and cancelling it would leave the user on the
+  // next-steps page having never enrolled, with every other assertion green.
+  expect(event.defaultPrevented).toBe(false);
+  return enrollLink;
 };
 
 const mainContentText = () =>
@@ -158,22 +182,45 @@ describe("enroll-ota.html — /enroll, Android", () => {
 
   it("sends this tab to the next-steps page when Enroll is selected", async () => {
     await loadPage();
-    expect(jsdomErrors).toEqual([]);
+    expect(navigations).toEqual([]);
 
-    clickEnroll();
+    const enrollLink = clickEnroll();
 
-    expect(jsdomErrors).toEqual([NAVIGATION_ERROR]);
-    expect(buildEnrollPath("/enroll/next-steps")).toBe(
-      "/enroll/next-steps?enroll_secret=test-secret"
-    );
+    expect(navigations).toEqual([
+      "assign /enroll/next-steps?enroll_secret=test-secret",
+    ]);
+    // The hand-off the click also relies on is left intact.
+    expect(enrollLink?.getAttribute("target")).toBe("_blank");
+    expect(enrollLink?.href).toBe(ENROLL_URL);
   });
 
   it("carries the enroll secret through, escaped, and honours a URL prefix", async () => {
     await loadPage({ search: "?enroll_secret=a%2Bb%20c", urlPrefix: "/fleet" });
 
+    clickEnroll();
+
+    expect(navigations).toEqual([
+      "assign /fleet/enroll/next-steps?enroll_secret=a%2Bb%20c",
+    ]);
     expect(buildEnrollPath("/enroll/next-steps")).toBe(
       "/fleet/enroll/next-steps?enroll_secret=a%2Bb%20c"
     );
+  });
+
+  it("reloads rather than reusing a spent token when restored from bfcache", async () => {
+    await loadPage();
+
+    dom.window.dispatchEvent(
+      new dom.window.PageTransitionEvent("pageshow", { persisted: true })
+    );
+    expect(jsdomErrors).toEqual([NAVIGATION_ERROR]);
+
+    // A normal load is not a restore and must not loop.
+    jsdomErrors = [];
+    dom.window.dispatchEvent(
+      new dom.window.PageTransitionEvent("pageshow", { persisted: false })
+    );
+    expect(jsdomErrors).toEqual([]);
   });
 
   it("doesn't wire the navigation when the token request fails", async () => {
@@ -183,7 +230,7 @@ describe("enroll-ota.html — /enroll, Android", () => {
       "Couldn't get Android enrollment token."
     );
     clickEnroll();
-    expect(jsdomErrors).toEqual([]);
+    expect(navigations).toEqual([]);
   });
 });
 
@@ -203,23 +250,20 @@ describe("enroll-ota.html — /enroll/next-steps", () => {
     // Informational page: no token, and nothing left to select.
     expect(fetchMock).not.toHaveBeenCalled();
     expect(doc.querySelector(".enroll-link")).toBeNull();
-    expect(jsdomErrors).toEqual([]);
+    expect(navigations).toEqual([]);
   });
 
   it("redirects iOS back to the enroll page", async () => {
     await loadPage({ nextSteps: true, userAgent: IOS_USER_AGENT });
 
-    expect(jsdomErrors).toEqual([NAVIGATION_ERROR]);
+    expect(navigations).toEqual(["replace /enroll?enroll_secret=test-secret"]);
     expect(heading()).toBeUndefined();
-    expect(buildEnrollPath("/enroll")).toBe(
-      "/enroll?enroll_secret=test-secret"
-    );
   });
 
   it("redirects macOS back to the enroll page", async () => {
     await loadPage({ nextSteps: true, userAgent: MACOS_USER_AGENT });
 
-    expect(jsdomErrors).toEqual([NAVIGATION_ERROR]);
+    expect(navigations).toEqual(["replace /enroll?enroll_secret=test-secret"]);
     expect(heading()).toBeUndefined();
   });
 
@@ -230,8 +274,7 @@ describe("enroll-ota.html — /enroll/next-steps", () => {
       search: "",
     });
 
-    expect(jsdomErrors).toEqual([NAVIGATION_ERROR]);
-    expect(buildEnrollPath("/enroll")).toBe("/enroll");
+    expect(navigations).toEqual(["replace /enroll"]);
   });
 
   it("shows the next steps rather than an error when the secret is absent", async () => {

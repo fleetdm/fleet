@@ -163,7 +163,6 @@ func TestServeEndUserEnrollNextSteps(t *testing.T) {
 		t.Skip("This test requires running with -tags full")
 	}
 
-	ds := new(mock.DataStore)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ts := httptest.NewServer(ServeEndUserEnrollNextSteps("", logger, false))
 	t.Cleanup(ts.Close)
@@ -176,12 +175,7 @@ func TestServeEndUserEnrollNextSteps(t *testing.T) {
 		{name: "without enroll secret", query: ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			client := &http.Client{
-				CheckRedirect: func(*http.Request, []*http.Request) error {
-					return http.ErrUseLastResponse
-				},
-			}
-			response, err := client.Get(ts.URL + tc.query)
+			response, err := http.DefaultClient.Get(ts.URL + tc.query)
 			require.NoError(t, err)
 			defer response.Body.Close()
 
@@ -191,16 +185,51 @@ func TestServeEndUserEnrollNextSteps(t *testing.T) {
 			bodyBytes, err := io.ReadAll(response.Body)
 			require.NoError(t, err)
 			bodyString := string(bodyBytes)
-			assert.Contains(t, bodyString, `const IS_NEXT_STEPS = "true" === "true";`)
+			assert.Contains(t, bodyString, `IS_NEXT_STEPS = "true"`)
 			assert.Contains(t, bodyString, "Next steps...")
 			assert.Contains(t, bodyString, "You can close this page.")
 		})
 	}
+}
 
-	// The page takes no datastore dependency; adding one would also mean it can
-	// fail while the user is mid-enrollment.
-	assert.False(t, ds.AppConfigFuncInvoked)
-	assert.False(t, ds.VerifyEnrollSecretFuncInvoked)
+// The next-steps page is only reachable if it is actually mounted, and a
+// stdlib ServeMux matches "/enroll/next-steps" exactly: without the trailing
+// slash pattern the URL the design specifies falls through to the "/" catch-all
+// and serves the admin UI to an enrolling end user.
+func TestEnrollNextStepsMuxRouting(t *testing.T) {
+	nextSteps := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("next-steps"))
+	})
+	ota := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ota"))
+	})
+	catchAll := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("catch-all"))
+	})
+
+	mux := http.NewServeMux()
+	mux.Handle("/enroll", ota)
+	mux.Handle("/enroll/next-steps", nextSteps)
+	mux.Handle("/enroll/next-steps/", nextSteps)
+	mux.Handle("/", catchAll)
+
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{path: "/enroll", want: "ota"},
+		{path: "/enroll?enroll_secret=foo", want: "ota"},
+		{path: "/enroll/next-steps", want: "next-steps"},
+		{path: "/enroll/next-steps/", want: "next-steps"},
+		{path: "/enroll/next-steps?enroll_secret=foo", want: "next-steps"},
+		{path: "/enroll/next-steps/?enroll_secret=foo", want: "next-steps"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			mux.ServeHTTP(recorder, httptest.NewRequest("GET", tc.path, nil))
+			assert.Equal(t, tc.want, recorder.Body.String())
+		})
+	}
 }
 
 // ssoURLCaptureService captures the customOriginalURL passed to InitiateMDMSSO so

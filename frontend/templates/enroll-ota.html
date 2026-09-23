@@ -858,6 +858,14 @@
         )}`;
       };
 
+      // Held in an object so tests can replace them: location is unforgeable,
+      // and the only thing a test environment can otherwise observe is that
+      // some navigation happened, not where to.
+      const navigateTo = {
+        assign: (url) => window.location.assign(url),
+        replace: (url) => window.location.replace(url),
+      };
+
       // Selecting Enroll sends this tab to the next-steps page, so the Enroll
       // button is gone by the time the user comes back and can't be used twice.
       // The link keeps its href and target, so the enrollment hand-off still
@@ -867,8 +875,19 @@
         if (!enrollLink) {
           return;
         }
+
+        // Going back from next-steps restores this page from the back/forward
+        // cache with its scripts frozen, so the Enroll link would still carry
+        // the token that has already been spent. Reload to mint a fresh one,
+        // otherwise Back is another way to hit the double-enrollment error.
+        window.addEventListener("pageshow", (event) => {
+          if (event.persisted) {
+            window.location.reload();
+          }
+        });
+
         enrollLink.addEventListener("click", () => {
-          window.location.assign(buildEnrollPath("/enroll/next-steps"));
+          navigateTo.assign(buildEnrollPath("/enroll/next-steps"));
         });
       };
 
@@ -952,7 +971,7 @@
         // is sent here in the first place; anyone else is returned to /enroll.
         if (IS_NEXT_STEPS) {
           if (getPlatform() !== "android") {
-            window.location.replace(buildEnrollPath("/enroll"));
+            navigateTo.replace(buildEnrollPath("/enroll"));
             return;
           }
           renderContent("android-next-steps-template");
