@@ -52,12 +52,7 @@ func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, no
 	return false
 }
 
-func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, executionID string) (failureMessage string) {
-	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, executionID)
-	if err != nil {
-		svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", executionID, "err", err)
-		return "Fleet couldn't find the notification this script belongs to."
-	}
+func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, notificationUUID string) (failureMessage string) {
 	patchNotification, err := svc.ds.GetPatchNotification(ctx, notificationUUID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to get the patch notification a script belongs to", "notification_uuid", notificationUUID, "err", err)
