@@ -57,6 +57,11 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 
     <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
     <Property Id="FLEET_SECRET" Value="dummy"/>
+    <!--
+      Keep the enroll secret out of verbose MSI logs. Without this, /l*v (or the MsiLogging policy) writes every property
+      value in cleartext, and Fleet MDM passes the secret on the msiexec command line.
+    -->
+    <Property Id="MsiHiddenProperties" Value="FLEET_SECRET"/>
     <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
 	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>
     {{ if .EnableEndUserEmailProperty }}

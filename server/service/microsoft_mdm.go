@@ -1505,14 +1505,23 @@ func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string
 }
 
 func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting enroll secrets")
-	}
+	// With one-time enroll secrets the command carries a placeholder, expanded per enrollment in getPendingMDMCmds. That is
+	// what stops every Windows MDM host from being handed the same fleet-wide, never-expiring credential, and it also means
+	// the value is never stored: raw_command keeps the placeholder, and the command-results API returns raw_command verbatim.
+	//
+	// The global secret is not even looked up in that mode, so a deployment that has none can still install fleetd.
+	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+	if !svc.config.Auth.UseOneTimeEnrollSecrets {
+		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting enroll secrets")
+		}
 
-	if len(secrets) == 0 {
-		svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
-		return nil
+		if len(secrets) == 0 {
+			svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
+			return nil
+		}
+		enrollSecret = secrets[0].Secret
 	}
 
 	// it's okay to skip the installation if we're not able to retrieve the
@@ -1529,7 +1538,6 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
-	globalEnrollSecret := secrets[0].Secret
 	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
 	// the important one, and we only track that.
 	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
@@ -1572,7 +1580,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
-					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + enrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
 					<TimeOut>10</TimeOut>
 					<RetryCount>1</RetryCount>
 					<RetryInterval>5</RetryInterval>
@@ -2089,6 +2097,13 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		if err != nil {
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+		}
+		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are minted here rather than at enqueue, which is what keeps the
+		// credential out of windows_mdm_commands.raw_command and therefore out of the command-results API, where
+		// raw_command is returned verbatim as the payload.
+		rawCommandWithSecret, err = svc.ds.ExpandWindowsMDMHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "expanding host secrets for Windows pending commands")
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
 		if err != nil {

@@ -2032,6 +2032,8 @@ type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document st
 
 type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollmentID string) (string, error)
 
+type ExpandWindowsMDMHostSecretsFunc func(ctx context.Context, document string, enrollmentID uint) (string, error)
+
 type CreateCustomHostVitalFunc func(ctx context.Context, name string) (fleet.CustomHostVital, error)
 
 type ListCustomHostVitalsFunc func(ctx context.Context, opt fleet.ListOptions) (customHostVitals []fleet.CustomHostVital, meta *fleet.PaginationMetadata, count int, err error)
@@ -5456,6 +5458,9 @@ type DataStore struct {
 
 	ExpandHostSecretsFunc        ExpandHostSecretsFunc
 	ExpandHostSecretsFuncInvoked bool
+
+	ExpandWindowsMDMHostSecretsFunc        ExpandWindowsMDMHostSecretsFunc
+	ExpandWindowsMDMHostSecretsFuncInvoked bool
 
 	CreateCustomHostVitalFunc        CreateCustomHostVitalFunc
 	CreateCustomHostVitalFuncInvoked bool
@@ -13104,6 +13109,13 @@ func (s *DataStore) ExpandHostSecrets(ctx context.Context, document string, enro
 	s.ExpandHostSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ExpandHostSecretsFunc(ctx, document, enrollmentID)
+}
+
+func (s *DataStore) ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error) {
+	s.mu.Lock()
+	s.ExpandWindowsMDMHostSecretsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpandWindowsMDMHostSecretsFunc(ctx, document, enrollmentID)
 }
 
 func (s *DataStore) CreateCustomHostVital(ctx context.Context, name string) (fleet.CustomHostVital, error) {

@@ -21,31 +21,61 @@ const (
 	EnrollmentPlaneOsquery EnrollmentPlane = "osquery"
 )
 
-// HostOneTimeEnrollSecret is a per-device, single-use enroll secret minted when
-// an MDM-enrolled Apple host fetches its fleetd configuration profile. It is
-// bound to the device identifiers captured at mint time and may be used once
-// per enrollment plane.
+// HostOneTimeEnrollSecret is a per-device, single-use enroll secret minted when an MDM-enrolled host is handed the credential it
+// will enroll with: an Apple host fetching its fleetd configuration profile, or a Windows host being sent the fleetd installer.
+// It may be used once per enrollment plane.
+//
+// What it binds to differs by platform, because Apple has a host to bind to and Windows does not yet. See MatchesHost.
 type HostOneTimeEnrollSecret struct {
-	ID             uint       `db:"id"`
-	Secret         string     `db:"secret"`
-	HostID         *uint      `db:"host_id"`
-	TeamID         *uint      `db:"team_id"`
-	Platform       string     `db:"platform"`
-	HardwareUUID   string     `db:"hardware_uuid"`
-	HardwareSerial string     `db:"hardware_serial"`
-	CreatedAt      time.Time  `db:"created_at"`
-	ConsumedAt     *time.Time `db:"consumed_at"`
-	OrbitUsedAt    *time.Time `db:"orbit_used_at"`
-	OsqueryUsedAt  *time.Time `db:"osquery_used_at"`
+	ID     uint   `db:"id"`
+	Secret string `db:"secret"`
+	HostID *uint  `db:"host_id"`
+	// MDMWindowsEnrollmentID binds the secret to a Windows MDM enrollment instead of to a host. Windows mints before a hosts row
+	// exists, because the automatic enrollment flows carry no Fleet host UUID, so HostID stays nil until an agent enrolls with
+	// the secret. Nil on the Apple path, which always has a host to bind to.
+	MDMWindowsEnrollmentID *uint      `db:"mdm_windows_enrollment_id"`
+	TeamID                 *uint      `db:"team_id"`
+	Platform               string     `db:"platform"`
+	HardwareUUID           string     `db:"hardware_uuid"`
+	HardwareSerial         string     `db:"hardware_serial"`
+	CreatedAt              time.Time  `db:"created_at"`
+	ConsumedAt             *time.Time `db:"consumed_at"`
+	OrbitUsedAt            *time.Time `db:"orbit_used_at"`
+	OsqueryUsedAt          *time.Time `db:"osquery_used_at"`
 }
 
 // MatchesHost reports whether the identifiers presented by an enrolling agent
 // match the binding captured when the secret was minted. Comparison is
 // case-insensitive because MDM and osquery do not guarantee the same casing.
 func (s *HostOneTimeEnrollSecret) MatchesHost(platform, hardwareUUID, hardwareSerial string) bool {
+	if s.IsMDMEnrollmentBound() {
+		return s.matchesCapturedIdentifiers(platform, hardwareUUID, hardwareSerial)
+	}
 	return strings.EqualFold(s.Platform, platform) &&
 		strings.EqualFold(s.HardwareUUID, hardwareUUID) &&
 		strings.EqualFold(s.HardwareSerial, hardwareSerial)
+}
+
+// IsMDMEnrollmentBound reports whether the secret was minted for an MDM enrollment rather than for a host. Only Windows mints
+// this way, because its automatic enrollment flows have no host to bind to yet.
+func (s *HostOneTimeEnrollSecret) IsMDMEnrollmentBound() bool {
+	return s.MDMWindowsEnrollmentID != nil
+}
+
+// matchesCapturedIdentifiers compares only the identifiers that were known when the secret was minted. An enrollment-bound
+// secret is minted before the device has reported most of them: the hardware UUID is never known at that point, and the serial
+// only if a DevDetail response already landed. Comparing an uncaptured identifier against the one the agent presents would
+// reject every legitimate enrollment, so an empty stored value means "not captured" and is skipped.
+//
+// What makes that safe is that the binding is the enrollment itself: the secret was delivered only over that device's own MDM
+// channel, and possession is the credential. The identifiers are provenance, recorded on first use.
+func (s *HostOneTimeEnrollSecret) matchesCapturedIdentifiers(platform, hardwareUUID, hardwareSerial string) bool {
+	captured := func(stored, presented string) bool {
+		return stored == "" || strings.EqualFold(stored, presented)
+	}
+	return captured(s.Platform, platform) &&
+		captured(s.HardwareUUID, hardwareUUID) &&
+		captured(s.HardwareSerial, hardwareSerial)
 }
 
 // UsedAt returns the time the secret was used by the given plane, or nil.

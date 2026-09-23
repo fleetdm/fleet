@@ -3726,6 +3726,11 @@ type Datastore interface {
 	// like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 
+	// ExpandWindowsMDMHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in a SyncML document being delivered to
+	// the given Windows MDM enrollment. Windows identifies its subject by enrollment rather than by host UUID, because the
+	// host may not exist yet when the secret is minted.
+	ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Custom host vitals
 	CreateCustomHostVital(ctx context.Context, name string) (CustomHostVital, error)

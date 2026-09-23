@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const hostOneTimeEnrollSecretColumns = `id, secret, host_id, team_id, platform, hardware_uuid, hardware_serial, created_at, consumed_at, orbit_used_at, osquery_used_at` // nolint:gosec // Not hardcoded credentials
+const hostOneTimeEnrollSecretColumns = `id, secret, host_id, mdm_windows_enrollment_id, team_id, platform, hardware_uuid, hardware_serial, created_at, consumed_at, orbit_used_at, osquery_used_at` // nolint:gosec // Not hardcoded credentials
 
 func (ds *Datastore) GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
 	if strings.TrimSpace(secret) == "" {
@@ -182,6 +182,77 @@ func (ds *Datastore) mintHostOneTimeEnrollSecret(ctx context.Context, enrollment
 	return secret, nil
 }
 
+// mintWindowsMDMOneTimeEnrollSecret returns the one-time enroll secret to hand to the given Windows MDM enrollment, minting one
+// if it has no live secret. It is the Windows counterpart of mintHostOneTimeEnrollSecret and differs in what it binds to.
+//
+// Windows mints before there is anything to bind a host to. The automatic enrollment flows authenticate with a token that
+// carries no Fleet host UUID (authBinarySecurityToken returns ""), so the enrollment row is inserted unlinked and a hosts row
+// only appears once fleetd itself enrolls. The secret therefore binds to the enrollment, host_id stays NULL, and the host
+// identifiers are recorded later, on first use.
+//
+// The FOR UPDATE on the enrollment row is doing real work here, more than on the Apple side: Fleet re-enqueues the fleetd
+// install on every session-start alert while fleetd looks absent, which is once a minute on the fast poll. Without the lock,
+// two sessions that both find no live secret would both insert, and the device would be handed a secret that the next delivery
+// immediately superseded.
+func (ds *Datastore) mintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
+	var secret string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var enrollments []struct {
+			ID             uint    `db:"id"`
+			HardwareSerial *string `db:"hardware_serial"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &enrollments,
+			`SELECT id, hardware_serial FROM mdm_windows_enrollments WHERE id = ? FOR UPDATE`, enrollmentID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load windows mdm enrollment for one-time enroll secret")
+		}
+		if len(enrollments) == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"), "minting one-time enroll secret")
+		}
+		enrollment := enrollments[0]
+
+		var existing []string
+		if err := sqlx.SelectContext(ctx, tx, &existing,
+			`SELECT secret FROM host_one_time_enroll_secrets WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
+			enrollment.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load unconsumed windows one-time enroll secret")
+		}
+		if len(existing) == 1 {
+			secret = existing[0]
+			return nil
+		}
+
+		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generate windows one-time enroll secret")
+		}
+
+		// The serial is only here if a DevDetail response already landed; the hardware UUID never is. Both are provenance
+		// rather than authorization, and an empty one means "not captured" to MatchesHost.
+		var serial string
+		if enrollment.HardwareSerial != nil {
+			serial = *enrollment.HardwareSerial
+		}
+
+		// team_id stays NULL on purpose. The secret replaces the global enroll secret the MSI command line used to carry,
+		// which also had no team, so the host still enrolls into no team and the existing default-fleet transfer
+		// (maybeAssignWindowsEnrollmentDefaultFleet) applies afterwards with its own guards intact. Binding a team here
+		// would silently bypass those.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_one_time_enroll_secrets
+				(secret, host_id, mdm_windows_enrollment_id, team_id, platform, hardware_uuid, hardware_serial)
+			VALUES (?, NULL, ?, NULL, 'windows', '', ?)`,
+			string(tok), enrollment.ID, serial); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert windows one-time enroll secret")
+		}
+		secret = string(tok)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return secret, nil
+}
+
 // consumeHostOneTimeEnrollSecret records the use of a one-time enroll secret
 // by one enrollment plane, inside the enrollment transaction so the node key
 // rotation and the consumption commit or roll back together. matchedHostID is
@@ -231,8 +302,13 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 	default:
 		return ctxerr.Errorf(ctx, "unknown enrollment plane %q", plane)
 	}
+	// host_id is recorded on first use, which matters only for an enrollment-bound (Windows) secret: it is minted before a
+	// hosts row exists, so without this the bound-host check above would have nothing to compare and the second plane could
+	// be claimed from a different machine inside the window. COALESCE leaves an already-bound secret alone.
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE host_one_time_enroll_secrets SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)) WHERE id = ?`, id); err != nil {
+		`UPDATE host_one_time_enroll_secrets
+		 SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)), host_id = COALESCE(host_id, ?)
+		 WHERE id = ?`, matchedHostID, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "consume one-time enroll secret")
 	}
 	return nil
