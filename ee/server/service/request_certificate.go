@@ -75,17 +75,17 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
 	}
 
-	if p.ReturnPEMCertificate {
-		pemCert, err := pkcs7EnvelopeToPEM(envelope)
-		if err != nil {
-			svc.logger.ErrorContext(ctx, "Failed to convert PKCS7 envelope to PEM certificate", "ca_id", ca.ID, "err", err)
-			return nil, ctxerr.Wrap(ctx, err, "converting PKCS7 envelope to PEM certificate")
-		}
-		return &pemCert, nil
+	if !p.ReturnPEMCertificate {
+		// Wrap the certificate in a PEM block for easier consumption by the client.
+		return new("-----BEGIN PKCS7-----\n" + string(envelope) + "\n-----END PKCS7-----\n"), nil
 	}
 
-	// Wrap the certificate in a PEM block for easier consumption by the client.
-	return new("-----BEGIN PKCS7-----\n" + string(envelope) + "\n-----END PKCS7-----\n"), nil
+	pemCert, err := pkcs7EnvelopeToPEM(envelope)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "Failed to convert PKCS7 envelope to PEM certificate", "ca_id", ca.ID, "err", err)
+		return nil, ctxerr.Wrap(ctx, err, "converting PKCS7 envelope to PEM certificate")
+	}
+	return &pemCert, nil
 }
 
 // verifyRequesterIdentity applies the identity safeguards to the CSR: the IdP introspection
