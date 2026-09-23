@@ -52,6 +52,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("renders the host, status, and details", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={failedSoftwareActivity}
         onCancel={jest.fn()}
       />
@@ -71,6 +72,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
     const onResetPolicy = jest.fn();
     const { rerender } = render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={failedSoftwareActivity}
         onCancel={jest.fn()}
       />
@@ -81,6 +83,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
     rerender(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={failedSoftwareActivity}
         onCancel={jest.fn()}
         onResetPolicy={onResetPolicy}
@@ -95,6 +98,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("renders separate pre-install, install, and post-install output sections for software installs", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           pre_install_output: "pre-install query returned no rows",
@@ -121,6 +125,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("omits an install output section that is empty", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           pre_install_output: "pre-install query failed",
@@ -143,6 +148,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("explains a patch-when-closed skip instead of showing empty output sections", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           details: {
@@ -169,6 +175,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("omits the details box when there is no output or error", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           type: ActivityType.RanAutomationWebhook,
@@ -209,6 +216,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       stubScriptResult({ exit_code: 0, output: "Notification displayed." });
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={notifyActivity}
           onCancel={jest.fn()}
         />
@@ -237,6 +245,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       stubScriptResult({ exit_code: 0 });
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={{
             ...notifyActivity,
             details: { ...notifyActivity.details, time_before: 300 },
@@ -254,6 +263,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       stubScriptResult({ exit_code: 100 });
       const { unmount } = render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={{ ...notifyActivity, status: "error" }}
           onCancel={jest.fn()}
         />
@@ -272,6 +282,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       stubScriptResult({ exit_code: 41 });
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={{ ...notifyActivity, status: "error" }}
           onCancel={jest.fn()}
         />
@@ -289,6 +300,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       });
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={{ ...notifyActivity, status: "error" }}
           onCancel={jest.fn()}
         />
@@ -309,6 +321,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       );
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={notifyActivity}
           onCancel={jest.fn()}
         />
@@ -346,6 +359,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={skipActivity}
           onCancel={jest.fn()}
         />
@@ -389,6 +403,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
       render(
         <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
           activity={patchWhenClosedSkip}
           onCancel={jest.fn()}
         />
