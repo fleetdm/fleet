@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,8 +16,9 @@ import (
 var nanoCleanupScanBatchSize = 1000
 
 // nanoCleanupMaxScansPerRun caps the candidate scans one sweep performs per
-// run, independently of the row budget.
-const nanoCleanupMaxScansPerRun = 50
+// run, independently of the row budget. A var so tests can stop a run
+// mid-scan and check the cursor resumes on the next.
+var nanoCleanupMaxScansPerRun = 50
 
 // nanoCleanupAfterQueueDeleteHook, when set, runs between the queue and result
 // deletes of a batch. Tests use it to fail the transaction midway and prove
@@ -64,30 +66,226 @@ type nanoQueueCandidate struct {
 	CreatedAt time.Time `db:"created_at"`
 }
 
-func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppleCommandCleanupOptions) (fleet.MDMAppleCommandCleanupStats, error) {
+func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppleCommandCleanupOptions, state *fleet.MDMAppleCommandCleanupState) (*fleet.MDMAppleCommandCleanupState, fleet.MDMAppleCommandCleanupStats, error) {
 	var stats fleet.MDMAppleCommandCleanupStats
+	if state == nil {
+		state = &fleet.MDMAppleCommandCleanupState{}
+	}
+	if state.Retention == nil {
+		state.Retention = make(map[string]fleet.MDMAppleCommandCleanupCursor)
+	}
 
-	rowBudget := opts.MaxRowDeletions
+	// The row budget is shared by every pair sweep in order: once one sweep
+	// exhausts it the later ones don't run this tick.
+	budget := opts.MaxRowDeletions
 	var touched []string
-	if opts.ShortRetention > 0 && rowBudget > 0 {
-		deleted, cmdUUIDs, exhausted, err := ds.purgeInactiveNanoCommands(ctx, opts.ShortRetention, rowBudget)
+	if opts.ShortRetention > 0 && budget > 0 {
+		deleted, uuids, exhausted, err := ds.purgeInactiveNanoCommands(ctx, opts.ShortRetention, budget)
 		if err != nil {
-			return stats, err
+			return state, stats, err
 		}
 		stats.InactivePairsDeleted = deleted
 		stats.RowBudgetExhausted = exhausted
-		touched = append(touched, cmdUUIDs...)
+		budget -= deleted
+		touched = append(touched, uuids...)
+	}
+
+	shortClasses := fleet.AppleMDMShortRetentionClasses
+	if opts.ShortRetention > 0 {
+		if budget > 0 && !stats.RowBudgetExhausted {
+			deleted, uuids, exhausted, err := ds.sweepCompletedNanoCommands(ctx, state, "short", opts.ShortRetention, budget,
+				func(rt, uuid string) bool { return matchesAppleMDMRetentionClass(shortClasses, rt, uuid) })
+			if err != nil {
+				return state, stats, err
+			}
+			stats.ShortPairsDeleted = deleted
+			stats.RowBudgetExhausted = exhausted
+			budget -= deleted
+			touched = append(touched, uuids...)
+		}
+	} else {
+		// with the short tier off, its classes are not kept forever: they
+		// age out with the standard window instead
+		shortClasses = nil
+	}
+	if opts.StandardRetention > 0 && budget > 0 && !stats.RowBudgetExhausted {
+		deleted, uuids, exhausted, err := ds.sweepCompletedNanoCommands(ctx, state, "standard", opts.StandardRetention, budget,
+			func(rt, uuid string) bool {
+				return slices.Contains(fleet.AppleMDMStandardRetentionRequestTypes, rt) ||
+					(shortClasses == nil && matchesAppleMDMRetentionClass(fleet.AppleMDMShortRetentionClasses, rt, uuid))
+			})
+		if err != nil {
+			return state, stats, err
+		}
+		stats.StandardPairsDeleted = deleted
+		stats.RowBudgetExhausted = exhausted
+		touched = append(touched, uuids...)
 	}
 
 	if opts.MaxCmdDeletions > 0 && len(touched) > 0 {
-		deleted, exhausted, err := ds.mopNanoCommands(ctx, touched, opts.MaxCmdDeletions)
+		deleted, exhausted, err := ds.mopNanoCommands(ctx, uniqueStrings(touched), opts.MaxCmdDeletions)
 		if err != nil {
-			return stats, err
+			return state, stats, err
 		}
 		stats.CommandsDeleted = deleted
 		stats.CmdBudgetExhausted = exhausted
 	}
-	return stats, nil
+	return state, stats, nil
+}
+
+// matchesAppleMDMRetentionClass reports whether a command of request type rt
+// and UUID uuid belongs to one of classes.
+func matchesAppleMDMRetentionClass(classes []fleet.AppleMDMCommandRetentionClass, rt, uuid string) bool {
+	for _, c := range classes {
+		if c.RequestType == rt && strings.HasPrefix(uuid, c.UUIDPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// nanoTerminalStatuses are the result statuses after which a device will not
+// answer a command again. NotNow is deliberately absent: the command is still
+// outstanding and nano re-serves it.
+var nanoTerminalStatuses = []string{fleet.MDMAppleStatusAcknowledged, fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError}
+
+// nanoResultCandidate is a scanned result row with the columns its keyset
+// cursor is built from.
+type nanoResultCandidate struct {
+	nanoQueuePair
+	UpdatedAt time.Time `db:"updated_at"`
+}
+
+// sweepCompletedNanoCommands deletes queue/result pairs whose result is
+// terminal and older than retention, for commands accepted by inClass, up to
+// budget. One keyset scan per terminal status, each resuming from the cursor
+// in state (keyed "<tier>:<status>") and clearing it when it reaches rows
+// younger than the window, so the next run laps from the oldest rows again.
+func (ds *Datastore) sweepCompletedNanoCommands(ctx context.Context, state *fleet.MDMAppleCommandCleanupState, tier string, retention time.Duration, budget int, inClass func(requestType, uuid string) bool) (int, []string, bool, error) {
+	// Rides idx_ncr_status_updated_at: with status fixed, InnoDB's appended
+	// primary key makes the index order (updated_at, id, command_uuid), so the
+	// keyset needs no sort. Classification is done on the page afterwards
+	// rather than in the scan so every scan costs one page of index rows even
+	// when a long run of never-swept types sits in front of the cursor.
+	// updated_at is nullable in the schema but always set by its DEFAULT and
+	// ON UPDATE clauses; a NULL would fall outside both comparisons.
+	const candidatesStmt = `
+		SELECT ncr.id, ncr.command_uuid, ncr.updated_at
+		FROM nano_command_results ncr
+		WHERE ncr.status = ?
+		  AND ncr.updated_at < NOW(6) - INTERVAL ? SECOND
+		  AND (ncr.updated_at, ncr.id, ncr.command_uuid) > (?, ?, ?)
+		ORDER BY ncr.updated_at, ncr.id, ncr.command_uuid
+		LIMIT ?`
+
+	var deleted int
+	var touched []string
+	var capped bool
+	for _, status := range nanoTerminalStatuses {
+		key := tier + ":" + status
+		// an unset key is the zero cursor, and a zero time.Time sorts below
+		// every real TIMESTAMP, so the scan starts at the oldest row
+		cursor := state.Retention[key]
+		var pageFull bool
+		for range nanoCleanupMaxScansPerRun {
+			if deleted >= budget {
+				state.Retention[key] = cursor
+				return deleted, touched, true, nil
+			}
+			limit := min(nanoCleanupScanBatchSize, budget-deleted)
+			var candidates []nanoResultCandidate
+			// primary for the same reason as the inactive purge: the guard
+			// probe and the delete must agree with this read
+			if err := sqlx.SelectContext(ctx, ds.writer(ctx), &candidates, candidatesStmt,
+				status, int(retention.Seconds()), cursor.UpdatedAt, cursor.ID, cursor.CommandUUID, limit); err != nil {
+				return deleted, touched, false, ctxerr.Wrap(ctx, err, "select completed nano commands")
+			}
+			pageFull = len(candidates) == limit
+			if !pageFull {
+				// reached rows younger than the window (or the end): this
+				// status laps from the oldest rows next run
+				delete(state.Retention, key)
+			}
+			if len(candidates) == 0 {
+				break
+			}
+			last := candidates[len(candidates)-1]
+			cursor = fleet.MDMAppleCommandCleanupCursor{UpdatedAt: last.UpdatedAt, ID: last.ID, CommandUUID: last.CommandUUID}
+			if pageFull {
+				state.Retention[key] = cursor
+			}
+
+			pairs, err := ds.classifyNanoCandidates(ctx, candidates, inClass)
+			if err != nil {
+				return deleted, touched, false, err
+			}
+			if len(pairs) == 0 {
+				if !pageFull {
+					break
+				}
+				continue
+			}
+			n, err := ds.deleteNanoQueuePairs(ctx, pairs)
+			if err != nil {
+				return deleted, touched, false, err
+			}
+			deleted += n
+			for _, p := range pairs {
+				touched = append(touched, p.CommandUUID)
+			}
+			if !pageFull {
+				break
+			}
+		}
+		if pageFull {
+			// scan cap reached with a full last page: this status has more
+			// candidates behind its cursor
+			capped = true
+		}
+	}
+	return deleted, touched, capped, nil
+}
+
+// classifyNanoCandidates keeps the candidates whose command is accepted by
+// inClass and not referenced by any feature.
+func (ds *Datastore) classifyNanoCandidates(ctx context.Context, candidates []nanoResultCandidate, inClass func(requestType, uuid string) bool) ([]nanoQueuePair, error) {
+	uuids := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		uuids = append(uuids, c.CommandUUID)
+	}
+	uuids = uniqueStrings(uuids)
+
+	stmt, args, err := sqlx.In(`SELECT command_uuid, request_type FROM nano_commands WHERE command_uuid IN (?)`, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build nano commands request type query")
+	}
+	var cmds []struct {
+		CommandUUID string `db:"command_uuid"`
+		RequestType string `db:"request_type"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &cmds, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select nano commands request types")
+	}
+	eligible := make([]string, 0, len(cmds))
+	for _, c := range cmds {
+		if inClass(c.RequestType, c.CommandUUID) {
+			eligible = append(eligible, c.CommandUUID)
+		}
+	}
+	if len(eligible) == 0 {
+		return nil, nil
+	}
+	safe, err := ds.unreferencedNanoCommands(ctx, eligible)
+	if err != nil {
+		return nil, err
+	}
+	var pairs []nanoQueuePair
+	for _, c := range candidates {
+		if _, ok := safe[c.CommandUUID]; ok {
+			pairs = append(pairs, c.nanoQueuePair)
+		}
+	}
+	return pairs, nil
 }
 
 // purgeInactiveNanoCommands deletes queue rows deactivated more than
@@ -119,6 +317,8 @@ func (ds *Datastore) purgeInactiveNanoCommands(ctx context.Context, retention ti
 
 	var deleted int
 	var touched []string
+	// below every real row: priority is a signed tinyint and a zero time.Time
+	// sorts under any TIMESTAMP
 	cursor := nanoQueueCandidate{Priority: -128, CreatedAt: time.Time{}}
 	for range nanoCleanupMaxScansPerRun {
 		limit := min(nanoCleanupScanBatchSize, budget-deleted)
@@ -168,8 +368,8 @@ func (ds *Datastore) purgeInactiveNanoCommands(ctx context.Context, retention ti
 			return deleted, touched, false, err
 		}
 		deleted += n
-		for uuid := range safe {
-			touched = append(touched, uuid)
+		for _, p := range pairs {
+			touched = append(touched, p.CommandUUID)
 		}
 		if deleted >= budget {
 			return deleted, touched, true, nil

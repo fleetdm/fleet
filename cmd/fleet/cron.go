@@ -1365,6 +1365,7 @@ func newCleanupsAndAggregationSchedule(
 	svc fleet.Service,
 	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
+	cleanupStateStore fleet.MDMAppleCommandCleanupStateStore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
@@ -1678,7 +1679,7 @@ func newCleanupsAndAggregationSchedule(
 			return nil
 		}),
 		schedule.WithJob("cleanup_apple_mdm_commands", func(ctx context.Context) error {
-			return cleanupAppleMDMCommandsJob(ctx, ds, config.MDM, logger)
+			return cleanupAppleMDMCommandsJob(ctx, ds, cleanupStateStore, config.MDM, logger)
 		}),
 		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
 			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
@@ -2291,7 +2292,11 @@ func apnsPusherJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm
 // transaction and the rest is picked up next tick.
 const appleCommandCleanupMaxRunTime = 10 * time.Minute
 
-func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, cfg config.MDMConfig, logger *slog.Logger) error {
+// cleanupAppleMDMCommandsJob runs one tick of the Apple MDM command cleanup.
+// stateStore is nil when there is nowhere to keep the sweeps' cursors between
+// runs; every run then starts from the oldest rows, which is slower, never
+// wrong.
+func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateStore fleet.MDMAppleCommandCleanupStateStore, cfg config.MDMConfig, logger *slog.Logger) error {
 	ctx, cancel := context.WithTimeout(ctx, appleCommandCleanupMaxRunTime)
 	defer cancel()
 
@@ -2303,17 +2308,37 @@ func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, cfg con
 		return nil
 	}
 
-	stats, err := ds.CleanupNanoCommands(ctx, fleet.MDMAppleCommandCleanupOptions{
-		ShortRetention:  cfg.AppleCommandCleanupShortRetention,
-		MaxRowDeletions: cfg.AppleCommandCleanupMaxRowDeletionsPerRun,
-		MaxCmdDeletions: cfg.AppleCommandCleanupMaxCmdDeletionsPerRun,
-	})
+	var state *fleet.MDMAppleCommandCleanupState
+	if stateStore != nil {
+		var err error
+		if state, err = stateStore.GetMDMAppleCommandCleanupState(ctx); err != nil {
+			// a lost cursor only costs a restart from the oldest rows
+			logger.WarnContext(ctx, "failed to read apple mdm command cleanup state; scans restart from the oldest rows", "err", err)
+			state = nil
+		}
+	}
+	logger.InfoContext(ctx, "apple mdm command cleanup starting", "cursors", state)
+
+	state, stats, err := ds.CleanupNanoCommands(ctx, fleet.MDMAppleCommandCleanupOptions{
+		ShortRetention:    cfg.AppleCommandCleanupShortRetention,
+		StandardRetention: cfg.AppleCommandCleanupStandardRetention,
+		MaxRowDeletions:   cfg.AppleCommandCleanupMaxRowDeletionsPerRun,
+		MaxCmdDeletions:   cfg.AppleCommandCleanupMaxCmdDeletionsPerRun,
+	}, state)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup apple mdm commands")
 	}
+	if stateStore != nil {
+		if err := stateStore.SetMDMAppleCommandCleanupState(ctx, state); err != nil {
+			return ctxerr.Wrap(ctx, err, "save apple mdm command cleanup state")
+		}
+	}
 	logger.InfoContext(ctx, "cleaned up apple mdm commands",
 		"inactive_pairs_deleted", stats.InactivePairsDeleted,
-		"commands_deleted", stats.CommandsDeleted)
+		"short_retention_pairs_deleted", stats.ShortPairsDeleted,
+		"standard_retention_pairs_deleted", stats.StandardPairsDeleted,
+		"commands_deleted", stats.CommandsDeleted,
+		"cursors", state)
 	if stats.RowBudgetExhausted || stats.CmdBudgetExhausted {
 		logger.WarnContext(ctx, "apple mdm command cleanup stopped early, remaining rows will be cleaned on the next run",
 			"row_budget_exhausted", stats.RowBudgetExhausted,
