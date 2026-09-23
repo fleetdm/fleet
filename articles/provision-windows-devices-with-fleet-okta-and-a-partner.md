@@ -50,7 +50,6 @@ Windows MDM turns on after someone signs in to the device, so the profile instal
 
 Follow the [Build fleetd](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package#build-fleetd), [Create the provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package#create-the-provisioning-package), and [Export the package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package#export-the-package) sections of the provisioning package guide. Use the enroll secret for the fleet from Step 1.
 
-> **Warning:** The package contains your enroll secret. Encrypt it when you export it, and rotate the enroll secret if the package leaves your partner's control.
 
 ## Share with your partner
 
