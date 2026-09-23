@@ -306,12 +306,16 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
       currentUser: ADMIN,
       isGlobalAdmin: true,
     });
-    await screen.findByText("Vitals");
+    await screen.findByText(/fetching fresh vitals/i);
+    // The spinner clears only once the offline response has gone through the toast decision.
     await waitFor(
       () => {
         expect(
           (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
         ).toBeGreaterThan(1);
+        expect(
+          screen.queryByText(/fetching fresh vitals/i)
+        ).not.toBeInTheDocument();
       },
       { timeout: 5000 }
     );
