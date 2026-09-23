@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260923172955, Down_20260923172955)
+	MigrationClient.AddMigration(Up_20260923180303, Down_20260923180303)
 }
 
-func Up_20260923172955(tx *sql.Tx) error {
+func Up_20260923180303(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS android_zero_touch_tokens (
   id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -26,6 +26,6 @@ CREATE TABLE IF NOT EXISTS android_zero_touch_tokens (
 	return err
 }
 
-func Down_20260923172955(tx *sql.Tx) error {
+func Down_20260923180303(tx *sql.Tx) error {
 	return nil
 }
