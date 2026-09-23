@@ -139,8 +139,7 @@ const RunScriptModal = ({
   const renderEmptyStateInfo = () => {
     const addScriptInfo = canAddScript ? (
       <>
-        <CustomLink url={addScriptUrl} text="Add a script" /> available to this
-        host.
+        <CustomLink url={addScriptUrl} text="Add a script" />.
       </>
     ) : (
       "Ask your admin to add a script for this host."

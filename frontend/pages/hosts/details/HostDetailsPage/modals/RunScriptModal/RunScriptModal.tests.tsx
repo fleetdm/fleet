@@ -55,7 +55,6 @@ describe("RunScriptModal", () => {
         "href",
         expect.stringContaining("fleet_id=7")
       );
-      expect(screen.getByText(/available to this host/i)).toBeInTheDocument();
     });
 
     it("falls back to fleet_id=0 (No team) when the host is unassigned", () => {
