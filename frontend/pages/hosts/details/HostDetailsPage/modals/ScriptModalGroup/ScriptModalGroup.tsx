@@ -47,6 +47,9 @@ const ScriptModalGroup = ({
     ModalGroupOption.Run
   );
   const [runScriptTablePage, setRunScriptTablePage] = useState(0);
+  const [runScriptSortDirection, setRunScriptSortDirection] = useState<
+    "asc" | "desc"
+  >("asc");
   const [selectedExecutionId, setSelectedExecutionId] = useState<
     string | undefined
   >(undefined);
@@ -76,6 +79,8 @@ const ScriptModalGroup = ({
         host_id: host.id,
         page: runScriptTablePage,
         per_page: RUN_SCRIPT_PAGE_SIZE,
+        order_key: "name",
+        order_direction: runScriptSortDirection,
       },
     ],
     ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
@@ -175,6 +180,8 @@ const ScriptModalGroup = ({
         onClickRunDetails={onClickRunDetails}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
+        sortDirection={runScriptSortDirection}
+        setSortDirection={setRunScriptSortDirection}
         hostScriptResponse={runScriptTableResponse}
         isRunningScript={isRunningScript}
         isFetchingHostScripts={isFetchingHostScripts}

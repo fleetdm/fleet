@@ -14,6 +14,8 @@ const baseProps = {
   onClose: jest.fn(),
   page: 0,
   setPage: jest.fn(),
+  sortDirection: "asc" as const,
+  setSortDirection: jest.fn(),
   hostScriptResponse: {
     scripts: [],
     meta: { has_next_results: false, has_previous_results: false },

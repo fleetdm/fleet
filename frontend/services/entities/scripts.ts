@@ -60,6 +60,8 @@ export interface IHostScriptsApiParams {
   host_id: number;
   page?: number;
   per_page?: number;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
 }
 
 export interface IHostScriptsQueryKey extends IHostScriptsApiParams {
@@ -223,11 +225,19 @@ export interface IScriptBatchHostResultsResponse
 }
 
 export default {
-  getHostScripts({ host_id, page, per_page }: IHostScriptsApiParams) {
+  getHostScripts({
+    host_id,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IHostScriptsApiParams) {
     const { HOST_SCRIPTS } = endpoints;
     const path = `${HOST_SCRIPTS(host_id)}?${buildQueryStringFromParams({
       page,
       per_page,
+      order_key,
+      order_direction,
     })}`;
 
     return sendRequest("GET", path);
