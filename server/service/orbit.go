@@ -1362,9 +1362,16 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	// literal rather than go through the expansions above. Skip executions
 	// that already have a result so a re-fetch can't record a second one.
 	if script.ExitCode == nil {
-		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
+		var expanded string
+		var failureMessage string
+		// a notification's script is Fleet's own, and carries only its URL variable
+		if isNotificationScript(script) {
+			expanded, failureMessage = svc.expandNotificationURL(ctx, host, script)
+		} else {
+			expanded, failureMessage, err = svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
+			}
 		}
 		if failureMessage != "" {
 			// Record the failed result server-side so the execution leaves the
@@ -1426,6 +1433,16 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		return ctxerr.Wrap(ctx, err, "save host script result")
 	}
 
+	var isNotification bool
+	if hsr != nil && isNotificationScript(hsr) {
+		isNotification = true
+	}
+
+	err = svc.notificationsSvc.RecordOutcome(ctx, result.ExecutionID, int64(result.ExitCode), result.Output)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "record end user notification outcome")
+	}
+
 	// FIXME: datastore implementation of action seems rather brittle, can it be refactored?
 	var fromSetupExperience bool
 	if action == "" && fleet.IsSetupExperienceSupported(host.Platform) {
@@ -1446,8 +1463,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		}
 	}
 
-	// don't create a "past" activity if the result was for a canceled activity
-	if hsr != nil && !hsr.Canceled {
+	// don't create a "past" activity if the result was for a canceled activity, or
+	// for an end user notification
+	if hsr != nil && !hsr.Canceled && !isNotification {
 		var user *fleet.User
 		if hsr.UserID != nil {
 			user, err = svc.ds.UserByID(ctx, *hsr.UserID)
@@ -1510,8 +1528,9 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			// cancel them silently before falling through to record the
 			// "ran script" activity for the wipe itself.
 			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return err
 				}
 			}
 			fallthrough
@@ -2160,12 +2179,12 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	preInstallConditionFailed := result.Status() == fleet.SoftwareInstallFailed &&
 		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == ""
 
-	// A patch-when-closed policy install whose managed app-open query returned no result means the
-	// app was open: a skip, not a failure. Key on the snapshotted patch_when_closed flag on the
-	// install row (not the current policies value, and not policy_id) so that a policy deleted
-	// between activation and this result callback — which nulls policy_id via ON DELETE SET NULL —
-	// still classifies as a skip. An ordinary empty pre_install_query on a non-patch policy has
-	// patch_when_closed = 0 on the snapshot and continues to fail and count toward the retry cap.
+	// A patch policy install whose managed app-open query returned no result means the app was
+	// open: a skip, not a failure. Key on the snapshotted override_pre_install_query flag on the
+	// install row, not the current policies value and not policy_id, so that a policy deleted
+	// between activation and this result callback (which nulls policy_id via ON DELETE SET NULL)
+	// still classifies as a skip. An ordinary empty pre_install_query on a non-patch install has
+	// override_pre_install_query = 0 and continues to fail and count toward the retry cap.
 	//
 	// Force read from primary: on a fresh activation the snapshot may not have replicated yet,
 	// and a stale/missing read would silently downgrade a real skip into an ordinary failure
@@ -2177,13 +2196,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		case curErr != nil:
 			svc.logger.ErrorContext(
 				ctx,
-				"failed to load install result for patch-when-closed skip classification; defaulting to failure",
+				"failed to load install result for app-open skip classification; defaulting to failure",
 				"host_id", host.ID,
 				"install_uuid", result.InstallUUID,
 				"err", curErr,
 			)
 		case cur != nil:
-			isAppOpenSkip = cur.PatchWhenClosed
+			isAppOpenSkip = cur.OverridePreInstallQuery
 		}
 	}
 
@@ -2383,6 +2402,20 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
+		// The install result and its activity are already recorded, so a failure
+		// here is logged rather than returned: failing the request would have orbit
+		// report the same result again and emit a second activity.
+		if isAppOpenSkip && hsi.NotifyBeforePatching {
+			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
+				svc.logger.ErrorContext(ctx,
+					"failed to create patch notification for end user",
+					"host_id", host.ID,
+					"install_uuid", result.InstallUUID,
+					"err", err,
+				)
+			}
+		}
+
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery
 		if status == fleet.SoftwareInstalled {
 			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
@@ -2469,9 +2502,11 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 		"software_installer_id", installerID,
 		"current_attempt", *hsi.AttemptNumber,
 	)
+	// The retry needs the same app open decision as the attempt it retries.
 	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID:        hsi.PolicyID,
-		DeferActivation: svc.deferFleetInitiatedActivation(),
+		PolicyID:                hsi.PolicyID,
+		OverridePreInstallQuery: hsi.OverridePreInstallQuery,
+		DeferActivation:         svc.deferFleetInitiatedActivation(),
 	})
 	return err
 }

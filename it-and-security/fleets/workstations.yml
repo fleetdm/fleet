@@ -163,6 +163,7 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
     - path: ../lib/linux/scripts/update-claude-desktop.sh
+    - path: ../lib/linux/scripts/configure-okta-verify-org-url.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:

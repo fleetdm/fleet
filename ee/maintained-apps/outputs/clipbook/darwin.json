@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.1",
+      "version": "2.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '2.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '2.2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ikryanov.clipbook' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-2.2.1.dmg",
+      "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-2.2.2.dmg",
       "install_script_ref": "d0558c9f",
       "uninstall_script_ref": "c39b636f",
-      "sha256": "3b682b0e852f164fd108d1521a454811e18b9e0012f0a253f12f8f919460dc8d",
+      "sha256": "be07eea7d88c41abd34815b92c63d80eb5d35bf8d82fb0f04cc4fab60c3da6b7",
       "default_categories": [
         "Utilities"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.5.4",
+      "version": "1.5.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.sbarex.QLMarkdown';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.sbarex.QLMarkdown' AND version_compare(bundle_short_version, '1.5.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.sbarex.QLMarkdown' AND version_compare(bundle_short_version, '1.5.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.sbarex.QLMarkdown' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/sbarex/QLMarkdown/releases/download/1.5.4/QLMarkdown.zip",
+      "installer_url": "https://github.com/sbarex/QLMarkdown/releases/download/1.5.5/QLMarkdown.zip",
       "install_script_ref": "7c9742c4",
       "uninstall_script_ref": "130b108e",
-      "sha256": "d1286d3d4ada0c90ee8c4aafeef92cfc5eefcd98cc558d6234e9dff07e7121d9",
+      "sha256": "d8569e2b2e6dcf6c221c6491252ffa2bead187807218dfc21e288926b4e65bdd",
       "default_categories": [
         "Productivity"
       ]
