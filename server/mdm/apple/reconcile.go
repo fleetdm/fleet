@@ -1058,14 +1058,14 @@ func ReconcileProfilesForEnrollingHost(
 	// Defer user-scoped profile delivery to the cron — see function comment.
 	toInstall = fleet.FilterOutUserScopedProfiles(toInstall)
 
-	if len(toInstall) == 0 && len(toRemove) == 0 && (optInChanges == nil || (len(optInChanges.Add) == 0 && len(optInChanges.Purge) == 0)) {
-		return nil, nil
-	}
-
-	if optInChanges != nil {
+	if len(optInChanges.Add) > 0 || len(optInChanges.Purge) > 0 {
 		if err := ds.ApplyHostMDMProfileOptInChanges(ctx, optInChanges); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "applying host mdm profile opt-in changes")
 		}
+	}
+
+	if len(toInstall) == 0 && len(toRemove) == 0 {
+		return nil, nil
 	}
 
 	return ExecuteReconcileBatch(

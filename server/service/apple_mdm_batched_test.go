@@ -81,7 +81,8 @@ func TestReconcileAppleProfilesBatchedOptIns(t *testing.T) {
 	})
 
 	t.Run("nothing to do -> opt-ins untouched, nothing enqueued", func(t *testing.T) {
-		ds, _ := newAppleReconcileBatchedMockDS(t,
+		ds, _ := newAppleReconcileBatchedMockDS(
+			t,
 			[]*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{forced},
 			map[string][]*fleet.MDMAppleProfilePayload{hostA.UUID: {verifiedRow(hostA, forced)}}, false,
 		)
@@ -92,7 +93,8 @@ func TestReconcileAppleProfilesBatchedOptIns(t *testing.T) {
 	})
 
 	t.Run("purge-only tick (self-service flipped to force install) applies the purge", func(t *testing.T) {
-		ds, _ := newAppleReconcileBatchedMockDS(t,
+		ds, _ := newAppleReconcileBatchedMockDS(
+			t,
 			[]*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{forced},
 			map[string][]*fleet.MDMAppleProfilePayload{hostA.UUID: {verifiedRow(hostA, forced)}}, false,
 		)
@@ -113,7 +115,8 @@ func TestReconcileAppleProfilesBatchedOptIns(t *testing.T) {
 	})
 
 	t.Run("un-opted self-service profile is not installed", func(t *testing.T) {
-		ds, _ := newAppleReconcileBatchedMockDS(t,
+		ds, _ := newAppleReconcileBatchedMockDS(
+			t,
 			[]*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{selfService}, nil, false,
 		)
 
@@ -134,7 +137,8 @@ func TestReconcileAppleProfilesBatchedOptIns(t *testing.T) {
 	})
 
 	t.Run("opt-in apply error aborts the tick without advancing the cursor", func(t *testing.T) {
-		ds, _ := newAppleReconcileBatchedMockDS(t,
+		ds, _ := newAppleReconcileBatchedMockDS(
+			t,
 			[]*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{forced},
 			map[string][]*fleet.MDMAppleProfilePayload{hostA.UUID: {verifiedRow(hostA, forced)}}, true,
 		)
