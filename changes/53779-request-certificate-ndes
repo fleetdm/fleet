@@ -1,1 +1,3 @@
 - Added support for NDES certificate authority type in the "Request certificate" API.
+- Added the "Request certificate challenge" API (`POST /api/v1/fleet/certificate_authorities/:id/request_challenge`), which returns a one-time challenge from an NDES certificate authority to include in the CSR sent to the "Request certificate" API. Both APIs return 503 with a `Retry-After` header when NDES is temporarily unavailable, and the challenge API also does so when the NDES password cache is full.
+- NDES challenge errors in configuration profile failure details now name the failing step instead of starting with a stray ": ".

@@ -644,7 +644,11 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	resp, err := client.Do(req)
 	endRequestTime := time.Now()
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "sending request")
+		if errors.Is(err, context.Canceled) {
+			return "", ctxerr.Wrap(ctx, err, "sending request")
+		}
+		// No response at all is expected to clear on its own, like a 5xx.
+		return "", ctxerr.Wrap(ctx, NDESTransientError{msg: err.Error(), cause: err}, "sending request")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -658,11 +662,11 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 		if ndesRetryableStatus(resp.StatusCode) {
 			return "", ctxerr.Wrap(ctx, NewNDESTransientError(fmt.Sprintf(
 				"NDES admin URL returned status %d; could not retrieve the enrollment challenge password",
-				resp.StatusCode)))
+				resp.StatusCode)), "checking response status")
 		}
 		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
-			resp.StatusCode)})
+			resp.StatusCode)}, "checking response status")
 	}
 
 	// Read raw bytes first to detect encoding
@@ -682,10 +686,10 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 		switch {
 		case strings.Contains(htmlString, fullPasswordCache):
 			return "", ctxerr.Wrap(ctx,
-				NewNDESPasswordCacheFullError("the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created"))
+				NewNDESPasswordCacheFullError("the password cache is full; please increase the number of cached passwords in NDES; by default, NDES caches 5 passwords and they expire 60 minutes after they are created"), "parsing challenge from response")
 		case strings.Contains(htmlString, ndesInsufficientPermissions):
 			return "", ctxerr.Wrap(ctx,
-				NewNDESInsufficientPermissionsError("this account does not have sufficient permissions to enroll with SCEP. Please use a different account with NDES SCEP enroll permissions."))
+				NewNDESInsufficientPermissionsError("this account does not have sufficient permissions to enroll with SCEP. Please use a different account with NDES SCEP enroll permissions."), "parsing challenge from response")
 		}
 
 		s.logger.WarnContext(ctx, "failed to parse NDES challenge from admin URL response",
@@ -695,7 +699,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
 		)
 		return "", ctxerr.Wrap(ctx,
-			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"))
+			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"), "parsing challenge from response")
 	}
 	return challenge, nil
 }
@@ -778,11 +782,16 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 // NDESTransientError is a challenge-fetch failure where NDES answered but could not serve the request, so it is
 // expected to clear without anyone acting.
 type NDESTransientError struct {
-	msg string
+	msg   string
+	cause error
 }
 
 func (e NDESTransientError) Error() string {
 	return e.msg
+}
+
+func (e NDESTransientError) Unwrap() error {
+	return e.cause
 }
 
 func NewNDESTransientError(msg string) NDESTransientError {

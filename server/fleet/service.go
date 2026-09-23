@@ -1688,6 +1688,9 @@ type Service interface {
 	// UpdateCertificateAuthority updates the certificate authority of the given id
 	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
 	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
+	// RequestCertificateChallenge returns a one-time challenge from the certificate authority of the
+	// given id, for the caller to place in the CSR it sends to RequestCertificate.
+	RequestCertificateChallenge(ctx context.Context, caID uint) (string, error)
 
 	// BatchApplyCertificateAuthorities applies the given certificate authorities spec
 	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, opts BatchApplyCertificateAuthoritiesOpts) error

@@ -246,3 +246,52 @@ func TestCertificateAuthorityESTProxyCA(t *testing.T) {
 		})
 	}
 }
+
+func TestCertificateAuthorityNDESSCEPProxyCA(t *testing.T) {
+	ndes := func(url, adminURL, username, password *string) CertificateAuthority {
+		return CertificateAuthority{
+			ID: 1, Type: string(CATypeNDESSCEPProxy), Name: new("NDES"),
+			URL: url, AdminURL: adminURL, Username: username, Password: password,
+		}
+	}
+	for name, tc := range map[string]struct {
+		ca      CertificateAuthority
+		want    NDESSCEPProxyCA
+		wantErr string
+	}{
+		"all fields": {
+			ca:   ndes(new("https://ndes.example.com/scep"), new("https://ndes.example.com/admin"), new("user"), new("pass")),
+			want: NDESSCEPProxyCA{ID: 1, URL: "https://ndes.example.com/scep", AdminURL: "https://ndes.example.com/admin", Username: "user", Password: "pass"},
+		},
+		"without a SCEP URL": {
+			ca:      ndes(nil, new("a"), new("u"), new("p")),
+			wantErr: "Certificate authority does not have a SCEP URL configured.",
+		},
+		"without an admin URL": {
+			ca:      ndes(new("s"), nil, new("u"), new("p")),
+			wantErr: "Certificate authority does not have an admin URL configured.",
+		},
+		"without a username": {
+			ca:      ndes(new("s"), new("a"), nil, new("p")),
+			wantErr: "Certificate authority does not have a username configured.",
+		},
+		"without a password": {
+			ca:      ndes(new("s"), new("a"), new("u"), nil),
+			wantErr: "Certificate authority does not have a password configured.",
+		},
+		"another type is not an NDES CA": {
+			ca:      CertificateAuthority{Type: string(CATypeHydrant), Name: new("Hydrant"), URL: new("u")},
+			wantErr: "Certificate authority of type hydrant is not an NDES certificate authority.",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.ca.NDESSCEPProxyCA()
+			if tc.wantErr != "" {
+				require.EqualError(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

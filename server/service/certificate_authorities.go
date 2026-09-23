@@ -174,6 +174,34 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	return nil, fleet.ErrMissingLicense
 }
 
+type requestCertificateChallengeRequest struct {
+	ID uint `url:"id"`
+}
+
+type requestCertificateChallengeResponse struct {
+	Challenge string `json:"challenge"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r requestCertificateChallengeResponse) Error() error { return r.Err }
+
+func requestCertificateChallengeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*requestCertificateChallengeRequest)
+
+	challenge, err := svc.RequestCertificateChallenge(ctx, req.ID)
+	if err != nil {
+		return requestCertificateChallengeResponse{Err: err}, nil
+	}
+
+	return requestCertificateChallengeResponse{Challenge: challenge}, nil
+}
+
+func (svc *Service) RequestCertificateChallenge(ctx context.Context, caID uint) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return "", fleet.ErrMissingLicense
+}
+
 type batchApplyCertificateAuthoritiesRequest struct {
 	CertificateAuthorities fleet.GroupedCertificateAuthorities `json:"certificate_authorities"`
 	DryRun                 bool                                `json:"dry_run"`

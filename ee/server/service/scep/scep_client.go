@@ -122,8 +122,8 @@ func certificateForCSR(ctx context.Context, certs []*x509.Certificate, csr *x509
 	return nil, ctxerr.New(ctx, "SCEP CertRep has no certificate for the CSR's public key")
 }
 
-// enrollmentRetryAfterSeconds is the Retry-After for a transient SCEP request failure.
-const enrollmentRetryAfterSeconds = 30
+// TransientRetryAfterSeconds is the Retry-After for a transient failure to reach a SCEP or NDES CA.
+const TransientRetryAfterSeconds = 30
 
 // wrapRequestError marks a GetCACert or PKIOperation failure that should clear on its own as
 // transient. The cause is kept as text because wrapping a *net.OpError makes the encoder answer 408,
@@ -139,7 +139,7 @@ func wrapRequestError(ctx context.Context, err error, msg string) error {
 	}
 	return fleet.CertificateAuthorityTransientError{
 		Message:           msg + ": " + err.Error(),
-		RetryAfterSeconds: enrollmentRetryAfterSeconds,
+		RetryAfterSeconds: TransientRetryAfterSeconds,
 	}
 }
 

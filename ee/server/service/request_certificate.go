@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -24,28 +25,8 @@ import (
 
 // This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
 func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error) {
-	auth, authOk := authz.FromContext(ctx)
-	if !authOk {
-		// This shouldn't be possible
-		return nil, &fleet.BadRequestError{Message: "Missing authentication authorization context"}
-	}
-
-	var hostID *uint
-	if auth.AuthnMethod() == authz.AuthnHTTPMessageSignature {
-		// Device-auth path
-		svc.authz.SkipAuthorization(ctx)
-
-		hostIdentityCert, certOk := httpsig.FromContext(ctx)
-		if !certOk {
-			return nil, fleet.NewPermissionError("Missing host identity certificate for signed certificate request.")
-		}
-		if hostIdentityCert.HostID == nil {
-			return nil, fleet.NewPermissionError("Host identity certificate is not associated with an enrolled host.")
-		}
-		hostID = hostIdentityCert.HostID
-
-	} else if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
-		// User-based auth path
+	hostID, err := svc.authorizeCertificateRequest(ctx)
+	if err != nil {
 		return nil, err
 	}
 
@@ -91,6 +72,70 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, ctxerr.Wrap(ctx, err, "converting PKCS7 envelope to PEM certificate")
 	}
 	return &pemCert, nil
+}
+
+func (svc *Service) RequestCertificateChallenge(ctx context.Context, caID uint) (string, error) {
+	if _, err := svc.authorizeCertificateRequest(ctx); err != nil {
+		return "", err
+	}
+
+	ca, err := svc.ds.GetCertificateAuthorityByID(ctx, caID, true)
+	if err != nil {
+		return "", err
+	}
+
+	if fleet.CAType(ca.Type) != fleet.CATypeNDESSCEPProxy {
+		return "", &fleet.BadRequestError{Message: "This certificate authority does not issue challenges."}
+	}
+	ndesCA, err := ca.NDESSCEPProxyCA()
+	if err != nil {
+		return "", &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
+	}
+
+	challenge, err := svc.scepConfigService.GetNDESSCEPChallenge(ctx, ndesCA)
+	if err != nil {
+		err = ctxerr.Wrap(ctx, err, "NDES challenge request failed")
+		svc.logger.ErrorContext(ctx, "Certificate challenge request to the certificate authority failed", "ca_id", ca.ID, "ca_type", ca.Type, "err", err)
+		// Unlike for profiles, a full password cache is worth retrying here: callers use their
+		// challenge within seconds, which frees its slot.
+		_, transient := errors.AsType[scep.NDESTransientError](err)
+		_, cacheFull := errors.AsType[scep.NDESPasswordCacheFullError](err)
+		if transient || cacheFull {
+			return "", fleet.CertificateAuthorityTransientError{Message: err.Error(), RetryAfterSeconds: scep.TransientRetryAfterSeconds}
+		}
+		return "", &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
+	}
+	return challenge, nil
+}
+
+// authorizeCertificateRequest authorizes a certificate or challenge request. It returns the calling
+// host for device-signed requests and nil for user requests.
+func (svc *Service) authorizeCertificateRequest(ctx context.Context) (*uint, error) {
+	auth, authOk := authz.FromContext(ctx)
+	if !authOk {
+		// This shouldn't be possible
+		return nil, &fleet.BadRequestError{Message: "Missing authentication authorization context"}
+	}
+
+	if auth.AuthnMethod() == authz.AuthnHTTPMessageSignature {
+		// Device-auth path
+		svc.authz.SkipAuthorization(ctx)
+
+		hostIdentityCert, certOk := httpsig.FromContext(ctx)
+		if !certOk {
+			return nil, fleet.NewPermissionError("Missing host identity certificate for signed certificate request.")
+		}
+		if hostIdentityCert.HostID == nil {
+			return nil, fleet.NewPermissionError("Host identity certificate is not associated with an enrolled host.")
+		}
+		return hostIdentityCert.HostID, nil
+	}
+
+	// User-based auth path
+	if err := svc.authz.Authorize(ctx, &fleet.RequestCertificatePayload{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 // verifyRequesterIdentity applies the identity safeguards to the CSR: the IdP introspection

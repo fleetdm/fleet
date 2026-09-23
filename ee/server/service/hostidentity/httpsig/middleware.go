@@ -19,6 +19,7 @@ const hostIdentityKey key = 0
 
 var sigAuthenticatedEndpoints = []*regexp.Regexp{
 	regexp.MustCompile(`^/api/(?:v1|latest)/fleet/certificate_authorities/\d+/request_certificate$`),
+	regexp.MustCompile(`^/api/(?:v1|latest)/fleet/certificate_authorities/\d+/request_challenge$`),
 	regexp.MustCompile(`^/api/fleet/orbit/`),
 	regexp.MustCompile(`/osquery/`),
 }

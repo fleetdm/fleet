@@ -1184,6 +1184,184 @@ func TestRequestCertificate(t *testing.T) {
 	})
 }
 
+func TestRequestCertificateChallenge(t *testing.T) {
+	const challenge = "8CE317021F690069"
+
+	var cas []*fleet.CertificateAuthority
+	newCA := func(ca fleet.CertificateAuthority) *fleet.CertificateAuthority {
+		ca.ID = uint(len(cas) + 1)
+		ca.Name = new(ca.Type)
+		cas = append(cas, &ca)
+		return &ca
+	}
+	newNDESCA := func(adminURL string) *fleet.CertificateAuthority {
+		return newCA(fleet.CertificateAuthority{
+			Type:     string(fleet.CATypeNDESSCEPProxy),
+			URL:      new("https://ndes.example.com/certsrv/mscep/mscep.dll"),
+			AdminURL: new(adminURL),
+			Username: new("ndes-user"),
+			Password: new("ndes-password"),
+		})
+	}
+
+	ndesCA := newNDESCA(sceptest.NewTestNDESAdminServer(t, "mscep_admin_password", http.StatusOK).URL)
+	cacheFullCA := newNDESCA(sceptest.NewTestNDESAdminServer(t, "mscep_admin_cache_full", http.StatusOK).URL)
+	badCredentialsCA := newNDESCA(sceptest.NewTestNDESAdminServerWithAuth(t, func(string, string) bool { return false }, nil).URL)
+	unavailableServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(unavailableServer.Close)
+	unavailableCA := newNDESCA(unavailableServer.URL)
+	unreachableServer := httptest.NewServer(http.NotFoundHandler())
+	unreachableServer.Close()
+	unreachableCA := newNDESCA(unreachableServer.URL)
+	noAdminURLCA := newCA(fleet.CertificateAuthority{
+		Type:     string(fleet.CATypeNDESSCEPProxy),
+		URL:      new("https://ndes.example.com/certsrv/mscep/mscep.dll"),
+		Username: new("ndes-user"),
+		Password: new("ndes-password"),
+	})
+
+	hydrantCA := newCA(fleet.CertificateAuthority{Type: string(fleet.CATypeHydrant), URL: new("https://hydrant.example.com"), ClientID: new("id"), ClientSecret: new("secret")})
+	estCA := newCA(fleet.CertificateAuthority{Type: string(fleet.CATypeCustomESTProxy), URL: new("https://est.example.com"), Username: new("user"), Password: new("pass")})
+	digicertCA := newCA(fleet.CertificateAuthority{Type: string(fleet.CATypeDigiCert), URL: new("https://api.digicert.com"), APIToken: new("token"), ProfileID: new("profile")})
+	customSCEPCA := newCA(fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://scep.example.com"), Challenge: new("static")})
+	smallstepCA := newCA(fleet.CertificateAuthority{Type: string(fleet.CATypeSmallstep), URL: new("https://smallstep.example.com")})
+
+	setup := func(t *testing.T, authnMethod authz_ctx.AuthenticationMethod) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		ds := new(mock.Store)
+		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+			require.True(t, includeSecrets, "the challenge request needs the CA credentials")
+			for _, ca := range cas {
+				if ca.ID == id {
+					return ca, nil
+				}
+			}
+			return nil, common_mysql.NotFound("certificate authority")
+		}
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		svc := &Service{
+			logger:            logger,
+			ds:                ds,
+			authz:             authorizer,
+			scepConfigService: scep.NewSCEPConfigService(logger, new(5*time.Second)),
+		}
+		authCtx := &authz_ctx.AuthorizationContext{}
+		authCtx.SetAuthnMethod(authnMethod)
+		return svc, ds, authz_ctx.NewContext(t.Context(), authCtx)
+	}
+	userSetup := func(t *testing.T, user *fleet.User) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		svc, ds, ctx := setup(t, authz_ctx.AuthnUserToken)
+		return svc, ds, viewer.NewContext(ctx, viewer.Viewer{User: user})
+	}
+	adminSetup := func(t *testing.T) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		return userSetup(t, &fleet.User{GlobalRole: new(fleet.RoleAdmin)})
+	}
+
+	t.Run("roles", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			user    *fleet.User
+			allowed bool
+		}{
+			"global admin":      {user: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, allowed: true},
+			"global maintainer": {user: &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, allowed: true},
+			"global observer":   {user: &fleet.User{GlobalRole: new(fleet.RoleObserver)}},
+			"global observer+":  {user: &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)}},
+			"global gitops":     {user: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}},
+			"global technician": {user: &fleet.User{GlobalRole: new(fleet.RoleTechnician)}},
+			"team admin":        {user: &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleAdmin}}}},
+			"team maintainer":   {user: &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleMaintainer}}}},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, ds, ctx := userSetup(t, tc.user)
+				got, err := svc.RequestCertificateChallenge(ctx, ndesCA.ID)
+				if tc.allowed {
+					require.NoError(t, err)
+					require.Equal(t, challenge, got)
+					return
+				}
+				var forbidden *authz.Forbidden
+				require.ErrorAs(t, err, &forbidden)
+				require.Empty(t, got)
+				require.False(t, ds.GetCertificateAuthorityByIDFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("HTTP message signature", func(t *testing.T) {
+		svc, _, ctx := setup(t, authz_ctx.AuthnHTTPMessageSignature)
+		ctx = httpsig.NewContext(ctx, types.HostIdentityCertificate{HostID: new(uint(1)), NotValidAfter: time.Now().Add(time.Hour)})
+		got, err := svc.RequestCertificateChallenge(ctx, ndesCA.ID)
+		require.NoError(t, err)
+		require.Equal(t, challenge, got)
+	})
+
+	t.Run("CA types without a challenge are bad requests", func(t *testing.T) {
+		for _, ca := range []*fleet.CertificateAuthority{hydrantCA, estCA, digicertCA, customSCEPCA, smallstepCA} {
+			t.Run(ca.Type, func(t *testing.T) {
+				svc, _, ctx := adminSetup(t)
+				got, err := svc.RequestCertificateChallenge(ctx, ca.ID)
+				var badRequest *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequest)
+				require.Equal(t, "This certificate authority does not issue challenges.", badRequest.Message)
+				require.Empty(t, got)
+			})
+		}
+	})
+
+	t.Run("nonexistent CA", func(t *testing.T) {
+		svc, _, ctx := adminSetup(t)
+		_, err := svc.RequestCertificateChallenge(ctx, 999)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("NDES failures that need someone to act are bad requests", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			ca          *fleet.CertificateAuthority
+			wantMessage string
+		}{
+			"CA without an admin URL": {ca: noAdminURLCA, wantMessage: "Certificate authority does not have an admin URL configured."},
+			"invalid credentials":     {ca: badCredentialsCA, wantMessage: "NDES challenge request failed: checking response status: unexpected status code: 401"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := adminSetup(t)
+				got, err := svc.RequestCertificateChallenge(ctx, tc.ca.ID)
+				var badRequest *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequest)
+				require.Contains(t, badRequest.Message, tc.wantMessage)
+				require.Empty(t, got)
+			})
+		}
+	})
+
+	t.Run("NDES failures expected to clear are a 503 with Retry-After", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			ca          *fleet.CertificateAuthority
+			wantMessage string
+		}{
+			"password cache full": {ca: cacheFullCA, wantMessage: "NDES challenge request failed: parsing challenge from response: the password cache is full"},
+			"NDES unavailable":    {ca: unavailableCA, wantMessage: "NDES challenge request failed: checking response status: NDES admin URL returned status 503"},
+			"NDES unreachable":    {ca: unreachableCA, wantMessage: "NDES challenge request failed: sending request"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := adminSetup(t)
+				got, err := svc.RequestCertificateChallenge(ctx, tc.ca.ID)
+				transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+				require.True(t, ok, "got %v", err)
+				require.Equal(t, http.StatusServiceUnavailable, transient.StatusCode())
+				require.Equal(t, 30, transient.RetryAfter())
+				require.Contains(t, transient.Message, tc.wantMessage)
+				require.Empty(t, got)
+			})
+		}
+	})
+}
+
 // Generated once; nothing needs distinct keys.
 var ndesTestCSRKey = sync.OnceValues(func() (*rsa.PrivateKey, error) {
 	return rsa.GenerateKey(rand.Reader, 2048)
