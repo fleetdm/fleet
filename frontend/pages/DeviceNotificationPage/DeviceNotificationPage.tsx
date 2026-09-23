@@ -130,10 +130,31 @@ const DeviceNotificationPage = ({
       retry: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
-      // Only poll while an install is outstanding, and keep polling in the
-      // background because the toast window is rarely the focused one.
-      refetchInterval: (view) =>
-        view?.items.some(isNotificationItemInstalling) ? 5000 : false,
+      // Poll every 5 seconds while an install is pending.
+      // Refetch the 5 minute reminder at install_at and then every minute, because the cron that queues its installs runs once a minute.
+      // Keep polling in the background because the toast window is rarely the focused one.
+      refetchInterval: (view) => {
+        if (view?.items.some(isNotificationItemInstalling)) {
+          return 5000;
+        }
+        // Stop polling once the notification is acted on, Fleet removes Update now then.
+        if (!view?.actions.some((action) => action.id === "update_now")) {
+          return false;
+        }
+        // Skip polling on the 1 hour notice, Fleet shows the reminder in a new toast.
+        if (view.actions.some((action) => action.id === "remind")) {
+          return false;
+        }
+        if (!view.install_at) {
+          return false;
+        }
+        const msUntilInstallAt =
+          new Date(view.install_at).getTime() - Date.now();
+        if (msUntilInstallAt <= 0) {
+          return 60000;
+        }
+        return msUntilInstallAt;
+      },
       refetchIntervalInBackground: true,
     }
   );

@@ -324,6 +324,11 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 
 	serverURL := appConfig.ServerSettings.ServerURL
 
+	var installAt *time.Time
+	if patchNotification != nil {
+		installAt = patchNotification.InstallAt
+	}
+
 	return &notifications_api.NotificationView{
 		UUID:                notification.UUID,
 		OrgLogoURLLightMode: fleet.AbsolutizeLogoURL(appConfig.OrgInfo.OrgLogoURLLightMode, serverURL),
@@ -332,6 +337,7 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 		Description:         description,
 		Items:               items,
 		Actions:             actions,
+		InstallAt:           installAt,
 	}, nil
 }
 
