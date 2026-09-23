@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -142,6 +143,16 @@ func (ds *Datastore) GetPatchNotification(ctx context.Context, notificationUUID 
 	return &patchNotification, nil
 }
 
+func (ds *Datastore) ClearPatchNotificationInstallAt(ctx context.Context, notificationUUID string) error {
+	const updateStmt = `UPDATE patch_notifications SET install_at = NULL WHERE notification_uuid = ?`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, notificationUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clear patch notification install at")
+	}
+	return nil
+}
+
 func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
 	// GREATEST means the deadline only ever moves later, so every notice the end user actually sees
 	// gets its full lead time even when the toast takes a while to reach the screen.
@@ -172,17 +183,25 @@ ON DUPLICATE KEY UPDATE install_at = GREATEST(COALESCE(install_at, VALUES(instal
 }
 
 func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
-	const selectStmt = `
+	// host_online uses the same window as the host list's online status: the shorter of the two
+	// check-in intervals, plus the buffer that keeps a host from flapping.
+	selectStmt := fmt.Sprintf(`
 SELECT
 	pn.notification_uuid,
 	pn.install_at,
 	neu.host_id,
 	neu.status,
 	neu.payload,
-	neu.displayed_at
+	neu.displayed_at,
+	DATE_ADD(
+		COALESCE(hst.seen_time, h.created_at),
+		INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+	) > NOW(6) AS host_online
 FROM
 	patch_notifications pn
 	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
+	JOIN hosts h ON h.id = neu.host_id
+	LEFT JOIN host_seen_times hst ON hst.host_id = h.id
 WHERE
 	pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
@@ -204,7 +223,7 @@ WHERE
 	AND neu.displayed_at IS NOT NULL
 ORDER BY pn.install_at
 LIMIT ?
-`
+`, fleet.OnlineIntervalBuffer)
 
 	var due []fleet.PatchNotificationDue
 	// reads the primary because the display that sets the deadline can be seconds old

@@ -403,9 +403,25 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		if duePatch.Status != notifications_api.EndUserNotificationDispatched {
 			return nil
 		}
-	} else if now.Before(duePatch.InstallAt) {
-		// the reminder was displayed and its five minutes are not up
-		return nil
+	} else {
+		if now.Before(duePatch.InstallAt) {
+			// leave the countdown running, the reminder's five minutes are not up
+			return nil
+		}
+
+		// Drop the deadline for a host nobody is at, so its apps stay open and the end user gets the
+		// hour again on their return.
+		if !duePatch.HostOnline {
+			err = k.ds.ClearPatchNotificationInstallAt(ctx, duePatch.NotificationUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "clear patch notification install at for an offline host")
+			}
+			err = k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "send the patch notification again to an offline host")
+			}
+			return nil
+		}
 	}
 
 	// leave out the apps updated since the notification was created, so the reminder stops naming them and nothing is queued for them

@@ -853,6 +853,9 @@ type Datastore interface {
 	// GetPatchNotification returns a notification's patch row, or nil when it has
 	// none.
 	GetPatchNotification(ctx context.Context, notificationUUID string) (*PatchNotification, error)
+	// ClearPatchNotificationInstallAt drops the deadline, so the next toast gives
+	// the end user a fresh hour.
+	ClearPatchNotificationInstallAt(ctx context.Context, notificationUUID string) error
 	// SetPatchNotificationInstallAt moves when the patch is forced out to installAt,
 	// never earlier, and returns the deadline in effect.
 	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)

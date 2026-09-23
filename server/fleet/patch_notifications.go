@@ -28,6 +28,8 @@ type PatchNotificationDue struct {
 	Payload          json.RawMessage `db:"payload"`
 	DisplayedAt      *time.Time      `db:"displayed_at"`
 	InstallAt        time.Time       `db:"install_at"`
+	// HostOnline is the same window the host list reports as the online status.
+	HostOnline bool `db:"host_online"`
 }
 
 type PatchNotificationAppDetail struct {

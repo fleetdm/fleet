@@ -446,6 +446,12 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	host := test.NewHost(t, ds, "due-host", "", "due-key", "due-uuid", now)
 
+	// a host last seen an hour ago is past its check-in window, so the batch reports it offline
+	awayHost := test.NewHost(t, ds, "away-host", "", "away-key", "away-uuid", now.Add(-time.Hour))
+	hostAway := newPatchNotification(t, ds, awayHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(hostAway, now.Add(-time.Minute))
+	markDisplayed(hostAway)
+
 	// A deadline 6 minutes out is outside the reminder window, one exactly 5 minutes out sits on its
 	// edge and is included, and one already past is due to install.
 	tooEarly := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
@@ -506,7 +512,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	for _, notification := range due {
 		byUUID[notification.NotificationUUID] = notification
 	}
-	require.Len(t, byUUID, 3)
+	require.Len(t, byUUID, 4)
 	require.NotContains(t, byUUID, tooEarly)
 	require.NotContains(t, byUUID, noDeadline)
 	require.NotContains(t, byUUID, reminderQueued)
@@ -524,9 +530,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	require.Contains(t, byUUID, pastDeadline)
 	require.NotNil(t, byUUID[pastDeadline].DisplayedAt)
+	require.True(t, byUUID[pastDeadline].HostOnline, "a host seen just now is inside its check-in window")
+
+	require.Contains(t, byUUID, hostAway)
+	require.False(t, byUUID[hostAway].HostOnline)
 
 	// the batch is ordered by deadline, so the oldest deadline is handled first
-	require.Len(t, due, 3)
+	require.Len(t, due, 4)
 	require.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 
 	// the limit caps the batch

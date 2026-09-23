@@ -89,6 +89,18 @@ func setTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string
 	})
 }
 
+// markTestHostSeen puts the host inside its online window, which the deadline pass
+// requires before it closes the end user's apps. The fixtures leave a host a minute
+// behind, outside that window.
+func markTestHostSeen(t *testing.T, ds *mysql.Datastore, hostID uint) {
+	t.Helper()
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`UPDATE host_seen_times SET seen_time = NOW(6) WHERE host_id = ?`, hostID)
+		return err
+	})
+}
+
 // getTestNotification reads a notification row directly, for asserting on
 // state the bounded context's own HTTP API doesn't expose (e.g. status,
 // execution_id).
@@ -925,6 +937,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		// one pass over both: the first is past install_at and installs, the second has just reached
 		// its reminder window
+		markTestHostSeen(t, s.ds, host.ID)
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
 		setTestInstallAt(t, s.ds, otherUUID, "NOW(6) + INTERVAL 4 MINUTE")
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
@@ -1434,6 +1447,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			"the second reminder gets its own five minutes, counted from when it was displayed")
 
 		// the five minutes are up on the first notification, whose reminder had the screen to itself
+		markTestHostSeen(t, s.ds, host.ID)
 		setTestInstallAt(t, s.ds, firstUUID, "NOW(6) - INTERVAL 1 MINUTE")
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		require.Equal(t, notifications_api.EndUserNotificationActed,

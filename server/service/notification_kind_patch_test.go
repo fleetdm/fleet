@@ -894,9 +894,13 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		alreadyActed bool
 		// the notification is already acted, which an earlier pass stopping part way through leaves behind
 		statusActed bool
+		// the host's last check-in sits outside its online window
+		hostOffline bool
 
 		wantReminder bool
-		wantInstalls []uint
+		// the deadline is dropped, so the end user's hour starts over on the next toast
+		wantDeadlineCleared bool
+		wantInstalls        []uint
 		// the pass tried to take the notification, whether or not it got it
 		wantActed       bool
 		wantAppsDropped []uint
@@ -1020,6 +1024,16 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantActed:         true,
 		},
 		{
+			name:                "a deadline reached on an offline host drops the deadline and sends the notification again",
+			untilDeadline:       -time.Minute,
+			displayed:           true,
+			reminder:            true,
+			installedVersions:   behind,
+			hostOffline:         true,
+			wantReminder:        true,
+			wantDeadlineCleared: true,
+		},
+		{
 			// an offline host and a reminder still on its way both leave displayed_at null, and
 			// neither has been seen, so the pass waits for the reminder to reach the screen
 			name:              "a notification past install_at with no displayed_at does nothing",
@@ -1060,8 +1074,11 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 					Payload:          payload,
 					DisplayedAt:      displayed,
 					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
+					HostOnline:       !c.hostOffline,
 				}}, nil
 			}
+
+			ds.ClearPatchNotificationInstallAtFunc = func(_ context.Context, _ string) error { return nil }
 
 			// dropped software titles stop being returned, as deleting their rows would do
 			dropped := make(map[uint]struct{})
@@ -1162,6 +1179,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			require.ElementsMatch(t, c.wantInstalls, installs)
 			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
 			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
+			require.Equal(t, c.wantDeadlineCleared, ds.ClearPatchNotificationInstallAtFuncInvoked)
 
 			if !c.wantReminder {
 				require.False(t, notificationSvc.delayInvoked)
