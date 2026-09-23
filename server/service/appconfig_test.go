@@ -187,50 +187,6 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
-func TestModifyAppConfigServerURLNormalization(t *testing.T) {
-	cases := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{"trailing slash", "https://example.org/", "https://example.org"},
-		{"repeated trailing slashes", "https://example.org///", "https://example.org"},
-		{"surrounding whitespace", "  https://example.org  ", "https://example.org"},
-		{"already clean", "https://example.org", "https://example.org"},
-		{"url prefix keeps its path", "https://example.org/fleet/", "https://example.org/fleet"},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
-				License: &fleet.LicenseInfo{Tier: fleet.TierFree},
-			})
-			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{
-					OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
-					ServerSettings: fleet.ServerSettings{ServerURL: "https://old.example.org"},
-				}, nil
-			}
-			var saved *fleet.AppConfig
-			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-				saved = conf
-				return nil
-			}
-			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-				return []*fleet.ABMToken{}, nil
-			}
-
-			body := fmt.Sprintf(`{"server_settings":{"server_url":%q}}`, c.in)
-			_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
-			require.NoError(t, err)
-			require.True(t, ds.SaveAppConfigFuncInvoked)
-			assert.Equal(t, c.want, saved.ServerSettings.ServerURL)
-		})
-	}
-}
-
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The

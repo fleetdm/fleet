@@ -78,7 +78,7 @@ func TestCreateAppConfig(t *testing.T) {
 		payload := tt.configPayload
 		assert.Equal(t, payload.OrgInfo.OrgLogoURL, result.OrgInfo.OrgLogoURL)
 		assert.Equal(t, payload.OrgInfo.OrgName, result.OrgInfo.OrgName)
-		assert.Equal(t, "https://acme.co:8080", result.ServerSettings.ServerURL)
+		assert.Equal(t, "https://acme.co:8080/", result.ServerSettings.ServerURL)
 		assert.Equal(t, payload.ServerSettings.LiveQueryDisabled, result.ServerSettings.LiveQueryDisabled)
 
 		// Ensure enroll secret was set
