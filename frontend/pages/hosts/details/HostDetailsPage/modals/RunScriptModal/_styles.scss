@@ -10,13 +10,19 @@
     margin-bottom: 9px; // Fixes cut off dropdown
   }
 
-  .modal-cta-wrap {
-    margin: $pad-xsmall 0 0 0;
+  &__table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__table-title {
+    font-size: $x-small;
+    font-weight: $bold;
   }
 
   &__loading {
-    .modal__header,
-    .modal-cta-wrap {
+    .modal__header {
       opacity: 0.6;
     }
   }

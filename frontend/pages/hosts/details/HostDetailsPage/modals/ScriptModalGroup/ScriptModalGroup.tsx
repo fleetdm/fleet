@@ -16,6 +16,7 @@ import scriptsAPI, {
 
 import ConfirmRunScriptModal from "../ConfirmRunScriptModal";
 import RunScriptModal from "../RunScriptModal";
+import { RUN_SCRIPT_PAGE_SIZE } from "../RunScriptModal/RunScriptModal";
 
 interface IScriptsProps {
   currentUser: IUser | null;
@@ -74,7 +75,7 @@ const ScriptModalGroup = ({
         scope: "host_scripts",
         host_id: host.id,
         page: runScriptTablePage,
-        per_page: 10,
+        per_page: RUN_SCRIPT_PAGE_SIZE,
       },
     ],
     ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
