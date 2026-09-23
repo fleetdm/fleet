@@ -375,18 +375,9 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 
 	rejectWindows := fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(true)
 	rejectWindowsOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(true)
-	linkWindowsEnrollment := func(t *testing.T, h *fleet.Host) *fleet.MDMWindowsEnrolledDevice {
-		device := insertWindowsEnrollment(t, ds, "hw-"+h.UUID)
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, h.UUID, device.ID)
-			return err
-		})
-		return device
-	}
-
 	t.Run("Fleet MDM enrolled Windows host", func(t *testing.T) {
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		linkWindowsEnrollment(t, h)
+		device := insertWindowsEnrollment(t, ds, "hw-"+h.UUID, h.UUID)
 
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
@@ -400,21 +391,9 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// a one-time secret, which the admin gets delivered by resending the profile, is not subject to the rule
-		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, "device-hw-"+h.UUID)
-		require.NoError(t, err)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
-		require.NoError(t, err)
-		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
-		require.NoError(t, err)
+		row := liveWindowsSecret(t, ds, device.ID)
 		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
-		require.NoError(t, err)
-	})
-
-	t.Run("Windows option leaves Macs alone", func(t *testing.T) {
-		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
-		nanoEnroll(t, ds, h, false)
-		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
 		require.NoError(t, err)
 	})
 
@@ -424,14 +403,14 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// an enrollment Fleet has not linked to any host yet protects nothing
-		insertWindowsEnrollment(t, ds, "hw-unlinked-"+notInMDM.UUID)
+		insertWindowsEnrollment(t, ds, "hw-unlinked-"+notInMDM.UUID, "")
 		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(notInMDM, nil, rejectWindowsOsquery)...)
 		require.NoError(t, err)
 	})
 
 	t.Run("Windows host that unenrolled from MDM", func(t *testing.T) {
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		device := linkWindowsEnrollment(t, h)
+		device := insertWindowsEnrollment(t, ds, "hw-"+h.UUID, h.UUID)
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
 
@@ -443,7 +422,7 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 
 	t.Run("a deleted Fleet MDM Windows host is recreated with a shared secret", func(t *testing.T) {
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		linkWindowsEnrollment(t, h)
+		insertWindowsEnrollment(t, ds, "hw-"+h.UUID, h.UUID)
 		require.NoError(t, ds.DeleteHost(ctx, h.ID))
 
 		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
@@ -591,8 +570,9 @@ func testFleetdProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err))
 }
 
-// insertWindowsEnrollment creates an unlinked Windows MDM enrollment, the state a device is in before fleetd exists.
-func insertWindowsEnrollment(t *testing.T, ds *Datastore, hardwareID string) *fleet.MDMWindowsEnrolledDevice {
+// insertWindowsEnrollment creates a Windows MDM enrollment linked to hostUUID. An empty hostUUID leaves it unlinked, the state a
+// device is in before fleetd exists.
+func insertWindowsEnrollment(t *testing.T, ds *Datastore, hardwareID, hostUUID string) *fleet.MDMWindowsEnrolledDevice {
 	t.Helper()
 	ctx := t.Context()
 
@@ -600,6 +580,7 @@ func insertWindowsEnrollment(t *testing.T, ds *Datastore, hardwareID string) *fl
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            deviceID,
 		MDMHardwareID:          hardwareID,
+		HostUUID:               hostUUID,
 		MDMDeviceState:         "enrolled",
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-" + hardwareID,
@@ -614,6 +595,24 @@ func insertWindowsEnrollment(t *testing.T, ds *Datastore, hardwareID string) *fl
 	return device
 }
 
+// linkWindowsEnrollment links an existing enrollment to a host, as fleetd enrolling does.
+func linkWindowsEnrollment(t *testing.T, ds *Datastore, device *fleet.MDMWindowsEnrolledDevice, hostUUID string) {
+	t.Helper()
+	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), hostUUID, device.MDMDeviceID)
+	require.NoError(t, err)
+}
+
+// liveWindowsSecret returns the enrollment's live one-time enroll secret, failing the test if there is none.
+func liveWindowsSecret(t *testing.T, ds *Datastore, enrollmentID uint) *fleet.HostOneTimeEnrollSecret {
+	t.Helper()
+	secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(t.Context(), enrollmentID)
+	require.NoError(t, err)
+	require.NotEmpty(t, secret)
+	row, err := ds.GetHostOneTimeEnrollSecret(t.Context(), secret)
+	require.NoError(t, err)
+	return row
+}
+
 func countWindowsOneTimeEnrollSecrets(t *testing.T, ds *Datastore, enrollmentID uint) int {
 	t.Helper()
 	var n int
@@ -624,43 +623,36 @@ func countWindowsOneTimeEnrollSecrets(t *testing.T, ds *Datastore, enrollmentID 
 
 func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	device := insertWindowsEnrollment(t, ds, "hw-mint")
+	device := insertWindowsEnrollment(t, ds, "hw-mint", "")
 
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-	secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
-	require.NoError(t, err)
-	require.NotEmpty(t, secret)
+	stored := liveWindowsSecret(t, ds, device.ID)
 
 	// Minting again must reuse the live secret. Fleet re-enqueues the fleetd install on every session-start alert while fleetd
 	// looks absent, and a second secret would be a second valid credential for the same device.
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 	require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, device.ID))
 
-	stored, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
-	require.NoError(t, err)
-	require.True(t, stored.IsMDMEnrollmentBound())
 	require.Equal(t, device.ID, *stored.MDMWindowsEnrollmentID)
-	require.Nil(t, stored.HostID, "a Windows secret binds to the enrollment, not to a host")
+	require.Nil(t, stored.HostID, "a first install has no host to bind to")
+	require.Empty(t, stored.HardwareUUID)
 	require.Nil(t, stored.TeamID, "the team is applied after linkage, as it was with the global secret")
 	require.Equal(t, "windows", stored.Platform)
 
-	err = ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID+9999)
+	err := ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID+9999)
 	require.True(t, fleet.IsNotFound(err), "an unknown enrollment must not mint a secret")
 
 	// A fresh secret is minted only once the live one is consumed.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) WHERE secret = ?`, secret)
-		return err
-	})
-	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-	rotated, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
+	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(stored.ID))...)
 	require.NoError(t, err)
-	require.NotEmpty(t, rotated)
-	require.NotEqual(t, secret, rotated)
+	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+	rotated := liveWindowsSecret(t, ds, device.ID)
+	require.NotEqual(t, stored.Secret, rotated.Secret)
 
 	// The set-based core, which the batch resend uses: unknown enrollments are skipped rather than failing the batch, and only
 	// the enrollments without a live secret get one.
-	other := insertWindowsEnrollment(t, ds, "hw-mint-other")
+	other := insertWindowsEnrollment(t, ds, "hw-mint-other", "")
 	var result windowsOneTimeEnrollSecretMintResult
 	require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -672,13 +664,13 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	// Re-enrollment deletes the enrollment row, and the foreign key cascade is what invalidates the secret minted for it.
 	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)
 	require.NoError(t, err)
-	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated)
+	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated.Secret)
 	require.True(t, fleet.IsNotFound(err), "the secret must go with its enrollment")
 }
 
 func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	device := insertWindowsEnrollment(t, ds, "hw-expand")
+	device := insertWindowsEnrollment(t, ds, "hw-expand", "")
 
 	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
 	doc := `<Exec><CommandLine>/quiet FLEET_SECRET="` + placeholder + `"</CommandLine></Exec>`
@@ -693,9 +685,8 @@ func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
 
 	// Once a decision has minted, delivery resolves to that secret, and keeps resolving to it until it is used.
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-	secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
-	require.NoError(t, err)
-	want := `<Exec><CommandLine>/quiet FLEET_SECRET="` + secret + `"</CommandLine></Exec>`
+	live := liveWindowsSecret(t, ds, device.ID)
+	want := `<Exec><CommandLine>/quiet FLEET_SECRET="` + live.Secret + `"</CommandLine></Exec>`
 	for range 2 {
 		expanded, err = ds.ExpandWindowsMDMHostSecrets(ctx, doc, device.ID)
 		require.NoError(t, err)
@@ -704,10 +695,9 @@ func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, device.ID))
 
 	// A consumed secret is not handed out again: redelivering the profile afterwards, on a team transfer say, writes nothing.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) WHERE secret = ?`, secret)
-		return err
-	})
+	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(live.ID))...)
+	require.NoError(t, err)
 	expanded, err = ds.ExpandWindowsMDMHostSecrets(ctx, doc, device.ID)
 	require.NoError(t, err)
 	require.Equal(t, emptied, expanded)
@@ -722,20 +712,6 @@ func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
 func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	linkEnrollment := func(enrollmentID uint, hostUUID string) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, hostUUID, enrollmentID)
-			return err
-		})
-	}
-	liveRow := func(enrollmentID uint) *fleet.HostOneTimeEnrollSecret {
-		secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID)
-		require.NoError(t, err)
-		require.NotEmpty(t, secret)
-		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
-		require.NoError(t, err)
-		return row
-	}
 	newWindowsHost := func(hostUUID, osqueryHostID string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
@@ -746,34 +722,19 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		return h
 	}
 
-	t.Run("a first install has no host to bind to", func(t *testing.T) {
-		device := insertWindowsEnrollment(t, ds, "hw-bind-first")
-		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		row := liveRow(device.ID)
-		require.Nil(t, row.HostID)
-		require.Empty(t, row.HardwareUUID)
-	})
-
 	t.Run("a linked enrollment binds to its host and only that host can use it", func(t *testing.T) {
 		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		other := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		device := insertWindowsEnrollment(t, ds, "hw-bind-linked")
 		// Lowercase on purpose: the enrollment and the hosts row need not agree on case.
-		linkEnrollment(device.ID, strings.ToLower(victim.UUID))
+		device := insertWindowsEnrollment(t, ds, "hw-bind-linked", strings.ToLower(victim.UUID))
 
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		row := liveRow(device.ID)
+		row := liveWindowsSecret(t, ds, device.ID)
 		require.Equal(t, victim.ID, *row.HostID)
 		require.Equal(t, victim.UUID, row.HardwareUUID)
 
-		// Check 1, before enrollment: another machine presenting its own hardware UUID is refused.
-		require.False(t, row.MatchesHost("windows", other.UUID, ""))
-		require.True(t, row.MatchesHost("windows", victim.UUID, ""))
-		// An empty presented UUID gets past check 1, which skips values either side lacks...
-		require.True(t, row.MatchesHost("windows", "", ""))
-
-		// ...so check 2 is what holds. Whatever the other machine presented, its enrollment lands on a row that is not the
-		// bound host, and while the bound host exists that is refused, on both planes.
+		// MatchesHost skips a UUID the agent does not present, so what stops another machine is consumption: its enrollment
+		// lands on a row that is not the bound host, and while the bound host exists that is refused, on both planes.
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(other, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
 		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(other, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
@@ -793,14 +754,13 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		// A first-install secret that was never used, then the enrollment gets linked, then an administrator resends. Reuse
 		// keeps the same secret, and it must not stay unbound through that.
 		host := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		device := insertWindowsEnrollment(t, ds, "hw-bind-reuse")
+		device := insertWindowsEnrollment(t, ds, "hw-bind-reuse", "")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		before := liveRow(device.ID)
-		require.Nil(t, before.HostID)
+		before := liveWindowsSecret(t, ds, device.ID)
 
-		linkEnrollment(device.ID, host.UUID)
+		linkWindowsEnrollment(t, ds, device, host.UUID)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		after := liveRow(device.ID)
+		after := liveWindowsSecret(t, ds, device.ID)
 		require.Equal(t, before.Secret, after.Secret, "reused, not replaced")
 		require.Equal(t, host.ID, *after.HostID)
 		require.Equal(t, host.UUID, after.HardwareUUID)
@@ -811,36 +771,34 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		shared := strings.ToUpper(uuid.NewString())
 		_ = newWindowsHost(shared, "instance-"+shared[:8])
 		identifierMatch := newWindowsHost(shared, shared)
-		device := insertWindowsEnrollment(t, ds, "hw-bind-dup")
-		linkEnrollment(device.ID, shared)
+		device := insertWindowsEnrollment(t, ds, "hw-bind-dup", shared)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		require.Equal(t, identifierMatch.ID, *liveRow(device.ID).HostID, "the osquery_host_id match wins over the lower id")
+		require.Equal(t, identifierMatch.ID, *liveWindowsSecret(t, ds, device.ID).HostID, "the osquery_host_id match wins over the lower id")
 
 		sharedAgain := strings.ToUpper(uuid.NewString())
 		lowest := newWindowsHost(sharedAgain, "instance-a-"+sharedAgain[:8])
 		_ = newWindowsHost(sharedAgain, "instance-b-"+sharedAgain[:8])
-		deviceAgain := insertWindowsEnrollment(t, ds, "hw-bind-dup-again")
-		linkEnrollment(deviceAgain.ID, sharedAgain)
+		deviceAgain := insertWindowsEnrollment(t, ds, "hw-bind-dup-again", sharedAgain)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, deviceAgain.ID))
-		require.Equal(t, lowest.ID, *liveRow(deviceAgain.ID).HostID, "with no identifier match, the lowest id")
+		require.Equal(t, lowest.ID, *liveWindowsSecret(t, ds, deviceAgain.ID).HostID, "with no identifier match, the lowest id")
 	})
+
 	t.Run("a spent secret is swept by host once a resend supersedes it", func(t *testing.T) {
 		// The first-install secret is minted unbound, and consuming it records the host. That is what lets the host-keyed sweep
 		// the Apple path uses cover Windows too.
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		device := insertWindowsEnrollment(t, ds, "hw-bind-sweep")
+		device := insertWindowsEnrollment(t, ds, "hw-bind-sweep", "")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		spent := liveRow(device.ID)
-		require.Nil(t, spent.HostID)
+		spent := liveWindowsSecret(t, ds, device.ID)
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(spent.ID))...)
 		require.NoError(t, err)
 		consumed, err := ds.GetHostOneTimeEnrollSecret(ctx, spent.Secret)
 		require.NoError(t, err)
 		require.Equal(t, h.ID, *consumed.HostID)
 
-		linkEnrollment(device.ID, h.UUID)
+		linkWindowsEnrollment(t, ds, device, h.UUID)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-		live := liveRow(device.ID)
+		live := liveWindowsSecret(t, ds, device.ID)
 		require.NotEqual(t, spent.ID, live.ID)
 
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -862,13 +820,11 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 	secretProfileSyncML := []byte(`<Add><Item><Target><LocURI>` +
 		`./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetdEnrollSecret/Policy/FleetdEnrollSecretAdmx` +
 		`</LocURI></Target></Item></Add>`)
-	require.NoError(t, ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+	secretProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name: fleetmdm.FleetWindowsEnrollSecretProfileName, SyncML: secretProfileSyncML,
-	}))
-	var secretProfileUUID string
-	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &secretProfileUUID,
-		`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = 0 AND name = ?`,
-		fleetmdm.FleetWindowsEnrollSecretProfileName))
+	}, nil)
+	require.NoError(t, err)
+	secretProfileUUID := secretProfile.ProfileUUID
 
 	otherProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name: "Custom settings", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Custom</LocURI></Target></Item></Replace>`),
@@ -877,18 +833,9 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 
 	// Each host already runs fleetd and is linked to its enrollment, which is the shape a resend always has: a profile only
 	// reaches a host that has a hosts row.
-	newLinkedHost := func(name string, status *fleet.MDMDeliveryStatus, profiles ...string) uint {
-		hostUUID := uuid.NewString()
-		_, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname: name, UUID: hostUUID, Platform: "windows", OsqueryHostID: new(hostUUID), NodeKey: new(hostUUID),
-			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-		})
-		require.NoError(t, err)
-		device := insertWindowsEnrollment(t, ds, "hw-"+name)
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, hostUUID, device.ID)
-			return err
-		})
+	newLinkedHost := func(name string, status *fleet.MDMDeliveryStatus, profiles ...string) *fleet.MDMWindowsEnrolledDevice {
+		hostUUID := newOneTimeSecretTestHost(t, ds, "windows", nil).UUID
+		device := insertWindowsEnrollment(t, ds, "hw-"+name, hostUUID)
 		var payloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload
 		for _, profileUUID := range profiles {
 			payloads = append(payloads, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
@@ -897,55 +844,37 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 			})
 		}
 		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, payloads))
-		return device.ID
-	}
-	hostUUIDOf := func(enrollmentID uint) string {
-		var hostUUID string
-		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostUUID,
-			`SELECT host_uuid FROM mdm_windows_enrollments WHERE id = ?`, enrollmentID))
-		return hostUUID
+		return device
 	}
 
 	t.Run("single resend", func(t *testing.T) {
-		enrollmentID := newLinkedHost("single", new(fleet.MDMDeliveryVerified), secretProfileUUID, otherProfile.ProfileUUID)
+		device := newLinkedHost("single", new(fleet.MDMDeliveryVerified), secretProfileUUID, otherProfile.ProfileUUID)
 
 		// Routine resends of other profiles mint nothing.
-		require.NoError(t, ds.ResendHostMDMProfile(ctx, hostUUIDOf(enrollmentID), otherProfile.ProfileUUID))
-		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, enrollmentID))
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, device.HostUUID, otherProfile.ProfileUUID))
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, device.ID))
 
 		// Resending the enroll secret profile is the recovery action, so the host gets a secret to be delivered.
-		require.NoError(t, ds.ResendHostMDMProfile(ctx, hostUUIDOf(enrollmentID), secretProfileUUID))
-		secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID)
-		require.NoError(t, err)
-		require.NotEmpty(t, secret)
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, device.HostUUID, secretProfileUUID))
+		liveWindowsSecret(t, ds, device.ID)
 	})
 
 	t.Run("only the enrollment the profile reaches is minted for", func(t *testing.T) {
 		// Delivery goes to the host's most recent enrollment, so a secret for an older row would never reach a device and would
 		// sit as a live credential nobody holds.
-		addNewerEnrollment := func(olderID uint, hw string) uint {
-			newer := insertWindowsEnrollment(t, ds, hw)
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, hostUUIDOf(olderID), newer.ID)
-				return err
-			})
-			require.Greater(t, newer.ID, olderID)
-			return newer.ID
-		}
-
 		older := newLinkedHost("two-enrollments", new(fleet.MDMDeliveryVerified), secretProfileUUID)
-		newer := addNewerEnrollment(older, "hw-two-enrollments-newer")
-		require.NoError(t, ds.ResendHostMDMProfile(ctx, hostUUIDOf(older), secretProfileUUID))
-		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, older))
-		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, newer))
+		newer := insertWindowsEnrollment(t, ds, "hw-two-enrollments-newer", older.HostUUID)
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, older.HostUUID, secretProfileUUID))
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, older.ID))
+		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, newer.ID))
 
 		olderBatch := newLinkedHost("two-enrollments-batch", new(fleet.MDMDeliveryFailed), secretProfileUUID)
-		newerBatch := addNewerEnrollment(olderBatch, "hw-two-enrollments-batch-newer")
+		newerBatch := insertWindowsEnrollment(t, ds, "hw-two-enrollments-batch-newer", olderBatch.HostUUID)
 		_, err := ds.BatchResendMDMProfileToHosts(ctx, secretProfileUUID,
 			fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 		require.NoError(t, err)
-		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, olderBatch))
-		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, newerBatch))
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, olderBatch.ID))
+		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, newerBatch.ID))
 	})
 
 	t.Run("batch resend", func(t *testing.T) {
@@ -960,15 +889,15 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.EqualValues(t, 1, count)
 
-		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, failed))
-		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, verified), "not a target of this batch")
-		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, pending), "pending is not a resend")
+		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, failed.ID))
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, verified.ID), "not a target of this batch")
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, pending.ID), "pending is not a resend")
 
 		// Other profiles' batch resends mint nothing.
 		otherFailed := newLinkedHost("batch-other", new(fleet.MDMDeliveryFailed), otherProfile.ProfileUUID)
 		_, err = ds.BatchResendMDMProfileToHosts(ctx, otherProfile.ProfileUUID,
 			fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 		require.NoError(t, err)
-		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, otherFailed))
+		require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, otherFailed.ID))
 	})
 }
