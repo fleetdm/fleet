@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -47,13 +46,7 @@ func createTestKey(t *testing.T) {
 	require.NoError(t, key.Close())
 }
 
-// deleteTestKey restores inheritance first: a test that protected the key left the running user without DELETE on it, and only
-// the owner's implicit WRITE_DAC gets it back.
 func deleteTestKey() {
-	//nolint:errcheck // best effort: the key may not exist, or may never have been protected
-	windows.SetNamedSecurityInfo(registryObjectName(registry.CURRENT_USER, testEnrollSecretKeyPath),
-		windows.SE_REGISTRY_KEY, windows.DACL_SECURITY_INFORMATION|windows.UNPROTECTED_DACL_SECURITY_INFORMATION,
-		nil, nil, nil, nil)
 	_ = registry.DeleteKey(registry.CURRENT_USER, testEnrollSecretKeyPath)
 }
 
@@ -115,21 +108,23 @@ func TestClearEnrollSecret(t *testing.T) {
 	require.NoError(t, clearEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath))
 }
 
-// The DACL names only SYSTEM and Administrators, so applying it drops the running user's own access to the key. That makes this
-// test, unlike the rest of the file, require an elevated run.
-func TestEnsureEnrollSecretKeyIsProtectedIsIdempotent(t *testing.T) {
+func TestEnsureEnrollSecretKeyExists(t *testing.T) {
 	deleteTestKey()
 	t.Cleanup(deleteTestKey)
-	objectName := registryObjectName(registry.CURRENT_USER, testEnrollSecretKeyPath)
 
-	require.False(t, enrollSecretKeyWasProtected(objectName), "a key that does not exist is not protected")
+	require.NoError(t, ensureEnrollSecretKeyExists(registry.CURRENT_USER, testEnrollSecretKeyPath))
 
-	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
-	require.True(t, enrollSecretKeyWasProtected(objectName), "the key must carry the DACL we set")
+	// The point of creating the key is that a watch can register on it; that is the only reason orbit does this.
+	watch, err := armEnrollSecretWatch(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	require.NoError(t, err)
+	require.NoError(t, watch.Close())
 
-	// Called on every orbit start, so it has to be safe to repeat.
-	require.NoError(t, ensureEnrollSecretKeyIsProtected(registry.CURRENT_USER, testEnrollSecretKeyPath))
-	require.True(t, enrollSecretKeyWasProtected(objectName))
+	// Called on every orbit start, so it has to be safe to repeat, and must not disturb a secret already delivered.
+	writeEnrollSecretValue(t, "s3cret-value")
+	require.NoError(t, ensureEnrollSecretKeyExists(registry.CURRENT_USER, testEnrollSecretKeyPath))
+	secret, err := getEnrollSecret(registry.CURRENT_USER, testEnrollSecretKeyPath)
+	require.NoError(t, err)
+	require.Equal(t, "s3cret-value", secret)
 }
 
 // armTestWatch arms a watch on the test key and closes it when the test ends.

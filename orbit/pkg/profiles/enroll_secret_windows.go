@@ -19,39 +19,18 @@ import (
 // new secret) and the value reappears.
 //
 // Fleet already owns SOFTWARE\FleetDM\Orbit (the installer records the install path there), so the delivered secret lives
-// alongside it rather than in a new hive. A non-admin local user cannot read a secret that has not been loaded yet.
+// alongside it rather than in a new hive.
 const (
 	enrollSecretKeyPath   = `SOFTWARE\FleetDM\Orbit`
 	enrollSecretValueName = "EnrollSecret"
 )
 
-// enrollSecretKeySDDL keeps the key readable only by SYSTEM and Administrators, with inheritance disabled.
-// Reference: https://learn.microsoft.com/en-us/windows/win32/secauthz/security-descriptor-string-format
-//
-// DACL (Discretionary Access Control List) only:
-//
-//	P   protected, inheritance blocked
-//	AI  auto-inherited
-//	A   access allowed
-//	KA  KEY_ALL_ACCESS
-//	SY  Local System
-//	BA  Built-in Administrators
-const enrollSecretKeySDDL = "D:PAI(A;;KA;;;SY)(A;;KA;;;BA)"
-
-// EnsureEnrollSecretKeyIsProtected applies the DACL above to the key that carries the MDM-delivered enroll secret, creating the
-// key first when it is missing. The key has to exist before a secret is wanted.
-func EnsureEnrollSecretKeyIsProtected() error {
-	return ensureEnrollSecretKeyIsProtected(registry.LOCAL_MACHINE, enrollSecretKeyPath)
+// EnsureEnrollSecretKeyExists creates the key that carries the MDM-delivered enroll secret when it is missing.
+func EnsureEnrollSecretKeyExists() error {
+	return ensureEnrollSecretKeyExists(registry.LOCAL_MACHINE, enrollSecretKeyPath)
 }
 
-func ensureEnrollSecretKeyIsProtected(root registry.Key, path string) error {
-	// SetNamedSecurityInfo names registry objects as MACHINE\... rather than HKEY_LOCAL_MACHINE\...
-	objectName := registryObjectName(root, path)
-
-	if enrollSecretKeyWasProtected(objectName) {
-		return nil
-	}
-
+func ensureEnrollSecretKeyExists(root registry.Key, path string) error {
 	key, _, err := registry.CreateKey(root, path, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
@@ -59,47 +38,7 @@ func ensureEnrollSecretKeyIsProtected(root registry.Key, path string) error {
 	if err := key.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", path, err)
 	}
-
-	securityDescriptor, err := windows.SecurityDescriptorFromString(enrollSecretKeySDDL)
-	if err != nil {
-		return fmt.Errorf("parse enroll secret key security descriptor: %w", err)
-	}
-	dacl, _, err := securityDescriptor.DACL()
-	if err != nil {
-		return fmt.Errorf("read enroll secret key DACL: %w", err)
-	}
-
-	if err := windows.SetNamedSecurityInfo(
-		objectName,
-		windows.SE_REGISTRY_KEY,
-		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION,
-		nil, nil, dacl, nil,
-	); err != nil {
-		return fmt.Errorf("set permissions on %s: %w", objectName, err)
-	}
-
 	return nil
-}
-
-// enrollSecretKeyWasProtected reports whether the key already carried the DACL we apply. A key we cannot read the security of is
-// reported as unprotected, because the point of the check is to prove protection rather than to assume it.
-func enrollSecretKeyWasProtected(objectName string) bool {
-	securityDescriptor, err := windows.GetNamedSecurityInfo(
-		objectName, windows.SE_REGISTRY_KEY, windows.DACL_SECURITY_INFORMATION,
-	)
-	if err != nil {
-		return false
-	}
-	return securityDescriptor.String() == enrollSecretKeySDDL
-}
-
-func registryObjectName(root registry.Key, path string) string {
-	switch root {
-	case registry.CURRENT_USER:
-		return `CURRENT_USER\` + path
-	default:
-		return `MACHINE\` + path
-	}
 }
 
 // GetEnrollSecret returns the enroll secret Fleet MDM delivered to this device, or ErrEnrollSecretNotFound when none is waiting.

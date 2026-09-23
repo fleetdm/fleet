@@ -33,7 +33,7 @@ func ArmEnrollSecretWatch() (*EnrollSecretWatch, error) {
 	return nil, ErrNotImplemented
 }
 
-// EnsureEnrollSecretKeyIsProtected is not implemented outside Windows.
-func EnsureEnrollSecretKeyIsProtected() error {
+// EnsureEnrollSecretKeyExists is not implemented outside Windows.
+func EnsureEnrollSecretKeyExists() error {
 	return ErrNotImplemented
 }

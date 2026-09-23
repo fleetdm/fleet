@@ -32,17 +32,14 @@ const mdmSecretSlowDelivery = 10 * time.Minute
 const mdmSecretWaitTimeout = time.Hour
 
 // loadMDMSecretIfWaiting loads an enroll secret Fleet MDM delivered out of band, if one is waiting. It reports whether a secret
-// was loaded, and whether the registry channel is usable at all.
+// was loaded.
 func loadMDMSecretIfWaiting(
 	enrollSecretPath string, disableKeystore bool, setSecret func(string) error,
-) (loaded bool, channelUsable bool) {
-	// Create the key before reading it, so a secret delivered later lands somewhere only SYSTEM and Administrators can read rather
-	// than in a key created implicitly with inherited permissions.
-	if err := profiles.EnsureEnrollSecretKeyIsProtected(); err != nil {
-		// This should not happen.
-		log.Error().Err(err).Msg(
-			"not using the registry channel for an MDM-delivered enroll secret: its key could not be secured")
-		return false, false
+) bool {
+	// Best effort, and only so a later wait can watch the key rather than poll it. Delivery creates the key by itself, so a
+	// failure here costs latency on the wait and nothing else.
+	if err := profiles.EnsureEnrollSecretKeyExists(); err != nil {
+		log.Warn().Err(err).Msg("could not create the key that carries an MDM-delivered enroll secret; will poll for one instead")
 	}
 
 	loaded, err := loadMDMDeliveredEnrollSecret(enrollSecretPath, realKeystore{}, disableKeystore, setSecret)
@@ -50,12 +47,12 @@ func loadMDMSecretIfWaiting(
 		// Not fatal: the caller falls through to the file and keystore, which may still hold a usable secret.
 		log.Error().Err(err).Msg("failed to load an MDM-delivered enroll secret")
 	}
-	return loaded, true
+	return loaded
 }
 
 // canWaitForMDMSecret reports whether orbit should block waiting for Fleet MDM to deliver a secret.
-func canWaitForMDMSecret(channelUsable bool, currentSecret string) bool {
-	return channelUsable && currentSecret == "" && update.HasActiveFleetMDMEnrollment()
+func canWaitForMDMSecret(currentSecret string) bool {
+	return currentSecret == "" && update.HasActiveFleetMDMEnrollment()
 }
 
 // loadMDMDeliveredEnrollSecret loads an enroll secret that Fleet MDM delivered out of band, if one is waiting. It reports

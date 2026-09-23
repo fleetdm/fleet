@@ -523,7 +523,7 @@ func orbitAction(c *cli.Context) error {
 	enrollSecretPath := c.String("enroll-secret-path")
 
 	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
-	loadedMDMSecret, mdmSecretChannelUsable := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
+	loadedMDMSecret := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
 
 	if enrollSecretPath != "" && !loadedMDMSecret {
 		if c.String("enroll-secret") != "" {
@@ -540,7 +540,7 @@ func orbitAction(c *cli.Context) error {
 	}
 
 	// Decide if we can wait for an MDM-delivered enroll secret. This is only true on Windows, where the registry channel is available.
-	waitForMDMSecret := canWaitForMDMSecret(mdmSecretChannelUsable, c.String("enroll-secret"))
+	waitForMDMSecret := canWaitForMDMSecret(c.String("enroll-secret"))
 
 	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
 		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
