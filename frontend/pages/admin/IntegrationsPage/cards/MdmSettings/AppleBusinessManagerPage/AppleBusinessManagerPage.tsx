@@ -213,10 +213,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowDeleteModal(false);
   }, [refetch]);
 
-  // Only the initial load blanks the page; refetches (set/unset default,
-  // add, renew, delete) keep the table on screen and swap in fresh data,
-  // since setting the default is a bare menu click with no modal covering
-  // the refetch.
   if (isLoading) {
     return <Spinner />;
   }

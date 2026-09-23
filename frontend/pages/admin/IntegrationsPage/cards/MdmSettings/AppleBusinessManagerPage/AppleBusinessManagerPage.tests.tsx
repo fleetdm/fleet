@@ -67,6 +67,8 @@ describe("AppleBusinessManagerPage", () => {
     await user.click(screen.getAllByText("Actions")[1]);
     await user.click(screen.getByText("Set as default for sign-in"));
 
+    expect(updateDefaultSpy).not.toHaveBeenCalled();
+
     // Opens modal
     await waitFor(() =>
       expect(screen.getByText("Set as default for sign-in")).toBeInTheDocument()
@@ -103,6 +105,8 @@ describe("AppleBusinessManagerPage", () => {
     await screen.findByText("Acme Inc.");
     await user.click(screen.getAllByText("Actions")[0]);
     await user.click(screen.getByText("Remove default for sign-in"));
+
+    expect(updateDefaultSpy).not.toHaveBeenCalled();
 
     // Opens modal
     await waitFor(() =>
