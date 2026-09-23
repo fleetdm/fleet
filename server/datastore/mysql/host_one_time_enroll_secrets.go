@@ -212,15 +212,8 @@ type windowsOneTimeEnrollSecretMintResult struct {
 // where there is one. Reuse is what keeps the installer command line and the profile carrying the same secret, and what keeps
 // repeat calls harmless: Fleet re-enqueues the fleetd install on every session-start alert while fleetd looks absent.
 //
-// The FOR UPDATE serializes concurrent mints for the same enrollment. Without it, two sessions that both find no live secret
-// would both insert, leaving two valid secrets for one device.
-//
 // When the enrollment is already linked to a host, which it always is on an administrator resend, the secret is bound to that
-// host the way an Apple secret is: host_id and hardware_uuid come from the host row. That is what enforces that only that host
-// can use it. MatchesHost compares the hardware UUID the agent presents, and consumeHostOneTimeEnrollSecret refuses an enrollment
-// that lands on any other row while the bound host exists. The second check matters because the first skips an empty presented
-// value. An existing unbound live secret, minted before the host existed, is bound as well, so it cannot stay unbound through a
-// resend.
+// host. That is what enforces that only that host can use it.
 //
 // Otherwise, as on a first fleetd install, there is no host to bind to: the automatic enrollment flows carry no Fleet host UUID.
 // The secret binds only to the enrollment, host_id stays NULL, and the host is recorded on first use. The serial is copied when a
@@ -299,9 +292,6 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 		if e.HardwareSerial != nil {
 			serial = *e.HardwareSerial
 		}
-		// team_id stays NULL on purpose. The secret replaces the global enroll secret, which also had no team, so the host still
-		// enrolls into no team and the existing default-fleet transfer (maybeAssignWindowsEnrollmentDefaultFleet) applies
-		// afterwards with its own guards intact. Binding a team here would silently bypass those.
 		var (
 			hostID       *uint
 			hardwareUUID string
@@ -390,11 +380,8 @@ func windowsEnrollmentBoundHostsDB(
 }
 
 // liveWindowsMDMOneTimeEnrollSecret returns the unconsumed secret minted for the enrollment, or "" when there is none, which is
-// the normal state for a host that already runs fleetd.
-//
-// It reads the primary. The fleetd install is minted for and delivered in the same management request (processNewSessionAlert
-// runs before getPendingMDMCmds), so a replica even slightly behind would resolve to nothing and ship an installer without a
-// secret.
+// the normal state for a host that already runs fleetd. It reads the primary. The fleetd install is minted for and delivered in
+// the same management request, so a replica even slightly behind would resolve to nothing and ship an installer without a secret.
 func (ds *Datastore) liveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
 	var secrets []string
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &secrets, `
@@ -411,10 +398,6 @@ func (ds *Datastore) liveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enro
 
 // isWindowsEnrollSecretProfileDB reports whether the profile is the Fleet-managed Fleetd enroll secret profile. The name is
 // reserved, so a user cannot author one that passes this check.
-//
-// The resend hooks below key on this rather than on auth.mdm_windows_one_time_enroll_secrets, which the datastore does not see.
-// The service refuses to resend this profile while the switch is off (errWindowsEnrollSecretProfileOff), and the reconciler
-// deletes it, so these hooks only ever run with the switch on.
 func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, profileUUID string) (bool, error) {
 	var names []string
 	if err := sqlx.SelectContext(ctx, tx, &names,
@@ -426,15 +409,12 @@ func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, pro
 
 // mintWindowsEnrollSecretOnResendDB mints for a host whose Fleetd enroll secret profile an administrator just resent. It runs in
 // the transaction that resets the profile's status, so the reconciler cannot deliver the profile before the secret exists.
-//
-// It mints only for the enrollment the profile will actually reach. A host can have several enrollment rows, and profile delivery
-// goes to the most recent one (getEnrollmentIDsByHostUUIDDB), so a secret for any older row would never be delivered and would sit
-// as a live credential that no device holds. Reusing the delivery lookup keeps the two from drifting apart.
 func (ds *Datastore) mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID string) error {
 	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
 	if err != nil || !isSecretProfile {
 		return err
 	}
+	// Get the latest enrollment ID
 	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, []string{hostUUID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load windows mdm enrollment for resent enroll secret profile")
@@ -444,11 +424,7 @@ func (ds *Datastore) mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx s
 }
 
 // windowsEnrollSecretBatchResendTargetsDB returns the enrollments of the hosts a batch resend of the Fleetd enroll secret profile
-// is about to reset, or nil for any other profile. It has to run before the status reset: afterwards the targets are
-// indistinguishable from hosts whose first delivery was already pending, and those must not be minted for.
-//
-// FOR UPDATE makes this the same set the reset then updates, rather than a snapshot another transaction could add to. Each host
-// maps to its most recent enrollment only, for the same reason as mintWindowsEnrollSecretOnResendDB.
+// is about to reset, or nil for any other profile.
 func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
 	ctx context.Context, tx sqlx.ExtContext, profileUUID string, status fleet.MDMDeliveryStatus,
 ) ([]uint, error) {
@@ -519,9 +495,7 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 	default:
 		return ctxerr.Errorf(ctx, "unknown enrollment plane %q", plane)
 	}
-	// host_id is recorded on first use, which matters only for an enrollment-bound (Windows) secret: it is minted before a
-	// hosts row exists, so without this the bound-host check above would have nothing to compare and the second plane could
-	// be claimed from a different machine inside the window. COALESCE leaves an already-bound secret alone.
+	// host_id is recorded on first use, which matters only for an enrollment-bound (Windows) secret.
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE host_one_time_enroll_secrets
 		 SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)), host_id = COALESCE(host_id, ?)
