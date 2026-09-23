@@ -409,6 +409,7 @@ import Flexoptix from "./png/Flexoptix.png";
 import Flexwhere from "./png/Flexwhere.png";
 import Fluid from "./png/Fluid.png";
 import FluxApp from "./png/FluxApp.png";
+import Flycut from "./png/Flycut.png";
 import FocusriteControl2 from "./png/FocusriteControl2.png";
 import Folx from "./png/Folx.png";
 import Fontbase from "./png/Fontbase.png";
@@ -1577,6 +1578,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "flexoptix app": Flexoptix,
   flexwhere: Flexwhere,
   fluid: Fluid,
+  flycut: Flycut,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
   fontbase: Fontbase,
