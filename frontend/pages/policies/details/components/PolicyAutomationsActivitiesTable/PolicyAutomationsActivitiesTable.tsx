@@ -195,8 +195,8 @@ const PolicyAutomationsActivitiesTable = ({
   }, [isFiltered, activityExpiryEnabled, activityExpiryWindow]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(baseClass, setSelectedActivity),
-    []
+    () => generateColumnConfigs(baseClass, setSelectedActivity, policyId),
+    [policyId]
   );
 
   const count = data?.count ?? 0;
@@ -287,6 +287,7 @@ const PolicyAutomationsActivitiesTable = ({
       {selectedActivity && (
         <PolicyAutomationActivityDetailsModal
           activity={selectedActivity}
+          currentPolicyId={policyId}
           onCancel={() => setSelectedActivity(null)}
           onResetPolicy={canResetPolicy ? onResetFromActivity : undefined}
         />
