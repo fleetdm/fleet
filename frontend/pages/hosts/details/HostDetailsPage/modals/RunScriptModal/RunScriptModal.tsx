@@ -205,7 +205,6 @@ const RunScriptModal = ({
           <Button
             variant="secondary"
             icon="plus"
-            iconPosition="right"
             onClick={() => browserHistory.push(addScriptUrl)}
           >
             Add script
