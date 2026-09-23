@@ -533,6 +533,12 @@ const PolicyForm = ({
         Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
+        // The core PATCH lands before the automations PATCH, and the backend
+        // validates hidden against the stored conditional access value, so a
+        // disable has to travel with the core update or hidden is rejected.
+        if (automations?.policyUpdate?.conditional_access_enabled === false) {
+          payload.conditional_access_enabled = false;
+        }
       }
       await onUpdate(payload);
       persistAutomations();

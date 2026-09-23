@@ -5,7 +5,7 @@ import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { expectedSelectErr } from "components/forms/validators/validate_query";
 import { ILabelSummary } from "interfaces/label";
@@ -141,7 +141,8 @@ describe("PolicyForm - component", () => {
 
     const renderEditForm = (
       storedPolicy: ReturnType<typeof createMockPolicy>,
-      lastEditedQueryHidden: boolean
+      lastEditedQueryHidden: boolean,
+      extraProps: Partial<React.ComponentProps<typeof PolicyForm>> = {}
     ) => {
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -183,6 +184,7 @@ describe("PolicyForm - component", () => {
           teamIdForApi={storedPolicy.team_id ?? undefined}
           policyIdForEdit={storedPolicy.id}
           storedPolicy={storedPolicy}
+          {...extraProps}
         />
       );
     };
@@ -208,6 +210,48 @@ describe("PolicyForm - component", () => {
       });
       expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "true");
       expect(hiddenCheckbox).not.toBeChecked();
+    });
+
+    it("sends the conditional access disable together with hidden in the core update", async () => {
+      // The core PATCH runs before the automations PATCH; without carrying the
+      // disable along, the backend rejects hidden against the stored value.
+      // The team response carries `integrations` at the top level, which the
+      // ITeam type doesn't declare, so build the mock as a plain object.
+      jest.spyOn(teamsAPI, "load").mockResolvedValue({
+        team: {
+          ...createMockTeam({ id: 2 }),
+          integrations: {
+            jira: [],
+            zendesk: [],
+            conditional_access_enabled: true,
+          },
+        },
+      } as never);
+      jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+      const onUpdate = jest.fn().mockResolvedValue({});
+
+      const { user } = renderEditForm(
+        createMockPolicy({
+          team_id: 2,
+          platform: "darwin",
+          conditional_access_enabled: true,
+        }),
+        true,
+        { onUpdate }
+      );
+
+      const conditionalAccess = await screen.findByRole("checkbox", {
+        name: "conditional_access",
+      });
+      expect(conditionalAccess).toBeChecked();
+      await user.click(conditionalAccess);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+      expect(onUpdate.mock.calls[0][0]).toMatchObject({
+        hidden: true,
+        conditional_access_enabled: false,
+      });
     });
 
     it("offers Hide from end user for an All fleets policy", async () => {
