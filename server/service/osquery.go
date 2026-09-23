@@ -254,6 +254,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
+		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.Auth, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {

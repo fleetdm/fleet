@@ -55,6 +55,10 @@ type oneTimeEnrollFixture struct {
 }
 
 func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTimeEnrollFixture {
+	return newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) { auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets })
+}
+
+func newOneTimeEnrollFixtureWithAuth(t *testing.T, setAuth func(*config.AuthConfig)) *oneTimeEnrollFixture {
 	hostID := uint(42)
 	row := fleet.HostOneTimeEnrollSecret{
 		ID:             7,
@@ -68,7 +72,7 @@ func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTim
 
 	ds := new(mock.DataStore)
 	cfg := config.TestConfig()
-	cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+	setAuth(&cfg.Auth)
 	opts := &TestServerOpts{KeyValueStore: memoryKVStore()}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
@@ -565,4 +569,48 @@ func TestEnsureFleetdConfigRemovesPlaceholderProfilesWhenOff(t *testing.T) {
 		require.Empty(t, *deleted)
 		require.False(t, ds.GetMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
 	})
+}
+
+func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
+	for _, tc := range []struct {
+		name                string
+		windowsSwitch       bool
+		windowsMDMEnabled   bool
+		wantRejectOnWindows bool
+	}{
+		{name: "switch on, Windows MDM on", windowsSwitch: true, windowsMDMEnabled: true, wantRejectOnWindows: true},
+		// with Windows MDM off the profile cannot be resent, so a refused host would have no way back
+		{name: "switch on, Windows MDM off", windowsSwitch: true, windowsMDMEnabled: false},
+		{name: "switch off", windowsSwitch: false, windowsMDMEnabled: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) { auth.MDMWindowsOneTimeEnrollSecrets = tc.windowsSwitch })
+			f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{}
+				ac.MDM.EnabledAndConfigured = true
+				ac.MDM.WindowsEnabledAndConfigured = tc.windowsMDMEnabled
+				return ac, nil
+			}
+			var orbitCfg *fleet.DatastoreEnrollOrbitConfig
+			f.ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+				orbitCfg = orbitEnrollConfig(opts)
+				return &fleet.Host{ID: 1, UUID: "other", Platform: "darwin"}, nil
+			}
+			var osqueryCfg *fleet.DatastoreEnrollOsqueryConfig
+			f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+				osqueryCfg = osqueryEnrollConfig(opts)
+				return &fleet.Host{ID: 1, OsqueryHostID: new(osqueryCfg.OsqueryHostID), NodeKey: new(osqueryCfg.NodeKey)}, nil
+			}
+
+			_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
+			require.NoError(t, err)
+			require.Equal(t, tc.wantRejectOnWindows, orbitCfg.RejectSharedSecretForWindowsMDMHosts)
+			require.False(t, orbitCfg.RejectSharedSecretForMDMHosts)
+
+			_, err = f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
+			require.NoError(t, err)
+			require.Equal(t, tc.wantRejectOnWindows, osqueryCfg.RejectSharedSecretForWindowsMDMHosts)
+			require.False(t, osqueryCfg.RejectSharedSecretForMDMHosts)
+		})
+	}
 }

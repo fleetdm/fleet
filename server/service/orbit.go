@@ -368,6 +368,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitTeamID(enrollTeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 		fleet.WithEnrollOrbitCreated(&hostCreated),
+		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.Auth, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {

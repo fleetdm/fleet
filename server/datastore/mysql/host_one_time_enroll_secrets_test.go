@@ -373,6 +373,85 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		require.Equal(t, h.UUID, recreated.UUID)
 	})
 
+	rejectWindows := fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(true)
+	rejectWindowsOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(true)
+	linkWindowsEnrollment := func(t *testing.T, h *fleet.Host) *fleet.MDMWindowsEnrolledDevice {
+		device := insertWindowsEnrollment(t, ds, "hw-"+h.UUID)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, h.UUID, device.ID)
+			return err
+		})
+		return device
+	}
+
+	t.Run("Fleet MDM enrolled Windows host", func(t *testing.T) {
+		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		linkWindowsEnrollment(t, h)
+
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+
+		// The platforms have separate switches: the Apple option alone leaves a Windows host alone.
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, reject)...)
+		require.NoError(t, err)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectOsquery)...)
+		require.NoError(t, err)
+
+		// a one-time secret, which the admin gets delivered by resending the profile, is not subject to the rule
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, "device-hw-"+h.UUID)
+		require.NoError(t, err)
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
+		require.NoError(t, err)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+	})
+
+	t.Run("Windows option leaves Macs alone", func(t *testing.T) {
+		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		nanoEnroll(t, ds, h, false)
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		require.NoError(t, err)
+	})
+
+	t.Run("Windows host without a linked enrollment", func(t *testing.T) {
+		notInMDM := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(notInMDM, nil, rejectWindows)...)
+		require.NoError(t, err)
+
+		// an enrollment Fleet has not linked to any host yet protects nothing
+		insertWindowsEnrollment(t, ds, "hw-unlinked-"+notInMDM.UUID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(notInMDM, nil, rejectWindowsOsquery)...)
+		require.NoError(t, err)
+	})
+
+	t.Run("Windows host that unenrolled from MDM", func(t *testing.T) {
+		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := linkWindowsEnrollment(t, h)
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+
+		// the unenroll alert deletes the enrollment
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID))
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		require.NoError(t, err)
+	})
+
+	t.Run("a deleted Fleet MDM Windows host is recreated with a shared secret", func(t *testing.T) {
+		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		linkWindowsEnrollment(t, h)
+		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+
+		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		require.NoError(t, err)
+		require.NotEqual(t, h.ID, recreated.ID)
+		require.Equal(t, h.UUID, recreated.UUID)
+	})
+
 	t.Run("hosts outside Fleet MDM are unaffected", func(t *testing.T) {
 		thirdPartyMDMMac := newOneTimeSecretTestHost(t, ds, "darwin", nil)
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(thirdPartyMDMMac, nil, reject)...)

@@ -146,6 +146,13 @@ func deliversOneTimeEnrollSecret(auth config.AuthConfig, profileUUID, profileNam
 	return false
 }
 
+// rejectSharedSecretForWindowsMDMHosts reports whether a shared enroll secret must be refused for a Windows host enrolled in Fleet
+// MDM. It also requires Windows MDM to be on: with it off, the Fleetd enroll secret profile cannot be resent, so a host refused a
+// shared secret would have no way back. The datastore applies it only when no one-time secret was presented.
+func rejectSharedSecretForWindowsMDMHosts(auth config.AuthConfig, appConfig *fleet.AppConfig) bool {
+	return auth.MDMWindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
+}
+
 // isWindowsEnrollSecretProfile reports whether the profile is the Fleet-managed Fleetd enroll secret profile, whatever the switch.
 func isWindowsEnrollSecretProfile(profileUUID, profileName string) bool {
 	return strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) && profileName == mdm.FleetWindowsEnrollSecretProfileName

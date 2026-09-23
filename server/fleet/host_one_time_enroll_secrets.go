@@ -94,7 +94,8 @@ const (
 	EnrollmentRejectedOneTimeSecretIdentifierMismatch = "one_time_secret_identifier_mismatch"
 	// EnrollmentRejectedSharedSecretForMDMManagedHost: a shared (team or
 	// global) enroll secret was used to claim an Apple host that is enrolled in
-	// Fleet MDM or assigned to Fleet in Apple Business.
+	// Fleet MDM or assigned to Fleet in Apple Business, or a Windows host that is
+	// enrolled in Fleet MDM.
 	EnrollmentRejectedSharedSecretForMDMManagedHost = "shared_secret_for_mdm_managed_host"
 )
 

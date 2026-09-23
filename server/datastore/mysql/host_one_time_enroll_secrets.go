@@ -587,3 +587,27 @@ func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtCo
 	}
 	return nil
 }
+
+// rejectSharedSecretForMDMManagedWindowsHost refuses a shared enroll secret for a matched Windows host that is enrolled in Fleet MDM,
+// so that another machine cannot take the host over by presenting its identifiers. Such a host gets a one-time secret through the
+// Fleetd enroll secret profile, which an admin resends when fleetd has to enroll again. An enrollment row linked to the host is the
+// signal: an unenroll alert or a re-enrollment of the device deletes it. As on Apple, only a matched row is checked, so a deleted
+// host can still come back with a shared secret.
+func rejectSharedSecretForMDMManagedWindowsHost(ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string) error {
+	if platform != "windows" {
+		return nil
+	}
+	var managed bool
+	err := sqlx.GetContext(ctx, tx, &managed, `
+		SELECT EXISTS (
+			SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid WHERE h.id = ? AND h.uuid != ''
+		)`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check Windows MDM management of matched host")
+	}
+	if managed {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
+			"shared enroll secret presented for MDM-managed Windows host")
+	}
+	return nil
+}
