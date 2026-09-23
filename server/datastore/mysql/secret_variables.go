@@ -614,6 +614,10 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 // the given Windows MDM enrollment. It is the Windows counterpart of ExpandHostSecrets and exists as its own method because the
 // two identify their subject differently: Apple has a host UUID, Windows has an enrollment row whose host may not exist yet.
 //
+// Unlike the Apple side it never mints. The enroll secret expands to whatever live secret an earlier decision minted for this
+// enrollment, and to an empty string when there is none, which is what a host already running fleetd gets. fleetd treats an empty
+// value as nothing waiting. See MintWindowsMDMOneTimeEnrollSecret for where minting happens and why.
+//
 // Only the enroll secret is supported. The other host-secret types are Apple-only (recovery lock, MDM unlock token, Platform
 // SSO), so anything else is a programming error rather than something to expand to an empty string.
 func (ds *Datastore) ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error) {
@@ -626,9 +630,9 @@ func (ds *Datastore) ExpandWindowsMDMHostSecrets(ctx context.Context, document s
 	for _, secretType := range hostSecrets {
 		switch secretType {
 		case fleet.HostSecretEnrollSecret:
-			secret, err := ds.mintWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID)
+			secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID)
 			if err != nil {
-				return "", ctxerr.Wrapf(ctx, err, "minting one-time enroll secret for windows mdm enrollment %d", enrollmentID)
+				return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
 			}
 			secretValues[secretType] = secret
 		default:

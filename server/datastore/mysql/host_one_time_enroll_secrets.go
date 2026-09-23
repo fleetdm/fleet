@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -202,75 +203,202 @@ func (ds *Datastore) mintHostOneTimeEnrollSecret(ctx context.Context, enrollment
 	return secret, nil
 }
 
-// mintWindowsMDMOneTimeEnrollSecret returns the one-time enroll secret to hand to the given Windows MDM enrollment, minting one
-// if it has no live secret. It is the Windows counterpart of mintHostOneTimeEnrollSecret and differs in what it binds to.
+// A Windows one-time enroll secret is minted only when something has decided the device needs one, never as a side effect of
+// delivery. There are exactly two such decisions: Fleet is about to install fleetd on a device that does not have it
+// (MintWindowsMDMOneTimeEnrollSecret), and an administrator resends the Fleetd enroll secret profile to recover a host
+// (mintWindowsEnrollSecretOnResendDB, and windowsEnrollSecretBatchResendTargetsDB for a batch). Delivery only looks up what those decisions
+// left behind (liveWindowsMDMOneTimeEnrollSecret), and delivers nothing when there is nothing.
 //
-// Windows mints before there is anything to bind a host to. The automatic enrollment flows authenticate with a token that
-// carries no Fleet host UUID (authBinarySecurityToken returns ""), so the enrollment row is inserted unlinked and a hosts row
-// only appears once fleetd itself enrolls. The secret therefore binds to the enrollment, host_id stays NULL, and the host
-// identifiers are recorded later, on first use.
-//
-// The FOR UPDATE on the enrollment row is doing real work here, more than on the Apple side: Fleet re-enqueues the fleetd
-// install on every session-start alert while fleetd looks absent, which is once a minute on the fast poll. Without the lock,
-// two sessions that both find no live secret would both insert, and the device would be handed a secret that the next delivery
-// immediately superseded.
-func (ds *Datastore) mintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
-	var secret string
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var enrollments []struct {
-			ID             uint    `db:"id"`
-			HardwareSerial *string `db:"hardware_serial"`
+// The distinction matters because the profile goes to every Windows MDM host in the team, including the many that already run
+// fleetd and need no secret. Minting on delivery handed each of them a live, unconsumed secret in a registry value any local user
+// can read, and a Windows secret binds to an enrollment rather than to identifiers the agent presents, so another machine could
+// have used it to claim that enrollment.
+
+// MintWindowsMDMOneTimeEnrollSecret makes sure the given Windows MDM enrollment has a live one-time enroll secret, for the
+// fleetd install Fleet is about to send it. The installer command carries only the placeholder; getPendingMDMCmds resolves it
+// to this secret when the command is delivered.
+func (ds *Datastore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		minted, err := mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, []uint{enrollmentID})
+		if err != nil {
+			return err
 		}
-		if err := sqlx.SelectContext(ctx, tx, &enrollments,
-			`SELECT id, hardware_serial FROM mdm_windows_enrollments WHERE id = ? FOR UPDATE`, enrollmentID); err != nil {
-			return ctxerr.Wrap(ctx, err, "load windows mdm enrollment for one-time enroll secret")
-		}
-		if len(enrollments) == 0 {
+		if minted.found == 0 {
 			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"), "minting one-time enroll secret")
 		}
-		enrollment := enrollments[0]
-
-		var existing []string
-		if err := sqlx.SelectContext(ctx, tx, &existing,
-			`SELECT secret FROM host_one_time_enroll_secrets WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
-			enrollment.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "load unconsumed windows one-time enroll secret")
-		}
-		if len(existing) == 1 {
-			secret = existing[0]
-			return nil
-		}
-
-		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "generate windows one-time enroll secret")
-		}
-
-		// The serial is only here if a DevDetail response already landed; the hardware UUID never is. Both are provenance
-		// rather than authorization, and an empty one means "not captured" to MatchesHost.
-		var serial string
-		if enrollment.HardwareSerial != nil {
-			serial = *enrollment.HardwareSerial
-		}
-
-		// team_id stays NULL on purpose. The secret replaces the global enroll secret the MSI command line used to carry,
-		// which also had no team, so the host still enrolls into no team and the existing default-fleet transfer
-		// (maybeAssignWindowsEnrollmentDefaultFleet) applies afterwards with its own guards intact. Binding a team here
-		// would silently bypass those.
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO host_one_time_enroll_secrets
-				(secret, host_id, mdm_windows_enrollment_id, team_id, platform, hardware_uuid, hardware_serial)
-			VALUES (?, NULL, ?, NULL, 'windows', '', ?)`,
-			string(tok), enrollment.ID, serial); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert windows one-time enroll secret")
-		}
-		secret = string(tok)
 		return nil
 	})
-	if err != nil {
-		return "", err
+}
+
+type windowsOneTimeEnrollSecretMintResult struct {
+	// found is how many of the requested enrollments exist.
+	found int
+	// inserted is how many of those needed a new secret, because they had no live one.
+	inserted int
+}
+
+// mintWindowsMDMOneTimeEnrollSecretsDB gives each existing enrollment in enrollmentIDs a live secret, reusing an unconsumed one
+// where there is one. Reuse is what keeps the installer command line and the profile carrying the same secret, and what keeps
+// repeat calls harmless: Fleet re-enqueues the fleetd install on every session-start alert while fleetd looks absent.
+//
+// The FOR UPDATE serializes concurrent mints for the same enrollment. Without it, two sessions that both find no live secret
+// would both insert, leaving two valid secrets for one device.
+//
+// Windows mints before there is necessarily a host to bind to: the automatic enrollment flows carry no Fleet host UUID, so a
+// hosts row may only appear once fleetd enrolls. The secret binds to the enrollment instead, host_id stays NULL, and the host
+// identifiers are recorded on first use. The serial is copied when a DevDetail response already landed, as provenance.
+func mintWindowsMDMOneTimeEnrollSecretsDB(
+	ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint,
+) (windowsOneTimeEnrollSecretMintResult, error) {
+	var result windowsOneTimeEnrollSecretMintResult
+	if len(enrollmentIDs) == 0 {
+		return result, nil
 	}
-	return secret, nil
+
+	stmt, args, err := sqlx.In(
+		`SELECT id, hardware_serial FROM mdm_windows_enrollments WHERE id IN (?) ORDER BY id FOR UPDATE`, enrollmentIDs)
+	if err != nil {
+		return result, ctxerr.Wrap(ctx, err, "build windows mdm enrollment lock for one-time enroll secrets")
+	}
+	var enrollments []struct {
+		ID             uint    `db:"id"`
+		HardwareSerial *string `db:"hardware_serial"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &enrollments, stmt, args...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "lock windows mdm enrollments for one-time enroll secrets")
+	}
+	result.found = len(enrollments)
+	if len(enrollments) == 0 {
+		return result, nil
+	}
+
+	lockedIDs := make([]uint, 0, len(enrollments))
+	for _, e := range enrollments {
+		lockedIDs = append(lockedIDs, e.ID)
+	}
+	stmt, args, err = sqlx.In(`
+		SELECT DISTINCT mdm_windows_enrollment_id FROM host_one_time_enroll_secrets
+		WHERE mdm_windows_enrollment_id IN (?) AND consumed_at IS NULL`, lockedIDs)
+	if err != nil {
+		return result, ctxerr.Wrap(ctx, err, "build live windows one-time enroll secret lookup")
+	}
+	var live []uint
+	if err := sqlx.SelectContext(ctx, tx, &live, stmt, args...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "load live windows one-time enroll secrets")
+	}
+	hasLive := make(map[uint]struct{}, len(live))
+	for _, id := range live {
+		hasLive[id] = struct{}{}
+	}
+
+	var (
+		placeholders []string
+		insertArgs   []any
+	)
+	for _, e := range enrollments {
+		if _, ok := hasLive[e.ID]; ok {
+			continue
+		}
+		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "generate windows one-time enroll secret")
+		}
+		var serial string
+		if e.HardwareSerial != nil {
+			serial = *e.HardwareSerial
+		}
+		// team_id stays NULL on purpose. The secret replaces the global enroll secret, which also had no team, so the host still
+		// enrolls into no team and the existing default-fleet transfer (maybeAssignWindowsEnrollmentDefaultFleet) applies
+		// afterwards with its own guards intact. Binding a team here would silently bypass those.
+		placeholders = append(placeholders, `(?, NULL, ?, NULL, 'windows', '', ?)`)
+		insertArgs = append(insertArgs, string(tok), e.ID, serial)
+	}
+	if len(placeholders) == 0 {
+		return result, nil
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO host_one_time_enroll_secrets
+			(secret, host_id, mdm_windows_enrollment_id, team_id, platform, hardware_uuid, hardware_serial)
+		VALUES `+strings.Join(placeholders, ", "), insertArgs...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "insert windows one-time enroll secrets")
+	}
+	result.inserted = len(placeholders)
+	return result, nil
+}
+
+// liveWindowsMDMOneTimeEnrollSecret returns the unconsumed secret minted for the enrollment, or "" when there is none, which is
+// the normal state for a host that already runs fleetd.
+//
+// It reads the primary. The fleetd install is minted for and delivered in the same management request (processNewSessionAlert
+// runs before getPendingMDMCmds), so a replica even slightly behind would resolve to nothing and ship an installer without a
+// secret.
+func (ds *Datastore) liveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
+	var secrets []string
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &secrets, `
+		SELECT secret FROM host_one_time_enroll_secrets
+		WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL
+		ORDER BY id DESC LIMIT 1`, enrollmentID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "load live windows one-time enroll secret")
+	}
+	if len(secrets) == 0 {
+		return "", nil
+	}
+	return secrets[0], nil
+}
+
+// isWindowsEnrollSecretProfileDB reports whether the profile is the Fleet-managed Fleetd enroll secret profile. The name is
+// reserved, so a user cannot author one that passes this check.
+//
+// The resend hooks below key on this rather than on auth.mdm_windows_one_time_enroll_secrets, which the datastore does not see.
+// That is equivalent in practice: the reconciler deletes this profile whenever the switch is off, and a resend has to find the
+// profile first.
+func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, profileUUID string) (bool, error) {
+	var names []string
+	if err := sqlx.SelectContext(ctx, tx, &names,
+		`SELECT name FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load windows profile name")
+	}
+	return len(names) == 1 && names[0] == fleetmdm.FleetWindowsEnrollSecretProfileName, nil
+}
+
+// mintWindowsEnrollSecretOnResendDB mints for a host whose Fleetd enroll secret profile an administrator just resent. It runs in
+// the transaction that resets the profile's status, so the reconciler cannot deliver the profile before the secret exists.
+func mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID string) error {
+	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
+	if err != nil || !isSecretProfile {
+		return err
+	}
+	var enrollmentIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &enrollmentIDs,
+		`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?`, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "load windows mdm enrollments for resent enroll secret profile")
+	}
+	_, err = mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, enrollmentIDs)
+	return err
+}
+
+// windowsEnrollSecretBatchResendTargetsDB returns the enrollments of the hosts a batch resend of the Fleetd enroll secret profile
+// is about to reset, or nil for any other profile. It has to run before the status reset: afterwards the targets are
+// indistinguishable from hosts whose first delivery was already pending, and those must not be minted for.
+//
+// FOR UPDATE makes this the same set the reset then updates, rather than a snapshot another transaction could add to.
+func windowsEnrollSecretBatchResendTargetsDB(
+	ctx context.Context, tx sqlx.ExtContext, profileUUID string, status fleet.MDMDeliveryStatus,
+) ([]uint, error) {
+	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
+	if err != nil || !isSecretProfile {
+		return nil, err
+	}
+	var enrollmentIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &enrollmentIDs, `
+		SELECT DISTINCT e.id
+		FROM host_mdm_windows_profiles hmwp
+		JOIN mdm_windows_enrollments e ON e.host_uuid = hmwp.host_uuid
+		WHERE hmwp.profile_uuid = ? AND hmwp.status = ?
+		FOR UPDATE`, profileUUID, status); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load windows mdm enrollments for batch-resent enroll secret profile")
+	}
+	return enrollmentIDs, nil
 }
 
 // consumeHostOneTimeEnrollSecret records the use of a one-time enroll secret

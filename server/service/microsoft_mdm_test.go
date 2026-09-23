@@ -9,12 +9,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -3689,4 +3693,83 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 			}, attrs)
 		})
 	}
+}
+
+func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
+	const globalSecret = "global-enroll-secret"
+	device := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17"}
+
+	metadataUp := func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"fleetd_base_msi_url":"https://example.com/fleetd.msi","fleetd_base_msi_sha256":"abc"}`))
+		}))
+		t.Cleanup(srv.Close)
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
+	}
+	metadataDown := func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		t.Cleanup(srv.Close)
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
+	}
+
+	newService := func(t *testing.T, windowsSwitch bool) (*Service, *mock.Store, *[]string) {
+		ds := new(mock.Store)
+		var events []string
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"}}, nil
+		}
+		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+			return []*fleet.EnrollSecret{{Secret: globalSecret}}, nil
+		}
+		ds.MintWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) error {
+			require.Equal(t, device.ID, enrollmentID)
+			events = append(events, "mint")
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			require.Equal(t, []string{device.MDMDeviceID}, deviceIDs)
+			events = append(events, "insert:"+string(cmd.RawCommand))
+			return nil
+		}
+		cfg := config.TestConfig()
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsSwitch
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		return svc.(validationMiddleware).Service.(*Service), ds, &events
+	}
+
+	t.Run("switch on mints for the enrollment before the command is queued", func(t *testing.T) {
+		metadataUp(t)
+		svc, ds, events := newService(t, true)
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+
+		require.Len(t, *events, 2)
+		require.Equal(t, "mint", (*events)[0], "the placeholder has to have a secret to resolve to by the time it can be delivered")
+		// The command stores only the placeholder, never the value, and the global secret is not even looked up.
+		require.Contains(t, (*events)[1], fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
+		require.NotContains(t, (*events)[1], globalSecret)
+		require.False(t, ds.GetEnrollSecretsFuncInvoked)
+	})
+
+	t.Run("switch off never mints", func(t *testing.T) {
+		metadataUp(t)
+		svc, ds, events := newService(t, false)
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+
+		require.False(t, ds.MintWindowsMDMOneTimeEnrollSecretFuncInvoked)
+		require.Len(t, *events, 1)
+		require.Contains(t, (*events)[0], globalSecret)
+	})
+
+	t.Run("an install skipped for missing metadata leaves no secret behind", func(t *testing.T) {
+		// A minted secret nobody is delivered is still a live credential for the enrollment, so it must not be created ahead of
+		// an early return.
+		metadataDown(t)
+		svc, ds, events := newService(t, true)
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+
+		require.False(t, ds.MintWindowsMDMOneTimeEnrollSecretFuncInvoked)
+		require.Empty(t, *events)
+	})
 }

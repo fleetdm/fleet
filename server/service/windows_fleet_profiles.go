@@ -59,8 +59,9 @@ const (
 // the policy it declares can be set, and Fleet delivers a profile's elements in document order within a single SyncML body. A
 // re-sent Add on a device that already ingested it answers 418, which Fleet already converts to a Replace in the same session.
 //
-// The secret itself is never in here: the profile stores the $FLEET_HOST_SECRET_ENROLL_SECRET placeholder and the real value is
-// minted per enrollment when the command is delivered.
+// The secret itself is never in here: the profile stores the $FLEET_HOST_SECRET_ENROLL_SECRET placeholder, resolved per
+// enrollment at delivery to the live secret an earlier decision minted, or to an empty value for a host that needs none. So the
+// profile goes to every Windows MDM host in the team, but only a host being set up or recovered receives a secret.
 func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 	var admx bytes.Buffer
 	if err := xml.EscapeText(&admx, []byte(windowsEnrollSecretADMX)); err != nil {
@@ -106,7 +107,7 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 // ensureFleetProfiles does for Apple. Today that is only the enroll secret profile.
 //
 // One profile per team, plus "no team", because a Windows configuration profile is scoped by team and every Windows MDM host
-// needs the carrier. The contents are identical everywhere: the secret is minted per enrollment at delivery, not per team.
+// needs the carrier. The contents are identical everywhere: the secret is resolved per enrollment at delivery, not per team.
 func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, useOneTimeEnrollSecrets bool) error {
 	teamIDs, err := windowsProfileTeamTargets(ctx, ds)
 	if err != nil {
@@ -114,7 +115,9 @@ func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger 
 	}
 
 	if !useOneTimeEnrollSecrets {
-		// Turning the feature off has to take the carrier with it, or hosts keep a profile whose placeholder nothing expands.
+		// Turning the feature off has to take the carrier with it. The profile's existence is what an administrator resend mints
+		// against, so removing it is what actually stops minting; leaving it would keep handing out secrets that enrollment,
+		// with both switches off, no longer accepts.
 		for _, teamID := range teamIDs {
 			if err := ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsEnrollSecretProfileName); err != nil &&
 				!fleet.IsNotFound(err) {

@@ -40,7 +40,7 @@ func TestWindowsEnrollSecretProfileSyncML(t *testing.T) {
 	require.Contains(t, admx, `valueName="EnrollSecret"`)
 	require.Contains(t, admx, `class="Machine"`, "the value has to land in HKLM, not HKCU")
 
-	// The secret itself is never stored: the profile carries the placeholder, expanded per enrollment at delivery.
+	// The secret itself is never stored: the profile carries the placeholder, resolved per enrollment at delivery.
 	policy := html.UnescapeString(cmds[1].Items[0].Data.Content)
 	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
 	require.Contains(t, policy, placeholder)
@@ -94,8 +94,8 @@ func TestEnsureFleetWindowsProfiles(t *testing.T) {
 			return nil
 		}
 
-		// Leaving it behind would deliver a profile whose placeholder nothing expands, writing a literal
-		// "$FLEET_HOST_SECRET_ENROLL_SECRET" into the registry for orbit to try to enroll with.
+		// Leaving it behind would leave an administrator resend able to mint secrets that, with the switch off, enrollment
+		// no longer accepts.
 		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, false))
 		require.Equal(t, []*uint{&teamID, nil}, deletedTeams)
 		require.False(t, ds.SetOrUpdateMDMWindowsConfigProfileFuncInvoked)

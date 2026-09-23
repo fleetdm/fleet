@@ -3783,8 +3783,14 @@ type Datastore interface {
 
 	// ExpandWindowsMDMHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in a SyncML document being delivered to
 	// the given Windows MDM enrollment. Windows identifies its subject by enrollment rather than by host UUID, because the
-	// host may not exist yet when the secret is minted.
+	// host may not exist yet when the secret is minted. It never mints: the enroll secret expands to the live secret an earlier
+	// decision minted for the enrollment, or to an empty string when there is none.
 	ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error)
+
+	// MintWindowsMDMOneTimeEnrollSecret makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an
+	// unconsumed one. Called when Fleet is about to install fleetd on the device. Returns a NotFound error for an unknown
+	// enrollment.
+	MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Custom host vitals

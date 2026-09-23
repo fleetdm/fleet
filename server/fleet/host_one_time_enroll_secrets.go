@@ -22,15 +22,17 @@ const (
 )
 
 // HostOneTimeEnrollSecret is a per-device, single-use enroll secret minted when an MDM-enrolled host is handed the credential it
-// will enroll with: an Apple host fetching its fleetd configuration profile, or a Windows host being sent the fleetd installer.
-// It may be used once per enrollment plane.
+// will enroll with: an Apple host fetching its fleetd configuration profile, or a Windows host being sent the fleetd installer or
+// having its Fleetd enroll secret profile resent by an administrator. It may be used once per enrollment plane.
 type HostOneTimeEnrollSecret struct {
 	ID     uint   `db:"id"`
 	Secret string `db:"secret"`
 	HostID *uint  `db:"host_id"`
-	// MDMWindowsEnrollmentID binds the secret to a Windows MDM enrollment instead of to a host. Windows mints before a hosts row
-	// exists, because the automatic enrollment flows carry no Fleet host UUID, so HostID stays nil until an agent enrolls with
-	// the secret. Nil on the Apple path, which always has a host to bind to.
+	// MDMWindowsEnrollmentID binds the secret to a Windows MDM enrollment instead of to a host. A hosts row may not exist when the
+	// secret is minted: the automatic enrollment flows carry no Fleet host UUID, so when fleetd is being installed for the first
+	// time there is nothing to bind to until the agent enrolls. When a host row does exist, on an administrator resend or when
+	// fleetd was installed before the device enrolled in MDM, the enrollment is still the binding, and HostID stays nil until the
+	// secret is used. Nil on the Apple path, which always has a host to bind to.
 	MDMWindowsEnrollmentID *uint      `db:"mdm_windows_enrollment_id"`
 	TeamID                 *uint      `db:"team_id"`
 	Platform               string     `db:"platform"`

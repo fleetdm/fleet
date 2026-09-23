@@ -1504,8 +1504,10 @@ func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string
 	return token
 }
 
-func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
-	// With one-time enroll secrets the command carries a placeholder, expanded per enrollment in getPendingMDMCmds. That is
+func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) error {
+	deviceID := enrolledDevice.MDMDeviceID
+
+	// With one-time enroll secrets the command carries a placeholder, resolved per enrollment in getPendingMDMCmds. That is
 	// what stops every Windows MDM host from being handed the same fleet-wide, never-expiring credential, and it also means
 	// the value is never stored: raw_command keeps the placeholder, and the command-results API returns raw_command verbatim.
 	//
@@ -1605,6 +1607,15 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
+	// This is one of the two places a Windows one-time enroll secret is minted, because the caller only gets here when fleetd is
+	// absent, which is exactly when the device needs one. It is minted last, after every early return that skips the install,
+	// and before the command is queued so the placeholder always has something to resolve to.
+	if svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+		if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for fleetd install")
+		}
+	}
+
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, fleetdInstallCmd); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
 	}
@@ -1624,7 +1635,7 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 	}
 
 	if !fleetdPresent {
-		return svc.enqueueInstallFleetdCommand(ctx, enrolledDevice.MDMDeviceID)
+		return svc.enqueueInstallFleetdCommand(ctx, enrolledDevice)
 	}
 
 	return nil
@@ -2099,9 +2110,9 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
 		}
-		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are minted here rather than at enqueue, which is what keeps the
+		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, which is what keeps the
 		// credential out of windows_mdm_commands.raw_command and therefore out of the command-results API, where
-		// raw_command is returned verbatim as the payload.
+		// raw_command is returned verbatim as the payload. Resolution never mints; see MintWindowsMDMOneTimeEnrollSecret.
 		rawCommandWithSecret, err = svc.ds.ExpandWindowsMDMHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
 		if err != nil {
 			return nil, false, ctxerr.Wrap(ctx, err, "expanding host secrets for Windows pending commands")
