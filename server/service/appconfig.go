@@ -1043,8 +1043,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			invalid.Append("server_url", "Couldn't update settings: "+err.Error())
 		}
 	}
-	// MDMUrl() returns this in place of server_url when set, so it needs the same trim.
-	appConfig.MDM.AppleServerURL = cleanupURL(appConfig.MDM.AppleServerURL)
 
 	if appConfig.ActivityExpirySettings.ActivityExpiryEnabled && appConfig.ActivityExpirySettings.ActivityExpiryWindow < 1 {
 		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")

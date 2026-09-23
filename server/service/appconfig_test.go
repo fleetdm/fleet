@@ -222,12 +222,11 @@ func TestModifyAppConfigServerURLNormalization(t *testing.T) {
 				return []*fleet.ABMToken{}, nil
 			}
 
-			body := fmt.Sprintf(`{"server_settings":{"server_url":%q},"mdm":{"apple_server_url":%q}}`, c.in, c.in)
+			body := fmt.Sprintf(`{"server_settings":{"server_url":%q}}`, c.in)
 			_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
 			require.NoError(t, err)
 			require.True(t, ds.SaveAppConfigFuncInvoked)
 			assert.Equal(t, c.want, saved.ServerSettings.ServerURL)
-			assert.Equal(t, c.want, saved.MDM.AppleServerURL)
 		})
 	}
 }
