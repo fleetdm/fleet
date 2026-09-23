@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260923175153(t *testing.T) {
+func TestUp_20260923202234(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seeded before the migration runs, because the rename half of it acts on profiles that already exist.

@@ -28,11 +28,7 @@ type HostOneTimeEnrollSecret struct {
 	ID     uint   `db:"id"`
 	Secret string `db:"secret"`
 	HostID *uint  `db:"host_id"`
-	// MDMWindowsEnrollmentID binds the secret to a Windows MDM enrollment instead of to a host. A hosts row may not exist when the
-	// secret is minted: the automatic enrollment flows carry no Fleet host UUID, so when fleetd is being installed for the first
-	// time there is nothing to bind to until the agent enrolls. When a host row does exist, on an administrator resend or when
-	// fleetd was installed before the device enrolled in MDM, the enrollment is still the binding, and HostID stays nil until the
-	// secret is used. Nil on the Apple path, which always has a host to bind to.
+	// MDMWindowsEnrollmentID binds the secret to a Windows MDM enrollment instead of to a host.
 	MDMWindowsEnrollmentID *uint      `db:"mdm_windows_enrollment_id"`
 	TeamID                 *uint      `db:"team_id"`
 	Platform               string     `db:"platform"`

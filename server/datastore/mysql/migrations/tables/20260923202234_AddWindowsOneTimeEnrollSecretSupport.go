@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260923175153, Down_20260923175153)
+	MigrationClient.AddMigration(Up_20260923202234, Down_20260923202234)
 }
 
 // Two things, because neither is useful without the other: bind one-time enroll secrets to the Windows MDM enrollment they were
@@ -21,7 +21,7 @@ func init() {
 // The foreign key is what invalidates a secret when the device re-enrolls: MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes
 // the enrollment row, and the cascade takes the secrets with it. That is the Windows equivalent of the explicit delete the Apple
 // path does on re-enroll, and it cannot be forgotten by a future caller.
-func Up_20260923175153(tx *sql.Tx) error {
+func Up_20260923202234(tx *sql.Tx) error {
 	const table = "host_one_time_enroll_secrets"
 
 	// Each piece is guarded separately so a run that failed partway can be retried. Adding a column that is already there, or a
@@ -132,6 +132,6 @@ func renameConflictingWindowsEnrollSecretProfiles(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260923175153(tx *sql.Tx) error {
+func Down_20260923202234(tx *sql.Tx) error {
 	return nil
 }
