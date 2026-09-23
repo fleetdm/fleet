@@ -2325,6 +2325,7 @@ func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateSt
 		"short_retention_pairs_deleted", stats.ShortPairsDeleted,
 		"standard_retention_pairs_deleted", stats.StandardPairsDeleted,
 		"commands_deleted", stats.CommandsDeleted,
+		"orphan_commands_deleted", stats.OrphanCommandsDeleted,
 		"cursors", state)
 	if stats.RowBudgetExhausted || stats.CmdBudgetExhausted {
 		logger.WarnContext(ctx, "apple mdm command cleanup stopped early, remaining rows will be cleaned on the next run",
