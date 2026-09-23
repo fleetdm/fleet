@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260922120749, Down_20260922120749)
+	MigrationClient.AddMigration(Up_20260923061611, Down_20260923061611)
 }
 
-func Up_20260922120749(tx *sql.Tx) error {
+func Up_20260923061611(tx *sql.Tx) error {
 	if _, err := tx.Exec(`ALTER TABLE mdm_apple_configuration_profiles
   ADD COLUMN self_service TINYINT(1) NOT NULL DEFAULT 0,
   ADD COLUMN hidden       TINYINT(1) NOT NULL DEFAULT 0;`); err != nil {
@@ -43,6 +43,6 @@ func Up_20260922120749(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260922120749(tx *sql.Tx) error {
+func Down_20260923061611(tx *sql.Tx) error {
 	return nil
 }

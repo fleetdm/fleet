@@ -2478,6 +2478,45 @@ func TestLabelQueries(t *testing.T) {
 
 	mockClock.AddTime(1 * time.Second)
 
+	// Results for labels that are not dynamic labels applicable to the host
+	// (manual labels, other teams' labels, unknown IDs) must be discarded, not
+	// recorded as false: a false becomes a membership DELETE, which would let a
+	// host remove itself from a manual label.
+	gotResults = map[uint]*bool{}
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1":  {{"col1": "val1"}},
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	require.Len(t, gotResults, 1)
+	assert.True(t, *gotResults[1])
+	assert.NotContains(t, gotResults, uint(98))
+	assert.NotContains(t, gotResults, uint(99))
+
+	// When every reported label is inapplicable, nothing is recorded at all.
+	ds.RecordLabelQueryExecutionsFuncInvoked = false
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	assert.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
+
+	mockClock.AddTime(1 * time.Second)
+
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
