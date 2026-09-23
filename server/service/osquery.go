@@ -3030,6 +3030,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Skip an app  that's already on a patch notification the end user has seen, the notification's deadline is what
+		// installs it. If we queue a skippable install here, its skip can report after the notification is acted and its
+		// force installs are queued, and create a second notification.
+		var appHasDisplayedPatchNotification bool
+		if failingPolicyWithInstaller.OverridePreInstallQuery {
+			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check whether a displayed patch notification lists this app")
+			}
+		}
+		if appHasDisplayedPatchNotification {
+			logger.DebugContext(ctx, "skipping policy automation install, the app is on a patch notification the end user has seen")
+			continue
+		}
+
 		// Throttle continuous policy automation re-installs: if this policy fired only
 		// because continuous_automations_enabled is set (not a pass→fail transition)
 		// and we already queued a successful install within the policy update interval,
@@ -3073,9 +3088,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService:     false,
-				PolicyID:        &policyID,
-				DeferActivation: svc.deferFleetInitiatedActivation(),
+				SelfService:             false,
+				PolicyID:                &policyID,
+				OverridePreInstallQuery: failingPolicyWithInstaller.OverridePreInstallQuery,
+				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {
