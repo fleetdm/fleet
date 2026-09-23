@@ -65,7 +65,9 @@ Do this for each new device:
 4. When prompted, enter the package password and confirm that you trust the package.
 5. When you see "You can remove your removable media now!", remove the USB drive. Windows finishes applying the package and installs fleetd.
 6. Wait for the host to appear in Fleet (see [Verify](#verify)).
-7. Press Shift+F10 to open a command prompt (Fn+Shift+F10 on some laptops) and run `shutdown /s /t 0`. Don't create a user account.
+7. Shut down the device without creating a user account. Do either of the following:
+   - Press Shift+F10 to open a command prompt (Fn+Shift+F10 on some laptops) and run `shutdown /s /t 0`.
+   - Hold the power button until the device turns off. A quick press may put the device to sleep instead.
 
 The device is ready to ship. When the end user powers it on, they finish Windows setup as usual, and fleetd is already installed.
 
