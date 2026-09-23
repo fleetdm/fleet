@@ -2615,11 +2615,86 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host
 	}
 
+	// One self-service profile pair per label-rule branch of the verification query: the "_opt" profile is
+	// opted in on this host, the "_noopt" one only on another host. Only the opted-in ones are expected.
+	macosSelfServiceSetup := func() (uint, *fleet.Host) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-7",
+			OsqueryHostID: ptr.String("osquery-macos-7"),
+			NodeKey:       ptr.String("node-key-macos-7"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 7"})
+		require.NoError(t, err)
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+		require.NoError(t, err)
+
+		includeAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-macos-ss-matched"})
+		require.NoError(t, err)
+		includeAll, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-macos-ss-matched"})
+		require.NoError(t, err)
+		exclude, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-macos-ss-unmatched"})
+		require.NoError(t, err)
+
+		branches := map[string][]*fleet.Label{
+			"nolabel":    nil,
+			"incall":     {includeAll},
+			"exc":        {exclude},
+			"incany":     {includeAny},
+			"incall_exc": {includeAll, exclude},
+			"incany_exc": {includeAny, exclude},
+		}
+		profiles := []*fleet.MDMAppleConfigProfile{configProfileForTest(t, "T7.1", "T7.1", "v")}
+		for branch, labels := range branches {
+			for _, suffix := range []string{"opt", "noopt"} {
+				ident := "ss_" + branch + "_" + suffix
+				profiles = append(profiles, configProfileForTest(t, ident, ident, ident, labels...))
+			}
+		}
+		_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)`,
+				host.ID, includeAny.ID, host.ID, includeAll.ID,
+			); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx,
+				`UPDATE mdm_apple_configuration_profiles SET self_service = 1 WHERE team_id = ? AND identifier LIKE 'ss\_%'`,
+				team.ID,
+			); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_opt'`,
+				host.UUID, team.ID,
+			); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+				SELECT ?, profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier LIKE '%\_noopt'`,
+				uuid.NewString(), team.ID,
+			)
+			return err
+		})
+
+		return team.ID, host
+	}
+
 	tests := []struct {
-		name      string
-		setupFunc func() (uint, *fleet.Host)
-		wantMac   map[string]*fleet.ExpectedMDMProfile
-		os        string
+		name       string
+		setupFunc  func() (uint, *fleet.Host)
+		wantMac    map[string]*fleet.ExpectedMDMProfile
+		notWantMac []string
+		os         string
 	}{
 		{
 			name:      "macos basic team profiles no labels",
@@ -2681,6 +2756,23 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				"include_any_and_exclude_none_match_prof": {Identifier: "include_any_and_exclude_none_match_prof"},
 			},
 		},
+		{
+			name:      "macos self-service profiles only expected when opted in",
+			setupFunc: macosSelfServiceSetup,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T7.1":              {Identifier: "T7.1"},
+				"ss_nolabel_opt":    {Identifier: "ss_nolabel_opt"},
+				"ss_incall_opt":     {Identifier: "ss_incall_opt"},
+				"ss_exc_opt":        {Identifier: "ss_exc_opt"},
+				"ss_incany_opt":     {Identifier: "ss_incany_opt"},
+				"ss_incall_exc_opt": {Identifier: "ss_incall_exc_opt"},
+				"ss_incany_exc_opt": {Identifier: "ss_incany_exc_opt"},
+			},
+			notWantMac: []string{
+				"ss_nolabel_noopt", "ss_incall_noopt", "ss_exc_noopt",
+				"ss_incany_noopt", "ss_incall_exc_noopt", "ss_incany_exc_noopt",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2696,6 +2788,9 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 					if v.EarliestInstallDate != timeZero {
 						require.Equal(t, v.EarliestInstallDate, got[k].EarliestInstallDate)
 					}
+				}
+				for _, k := range tt.notWantMac {
+					require.NotContains(t, got, k)
 				}
 			}
 		})

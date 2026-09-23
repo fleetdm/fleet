@@ -166,10 +166,11 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 		Checksum          []byte             `db:"checksum"`
 		SecretsUpdatedAt  sql.NullTime       `db:"secrets_updated_at"`
 		Scope             fleet.PayloadScope `db:"scope"`
+		SelfService       bool               `db:"self_service"`
 	}
 
 	profStmt := `
-		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope
+		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope, self_service
 		FROM mdm_apple_configuration_profiles
 	`
 	var profArgs []any
@@ -1037,7 +1038,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 				scope = fleet.PayloadScopeSystem
 			}
 			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-			args = append(args,
+			args = append(
+				args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
 				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt,
 				r.ActivationUpdatedAt, scope,

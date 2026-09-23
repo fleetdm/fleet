@@ -109,7 +109,8 @@ func ReconcileAppleProfilesBatched(
 	}()
 
 	if cursor != "" || nextCursor != "" {
-		logger.DebugContext(ctx, "apple MDM reconcile tick using cursor",
+		logger.DebugContext(
+			ctx, "apple MDM reconcile tick using cursor",
 			"cursor", cursor, "next_cursor", nextCursor,
 			"batch_size", reconcileAppleProfilesBatchSize,
 			"hosts_in_batch", len(hosts),
@@ -125,14 +126,30 @@ func ReconcileAppleProfilesBatched(
 		}
 	}
 
-	toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+	hostUUIDs := make([]string, 0, len(hosts))
+	for _, h := range hosts {
+		hostUUIDs = append(hostUUIDs, h.UUID)
+	}
+
+	optInsByHost, err := ds.BulkGetHostMDMProfileOptIns(ctx, hostUUIDs)
+	if err != nil {
+		return err
+	}
+
+	toInstall, toRemove, optInChanges := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel, optInsByHost)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 	logger.DebugContext(ctx, "batched reconcile: computed deltas",
 		"to_install", len(toInstall), "to_remove", len(toRemove))
 
-	if len(toInstall) == 0 && len(toRemove) == 0 {
+	if len(toInstall) == 0 && len(toRemove) == 0 && (optInChanges == nil || (len(optInChanges.Add) == 0 && len(optInChanges.Purge) == 0)) {
 		return nil
+	}
+
+	if optInChanges != nil {
+		if err := ds.ApplyHostMDMProfileOptInChanges(ctx, optInChanges); err != nil {
+			return err
+		}
 	}
 
 	_, err = apple_mdm.ExecuteReconcileBatch(

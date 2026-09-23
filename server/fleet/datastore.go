@@ -4222,6 +4222,12 @@ type Datastore interface {
 	ClearABMTokenDefault(ctx context.Context) error
 	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
 	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
+	// ApplyHostMDMProfileOptInChanges runs Add then Purge in one transaction.
+	ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *MDMProfileOptInChanges) error
+
+	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
+	// host UUID -> profile UUID set.
+	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
 }
 
 type AndroidDatastore interface {
