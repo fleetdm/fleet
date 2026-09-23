@@ -1889,8 +1889,9 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "wipe succeeded: get host by identifier")
 				}
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return err
 				}
 			}
 		}

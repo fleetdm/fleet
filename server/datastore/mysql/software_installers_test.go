@@ -48,6 +48,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"DeleteSoftwareInstallerRepointsPolicies", testDeleteSoftwareInstallerRepointsPolicies},
 		{"testDeletePendingSoftwareInstallsForPolicy", testDeletePendingSoftwareInstallsForPolicy},
 		{"GetHostLastInstallData", testGetHostLastInstallData},
+		{"BatchInstallVerificationReads", testBatchInstallVerificationReads},
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
@@ -1105,9 +1106,11 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
 			require.NoError(t, err)
 			require.NotNil(t, res.UpdatedAt)
-			require.Less(t, beforeInstallRequest, res.CreatedAt)
+			// MySQL writes these off its own clock, which can sit a fraction of a millisecond behind
+			// the one time.Now() reads, so compare with a tolerance rather than strictly ordering them
+			require.WithinDuration(t, beforeInstallRequest, res.CreatedAt, time.Minute)
 			createdAt := res.CreatedAt
-			require.Less(t, beforeInstallRequest, *res.UpdatedAt)
+			require.WithinDuration(t, beforeInstallRequest, *res.UpdatedAt, time.Minute)
 
 			beforeInstallResult := time.Now()
 			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1172,7 +1175,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.NotNil(t, res.CreatedAt)
 			require.Equal(t, createdAt, res.CreatedAt)
 			require.NotNil(t, res.UpdatedAt)
-			require.Less(t, beforeInstallResult, *res.UpdatedAt)
+			require.WithinDuration(t, beforeInstallResult, *res.UpdatedAt, time.Minute)
 		})
 	}
 }
@@ -3330,6 +3333,124 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 	host2LastInstall, err = ds.GetHostLastInstallData(ctx, host2.ID, softwareInstallerID2)
 	require.NoError(t, err)
 	require.Nil(t, host2LastInstall)
+}
+
+// The two batch reads RemindAndInstallDuePatches does before deciding whether a software title
+// still needs updating: the host's install requests, and the host's software inventory.
+func testBatchInstallVerificationReads(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "title-installs-team"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Title Installs", "title-installs@example.com", true)
+	installedHost := test.NewHost(t, ds, "title-installs-1", "1", "title-installs-1-key", "title-installs-1-uuid", time.Now(), test.WithTeamID(team.ID))
+	untouchedHost := test.NewHost(t, ds, "title-installs-2", "2", "title-installs-2-key", "title-installs-2-uuid", time.Now(), test.WithTeamID(team.ID))
+
+	// two installers of the same software title, which is what replacing a package leaves behind
+	firstInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", StorageID: uuid.NewString(), Filename: "first.pkg",
+		Title: "Replaced App", Version: "1.0.0", Source: "apps", Platform: "darwin",
+		TeamID: &team.ID, UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	secondInstallerID, secondTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install", StorageID: uuid.NewString(), Filename: "second.pkg",
+		Title: "Replaced App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+		TeamID: &team.ID, UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, firstInstallerID, secondInstallerID)
+	require.Equal(t, titleID, secondTitleID)
+
+	// the install through the first installer finished
+	firstExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, firstInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID: installedHost.ID, InstallUUID: firstExecutionID, InstallScriptExitCode: new(0),
+	}, nil)
+	require.NoError(t, err)
+
+	// the second install request is still pending, and runs the app open query as a policy install does
+	secondExecutionID, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, secondInstallerID,
+		fleet.HostSoftwareInstallOptions{OverridePreInstallQuery: true})
+	require.NoError(t, err)
+
+	installsByTitle, err := ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+
+	// both installs report against the one software title, whichever installer they went through
+	installs := installsByTitle[fleet.HostSoftwareTitleKey{HostID: installedHost.ID, SoftwareTitleID: titleID}]
+	require.Len(t, installs, 2)
+	statusByExecutionID := make(map[string]fleet.SoftwareInstallerStatus, len(installs))
+	overrideByExecutionID := make(map[string]bool, len(installs))
+	for _, install := range installs {
+		require.NotNil(t, install.Status)
+		statusByExecutionID[install.ExecutionID] = *install.Status
+		overrideByExecutionID[install.ExecutionID] = install.OverridePreInstallQuery
+	}
+	require.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
+	require.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[secondExecutionID])
+
+	// the patch countdown reads override_pre_install_query to tell an install that would skip while
+	// the app is open from one it can wait on
+	require.False(t, overrideByExecutionID[firstExecutionID])
+	require.True(t, overrideByExecutionID[secondExecutionID])
+
+	// a host Fleet has installed nothing on is left out
+	require.NotContains(t, installsByTitle, fleet.HostSoftwareTitleKey{HostID: untouchedHost.ID, SoftwareTitleID: titleID})
+
+	// one installer with a finished install and another queued reports both
+	queuedOnFirstInstaller, err := ds.InsertSoftwareInstallRequest(ctx, installedHost.ID, firstInstallerID,
+		fleet.HostSoftwareInstallOptions{OverridePreInstallQuery: true})
+	require.NoError(t, err)
+
+	installsByTitle, err = ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+	installs = installsByTitle[fleet.HostSoftwareTitleKey{HostID: installedHost.ID, SoftwareTitleID: titleID}]
+	require.Len(t, installs, 3)
+	statusByExecutionID = make(map[string]fleet.SoftwareInstallerStatus, len(installs))
+	for _, install := range installs {
+		require.NotNil(t, install.Status)
+		statusByExecutionID[install.ExecutionID] = *install.Status
+	}
+	require.Equal(t, fleet.SoftwareInstalled, statusByExecutionID[firstExecutionID])
+	require.Equal(t, fleet.SoftwareInstallPending, statusByExecutionID[queuedOnFirstInstaller])
+
+	// a software title with no installer of its own has nothing to report
+	otherTitleID := newTestSoftwareTitle(t, ds, "Uninstallable App")
+	installsByTitle, err = ds.ListLastTitleInstallDataForHosts(ctx, []uint{installedHost.ID}, []uint{otherTitleID})
+	require.NoError(t, err)
+	require.Empty(t, installsByTitle)
+
+	// The host's software inventory, the second read RemindAndInstallDuePatches does. A software
+	// title with two versions in host_software returns both rows, since the caller treats the title
+	// as up to date only when every version matches the installer's.
+	_, err = ds.UpdateHostSoftware(ctx, installedHost.ID, []fleet.Software{
+		{Name: "Replaced App", Version: "1.0.0", Source: "apps"},
+		{Name: "Replaced App", Version: "2.0.0", Source: "apps"},
+		{Name: "Unrelated App", Version: "9.9.9", Source: "apps"},
+	})
+	require.NoError(t, err)
+
+	versions, err := ds.ListSoftwareTitleVersionsForHosts(ctx,
+		[]uint{installedHost.ID, untouchedHost.ID}, []uint{titleID})
+	require.NoError(t, err)
+
+	installedVersions := make([]string, 0, len(versions))
+	for _, version := range versions {
+		require.Equal(t, installedHost.ID, version.HostID, "the host with no inventory reports nothing")
+		require.Equal(t, titleID, version.SoftwareTitleID, "a title that wasn't asked for stays out")
+		installedVersions = append(installedVersions, version.Version)
+	}
+	require.ElementsMatch(t, []string{"1.0.0", "2.0.0"}, installedVersions)
+
+	// neither an empty host list nor an empty title list reads the whole table
+	versions, err = ds.ListSoftwareTitleVersionsForHosts(ctx, nil, []uint{titleID})
+	require.NoError(t, err)
+	require.Empty(t, versions)
+	versions, err = ds.ListSoftwareTitleVersionsForHosts(ctx, []uint{installedHost.ID}, nil)
+	require.NoError(t, err)
+	require.Empty(t, versions)
 }
 
 func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
@@ -7646,54 +7767,151 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		return installerID, titleID
 	}
 
-	patchPolicy := func(t *testing.T, titleID uint, patchWhenClosed bool) *fleet.Policy {
+	// option is "closed", "notify", or "" for neither.
+	patchPolicy := func(t *testing.T, titleID uint, option string) *fleet.Policy {
 		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
 			Type:                 fleet.PolicyTypePatch,
 			PatchSoftwareTitleID: &titleID,
-			PatchWhenClosed:      patchWhenClosed,
+			PatchWhenClosed:      option == "closed",
+			NotifyBeforePatching: option == "notify",
 		})
 		require.NoError(t, err)
-		require.Equal(t, patchWhenClosed, p.PatchWhenClosed)
-		if patchWhenClosed {
+		require.Equal(t, option == "closed", p.PatchWhenClosed)
+		require.Equal(t, option == "notify", p.NotifyBeforePatching)
+		if option != "" {
 			// The service does this after writing the policy; call it here to exercise the same effect.
 			require.NoError(t, ds.ClearPreInstallQueryForTitle(ctx, team.ID, titleID))
 		}
 		return p
 	}
 
-	// Patch policy with patch_when_closed: the policy-triggered install gets the managed query.
-	closedInstaller, closedTitle := newInstaller(t, "pwc-closed")
-	closedPol := patchPolicy(t, closedTitle, true)
-	closedExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &closedPol.ID})
-	require.NoError(t, err)
-	closedDetails, err := ds.GetSoftwareInstallDetails(ctx, closedExec)
-	require.NoError(t, err)
-	require.Equal(t, managedQuery, closedDetails.PreInstallCondition)
+	// Both patch options swap the managed app-open query in as the install's pre-install condition,
+	// on both UNION branches of the details query. A host each, so activation order is unambiguous.
+	for _, option := range []string{"closed", "notify"} {
+		optHost := test.NewHost(t, ds, "pwc-host-"+option, "pwc-ip-"+option, "pwc-key-"+option, "pwc-uuid-"+option, time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{optHost.ID})))
 
-	// Activating the install moves it into host_software_installs, exercising the other UNION
-	// branch of the query, which must resolve the managed query the same way.
-	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
-	require.NoError(t, err)
-	activatedDetails, err := ds.GetSoftwareInstallDetails(ctx, closedExec)
-	require.NoError(t, err)
-	require.Equal(t, managedQuery, activatedDetails.PreInstallCondition)
+		optInstaller, optTitle := newInstaller(t, "pwc-"+option)
+		optPol := patchPolicy(t, optTitle, option)
 
-	// Same installer via a manual (non-policy) install: no pre-install condition, because enabling
-	// patch_when_closed cleared the installer's user query.
-	manualExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-	manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
-	require.NoError(t, err)
-	require.Empty(t, manualDetails.PreInstallCondition)
+		optExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller,
+			fleet.HostSoftwareInstallOptions{PolicyID: &optPol.ID, OverridePreInstallQuery: true})
+		require.NoError(t, err)
+		optDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, managedQuery, optDetails.PreInstallCondition, option)
 
-	// A patch policy without patch_when_closed keeps the user query on the policy path.
+		// Activating the install moves it into host_software_installs, exercising the other UNION
+		// branch of the query, which must resolve the managed query the same way.
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), optHost.ID, "")
+		require.NoError(t, err)
+		activatedDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, managedQuery, activatedDetails.PreInstallCondition, option)
+
+		optResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.True(t, optResult.OverridePreInstallQuery, option)
+
+		// Same installer via a manual (non-policy) install: no pre-install condition, because
+		// enabling either option cleared the installer's user query.
+		manualExec, err := ds.InsertSoftwareInstallRequest(ctx, optHost.ID, optInstaller, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
+		require.NoError(t, err)
+		require.Empty(t, manualDetails.PreInstallCondition, option)
+
+		// The app was open, so the install stopped before running.
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    optHost.ID,
+			InstallUUID:               optExec,
+			PreInstallConditionOutput: new(""),
+		}, nil)
+		require.NoError(t, err)
+
+		// Deleting the policy nulls host_software_installs.policy_id, and the recorded result still
+		// should report which patch option queued the install, to differentiate between them in details,
+		// rather than just use override pre install query.
+		_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{optPol.ID})
+		require.NoError(t, err)
+		deletedPolicyResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.True(t, deletedPolicyResult.OverridePreInstallQuery, option)
+		require.Equal(t, option == "closed", deletedPolicyResult.PatchWhenClosed, option)
+		require.Equal(t, option == "notify", deletedPolicyResult.NotifyBeforePatching, option)
+	}
+
+	// A patch policy with neither option keeps the user query on the policy path.
 	forceInstaller, forceTitle := newInstaller(t, "pwc-force")
-	forcePol := patchPolicy(t, forceTitle, false)
+	forcePol := patchPolicy(t, forceTitle, "")
 	forceExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, forceInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &forcePol.ID})
 	require.NoError(t, err)
 	forceDetails, err := ds.GetSoftwareInstallDetails(ctx, forceExec)
 	require.NoError(t, err)
 	require.Equal(t, userQuery, forceDetails.PreInstallCondition)
+
+	// An "Update now" install does not use the managed query, so it installs with the app open.
+	ignoreHost := test.NewHost(t, ds, "pwc-host-ignore", "pwc-ip-ignore", "pwc-key-ignore", "pwc-uuid-ignore", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{ignoreHost.ID})))
+	ignoreInstaller, ignoreTitle := newInstaller(t, "pwc-ignore")
+	ignorePol := patchPolicy(t, ignoreTitle, "notify")
+
+	ignoreExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID})
+	require.NoError(t, err)
+	ignoreDetails, err := ds.GetSoftwareInstallDetails(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreDetails.OverridePreInstallQuery)
+	require.Empty(t, ignoreDetails.PreInstallCondition)
+
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), ignoreHost.ID, "")
+	require.NoError(t, err)
+	ignoreActivated, err := ds.GetSoftwareInstallDetails(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreActivated.OverridePreInstallQuery)
+	require.Empty(t, ignoreActivated.PreInstallCondition)
+
+	ignoreResult, err := ds.GetSoftwareInstallResults(ctx, ignoreExec)
+	require.NoError(t, err)
+	require.False(t, ignoreResult.OverridePreInstallQuery)
+
+	// A second install queues behind the activated one, so it comes from the upcoming branch.
+	upcomingExec, err := ds.InsertSoftwareInstallRequest(ctx, ignoreHost.ID, ignoreInstaller,
+		fleet.HostSoftwareInstallOptions{PolicyID: &ignorePol.ID, OverridePreInstallQuery: true})
+	require.NoError(t, err)
+	upcomingResult, err := ds.GetSoftwareInstallResults(ctx, upcomingExec)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallPending, upcomingResult.Status)
+	require.True(t, upcomingResult.OverridePreInstallQuery)
+
+	// An activity queued before the payload carried override_pre_install_query (an upgrade with
+	// installs in flight) takes the policy's patch flags at activation. The request carries the
+	// opposite value so only the fallback can produce the expected one.
+	for _, tc := range []struct {
+		option string
+		want   bool
+	}{{"closed", true}, {"notify", true}, {"", false}} {
+		legacyHost := test.NewHost(t, ds, "pwc-host-legacy-"+tc.option, "pwc-ip-legacy-"+tc.option, "pwc-key-legacy-"+tc.option, "pwc-uuid-legacy-"+tc.option, time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{legacyHost.ID})))
+		legacyInstaller, legacyTitle := newInstaller(t, "pwc-legacy-"+tc.option)
+		legacyPol := patchPolicy(t, legacyTitle, tc.option)
+
+		legacyExec, err := ds.InsertSoftwareInstallRequest(ctx, legacyHost.ID, legacyInstaller,
+			fleet.HostSoftwareInstallOptions{PolicyID: &legacyPol.ID, OverridePreInstallQuery: !tc.want, DeferActivation: true})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE upcoming_activities SET payload = JSON_REMOVE(payload, '$.override_pre_install_query') WHERE execution_id = ?`,
+				legacyExec)
+			return err
+		})
+
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), legacyHost.ID, "")
+		require.NoError(t, err)
+		legacyResult, err := ds.GetSoftwareInstallResults(ctx, legacyExec)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, legacyResult.OverridePreInstallQuery, "option %q", tc.option)
+	}
 }
 
 func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {

@@ -213,7 +213,10 @@ const FleetMaintainedAppDetailsPage = ({
           ...(formData.patchOption !== "manual" && {
             software_title_id: addedSoftwareTitleId,
           }),
-          ...getPatchPolicyFlags(formData.patchOption),
+          ...getPatchPolicyFlags(
+            formData.patchOption,
+            formData.endUserExperience
+          ),
         });
       }
 
@@ -280,6 +283,7 @@ const FleetMaintainedAppDetailsPage = ({
               onCancel={onCancel}
               onSubmit={onSubmit}
               softwareTitleId={fleetApp.software_title_id}
+              platform={fleetApp.platform}
             />
           </div>
         </>

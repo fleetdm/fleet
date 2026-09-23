@@ -1,4 +1,5 @@
 import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import { getAutomationNotifiedMessage } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import { Colors } from "styles/var/colors";
@@ -6,11 +7,14 @@ import { Colors } from "styles/var/colors";
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
 
-/**
- * Human-readable label for the "Automation" column. Failure rows mirror the
- * success wording with "failed" — e.g. "Software installed (1Password)" vs
- * "Software failed (1Password)".
- */
+// BE joins per-policy so rows usually carry a singular software_title;
+// software_titles[0] is a safety net.
+const getNotifySoftwareName = (
+  details: IPolicyAutomationActivity["details"] | undefined
+): string | undefined =>
+  details?.software_title || details?.software_titles?.[0];
+
+/** Label for the "Automation" column. */
 export const getAutomationRunDisplayName = (
   activity: IPolicyAutomationActivity
 ): string => {
@@ -20,15 +24,18 @@ export const getAutomationRunDisplayName = (
   switch (type) {
     case ActivityType.InstalledSoftware:
     case ActivityType.InstalledAppStoreApp:
-      // A patch-when-closed skip is recorded as a failed_install, but it was
-      // deferred because the app was open — not a failure. Label it distinctly,
-      // matching the activity feed and install-details treatment.
+      // App-open skips are recorded as failed_install but aren't failures.
       if (details?.skipped_install) {
         return withName("Patch skipped", details?.software_title);
       }
       return withName(
         failed ? "Software failed" : "Software installed",
         details?.software_title
+      );
+    case ActivityType.NotifiedEndUserBeforePatching:
+      return withName(
+        failed ? "Failed to notify" : "Notified end user",
+        getNotifySoftwareName(details)
       );
     case ActivityType.RanScript:
       return withName(
@@ -60,13 +67,18 @@ export const getAutomationRunDisplayName = (
   }
 };
 
-/** Status icon paired with an automation outcome: a patch-when-closed skip is
- *  the same "!" glyph as a failure but muted grey (deferred, not a failure),
- *  a red outline for other failures, and a green one for successes. */
+/** Grey "!" for deliberate non-successes (app-open skips, notify success);
+ *  red for failures, green for successes. */
 export const getAutomationStatusIcon = (
   activity: IPolicyAutomationActivity
 ): { name: "error-outline" | "success-outline"; color?: Colors } => {
   if (activity.details?.skipped_install) {
+    return { name: "error-outline", color: "ui-fleet-black-50" };
+  }
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status === "success"
+  ) {
     return { name: "error-outline", color: "ui-fleet-black-50" };
   }
   return activity.status === "error"
@@ -82,16 +94,20 @@ export const getAutomationStatusIcon = (
 export const getDetailOutputText = (
   activity: IPolicyAutomationActivity
 ): string => {
+  // Notify success/deferral: computed sentence keyed on time_before.
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status === "success"
+  ) {
+    return getAutomationNotifiedMessage(activity.details?.time_before);
+  }
   if (activity.details?.skipped_install) {
     return SKIPPED_INSTALL_DETAILS;
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;
   }
-  // For software installs, the install-script output is the primary preview, but
-  // a failure at the pre-install query or post-install script stage leaves it
-  // empty — fall back to those so the row still shows the failing stage's output.
-  // Other activity types have null pre/post output, so this is just `output`.
+  // Fall back through the install stages so the failing stage's output shows.
   return (
     activity.output ||
     activity.post_install_output ||
