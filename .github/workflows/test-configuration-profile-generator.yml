@@ -1,0 +1,65 @@
+name: Test configuration profile generator changes
+
+on:
+  pull_request:
+    paths:
+      - "website/profile-generator/**"
+      - "website/api/helpers/get-configuration-profile-generator-configuration.js"
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Set the Node.js version
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Now start building!
+      # > …but first, get a little crazy for a sec and delete the top-level package.json file
+      # > i.e. the one used by the Fleet server.  This is because require() in node will go
+      # > hunting in ancestral directories for missing dependencies, and since some of the
+      # > bundled transpiler tasks sniff for package availability using require(), this trips
+      # > up when it encounters another Node universe in the parent directory.
+      - run: rm -rf package.json package-lock.json node_modules/
+      # > Turns out there's a similar issue with how eslint plugins are looked up, so we
+      # > delete the top level .eslintrc file too.
+      - run: rm -f .eslintrc.js
+
+      # Get dependencies (including dev deps)
+      - run: cd website/ && npm install
+
+      # Run the configuration profile generator tests
+      - run: cd website/ && sails_custom__anthropicSecret=${{ secrets.ANTHROPIC_TOKEN_FOR_PROFILE_GENERATOR_TESTS }}" npm run test-profile-generator
