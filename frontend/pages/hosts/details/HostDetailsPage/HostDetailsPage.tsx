@@ -163,6 +163,7 @@ import {
   canShowMyDeviceButton,
   getErrorMessage,
   hasEverEnrolled,
+  hasReportedVitals,
 } from "./helpers";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -365,9 +366,12 @@ const HostDetailsPage = ({
   const [refetchStart, setRefetchStart] = useState<{
     hostId: number;
     at: number;
+    byUser: boolean;
   } | null>(null);
   const refetchStartTime =
     refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
+  const isUserRequestedRefetch =
+    refetchStart?.hostId === hostIdFromURL && refetchStart.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -510,7 +514,11 @@ const HostDetailsPage = ({
           (hasEverEnrolled(returnedHost) || refetchStartTime !== null)
         ) {
           if (!refetchStartTime) {
-            setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+            setRefetchStart({
+              hostId: hostIdFromURL,
+              at: Date.now(),
+              byUser: false,
+            });
           }
           setShowRefetchSpinner(true);
 
@@ -544,9 +552,11 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (hasReportedVitals(returnedHost) || isUserRequestedRefetch) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
                 resetHostRefetchStates();
               }
             } else {
@@ -870,7 +880,11 @@ const HostDetailsPage = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStart({ hostId: hostIdFromURL, at: Date.now() });
+          setRefetchStart({
+            hostId: hostIdFromURL,
+            at: Date.now(),
+            byUser: true,
+          });
           setTimeout(() => {
             refetchHostDetails();
             refetchExtensions();

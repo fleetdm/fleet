@@ -1,0 +1,1 @@
+- Fixed a "This host is offline" error appearing on the host details and My device pages for a newly enrolled host that has not reported vitals yet, such as a Windows host running setup experience.

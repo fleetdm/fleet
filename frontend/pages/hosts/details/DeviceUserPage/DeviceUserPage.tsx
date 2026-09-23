@@ -69,6 +69,7 @@ import SelfService from "../cards/Software/SelfService";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import UserCard from "../cards/User";
 import VitalsCard from "../cards/Vitals";
+import { hasReportedVitals } from "../HostDetailsPage/helpers";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -205,7 +206,12 @@ const DeviceUserPage = ({
   const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
     false
   );
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [refetchStart, setRefetchStart] = useState<{
+    at: number;
+    byUser: boolean;
+  } | null>(null);
+  const refetchStartTime = refetchStart?.at ?? null;
+  const isUserRequestedRefetch = !!refetchStart?.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
   const [darkMode, setDarkMode] = useState(() => isDarkMode());
@@ -276,7 +282,7 @@ const DeviceUserPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const isRefetching = ({
@@ -343,16 +349,18 @@ const DeviceUserPage = ({
               isIOSOrIPadOS ||
               isRecentlyEnrolled(responseHost.last_enrolled_at)
             ) {
-              setRefetchStartTime(Date.now());
+              setRefetchStart({ at: Date.now(), byUser: false });
               setTimeout(() => {
                 refetchDupDetails();
                 refetchExtensions();
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              notify.error(
-                `This host is offline. Please try refetching host vitals later.`
-              );
+              if (hasReportedVitals(responseHost)) {
+                notify.error(
+                  `This host is offline. Please try refetching host vitals later.`
+                );
+              }
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -371,9 +379,11 @@ const DeviceUserPage = ({
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (hasReportedVitals(responseHost) || isUserRequestedRefetch) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
               }
             } else {
               // Timeout reached (3 minutes)
@@ -589,40 +599,45 @@ const DeviceUserPage = ({
     setSelectedPolicy(null);
   }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
-  // User-initiated refetch always starts a new timer!
-  const onRefetchHost = useCallback(async () => {
-    if (!host) return;
-    setShowRefetchSpinner(true);
+  // A refetch always starts a new timer!
+  const startRefetch = useCallback(
+    async (byUser: boolean) => {
+      if (!host) return;
+      setShowRefetchSpinner(true);
 
-    // Trigger APNS ping independently of the main refetch
-    if (canTriggerAPNSPing(host)) {
-      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
-        notify.error("Failed to send APNS ping", { response: error });
-      });
-    }
+      // Trigger APNS ping independently of the main refetch
+      if (canTriggerAPNSPing(host)) {
+        deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
 
-    try {
-      await deviceUserAPI.refetch(deviceAuthToken);
-      setRefetchStartTime(Date.now());
-      setTimeout(() => {
-        refetchDupDetails();
-        refetchExtensions();
-      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-    } catch (error) {
-      notify.error(getErrorMessage(error, host.display_name), {
-        response: error,
-      });
-      resetHostRefetchStates();
-    }
-  }, [host, deviceAuthToken, refetchDupDetails, refetchExtensions]);
+      try {
+        await deviceUserAPI.refetch(deviceAuthToken);
+        setRefetchStart({ at: Date.now(), byUser });
+        setTimeout(() => {
+          refetchDupDetails();
+          refetchExtensions();
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+      } catch (error) {
+        notify.error(getErrorMessage(error, host.display_name), {
+          response: error,
+        });
+        resetHostRefetchStates();
+      }
+    },
+    [host, deviceAuthToken, refetchDupDetails, refetchExtensions]
+  );
+
+  const onRefetchHost = useCallback(() => startRefetch(true), [startRefetch]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
     if (queuedSelfServiceRefetch && !showRefetchSpinner) {
       setQueuedSelfServiceRefetch(false);
-      onRefetchHost();
+      startRefetch(false);
     }
-  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, startRefetch]);
 
   // Triggered when a software update finishes
   const requestRefetch = () => {
@@ -631,7 +646,7 @@ const DeviceUserPage = ({
       setQueuedSelfServiceRefetch(true);
     } else {
       // Otherwise, run it now
-      onRefetchHost();
+      startRefetch(false);
     }
   };
 

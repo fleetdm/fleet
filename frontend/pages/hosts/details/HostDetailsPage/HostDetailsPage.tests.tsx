@@ -48,10 +48,21 @@ const mockPendingWindowsHost = (status: "online" | "offline"): IHost => {
     status,
     refetch_requested: true,
     last_enrolled_at: "2000-01-01T00:00:00Z",
+    detail_updated_at: "2000-01-01T00:00:00Z",
   });
   host.mdm.enrollment_status = "Pending";
   return host;
 };
+
+/** A host whose agent has enrolled but has not reported vitals yet, e.g. while setup experience is running. */
+const mockNeverFetchedWindowsHost = (status: "online" | "offline"): IHost =>
+  createMockHost({
+    platform: "windows",
+    status,
+    refetch_requested: true,
+    last_enrolled_at: "2026-09-23T00:00:00Z",
+    detail_updated_at: "2000-01-01T00:00:00Z",
+  });
 
 /** An Apple host that is MDM-enrolled and online -- the only combination that
  * pings APNS alongside the refetch. */
@@ -278,6 +289,35 @@ describe("HostDetailsPage - pending hosts", () => {
       { timeout: 10000 }
     );
   }, 20000);
+});
+
+describe("HostDetailsPage - hosts that haven't reported vitals", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("doesn't report the host offline when it drops out of the online window", async () => {
+    stubQueries(mockNeverFetchedWindowsHost("online"));
+    (hostAPI.loadHostDetails as jest.Mock)
+      .mockResolvedValueOnce({ host: mockNeverFetchedWindowsHost("online") })
+      .mockResolvedValue({ host: mockNeverFetchedWindowsHost("offline") });
+
+    renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+    });
+    await screen.findByText("Vitals");
+    await waitFor(
+      () => {
+        expect(
+          (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
+        ).toBeGreaterThan(1);
+      },
+      { timeout: 5000 }
+    );
+
+    expect(notify.error).not.toHaveBeenCalled();
+  }, 15000);
 });
 
 describe("HostDetailsPage - Show MDM commands toggle", () => {
