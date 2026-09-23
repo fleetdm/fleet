@@ -16,15 +16,15 @@ This guide is for devices that don't join Microsoft Entra ID during setup. If yo
 
 ## Build fleetd
 
-On the **Hosts** page, select the fleet, select **Add hosts**, then select the **Windows** tab. Copy the command and run it. It looks like this:
+On the **Hosts** page, select the fleet, select **Add hosts**, then select the **Windows** tab. Leave **Type** set to **Workstation**, copy the command, and run it. It looks like this:
 
 ```bash
-fleetctl package --type=msi --fleet-desktop --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
+fleetctl package --type=msi --enable-scripts --fleet-desktop --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
 ```
 
 `fleetctl` writes `fleet-osquery.msi` to the current directory. Copy it to the Windows computer that runs Windows Configuration Designer, into an otherwise empty folder.
 
-> **Note:** For Arm-based Windows devices, add `--arch=arm64` and build a separate package for them.
+> **Note:** For Arm-based Windows devices, add `--arch=arm64` and build a separate package for them. `fleetctl` names that file `fleet-osquery-arm64.msi`, so use that name in **CommandFile** and **CommandLine** below.
 
 > **Note:** Windows Configuration Designer imports every file in the folder that holds the installer. Extra files in that folder can break the build.
 
@@ -36,24 +36,25 @@ fleetctl package --type=msi --fleet-desktop --fleet-url=https://fleet.example.co
 4. On **Import a provisioning package (optional)**, select **Finish**.
 5. In **Available customizations**, go to **Runtime settings > ProvisioningCommands > PrimaryContext > Command**.
 6. In **Name**, enter `fleetd` and select **Add**.
-7. Select the new `fleetd` entry and set:
-   - **CommandFile**: browse to `fleet-osquery.msi`.
+7. Select the new **fleetd** entry under **Command** and set:
+   - **CommandFile**: select **Browse...** and choose `fleet-osquery.msi`.
    - **CommandLine**: `msiexec.exe /i fleet-osquery.msi /qn /norestart`
-   - **ContinueInstall**: `True`
-   - **RestartRequired**: `False`
-   - **ReturnCodeSuccess**: `0`
+   - **ContinueInstall**: **TRUE**
+   - **RestartRequired**: **FALSE**
    - **ReturnCodeRestart**: `3010`
-8. Select **File > Save**.
+   - **ReturnCodeSuccess**: `0`
+8. Select **File > Save**, then select **OK** on the **Keep your info secure** message.
 
 ## Export the package
 
 1. Select **Export > Provisioning package**.
-2. Set **Owner** to **IT Admin** and select **Next**.
-3. Select **Encrypt package** and copy the generated password somewhere safe. You'll type it on every device. Select **Next**.
-4. Choose where to save the package, select **Next**, then select **Build**.
-5. Copy the `.ppkg` file to the root of the USB drive. Put only one package on the drive.
+2. Change **Owner** from **OEM** to **IT Admin** and select **Next**.
+3. Select **Encrypt package** and enter a password in **Encryption password**. Save it somewhere secure, since you'll type it on every device. Select **Next**.
+4. Choose where to save the package and select **Next**. By default, it's saved in the project folder.
+5. Select **Build**. When you see **All done!**, select **Finish**.
+6. Copy the `.ppkg` file to the root of the USB drive. Put only one package on the drive.
 
-> **Note:** Project files aren't encrypted, even when the package is. They include the MSI and its enroll secret. Store the project folder somewhere secure, or delete it after you build.
+> **Note:** Only the `.ppkg` file is encrypted. The MSI stays in the folder you copied it to, and the project folder records its path. Delete the MSI and the project folder after you build, or store them somewhere secure.
 
 ## Apply the package and ship the device
 
@@ -92,7 +93,7 @@ Press the Windows key five times. If Windows still doesn't find the package, che
 
 **The package applies, but the Fleet osquery service doesn't exist**
 
-Test the package on a running Windows computer with the `Install-ProvisioningPackage` PowerShell cmdlet, which writes logs you can read:
+Test the package on a running Windows computer with the `Install-ProvisioningPackage` PowerShell cmdlet, which writes logs you can read. This installs fleetd on that computer and enrolls it in Fleet, so use a test device:
 
 ```powershell
 Install-ProvisioningPackage -PackagePath D:\fleet-agent.ppkg -LogsDirectoryPath C:\ppkg-logs
