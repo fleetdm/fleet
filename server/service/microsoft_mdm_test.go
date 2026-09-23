@@ -712,6 +712,15 @@ func stubFleetWindowsProfileEnsure(ds *mock.Store) {
 	}
 }
 
+// stubWindowsHostSecretExpansion mirrors the real expander for a document carrying no $FLEET_HOST_SECRET_ placeholder, which
+// returns it untouched. Every test that reaches getPendingMDMCmds needs this: the mock calls a nil func otherwise and the panic
+// takes the whole package run down with it, not just the one test.
+func stubWindowsHostSecretExpansion(ds *mock.Store) {
+	ds.ExpandWindowsMDMHostSecretsFunc = func(ctx context.Context, document string, enrollmentID uint) (string, error) {
+		return document, nil
+	}
+}
+
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
 func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
@@ -2471,6 +2480,7 @@ func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 func TestRekeyWindowsDevice(t *testing.T) {
 	ds := new(mock.Store)
 	stubFleetWindowsProfileEnsure(ds)
+	stubWindowsHostSecretExpansion(ds)
 	kv := new(mock.KVStore)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
 		KeyValueStore: kv,

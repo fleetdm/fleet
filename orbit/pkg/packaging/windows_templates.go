@@ -56,12 +56,12 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
 
     <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
-    <Property Id="FLEET_SECRET" Value="dummy"/>
     <!--
-      Keep the enroll secret out of verbose MSI logs. Without this, /l*v (or the MsiLogging policy) writes every property
-      value in cleartext, and Fleet MDM passes the secret on the msiexec command line.
+      Hidden keeps the enroll secret out of verbose MSI logs: WiX turns it into an MsiHiddenProperties entry, which authoring
+      directly is a candle error (CNDL0070, "special MSI properties cannot be authored"). Fleet MDM passes the secret on the
+      msiexec command line, so without this /l*v writes it in cleartext.
     -->
-    <Property Id="MsiHiddenProperties" Value="FLEET_SECRET"/>
+    <Property Id="FLEET_SECRET" Value="dummy" Hidden="yes"/>
     <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
 	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>
     {{ if .EnableEndUserEmailProperty }}
@@ -199,6 +199,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   BinaryKey="WixCA"
                   DllEntry="WixQuietExec64"
                   Execute="deferred"
+                  HideTarget="yes"
                   Return="check"
                   Impersonate="no" />
 
