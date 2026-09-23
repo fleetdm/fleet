@@ -24,9 +24,6 @@ func TestHostOneTimeEnrollSecretMatchesHost(t *testing.T) {
 				want: true,
 			},
 			{
-				// A DevDetail response landed before the secret was minted, so the serial is on the row. Orbit still
-				// presents none, because OrbitHostInfo.HardwareSerial is macOS and Linux only. Rejecting here would lock
-				// out exactly the hosts furthest along in enrollment.
 				name: "serial captured, agent presents none", storedPlatform: "windows", storedSers: "SERIAL-1",
 				platform: "windows", uuid: "UUID-1", serial: "",
 				want: true,
@@ -37,7 +34,6 @@ func TestHostOneTimeEnrollSecretMatchesHost(t *testing.T) {
 				want: true,
 			},
 			{
-				// Both sides have one and they differ, which is the only case the serial can actually speak to.
 				name: "serial captured and contradicted", storedPlatform: "windows", storedSers: "SERIAL-1",
 				platform: "windows", uuid: "UUID-1", serial: "SERIAL-2",
 				want: false,
@@ -48,8 +44,6 @@ func TestHostOneTimeEnrollSecretMatchesHost(t *testing.T) {
 				want: false,
 			},
 			{
-				// Minted once the enrollment was linked to a host, so the hardware UUID is on the row. Orbit does send one on
-				// Windows, so this is the comparison that refuses a different machine.
 				name: "uuid captured and contradicted", storedPlatform: "windows", storedUUID: "UUID-1",
 				platform: "windows", uuid: "UUID-2", serial: "",
 				want: false,
