@@ -169,12 +169,17 @@ func (ds *Datastore) sweepCompletedNanoCommands(ctx context.Context, state *flee
 	// when a long run of never-swept types sits in front of the cursor.
 	// updated_at is nullable in the schema but always set by its DEFAULT and
 	// ON UPDATE clauses; a NULL would fall outside both comparisons.
+	// Nested ORs rather than a row constructor for the same reason as the
+	// inactive purge: with status ahead of it in the index, the tuple form is
+	// only a filter and MySQL walks the range from the start on every scan.
 	const candidatesStmt = `
 		SELECT ncr.id, ncr.command_uuid, ncr.updated_at
 		FROM nano_command_results ncr
 		WHERE ncr.status = ?
 		  AND ncr.updated_at < NOW(6) - INTERVAL ? SECOND
-		  AND (ncr.updated_at, ncr.id, ncr.command_uuid) > (?, ?, ?)
+		  AND (ncr.updated_at > ?
+		    OR (ncr.updated_at = ? AND (ncr.id > ?
+		      OR (ncr.id = ? AND ncr.command_uuid > ?))))
 		ORDER BY ncr.updated_at, ncr.id, ncr.command_uuid
 		LIMIT ?`
 
@@ -197,7 +202,7 @@ func (ds *Datastore) sweepCompletedNanoCommands(ctx context.Context, state *flee
 			// primary for the same reason as the inactive purge: the guard
 			// probe and the delete must agree with this read
 			if err := sqlx.SelectContext(ctx, ds.writer(ctx), &candidates, candidatesStmt,
-				status, int(retention.Seconds()), cursor.UpdatedAt, cursor.ID, cursor.CommandUUID, limit); err != nil {
+				status, int(retention.Seconds()), cursor.UpdatedAt, cursor.UpdatedAt, cursor.ID, cursor.ID, cursor.CommandUUID, limit); err != nil {
 				return deleted, touched, false, ctxerr.Wrap(ctx, err, "select completed nano commands")
 			}
 			pageFull = len(candidates) == limit

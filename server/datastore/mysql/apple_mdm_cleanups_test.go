@@ -436,17 +436,26 @@ func testNanoCleanupStandardRetentionTier(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, f.queueRows(c), c)
 	}
 
-	// superseded profile, promoted recovery lock, rotated admin password: all sweep
+	// superseded profile and rotated admin password sweep; a promoted recovery
+	// lock command is still the host's current one and stays
 	f.exec(`UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE command_uuid = ?`, uuid.NewString(), profile)
 	f.exec(`UPDATE host_recovery_key_passwords SET pending_set_command_uuid = NULL, set_command_uuid = ? WHERE pending_set_command_uuid = ?`, recovery, recovery)
 	f.exec(`UPDATE host_managed_local_account_passwords SET pending_command_uuid = NULL WHERE pending_command_uuid = ?`, admin)
 	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
-	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 3, CommandsDeleted: 3}, stats)
-	for _, c := range []string{profile, recovery, admin} {
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 2, CommandsDeleted: 2}, stats)
+	for _, c := range []string{profile, admin} {
 		require.Zero(t, f.queueRows(c), c)
 	}
+	require.Equal(t, 1, f.queueRows(recovery), "current recovery lock command is pinned")
 	require.Equal(t, 1, f.queueRows(never))
+
+	// once a newer command holds the recovery lock, the old one sweeps
+	f.exec(`UPDATE host_recovery_key_passwords SET set_command_uuid = ? WHERE set_command_uuid = ?`, uuid.NewString(), recovery)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 1, CommandsDeleted: 1}, stats)
+	require.Zero(t, f.queueRows(recovery))
 
 	// standard retention 0 disables the sweep entirely
 	old := f.completed("DeviceInformation", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 400*day)
