@@ -31,6 +31,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"WindowsMint", testOneTimeEnrollSecretWindowsMint},
 		{"WindowsExpand", testOneTimeEnrollSecretWindowsExpand},
 		{"WindowsResendMints", testOneTimeEnrollSecretWindowsResendMints},
+		{"WindowsHostBinding", testOneTimeEnrollSecretWindowsHostBinding},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
 	}
 	for _, c := range cases {
@@ -648,6 +649,113 @@ func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
 	out, err := ds.ExpandWindowsMDMHostSecrets(ctx, plain, device.ID)
 	require.NoError(t, err)
 	require.Equal(t, plain, out)
+}
+
+func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	linkEnrollment := func(enrollmentID uint, hostUUID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, hostUUID, enrollmentID)
+			return err
+		})
+	}
+	liveRow := func(enrollmentID uint) *fleet.HostOneTimeEnrollSecret {
+		secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID)
+		require.NoError(t, err)
+		require.NotEmpty(t, secret)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		return row
+	}
+	newWindowsHost := func(hostUUID, osqueryHostID string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+			OsqueryHostID: new(osqueryHostID), NodeKey: new("nk-" + osqueryHostID), UUID: hostUUID,
+			Hostname: "host-" + osqueryHostID, Platform: "windows",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	t.Run("a first install has no host to bind to", func(t *testing.T) {
+		device := insertWindowsEnrollment(t, ds, "hw-bind-first")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveRow(device.ID)
+		require.Nil(t, row.HostID)
+		require.Empty(t, row.HardwareUUID)
+	})
+
+	t.Run("a linked enrollment binds to its host and only that host can use it", func(t *testing.T) {
+		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		other := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := insertWindowsEnrollment(t, ds, "hw-bind-linked")
+		// Lowercase on purpose: the enrollment and the hosts row need not agree on case.
+		linkEnrollment(device.ID, strings.ToLower(victim.UUID))
+
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveRow(device.ID)
+		require.Equal(t, victim.ID, *row.HostID)
+		require.Equal(t, victim.UUID, row.HardwareUUID)
+
+		// Check 1, before enrollment: another machine presenting its own hardware UUID is refused.
+		require.False(t, row.MatchesHost("windows", other.UUID, ""))
+		require.True(t, row.MatchesHost("windows", victim.UUID, ""))
+		// An empty presented UUID gets past check 1, which skips values either side lacks...
+		require.True(t, row.MatchesHost("windows", "", ""))
+
+		// ...so check 2 is what holds. Whatever the other machine presented, its enrollment lands on a row that is not the
+		// bound host, and while the bound host exists that is refused, on both planes.
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(other, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(other, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+
+		unused, err := ds.GetHostOneTimeEnrollSecret(ctx, row.Secret)
+		require.NoError(t, err)
+		require.Nil(t, unused.ConsumedAt, "a refused attempt must not spend the secret")
+
+		// The host it was minted for can use it.
+		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(victim, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		require.Equal(t, victim.ID, enrolled.ID)
+	})
+
+	t.Run("an unbound secret is bound once its host is known", func(t *testing.T) {
+		// A first-install secret that was never used, then the enrollment gets linked, then an administrator resends. Reuse
+		// keeps the same secret, and it must not stay unbound through that.
+		host := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := insertWindowsEnrollment(t, ds, "hw-bind-reuse")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		before := liveRow(device.ID)
+		require.Nil(t, before.HostID)
+
+		linkEnrollment(device.ID, host.UUID)
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		after := liveRow(device.ID)
+		require.Equal(t, before.Secret, after.Secret, "reused, not replaced")
+		require.Equal(t, host.ID, *after.HostID)
+		require.Equal(t, host.UUID, after.HardwareUUID)
+	})
+
+	t.Run("duplicate UUIDs bind to the row orbit will land on", func(t *testing.T) {
+		// Binding to any other row would make check 2 refuse the legitimate host.
+		shared := strings.ToUpper(uuid.NewString())
+		_ = newWindowsHost(shared, "instance-"+shared[:8])
+		identifierMatch := newWindowsHost(shared, shared)
+		device := insertWindowsEnrollment(t, ds, "hw-bind-dup")
+		linkEnrollment(device.ID, shared)
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		require.Equal(t, identifierMatch.ID, *liveRow(device.ID).HostID, "the osquery_host_id match wins over the lower id")
+
+		sharedAgain := strings.ToUpper(uuid.NewString())
+		lowest := newWindowsHost(sharedAgain, "instance-a-"+sharedAgain[:8])
+		_ = newWindowsHost(sharedAgain, "instance-b-"+sharedAgain[:8])
+		deviceAgain := insertWindowsEnrollment(t, ds, "hw-bind-dup-again")
+		linkEnrollment(deviceAgain.ID, sharedAgain)
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, deviceAgain.ID))
+		require.Equal(t, lowest.ID, *liveRow(deviceAgain.ID).HostID, "with no identifier match, the lowest id")
+	})
 }
 
 func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {

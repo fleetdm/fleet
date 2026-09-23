@@ -244,9 +244,16 @@ type windowsOneTimeEnrollSecretMintResult struct {
 // The FOR UPDATE serializes concurrent mints for the same enrollment. Without it, two sessions that both find no live secret
 // would both insert, leaving two valid secrets for one device.
 //
-// Windows mints before there is necessarily a host to bind to: the automatic enrollment flows carry no Fleet host UUID, so a
-// hosts row may only appear once fleetd enrolls. The secret binds to the enrollment instead, host_id stays NULL, and the host
-// identifiers are recorded on first use. The serial is copied when a DevDetail response already landed, as provenance.
+// When the enrollment is already linked to a host, which it always is on an administrator resend, the secret is bound to that
+// host the way an Apple secret is: host_id and hardware_uuid come from the host row. That is what enforces that only that host
+// can use it. MatchesHost compares the hardware UUID the agent presents, and consumeHostOneTimeEnrollSecret refuses an enrollment
+// that lands on any other row while the bound host exists. The second check matters because the first skips an empty presented
+// value. An existing unbound live secret, minted before the host existed, is bound as well, so it cannot stay unbound through a
+// resend.
+//
+// Otherwise, as on a first fleetd install, there is no host to bind to: the automatic enrollment flows carry no Fleet host UUID.
+// The secret binds only to the enrollment, host_id stays NULL, and the host is recorded on first use. The serial is copied when a
+// DevDetail response already landed, as provenance.
 func mintWindowsMDMOneTimeEnrollSecretsDB(
 	ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint,
 ) (windowsOneTimeEnrollSecretMintResult, error) {
@@ -256,14 +263,11 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 	}
 
 	stmt, args, err := sqlx.In(
-		`SELECT id, hardware_serial FROM mdm_windows_enrollments WHERE id IN (?) ORDER BY id FOR UPDATE`, enrollmentIDs)
+		`SELECT id, hardware_serial, host_uuid FROM mdm_windows_enrollments WHERE id IN (?) ORDER BY id FOR UPDATE`, enrollmentIDs)
 	if err != nil {
 		return result, ctxerr.Wrap(ctx, err, "build windows mdm enrollment lock for one-time enroll secrets")
 	}
-	var enrollments []struct {
-		ID             uint    `db:"id"`
-		HardwareSerial *string `db:"hardware_serial"`
-	}
+	var enrollments []windowsEnrollmentMintRow
 	if err := sqlx.SelectContext(ctx, tx, &enrollments, stmt, args...); err != nil {
 		return result, ctxerr.Wrap(ctx, err, "lock windows mdm enrollments for one-time enroll secrets")
 	}
@@ -291,6 +295,23 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 		hasLive[id] = struct{}{}
 	}
 
+	boundHosts, err := windowsEnrollmentBoundHostsDB(ctx, tx, enrollments)
+	if err != nil {
+		return result, err
+	}
+	for _, e := range enrollments {
+		host, known := boundHosts[e.ID]
+		if _, ok := hasLive[e.ID]; !ok || !known {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_one_time_enroll_secrets SET host_id = ?, hardware_uuid = ?
+			WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL AND host_id IS NULL`,
+			host.ID, host.UUID, e.ID); err != nil {
+			return result, ctxerr.Wrap(ctx, err, "bind live windows one-time enroll secret to its host")
+		}
+	}
+
 	var (
 		placeholders []string
 		insertArgs   []any
@@ -310,8 +331,15 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 		// team_id stays NULL on purpose. The secret replaces the global enroll secret, which also had no team, so the host still
 		// enrolls into no team and the existing default-fleet transfer (maybeAssignWindowsEnrollmentDefaultFleet) applies
 		// afterwards with its own guards intact. Binding a team here would silently bypass those.
-		placeholders = append(placeholders, `(?, NULL, ?, NULL, 'windows', '', ?)`)
-		insertArgs = append(insertArgs, string(tok), e.ID, serial)
+		var (
+			hostID       *uint
+			hardwareUUID string
+		)
+		if host, known := boundHosts[e.ID]; known {
+			hostID, hardwareUUID = &host.ID, host.UUID
+		}
+		placeholders = append(placeholders, `(?, ?, ?, NULL, 'windows', ?, ?)`)
+		insertArgs = append(insertArgs, string(tok), hostID, e.ID, hardwareUUID, serial)
 	}
 	if len(placeholders) == 0 {
 		return result, nil
@@ -324,6 +352,70 @@ func mintWindowsMDMOneTimeEnrollSecretsDB(
 	}
 	result.inserted = len(placeholders)
 	return result, nil
+}
+
+type windowsEnrollmentMintRow struct {
+	ID             uint    `db:"id"`
+	HardwareSerial *string `db:"hardware_serial"`
+	HostUUID       string  `db:"host_uuid"`
+}
+
+type windowsEnrollmentBoundHost struct {
+	ID   uint
+	UUID string
+}
+
+// windowsEnrollmentBoundHostsDB returns, for each enrollment already linked to a host, the host row a one-time enroll secret for
+// it should bind to. Enrollments with no host_uuid, or whose host no longer exists, are absent from the result.
+//
+// Several rows can share a UUID (VM clones, or an orbit enrolled with --host-identifier=instance). Like the Apple mint, this binds
+// to the row the orbit enrollment will land on: the one whose osquery_host_id is the UUID, else the lowest id. Binding to any
+// other row would make consumeHostOneTimeEnrollSecret refuse the legitimate host.
+func windowsEnrollmentBoundHostsDB(
+	ctx context.Context, tx sqlx.ExtContext, enrollments []windowsEnrollmentMintRow,
+) (map[uint]windowsEnrollmentBoundHost, error) {
+	var uuids []string
+	for _, e := range enrollments {
+		if e.HostUUID != "" {
+			uuids = append(uuids, e.HostUUID)
+		}
+	}
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, uuid, osquery_host_id FROM hosts WHERE uuid IN (?) ORDER BY id`, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build hosts lookup for windows one-time enroll secrets")
+	}
+	var hosts []struct {
+		ID            uint    `db:"id"`
+		UUID          string  `db:"uuid"`
+		OsqueryHostID *string `db:"osquery_host_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load hosts for windows one-time enroll secrets")
+	}
+
+	// Keyed case-insensitively, because the enrollment's host_uuid and the hosts row need not agree on case.
+	chosen := make(map[string]windowsEnrollmentBoundHost, len(hosts))
+	for _, h := range hosts {
+		key := strings.ToLower(h.UUID)
+		_, seen := chosen[key]
+		matchesIdentifier := h.OsqueryHostID != nil && strings.EqualFold(*h.OsqueryHostID, h.UUID)
+		// Rows arrive in id order, so the first seen is the lowest id; an osquery_host_id match overrides it.
+		if !seen || matchesIdentifier {
+			chosen[key] = windowsEnrollmentBoundHost{ID: h.ID, UUID: h.UUID}
+		}
+	}
+
+	bound := make(map[uint]windowsEnrollmentBoundHost, len(enrollments))
+	for _, e := range enrollments {
+		if h, ok := chosen[strings.ToLower(e.HostUUID)]; ok {
+			bound[e.ID] = h
+		}
+	}
+	return bound, nil
 }
 
 // liveWindowsMDMOneTimeEnrollSecret returns the unconsumed secret minted for the enrollment, or "" when there is none, which is

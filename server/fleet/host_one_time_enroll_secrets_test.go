@@ -47,6 +47,25 @@ func TestHostOneTimeEnrollSecretMatchesHost(t *testing.T) {
 				platform: "darwin", uuid: "UUID-1", serial: "",
 				want: false,
 			},
+			{
+				// Minted once the enrollment was linked to a host, so the hardware UUID is on the row. Orbit does send one on
+				// Windows, so this is the comparison that refuses a different machine.
+				name: "uuid captured and contradicted", storedPlatform: "windows", storedUUID: "UUID-1",
+				platform: "windows", uuid: "UUID-2", serial: "",
+				want: false,
+			},
+			{
+				name: "uuid captured and agreed", storedPlatform: "windows", storedUUID: "UUID-1",
+				platform: "windows", uuid: "uuid-1", serial: "",
+				want: true,
+			},
+			{
+				// Skipped like any value one side lacks. Not a hole: a secret with a captured UUID also has a host_id, and the
+				// enrollment then refuses to land on any row but that host's.
+				name: "uuid captured, agent presents none", storedPlatform: "windows", storedUUID: "UUID-1",
+				platform: "windows", uuid: "", serial: "",
+				want: true,
+			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				s := &HostOneTimeEnrollSecret{
