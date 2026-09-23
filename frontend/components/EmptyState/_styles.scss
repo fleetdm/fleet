@@ -32,11 +32,8 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
     // border-box so the 1px border doesn't push the layer 2px past the
     // container in content-box mode (Fleet has no global box-sizing reset).
     box-sizing: border-box;
-    // Fill the parent regardless of whether `.empty-state` is a block or
-    // flex container. Without this, parents that set `display: flex` on
-    // `.empty-state` (e.g. TargetsInput's `.table-container__data-table-block
-    // > div` rule) make the ghost table a flex item, which shrinks to its
-    // intrinsic column-content width — see #53432.
+    // Fill the parent even when it turns `.empty-state` into a flex container;
+    // without this, ghost-table becomes a flex item and shrinks to content.
     width: 100%;
     height: 100%;
     border: 1px solid $ui-fleet-black-10;
