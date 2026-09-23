@@ -1694,6 +1694,61 @@ func (s *integrationMDMTestSuite) TestUpdateNDESCertificateAuthority() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestRequestCertificateChallenge() {
+	t := s.T()
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
+
+	scepServer := sceptest.NewTestSCEPServer(t)
+	ndesAdminServer := sceptest.NewTestNDESAdminServer(t, "mscep_admin_password", http.StatusOK)
+	var createResp createCertificateAuthorityResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", fleet.CertificateAuthorityPayload{
+		NDESSCEPProxy: &fleet.NDESSCEPProxyCA{
+			URL:      scepServer.URL + "/scep",
+			AdminURL: ndesAdminServer.URL + "/mscep_admin/",
+			Username: "ndes-username",
+			Password: "ndes-password",
+		},
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	challengePath := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d/request_challenge", createResp.ID)
+
+	var resp requestCertificateChallengeResponse
+	s.DoJSON("POST", challengePath, nil, http.StatusOK, &resp)
+	require.Equal(t, "8CE317021F690069", resp.Challenge)
+
+	newAPIOnlyToken := func(name, role string, endpoints []map[string]any) string {
+		var apiOnlyResp struct {
+			Token string `json:"token"`
+		}
+		s.token = s.getTestAdminToken()
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+			"name":          name,
+			"global_role":   role,
+			"api_endpoints": endpoints,
+		}, http.StatusOK, &apiOnlyResp)
+		require.NotEmpty(t, apiOnlyResp.Token)
+		return apiOnlyResp.Token
+	}
+
+	t.Run("API-only user scoped to the endpoint", func(t *testing.T) {
+		s.token = newAPIOnlyToken("challenge-only", fleet.RoleMaintainer, []map[string]any{
+			{"method": "POST", "path": "/api/v1/fleet/certificate_authorities/:id/request_challenge"},
+		})
+		var resp requestCertificateChallengeResponse
+		s.DoJSON("POST", challengePath, nil, http.StatusOK, &resp)
+		require.Equal(t, "8CE317021F690069", resp.Challenge)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d/request_certificate", createResp.ID),
+			map[string]any{"csr": "not a csr"}, http.StatusForbidden)
+	})
+
+	t.Run("observer is forbidden", func(t *testing.T) {
+		s.token = newAPIOnlyToken("challenge-observer", fleet.RoleObserver, nil)
+		res := s.Do("POST", challengePath, nil, http.StatusForbidden)
+		require.NotContains(t, extractServerErrorText(res.Body), "8CE317021F690069")
+	})
+}
+
 func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() {
 	t := s.T()
 	ctx := context.Background()

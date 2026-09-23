@@ -989,6 +989,8 @@ type UpdateCertificateAuthorityFunc func(ctx context.Context, id uint, p fleet.C
 
 type RequestCertificateFunc func(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error)
 
+type RequestCertificateChallengeFunc func(ctx context.Context, caID uint) (string, error)
+
 type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error
 
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
@@ -2479,6 +2481,9 @@ type Service struct {
 
 	RequestCertificateFunc        RequestCertificateFunc
 	RequestCertificateFuncInvoked bool
+
+	RequestCertificateChallengeFunc        RequestCertificateChallengeFunc
+	RequestCertificateChallengeFuncInvoked bool
 
 	BatchApplyCertificateAuthoritiesFunc        BatchApplyCertificateAuthoritiesFunc
 	BatchApplyCertificateAuthoritiesFuncInvoked bool
@@ -5926,6 +5931,13 @@ func (s *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertifi
 	s.RequestCertificateFuncInvoked = true
 	s.mu.Unlock()
 	return s.RequestCertificateFunc(ctx, p)
+}
+
+func (s *Service) RequestCertificateChallenge(ctx context.Context, caID uint) (string, error) {
+	s.mu.Lock()
+	s.RequestCertificateChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.RequestCertificateChallengeFunc(ctx, caID)
 }
 
 func (s *Service) BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {

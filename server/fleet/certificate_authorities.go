@@ -159,6 +159,29 @@ func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
 	}, nil
 }
 
+// NDESSCEPProxyCA returns the connection settings of an NDES SCEP proxy CA.
+func (c *CertificateAuthority) NDESSCEPProxyCA() (NDESSCEPProxyCA, error) {
+	switch {
+	case CAType(c.Type) != CATypeNDESSCEPProxy:
+		return NDESSCEPProxyCA{}, fmt.Errorf("Certificate authority of type %s is not an NDES certificate authority.", c.Type)
+	case c.URL == nil:
+		return NDESSCEPProxyCA{}, errors.New("Certificate authority does not have a SCEP URL configured.")
+	case c.AdminURL == nil:
+		return NDESSCEPProxyCA{}, errors.New("Certificate authority does not have an admin URL configured.")
+	case c.Username == nil:
+		return NDESSCEPProxyCA{}, errors.New("Certificate authority does not have a username configured.")
+	case c.Password == nil:
+		return NDESSCEPProxyCA{}, errors.New("Certificate authority does not have a password configured.")
+	}
+	return NDESSCEPProxyCA{
+		ID:       c.ID,
+		URL:      *c.URL,
+		AdminURL: *c.AdminURL,
+		Username: *c.Username,
+		Password: *c.Password,
+	}, nil
+}
+
 type CertificateAuthorityPayload struct {
 	DigiCert        *DigiCertCA           `json:"digicert,omitempty"`
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`

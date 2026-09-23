@@ -90,6 +90,16 @@ func TestHTTPMessageSignAuth(t *testing.T) {
 			Called: true,
 		},
 		{
+			Name: "auth path with good cert context 4",
+			Path: "/api/v1/fleet/certificate_authorities/3/request_challenge",
+			Err:  "",
+			HostIdentCert: &types.HostIdentityCertificate{
+				NotValidAfter: time.Now().Add(24 * time.Hour),
+				HostID:        ptr.Uint(1),
+			},
+			Called: true,
+		},
+		{
 			Name:          "auth path with zeroed cert context",
 			Path:          "/osquery/",
 			Err:           "host identity certificate expired",
