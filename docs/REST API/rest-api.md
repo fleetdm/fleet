@@ -753,6 +753,7 @@ Clears a policy's pass/fail results. Fleet does this automatically when you edit
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
+- [Request certificate challenge](#request-certificate-challenge)
 - [Resend host's certificate](#resend-hosts-certificate)
 
 ### Connect certificate authority (CA)
@@ -1250,6 +1251,10 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant), [custom EST](#custom-est-proxy), and [NDES and Okta](#ndes-scep-proxy) (Okta uses NDES under the hood) CAs. Google CA [coming soon](https://github.com/fleetdm/fleet/issues/52623)
 
+For Okta and NDES CAs, the CSR must include a one-time challenge as its `challengePassword` attribute. Get one with the [Request certificate challenge](#request-certificate-challenge) endpoint before you create the CSR. Fleet sends the CSR to the CA unchanged, so it can't add the challenge for you.
+
+If the CA can't be reached or is temporarily unavailable (no response, or HTTP 408, 429, or 5xx from an Okta or NDES SCEP URL), the response is `503` with a `Retry-After` header, so clients can wait and try again. Any other failure, including the CA rejecting the request, is a `400` whose message says why.
+
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
 As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
@@ -1261,7 +1266,7 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
-| csr       | string | body |**Required** The signed certificate signing request (CSR).    |
+| csr       | string | body |**Required** The signed certificate signing request (CSR), PEM-encoded. Only the first PEM block is used. For Okta and NDES CAs, it must include the challenge from [Request certificate challenge](#request-certificate-challenge) as its `challengePassword` attribute.    |
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
@@ -1313,6 +1318,45 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 }
 ```
 
+#### Example (Okta or NDES)
+
+First, get a one-time challenge with [Request certificate challenge](#request-certificate-challenge). Then create a CSR with the challenge as its `challengePassword` attribute, for example with OpenSSL:
+
+```shell
+cat > csr.conf <<EOF
+[req]
+prompt = no
+distinguished_name = dn
+attributes = attrs
+[dn]
+CN = <common-name>
+[attrs]
+challengePassword = <challenge>
+EOF
+openssl req -new -newkey rsa:2048 -nodes -keyout device.key -out device.csr -config csr.conf
+```
+
+`POST /api/v1/fleet/certificate_authorities/7/request_certificate`
+
+##### Request body
+
+```json
+{
+  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIICvDCCAaQCAQAwKjEoMCYGA1UEAwwfdGVzdC1ob3N0IG1hbmFnZW1lbnRBdHRl\n...\n-----END CERTIFICATE REQUEST-----",
+  "return_pem_certificate": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIIDBjCCAe6gAwIBAgIQ...\n-----END CERTIFICATE-----\n"
+}
+```
+
 #### Example (HTTP signature)
 
 ##### Request header
@@ -1342,6 +1386,38 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
 ```json
 {
   "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
+}
+```
+
+### Request certificate challenge
+
+Requests a one-time challenge from a certificate authority (CA), for a CSR you send to the [Request certificate](#request-certificate) endpoint. Currently, this endpoint is only supported for [Okta and Microsoft NDES](#ndes-scep-proxy) CAs.
+
+Include the challenge in the CSR as its `challengePassword` attribute. A challenge can be used once, and NDES expires it after 60 minutes by default.
+
+Each request uses up one of NDES's cached challenge passwords (5 by default), whether or not the certificate request that follows succeeds. Only request a challenge right before you request a certificate. If the cache is full, or the CA can't be reached, the response is `503` with a `Retry-After` header.
+
+As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
+
+`POST /api/v1/fleet/certificate_authorities/:id/request_challenge`
+
+#### Parameters
+
+| Name | Type    | In   | Description |
+| ---- | ------- | ---- | ----------- |
+| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+
+#### Example
+
+`POST /api/v1/fleet/certificate_authorities/7/request_challenge`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "challenge": "8CE317021F690069"
 }
 ```
 
