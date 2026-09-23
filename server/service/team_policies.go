@@ -41,6 +41,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsExcludeAny:             req.LabelsExcludeAny,
 		LabelsExcludeAll:             req.LabelsExcludeAll,
 		ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
+		Hidden:                       req.Hidden,
 		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
 		Type:                         req.Type,
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
@@ -372,6 +373,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAny:             p.LabelsExcludeAny,
 		LabelsExcludeAll:             p.LabelsExcludeAll,
 		ConditionalAccessEnabled:     p.ConditionalAccessEnabled,
+		Hidden:                       p.Hidden,
 		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
 		PatchWhenClosed:              p.PatchWhenClosed,
 		Type:                         policyType,
@@ -766,6 +768,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ConditionalAccessEnabled != nil {
 		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
 	}
+	if p.Hidden != nil {
+		policy.Hidden = *p.Hidden
+	}
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
@@ -855,6 +860,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", err),
+		})
+	}
+	if err := fleet.PolicyVerifyHidden(policy.Hidden, policy.ConditionalAccessEnabled); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})

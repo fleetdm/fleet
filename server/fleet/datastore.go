@@ -466,8 +466,9 @@ type Datastore interface {
 	// upsert. Returns a NotFoundError if no row owns the token.
 	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
-	// FailingPoliciesCount returns the number of failling policies for 'host'
-	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+	// FailingPoliciesCount returns the number of failing policies for 'host', in total and
+	// excluding hidden policies.
+	FailingPoliciesCount(ctx context.Context, host *Host) (total uint, unhidden uint, err error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)

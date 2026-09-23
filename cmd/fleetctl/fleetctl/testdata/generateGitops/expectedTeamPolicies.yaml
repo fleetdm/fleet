@@ -2,6 +2,7 @@
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy
+  hidden: false
   name: Team Policy
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
@@ -22,6 +23,7 @@
   query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
   fleet_maintained_app_slug: "foo/darwin"
+  hidden: false
   type: patch
   conditional_access_enabled: true
   conditional_access_bypass_enabled: false
@@ -31,6 +33,7 @@
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
+  hidden: true
   install_software:
     app_store_id: "1234567890"
   name: Team VPP policy

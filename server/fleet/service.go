@@ -516,7 +516,7 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host in their
 	// device-safe representation (which excludes the policy author's identity
 	// and the raw SQL query), including passing / failing responses.
-	ListDevicePolicies(ctx context.Context, host *Host) ([]*DevicePolicy, error)
+	ListDevicePolicies(ctx context.Context, host *Host, includeHidden bool) ([]*DevicePolicy, error)
 
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error

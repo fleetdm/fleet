@@ -65,6 +65,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy
+  hidden: false
   name: Team Policy
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
@@ -77,6 +78,7 @@ policies:
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
+  hidden: false
   name: Team patch policy
   patch_when_closed: true
   platform: linux,windows
@@ -88,6 +90,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
+  hidden: true
   install_software:
     app_store_id: "1234567890"
   name: Team VPP policy
@@ -101,6 +104,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with configuration profile automation
+  hidden: false
   name: Team Profile policy
   platform: darwin
   query: SELECT * FROM team_policy WHERE id = 4
@@ -113,6 +117,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with FMA install automation
+  hidden: false
   install_software:
     fleet_maintained_app_slug: fma1/darwin
   name: Team FMA install policy
@@ -126,6 +131,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team policy with custom package install automation
+  hidden: false
   install_software:
     hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
   name: Team package install policy

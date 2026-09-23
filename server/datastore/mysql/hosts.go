@@ -4003,27 +4003,29 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (total uint, unhidden uint, err error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
 
 	query := `
-		SELECT SUM(1 - pm.passes) AS n_failed
+		SELECT
+			COALESCE(SUM(1 - pm.passes), 0) AS total,
+			COALESCE(SUM((1 - pm.passes) * (1 - p.hidden)), 0) AS unhidden
 		FROM policy_membership pm
-		WHERE pm.host_id = ? AND pm.passes IS NOT null
-		GROUP BY host_id
+		JOIN policies p ON p.id = pm.policy_id
+		WHERE pm.host_id = ? AND pm.passes IS NOT NULL
 	`
 
-	var r uint
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &r, query, host.ID); err != nil {
-		if err == sql.ErrNoRows {
-			return 0, nil
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get failing policies count")
+	var r struct {
+		Total    uint `db:"total"`
+		Unhidden uint `db:"unhidden"`
 	}
-	return r, nil
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &r, query, host.ID); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "get failing policies count")
+	}
+	return r.Total, r.Unhidden, nil
 }
 
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -4031,7 +4033,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.type,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.hidden, p.type,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE

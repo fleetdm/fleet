@@ -11011,27 +11011,44 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 
 	t.Run("no policies", func(t *testing.T) {
 		for _, h := range hosts {
-			actual, err := ds.FailingPoliciesCount(ctx, h)
+			total, unhidden, err := ds.FailingPoliciesCount(ctx, h)
 			require.NoError(t, err)
-			require.Equal(t, actual, uint(0))
+			require.Equal(t, uint(0), total)
+			require.Equal(t, uint(0), unhidden)
 		}
 	})
 
 	t.Run("with policies and memberships", func(t *testing.T) {
 		u := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "failing policies count"})
+		require.NoError(t, err)
+		var hostIDs []uint
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.ID)
+		}
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, hostIDs)))
+
+		// Policies 2 and 5 are hidden team policies; the rest are global.
 		var policies []*fleet.Policy
 		for i := 0; i < 10; i++ {
 			q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
-			p, err := ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+			var p *fleet.Policy
+			var err error
+			if i == 2 || i == 5 {
+				p, err = ds.NewTeamPolicy(ctx, team.ID, &u.ID, fleet.PolicyPayload{QueryID: &q.ID, Hidden: true})
+			} else {
+				p, err = ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+			}
 			require.NoError(t, err)
 			policies = append(policies, p)
 		}
 
 		testCases := []struct {
-			host     *fleet.Host
-			policyEx map[uint]*bool
-			expected uint
+			host             *fleet.Host
+			policyEx         map[uint]*bool
+			expected         uint
+			expectedUnhidden uint
 		}{
 			{
 				host: hosts[0],
@@ -11043,7 +11060,8 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 					policies[4].ID: nil,
 					policies[5].ID: nil,
 				},
-				expected: 1,
+				expected:         1,
+				expectedUnhidden: 0, // policy 2 fails but is hidden
 			},
 			{
 				host: hosts[1],
@@ -11059,7 +11077,8 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 					policies[8].ID: ptr.Bool(true),
 					policies[9].ID: ptr.Bool(true),
 				},
-				expected: 0,
+				expected:         0,
+				expectedUnhidden: 0,
 			},
 			{
 				host: hosts[2],
@@ -11075,12 +11094,14 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 					policies[8].ID: ptr.Bool(false),
 					policies[9].ID: ptr.Bool(false),
 				},
-				expected: 5,
+				expected:         5,
+				expectedUnhidden: 4, // policy 5 fails but is hidden
 			},
 			{
-				host:     hosts[3],
-				policyEx: map[uint]*bool{},
-				expected: 0,
+				host:             hosts[3],
+				policyEx:         map[uint]*bool{},
+				expected:         0,
+				expectedUnhidden: 0,
 			},
 		}
 
@@ -11088,9 +11109,10 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 			if len(tc.policyEx) != 0 {
 				require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil)))
 			}
-			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
+			total, unhidden, err := ds.FailingPoliciesCount(ctx, tc.host)
 			require.NoError(t, err)
-			require.Equal(t, tc.expected, actual)
+			require.Equal(t, tc.expected, total)
+			require.Equal(t, tc.expectedUnhidden, unhidden)
 		}
 	})
 }
