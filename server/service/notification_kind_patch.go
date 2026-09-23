@@ -30,15 +30,14 @@ const (
 	duePatchNotificationBatchSize = 500
 )
 
-// Which of the two toasts was last put on screen, recorded by OnOutcome.
+// Which of the two notices was last displayed, recorded when the script result comes back.
 var (
 	patchNotificationFirstNoticePayload = json.RawMessage(`{"reminder":false}`)
 	patchNotificationReminderPayload    = json.RawMessage(`{"reminder":true}`)
 )
 
-// A deadline that is not set yet, or that has already passed, gives the 1 hour toast, so a toast
-// the host runs late starts the end user's hour over instead of closing their apps in 5 minutes.
 func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, now time.Time) bool {
+	// If the deadline is set, has not passed, and is within 5 minutes, the notification is the 5 minute reminder.
 	return patchNotification != nil && patchNotification.InstallAt != nil &&
 		now.Before(*patchNotification.InstallAt) &&
 		patchNotification.InstallAt.Sub(now) <= patchNotificationReminderBefore
@@ -405,12 +404,11 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 	} else {
 		if now.Before(duePatch.InstallAt) {
-			// leave the countdown running, the reminder's five minutes are not up
+			// the reminder was displayed and its five minutes are not up
 			return nil
 		}
 
-		// Drop the deadline for a host nobody is at, so its apps stay open and the end user gets the
-		// hour again on their return.
+		// the host is offline, so clear install_at and re-dispatch, and with no install_at the next display is a 1 hour notice
 		if !duePatch.HostOnline {
 			err = k.ds.ClearPatchNotificationInstallAt(ctx, duePatch.NotificationUUID)
 			if err != nil {
@@ -478,7 +476,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 				return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
 			}
 		} else {
-			// send the notification again, and Render picks the notice from how far off the deadline is by then
+			// re-dispatch with no payload change, the notice comes from install_at at display time
 			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "send patch notification reminder")
@@ -704,8 +702,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		}
 		installAt = &deadline
 
-		// Record which toast the end user saw, which is what RemindAndInstallDuePatches reads to tell
-		// a reminder still to send from a deadline ready to install.
+		// Record which notice was displayed, so the deadline pass can tell a reminder still to send from one ready to install.
 		err = k.notificationSvc.SetNotificationPayload(ctx, notification.UUID, displayedPayload)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "record the patch notification notice displayed")

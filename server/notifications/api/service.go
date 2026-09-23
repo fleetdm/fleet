@@ -77,8 +77,7 @@ type ActOnNotificationService interface {
 	ActOnNotification(ctx context.Context, notificationUUID string) (bool, error)
 }
 
-// SetNotificationPayloadService replaces the content of a dispatched
-// notification, so a kind can record what its host displayed.
+// SetNotificationPayloadService replaces the content of a dispatched notification, so a kind can record what its host displayed.
 type SetNotificationPayloadService interface {
 	SetNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error
 }

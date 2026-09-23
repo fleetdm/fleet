@@ -89,9 +89,8 @@ func setTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string
 	})
 }
 
-// markTestHostSeen puts the host inside its online window, which the deadline pass
-// requires before it closes the end user's apps. The fixtures leave a host a minute
-// behind, outside that window.
+// markTestHostSeen puts the host inside its online window, which the deadline pass requires before
+// it closes the end user's apps. The fixtures leave a host a minute behind, outside that window.
 func markTestHostSeen(t *testing.T, ds *mysql.Datastore, hostID uint) {
 	t.Helper()
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

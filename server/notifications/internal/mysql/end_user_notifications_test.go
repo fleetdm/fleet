@@ -719,7 +719,7 @@ func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	firstNotice := json.RawMessage(`{"reminder":false}`)
 
-	t.Run("a dispatched notification nobody has seen yet gets the new payload", func(t *testing.T) {
+	t.Run("a dispatched notification the host has not displayed gets the new payload", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-payload", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, false)
@@ -731,8 +731,8 @@ func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
 		assert.JSONEq(t, string(firstNotice), string(got.Payload))
 	})
 
-	// the kind records what its host displayed once the result is in, so a display cannot block the write
-	t.Run("a dispatched notification the end user has seen gets the new payload", func(t *testing.T) {
+	// the payload is written after the script result sets displayed_at, so displayed_at cannot block it
+	t.Run("a dispatched notification the host has displayed gets the new payload", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-payload-displayed", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
 			api.EndUserNotificationDispatched, 1, true)
@@ -744,7 +744,7 @@ func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
 		assert.JSONEq(t, string(firstNotice), string(got.Payload))
 	})
 
-	// a result from a superseded script must not relabel a notification that has moved on
+	// a script result that arrives after the notification went back to pending must not write the payload
 	t.Run("a notification that is not dispatched keeps its payload", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "set-payload-pending", true)
 		notificationUUID := newHostNotification(t, env, hostID, "test_kind",

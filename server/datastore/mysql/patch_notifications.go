@@ -183,8 +183,7 @@ ON DUPLICATE KEY UPDATE install_at = GREATEST(COALESCE(install_at, VALUES(instal
 }
 
 func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
-	// host_online uses the same window as the host list's online status: the shorter of the two
-	// check-in intervals, plus the buffer that keeps a host from flapping.
+	// host_online matches the online status on the host list: the shorter check-in interval, plus a grace period for a late check-in
 	selectStmt := fmt.Sprintf(`
 SELECT
 	pn.notification_uuid,

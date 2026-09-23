@@ -86,8 +86,7 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		otherInstall *fleet.HostLastInstallData
 		// NotificationAwaitingDisplay: this host has a notification the end user
 		// has not seen yet
-		awaiting bool
-		// that notification's deadline is close enough that its next toast is the 5 minute reminder
+		awaiting            bool
 		awaitingRemindsNext bool
 		// the skipped install carries no software title, so there is no app to name
 		noTitle bool
@@ -110,7 +109,6 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			wantAppOn:   awaitingUUID,
 		},
 		{
-			// joining it would give the app 5 minutes rather than the hour the design promises
 			name:                "the app gets its own notification when the one awaiting display is the 5 minute reminder",
 			awaiting:            true,
 			awaitingRemindsNext: true,
@@ -689,11 +687,9 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		// how far off the deadline is when the result lands, which is what picks the notice
+		name          string
 		untilDeadline time.Duration
-		// the notification has never been displayed, so it has no deadline yet
-		noDeadline bool
+		noDeadline    bool
 		// the previous attempt's outcome, nil if this is the first attempt
 		lastExitCode *int64
 
@@ -727,7 +723,6 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantPolicyIDs:  []uint{30, 31},
 		},
 		{
-			// the host ran the script late, so nobody saw a 5 minute warning and the hour starts over
 			name:           "a toast displayed after its deadline passed records an hour as its time before",
 			untilDeadline:  -time.Minute,
 			outcome:        notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-7"},
@@ -832,8 +827,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			require.Equal(t, c.wantStatus, activity.Status)
 			require.Equal(t, c.wantTimeBefore, activity.TimeBefore)
 
-			// Only a displayed outcome sets install_at, and it is set from the lead time of the
-			// toast that reached the screen, so a reminder sets it 5 minutes out, not an hour.
+			// only a displayed outcome sets install_at, from the lead time of the toast that reached the screen
 			wantDisplayedPayload := patchNotificationFirstNoticePayload
 			if c.wantTimeBefore == 300 {
 				wantDisplayedPayload = patchNotificationReminderPayload
@@ -894,11 +888,9 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		alreadyActed bool
 		// the notification is already acted, which an earlier pass stopping part way through leaves behind
 		statusActed bool
-		// the host's last check-in sits outside its online window
 		hostOffline bool
 
-		wantReminder bool
-		// the deadline is dropped, so the end user's hour starts over on the next toast
+		wantReminder        bool
 		wantDeadlineCleared bool
 		wantInstalls        []uint
 		// the pass tried to take the notification, whether or not it got it
