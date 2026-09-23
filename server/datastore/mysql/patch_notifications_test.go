@@ -383,6 +383,7 @@ func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
 
 	read, err = ds.GetPatchNotification(ctx, notificationUUID)
 	require.NoError(t, err)
+	require.NotNil(t, read)
 	require.NotNil(t, read.InstallAt)
 	require.WithinDuration(t, deadline, *read.InstallAt, time.Second)
 
