@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.2",
+      "version": "2026.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app' AND version_compare(bundle_short_version, '2026.2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app' AND version_compare(bundle_short_version, '2026.2.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.tableausoftware.Desktop.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.tableau.com/esdalt/2026.2.2/TableauDesktop-2026-2-2-arm64.dmg",
+      "installer_url": "https://downloads.tableau.com/esdalt/2026.2.3/TableauDesktop-2026-2-3-arm64.dmg",
       "install_script_ref": "85765397",
       "uninstall_script_ref": "95e2ce5d",
-      "sha256": "afd70c92b40a68dd34f9e1e86554b8e550e0d76507033c682068721042ec0ed9",
+      "sha256": "f5bcc2d400b7f7e9d0db4c3d10e21ee4ba938c894f39065e5254b4efea2219ba",
       "default_categories": [
         "Productivity"
       ]
