@@ -1,10 +1,12 @@
 .apple-business-manager-table {
   .data-table-block .data-table {
+    // narrower and unified so more fleet assignment columns stay visible
+    // before any of them need to be hidden on resize
     td.macos_team__cell,
     td.ios_team__cell,
     td.ipados_team__cell,
     td.byod_team__cell {
-      max-width: 150px;
+      max-width: 120px;
     }
 
     td.id__cell {
@@ -20,24 +22,25 @@
   }
 
   // The desired behavior is to hide the header and team cell one by one
-  // as the viewport gets smaller. This is achieved by using the max-width
+  // as the viewport gets smaller, starting with iPadOS fleet since it's the
+  // least commonly used assignment. This is achieved by using the max-width
   // media query with the breakpoint values taken from when the table content
   // starts to overflow.
-  @media (max-width: $break-lg) {
-    .byod_team__header,
-    .byod_team__cell {
-      display: none;
-    }
-  }
-
-  @media (max-width: 1230px) {
+  @media (max-width: 1280px) {
     .ipados_team__header,
     .ipados_team__cell {
       display: none;
     }
   }
 
-  @media (max-width: $break-md) {
+  @media (max-width: 1140px) {
+    .byod_team__header,
+    .byod_team__cell {
+      display: none;
+    }
+  }
+
+  @media (max-width: 930px) {
     .ios_team__header,
     .ios_team__cell {
       display: none;
