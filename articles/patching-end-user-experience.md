@@ -211,4 +211,4 @@ If you change an app's patch settings while a host's timer is running, the host'
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-09-24">
-<meta name="description" value="See what end users experience on macOS for each Fleet-maintained app patch option, including notifications before Fleet closes and updates apps.">
+<meta name="description" value="See what end users experience for each Fleet-maintained app patch option, including notifications before Fleet closes and updates apps.">
