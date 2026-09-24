@@ -373,9 +373,10 @@ const TEST_CASES = [
     id: 'mobileconfig-limit-ad-tracking',
     profileType: 'mobileconfig',
     instructions: 'Turn off personalized ads and limit ad tracking.',
-    // Two keys with opposite polarity in one payload: allow* false, force* true.
+    // Two keys with opposite polarity in one payload: allow* false, force* true.  Apple documents both in
+    // Restrictions; the it-and-security profile uses com.apple.AdLib, a preference domain with no manifest.
     expect: {
-      mustContain: ['com.apple.AdLib', '<key>allowApplePersonalizedAdvertising</key><false/>', '<key>forceLimitAdTracking</key><true/>']
+      mustContain: ['com.apple.applicationaccess', '<key>allowApplePersonalizedAdvertising</key><false/>', '<key>forceLimitAdTracking</key><true/>']
     }
   },
   {
