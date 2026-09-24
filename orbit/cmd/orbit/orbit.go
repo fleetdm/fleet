@@ -431,9 +431,9 @@ func loadDeliveredEnrollSecret(
 }
 
 // throttledMDMSync returns a function that asks the device to check in with its MDM server, at most once per interval and in the
-// background. orbit calls it whenever it is waiting on an enroll secret only Fleet MDM can deliver: with no secret at all, and after
-// the server rejects the one it has. In both cases the server cannot ask the device to check in, so without this a resent profile
-// waits for the device's own MDM poll, which can be hours away.
+// background. orbit calls it when the server rejects the enroll secret it has, so only a secret Fleet MDM delivers can help. With
+// orbit's node key rejected the server cannot ask the device to check in, so without this a resent profile waits for the device's
+// own MDM poll, which can be hours away.
 func throttledMDMSync(interval time.Duration, enrolledInMDM func() bool, triggerSync func() error) func() {
 	var (
 		mu   sync.Mutex
@@ -566,9 +566,6 @@ func orbitAction(c *cli.Context) error {
 			return err
 		}
 	}
-
-	// Decide if we can wait for an MDM-delivered enroll secret. This is only true on Windows, where the registry channel is available.
-	waitForMDMSecret := canWaitForMDMSecret(c.String("enroll-secret"))
 
 	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
 		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
@@ -737,26 +734,10 @@ func orbitAction(c *cli.Context) error {
 	appDoneCh = make(chan struct{})
 
 	// Initializing windows service runner and system service manager.
-	var svcInterruptCh chan struct{}
 	if runtime.GOOS == "windows" {
 		systemChecker := newSystemChecker()
-		svcInterruptCh = systemChecker.svcInterruptCh
 		addSubsystem(&g, "system checker", systemChecker)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
-	}
-
-	// Waiting for an MDM-delivered enroll secret happens after the service manager is running, and not where the rest of the secret
-	// resolution lives. svc.Run is what reports StartPending and then Running to the SCM, so blocking before it means Windows never
-	// hears from the service and kills it for failing to start in time.
-	if waitForMDMSecret {
-		waitForMDMDeliveredEnrollSecret(svcInterruptCh, enrollSecretPath, disableKeystore, setEnrollSecret)
-		select {
-		case <-svcInterruptCh:
-			close(appDoneCh)
-			log.Info().Msg("stop requested while waiting for an enroll secret, exiting")
-			return nil
-		default:
-		}
 	}
 
 	// sofwareupdated is a macOS daemon that automatically updates Apple software.

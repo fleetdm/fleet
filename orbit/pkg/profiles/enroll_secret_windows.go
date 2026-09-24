@@ -3,13 +3,11 @@
 package profiles
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -24,22 +22,6 @@ const (
 	enrollSecretKeyPath   = `SOFTWARE\FleetDM\Orbit`
 	enrollSecretValueName = "EnrollSecret"
 )
-
-// EnsureEnrollSecretKeyExists creates the key that carries the MDM-delivered enroll secret when it is missing.
-func EnsureEnrollSecretKeyExists() error {
-	return ensureEnrollSecretKeyExists(registry.LOCAL_MACHINE, enrollSecretKeyPath)
-}
-
-func ensureEnrollSecretKeyExists(root registry.Key, path string) error {
-	key, _, err := registry.CreateKey(root, path, registry.SET_VALUE)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", path, err)
-	}
-	if err := key.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", path, err)
-	}
-	return nil
-}
 
 // GetEnrollSecret returns the enroll secret Fleet MDM delivered to this device, or ErrEnrollSecretNotFound when none is waiting.
 func GetEnrollSecret() (string, error) {
@@ -76,86 +58,6 @@ func getEnrollSecret(root registry.Key, path string) (string, error) {
 		return "", ErrEnrollSecretNotFound
 	}
 	return secret, nil
-}
-
-// ArmEnrollSecretWatch registers for the next change to the key that carries the enroll secret and returns immediately. Windows
-// tells us when that happens, so the caller does not poll: the profile that writes the value lands over its own MDM session, and
-// RegNotifyChangeKeyValue reports it as soon as it does.
-func ArmEnrollSecretWatch() (*EnrollSecretWatch, error) {
-	return armEnrollSecretWatch(registry.LOCAL_MACHINE, enrollSecretKeyPath)
-}
-
-// EnrollSecretWatch is an armed, one-shot registration for changes to the key that carries the enroll secret.
-type EnrollSecretWatch struct {
-	key   registry.Key
-	event windows.Handle
-	path  string
-}
-
-func armEnrollSecretWatch(root registry.Key, path string) (*EnrollSecretWatch, error) {
-	key, err := registry.OpenKey(root, path, registry.NOTIFY)
-	if err != nil {
-		return nil, fmt.Errorf("open %s to watch: %w", path, err)
-	}
-
-	// Manual-reset, initially unsignalled: Wait is the only consumer.
-	event, err := windows.CreateEvent(nil, 1, 0, nil)
-	if err != nil {
-		key.Close()
-		return nil, fmt.Errorf("create registry change event: %w", err)
-	}
-
-	if err := windows.RegNotifyChangeKeyValue(
-		windows.Handle(key),
-		false, // this key only; the secret lives directly under it
-		windows.REG_NOTIFY_CHANGE_LAST_SET,
-		event,
-		true, // asynchronous: signal the event rather than blocking this call
-	); err != nil {
-		windows.CloseHandle(event) //nolint:errcheck // nothing actionable on close failure
-		key.Close()
-		return nil, fmt.Errorf("watch %s for changes: %w", path, err)
-	}
-	return &EnrollSecretWatch{key: key, event: event, path: path}, nil
-}
-
-// Wait blocks until the watched key changes or ctx is done, whichever comes first. Both mean "go look again". The registration is
-// spent afterwards either way, so a caller that wants to keep watching must Close this one and arm another.
-func (w *EnrollSecretWatch) Wait(ctx context.Context) error {
-	// stop signals that registry fired first and we are exiting this function.
-	stop := make(chan struct{})
-	// joined signals that the goroutine has exited and it is safe to close the event handle.
-	joined := make(chan struct{})
-	go func() {
-		defer close(joined)
-		select {
-		case <-ctx.Done():
-			_ = windows.SetEvent(w.event)
-		case <-stop:
-		}
-	}()
-	defer func() {
-		close(stop)
-		<-joined
-	}()
-
-	// This is a blocking Win32 call.
-	if _, err := windows.WaitForSingleObject(w.event, windows.INFINITE); err != nil {
-		return fmt.Errorf("wait for %s to change: %w", w.path, err)
-	}
-	return nil
-}
-
-// Close releases the registration. It is safe to call after Wait and must be called exactly once.
-func (w *EnrollSecretWatch) Close() error {
-	if w == nil {
-		return nil
-	}
-	err := windows.CloseHandle(w.event)
-	if closeErr := w.key.Close(); err == nil {
-		err = closeErr
-	}
-	return err
 }
 
 func clearEnrollSecret(root registry.Key, path string) error {

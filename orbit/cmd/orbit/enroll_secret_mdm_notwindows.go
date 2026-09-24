@@ -9,12 +9,6 @@ package main
 // loadMDMSecretIfWaiting reports that nothing was waiting.
 func loadMDMSecretIfWaiting(_ string, _ bool, _ func(string) error) bool { return false }
 
-// canWaitForMDMSecret is always false.
-func canWaitForMDMSecret(_ string) bool { return false }
-
-// waitForMDMDeliveredEnrollSecret never blocks, and canWaitForMDMSecret means it is never reached.
-func waitForMDMDeliveredEnrollSecret(_ <-chan struct{}, _ string, _ bool, _ func(string) error) {}
-
 // mdmEnrollSecretRefresher has no channel to refresh from.
 func mdmEnrollSecretRefresher(_ string, _ bool) func() string { return nil }
 
