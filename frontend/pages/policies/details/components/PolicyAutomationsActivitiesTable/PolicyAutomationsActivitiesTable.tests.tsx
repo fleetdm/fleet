@@ -523,7 +523,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(await screen.findByText("No automation runs")).toBeInTheDocument();
   });
 
-  it("calls the reset endpoint when the reset is confirmed", async () => {
+  it("resets the whole policy from the header button", async () => {
     (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
       mockResponse([mockActivity()], 1)
     );
@@ -540,6 +540,38 @@ describe("PolicyAutomationsActivitiesTable", () => {
     await user.click(screen.getByRole("button", { name: "Reset policy" }));
     await user.click(screen.getByRole("button", { name: "Reset" }));
 
-    await waitFor(() => expect(policiesAPI.reset).toHaveBeenCalledWith(123));
+    await waitFor(() =>
+      expect(policiesAPI.reset).toHaveBeenCalledWith(123, undefined)
+    );
+  });
+
+  it("resets the policy only for the run's host when opened from a run", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+    (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        currentAutomatedPolicies={[]}
+        canResetPolicy
+      />
+    );
+
+    await user.click(await screen.findByText("Software installed (1Password)"));
+    // The header also has a "Reset policy" button; the run's modal renders last.
+    const resetButtons = screen.getAllByRole("button", {
+      name: "Reset policy",
+    });
+    await user.click(resetButtons[resetButtons.length - 1]);
+    expect(
+      screen.getByText("Anna's MacBook Pro", { selector: "b" })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.reset).toHaveBeenCalledWith(123, 42)
+    );
   });
 });

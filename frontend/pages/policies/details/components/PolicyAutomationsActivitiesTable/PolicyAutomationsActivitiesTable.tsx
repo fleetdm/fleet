@@ -85,8 +85,9 @@ const PolicyAutomationsActivitiesTable = ({
     setSelectedActivity,
   ] = useState<IPolicyAutomationActivity | null>(null);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [resetHostDisplayName, setResetHostDisplayName] = useState<
-    string | undefined
+  // Set when the reset is opened from a specific run, scoping it to that host.
+  const [resetHost, setResetHost] = useState<
+    { id: number; displayName: string } | undefined
   >(undefined);
 
   const { data, isLoading, isError } = useQuery<
@@ -117,7 +118,7 @@ const PolicyAutomationsActivitiesTable = ({
   );
 
   const { mutateAsync: resetPolicy, isLoading: isResetting } = useMutation(
-    () => policiesAPI.reset(policyId),
+    () => policiesAPI.reset(policyId, resetHost?.id),
     {
       onSuccess: () => {
         notify.success("Policy reset successfully.");
@@ -161,14 +162,19 @@ const PolicyAutomationsActivitiesTable = ({
   );
 
   const onClickResetPolicy = useCallback(() => {
-    setResetHostDisplayName(undefined);
+    setResetHost(undefined);
     setShowResetModal(true);
   }, []);
 
-  // The reset is always policy-wide; the host name is only used to make the
-  // confirmation copy concrete when the reset is opened from a specific run.
   const onResetFromActivity = useCallback(() => {
-    setResetHostDisplayName(selectedActivity?.host_display_name);
+    setResetHost(
+      selectedActivity
+        ? {
+            id: selectedActivity.host_id,
+            displayName: selectedActivity.host_display_name,
+          }
+        : undefined
+    );
     setSelectedActivity(null);
     setShowResetModal(true);
   }, [selectedActivity]);
@@ -295,7 +301,7 @@ const PolicyAutomationsActivitiesTable = ({
       {showResetModal && (
         <PolicyResetModal
           policy={policy}
-          hostDisplayName={resetHostDisplayName}
+          hostDisplayName={resetHost?.displayName}
           currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           isResetting={isResetting}
