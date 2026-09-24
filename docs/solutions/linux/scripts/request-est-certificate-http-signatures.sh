@@ -1,5 +1,5 @@
 #!/bin/bash
-# Example script used in this guide: https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#http-signatures
+# Script template used in this guide: https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#http-signatures
 set -e
 
 # Load the end user information, IdP token and IdP client ID.
