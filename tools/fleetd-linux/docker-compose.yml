@@ -20,6 +20,12 @@ services:
     environment: *default-environment
     cap_add: *default-caps
     restart: unless-stopped
+  ubuntu20.04-fleetd:
+    image: "fleetd-ubuntu-20.04"
+    platform: *default-platform
+    environment: *default-environment
+    cap_add: *default-caps
+    restart: unless-stopped
   fedora43-fleetd:
     image: "fleetd-fedora-43"
     platform: *default-platform
@@ -28,6 +34,12 @@ services:
     restart: unless-stopped
   debian13.4-fleetd:
     image: "fleetd-debian-13.4"
+    platform: *default-platform
+    environment: *default-environment
+    cap_add: *default-caps
+    restart: unless-stopped
+  cachyos-fleetd:
+    image: "fleetd-cachyos"
     platform: *default-platform
     environment: *default-environment
     cap_add: *default-caps

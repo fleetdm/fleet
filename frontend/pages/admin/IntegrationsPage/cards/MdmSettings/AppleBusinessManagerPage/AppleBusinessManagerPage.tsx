@@ -1,32 +1,29 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useRef, useState } from "react";
-
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { AxiosError } from "axios";
-
-import PATHS from "router/paths";
-
+import { getEarliestExpiry } from "components/App/App";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import MainContent from "components/MainContent";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IMdmAbToken } from "interfaces/mdm";
+import PATHS from "router/paths";
 import mdmAbmAPI, {
   IGetAbTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
-import BackButton from "components/BackButton";
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
-import { getEarliestExpiry } from "components/App/App";
-
-import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
-import RenewAbmModal from "./components/RenewAbmModal";
+import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import DeleteAbmModal from "./components/DeleteAbmModal";
 import EditTeamsAbmModal from "./components/EditTeamsAbmModal";
+import RenewAbmModal from "./components/RenewAbmModal";
 
 const baseClass = "apple-business-manager-page";
 
@@ -58,7 +55,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     data: abTokens,
     error: errorAbmTokens,
     isLoading,
-    isRefetching,
     refetch,
   } = useQuery<IGetAbTokensResponse, AxiosError, IMdmAbToken[]>(
     ["abTokens"],
@@ -72,11 +68,20 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         // we need to call setABMExpiry here to update the expiry info so the terms banner
         // displays correctly
         if (data.length === 0) {
-          setABMExpiry({ earliestExpiry: "", needsAbmTermsRenewal: false });
+          setABMExpiry({
+            earliestExpiry: "",
+            needsAbmTermsRenewal: false,
+            hasInvalidABMToken: false,
+            invalidAbmTokenOrgNames: [],
+          });
         } else {
           setABMExpiry({
             earliestExpiry: getEarliestExpiry(data),
             needsAbmTermsRenewal: data.some((token) => token.terms_expired),
+            hasInvalidABMToken: data.some((token) => token.token_invalid),
+            invalidAbmTokenOrgNames: data
+              .filter((token) => token.token_invalid)
+              .map((token) => token.org_name),
           });
         }
       },
@@ -100,6 +105,21 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowEditTeamsModal(false);
   }, [refetch]);
 
+  const onToggleTokenDefault = useCallback(
+    async (abmToken: IMdmAbToken) => {
+      try {
+        await mdmAbmAPI.updateTokenDefault(abmToken.id, !abmToken.default);
+        notify.success("Successfully updated default token.");
+      } catch (e) {
+        notify.error("Couldn't update default token. Please try again.", {
+          response: e,
+        });
+      }
+      refetch();
+    },
+    [refetch]
+  );
+
   const onAddAbm = () => {
     setShowAddAbmModal(true);
   };
@@ -119,11 +139,45 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowRenewModal(false);
   }, []);
 
-  const onRenewed = useCallback(() => {
+  const onRenewed = useCallback(async () => {
+    const renewedTokenId = selectedToken.current?.id;
     selectedToken.current = null;
-    refetch();
     setShowRenewModal(false);
-  }, [refetch]);
+
+    const { data: refetchedTokens } = await refetch();
+
+    // Override just the renewed token's invalid status on top of the
+    // refetch, rather than waiting on a reload to reflect it. A successful
+    // renewal is itself proof the new token is valid, even though the
+    // refetch above may still show it as invalid (the persisted flag isn't
+    // cleared until the next regular DEP cron tick, up to a minute later).
+    // Must run after the refetch resolves, and not before, since the
+    // refetch's own onSuccess otherwise clobbers an earlier optimistic
+    // update with this same stale data.
+    //
+    // Matched by id (not org_name) since that's the token's actual unique
+    // identifier -- org_name is unique in practice today (enforced by a DB
+    // constraint), but id doesn't depend on that holding.
+    if (renewedTokenId !== undefined && refetchedTokens?.length) {
+      const invalidAbmTokenOrgNames = Array.from(
+        new Set(
+          refetchedTokens
+            .filter(
+              (token) => token.token_invalid && token.id !== renewedTokenId
+            )
+            .map((token) => token.org_name)
+        )
+      );
+      setABMExpiry({
+        earliestExpiry: getEarliestExpiry(refetchedTokens),
+        needsAbmTermsRenewal: refetchedTokens.some(
+          (token) => token.terms_expired
+        ),
+        hasInvalidABMToken: invalidAbmTokenOrgNames.length > 0,
+        invalidAbmTokenOrgNames,
+      });
+    }
+  }, [refetch, setABMExpiry]);
 
   const onDeleteToken = (abmToken: IMdmAbToken) => {
     selectedToken.current = abmToken;
@@ -141,7 +195,11 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowDeleteModal(false);
   }, [refetch]);
 
-  if (isLoading || isRefetching) {
+  // Only the initial load blanks the page; refetches (set/unset default,
+  // add, renew, delete) keep the table on screen and swap in fresh data,
+  // since setting the default is a bare menu click with no modal covering
+  // the refetch.
+  if (isLoading) {
     return <Spinner />;
   }
 
@@ -184,12 +242,12 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <>
           <p>
             Add your AB to enable automatic enrollment for company-owned hosts
-            and enrollment, via a Managed Apple Account, for personal (BYOD)
-            hosts.
+            and enrollment, via a Managed Apple Account, for BYOD hosts.
           </p>
           <AppleBusinessManagerTable
             abTokens={abTokens}
             onEditTokenTeam={onEditTokenTeam}
+            onToggleTokenDefault={onToggleTokenDefault}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
           />
@@ -239,6 +297,8 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <DeleteAbmModal
           tokenOrgName={selectedToken.current.org_name}
           tokenId={selectedToken.current.id}
+          tokenIsDefault={selectedToken.current.default}
+          tokensCount={abTokens?.length ?? 0}
           onCancel={onCancelDeleteToken}
           onDeletedToken={onDeleted}
         />

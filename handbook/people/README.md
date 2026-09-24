@@ -9,6 +9,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 |:--------------------------------|:----------------------------------------------------------------------|
 | Head of People | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 | Executive Assistant | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
+| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 
 
 ## Contact us
@@ -20,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Responsibilities
 
-The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. 
+The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. For Content Specialist responsibilities, see the [Marketing](https://fleetdm.com/handbook/marketing#team) page. 
 
 > Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
@@ -331,7 +332,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 
 ### Purchase a SaaS tool
 
-When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+When procuring SaaS tools and services, analyze the purchase of these subscription services and look for ways to help the company:
 - Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
 - Avoid extra features you don't need, and if they're there anyway, avoid using them.
 - Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?

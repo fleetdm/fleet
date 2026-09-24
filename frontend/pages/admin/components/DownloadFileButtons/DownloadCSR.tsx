@@ -1,9 +1,9 @@
 import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import mdmAppleApi from "services/entities/mdm_apple";
 
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import { RequestState, downloadBase64ToFile } from "./helpers";
 
 interface IDownloadCSRProps {
@@ -62,11 +62,11 @@ export const DownloadCSR = ({
   return (
     <Button
       className={`${baseClass}__request-button`}
-      variant="inverse"
+      variant="secondary"
       onClick={handleDownload}
     >
       <label htmlFor="request-csr">
-        <Icon name="download" color="core-fleet-black" size="medium" />
+        <Icon name="download" />
         <span>Download CSR</span>
       </label>
     </Button>

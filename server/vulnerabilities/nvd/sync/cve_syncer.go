@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -87,7 +88,7 @@ func NewCVE(dbDir string, opts ...CVEOption) (*CVE, error) {
 		return nil, errors.New("directory not set")
 	}
 	s := CVE{
-		client:           fleethttp.NewClient(),
+		client:           fleethttp.NewClient(fleethttp.WithNoTimeout()),
 		dbDir:            dbDir,
 		logger:           slog.New(slog.DiscardHandler),
 		MaxTryAttempts:   maxRetryAttempts,
@@ -553,6 +554,23 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 		}
 	}
 
+	// NVD lists ollama as vulnerable through (and including) v0.12.3 via versionEndIncluding with no
+	// versionEndExcluding, so resolved_in_version comes back empty. The fix shipped in the next
+	// release, v0.12.4. Supply versionEndExcluding here so Fleet reports the resolved version.
+	// See https://github.com/fleetdm/fleet/issues/44800.
+	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2025-63389" {
+		for configID := range item.CVE.Configurations {
+			for nodeID := range item.CVE.Configurations[configID].Nodes {
+				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
+					match := &item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID]
+					if strings.Contains(match.Criteria, ":ollama:ollama:") && match.VersionEndExcluding == nil {
+						match.VersionEndExcluding = new("0.12.4")
+					}
+				}
+			}
+		}
+	}
+
 	return item
 }
 
@@ -632,7 +650,7 @@ func (s *CVE) fetchVulnCheckDownloadURL(ctx context.Context, baseURL string) (st
 	defer resp.Body.Close()
 
 	var vcResponse VulnCheckBackupResponse
-	if err := json.NewDecoder(resp.Body).Decode(&vcResponse); err != nil {
+	if err := jsonv2.UnmarshalRead(resp.Body, &vcResponse); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "error decoding response")
 	}
 
@@ -724,7 +742,7 @@ func (s *CVE) processVulnCheckFile(ctx context.Context, fileName string) error {
 		}
 
 		var data VulnCheckBackupDataFile
-		if err := json.NewDecoder(gReader).Decode(&data); err != nil {
+		if err := jsonv2.UnmarshalRead(gReader, &data); err != nil {
 			return fmt.Errorf("error decoding JSON from file %s: %w", file.Name, err)
 		}
 
@@ -842,7 +860,7 @@ func readCVEsLegacyFormat(dbDir string, year int) (*schema.NVDCVEFeedJSON10, err
 	defer file.Close()
 
 	var cveFeed schema.NVDCVEFeedJSON10
-	if err := json.NewDecoder(file).Decode(&cveFeed); err != nil {
+	if err := jsonv2.UnmarshalRead(file, &cveFeed); err != nil {
 		return nil, err
 	}
 

@@ -1,38 +1,32 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import classnames from "classnames";
+import React, { useCallback, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-
-import classnames from "classnames";
-import { getPathWithQueryParams } from "utilities/url";
-
-import Radio from "components/forms/fields/Radio";
-import InputField from "components/forms/fields/InputField";
-import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-
-import { NotificationContext } from "context/notification";
-
-import { addTeamIdCriteria, IScript } from "interfaces/script";
-import { getErrorReason } from "interfaces/errors";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import EmptyState from "components/EmptyState";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
 import Modal from "components/Modal";
-
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { getErrorReason } from "interfaces/errors";
+import { addTeamIdCriteria, IScript } from "interfaces/script";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+import PATHS from "router/paths";
 import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptBatchSupportedFilters,
   IScriptsResponse,
   IRunScriptBatchFormData,
 } from "services/entities/scripts";
-import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
-import Spinner from "components/Spinner";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 import { IPaginatedListScript } from "../RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
+
 import {
   validateFormData,
   IRunScriptBatchModalFormValidation,
@@ -66,8 +60,6 @@ const RunScriptBatchModal = ({
   isFreeTier,
   onCancel,
 }: IRunScriptBatchModal) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [currentTimeUTC, setCurrentTimeUTC] = useState<string>("");
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -172,8 +164,7 @@ const RunScriptBatchModal = ({
       try {
         await scriptsAPI.runScriptBatch(body);
         if (runMode === "schedule") {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully scheduled script.{" "}
               <CustomLink
@@ -189,8 +180,7 @@ const RunScriptBatchModal = ({
             </>
           );
         } else {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully ran script.{" "}
               <CustomLink
@@ -214,13 +204,13 @@ const RunScriptBatchModal = ({
           errorMessage =
             "Could not run script: too many hosts targeted. Please try again with fewer hosts.";
         }
-        renderFlash("error", errorMessage);
+        notify.error(errorMessage, { response: error });
         // can determine more specific error case with additional call to upcoming summary endpoint
       } finally {
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
+    [selectedHostIds, runMode, batchRunDate, batchRunTime]
   );
 
   const renderModalContent = () => {
@@ -374,7 +364,7 @@ const RunScriptBatchModal = ({
             </TooltipWrapper>
             <Button
               disabled={isUpdating}
-              variant="inverse"
+              variant="secondary"
               onClick={() => {
                 setSelectedScript(undefined);
               }}
@@ -402,7 +392,7 @@ const RunScriptBatchModal = ({
               </Button>
               <Button
                 onClick={() => setScriptForDetails(undefined)}
-                variant="inverse"
+                variant="subdued"
               >
                 Go back
               </Button>

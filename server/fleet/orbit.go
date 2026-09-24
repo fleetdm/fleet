@@ -48,12 +48,24 @@ type OrbitConfigNotifications struct {
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
+	// EnableBitLockerProtection tells Orbit that the volume is encrypted but its protection is off, and that it should
+	// turn protection back on.
+	EnableBitLockerProtection bool `json:"enable_bitlocker_protection,omitempty"`
+
+	// BitLockerPINRequestPending tells fleetd on Windows that the end user has submitted a BitLocker startup PIN.
+	BitLockerPINRequestPending bool `json:"bitlocker_pin_request_pending,omitempty"`
+
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
 	// RunSetupExperience indicates whether Orbit should run the Fleet setup experience
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
+
+	// CreateWindowsManagedLocalAccount tells fleetd on Windows to create the hidden managed local admin account and escrow its password.
+	// Set for any Windows MDM host whose fleet has the setting enabled, not only during OOBE, for hosts whose fleetd advertises
+	// CapabilityWindowsManagedLocalAccount, and until the host has escrowed a password for its current enrollment.
+	CreateWindowsManagedLocalAccount bool `json:"create_windows_managed_local_account,omitempty"`
 
 	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk
 	// encryption data for Linux platforms where disk encryption is supported,
@@ -74,6 +86,17 @@ type OrbitConfig struct {
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
 	// nil = no opinion (orbit keeps its current level); true/false sets it.
 	DebugLogging *bool `json:"debug_logging,omitempty"`
+	// WebSocketTransport, when set with Enabled=true, directs fleetd to open a
+	// persistent WebSocket to the server as a check-in notification channel
+	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
+	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+}
+
+// OrbitWebSocketTransportConfig is the WebSocket transport directive delivered
+// via the orbit config. A struct rather than a bare bool so future hints
+// (ping interval, backoff tuning) can ride along without breaking old agents.
+type OrbitWebSocketTransportConfig struct {
+	Enabled bool `json:"enabled"`
 }
 
 type OrbitConfigReceiver interface {
@@ -129,10 +152,28 @@ type DatastoreEnrollOrbitConfig struct {
 	OrbitNodeKey string
 	TeamID       *uint
 	IdentityCert *types.HostIdentityCertificate
+
+	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
+	// secret; the enrollment consumes it for the orbit plane.
+	OneTimeEnrollSecretID *uint
+	// RejectSharedSecretForMDMHosts refuses a shared enroll secret that would
+	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
+	RejectSharedSecretForMDMHosts bool
+
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
 type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithEnrollOrbitCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOrbitCreated(created *bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
 func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
@@ -165,6 +206,18 @@ func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IdentityCert = identityCert
+	}
+}
+
+func WithEnrollOrbitOneTimeEnrollSecret(id uint) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.OneTimeEnrollSecretID = &id
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForMDMHosts = reject
 	}
 }
 

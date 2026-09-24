@@ -1,0 +1,8 @@
+{
+  "name": "Mozilla Firefox Developer Edition",
+  "slug": "firefox@developer-edition/darwin",
+  "unique_identifier": "org.mozilla.firefoxdeveloperedition",
+  "token": "firefox@developer-edition",
+  "installer_format": "dmg",
+  "default_categories": ["Browsers"]
+}

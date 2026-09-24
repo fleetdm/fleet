@@ -25,9 +25,11 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"parallels/darwin":              {ParallelsVersionShortener},
 	"github/darwin":                 {GitHubDesktopVersionShortener},
 	"camtasia/darwin":               {CamtasiaVersionTransformer},
+	"vivaldi/darwin":                {VivaldiDMGInstaller},
 	"warp/darwin":                   {WarpDirectInstaller},
 	"android-studio/darwin":         {AndroidStudioVersionShortener},
 	"microsoft-auto-update/darwin":  {MicrosoftAutoUpdateVersionShortener},
+	"microsoft-365-copilot/darwin":  {Microsoft365CopilotVersionShortener},
 	"opera/darwin":                  {OperaVersionShortener},
 	"twingate/darwin":               {TwingateVersionShortener},
 	"citrix-workspace/darwin":       {CitrixWorkspaceVersionShortener},
@@ -41,7 +43,13 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"grammarly-desktop/darwin":      {GrammarlyDesktopVersionShortener},
 	"logitune/darwin":               {LogiTunePKGInstaller},
 	"anka-virtualization/darwin":    {AnkaVersionShortener},
+	"onedrive/darwin":               {OneDriveVersionShortener},
 	"pd/darwin":                     {PdVersionTransformer},
+	"smallstepagent/darwin":         {SmallstepAgentVersionTransformer},
+	"raspberry-pi-imager/darwin":    {RaspberryPiImagerVersionTransformer},
+	"sonos/darwin":                  {SonosVersionTransformer},
+	"harmony-sase/darwin":           {HarmonySASEVersionShortener},
+	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

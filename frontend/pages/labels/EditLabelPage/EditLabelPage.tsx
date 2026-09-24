@@ -1,27 +1,27 @@
+import { AxiosError } from "axios";
 import React, { useContext } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
-import { AxiosError } from "axios";
 
+import DataError from "components/DataError";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { getErrorReason } from "interfaces/errors";
+import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
 import PATHS from "router/paths";
 import labelsAPI, {
   IGetHostsInLabelResponse,
   IGetLabelResponse,
 } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getErrorReason } from "interfaces/errors";
-import { ILabel } from "interfaces/label";
-import { IHost } from "interfaces/host";
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 
 import DynamicLabelForm from "../components/DynamicLabelForm";
-import ManualLabelForm from "../components/ManualLabelForm";
 import { IDynamicLabelFormData } from "../components/DynamicLabelForm/DynamicLabelForm";
+import ManualLabelForm from "../components/ManualLabelForm";
 import { IManualLabelFormData } from "../components/ManualLabelForm/ManualLabelForm";
 import { hasEditPermission } from "../ManageLabelsPage/LabelsTable/LabelsTableConfig";
 
@@ -37,8 +37,8 @@ type IEditLabelPageProps = RouteComponentProps<
 >;
 
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { currentUser } = useContext(AppContext);
+  const { gitOpsModeEnabled: labelsGitOpsManaged } = useGitOpsMode("labels");
   const queryClient = useQueryClient();
 
   const labelId = parseInt(routeParams.label_id, 10);
@@ -56,18 +56,15 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       onSuccess: (data) => {
         // can't edit host_vitals labels yet
         if (data.label_membership_type === "host_vitals") {
-          renderFlash(
-            "error",
+          notify.error(
             "Host vitals labels are not editable. Delete the label and re-add it to make changes."
           );
           router.replace(PATHS.MANAGE_LABELS);
+          return;
         }
 
         if (currentUser && !hasEditPermission(currentUser, data)) {
-          renderFlash(
-            "error",
-            "You do not have permission to edit this label."
-          );
+          notify.error("You do not have permission to edit this label.");
           router.replace(PATHS.MANAGE_LABELS);
         }
       },
@@ -97,9 +94,14 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const onUpdateLabel = async (
     formData: IDynamicLabelFormData | IManualLabelFormData
   ) => {
+    // Git owns a GitOps-managed label's definition, so send only the membership the user edited.
+    // Echoing name and description back could overwrite a change made in git since this page
+    // loaded. labelsAPI.update applies this to manual form data only.
+    const membershipOnly = labelsGitOpsManaged;
+
     try {
-      await labelsAPI.update(labelId, formData);
-      renderFlash("success", "Label updated successfully.");
+      await labelsAPI.update(labelId, formData, { membershipOnly });
+      notify.success("Label updated successfully.");
       queryClient.invalidateQueries(["label", labelId, currentUser]);
       queryClient.invalidateQueries(["hosts", labelId]);
       queryClient.invalidateQueries(["labels"]);
@@ -115,7 +117,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
           errorMessage = `Couldn't edit label: ${reason}. Please try again.`;
         }
       }
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: error });
     }
   };
 

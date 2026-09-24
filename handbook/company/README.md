@@ -15,7 +15,7 @@ This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.co
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with 60+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+Fleet Device Management Inc. is an all-remote company with 70+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
@@ -68,7 +68,7 @@ It takes a fully-activated mind to achieve ambitious goals, and remote work requ
 
 - **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way#why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes.  There's no time for finger-pointing.  [Just fix it](https://handbook.gitlab.com/handbook/values/#operate-with-a-bias-for-action).
-- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/company/communications#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/company/communications#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility). It's up to you.  <!-- take initiative -->
 - **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Reduce maintenance.  Beware the thicket.  <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
 
 ### 🟢 Results
@@ -76,7 +76,7 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
-- **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
+- **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one task at a time.  Resist [the urge to commit](https://www.linkedin.com/posts/37signals_the-problem-with-commitments-is-that-they-ugcPost-7252753513485619201-PdAw?utm_source=share&utm_medium=member_ios) to every good idea.  Work [hard](https://paulgraham.com/hwh.html).  Schedule [time off](https://fleetdm.com/handbook/company/communications#paid-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
@@ -94,7 +94,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/company/communica
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
 - **Public by default.** Get comfortable making decisions, being wrong, and being right in front of others. Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
-- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way). 
+- **Speak freely.** Interrupt and be interrupted.  Give pointed, respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way) and commit to the [DRI's](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) decision.
 
 <!--
 ### 🪩 Dumb luck
@@ -139,9 +139,9 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product, as well as Fleet's Information technology (IT) infrastructure.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product, Fleet API, and reference documentation.
-- 🌐 [IT](https://fleetdm.com/handbook/it): The IT department is directly responsible for Fleet's internal IT/Security policies, solutions consulting, and dogfooding Fleet the product.
+- 🌐 [IT](https://fleetdm.com/handbook/it): The IT department is directly responsible for Fleet's internal IT/Security policies and dogfooding Fleet the product.
 - 🌦️ [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
-- 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
+- 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet, solutions consulting, and helping customers deliver on their objectives.
 - 🫧 [Marketing](https://fleetdm.com/handbook/marketing): The Marketing department is directly responsible for growing awareness of Fleet, customer training curriculum, and prospect enablement, and nurturing the community through participation in events, conversations, and other programs.
 - 💸 [Finance](https://fleetdm.com/handbook/finance): The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems.
 - 🧑‍🚀 [People](https://fleetdm.com/handbook/people): The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools.

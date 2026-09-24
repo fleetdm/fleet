@@ -30,6 +30,74 @@ func (t testJob) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	return t.run(ctx, argsJSON)
 }
 
+type testJobNotifier struct {
+	testJob
+	onFinalFailure func(ctx context.Context, argsJSON json.RawMessage, jobErr string) error
+}
+
+func (t testJobNotifier) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+	return t.onFinalFailure(ctx, argsJSON, jobErr)
+}
+
+func TestWorkerFinalFailureNotifier(t *testing.T) {
+	ds := new(mock.Store)
+
+	argsJSON := json.RawMessage(`{"arg1":"foo"}`)
+	theJob := &fleet.Job{
+		ID:      1,
+		Name:    "test",
+		Args:    &argsJSON,
+		State:   fleet.JobStateQueued,
+		Retries: 0,
+	}
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
+		if theJob.State == fleet.JobStateQueued {
+			return []*fleet.Job{theJob}, nil
+		}
+		return nil, nil
+	}
+	ds.UpdateJobFunc = func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
+
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
+
+	var finalFailureCalls int
+	var gotArgs json.RawMessage
+	var gotErr string
+	j := testJobNotifier{
+		testJob: testJob{
+			name: "test",
+			run: func(ctx context.Context, argsJSON json.RawMessage) error {
+				return errors.New("boom")
+			},
+		},
+		onFinalFailure: func(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+			finalFailureCalls++
+			gotArgs = argsJSON
+			gotErr = jobErr
+			return nil
+		},
+	}
+	w.Register(j)
+
+	for i := range maxRetries + 1 {
+		require.NoError(t, w.ProcessJobs(t.Context()))
+		ds.GetFilteredQueuedJobsFuncInvoked = false
+		ds.UpdateJobFuncInvoked = false
+
+		// the hook must NOT fire on intermediate retries, only on final failure
+		if i < maxRetries {
+			require.Equal(t, 0, finalFailureCalls, "final failure handler fired before retries exhausted (iteration %d)", i)
+		}
+	}
+
+	require.Equal(t, 1, finalFailureCalls)
+	require.JSONEq(t, `{"arg1":"foo"}`, string(gotArgs))
+	require.Equal(t, "boom", gotErr)
+}
+
 func TestWorker(t *testing.T) {
 	ds := new(mock.Store)
 

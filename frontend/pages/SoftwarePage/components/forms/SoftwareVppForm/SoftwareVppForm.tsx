@@ -1,22 +1,18 @@
-import React, { useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileDetails from "components/FileDetails";
+import Radio from "components/forms/fields/Radio";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import useGitOpsMode from "hooks/useGitOpsMode";
-
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
-import { IVppApp } from "services/entities/mdm_apple";
-
-import CustomLink from "components/CustomLink";
-import Radio from "components/forms/fields/Radio";
-import Button from "components/buttons/Button";
-import FileDetails from "components/FileDetails";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
@@ -24,9 +20,11 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
+import { IVppApp } from "services/entities/mdm_apple";
+
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
-import SoftwareDeploySlider from "../SoftwareDeploySelector";
 
 const baseClass = "software-vpp-form";
 
@@ -319,6 +317,20 @@ const SoftwareVppForm = ({
             These apps were added in Apple Business (AB). To add more apps, head
             to <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
+          {formData.selectedApp && (
+            <SoftwareOptionsSelector
+              platform={formData.selectedApp.platform}
+              formData={formData}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(
+                  isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
+                )
+              }
+              teamId={teamId}
+            />
+          )}
           {showDeploySoftwareSlider && (
             <SoftwareDeploySlider
               deploySoftware={formData.automaticInstall}
@@ -350,7 +362,7 @@ const SoftwareVppForm = ({
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
             entityType="software"
-            position="bottom"
+            position="top"
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
@@ -363,7 +375,7 @@ const SoftwareVppForm = ({
               </Button>
             )}
           />
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

@@ -42,9 +42,9 @@ SET name = CASE name
 	WHEN 'Browsers'         THEN '🌎 Browsers'
 	WHEN 'Communication'    THEN '👬 Communication'
 	WHEN 'Developer tools'  THEN '🧰 Developer tools'
-	WHEN 'Productivity'     THEN '💻 Productivity'
+	WHEN 'Productivity'     THEN '🖥️ Productivity'
 	WHEN 'Security'         THEN '🔐 Security'
-	WHEN 'Utilities'        THEN '🛟 Support'
+	WHEN 'Utilities'        THEN '🛠️ Utilities'
 	ELSE name
 END
 WHERE team_id = 0
@@ -74,9 +74,9 @@ ORDER BY t.id, FIELD(sc.name,
 	'🌎 Browsers',
 	'👬 Communication',
 	'🧰 Developer tools',
-	'💻 Productivity',
+	'🖥️ Productivity',
 	'🔐 Security',
-	'🛟 Support')
+	'🛠️ Utilities')
 `); err != nil {
 				return errors.Wrap(err, "backfilling per-fleet default categories")
 			}

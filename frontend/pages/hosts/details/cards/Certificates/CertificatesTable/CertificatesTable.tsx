@@ -1,14 +1,14 @@
 import React, { useCallback } from "react";
 import { Row } from "react-table";
 
-import { IHostCertificate } from "interfaces/certificates";
-import { IGetHostCertificatesResponse } from "services/entities/hosts";
-import { IListSort } from "interfaces/list_options";
-
-import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
-import TableCount from "components/TableContainer/TableCount";
+import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { IHostCertificate } from "interfaces/certificates";
+import { IListSort } from "interfaces/list_options";
+import { HostPlatform } from "interfaces/platform";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import generateTableConfig from "./CertificatesTableConfig";
 
@@ -16,6 +16,7 @@ const baseClass = "certificates-table";
 
 interface ICertificatesTableProps {
   data: IGetHostCertificatesResponse;
+  hostPlatform: HostPlatform;
   showHelpText: boolean;
   page: number;
   pageSize: number;
@@ -29,6 +30,7 @@ interface ICertificatesTableProps {
 
 const CertificatesTable = ({
   data,
+  hostPlatform,
   showHelpText,
   page,
   pageSize,
@@ -67,8 +69,9 @@ const CertificatesTable = ({
 
   const helpText = showHelpText ? (
     <p>
-      Showing certificates in the system and login (user) keychain. To get all
-      certificates, you can query the certificates table.{" "}
+      {hostPlatform === "windows"
+        ? "Showing certificates in the Personal certificate store. To get all certificates, you can query the certificates table. "
+        : "Showing certificates in the system and login (user) keychain. To get all certificates, you can query the certificates table. "}
       <CustomLink
         text="Learn more"
         url="https://fleetdm.com/learn-more-about/certificates-query"
@@ -82,6 +85,12 @@ const CertificatesTable = ({
       className={baseClass}
       columnConfigs={tableConfig}
       data={data.certificates}
+      // A certificate present in more than one scope (e.g. a device cert in both the System store and a user's store)
+      // is returned as multiple rows that share the same `id` (the underlying host_certificates row). Key rows on scope
+      // + username as well so those rows render distinctly instead of collapsing into one in react-table.
+      getRowId={(row: IHostCertificate) =>
+        `${row.id}-${row.source}-${row.username}`
+      }
       emptyComponent={() => null}
       isAllPagesSelected={false}
       showMarkAllPages={false}

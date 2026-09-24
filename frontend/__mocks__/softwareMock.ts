@@ -17,9 +17,11 @@ import {
   ISoftwareVersionsResponse,
   ISoftwareVersionResponse,
 } from "services/entities/software";
-import { IOSVersionsResponse } from "../services/entities/operating_systems";
-import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
+
 import { IOperatingSystemVersion } from "../interfaces/operating_system";
+import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
+import { IOSVersionsResponse } from "../services/entities/operating_systems";
+
 import { createMockListEntitiesResponseCommon } from "./commonMock";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
@@ -224,6 +226,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   name: "test.app",
   icon_url: null,
   software_package: null,
+  packages: null,
   app_store_app: null,
   source: "apps",
   hosts_count: 1,
@@ -260,6 +263,7 @@ export const createMockSoftwareVersionResponse = (
 };
 
 const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
+  installer_id: 1,
   name: "TestPackage-1.2.3.pkg",
   title_id: 2,
   version: "1.2.3",
@@ -295,6 +299,7 @@ export const createMockSoftwarePackage = (
 };
 
 const DEFAULT_SOFTWARE_PACKAGE_IOS_MOCK: ISoftwarePackage = {
+  installer_id: 2,
   name: "MyApp-2.0.0.ipa",
   title_id: 10,
   version: "2.0.0",
@@ -336,6 +341,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   extension_for: "",
   versions: [createMockSoftwareTitleVersion()],
   software_package: createMockSoftwarePackage(),
+  packages: null,
   app_store_app: null,
 };
 
@@ -369,6 +375,7 @@ const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
   name: "test app",
   version: "1.2.3",
   platform: "darwin",
+  slug: "test-app/darwin",
 };
 
 export const createMockFleetMaintainedApp = (
@@ -390,6 +397,8 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   post_install_script: 'echo "Installed"',
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  automatic_install_query:
+    "SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.test-app';",
   slug: "applications/test-app",
   url: "http://www.testurl1234abcd.com/testapp",
   categories: ["Browsers"],

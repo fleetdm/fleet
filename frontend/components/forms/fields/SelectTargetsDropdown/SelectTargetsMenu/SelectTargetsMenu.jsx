@@ -1,13 +1,15 @@
-import React from "react";
-import PropTypes from "prop-types";
 import classNames from "classnames";
 import { filter, includes, isEqual, noop } from "lodash";
+import PropTypes from "prop-types";
+import React from "react";
 
-import targetInterface from "interfaces/target";
 import EmptyState from "components/EmptyState";
+import targetInterface from "interfaces/target";
+
 import TargetDetails from "../TargetDetails";
-import { targetFilter } from "./helpers";
 import TargetOption from "../TargetOption";
+
+import { targetFilter } from "./helpers";
 
 const baseClass = "target-list";
 
@@ -34,7 +36,12 @@ const SelectTargetsMenuWrapper = (
     const renderTargets = (targetType) => {
       const targets = filter(options, targetFilter(targetType));
       const targetsOutput = [];
-      const targetTitle = targetType === "all" ? "all hosts" : targetType;
+      let targetTitle = targetType;
+      if (targetType === "all") {
+        targetTitle = "all hosts";
+      } else if (targetType === "teams") {
+        targetTitle = "fleets";
+      }
 
       targetsOutput.push(
         <p className={`${baseClass}__type`} key={`type-${targetType}-key`}>
@@ -52,7 +59,7 @@ const SelectTargetsMenuWrapper = (
             className={`${baseClass}__not-found`}
             key={`${targetType}-notfound`}
           >
-            Unable to find any matching {targetType}.
+            Unable to find any matching {targetTitle}.
           </span>
         );
 
@@ -108,7 +115,7 @@ const SelectTargetsMenuWrapper = (
     const renderTargetGroups = (
       <>
         {renderTargets("all")}
-        {isPremiumTier && renderTargets("fleets")}
+        {isPremiumTier && renderTargets("teams")}
         {renderTargets("labels")}
         {renderTargets("hosts")}
       </>

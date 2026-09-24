@@ -1,0 +1,10 @@
+{
+  "name": "Museeks",
+  "unique_identifier": "com.electron.museeks",
+  "token": "museeks",
+  "installer_format": "dmg",
+  "slug": "museeks/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

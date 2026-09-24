@@ -1,9 +1,14 @@
 import React from "react";
-import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { getGitOpsModeTipContent } from "utilities/helpers";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import ViewAllHostsButton from "components/ViewAllHostsLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
+import { IUser } from "interfaces/user";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
@@ -14,10 +19,6 @@ import {
   isAnyTeamTechnician,
   isTeamTechnician,
 } from "utilities/permissions/permissions";
-import { IUser } from "interfaces/user";
-import ActionsDropdown from "components/ActionsDropdown";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
   column: {
@@ -174,13 +175,21 @@ const generateTableHeaders = (
           labelsGitOpsManaged,
           repoURL
         );
+
+        if (
+          dropdownOptions.length === 1 &&
+          dropdownOptions[0].value === "view_hosts"
+        ) {
+          return <ViewAllHostsButton platformLabelId={label.id} rowHover />;
+        }
+
         return (
           <ActionsDropdown
             options={dropdownOptions}
             onChange={(value: string) => onClickAction(value, label)}
             placeholder="Actions"
             menuAlign="right"
-            variant="small-button"
+            variant="secondary"
           />
         );
       },

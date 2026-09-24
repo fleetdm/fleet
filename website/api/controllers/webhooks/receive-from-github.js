@@ -75,14 +75,13 @@ module.exports = {
       'mna',
       'eashaw',
       'lucasmrod',
-      'ksatter',
+      'rynsatterlee',
       'hollidayn',
       'rfairburn',
       'zayhanlon',
       'alexmitchelliii',
       'sampfluger88',
       'ireedy',
-      'mostlikelee',
       'AnthonySnyder8',
       'getvictor',
       'pintomi1989',
@@ -94,7 +93,6 @@ module.exports = {
       'tux234',
       'ksykulev',
       'mason-buettner',
-      'sgress454',
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
@@ -249,42 +247,42 @@ module.exports = {
         'Authorization': `token ${sails.config.custom.githubAccessToken}`
       };
 
-      if (!sails.config.custom.openAiSecret) {
-        throw new Error('sails.config.custom.openAiSecret not set.  Cannot respond with haiku.');
+      if (!sails.config.custom.anthropicSecret) {
+        throw new Error('sails.config.custom.anthropicSecret not set.  Cannot respond with haiku.');
       }//•
 
       // Generate haiku
-      let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
-      let MAX_TOKENS = 8000;// (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
+      let MAX_TOKENS = 8000;// Used to truncate the issue body so the prompt stays a reasonable size.
 
-      // Grab issue title and body, then truncate the length of the body so that it fits
-      // within the maximum length tolerated by OpenAI.  Then combine those into a prompt
-      // generate a haiku based on this issue.
+      // Grab issue title and body, then truncate the length of the body so the prompt stays a reasonable size.
+      // Then combine those into a prompt to generate a haiku based on this issue.
       let issueSummary = '# ' + issueOrPr.title + '\n' + _.trunc(issueOrPr.body, MAX_TOKENS);
+      let prompt = `You are an empathetic product designer.  I will give you a GitHub issue about an improvement to Fleet, an open-source device management and security platform.  Write a haiku (three lines, 5-7-5 syllables) about how this improvement could benefit users or contributors.  Be detailed and specific.  Be matter-of-fact and positive without hyperbole; be honest and don't make Fleet or anyone sound bad.  If it fits, draw on imagery from nature or from a glass city in the clouds.
 
-      // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
-        model: BASE_MODEL,
-        messages: [// https://platform.openai.com/docs/guides/chat/introduction
-          {
-            role: 'user',
-            content: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 256//eslint-disable-line camelcase
-      }, {
-        Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+Formatting rules for the haiku:
+- Return only the three lines of the haiku — no title, heading, label, or commentary.
+- Use plain words and spaces.  Do not use any dash character (—, –, or -), ellipsis, colon, or semicolon anywhere.
+- To signal the pause between the two images, just start a new line — never a dash or ellipsis at the end of a line.
+
+Example of the formatting to match (not the content):
+Laptops wake at dawn
+new agents check in on time
+the fleet stands ready
+
+The GitHub issue is:
+${issueSummary}`;
+      let haikuText = await sails.helpers.ai.prompt.with({
+        baseModel: 'claude-haiku-4-5',
+        prompt,
       })
       .tolerate((err)=>{
-        sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
+        sails.log('Failed to generate haiku.  Error details from the prompt helper:',err);
       });
 
-      if (!openAiReport) {// If OpenAI could not be reached…
+      if (!haikuText) {// If the LLM could not be reached…
         newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
       } else {// Otherwise, haiku was successfully generated…
-        newBotComment = openAiReport.choices[0].message.content;
-        newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+        newBotComment = haikuText.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
       }
 
       // Now that we know what to say, add our comment.
@@ -382,7 +380,7 @@ module.exports = {
         }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
         // Create an array of paths that will determine if the "~ga4-annotation" label will be automatically added to this PR.
-        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs'];
+        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs', 'website/views/pages/contact.ejs'];
         let prShouldCreateGoogleAnalyticsAnnotation = false;
 
         // For each changed file, decide what reviewer to request, if any…
@@ -912,9 +910,14 @@ module.exports = {
           'Accept': 'application/vnd.github.v4+json',
           'User-Agent': 'Fleet-Engineering-Metrics'
         }
-      );
+      )
+      .tolerate((err)=>{
+        // If there is an error sending a request to the GitHub API, log a warning and return undefined.
+        sails.log.warn(`When the receive-from-github webhook sent a request to the GitHub API to look up an issue, an error occurred. Full error: ${require('util').inspect(err)}`);
+        return undefined;
+      });
 
-      if (!graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
+      if (!graphqlQueryResponse || !graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
         return;
       }
 

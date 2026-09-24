@@ -1,21 +1,19 @@
-import React, { useContext } from "react";
+import React from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import PATHS from "router/paths";
+import hostAPI from "services/entities/hosts";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import PATHS from "router/paths";
-import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
-import hostAPI from "services/entities/hosts";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import Card from "components/Card";
-
-import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
 import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
+import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
 
 const baseClass = "lock-modal";
 
@@ -62,7 +60,6 @@ const LockModal = ({
   onSuccess,
   onClose,
 }: ILockModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isLocking, setIsLocking] = React.useState(false);
 
@@ -73,20 +70,19 @@ const LockModal = ({
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash(
-        "success",
+      notify.success(
         isAndroidHost
           ? "Successfully sent request to lock this host."
           : "Locking host or will lock when it comes online."
       );
     } catch (e) {
       const errorReason = getErrorReason(e);
-      renderFlash(
-        "error",
+      notify.error(
         isAndroidHost
           ? errorReason ||
               "Couldn't send request to lock this host. Please try again."
-          : errorReason
+          : errorReason,
+        { response: e }
       );
     }
     setIsLocking(false);
@@ -167,7 +163,7 @@ const LockModal = ({
         >
           Lock
         </Button>
-        <Button onClick={onClose} variant="inverse">
+        <Button onClick={onClose} variant="secondary">
           Cancel
         </Button>
       </div>

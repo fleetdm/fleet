@@ -1,18 +1,15 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
-import { IMdmVppToken } from "interfaces/mdm";
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-
-import mdmAppleAPI from "services/entities/mdm_apple";
-
-import Modal from "components/Modal";
+import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IMdmVppToken } from "interfaces/mdm";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 const baseClass = "edit-teams-vpp-modal";
 
@@ -178,7 +175,6 @@ const EditTeamsVppModal = ({
   onCancel,
   onSuccess,
 }: IEditTeamsVppModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { availableTeams } = useContext(AppContext);
 
   // react-select uses a string of comma-separated values for multi-select so we're using a string
@@ -225,15 +221,15 @@ const EditTeamsVppModal = ({
           tokenId: currentToken.id,
           teamIds: teamIdsFromSelectedValue(selectedValue),
         });
-        renderFlash("success", "Edited successfully.");
+        notify.success("Edited successfully.");
         onSuccess();
       } catch (e) {
-        renderFlash("error", "Couldn’t edit. Please try again.");
+        notify.error("Couldn’t edit. Please try again.", { response: e });
       } finally {
         setIsSaving(false);
       }
     },
-    [currentToken.id, selectedValue, renderFlash, onSuccess]
+    [currentToken.id, selectedValue, onSuccess]
   );
 
   const isDropdownDisabled = options.length === 0 && isAnyTokenAllTeams;

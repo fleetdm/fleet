@@ -1,23 +1,20 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
-import { dateAgo } from "utilities/date_format";
-import { internationalTimeFormat } from "utilities/helpers";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import idpAPI from "services/entities/idp";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import idpAPI from "services/entities/idp";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import TooltipWrapper from "components/TooltipWrapper";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import PageDescription from "components/PageDescription";
-import EmptyState from "components/EmptyState";
+import { dateAgo } from "utilities/date_format";
+import { internationalTimeFormat } from "utilities/helpers";
 
 import SectionCard from "../../../MdmSettings/components/SectionCard";
 
@@ -109,21 +106,16 @@ const FailedEndUserInfoCard = ({
 };
 
 const IdentityProviderSection = () => {
-  const { isPremiumTier } = useContext(AppContext);
-
+  // Premium gating is handled by the parent IdentityProviders component, so this
+  // section only renders for premium tiers.
   const { data: scimIdPDetails, isLoading, isError } = useQuery(
     ["scim_details"],
     () => idpAPI.getSCIMDetails(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
     }
   );
   const renderContent = () => {
-    if (!isPremiumTier) {
-      return <PremiumFeatureMessage />;
-    }
-
     if (isError) {
       return <DataError />;
     }
@@ -154,18 +146,16 @@ const IdentityProviderSection = () => {
     return null;
   };
   return (
-    <SettingsSection title="Identity provider (IdP)">
-      {isPremiumTier && (
-        <PageDescription
-          content={
-            <>
-              Connect Fleet to your IdP to sync end user information (e.g.
-              groups) to hosts.
-            </>
-          }
-          variant="right-panel"
-        />
-      )}
+    <SettingsSection title="User mapping">
+      <PageDescription
+        content={
+          <>
+            Connect Fleet to your IdP to sync end user information (e.g. groups)
+            to hosts.
+          </>
+        }
+        variant="right-panel"
+      />
       {renderContent()}
     </SettingsSection>
   );

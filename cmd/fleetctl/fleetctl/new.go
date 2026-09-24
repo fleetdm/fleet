@@ -55,9 +55,10 @@ func newCommand() *cli.Command {
 		force     bool
 	)
 	return &cli.Command{
-		Name:      "new",
-		Usage:     "Create a new Fleet GitOps repository structure",
-		UsageText: "fleetctl new [options]",
+		Name:        "new",
+		Usage:       "Create starter GitOps files from templates",
+		UsageText:   "fleetctl new [options]",
+		Description: "Creates a starter GitOps repository structure from templates. Learn more about GitOps: https://fleetdm.com/learn-more-about/gitops",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "org-name",

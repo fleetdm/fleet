@@ -49,9 +49,11 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	err := SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{
-		OrderKey: "slug",
-	})
+	// The list endpoint paginates and orders by app name. With default options
+	// GetPerPage returns DefaultPerPage (effectively unbounded), so this helper
+	// gets the full set in a single page for tests, which should not depend on
+	// the order.
+	apps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 	return apps
 }
@@ -105,7 +107,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	err = SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	originalApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	originalApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 
 	require.Equal(t, len(appsFile.Apps), len(originalApps))
@@ -117,7 +119,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	err = SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	modifiedApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	modifiedApps, _, err := ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.NoError(t, err)
 
 	require.Equal(t, len(appsFile.Apps), len(modifiedApps))
@@ -132,7 +134,7 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	err = SyncAppsList(context.Background(), ds)
 	require.NoError(t, err)
 
-	modifiedApps, _, err = ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	modifiedApps, _, err = ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.MaintainedAppListOptions{})
 	require.ErrorIs(t, err, &fleet.NoMaintainedAppsInDatabaseError{})
 	require.Empty(t, modifiedApps)
 }

@@ -1,14 +1,12 @@
-import React from "react";
-
 import classnames from "classnames";
-
-import { IFileDetails } from "utilities/file/fileUtils";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import { ISupportedGraphicNames } from "components/FileUploader/FileUploader";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IFileDetails } from "utilities/file/fileUtils";
 
 export type IFileDetailsSupportedGraphicNames =
   | ISupportedGraphicNames
@@ -33,6 +31,7 @@ interface IFileDetailsProps {
   /** Set to false for one instance we allow users to edit a file as it shows them the YAML */
   gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
+  disabled?: boolean;
 }
 
 const baseClass = "file-details";
@@ -49,20 +48,21 @@ const FileDetails = ({
   progress,
   gitopsCompatible = true,
   gitOpsModeEnabled = false,
+  disabled = false,
 }: IFileDetailsProps) => {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
 
-  const handleClickEdit = (disabled?: boolean) => {
-    if (disabled) return;
+  const handleClickEdit = (isDisabled?: boolean) => {
+    if (isDisabled) return;
     inputRef.current?.click();
   };
 
   const infoClasses = classnames(`${baseClass}__info`, {
-    [`${baseClass}__info--disabled-by-gitops-mode`]:
-      gitOpsModeEnabled && gitopsCompatible,
+    [`${baseClass}__info--disabled`]:
+      (gitOpsModeEnabled && gitopsCompatible) || disabled,
   });
 
-  const renderEditButton = (disabled?: boolean) => {
+  const renderEditButton = (isDisabled?: boolean) => {
     if (customEditor) {
       return (
         <div
@@ -78,13 +78,13 @@ const FileDetails = ({
     return (
       <div className={`${baseClass}__edit`}>
         <Button
-          disabled={disabled}
+          disabled={isDisabled}
           className={`${baseClass}__edit-button`}
-          variant="icon"
-          onClick={() => handleClickEdit(disabled)}
+          variant="subdued"
+          onClick={() => handleClickEdit(isDisabled)}
           title="Replace file"
         >
-          <Icon name="pencil" color="ui-fleet-black-75" />
+          <Icon name="pencil" />
         </Button>
         <input
           ref={inputRef}
@@ -125,17 +125,17 @@ const FileDetails = ({
             position="top"
             tipOffset={8}
             renderChildren={(disableChildren) =>
-              renderEditButton(disableChildren)
+              renderEditButton(disableChildren || disabled)
             }
           />
         ) : (
-          renderEditButton()
+          renderEditButton(disabled)
         ))}
       {!progress && onDeleteFile && (
         <div className={`${baseClass}__delete`}>
           <Button
             className={`${baseClass}__delete-button`}
-            variant="icon"
+            variant="subdued"
             onClick={onDeleteFile}
           >
             <label htmlFor="delete-file">

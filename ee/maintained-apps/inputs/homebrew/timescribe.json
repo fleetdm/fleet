@@ -1,0 +1,10 @@
+{
+  "name": "TimeScribe",
+  "unique_identifier": "de.amplussoftware.timescribe",
+  "token": "timescribe",
+  "installer_format": "zip",
+  "slug": "timescribe/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

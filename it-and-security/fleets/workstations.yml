@@ -19,6 +19,7 @@ settings:
       enable_calendar_events: true
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
+  script_execution_timeout: 600
   config:
     options:
       pack_delimiter: /
@@ -62,6 +63,9 @@ agent_options:
     watchdog_utilization_limit: 130
     # --- macOS FIM ---
     enable_file_events: true
+    # --- macOS EndpointSecurity tables (requires Full Disk Access for osqueryd) ---
+    disable_endpointsecurity: false       # enables es_process_events
+    disable_endpointsecurity_fim: false   # enables es_process_file_events
     # --- Linux process + socket auditing via the audit framework ---
     disable_audit: false
     audit_allow_process_events: true
@@ -104,6 +108,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      - path: ../lib/macos/declaration-profiles/Disk management settings.json
+        labels_exclude_any:
+          - "Macs excluded from external storage restrictions"
       - path: ../lib/macos/configuration-profiles/fleet-okta-conditional-access.mobileconfig
         labels_include_any:
           - "Department: Information Technology"
@@ -140,26 +147,29 @@ controls:
         labels_exclude_any:
           - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Removable storage read-only.xml
+        labels_exclude_any:
+          - "Windows hosts excluded from external storage restrictions"
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
   scripts:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
-    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
-    - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
+    - path: ../lib/linux/scripts/update-claude-desktop.sh
+    - path: ../lib/linux/scripts/configure-okta-verify-org-url.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/latest-macos.yml
-  - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
@@ -188,10 +198,13 @@ policies:
   - path: ../lib/windows/policies/remote-desktop-disabled.yml
   - path: ../lib/windows/policies/screen-lock-timeout-configured.yml
   # Linux policies
+  - path: ../lib/linux/policies/latest-linux.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/removable-storage-read-only.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
+  - path: ../lib/linux/policies/update-claude.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
@@ -205,6 +218,7 @@ reports:
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
   - path: ../lib/all/reports/collect-listening-ports.yml
+  - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   packages:
     # macOS apps
@@ -232,48 +246,76 @@ software:
       icon:
         path: ../lib/all/icons/touch-id.png
     # Linux apps
-    - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
+    - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu (amd64)
       self_service: true
       setup_experience: true
       categories:
         - Security
-      labels_include_any:
+      labels_include_all:
         - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat (x86_64)
       self_service: true
       setup_experience: true
       categories:
         - Security
-      labels_include_any:
+      labels_include_all:
         - "RPM-based Linux hosts"
-    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu (amd64)
       self_service: true
       setup_experience: true
       categories:
         - Communication
+      labels_include_all:
+        - "Debian-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat (x86_64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+      labels_include_all:
+        - "RPM-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu (amd64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+      labels_include_all:
+        - "Debian-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat (x86_64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+      labels_include_all:
+        - "RPM-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/software/okta-verify-deb.yml # Okta Verify for Ubuntu (amd64)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_all:
+        - "Debian-based Linux hosts"
+        - "x86-based Linux hosts"
+    - path: ../lib/linux/scripts/install-claude-desktop.sh # Claude for Debian-based Linux (script-only package)
+      display_name: Claude
+      self_service: true
+      setup_experience: true
+      categories:
+        - Productivity
       labels_include_any:
         - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
-      self_service: true
-      setup_experience: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "RPM-based Linux hosts"
-    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
-      self_service: true
-      setup_experience: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
-      self_service: true
-      setup_experience: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "RPM-based Linux hosts"
+      icon:
+        path: ../lib/all/icons/claude-logo.png
+      uninstall_script:
+        path: ../lib/linux/scripts/uninstall-claude-desktop.sh
+      post_install_script:
+        path: ../lib/linux/scripts/verify-claude-desktop.sh
     # Windows apps
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
@@ -290,13 +332,6 @@ software:
     #     - Browsers
     #   labels_include_any:
     #     - "ARM-based Windows hosts"
-    - path: ../lib/windows/software/okta-verify.yml # Okta Verify for Windows (x86)
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
-      labels_include_any:
-        - "x86-based Windows hosts"
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
@@ -541,6 +576,13 @@ software:
       setup_experience: true
       categories:
         - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
+    - slug: okta-verify/windows # Okta Verify for Windows (x86)
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
       labels_include_any:
         - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows

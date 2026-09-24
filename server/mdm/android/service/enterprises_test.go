@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -182,6 +183,9 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.DeleteOtherEnterprisesFunc = func(ctx context.Context, ID uint) error {
 		return nil
 	}
+	ds.Store.DeleteZeroTouchEnrollmentTokensFunc = func(_ context.Context) error {
+		return nil
+	}
 
 	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -235,6 +239,21 @@ func InitCommonDSMocks() *AndroidMockDS {
 		return nil
 	}
 	ds.Store.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
+	ds.Store.GetAndroidPubSubDedupStateFunc = func(ctx context.Context, hostID uint) (string, *time.Time, error) {
+		return "", nil, nil
+	}
+	ds.Store.SetAndroidPubSubDedupStateFunc = func(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
+		return nil
+	}
+	ds.Store.SetAndroidHostEnrolledFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+	ds.Store.AndroidResetOnReenrollmentFunc = func(ctx context.Context, hostID uint, hostUUID string, preserveHostActivities bool) ([]*fleet.User, []fleet.ActivityDetails, error) {
+		return nil, nil, nil
+	}
+	ds.Store.SetOrUpdateHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error {
 		return nil
 	}
 	return &ds

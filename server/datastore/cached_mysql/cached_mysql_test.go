@@ -243,6 +243,56 @@ func TestBypassAppConfig(t *testing.T) {
 	require.False(t, mockedDS.AppConfigFuncInvoked)
 }
 
+func TestCachedWindowsEnrollmentDefaultFleet(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS)
+	ctx := t.Context()
+
+	storedFleetID := new(uint(7))
+	mockedDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		if storedFleetID == nil {
+			return nil, "", nil
+		}
+		return new(*storedFleetID), "Workstations", nil
+	}
+	mockedDS.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, fleetID *uint) error {
+		storedFleetID = fleetID
+		return nil
+	}
+
+	// first read hits the DB and populates the cache
+	fleetID, fleetName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, fleetID)
+	require.Equal(t, uint(7), *fleetID)
+	require.Equal(t, "Workstations", fleetName)
+	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+	mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked = false
+
+	// mutating the returned pointer must not poison the cache (clone semantics)
+	*fleetID = 99
+
+	// second read is served from the cache
+	fleetID, fleetName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, fleetID)
+	require.Equal(t, uint(7), *fleetID)
+	require.Equal(t, "Workstations", fleetName)
+	require.False(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	// writing through the cached store invalidates the cached entry
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
+	require.True(t, mockedDS.SetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	fleetID, fleetName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.Nil(t, fleetID)
+	require.Empty(t, fleetName)
+	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+}
+
 func TestCachedPacksforHost(t *testing.T) {
 	t.Parallel()
 
@@ -576,8 +626,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
-			DeprecatedEnableDiskEncryption: ptr.Bool(false),
+			CustomSettings:       []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+			EnableDiskEncryption: optjson.SetBool(false),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			BootstrapPackage: optjson.SetString("bootstrap"),
@@ -635,8 +685,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("2022-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 nil,
-			DeprecatedEnableDiskEncryption: ptr.Bool(true),
+			CustomSettings:       nil,
+			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}
 	updateTeam := &fleet.Team{
@@ -722,40 +772,53 @@ func TestCachedQueryByName(t *testing.T) {
 	require.True(t, mockedDS.QueryByNameFuncInvoked)
 }
 
-func TestCachedResultCountForQuery(t *testing.T) {
+func TestCachedQueriesPerHost(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithQueryResultsCountExpiration(100*time.Millisecond))
+	ds := New(mockedDS, WithQueriesPerHostExpiration(100*time.Millisecond))
 
-	testCount := 1
-	mockedDS.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return testCount, nil
+	scheduled := []uint{1, 2}
+	mockedDS.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return scheduled, nil
 	}
 
 	// first call gets the result from the DB
-	c1, err := ds.ResultCountForQuery(context.Background(), 1)
+	queryIDs, err := ds.QueriesPerHost(context.Background(), 1, nil)
 	require.NoError(t, err)
-	require.Equal(t, testCount, c1)
-	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
-	mockedDS.ResultCountForQueryFuncInvoked = false
+	require.Equal(t, []uint{1, 2}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
 
-	// change "stored" count.
-	testCount = 2
+	scheduled = []uint{3}
 
 	// this call gets it from the cache
-	c2, err := ds.ResultCountForQuery(context.Background(), 1)
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, nil)
 	require.NoError(t, err)
-	require.Equal(t, c1, c2) // returns the old cached value
-	require.False(t, mockedDS.ResultCountForQueryFuncInvoked)
+	require.Equal(t, []uint{1, 2}, queryIDs)
+	require.False(t, mockedDS.QueriesPerHostFuncInvoked)
+
+	// another host is cached separately
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 2, nil)
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
+
+	// so is the same host on a team, so a transfer never reads the previous team's schedule
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, new(uint(1)))
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
 
 	time.Sleep(200 * time.Millisecond)
 
 	// this call gets it from the DB again since the cache expired
-	c3, err := ds.ResultCountForQuery(context.Background(), 1)
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, nil)
 	require.NoError(t, err)
-	require.Equal(t, testCount, c3)
-	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
 }
 
 func TestGetAllMDMConfigAssetsByName(t *testing.T) {

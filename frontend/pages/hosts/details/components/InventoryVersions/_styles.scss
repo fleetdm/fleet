@@ -3,8 +3,8 @@
   flex-direction: column;
   gap: $pad-small;
 
-  .data-set dd {
-    white-space: initial;
+  dt {
+    white-space: nowrap;
   }
 
   &__versions {
@@ -20,7 +20,23 @@
   }
   &__row {
     display: flex;
+    flex-wrap: wrap;
     gap: $pad-xxlarge;
+  }
+
+  // Fill the row so TruncatedTextList has a bounded width to measure against.
+  // min-width sets the narrowest width where a "CVE-YYYY-NNNNN, +N more" row
+  // still fits — below that, flex-wrap on the parent bumps Vulnerabilities to
+  // its own row so it doesn't get squeezed by neighboring DataSets.
+  &__vulnerabilities {
+    flex: 1;
+    min-width: 200px;
+
+    // dd is display:flex, so TruncatedTextList's outer div would size to its
+    // content by default and truncate too early. Stretch it to fill.
+    .truncated-text-list {
+      min-width: 100%;
+    }
   }
 
   &__sig-info {
@@ -29,6 +45,9 @@
 
     dt {
       min-width: 40px;
+      // dt is nowrap, so a label wider than the floor would otherwise be
+      // squeezed by dd's width and spill its text over the value.
+      flex-shrink: 0;
     }
 
     // Show entire hash and file path, easier to read/compare not hidden in tooltip
@@ -37,5 +56,51 @@
       text-wrap: wrap;
       overflow-wrap: anywhere;
     }
+  }
+
+  // Closes a keg's executables, spanning the card: how many the list left out
+  // on the left, and on the right, under the per-row copy buttons, the copy
+  // that hands over every hash including those.
+  &__executables-footer {
+    display: flex;
+    align-items: center;
+    // Not space-between: a keg whose list fits has no count to show, and its
+    // lone copy button still belongs on the right.
+    justify-content: flex-end;
+    gap: $pad-small;
+    font-size: $x-small;
+  }
+
+  &__more-executables {
+    margin-right: auto;
+    color: $ui-fleet-black-75;
+  }
+
+  // A keg's executables list one row each, and each row stays on one line:
+  // the file name in full, then as much of the hash as fits, ending in an
+  // ellipsis. The copy button carries the whole value, which is what an
+  // admin writing a Santa rule actually needs.
+  &__executable {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-xsmall;
+    min-width: 0;
+  }
+
+  // The name stands in for the "Executable" label these rows used to carry,
+  // so it reads as the row's heading.
+  &__executable-name {
+    flex: 0 0 auto;
+    font-weight: $bold;
+  }
+
+  &__executable-hash {
+    flex: 1 1 auto;
+    min-width: 0;
+    // The Path and Hash rows' dd wraps and breaks anywhere for a long value;
+    // the hash opts out so it never breaks mid-value.
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

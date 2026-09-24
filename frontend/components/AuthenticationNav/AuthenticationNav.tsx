@@ -1,10 +1,9 @@
 import React, { useEffect } from "react";
 import { InjectedRouter, browserHistory } from "react-router";
 
-import paths from "router/paths";
-
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import paths from "router/paths";
 
 const baseClass = "authentication-nav";
 
@@ -42,7 +41,7 @@ const AuthenticationNav = ({
       <Button
         onClick={onClick}
         className={`${baseClass}__back-link`}
-        variant="inverse"
+        variant="subdued"
       >
         <Icon name="close" color="core-fleet-black" />
       </Button>

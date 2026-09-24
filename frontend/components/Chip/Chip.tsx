@@ -1,0 +1,74 @@
+import classnames from "classnames";
+import React from "react";
+
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
+
+const baseClass = "chip";
+
+interface IChipProps {
+  icon?: IconNames;
+  text: string;
+  trailingIcon?: IconNames;
+  className?: string;
+  onClick?: () => void;
+  tooltip?: React.ReactNode;
+  /** Forwarded to TooltipWrapper; set false to opt out of auto-balancing. */
+  tooltipTextBalanced?: boolean;
+}
+
+const Chip = ({
+  icon,
+  text,
+  trailingIcon,
+  className,
+  onClick,
+  tooltip,
+  tooltipTextBalanced,
+}: IChipProps) => {
+  const classNames = classnames(
+    baseClass,
+    className,
+    onClick && `${baseClass}__clickable-chip`
+  );
+
+  const content = (
+    <>
+      {icon && <Icon name={icon} size="small" color="ui-fleet-black-75" />}
+      <span className={`${baseClass}__text`}>{text}</span>
+      {trailingIcon && (
+        <Icon name={trailingIcon} size="small" color="ui-fleet-black-75" />
+      )}
+    </>
+  );
+
+  const chip = onClick ? (
+    // use a button element so that the chip can be focused and clicked
+    // with the keyboard
+    <button type="button" className={classNames} onClick={onClick}>
+      {content}
+    </button>
+  ) : (
+    <div className={classNames}>{content}</div>
+  );
+
+  if (!tooltip) {
+    return chip;
+  }
+
+  return (
+    <TooltipWrapper
+      tipContent={tooltip}
+      position="top"
+      underline={false}
+      showArrow
+      tipOffset={8}
+      textBalanced={tooltipTextBalanced}
+    >
+      {chip}
+    </TooltipWrapper>
+  );
+};
+
+export default Chip;

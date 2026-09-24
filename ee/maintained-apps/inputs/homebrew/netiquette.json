@@ -1,0 +1,10 @@
+{
+  "name": "Netiquette",
+  "unique_identifier": "com.objective-see.Netiquette",
+  "token": "netiquette",
+  "installer_format": "zip",
+  "slug": "netiquette/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

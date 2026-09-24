@@ -34,7 +34,7 @@ Require a [BitLocker PIN](https://learn.microsoft.com/en-us/windows/security/ope
 
 ### IdP authentication before BYOD enrollment
 
-Add a layer of security by requiring users to authenticate with your identity provider (IdP) before enrolling their personal (BYOD) iPhone, iPad, or Android device. Learn more in the [end user authentication guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
+Add a layer of security by requiring users to authenticate with your identity provider (IdP) before enrolling their personal (BYOD) iPhone, iPad, or Android device. Learn more in the [IdP authentication guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 
 ### Custom variables in scripts and configuration profiles
 

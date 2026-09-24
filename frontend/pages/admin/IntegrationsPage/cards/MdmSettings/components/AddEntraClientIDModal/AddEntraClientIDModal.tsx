@@ -1,13 +1,12 @@
 import React, { useState, useContext } from "react";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-
-import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
 
 import { IAddClientIdFormValidation, validateFormData } from "./helpers";
 
@@ -22,7 +21,6 @@ interface IAddEntraClientIdModalProps {
 }
 
 const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { setConfig, config } = useContext(AppContext);
 
   const [isAdding, setIsAdding] = React.useState(false);
@@ -57,7 +55,7 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
         (id) => id.toLowerCase() === clientId
       ) ?? false;
     if (clientIdExists) {
-      renderFlash("error", "Couldn't add client ID. Client ID already exists.");
+      notify.error("Couldn't add client ID. Client ID already exists.");
       return;
     }
 
@@ -71,10 +69,12 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
           },
         });
         setConfig(updateData);
-        renderFlash("success", "Successfully added client ID");
+        notify.success("Successfully added client ID");
         onExit();
       } catch (error) {
-        renderFlash("error", "Couldn't add client ID. Please try again");
+        notify.error("Couldn't add client ID. Please try again", {
+          response: error,
+        });
       } finally {
         setIsAdding(false);
       }
@@ -119,7 +119,7 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
         >
           Add
         </Button>
-        <Button onClick={onExit} variant="inverse">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

@@ -1,8 +1,11 @@
 import React, { useContext, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
+
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IConfig, isConditionalAccessConfigured } from "interfaces/config";
 import { ITeamIntegrations } from "interfaces/integration";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -11,8 +14,7 @@ import teamsAPI, {
   ILoadTeamResponse,
   IUpdateTeamFormData,
 } from "services/entities/teams";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
+
 import {
   CalendarEventPreviewModal,
   CalendarEventsModal,
@@ -57,8 +59,7 @@ const AutomationsModal = ({
   onExit,
 }: IAutomationsModalProps): JSX.Element | null => {
   const queryClient = useQueryClient();
-  const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
+  const { setConfig, isPremiumTier } = useContext(AppContext);
 
   const otherFormRef = useRef<
     IAutomationFormHandle<IOtherWorkflowsModalSubmit>
@@ -105,8 +106,7 @@ const AutomationsModal = ({
       ? globalConfig?.integrations.conditional_access_enabled
       : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
-  const isManagedCloud = globalConfig?.license?.managed_cloud || false;
-  const conditionalAccessProviderText = isManagedCloud
+  const conditionalAccessProviderText = isPremiumTier
     ? "Okta or Microsoft Entra"
     : "Okta";
 
@@ -202,11 +202,11 @@ const AutomationsModal = ({
         }
       }
 
-      renderFlash("success", SUCCESS_MSG);
+      notify.success(SUCCESS_MSG);
       refetchPolicies();
       onExit();
-    } catch {
-      renderFlash("error", ERR_MSG);
+    } catch (e) {
+      notify.error(ERR_MSG, { response: e });
     } finally {
       setIsUpdating(false);
     }
@@ -253,7 +253,7 @@ const AutomationsModal = ({
                     <>
                       <Button
                         type="button"
-                        variant="brand-inverse-icon"
+                        variant="secondary"
                         onClick={togglePreviewCalendarEvent}
                       >
                         Preview calendar event
@@ -300,7 +300,7 @@ const AutomationsModal = ({
           <Button type="submit" isLoading={isUpdating} disabled={isUpdating}>
             Save
           </Button>
-          <Button type="button" onClick={onExit} variant="inverse">
+          <Button type="button" onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

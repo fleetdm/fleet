@@ -207,7 +207,7 @@ func TestCPEProcessingRule(t *testing.T) {
 						},
 					},
 					CVEs: map[string]struct{}{"CVE-123": {}},
-				}, err: errors.New("improper constraint: .as.-as"),
+				}, err: errors.New(`improper constraint: ".as.-as"`),
 			},
 			{
 				rule: CPEMatchingRule{

@@ -30,6 +30,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"golang.org/x/text/unicode/norm"
 )
@@ -58,6 +59,10 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
+	// Auth is loaded from the server configuration and is read-only.
+	Auth *fleet.AuthSettings `json:"auth,omitempty"`
+	// Maximum software package size is loaded from the service.
+	MaxSoftwarePackageSize int64 `json:"max_software_package_size"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -137,6 +142,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
+	authSettings, err := svc.AuthSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Add Microsoft Entra settings from the integration table to appConfig.ConditionalAccess
 	// (Okta settings are already in appConfig.ConditionalAccess from the database)
@@ -196,9 +205,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if lic.IsPremium() {
 		alternativeBrowserHost = appConfig.FleetDesktop.AlternativeBrowserHost
 	}
+	// Fleet Premium license is required for Fleet Desktop SSO
+	ssoEnabled := lic.IsPremium() && appConfig.FleetDesktop.SSOEnabled
+
 	fleetDesktop := fleet.FleetDesktopSettings{
 		TransparencyURL:        transparencyURL,
 		AlternativeBrowserHost: alternativeBrowserHost,
+		SSOEnabled:             ssoEnabled,
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
@@ -229,13 +242,15 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			ConditionalAccess: appConfig.ConditionalAccess,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:  updateIntervalConfig,
-			Vulnerabilities: vulnConfig,
-			License:         lic,
-			Logging:         loggingConfig,
-			Email:           emailConfig,
-			SandboxEnabled:  svc.SandboxEnabled(),
-			Partnerships:    partnerships,
+			UpdateInterval:         updateIntervalConfig,
+			Vulnerabilities:        vulnConfig,
+			License:                lic,
+			Logging:                loggingConfig,
+			Email:                  emailConfig,
+			SandboxEnabled:         svc.SandboxEnabled(),
+			Partnerships:           partnerships,
+			Auth:                   authSettings,
+			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
 	return response, nil
@@ -247,7 +262,6 @@ func (svc *Service) SandboxEnabled() bool {
 
 func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
-		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
 		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -281,6 +295,23 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	// consumes the result of AppConfigObfuscated — they all re-fetch via
 	// svc.ds.AppConfig directly.
 	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
+
+	// The Windows enrollment default fleet's source of truth is GetWindowsEnrollmentDefaultFleet (also cached), so hydrate the
+	// response from it when it disagrees with the name stored in the app config JSON.
+	winDefaultTeamID, winDefaultFleetName, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	winStoredName := ""
+	if ac.MDM.WindowsAutomaticEnrollment.Set && ac.MDM.WindowsAutomaticEnrollment.Valid {
+		winStoredName = ac.MDM.WindowsAutomaticEnrollment.Value.DefaultFleet
+	}
+	if winDefaultTeamID != nil || winStoredName != winDefaultFleetName {
+		ac.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
+			Set: true, Valid: true,
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: winDefaultFleetName},
+		}
+	}
 
 	ac.Obfuscate()
 
@@ -331,8 +362,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	response := appConfigResponse{
 		AppConfig: *appConfig,
 		appConfigResponseFields: appConfigResponseFields{
-			License: lic,
-			Logging: loggingConfig,
+			License:                lic,
+			Logging:                loggingConfig,
+			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
 
@@ -474,6 +506,57 @@ func applyAndValidateConditionalAccessOktaFields(
 	return nil
 }
 
+// persistAppleAccountProvisioningSecret stores, preserves, or soft-deletes the
+// Apple account provisioning IdP client secret in mdm_config_assets so it
+// matches the (already-validated) incoming config. It reports whether the
+// stored secret actually changed, so re-applying a GitOps config that resends an
+// identical secret is a no-op and emits no activity.
+//   - configured + a new secret provided: store it (replacing any existing
+//     value), reporting changed only when the value actually differs.
+//   - configured + no new secret: preserve the existing secret (unchanged).
+//   - feature cleared (was configured, now isn't): soft-delete the secret.
+func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) (changed bool, err error) {
+	switch {
+	case configured && newSecretProvided:
+		current, err := svc.appleAccountProvisioningSecret(ctx)
+		if err != nil {
+			return false, err
+		}
+		if current == secret {
+			return false, nil
+		}
+		if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+			Value: []byte(secret),
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
+		}
+		return true, nil
+	case !configured && wasConfigured:
+		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// appleAccountProvisioningSecret returns the stored Apple account provisioning
+// IdP client secret, or "" if none is stored.
+func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, nil)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get apple account provisioning idp client secret")
+	}
+	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -574,6 +657,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
 	}
 
+	// Validate and premium-gate the vulnerability-exposure chart filter
+	// defaults. These are display-only defaults (they seed the dashboard
+	// chart's filter controls; they do not affect data collection) and are
+	// premium-only. Validation runs on the incoming payload with sparse/PATCH
+	// semantics: only fields explicitly present are checked.
+	if veFilters := newAppConfig.Features.VulnerabilityExposureHistoricalReporting; veFilters != nil {
+		if !lic.IsPremium() {
+			invalid.Append("org_settings.features.vulnerability_exposure_historical_reporting", ErrMissingLicense.Error())
+		} else {
+			veFilters.Validate("org_settings.features", invalid)
+		}
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	// Reject conflicting deprecated/new logo URL pairs and mirror them so
 	// both forms are persisted with identical values. Done on the incoming
 	// payload before merge so we surface the conflict at the source field.
@@ -593,6 +692,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Features = newAppConfig.Features
 		appConfig.SSOSettings = newAppConfig.SSOSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
+		appConfig.FleetDesktop.SSOEnabled = newAppConfig.FleetDesktop.SSOEnabled
 	}
 
 	// We apply the config that is incoming to the old one
@@ -605,6 +705,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
 	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.MacOSUpdates, newAppConfig.MDM.MacOSUpdates)
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.IOSUpdates, newAppConfig.MDM.IOSUpdates)
+	clearStaleAppleOSUpdateDeadline(&appConfig.MDM.IPadOSUpdates, newAppConfig.MDM.IPadOSUpdates)
 
 	// Handle Google Calendar API key preservation/replacement.
 	// The custom GoogleCalendarApiKey type handles unmarshaling "********" as masked.
@@ -619,6 +723,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				} else {
 					// api_key_json was provided with real values, use it
 					appConfig.Integrations.GoogleCalendar[i].ApiKey = newGC.ApiKey
+				}
+			}
+		}
+	}
+
+	// Appends rather than returning early; errors surface at the validation gate below.
+	validateCertificateRequestIdentityControlsLicense(newAppConfig.Integrations, lic, invalid)
+
+	// Google Workspace IdP is a premium-only feature.
+	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
+		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Handle Google Workspace API key preservation/replacement (same masking
+	// semantics as Google Calendar): a masked or omitted api_key_json means
+	// "keep the existing service account credentials".
+	if newAppConfig.Integrations.GoogleWorkspace != nil {
+		for i, newGW := range newAppConfig.Integrations.GoogleWorkspace {
+			if i < len(appConfig.Integrations.GoogleWorkspace) {
+				if newGW.ApiKey.IsEmpty() || newGW.ApiKey.IsMasked() {
+					if len(oldAppConfig.Integrations.GoogleWorkspace) > i {
+						appConfig.Integrations.GoogleWorkspace[i].ApiKey = oldAppConfig.Integrations.GoogleWorkspace[i].ApiKey
+					}
+				} else {
+					appConfig.Integrations.GoogleWorkspace[i].ApiKey = newGW.ApiKey
 				}
 			}
 		}
@@ -661,25 +791,139 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsEntraClientIDs.Value = normalized
 	}
 
-	// EnableDiskEncryption is an optjson.Bool field in order to support the
-	// legacy field under "mdm.macos_settings". If the field provided to the
-	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
-	// null) and no legacy field overwrites it, leave it unchanged (as if not
-	// provided).
-
+	// The per-platform disk encryption settings follow PATCH-merge semantics:
+	// a field explicitly set to null keeps its stored value (as if not
+	// provided). The deprecated flat mdm.enable_disk_encryption fans out to
+	// all four per-platform settings; precedence between the flat toggle and
+	// a per-platform value sent in the same request goes to whichever the
+	// request actually changes, and changing both to disagreeing values is a
+	// conflict.
+	//
 	// TODO: move this logic to the AppConfig unmarshaller? we need to do
 	// this because we unmarshal twice into appConfig:
 	//
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
-	if newAppConfig.MDM.EnableDiskEncryption.Valid {
-		if newAppConfig.MDM.EnableDiskEncryption.Value && svc.config.Server.PrivateKey == "" {
-			return nil, ctxerr.New(ctx,
-				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	legacyDiskEncryption := newAppConfig.MDM.EnableDiskEncryption
+	// the flat toggle reads as the AND of the four per-platform settings, so
+	// "the request changes it" is measured against that
+	legacyDiskEncryptionChanged := legacyDiskEncryption.Valid && legacyDiskEncryption.Value != oldAppConfig.MDM.DiskEncryptionSettingsAllEnabled()
+	anyDiskEncryptionSet := legacyDiskEncryption.Valid
+	enablingDiskEncryption := false
+	for _, f := range []struct {
+		incoming optjson.Bool
+		merged   *optjson.Bool
+		old      optjson.Bool
+	}{
+		{newAppConfig.MDM.MacOSSettings.EnableDiskEncryption, &appConfig.MDM.MacOSSettings.EnableDiskEncryption, oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption},
+		{newAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, &appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey, oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey},
+		{newAppConfig.MDM.WindowsSettings.EnableDiskEncryption, &appConfig.MDM.WindowsSettings.EnableDiskEncryption, oldAppConfig.MDM.WindowsSettings.EnableDiskEncryption},
+		{newAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, &appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey, oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey},
+	} {
+		incomingChanged := f.incoming.Valid && f.incoming.Value != f.old.Value
+		switch {
+		case incomingChanged && legacyDiskEncryptionChanged && f.incoming.Value != legacyDiskEncryption.Value:
+			// both the deprecated toggle and this per-platform setting are
+			// being changed, to disagreeing values
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(
+				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings"))
+		case incomingChanged:
+			*f.merged = f.incoming
+		case legacyDiskEncryption.Valid && (legacyDiskEncryptionChanged || !f.incoming.Valid):
+			// the deprecated toggle fans out: it wins over per-platform
+			// values the request carries but does not change (the common
+			// GET-modify-PATCH round-trip) and fills in absent ones
+			*f.merged = optjson.SetBool(legacyDiskEncryption.Value)
+		case f.incoming.Valid:
+			*f.merged = f.incoming
+		case f.merged.Set && !f.merged.Valid:
+			*f.merged = f.old
 		}
-		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
+		anyDiskEncryptionSet = anyDiskEncryptionSet || f.merged.Set
+		enablingDiskEncryption = enablingDiskEncryption || (f.merged.Valid && f.merged.Value && !f.old.Value)
+	}
+	if enablingDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return nil, ctxerr.New(ctx,
+			"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+	// the flat toggle is virtual (the AND of the four); recompute it so
+	// validation, activities, and the saved JSON see the effective value.
+	// For any config previously saved by this version the per-platform fields
+	// always carry state, so the recompute effectively always runs (a no-op
+	// when nothing changed); the else branch covers configs that never had
+	// disk encryption state, where an explicit null on the flat toggle keeps
+	// the stored value, as before.
+	if anyDiskEncryptionSet {
+		appConfig.MDM.EnableDiskEncryption = optjson.SetBool(appConfig.MDM.DiskEncryptionSettingsAllEnabled())
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
+	// the deprecated windows_require_bitlocker_pin key mirrors its canonical
+	// windows_settings.require_bitlocker_pin home. Absent or explicit-null
+	// keys pass through: the stored values were the base of the merge.
+	if pin, err := fleet.ResolveBitLockerPINAlias(
+		newAppConfig.MDM.RequireBitLockerPIN, newAppConfig.MDM.WindowsSettings.RequireBitLockerPIN,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	} else if pin.Valid {
+		appConfig.MDM.RequireBitLockerPIN = optjson.SetBool(pin.Value)
+		appConfig.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(pin.Value)
+	}
+
+	// Apple account provisioning (Platform SSO): the IdP client secret is never
+	// persisted in the AppConfig JSON — it's stored encrypted in
+	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
+	// strip it from the config that gets saved.
+	oldAAP := oldAppConfig.MDM.AppleAccountProvisioning
+	incomingAAP := newAppConfig.MDM.AppleAccountProvisioning
+
+	if applyOpts.Overwrite {
+		appConfig.MDM.AppleAccountProvisioning = incomingAAP
+	}
+
+	incomingSecret := incomingAAP.OAuthIdPClientSecret
+	newAAPSecretProvided := incomingSecret.Valid && incomingSecret.Value != "" && incomingSecret.Value != fleet.MaskedPassword
+	newAAPSecret := incomingSecret.Value
+
+	mergedAAP := appConfig.MDM.AppleAccountProvisioning
+	appConfig.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.String{}
+
+	// Apple account provisioning is all-or-nothing: the token URL, client ID, and
+	// client secret are only meaningful together, so the config must have all three
+	// set or all three empty — never a partial state that reports as "configured"
+	// but can't run the sign-in flow.
+	tokenURLSet := mergedAAP.OAuthIdPTokenURL.Value != ""
+	clientIDSet := mergedAAP.OAuthIdPClientID.Value != ""
+	switch {
+	case mergedAAP.Configured(): // both public fields set
+		aapProvided := incomingAAP.OAuthIdPTokenURL.Set || incomingAAP.OAuthIdPClientID.Set || incomingAAP.OAuthIdPClientSecret.Set
+		if aapProvided && !lic.IsPremium() {
+			invalid.Append("mdm.apple_account_provisioning", ErrMissingLicense.Error())
+		}
+		if newAAPSecretProvided && svc.config.Server.PrivateKey == "" {
+			invalid.Append("mdm.apple_account_provisioning",
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+		if u, err := url.Parse(mergedAAP.OAuthIdPTokenURL.Value); err != nil || u.Host == "" || u.Scheme != "https" {
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_token_url", "must be a valid https URL")
+		}
+		switch {
+		case !newAAPSecretProvided && (applyOpts.Overwrite || !oldAAP.Configured()):
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be set together with oauth_idp_token_url and oauth_idp_client_id")
+		case !newAAPSecretProvided && mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value:
+			// Reusing a stored secret while repointing the IdP token endpoint would
+			// leak it to the new (possibly hostile) URL, so require it be provided.
+			// Similar to CAs and their secrets.
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be provided when changing oauth_idp_token_url")
+		}
+	case tokenURLSet || clientIDSet || newAAPSecretProvided:
+		// Not fully configured, but a field was supplied (one public field without
+		// the other, or a secret on its own) — a partial config.
+		invalid.Append("mdm.apple_account_provisioning",
+			"oauth_idp_token_url, oauth_idp_client_id, and oauth_idp_client_secret must all be set together, or all be empty")
 	}
 
 	// this is to handle the case where `apple_enable_release_device_manually: null` is
@@ -730,6 +974,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	} else {
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	}
+
+	// windows_settings.enable_managed_local_account: like EnableDiskEncryption above, an explicit JSON null
+	// means "not provided": keep the old value rather than persisting an invalid optjson state.
+	if !oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
+		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
+	} else {
+		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -792,6 +1047,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		invalid.Append("activity_expiry_settings.activity_expiry_window", "must be greater than 0")
 	}
 
+	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
+		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+	}
+
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
@@ -824,6 +1083,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
+	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
+	fleet.ValidateCertIdPIntrospectionAllowlists(&appConfig.Integrations, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
@@ -846,9 +1107,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
-	abmAssignments, err := svc.validateABMAssignments(ctx, &newAppConfig.MDM, &oldAppConfig.MDM, invalid, lic)
+	abmAssignments, defaultABMTokenID, err := svc.validateABMAssignments(ctx, &newAppConfig.MDM, &oldAppConfig.MDM, invalid, lic)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
+	}
+
+	// A lone ABM token is always the default even when the config doesn't mark
+	// it, so reflect that in the stored config to keep GET /config consistent
+	// with GET /ab_tokens.
+	if defaultABMTokenID == nil && appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid &&
+		len(appConfig.MDM.AppleBusinessManager.Value) == 1 {
+		// this count decides what gets saved, so don't risk a stale replica read
+		count, err := svc.ds.GetABMTokenCount(ctxdb.RequirePrimary(ctx, true))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "counting ABM tokens")
+		}
+		if count == 1 {
+			appConfig.MDM.AppleBusinessManager.Value[0].Default = true
+		}
 	}
 
 	var vppAssignments map[uint][]uint
@@ -860,8 +1136,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	windowsEnrollmentDefined, windowsEnrollmentTeamID, windowsEnrollmentFleetName, err := svc.validateWindowsEnrollment(ctx, &newAppConfig.MDM, invalid, lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating windows enrollment default fleet")
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
+	if windowsEnrollmentDefined {
+		appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
+			Set: true, Valid: true,
+			Value: fleet.WindowsAutomaticEnrollment{DefaultFleet: windowsEnrollmentFleetName},
+		}
+	} else if appConfig.MDM.WindowsAutomaticEnrollment.Set && !appConfig.MDM.WindowsAutomaticEnrollment.Valid {
+		// A null windows_automatic_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore
+		// the stored value.
+		appConfig.MDM.WindowsAutomaticEnrollment = oldAppConfig.MDM.WindowsAutomaticEnrollment
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -872,6 +1165,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
 	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
+	// ignore MDM.MicrosoftGraphCredentialInvalid because the server recomputes it from the credentials table
+	appConfig.MDM.MicrosoftGraphCredentialInvalid = oldAppConfig.MDM.MicrosoftGraphCredentialInvalid
+
+	if invalid := validateFleetDesktopSSOIdP(
+		oldAppConfig.FleetDesktop, appConfig.FleetDesktop, appConfig.MDM.EndUserAuthentication, lic,
+	); invalid != nil {
+		return nil, invalid
+	}
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -951,6 +1252,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
+	// If google_workspace is null, we keep the existing setting.
+	if newAppConfig.Integrations.GoogleWorkspace == nil {
+		appConfig.Integrations.GoogleWorkspace = oldAppConfig.Integrations.GoogleWorkspace
+	}
 
 	gitopsModeEnabled, gitopsRepoURL := appConfig.GitOpsConfig.GitopsModeEnabled, appConfig.GitOpsConfig.RepositoryURL
 	if gitopsModeEnabled {
@@ -987,9 +1292,53 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+		appConfig.FleetDesktop.SSOEnabled = false
+		// Clear a premium-only host name template so a value set while premium isn't
+		// retained (and enforced by the cron, which gates on MDM.EnabledAndConfigured
+		// rather than the license) on Free. Only touch it when non-empty so a no-op
+		// Free-tier save doesn't flip the field's optjson state (unset null → empty).
+		if appConfig.MDM.HostNameTemplate.Value != "" {
+			appConfig.MDM.HostNameTemplate = optjson.SetString("")
+		}
+	}
+
+	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
+	if err != nil {
+		return nil, err
+	}
+	// The IdP client secret never reaches the AppConfig JSON, so a secret-only
+	// change isn't visible in the saved config diff — track it separately.
+	aapChanged := aapSecretChanged ||
+		mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value ||
+		mergedAAP.OAuthIdPClientID.Value != oldAAP.OAuthIdPClientID.Value
+
+	// Mint the PSSO signing key and CA the first time the feature is configured.
+	// Idempotent: existing assets are preserved (never recreated on reconfigure),
+	// and they are deliberately kept when the feature is disabled so a later
+	// re-enable reuses the same JWKS key and unlock-key CA.
+	if mergedAAP.Configured() {
+		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
+		}
+	}
+
+	// clear cert renewals before saving app config, as doing it after with failure can lead to incorrect renewal attempts.
+	// even if we fail to actually save, this is a safe operation to retry.
+	if err := clearCertRenewals(ctx, svc, oldAppConfig, appConfig); err != nil {
+		return nil, err
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
+		return nil, err
+	}
+
+	if aapChanged {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())
+		}
+	}
+
+	if err := svc.newFleetDesktopSSOActivity(ctx, oldAppConfig.FleetDesktop, appConfig.FleetDesktop); err != nil {
 		return nil, err
 	}
 
@@ -1078,6 +1427,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Emit an activity when the Google Workspace IdP integration is added, edited,
+	// or removed.
+	if act := googleWorkspaceActivity(oldAppConfig.Integrations.GoogleWorkspace, appConfig.Integrations.GoogleWorkspace); act != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for google workspace integration change")
+		}
+	}
+
 	addedEntraClientIDs, removedEntraClientIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraClientIDs.Value, appConfig.MDM.WindowsEntraClientIDs.Value)
 	for _, clientID := range addedEntraClientIDs {
 		act := fleet.ActivityTypeAddedMicrosoftEntraClientID{ClientID: clientID}
@@ -1089,6 +1446,30 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		act := fleet.ActivityTypeDeletedMicrosoftEntraClientID{ClientID: clientID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra client ID")
+		}
+	}
+
+	// Persist the Windows enrollment default fleet to its config row and log the change.
+	if windowsEnrollmentDefined {
+		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get current windows enrollment default fleet")
+		}
+		if !ptr.Equal(oldWindowsEnrollmentTeamID, windowsEnrollmentTeamID) {
+			if err := svc.ds.SetWindowsEnrollmentDefaultFleet(ctx, windowsEnrollmentTeamID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving windows enrollment default fleet")
+			}
+			var fleetName *string
+			if windowsEnrollmentTeamID != nil {
+				fleetName = &windowsEnrollmentFleetName
+			}
+			act := fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet{
+				FleetID:   windowsEnrollmentTeamID,
+				FleetName: fleetName,
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited windows enrollment default fleet")
+			}
 		}
 	}
 
@@ -1141,64 +1522,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	tokensInCfg := make(map[string]struct{})
-	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
-		tokensInCfg[t.OrganizationName] = struct{}{}
-	}
-
-	toks, err := svc.ds.ListABMTokens(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
-	}
-
-	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
-		for _, tok := range toks {
-			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
-				tok.MacOSDefaultTeamID = nil
-				tok.IOSDefaultTeamID = nil
-				tok.IPadOSDefaultTeamID = nil
-				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
-				}
-			}
-		}
-	}
-
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
-		for _, tok := range abmAssignments {
-			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
-			}
-		}
+	if err := svc.applyABMTokenAssignments(ctx, newAppConfig, appConfig, abmAssignments, defaultABMTokenID); err != nil {
+		return nil, err
 	}
 
 	if vppAssignmentsDefined {
-		// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
-		clear(tokensInCfg)
-		for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
-			tokensInCfg[t.Location] = struct{}{}
-		}
-		vppToks, err := svc.ds.ListVPPTokens(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
-		}
-		for _, tok := range vppToks {
-			if _, ok := tokensInCfg[tok.Location]; !ok {
-				tok.Teams = nil
-				if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
-				}
-			}
-		}
-		// 2. Set VPP assignments that are defined in the config.
-		for tokenID, tokenTeams := range vppAssignments {
-			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
-				if errors.As(err, &errTokConstraint) {
-					return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
-				}
-				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
-			}
+		if err := svc.applyVPPTokenAssignments(ctx, newAppConfig, vppAssignments); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1209,11 +1539,152 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	obfuscatedAppConfig.Obfuscate()
 
-	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
 	if obfuscatedAppConfig.AgentOptions != nil {
 		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
+
+	if err := svc.processSavedAppConfigChanges(ctx, oldAppConfig, appConfig, lic, oldAgentOptions, newAgentOptions,
+		conditionalAccessNoTeamUpdated); err != nil {
+		return nil, err
+	}
+
+	return obfuscatedAppConfig, nil
+}
+
+// applyABMTokenAssignments persists the ABM token changes computed while validating an app config
+// change: default fleet assignments and the default token. It runs after SaveAppConfig has
+// committed, so returning an error here leaves the new configuration persisted.
+func (svc *Service) applyABMTokenAssignments(
+	ctx context.Context,
+	newAppConfig fleet.AppConfig,
+	appConfig *fleet.AppConfig,
+	abmAssignments []*fleet.ABMToken,
+	defaultABMTokenID *uint,
+) error {
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
+		tokensInCfg[t.OrganizationName] = struct{}{}
+	}
+
+	toks, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
+		for _, tok := range toks {
+			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+				tok.MacOSDefaultTeamID = nil
+				tok.IOSDefaultTeamID = nil
+				tok.IPadOSDefaultTeamID = nil
+				tok.BYODDefaultTeamID = nil
+				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+					return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+				}
+			}
+		}
+		// An explicitly empty apple_business also clears the default, like it
+		// clears the default fleets above. A lone token is always the default,
+		// so leave it alone then.
+		if len(toks) > 1 {
+			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing default ABM token")
+			}
+		}
+	}
+
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && newAppConfig.MDM.AppleBusinessManager.Valid && len(newAppConfig.MDM.AppleBusinessManager.Value) > 0 {
+		switch {
+		case defaultABMTokenID != nil:
+			if err := svc.ds.SetABMTokenDefault(ctx, *defaultABMTokenID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting default ABM token")
+			}
+		case len(toks) > 1:
+			// No entry marked default: with several tokens that means "no
+			// default". A lone token is always the default, so leave it then.
+			if err := svc.ds.ClearABMTokenDefault(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "clearing default ABM token")
+			}
+		}
+	}
+
+	return nil
+}
+
+// applyVPPTokenAssignments persists the VPP token fleet assignments computed while validating an
+// app config change. Like applyABMTokenAssignments, it runs after SaveAppConfig has committed.
+func (svc *Service) applyVPPTokenAssignments(
+	ctx context.Context,
+	newAppConfig fleet.AppConfig,
+	vppAssignments map[uint][]uint,
+) error {
+	// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+		tokensInCfg[t.Location] = struct{}{}
+	}
+	vppToks, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing VPP tokens")
+	}
+	for _, tok := range vppToks {
+		if _, ok := tokensInCfg[tok.Location]; !ok {
+			tok.Teams = nil
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+				return ctxerr.Wrap(ctx, err, "saving VPP token teams")
+			}
+		}
+	}
+	// 2. Set VPP assignments that are defined in the config.
+	for tokenID, tokenTeams := range vppAssignments {
+		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+			if errTokConstraint, ok := errors.AsType[fleet.ErrVPPTokenTeamConstraint](err); ok {
+				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+			}
+			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+		}
+	}
+	return nil
+}
+
+func clearCertRenewals(ctx context.Context, svc *Service, oldAppConfig, appConfig *fleet.AppConfig) error {
+	if oldAppConfig == nil || appConfig == nil {
+		return nil
+	}
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment ||
+		oldAppConfig.MDM.AppleRequireHardwareAttestation != appConfig.MDM.AppleRequireHardwareAttestation {
+		if err := svc.ds.ClearCertRenewalExclusions(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing cert renewal exclusions")
+		}
+
+		if err := svc.ds.ResetPendingCertRenewals(ctx); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting pending cert renewals")
+		}
+	}
+	return nil
+}
+
+// processSavedAppConfigChanges runs the side effects of a completed app config change: it creates the activities for the settings
+// that were modified and reconciles the downstream state that depends on them (OS updates, disk encryption, DEP profiles, host
+// name templates, Windows MDM profile cleanup). It runs after SaveAppConfig has committed, so returning an error here leaves the
+// new configuration persisted.
+func (svc *Service) processSavedAppConfigChanges(
+	ctx context.Context,
+	oldAppConfig, appConfig *fleet.AppConfig,
+	lic *fleet.LicenseInfo,
+	oldAgentOptions, newAgentOptions string,
+	conditionalAccessNoTeamUpdated bool,
+) error {
+	// if the agent options changed, create the corresponding activity
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.NewActivity(
 			ctx,
@@ -1222,7 +1693,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				Global: true,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config agent options modification")
+			return ctxerr.Wrap(ctx, err, "create activity for app config agent options modification")
 		}
 	}
 
@@ -1233,24 +1704,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		oldAppConfig.MDM.MacOSUpdates,
 		appConfig.MDM.MacOSUpdates,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
+		return ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
 	}
 	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IOS,
 		oldAppConfig.MDM.IOSUpdates,
 		appConfig.MDM.IOSUpdates,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
+		return ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
 	}
 	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IPadOS,
 		oldAppConfig.MDM.IPadOSUpdates,
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
+		return ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
 	}
 
 	if appConfig.YaraRules != nil {
 		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "save yara rules for app config")
+			return ctxerr.Wrap(ctx, err, "save yara rules for app config")
 		}
 	}
 
@@ -1267,10 +1738,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 		if deadline != nil {
 			if err := svc.EnterpriseOverrides.MDMWindowsEnableOSUpdates(ctx, nil, appConfig.MDM.WindowsUpdates); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
+				return ctxerr.Wrap(ctx, err, "enable no-team windows OS updates")
 			}
 		} else if err := svc.EnterpriseOverrides.MDMWindowsDisableOSUpdates(ctx, nil); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
+			return ctxerr.Wrap(ctx, err, "disable no-team windows OS updates")
 		}
 
 		if err := svc.NewActivity(
@@ -1281,27 +1752,51 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				GracePeriodDays: grace,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+			return ctxerr.Wrap(ctx, err, "create activity for app config windows updates modification")
 		}
 	}
 
-	if appConfig.MDM.EnableDiskEncryption.Valid && oldAppConfig.MDM.EnableDiskEncryption.Value != appConfig.MDM.EnableDiskEncryption.Value {
-		if oldAppConfig.MDM.EnabledAndConfigured {
-			var act fleet.ActivityDetails
-			if appConfig.MDM.EnableDiskEncryption.Value {
-				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
-				}
-			} else {
-				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
-				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
-				}
-			}
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
-			}
+	macOSDiskEncryptionChanged := oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption.Value != appConfig.MDM.MacOSSettings.EnableDiskEncryption.Value ||
+		oldAppConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value != appConfig.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value
+	windowsDiskEncryptionChanged := oldAppConfig.MDM.WindowsSettings.EnableDiskEncryption.Value != appConfig.MDM.WindowsSettings.EnableDiskEncryption.Value ||
+		oldAppConfig.MDM.RequireBitLockerPIN.Value != appConfig.MDM.RequireBitLockerPIN.Value
+	linuxDiskEncryptionChanged := oldAppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value != appConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
+
+	if macOSDiskEncryptionChanged && oldAppConfig.MDM.EnabledAndConfigured {
+		// The profile's payloads follow both macOS settings, so a change to either
+		// one is reconciled — not just the off<->on transition of the pair.
+		if err := svc.EnterpriseOverrides.MDMAppleReconcileFileVaultProfile(ctx, nil); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team filevault profile")
+		}
+	}
+
+	for _, pc := range []struct {
+		platform string
+		changed  bool
+	}{
+		{"macos", macOSDiskEncryptionChanged},
+		{"windows", windowsDiskEncryptionChanged},
+		{"linux", linuxDiskEncryptionChanged},
+	} {
+		if !pc.changed {
+			continue
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedDiskEncryptionSettings{
+			Platform: pc.platform,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for app config disk encryption settings")
+		}
+	}
+
+	// Only reconcile enforcement rows on Premium: EnterpriseOverrides is wired up
+	// only for Premium builds, so calling it here would panic on Free. The value
+	// can change on Free without a Premium re-save in two ways — the downgrade
+	// reset above, and clearing a previously-set template ("" skips the license
+	// check) — both of which just clear the stored value; the leftover rows are
+	// inert because the enforcement cron skips an empty template.
+	if lic.IsPremium() && oldAppConfig.MDM.HostNameTemplate.Value != appConfig.MDM.HostNameTemplate.Value {
+		if err := svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, appConfig.MDM.HostNameTemplate.Value); err != nil {
+			return ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
 		}
 	}
 
@@ -1315,7 +1810,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				act = fleet.ActivityTypeDisabledRecoveryLockPasswords{}
 			}
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")
+				return ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")
 			}
 		}
 	}
@@ -1329,7 +1824,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+			return ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+		}
+	}
+
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "darwin"}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "darwin"}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		}
+	}
+
+	if oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value != appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsSettings.EnableManagedLocalAccount.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for windows enable managed local account change")
 		}
 	}
 
@@ -1341,25 +1860,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if appleMDMUrlChanged && appConfig.MDM.AppleServerURL != "" {
 		parsedURL, err := url.Parse(appConfig.MDM.AppleServerURL)
 		if err != nil {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
 		}
 		scheme := strings.ToLower(parsedURL.Scheme)
 		if scheme == "" {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
 		}
 
 		if scheme != "http" && scheme != "https" {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
 		}
 
 		if parsedURL.Hostname() == "" {
-			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
+			return fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
 		}
 	}
 
 	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
+			return ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
 	}
 
@@ -1373,11 +1892,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 			// Clean up all pending Windows MDM profile rows since hosts can no longer receive MDM commands.
 			if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
+				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
 			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+			return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
 
@@ -1389,7 +1908,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeDisabledWindowsMDMMigration{}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+			return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
 	}
 
@@ -1404,7 +1923,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 					TeamName: "",
 				},
 			); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+				return ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
 			}
 		} else {
 			if err := svc.NewActivity(
@@ -1415,7 +1934,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 					TeamName: "",
 				},
 			); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+				return ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
 			}
 		}
 	}
@@ -1445,7 +1964,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeAddedConditionalAccessOkta{},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for adding/editing Okta conditional access")
+			return ctxerr.Wrap(ctx, err, "create activity for adding/editing Okta conditional access")
 		}
 	} else if oldOktaConfigured && !newOktaConfigured {
 		// Okta configuration was deleted
@@ -1454,13 +1973,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedConditionalAccessOkta{},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
+			return ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
 		}
 	}
 
 	if oktaBypassChanged {
 		if err := svc.ds.ConditionalAccessClearBypasses(ctx); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "clearing existing conditional access bypasses")
+			return ctxerr.Wrap(ctx, err, "clearing existing conditional access bypasses")
 		}
 
 		if err := svc.NewActivity(
@@ -1470,17 +1989,83 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				BypassDisabled: appConfig.ConditionalAccess.BypassDisabled.Value,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
+			return ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
 		}
 	}
 
-	return obfuscatedAppConfig, nil
+	if oldAppConfig.MDM.OnlyAllowAppleBusinessEnrollment != appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
+			act = fleet.ActivityTypeEnabledAppleBusinessOnlyEnrollment{}
+		} else {
+			act = fleet.ActivityTypeDisabledAppleBusinessOnlyEnrollment{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("create activity %s", act.ActivityName()))
+		}
+	}
+
+	return nil
+}
+
+// validateFleetDesktopSSOIdP enforces that fleet_desktop.sso_enabled has an IdP
+// to authenticate against, in both directions: enabling it without one, and
+// clearing one while it is on. Without the second direction the gate would
+// demand SSO against a nonexistent IdP, locking end users out of the device
+// page. Only enforced on premium, where the setting has any effect.
+func validateFleetDesktopSSOIdP(
+	oldFleetDesktop, fleetDesktop fleet.FleetDesktopSettings,
+	endUserAuth fleet.MDMEndUserAuthentication,
+	lic *fleet.LicenseInfo,
+) *fleet.InvalidArgumentError {
+	if !lic.IsPremium() || !fleetDesktop.SSOEnabled || !endUserAuth.IsEmpty() {
+		return nil
+	}
+	if oldFleetDesktop.SSOEnabled {
+		return fleet.NewInvalidArgumentError("mdm.end_user_authentication",
+			"Single sign-on for Fleet Desktop is enabled. Please disable it and try again.")
+	}
+	return fleet.NewInvalidArgumentError("fleet_desktop.sso_enabled",
+		"Couldn't enable single sign-on for Fleet Desktop because no IdP is configured. Please configure it and try again.")
+}
+
+// newFleetDesktopSSOActivity records a fleet_desktop.sso_enabled toggle, and
+// nothing when the value is re-asserted unchanged.
+func (svc *Service) newFleetDesktopSSOActivity(ctx context.Context, oldFleetDesktop, fleetDesktop fleet.FleetDesktopSettings) error {
+	if oldFleetDesktop.SSOEnabled == fleetDesktop.SSOEnabled {
+		return nil
+	}
+
+	var act fleet.ActivityDetails = fleet.ActivityTypeDisabledSSOFleetDesktop{}
+	if fleetDesktop.SSOEnabled {
+		act = fleet.ActivityTypeEnabledSSOFleetDesktop{}
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+	}
+	return nil
+}
+
+// validateCertificateRequestIdentityControlsLicense premium-gates the request_certificate IdP
+// allowlists, consistently with the endpoint itself. Disabling the host binding is a relaxation,
+// not a licensed feature, so it is not gated.
+func validateCertificateRequestIdentityControlsLicense(intgs fleet.Integrations, lic *fleet.LicenseInfo, invalid *fleet.InvalidArgumentError) {
+	if lic.IsPremium() {
+		return
+	}
+	if len(intgs.CertificatesIdPIntrospectionURLs.Value) > 0 {
+		invalid.Append("integrations.certificates_idp_introspection_urls", ErrMissingLicense.Error())
+	}
+	if len(intgs.CertificatesIdPClientIDs.Value) > 0 {
+		invalid.Append("integrations.certificates_idp_client_ids", ErrMissingLicense.Error())
+	}
 }
 
 func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.LicenseInfo) *fleet.InvalidArgumentError {
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	transparencyURLModified := newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL
 	alternativeBrowserHostModified := newAppConfig.FleetDesktop.AlternativeBrowserHost != ""
+	ssoEnabledModified := newAppConfig.FleetDesktop.SSOEnabled
 
 	fleetDesktopSettingsInvalidErr := &fleet.InvalidArgumentError{}
 	if !lic.IsPremium() {
@@ -1489,6 +2074,9 @@ func validateFleetDesktopSettings(newAppConfig fleet.AppConfig, lic *fleet.Licen
 		}
 		if alternativeBrowserHostModified {
 			fleetDesktopSettingsInvalidErr.Append("alternative_browser_host", ErrMissingLicense.Error())
+		}
+		if ssoEnabledModified {
+			fleetDesktopSettingsInvalidErr.Append("sso_enabled", ErrMissingLicense.Error())
 		}
 		// No point in performing further validations if the license is not premium
 		return fleetDesktopSettingsInvalidErr
@@ -1516,7 +2104,10 @@ func (svc *Service) processAppleOSUpdateSettings(
 	newOSUpdateSettings fleet.AppleOSUpdateSettings,
 ) error {
 	if oldOSUpdateSettings.MinimumVersion.Value != newOSUpdateSettings.MinimumVersion.Value ||
-		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value {
+		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value ||
+		// Valid as well as Value: going from unset to 0, or 14 to unset, is a change.
+		oldOSUpdateSettings.DeadlineDays.Value != newOSUpdateSettings.DeadlineDays.Value ||
+		oldOSUpdateSettings.DeadlineDays.Valid != newOSUpdateSettings.DeadlineDays.Valid {
 		if lic.IsPremium() {
 			if err := svc.EnterpriseOverrides.MDMAppleEditedAppleOSUpdates(ctx, nil, appleDevice, newOSUpdateSettings); err != nil {
 				return ctxerr.Wrap(ctx, err, "update DDM profile after Apple OS updates change")
@@ -1582,11 +2173,24 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 	return ok, nil
 }
 
-// windowsEntraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in
-// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison time
-// instead. We can't use the standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application
-// client IDs are both validated against this so the two checks cannot drift.
-var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
+// googleWorkspaceActivity returns the activity to record when the Google
+// Workspace IdP integration is added, edited, or removed, or nil when it is
+// unchanged. Only the (non-secret) domain is compared/recorded.
+func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) fleet.ActivityDetails {
+	oldConfigured := len(old) > 0
+	newConfigured := len(current) > 0
+	switch {
+	case !oldConfigured && newConfigured:
+		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+	case oldConfigured && !newConfigured:
+		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: old[0].Domain}
+	case oldConfigured && newConfigured:
+		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail {
+			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+		}
+	}
+	return nil
+}
 
 // diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
 // current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
@@ -1620,6 +2224,33 @@ func diffStringSlices(old, current []string) (added, removed []string) {
 	return added, removed
 }
 
+// clearStaleAppleOSUpdateDeadline drops whichever deadline field belongs to the
+// mode a PATCH is leaving. The two modes are mutually exclusive — "latest"
+// derives its deadline from deadline_days, a specific version uses deadline —
+// and Validate rejects the wrong one being present. Because the payload is
+// merged over the stored config, a mode switch that doesn't mention the old
+// field keeps it and fails validation, forcing callers to send an explicit null
+// or empty string just to change modes.
+//
+// merged is the stored config with the payload already applied; incoming is the
+// payload on its own, so its Set flags say what the caller actually sent. A
+// value the caller supplied is left alone, so a genuine mismatch still fails
+// validation with the error that explains it.
+func clearStaleAppleOSUpdateDeadline(merged *fleet.AppleOSUpdateSettings, incoming fleet.AppleOSUpdateSettings) {
+	if merged.EnforcesLatestVersion() {
+		if !incoming.Deadline.Set {
+			// SetString("") rather than the zero value so this still marshals as
+			// "" — deadline has always been a string on the wire, and null would
+			// be a breaking change for API consumers.
+			merged.Deadline = optjson.SetString("")
+		}
+		return
+	}
+	if !incoming.DeadlineDays.Set {
+		merged.DeadlineDays = optjson.Int{}
+	}
+}
+
 func (svc *Service) validateMDM(
 	ctx context.Context,
 	lic *fleet.LicenseInfo,
@@ -1628,8 +2259,22 @@ func (svc *Service) validateMDM(
 	invalid *fleet.InvalidArgumentError,
 	overwrite bool,
 ) error {
-	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
-		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	if !lic.IsPremium() {
+		// gated on newly enabling (not the stored value) so a downgraded
+		// license with settings still on can save unrelated config changes
+		// and turn the settings off
+		if mdm.MacOSSettings.EnableDiskEncryption.Value && !oldMdm.MacOSSettings.EnableDiskEncryption.Value {
+			invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
+		}
+		if mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value && !oldMdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value {
+			invalid.Append("apple_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
+		}
+		if mdm.WindowsSettings.EnableDiskEncryption.Value && !oldMdm.WindowsSettings.EnableDiskEncryption.Value {
+			invalid.Append("windows_settings.enable_disk_encryption", ErrMissingLicense.Error())
+		}
+		if mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value && !oldMdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value {
+			invalid.Append("linux_settings.enable_escrow_disk_encryption_key", ErrMissingLicense.Error())
+		}
 	}
 	if mdm.MacOSSetup.MacOSSetupAssistant.Value != "" && oldMdm.MacOSSetup.MacOSSetupAssistant.Value != mdm.MacOSSetup.MacOSSetupAssistant.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.apple_setup_assistant", ErrMissingLicense.Error())
@@ -1646,6 +2291,10 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
+	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
+		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
+		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
+	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
@@ -1660,6 +2309,24 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
+	}
+
+	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
+		if !lic.IsPremium() {
+			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value,
+			svc.authz.CanWriteSecretVariables(ctx)); err != nil {
+			// A validation or missing-secret error is invalid user input (422); any
+			// other error (e.g. a datastore failure while checking secrets) must
+			// propagate as a server error rather than be misreported as invalid input.
+			var argErr *fleet.InvalidArgumentError
+			if !errors.As(err, &argErr) {
+				return ctxerr.Wrap(ctx, err, "validating host name template")
+			}
+			invalid.Append("mdm.name_template", err.Error())
+		} else {
+			mdm.HostNameTemplate = optjson.SetString(validated)
+		}
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -1684,6 +2351,11 @@ func (svc *Service) validateMDM(
 			invalid.Append("setup_experience.macos_bootstrap_package",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
+
+		if mdm.MacOSSetup.EnableManagedLocalAccount.Value && oldMdm.MacOSSetup.EnableManagedLocalAccount.Value != mdm.MacOSSetup.EnableManagedLocalAccount.Value {
+			invalid.Append("setup_experience.enable_managed_local_account",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "macos", mdm.MacOSSettings.CustomSettings)
 
@@ -1692,7 +2364,13 @@ func (svc *Service) validateMDM(
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.configuration_profiles",
-				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
+		}
+
+		if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
+			!oldMdm.WindowsSettings.EnableManagedLocalAccount.Value {
+			invalid.Append("windows_settings.enable_managed_local_account",
+				"Couldn’t enable windows_settings.enable_managed_local_account. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
@@ -1713,24 +2391,45 @@ func (svc *Service) validateMDM(
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
 	updatingMacOSDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
+	// deadline_days is the "latest" mode counterpart of deadline, so it has to
+	// gate on the license too: without it a lapsed-premium instance that already
+	// enforces "latest" could still edit the deadline.
+	updatingMacOSDeadlineDays := mdm.MacOSUpdates.DeadlineDays.Valid &&
+		mdm.MacOSUpdates.DeadlineDays != oldMdm.MacOSUpdates.DeadlineDays
 	// IOSUpdates
 	updatingIOSVersion := mdm.IOSUpdates.MinimumVersion.Value != "" &&
 		mdm.IOSUpdates.MinimumVersion != oldMdm.IOSUpdates.MinimumVersion
 	updatingIOSDeadline := mdm.IOSUpdates.Deadline.Value != "" &&
 		mdm.IOSUpdates.Deadline != oldMdm.IOSUpdates.Deadline
+	updatingIOSDeadlineDays := mdm.IOSUpdates.DeadlineDays.Valid &&
+		mdm.IOSUpdates.DeadlineDays != oldMdm.IOSUpdates.DeadlineDays
 	// IPadOSUpdates
 	updatingIPadOSVersion := mdm.IPadOSUpdates.MinimumVersion.Value != "" &&
 		mdm.IPadOSUpdates.MinimumVersion != oldMdm.IPadOSUpdates.MinimumVersion
 	updatingIPadOSDeadline := mdm.IPadOSUpdates.Deadline.Value != "" &&
 		mdm.IPadOSUpdates.Deadline != oldMdm.IPadOSUpdates.Deadline
+	updatingIPadOSDeadlineDays := mdm.IPadOSUpdates.DeadlineDays.Valid &&
+		mdm.IPadOSUpdates.DeadlineDays != oldMdm.IPadOSUpdates.DeadlineDays
 
-	if updatingMacOSVersion || updatingMacOSDeadline ||
-		updatingIOSVersion || updatingIOSDeadline ||
-		updatingIPadOSVersion || updatingIPadOSDeadline {
+	updatingMacOS := updatingMacOSVersion || updatingMacOSDeadline || updatingMacOSDeadlineDays
+	updatingIOS := updatingIOSVersion || updatingIOSDeadline || updatingIOSDeadlineDays
+	updatingIPadOS := updatingIPadOSVersion || updatingIPadOSDeadline || updatingIPadOSDeadlineDays
+
+	if updatingMacOS || updatingIOS || updatingIPadOS {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !lic.IsPremium() {
-			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
+			// The gate is shared by all three platforms, so a fixed field name
+			// would report macOS for an iOS-only edit.
+			field := "macos_updates.minimum_version"
+			switch {
+			case updatingMacOS:
+			case updatingIOS:
+				field = "ios_updates.minimum_version"
+			default:
+				field = "ipados_updates.minimum_version"
+			}
+			invalid.Append(field, ErrMissingLicense.Error())
 			return nil
 		}
 	}
@@ -1804,7 +2503,7 @@ func (svc *Service) validateMDM(
 		// TODO: look into blocking the case of a user-created API call that clears required EUA
 		// settings while a team still has EUA enabled.
 		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
+		validateSSOProviderSettings(&mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation
@@ -1892,12 +2591,12 @@ func (svc *Service) validateMDM(
 
 	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format.
 	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
-		if !windowsEntraGUIDRegex.MatchString(tenantID) {
+		if !fleet.IsValidEntraGUID(tenantID) {
 			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
 		}
 	}
 	for _, clientID := range mdm.WindowsEntraClientIDs.Value {
-		if !windowsEntraGUIDRegex.MatchString(clientID) {
+		if !fleet.IsValidEntraGUID(clientID) {
 			invalid.Append("mdm.windows_entra_client_ids", fmt.Sprintf("Invalid Entra client ID: %s", clientID))
 		}
 	}
@@ -1914,22 +2613,65 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM migration is also enabled. Please enable only one.")
 	}
 
-	if !mdm.EnableDiskEncryption.Value {
-		switch {
-		case !oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
-			invalid.Append(
-				"mdm.windows_require_bitlocker_pin",
-				fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
-			)
-		case oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
-			invalid.Append(
-				"mdm.enable_disk_encryption",
-				fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
-			)
-		}
+	// the PIN requirement is a BitLocker feature, so it's judged against the
+	// Windows setting, not the all-platforms aggregate
+	if field, msg := fleet.BitLockerPINRequirementError(
+		oldMdm.WindowsSettings.EnableDiskEncryption.Value, mdm.DiskEncryptionConfig(),
+	); msg != "" {
+		invalid.Append(field, msg)
+	}
+
+	if mdm.OnlyAllowAppleBusinessEnrollment && !lic.IsPremium() {
+		invalid.Append("mdm.only_allow_apple_business_enrollment", ErrMissingLicense.Error())
 	}
 
 	return nil
+}
+
+// validateWindowsEnrollment validates the mdm.windows_automatic_enrollment section of a config modify payload and resolves its default
+// fleet name to a team id. Returns defined=false when the section was omitted (no-op). When defined, teamID is the resolved team
+// id (nil to clear) and fleetName is the canonical team name (empty when clearing).
+func (svc *Service) validateWindowsEnrollment(
+	ctx context.Context,
+	newMDM *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	lic *fleet.LicenseInfo,
+) (defined bool, teamID *uint, fleetName string, err error) {
+	if !newMDM.WindowsAutomaticEnrollment.Set || !newMDM.WindowsAutomaticEnrollment.Valid {
+		// Omitted key or explicit null: keep the persisted setting (same convention as
+		// enable_disk_encryption). Only an object clears or changes it.
+		return false, nil, "", nil
+	}
+
+	name := newMDM.WindowsAutomaticEnrollment.Value.DefaultFleet
+	if name == "" || fleet.IsUnassignedFleetName(name) {
+		// Explicitly clearing the default; allowed on any tier.
+		return true, nil, "", nil
+	}
+
+	if lic == nil || !lic.IsPremium() {
+		// Tolerate an unchanged value re-sent without Premium (e.g. gitops re-applying exported config after a license downgrade); only
+		// reject attempts to change it.
+		curTeamID, curName, dsErr := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
+		if dsErr != nil {
+			return true, nil, "", ctxerr.Wrap(ctx, dsErr, "get current windows enrollment default fleet")
+		}
+		if name == curName {
+			return true, curTeamID, curName, nil
+		}
+		invalid.Append("mdm.windows_automatic_enrollment.default_fleet", ErrMissingLicense.Error())
+		return true, nil, "", nil
+	}
+
+	tm, err := svc.ds.TeamByName(ctx, name)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			invalid.Append("mdm.windows_automatic_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
+			return true, nil, "", nil
+		}
+		return true, nil, "", ctxerr.Wrap(ctx, err, "get team by name for windows enrollment default fleet")
+	}
+	return true, &tm.ID, tm.Name, nil
 }
 
 func (svc *Service) validateABMAssignments(
@@ -1937,54 +2679,54 @@ func (svc *Service) validateABMAssignments(
 	mdm, oldMdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
-) ([]*fleet.ABMToken, error) {
+) (tokensToSave []*fleet.ABMToken, defaultTokenID *uint, err error) {
 	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
 		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil, nil
+			return nil, nil, nil
 		}
 		team, err := svc.ds.TeamByName(ctx, name)
 		if err != nil {
 			invalid.Append("mdm.apple_bm_default_team", "team name not found")
-			return nil, nil
+			return nil, nil, nil
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if len(tokens) > 1 {
 			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-			return nil, nil
+			return nil, nil, nil
 		}
 
 		if len(tokens) == 0 {
 			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
-			return nil, nil
+			return nil, nil, nil
 		}
 
 		tok := tokens[0]
 		tok.MacOSDefaultTeamID = &team.ID
 		tok.IOSDefaultTeamID = &team.ID
 		tok.IPadOSDefaultTeamID = &team.ID
-
-		return []*fleet.ABMToken{tok}, nil
+		tok.BYODDefaultTeamID = &team.ID
+		return []*fleet.ABMToken{tok}, nil, nil
 	}
 
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())
-			return nil, nil
+			return nil, nil, nil
 		}
 
 		teams, err := svc.ds.TeamsSummary(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		teamsByName := map[string]*uint{"": nil, "No team": nil}
 		for _, tm := range teams {
@@ -1992,7 +2734,7 @@ func (svc *Service) validateABMAssignments(
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		tokensByName := map[string]*fleet.ABMToken{}
 		for _, token := range tokens {
@@ -2004,34 +2746,50 @@ func (svc *Service) validateABMAssignments(
 			token.MacOSDefaultTeamID = nil
 			token.IOSDefaultTeamID = nil
 			token.IPadOSDefaultTeamID = nil
+			token.BYODDefaultTeamID = nil
 			tokensByName[token.OrganizationName] = token
 		}
 
-		var tokensToSave []*fleet.ABMToken
 		for _, bm := range mdm.AppleBusinessManager.Value {
-			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
-				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
-					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
-					return nil, nil
+			// look up with the same normalized names throughout: a check that
+			// normalizes paired with a fetch that doesn't panics on names whose
+			// Unicode form differs between the request and the database
+			orgName := norm.NFC.String(bm.OrganizationName)
+
+			if bm.Default {
+				if defaultTokenID != nil {
+					invalid.Append("mdm.apple_business", "only one Apple Business (AB) token can be the default")
+					return nil, nil, nil
+				}
+				if tok, ok := tokensByName[orgName]; ok {
+					defaultTokenID = &tok.ID
 				}
 			}
 
-			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
-				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
-				return nil, nil
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+					invalid.Appendf("mdm.apple_business", "team %s doesn't exist", tmName)
+					return nil, nil, nil
+				}
 			}
 
-			tok := tokensByName[bm.OrganizationName]
-			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
-			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
-			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			if _, ok := tokensByName[orgName]; !ok {
+				invalid.Appendf("mdm.apple_business", "token with organization name %s doesn't exist", bm.OrganizationName)
+				return nil, nil, nil
+			}
+
+			tok := tokensByName[orgName]
+			tok.MacOSDefaultTeamID = teamsByName[norm.NFC.String(bm.MacOSTeam)]
+			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
+			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
+			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
 			tokensToSave = append(tokensToSave, tok)
 		}
 
-		return tokensToSave, nil
+		return tokensToSave, defaultTokenID, nil
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 func (svc *Service) validateVPPAssignments(
@@ -2119,7 +2877,13 @@ func (svc *Service) validateVPPAssignments(
 // If this is a GitOps run (overwrite=true), all required fields must be present.
 // Otherwise we're doing a patch, so it's ok for fields to be missing as long
 // as we have persisted values for them.
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+func validateSSOProviderSettings(incoming *fleet.SSOProviderSettings, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+	// trim whitespace from the incoming values so that we don't persist them with leading/trailing whitespace
+	incoming.Metadata = strings.TrimSpace(incoming.Metadata)
+	incoming.MetadataURL = strings.TrimSpace(incoming.MetadataURL)
+	incoming.EntityID = strings.TrimSpace(incoming.EntityID)
+	incoming.IDPName = strings.TrimSpace(incoming.IDPName)
+
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
 		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
@@ -2152,7 +2916,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
+		validateSSOProviderSettings(&p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
@@ -2241,8 +3005,8 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	}
 
 	for _, s := range spec.Secrets {
-		if s.Secret == "" {
-			return ctxerr.New(ctx, "enroll secret must not be empty")
+		if s == nil || strings.TrimSpace(s.Secret) == "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"))
 		}
 	}
 
@@ -2555,4 +3319,8 @@ func isValidHostname(h string) bool {
 	}
 
 	return true
+}
+
+func (svc *Service) MaxInstallerSizeBytes() int64 {
+	return svc.config.Server.MaxInstallerSizeBytes
 }

@@ -109,10 +109,12 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.LabelsIncludeAll,
 	)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			err = fleet.NewGatewayTimeoutError("Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			err = fleet.NewGatewayTimeoutError(fleet.AddMaintainedAppTimeoutErrMsg, err)
+		case errors.Is(err, context.Canceled):
+			err = fleet.NewGatewayTimeoutError(fleet.AddMaintainedAppCanceledErrMsg, err)
 		}
-
 		return &addFleetMaintainedAppResponse{Err: err}, nil
 	}
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
@@ -129,10 +131,17 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, 
 type listFleetMaintainedAppsRequest struct {
 	fleet.ListOptions
 	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	// Platform optionally filters to apps available on the given platform
+	// ("darwin" or "windows").
+	Platform string `query:"platform,optional"`
+	// AvailableOnly, when true, returns only apps not yet added to the team
+	// (the "Hide added apps" filter).
+	AvailableOnly bool `query:"available,optional"`
 }
 
 type listFleetMaintainedAppsResponse struct {
 	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
+	Count               int                       `json:"count"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
 }
@@ -142,7 +151,13 @@ func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
 func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
 
-	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
+	opts := fleet.MaintainedAppListOptions{
+		ListOptions:   req.ListOptions,
+		Platform:      req.Platform,
+		AvailableOnly: req.AvailableOnly,
+	}
+
+	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, opts)
 	if err != nil {
 		return listFleetMaintainedAppsResponse{Err: err}, nil
 	}
@@ -151,11 +166,14 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 		FleetMaintainedApps: apps,
 		Meta:                meta,
 	}
+	if meta != nil {
+		listResp.Count = int(meta.TotalResults) //nolint:gosec // dismiss G115
+	}
 
 	return listResp, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

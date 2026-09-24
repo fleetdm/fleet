@@ -1,22 +1,21 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
 import { useQueryClient } from "react-query";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-import paths from "router/paths";
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import PageDescription from "components/PageDescription";
 import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { getPathWithQueryParams } from "utilities/url";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import paths from "router/paths";
+import configAPI from "services/entities/config";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
@@ -79,7 +78,6 @@ const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
 const baseClass = "calendars-integration";
 
 const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { currentTeam, isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -157,7 +155,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
 
   if (!isPremiumTier)
     return (
-      <SettingsSection title="Calendars">
+      <SettingsSection title="Calendar events">
         <PremiumFeatureMessage />
       </SettingsSection>
     );
@@ -204,13 +202,12 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
 
     try {
       await configAPI.update({ integrations: destination });
-      renderFlash(
-        "success",
-        "Successfully saved calendar integration settings."
-      );
+      notify.success("Successfully saved calendar integration settings.");
       await queryClient.invalidateQueries(["config"]);
     } catch (e) {
-      renderFlash("error", "Could not save calendar integration settings.");
+      notify.error("Could not save calendar integration settings.", {
+        response: e,
+      });
     } finally {
       setIsUpdatingSettings(false);
     }
@@ -445,7 +442,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Calendars" className={baseClass}>
+    <SettingsSection title="Calendar events" className={baseClass}>
       <PageDescription
         content={
           <>

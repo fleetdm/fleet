@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.12.1.1857",
+      "version": "1.13.1.1884",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Viscosity %' AND publisher = 'SparkLabs Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Viscosity %' AND publisher = 'SparkLabs Pty Ltd' AND version_compare(version, '1.12.1.1857') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Viscosity %' AND publisher = 'SparkLabs Pty Ltd' AND version_compare(version, '1.13.1.1884') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'viscosity.exe');"
       },
-      "installer_url": "https://swupdate.sparklabs.com/download/win/release/viscosity/Viscosity%20Installer%201.12.1.exe",
+      "installer_url": "https://swupdate.sparklabs.com/download/win/release/viscosity/Viscosity%20Installer%201.13.1.exe",
       "install_script_ref": "d37a65b5",
       "uninstall_script_ref": "175dc844",
-      "sha256": "3b24196980a6d2675b80e447c3368475b709914d42861e1c8aba4adf4e469138",
+      "sha256": "f90e51baa63819bec1efdfc83814adfa80d3c80c780fa25e9a47c2a806d84f44",
       "default_categories": [
         "Productivity"
       ]

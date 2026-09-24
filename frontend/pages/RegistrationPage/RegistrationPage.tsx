@@ -1,29 +1,23 @@
+import { max } from "lodash";
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import { max } from "lodash";
-
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import usersAPI from "services/entities/users";
-import logoAPI from "services/entities/logo";
-import authToken from "utilities/auth_token";
-
-import FlashMessage from "components/FlashMessage";
-import { INotification } from "interfaces/notification";
-import type { IRegistrationFormData } from "interfaces/registration_form_data";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import RegistrationForm from "components/forms/RegistrationForm";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import paths from "router/paths";
+import logoAPI from "services/entities/logo";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+
 // @ts-ignore
 import Breadcrumbs from "./Breadcrumbs";
 
-const ERROR_NOTIFICATION: INotification = {
-  alertType: "error",
-  isVisible: true,
-  message:
-    "We were unable to configure Fleet. If your Fleet server is behind a proxy, please ensure the server can be reached.",
-};
+const SETUP_ERROR_MESSAGE =
+  "We were unable to configure Fleet. If your Fleet server is behind a proxy, please ensure the server can be reached.";
 
 interface IRegistrationPageProps {
   router: InjectedRouter;
@@ -40,7 +34,6 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   } = useContext(AppContext);
   const [page, setPage] = useState(1);
   const [pageProgress, setPageProgress] = useState(1);
-  const [showSetupError, setShowSetupError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -83,7 +76,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       setIsLoading(false);
       setPage(1);
       setPageProgress(1);
-      setShowSetupError(true);
+      notify.error(SETUP_ERROR_MESSAGE, { response: error });
     }
   };
 
@@ -121,14 +114,6 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
         onSubmit={onRegistrationFormSubmit}
         isLoading={isLoading}
       />
-      {showSetupError && (
-        <FlashMessage
-          className={`${baseClass}__flash-message`}
-          fullWidth={false}
-          notification={ERROR_NOTIFICATION}
-          onRemoveFlash={() => setShowSetupError(false)}
-        />
-      )}
     </AuthenticationFormWrapper>
   );
 };

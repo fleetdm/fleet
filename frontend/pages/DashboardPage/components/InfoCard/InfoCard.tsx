@@ -1,11 +1,10 @@
+import classnames from "classnames";
 import React, { useState, useEffect } from "react";
 import { browserHistory } from "react-router";
 
-import Card from "components/Card";
-import Button from "components/buttons/Button";
 import AutomationsButton from "components/buttons/AutomationsButton";
-import Icon from "components/Icon";
-import classnames from "classnames";
+import Button from "components/buttons/Button";
+import Card from "components/Card";
 
 interface IInfoCardProps {
   title: string;
@@ -78,7 +77,7 @@ const useInfoCard = ({
         return (
           <Button
             className={`${baseClass}__action-button`}
-            variant="inverse"
+            variant="secondary"
             size="small"
             onClick={action.onClick}
           >
@@ -99,7 +98,7 @@ const useInfoCard = ({
 
         return (
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onClick}
             className={`${baseClass}__action-button`}
             size="small"
@@ -107,7 +106,6 @@ const useInfoCard = ({
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
             </span>
-            <Icon name="arrow-internal-link" color="ui-fleet-black-75" />
           </Button>
         );
       }
@@ -130,7 +128,7 @@ const useInfoCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card className={classNames} paddingSize="xlarge" borderRadiusSize="large">
+    <Card className={classNames} paddingSize="xlarge">
       {showTitle && (
         <div>
           <div className={`${baseClass}__section-title-cta`}>

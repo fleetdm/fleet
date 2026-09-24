@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "workspace": "472loadtest",
+    "collected_at": "2025-08-09T00:00:00Z",
+    "interval": "1h",
+    "release": "4.72.0",
+    "category": "baseline",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 33
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 76.2,
+      "Maximum": 79.0
+    },
+    "memory_utilization": {
+      "Average": 7.8
+    },
+    "task_counts": {
+      "runningCount": 30
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 70.0
+    },
+    "memory_utilization": {
+      "Average": 8.3
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 30.0
+    },
+    "write_iops": {
+      "Average": 2700.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 8.0,
+      "maximum": 17.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 30.0
+      },
+      "read_iops": {
+        "Average": 1.0,
+        "Maximum": 11.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 6.0,
+        "maximum": 11.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.1,
+        "Maximum": 2.6
+      },
+      "memory_utilization": {
+        "Average": 0.29
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": null
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Release/baseline",
+    "one_click": null,
+    "notes": "Higher CPU usage on the server during the first 6 hours afte\u2026",
+    "raw": {
+      "full_day": "yes",
+      "fleet_containers": "30",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~76.2% with a 78-79% first 6 hours",
+      "fleet_mem": "~7.8%",
+      "errors": "{\"component\":\"service\",\"err\":\"invalid source \",\"level\":\"erro\u2026",
+      "writer_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "writer_cpu": "~30%",
+      "writer_sessions": "3-17 avg 8",
+      "writer_iops": "~2700",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~30%",
+      "reader_sessions": "2-11 avg ~6",
+      "reader_iops": "max 11 otherwise 1",
+      "redis_cpu": "1.6-2.6%",
+      "redis_mem": "0.29%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "70%",
+      "osquery_mem": "8.30%",
+      "deadlocks": "~1 peak at 30"
+    }
+  }
+}

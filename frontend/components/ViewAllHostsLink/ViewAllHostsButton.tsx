@@ -1,10 +1,10 @@
-import React from "react";
-import PATHS from "router/paths";
-import { browserHistory } from "react-router";
 import classnames from "classnames";
+import React from "react";
+import { browserHistory } from "react-router";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import PATHS from "router/paths";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 interface IHostLinkProps {
@@ -62,7 +62,7 @@ const ViewAllHostsButton = ({
     <Button
       className={viewAllHostsButtonClass}
       onClick={onClick}
-      variant="inverse"
+      variant="subdued"
       size="small"
     >
       {!condensed && (
@@ -77,6 +77,7 @@ const ViewAllHostsButton = ({
           name="chevron-right"
           className={`${baseClass}__icon`}
           color="ui-fleet-black-75"
+          size="small"
         />
       )}
     </Button>

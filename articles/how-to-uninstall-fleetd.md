@@ -18,7 +18,7 @@ To remove fleetd from a Mac:
 
 To remove fleetd from a Windows device:
 
-1. Download the [Windows uninstall script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1).
+1. Download the [Windows uninstall script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1). This script turns off MDM and uninstalls fleetd.
 2. Open **PowerShell** as administrator (right-click and select **Run as administrator**).
 3. Navigate to where you saved the script: `cd C:\path\to\your\script`
 4. Run the script: `.\uninstall-fleetd-windows.ps1`
@@ -41,7 +41,7 @@ To remove fleetd from a Linux device:
 
 To remove fleetd from a device through Fleet:
 
-1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh) to Fleet as a script.
+1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh) to Fleet as a script.
 2. Go to the device's **Host details** page.
 3. Select **Actions > Run script** and choose the uninstall script.
 

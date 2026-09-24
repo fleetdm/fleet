@@ -197,6 +197,7 @@ currently in use by macOS CIS policies.
 
 | Table | Key columns | Required constraints | Notes |
 |-------|-------------|----------------------|-------|
+| `apfs_volumes` | `role`, `filevault`, `encryption`, `device_identifier`, `name`, `container_designated_physical_store` | — | Populated from `diskutil apfs list -plist`. Has **no internal/external indicator**, so queries evaluate all non-role volumes (exclude `role` in VM/Update/Recovery/Preboot/xART/Hardware). Used by 5.3.1. Adding an internal/external column is tracked separately. |
 | `authdb` | `right_name`, `json_result` | `right_name` must be equality-constrained | `json_result` is a JSON blob — use `json_extract(json_result, '$.rule')` to inspect rules. |
 | `csrutil_info` | `ssv_enabled` | — | Integer 0/1. |
 | `dscl` | `command`, `path`, `key`, `value` | `command`, `path`, `key` required; `value` is output only; currently only `command = 'read'` supported | Reads Directory Service records. |
@@ -218,6 +219,12 @@ empty results and the query silently fails (0 rows). Ensure a
 non-root console user is logged in before evaluating any policy
 that depends on these tables. Current affected policies:
 `5.2.1`, `5.2.2`, `5.2.7`, `5.2.8`, `2.12.1`, `2.6.1.1`.
+
+`2.7.1` also requires a logged-in non-root console user, by a
+different mechanism: its query is scoped to the *current* console
+user's Dock plist via `logged_in_users` (`tty = 'console'`), so with
+no console user the fail case cannot be exercised (the query
+trivially passes).
 
 ## Test artifacts
 
@@ -307,15 +314,29 @@ or can't be easily scripted:
 These idioms come up repeatedly and are worth reusing verbatim.
 
 **Console user** — needed when setting or reading a per-user
-preference from within a system-level script:
+preference from within a system-level script. Write the user's plist
+by path as root rather than `sudo -u "$user" defaults write <domain>`:
+when a script runs through Fleet's script execution (a root
+LaunchDaemon with no user session) the per-user cfprefsd is
+unreachable and the domain write fails with "Could not write domain"
+on some macOS versions (seen on 14.6 and 26.5; 15.6 happens to work).
+`launchctl asuser` is not a fix either — it writes only cfprefsd's
+cache, never the file. osquery's `plist` table reads the on-disk
+file, so the path write is what matters; restart the user's cfprefsd
+afterwards so its stale cache cannot clobber it.
 ```bash
 user=$(/usr/bin/stat -f "%Su" /dev/console)
 if [ -n "$user" ] && [ "$user" != "root" ]; then
-  /usr/bin/sudo -u "$user" /usr/bin/defaults write <domain> <key> ...
+  plist="/Users/$user/Library/Preferences/<domain>.plist"
+  /usr/bin/sudo /usr/bin/defaults write "$plist" <key> ...
+  /usr/bin/sudo /usr/sbin/chown "$user:$(/usr/bin/id -gn "$user")" "$plist"
+  /usr/bin/sudo /usr/bin/killall -u "$user" cfprefsd 2>/dev/null || true
 fi
 ```
 On a headless test VM without a logged-in console user, the value
-is `root` — the script should no-op rather than fail.
+is `root` — the script should no-op rather than fail. Older scripts
+that still use `sudo -u "$user" defaults write <domain>` work from the
+SSH-based test runner but not from Fleet's script execution.
 
 **Iterate `/Users/*`** — for per-user settings that must be applied
 to every local account. Skip `Shared`, `Guest`, and dot-prefixed

@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -15,7 +16,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 // initOTELProviders constructs the OpenTelemetry trace, metric, and (when log export is enabled) log providers. Returns nil
@@ -36,12 +37,16 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	}
 
 	// Create shared resource with service identification attributes. OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars
-	// can override the defaults below.
+	// can override the defaults below. resource.WithFromEnv() runs after WithAttributes, so env-provided values win on conflict.
+	// We always emit a deployment.environment so the attribute key exists in every SigNoz instance Fleet reports to. This lets
+	// dashboards use a dynamic environment selector.
 	res, err := resource.New(context.Background(),
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithAttributes(
 			semconv.ServiceName("fleet"),
 			semconv.ServiceVersion(version.Version().Version),
+			semconv.DeploymentEnvironmentNameKey.String("default"),
+			attribute.String("deployment.environment", "default"), // 2026-06-14: deprecated attribute still used by SigNoz
 		),
 		resource.WithFromEnv(),
 		resource.WithTelemetrySDK(),

@@ -1,0 +1,10 @@
+{
+  "name": "Fluid",
+  "unique_identifier": "com.fluidapp.Fluid2",
+  "token": "fluid",
+  "installer_format": "zip",
+  "slug": "fluid/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

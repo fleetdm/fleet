@@ -1,0 +1,10 @@
+{
+  "name": "Mixxx",
+  "unique_identifier": "org.mixxx.mixxx",
+  "token": "mixxx",
+  "installer_format": "dmg",
+  "slug": "mixxx/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

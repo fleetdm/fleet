@@ -1,8 +1,9 @@
-import { QueryParams } from "utilities/url";
-import { Row } from "react-table";
 import { flatMap } from "lodash";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { Row } from "react-table";
+
+import { IconNames } from "components/icons";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
@@ -10,7 +11,8 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { IconNames } from "components/icons";
+import { QueryParams } from "utilities/url";
+
 import {
   getLastInstall,
   getLastUninstall,
@@ -202,7 +204,12 @@ export const getUiStatus = (
   software: IHostSoftware,
   isHostOnline: boolean,
   hostSoftwareUpdatedAt?: string | null,
-  recentlyUpdatedIds?: Set<number>
+  recentlyUpdatedIds?: Set<number>,
+  // Self-service (end-user My device view) omits the "Patch skipped" state
+  // because patch policies are an admin concept, and the end user can already
+  // retry the install directly. Callers there pass true so a skip collapses
+  // back into the ordinary failed_install family.
+  suppressSkippedInstall = false
 ): IHostSoftwareUiStatus => {
   const { status, installed_versions, source } = software;
 
@@ -220,8 +227,11 @@ export const getUiStatus = (
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
-  // 0. Script Packages states
-  if (isScriptPackage) {
+  // 0. Script Packages states — only when there's no uninstall script.
+  // Script packages with an uninstall script fall through to the regular
+  // install statuses so the UI shows Install/Reinstall/Uninstall/Installed
+  // instead of Run/Rerun/Ran.
+  if (isScriptPackage && !software.software_package?.has_uninstall_script) {
     if (status === "failed_install") {
       return "failed_script";
     }
@@ -238,8 +248,22 @@ export const getUiStatus = (
   }
 
   // 1. Failed install states
+  // Require length > 0: empty array is truthy, so `installed_versions: []`
+  // would otherwise render "Installed" for a package that was never installed
+  // (matters for script packages, which never populate installed_versions).
   if (status === "failed_install") {
-    if (installerVersion && installed_versions) {
+    // A patch-when-closed skip is stored as failed_install; surface it as its
+    // own status instead of "Failed" (matches the policy status page). The
+    // Self-service view opts out via suppressSkippedInstall so an end user
+    // never sees the admin-oriented "Patch skipped" label.
+    if (software.skipped_install && !suppressSkippedInstall) {
+      return "skipped_install";
+    }
+    if (
+      installerVersion &&
+      installed_versions &&
+      installed_versions.length > 0
+    ) {
       if (
         installed_versions.some(
           (iv) => compareVersions(iv.version, installerVersion) === -1
@@ -256,7 +280,11 @@ export const getUiStatus = (
 
   // 2. Failed uninstall states
   if (status === "failed_uninstall") {
-    if (installerVersion && installed_versions) {
+    if (
+      installerVersion &&
+      installed_versions &&
+      installed_versions.length > 0
+    ) {
       if (
         installed_versions.some(
           (iv) => compareVersions(iv.version, installerVersion) === -1
@@ -400,10 +428,14 @@ export const getInstallerActionButtonConfig = (
       case "recently_installed":
       case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
+      // skipped_install joins the update family: a patch-when-closed skip is
+      // a deferred update, so the action button reads "Update" even though the
+      // label column says "Patch skipped".
       case "pending_update":
       case "updating":
       case "update_available":
       case "failed_uninstall_update_available":
+      case "skipped_install":
         return { text: "Update", icon: "refresh" };
       default:
         return { text: "Install", icon: "install" };
@@ -429,6 +461,7 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_uninstall", // Failed uninstall
   "failed_install_update_available", // (Shows "Update available") Failed install with update available
   "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
+  "skipped_install", // Patch skipped (deferred update)
   "update_available", // // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)
@@ -488,7 +521,7 @@ export const getSoftwareSubheader = ({
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
-    if (hostMdmEnrollmentStatus === "On (personal)") {
+    if (hostMdmEnrollmentStatus === "On (manual - personal)") {
       return isMyDevicePage
         ? "Software installed on your work profile (Managed Apple Account)."
         : "Software installed on work profile (Managed Apple Account).";

@@ -1,16 +1,15 @@
 import React, { useState } from "react";
 
-import { IWebhookActivities } from "interfaces/webhook";
-
-import Modal from "components/Modal";
-import validURL from "components/forms/validators/valid_url";
-import Slider from "components/forms/fields/Slider";
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
-
-import { syntaxHighlight } from "utilities/helpers";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import validURL from "components/forms/validators/valid_url";
+import Modal from "components/Modal";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IWebhookActivities } from "interfaces/webhook";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "activity-feed-automations-modal";
 
@@ -43,6 +42,8 @@ const ActivityFeedAutomationsModal = ({
     {}
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
+
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const validateForm = (newFormData: IAFAMFormData) => {
     const errors: Record<string, string> = {};
@@ -143,6 +144,7 @@ const ActivityFeedAutomationsModal = ({
           onChange={onFeatureEnabledChange}
           inactiveText="Disabled"
           activeText="Enabled"
+          disabled={gitOpsModeEnabled}
         />
         <div
           className={`form ${formData.enabled ? "" : "form-fields--disabled"}`}
@@ -155,21 +157,20 @@ const ActivityFeedAutomationsModal = ({
             value={formData.url}
             error={formErrors.url}
             helpText="Fleet will send a JSON payload to this URL whenever a new activity is generated."
-            disabled={!formData.enabled}
+            disabled={!formData.enabled || gitOpsModeEnabled}
           />
-          <RevealButton
-            isShowing={showExamplePayload}
-            className={`${baseClass}__show-example-payload-toggle`}
-            hideText="Hide example payload"
-            showText="Show example payload"
-            caretPosition="after"
-            onClick={() => {
-              setShowExamplePayload(!showExamplePayload);
-            }}
-            disabled={!formData.enabled}
-          />
-          {showExamplePayload && renderExamplePayload()}
         </div>
+        <RevealButton
+          isShowing={showExamplePayload}
+          className={`${baseClass}__show-example-payload-toggle`}
+          hideText="Example payload"
+          showText="Example payload"
+          caretPosition="after"
+          onClick={() => {
+            setShowExamplePayload(!showExamplePayload);
+          }}
+        />
+        {showExamplePayload && renderExamplePayload()}
         <div className="modal-cta-wrap">
           <Button
             type="submit"
@@ -180,7 +181,7 @@ const ActivityFeedAutomationsModal = ({
           >
             Save
           </Button>
-          <Button onClick={onExit} variant="inverse">
+          <Button onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

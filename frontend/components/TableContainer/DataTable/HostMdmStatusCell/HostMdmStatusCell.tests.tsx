@@ -1,8 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+
 import HostMdmStatusCell from "./HostMdmStatusCell";
 
 const renderCell = (platform: string, value?: MdmEnrollmentStatus) => {
@@ -33,9 +34,9 @@ describe("HostMdmStatusCell", () => {
     expect(screen.getByText("On (company-owned)")).toBeInTheDocument();
   });
 
-  it("renders 'On (personal)' for iOS hosts with personal enrollment", () => {
-    renderCell("ios", "On (personal)");
-    expect(screen.getByText("On (personal)")).toBeInTheDocument();
+  it("renders 'On (manual - personal)' for iOS hosts with personal enrollment", () => {
+    renderCell("ios", "On (manual - personal)");
+    expect(screen.getByText("On (manual - personal)")).toBeInTheDocument();
   });
 
   it("renders 'Pending' for macOS hosts with pending enrollment", () => {
@@ -44,8 +45,8 @@ describe("HostMdmStatusCell", () => {
   });
 
   it("renders the MDM status for Android hosts", () => {
-    renderCell("android", "On (personal)");
-    expect(screen.getByText("On (personal)")).toBeInTheDocument();
+    renderCell("android", "On (manual - personal)");
+    expect(screen.getByText("On (manual - personal)")).toBeInTheDocument();
   });
 
   it("renders the MDM status for Windows hosts", () => {

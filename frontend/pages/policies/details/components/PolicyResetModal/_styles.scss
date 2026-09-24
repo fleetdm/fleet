@@ -1,0 +1,15 @@
+.policy-reset-modal {
+  .modal-cta-wrap {
+    margin-top: 0;
+  }
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    .textarea-wrapper {
+      gap: 0;
+    }
+  }
+}

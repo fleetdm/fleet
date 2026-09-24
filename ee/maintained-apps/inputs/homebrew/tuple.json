@@ -1,0 +1,10 @@
+{
+  "name": "Tuple",
+  "unique_identifier": "app.tuple.app",
+  "token": "tuple",
+  "installer_format": "zip",
+  "slug": "tuple/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

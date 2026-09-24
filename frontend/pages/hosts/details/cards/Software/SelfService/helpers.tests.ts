@@ -1,15 +1,17 @@
+import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
+import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import {
   IDeviceSoftwareWithUiStatus,
   SoftwareCategory,
 } from "interfaces/software";
-import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
-import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { createMockSelfServiceCategory } from "test/handlers/self-service-categories-handlers";
 
 import {
   countUninstalledForInstallAll,
   hasInProgressInstallAllItems,
+  filterCategoriesWithSoftware,
   filterSoftwareByCustomCategory,
+  filterSoftwareByQuery,
 } from "./helpers";
 
 const makeItem = (
@@ -128,20 +130,29 @@ describe("hasInProgressInstallAllItems", () => {
     ).toBe(true);
   });
 
-  it("returns true for pending statuses (offline-host scheduled)", () => {
+  it("returns true for install/script in-flight statuses", () => {
+    expect(hasInProgressInstallAllItems([makeItem("installing")])).toBe(true);
+    expect(hasInProgressInstallAllItems([makeItem("running_script")])).toBe(
+      true
+    );
     expect(hasInProgressInstallAllItems([makeItem("pending_install")])).toBe(
       true
     );
-    expect(hasInProgressInstallAllItems([makeItem("pending_uninstall")])).toBe(
+    expect(hasInProgressInstallAllItems([makeItem("pending_script")])).toBe(
       true
     );
   });
 
-  it("returns true for uninstalling / updating / running_script", () => {
-    expect(hasInProgressInstallAllItems([makeItem("uninstalling")])).toBe(true);
-    expect(hasInProgressInstallAllItems([makeItem("updating")])).toBe(true);
-    expect(hasInProgressInstallAllItems([makeItem("running_script")])).toBe(
-      true
+  it("returns false for update/uninstall in-flight statuses (not install_all operations)", () => {
+    expect(hasInProgressInstallAllItems([makeItem("updating")])).toBe(false);
+    expect(hasInProgressInstallAllItems([makeItem("uninstalling")])).toBe(
+      false
+    );
+    expect(hasInProgressInstallAllItems([makeItem("pending_update")])).toBe(
+      false
+    );
+    expect(hasInProgressInstallAllItems([makeItem("pending_uninstall")])).toBe(
+      false
     );
   });
 
@@ -248,5 +259,129 @@ describe("filterSoftwareByCustomCategory", () => {
     expect(filterSoftwareByCustomCategory([security], categories, 1)).toEqual(
       []
     );
+  });
+});
+
+describe("filterSoftwareByQuery", () => {
+  const chrome = makeItem("uninstalled", { name: "Google Chrome" });
+  const firefox = makeItem("uninstalled", { name: "Firefox" });
+  const zoom = makeItem("uninstalled", { name: "Zoom" });
+
+  it("returns the input unchanged when the query is undefined or empty", () => {
+    expect(filterSoftwareByQuery([chrome, firefox], undefined)).toEqual([
+      chrome,
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox], "")).toEqual([
+      chrome,
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox], "   ")).toEqual([
+      chrome,
+      firefox,
+    ]);
+  });
+
+  it("matches case-insensitively on name (substring)", () => {
+    expect(filterSoftwareByQuery([chrome, firefox, zoom], "fox")).toEqual([
+      firefox,
+    ]);
+    expect(filterSoftwareByQuery([chrome, firefox, zoom], "OOM")).toEqual([
+      zoom,
+    ]);
+  });
+
+  it("matches on bundle_identifier when name doesn't contain the query", () => {
+    const cisco = makeItem("uninstalled", {
+      name: "acme-secure-client",
+      bundle_identifier: "com.cisco.secureclient.vpn.service",
+    });
+    expect(filterSoftwareByQuery([chrome, cisco], "cisco")).toEqual([cisco]);
+  });
+
+  it("matches on custom display_name when name and bundle don't contain the query", () => {
+    const cisco = makeItem("uninstalled", {
+      name: "acme-secure-client",
+      bundle_identifier: "com.zeta.vpn.service",
+      display_name: "Cisco Secure Client",
+    });
+    expect(filterSoftwareByQuery([chrome, cisco], "cisco")).toEqual([cisco]);
+  });
+
+  it("returns [] when nothing matches", () => {
+    expect(filterSoftwareByQuery([chrome, firefox], "safari")).toEqual([]);
+  });
+});
+
+describe("filterCategoriesWithSoftware", () => {
+  const browsersPackage = createMockHostSoftwarePackage({
+    categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+  });
+  const securityPackage = createMockHostSoftwarePackage({
+    categories: (["🔐 Security"] as string[]) as SoftwareCategory[],
+  });
+  const browser = makeItem("uninstalled", {
+    name: "browser",
+    software_package: browsersPackage,
+  });
+  const security = makeItem("uninstalled", {
+    name: "security",
+    software_package: securityPackage,
+  });
+
+  const browsers = createMockSelfServiceCategory({
+    id: 1,
+    name: "🌎 Browsers",
+  });
+  const securityCat = createMockSelfServiceCategory({
+    id: 2,
+    name: "🔐 Security",
+  });
+  const devTools = createMockSelfServiceCategory({
+    id: 3,
+    name: "🧰 Developer tools",
+  });
+
+  it("keeps only categories that have at least one software item", () => {
+    expect(
+      filterCategoriesWithSoftware(
+        [browsers, securityCat, devTools],
+        [browser, security]
+      )
+    ).toEqual([browsers, securityCat]);
+  });
+
+  it("drops every category when there is no software", () => {
+    expect(
+      filterCategoriesWithSoftware([browsers, securityCat, devTools], [])
+    ).toEqual([]);
+  });
+
+  it("returns [] when there are no categories", () => {
+    expect(filterCategoriesWithSoftware([], [browser, security])).toEqual([]);
+  });
+
+  it("matches case-insensitively", () => {
+    const lowerBrowsers = createMockSelfServiceCategory({
+      id: 1,
+      name: "🌎 browsers",
+    });
+    expect(filterCategoriesWithSoftware([lowerBrowsers], [browser])).toEqual([
+      lowerBrowsers,
+    ]);
+  });
+
+  it("considers categories on app_store_app as well as software_package", () => {
+    const vppApp = makeItem("uninstalled", {
+      name: "vpp-app",
+      software_package: null,
+      app_store_app: {
+        ...createMockHostSoftwarePackage(),
+        categories: ["🌎 Browsers"],
+      } as never,
+    });
+    expect(filterCategoriesWithSoftware([browsers], [vppApp])).toEqual([
+      browsers,
+    ]);
   });
 });

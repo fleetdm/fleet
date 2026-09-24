@@ -1,11 +1,9 @@
-import sendRequest from "services";
-
-import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
-
 // TODO - move disk encryption types like this to dedicated file
 import { DiskEncryptionStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IDiskEncryptionStatusAggregate {
   macos: number;
@@ -18,6 +16,22 @@ export type IDiskEncryptionSummaryResponse = Record<
   IDiskEncryptionStatusAggregate
 >;
 
+/** Absent keys are left unchanged by the server, so callers send only the
+ * platform being saved. */
+export interface IUpdateDiskEncryptionFormData {
+  macos_settings?: {
+    enable_disk_encryption: boolean;
+    enable_escrow_disk_encryption_key: boolean;
+  };
+  windows_settings?: {
+    enable_disk_encryption: boolean;
+    require_bitlocker_pin: boolean;
+  };
+  linux_settings?: {
+    enable_escrow_disk_encryption_key: boolean;
+  };
+}
+
 const diskEncryptionService = {
   getDiskEncryptionSummary: (teamId?: number) => {
     let { DISK_ENCRYPTION: path } = endpoints;
@@ -28,29 +42,13 @@ const diskEncryptionService = {
     return sendRequest("GET", path);
   },
   updateDiskEncryption: (
-    enableDiskEncryption: boolean,
-    requireBitLockerPIN: boolean,
+    formData: IUpdateDiskEncryptionFormData,
     teamId?: number
   ) => {
-    // TODO - use same endpoint for both once issue with new endpoint for no team is resolved
-    const {
-      UPDATE_DISK_ENCRYPTION: teamsEndpoint,
-      CONFIG: noTeamsEndpoint,
-    } = endpoints;
-    if (teamId === 0) {
-      return sendRequest("PATCH", noTeamsEndpoint, {
-        mdm: {
-          enable_disk_encryption: enableDiskEncryption,
-          windows_require_bitlocker_pin: requireBitLockerPIN,
-        },
-      });
-    }
-    return sendRequest("POST", teamsEndpoint, {
-      enable_disk_encryption: enableDiskEncryption,
-      windows_require_bitlocker_pin: requireBitLockerPIN,
-      // TODO - it would be good to be able to use an API_CONTEXT_NO_TEAM_ID here, but that is
-      // currently set to 0, which should actually be undefined since the server expects teamId ==
-      // nil for no teams, not 0.
+    const { UPDATE_DISK_ENCRYPTION } = endpoints;
+    return sendRequest("POST", UPDATE_DISK_ENCRYPTION, {
+      ...formData,
+      // the server expects fleet_id to be omitted for "No fleet", not 0
       fleet_id: teamId === APP_CONTEXT_NO_TEAM_ID ? undefined : teamId,
     });
   },
@@ -60,6 +58,10 @@ const diskEncryptionService = {
       "POST",
       DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW(token)
     );
+  },
+  submitBitLockerPIN: (token: string, pin: string) => {
+    const { DEVICE_DISK_ENCRYPTION_PIN } = endpoints;
+    return sendRequest("POST", DEVICE_DISK_ENCRYPTION_PIN(token), { pin });
   },
 };
 

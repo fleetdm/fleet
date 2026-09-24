@@ -1,6 +1,7 @@
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
+
 import { IDerivedContext } from "./derivations";
 
 const buildCommandsItems = (
@@ -34,14 +35,14 @@ const buildCommandsItems = (
   } = derived;
 
   return [
-    // Create new pack — companion to the "Packs" page in pages.ts. Shares
+    // Add new pack — companion to the "Packs" page in pages.ts. Shares
     // the same search-regex condition. Kept here so the Commands group
     // stays self-contained.
     ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
       ? [
           {
             id: "new-pack",
-            label: "Create new pack",
+            label: "Add new pack",
             group: "Commands" as const,
             path: paths.NEW_PACK,
             keywords: ["packs", "add new pack", "create new pack"],
@@ -291,6 +292,8 @@ const buildCommandsItems = (
                     "tar.gz",
                     "tarballs",
                     "sh",
+                    "py",
+                    "python",
                   ],
                 },
                 {
@@ -470,14 +473,14 @@ const buildCommandsItems = (
                     "create user",
                   ],
                 },
-                // Create fleet — Premium-only, hidden in Primo Mode, and
+                // Add fleet — Premium-only, hidden in Primo Mode, and
                 // hidden in GitOps Mode (ManageFleetsPage disables the
                 // primary action in all three states).
                 ...(isPremiumTier && !isPrimoMode && !isGitOpsMode
                   ? [
                       {
                         id: "create-fleet",
-                        label: "Create fleet",
+                        label: "Add fleet",
                         group: "Commands" as const,
                         path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
                         keywords: [

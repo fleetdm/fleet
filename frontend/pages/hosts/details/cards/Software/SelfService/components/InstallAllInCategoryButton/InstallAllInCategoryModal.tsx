@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "install-all-in-category-modal";
 
@@ -34,7 +34,7 @@ const InstallAllInCategoryModal = ({
           <Button onClick={onConfirm} isLoading={isSubmitting}>
             Install all
           </Button>
-          <Button variant="inverse" onClick={onExit} disabled={isSubmitting}>
+          <Button variant="secondary" onClick={onExit} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>

@@ -1,8 +1,6 @@
 .sql-editor {
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    @include form-label;
 
     &--error {
       color: $core-vibrant-red;
@@ -23,16 +21,6 @@
         align-items: center;
         gap: $pad-xsmall;
         flex: 0 0 auto;
-      }
-
-      .sql-editor__copy-wrapper {
-        display: flex;
-        align-items: center;
-        gap: $pad-xxsmall;
-      }
-
-      .sql-editor__copied-confirmation {
-        @include copy-message;
       }
 
       button {

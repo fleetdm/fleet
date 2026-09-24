@@ -1,4 +1,4 @@
-- name: macOS - Remote Login (SSH) disabled
+- name: Remote Login (SSH) disabled
   query: SELECT 1 FROM sharing_preferences WHERE CAST(remote_login AS INTEGER) = 0;
   critical: false
   description: |-

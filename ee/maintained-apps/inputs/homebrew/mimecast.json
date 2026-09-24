@@ -1,0 +1,10 @@
+{
+  "name": "Mimecast for Mac",
+  "unique_identifier": "com.mimecast.Mimecast-Mail",
+  "token": "mimecast",
+  "installer_format": "dmg",
+  "slug": "mimecast/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

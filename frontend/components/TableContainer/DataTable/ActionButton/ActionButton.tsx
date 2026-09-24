@@ -1,12 +1,11 @@
-import React, { useCallback } from "react";
-import { kebabCase, noop } from "lodash";
 import classnames from "classnames";
+import { kebabCase, noop } from "lodash";
+import React, { useCallback } from "react";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
-
 import { Colors } from "styles/var/colors";
 
 import Button from "../../../buttons/Button";
@@ -20,7 +19,6 @@ export interface IActionButtonProps {
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
-  iconStroke?: boolean;
   iconColor?: Colors;
   iconPosition?: string;
   isDisabled?: boolean;
@@ -47,7 +45,6 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     variant = "default",
     hideButton,
     iconSvg,
-    iconStroke = false,
     iconColor,
     iconPosition,
     isDisabled,
@@ -83,16 +80,15 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
       <Button
         onClick={() => onButtonClick(targetIds)}
         variant={variant}
-        iconStroke={iconStroke}
         size="small"
       >
         <>
           {iconPosition === "left" && iconSvg && (
-            <Icon name={iconSvg} color={iconColor} />
+            <Icon name={iconSvg} color={iconColor} size="small" />
           )}
           {resolvedButtonText}
           {iconPosition !== "left" && iconSvg && (
-            <Icon name={iconSvg} color={iconColor} />
+            <Icon name={iconSvg} color={iconColor} size="small" />
           )}
         </>
       </Button>

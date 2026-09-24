@@ -1,53 +1,37 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
-import { NotificationContext } from "context/notification";
-
+import Button from "components/buttons/Button";
+import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
+import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import validURL from "components/forms/validators/valid_url";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-
+import { HistoricalDataConfigKey } from "interfaces/charts";
+import { IConfig } from "interfaces/config";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IApiError } from "interfaces/errors";
+import { ITeamConfig } from "interfaces/team";
+import { ITeamSubnavProps } from "interfaces/team_subnav";
+import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
   HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-
-import { IApiError } from "interfaces/errors";
-import { IConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
-import { ITeamSubnavProps } from "interfaces/team_subnav";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-
 import { getCustomDropdownOptions } from "utilities/helpers";
 
-import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
-
-import validURL from "components/forms/validators/valid_url";
-
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import InputField from "components/forms/fields/InputField";
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Checkbox from "components/forms/fields/Checkbox";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
-
-import { HistoricalDataConfigKey } from "interfaces/charts";
-
-import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 import HistoricalDataTeamControls from "./components/HistoricalDataTeamControls";
+import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
 const baseClass = "team-settings";
 
@@ -138,8 +122,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const toggleHostStatusWebhookPreviewModal = () => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
   };
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
     location,
@@ -251,12 +233,28 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       const { name, value } = newVal;
       const newFormData = { ...formData, [name]: value };
       setFormData(newFormData);
-      setFormErrors(
-        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
-      );
+      setFormErrors((prev) => {
+        const next = validateTeamSettingsFormData(
+          globalHostExpiryEnabled,
+          newFormData
+        );
+        // The webhook URL error should appear on blur/submit, not while the
+        // user is enabling the webhook or typing (#40410). Carry it forward
+        // only if it was already shown.
+        if (!prev.host_status_webhook_destination_url) {
+          delete next.host_status_webhook_destination_url;
+        }
+        return next;
+      });
     },
     [formData, globalHostExpiryEnabled]
   );
+
+  const onHostStatusWebhookUrlBlur = () => {
+    setFormErrors(
+      validateTeamSettingsFormData(globalHostExpiryEnabled, formData)
+    );
+  };
 
   const datasetsBeingDisabled = useMemo<HistoricalDataConfigKey[]>(() => {
     const list: HistoricalDataConfigKey[] = [];
@@ -321,38 +319,42 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         teamIdForApi
       )
       .then(() => {
-        renderFlash("success", "Successfully updated settings.");
+        notify.success("Successfully updated settings.");
         refetchTeamConfig();
         setIsInitialTeamConfig(false);
         setConfirmModalOpen(false);
       })
       .catch((errorResponse: { data: IApiError }) => {
-        renderFlash(
-          "error",
-          `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`
+        notify.error(
+          `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`,
+          { response: errorResponse }
         );
       })
       .finally(() => {
         setUpdatingTeamSettings(false);
       });
-  }, [
-    formData,
-    globalHostExpiryEnabled,
-    refetchTeamConfig,
-    renderFlash,
-    teamIdForApi,
-  ]);
+  }, [formData, globalHostExpiryEnabled, refetchTeamConfig, teamIdForApi]);
 
   const updateTeamSettings = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
+      // Validate on submit since the webhook URL error is suppressed on change
+      // until the field is blurred (#40410) — don't let an invalid/empty URL save.
+      const errors = validateTeamSettingsFormData(
+        globalHostExpiryEnabled,
+        formData
+      );
+      setFormErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        return;
+      }
       if (datasetsBeingDisabled.length > 0) {
         setConfirmModalOpen(true);
         return;
       }
       performSave();
     },
-    [datasetsBeingDisabled, performSave]
+    [datasetsBeingDisabled, performSave, globalHostExpiryEnabled, formData]
   );
 
   const renderForm = () => {
@@ -380,7 +382,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         </Checkbox>
         <Button
           type="button"
-          variant="inverse"
+          variant="secondary"
           onClick={toggleHostStatusWebhookPreviewModal}
         >
           Preview request
@@ -394,14 +396,10 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               name="teamHostStatusWebhookDestinationUrl"
               value={formData.teamHostStatusWebhookDestinationUrl}
               parseTarget
+              onBlur={onHostStatusWebhookUrlBlur}
               error={formErrors.host_status_webhook_destination_url}
               disabled={gitopsModeEnabled}
-              tooltip={
-                <p>
-                  Provide a URL to deliver <br />
-                  the webhook request to.
-                </p>
-              }
+              tooltip={<>Provide a URL to deliver the webhook request to.</>}
             />
             <Dropdown
               label="Host status webhook %"

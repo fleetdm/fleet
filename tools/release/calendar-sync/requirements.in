@@ -1,0 +1,8 @@
+google-api-python-client>=2.130.0
+google-auth>=2.30.0
+google-auth-oauthlib>=1.2.0
+# Floor requests above GHSA-gc5v-m9x4-r6x2; the resolver otherwise prefers 2.32.x.
+requests>=2.33.0
+# Floor urllib3 above GHSA-mf9v-mfxr-j63j / GHSA-qccp-gfcp-xxvc; the resolver
+# otherwise prefers 2.6.x.
+urllib3>=2.7.0

@@ -262,7 +262,6 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 		}
 
 		buf.Reset()
-		buf.Grow(int(stringEntrySize))
 		_, err = io.CopyN(&buf, dataReader, int64(stringEntrySize))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)

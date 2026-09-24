@@ -1,0 +1,10 @@
+{
+  "name": "Affinity Photo",
+  "unique_identifier": "com.seriflabs.affinityphoto",
+  "token": "affinity-photo@1",
+  "installer_format": "zip",
+  "slug": "affinity-photo@1/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

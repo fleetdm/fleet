@@ -26,6 +26,12 @@ Configure your EDR to trust binaries signed by Fleet's publisher, or exclude Fle
 
 Most enterprise EDRs support this option through exclusions, exceptions, or trusted application settings.
 
+**Publisher**: Add `Fleet Device Management Inc` as an exclusion rule.
+
+**Binary paths**: Use a recursive path exclusion for:
+- macOS/Linux: `/opt/orbit/`
+- Windows: `C:\Program Files\Orbit\`
+
 ### Option 2: Allowlist by SHA-256 hash
 
 Allowlist only the exact Fleet binaries your team plans to deploy. This gives you tighter control, but it adds operational overhead for every release.
@@ -46,15 +52,17 @@ See the [agent configuration docs](https://fleetdm.com/docs/configuration/agent-
 
 ## Contact Fleet and your EDR vendor
 
-Your EDR vendor can tell you which allowlisting method they recommend and where to configure it.
+Your EDR vendor can tell you which allowlisting method they recommend and where to configure it. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive; they will let you know the best path forward to address any exceptions you may want to make.
 
-Fleet can provide the technical details your vendor may request, such as developer ID, current binary hashes, signing details, and behavior documentation.
+Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. Fleet can also provide the technical details your vendor may request, such as developer ID, current binary hashes, signing details, and behavior documentation.
 
 ## Why your EDR may flag Fleet
 
 Fleet collects host telemetry to help your team understand system activity. Some of the same behaviors used for visibility, such as inspecting processes, binaries, or system state, can overlap with behaviors that EDR tools monitor closely.
 
-That overlap does not mean Fleet is acting maliciously. It means your EDR is detecting behavior that resembles activity it is designed to inspect.
+That overlap does not mean Fleet is acting maliciously, it means your EDR is detecting behavior that resembles activity it is designed to inspect. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections, and it's especially common after a Fleet update.
+
+It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet; endpoint agents from many vendors encounter the same heuristic-based false positives.
 
 ## What the alert means
 

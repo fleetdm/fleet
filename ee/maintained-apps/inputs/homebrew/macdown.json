@@ -1,0 +1,10 @@
+{
+  "name": "MacDown",
+  "unique_identifier": "com.uranusjr.macdown",
+  "token": "macdown",
+  "installer_format": "zip",
+  "slug": "macdown/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

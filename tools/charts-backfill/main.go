@@ -142,15 +142,15 @@ func main() {
 			log.Fatalf("--use-tracked-cves only applies to --dataset cve (got %q)", *dataset)
 		}
 		ctx := context.Background()
-		cves, err := bootstrap.TrackedCriticalCVEs(ctx, db, slog.New(slog.DiscardHandler))
+		cves, err := bootstrap.CollectibleCVEs(ctx, db, slog.New(slog.DiscardHandler))
 		if err != nil {
-			log.Fatalf("failed to query tracked CVEs: %v", err)
+			log.Fatalf("failed to query collectible CVEs: %v", err)
 		}
 		if len(cves) == 0 {
-			log.Fatal("tracked-CVE query returned no CVEs (vulnerability data may not be populated yet)")
+			log.Fatal("collectible-CVE query returned no CVEs (vulnerability data may not be populated yet)")
 		}
 		entityIDs = cves
-		log.Printf("discovered %d tracked CVEs from the live database", len(entityIDs))
+		log.Printf("discovered %d collectible CVEs from the live database", len(entityIDs))
 	case *entityIDsStr != "":
 		entityIDs = str.ParseStringList(*entityIDsStr)
 	default:

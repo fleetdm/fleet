@@ -1,0 +1,64 @@
+version: '3'
+
+vars:
+  # APP_NAME is the executable / binary name (hyphenated: reused for the
+  # `-server` binary and Docker image tags, where spaces would break things).
+  APP_NAME: "fleet-hangar"
+  # PRODUCT_NAME is the user-facing `.app` bundle name shown in Finder/Launchpad.
+  PRODUCT_NAME: "Fleet Hangar"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Build identity. APP_VERSION is read from build/config.yml — that file is the
+  # single place to bump the release, and it feeds both the binary (via ldflags,
+  # see build/darwin/Taskfile.yml) and the bundle's Info.plist. GIT_COMMIT is the
+  # exact source it was built from, "-dirty" when the tree had uncommitted
+  # changes, which is the normal state of a build made to test a branch.
+  APP_VERSION:
+    sh: >-
+      grep -m1 '^  version:' build/config.yml | cut -d'"' -f2
+  GIT_COMMIT:
+    sh: >-
+      printf '%s%s'
+      "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+      "$(test -n "$(git status --porcelain -- . 2>/dev/null)" && echo '-dirty')"
+  BUILD_DATE:
+    sh: >-
+      date -u +%Y-%m-%dT%H:%M:%SZ
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{OS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{OS}}:package"
+
+  dist:
+    summary: Zips the already-built .app into a single shareable archive (bin/Fleet Hangar.zip)
+    cmds:
+      - task: "{{OS}}:dist"
+
+  pkg:
+    summary: Wraps the already-built .app into a Fleet-installable .pkg (bin/Fleet Hangar.pkg)
+    cmds:
+      - task: "{{OS}}:pkg"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{OS}}:run"
+
+  dev:
+    summary: Runs the application in development mode (Ctrl+C also stops the Vite dev server)
+    cmds:
+      # Wrapper script (real bash) traps Ctrl+C and frees the Vite port, which
+      # wails3 dev otherwise orphans. See scripts/dev.sh.
+      - bash scripts/dev.sh {{.VITE_PORT}}

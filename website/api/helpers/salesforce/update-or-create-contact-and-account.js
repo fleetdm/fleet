@@ -40,6 +40,9 @@ module.exports = {
       isIn: [
         'Attended a call with Fleet',
         'Event',
+        'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
         'GitHub - Contributed to fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Stared fleetdm/fleet',
@@ -52,14 +55,14 @@ module.exports = {
         'Prospecting - Specialist',
         'Website - Chat',
         'Website - Contact forms',
-        'Website - Contact forms - Demo - ICP',
         'Website - Contact forms - Demo',
-        'Website - GitOps',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
-        'Website - Gated document',
-        'Webinar',
+        'Website - Workshop request'
       ],
     },
     getStartedResponses: {
@@ -206,9 +209,9 @@ module.exports = {
       'Website - Contact forms',
       'Website - Contact forms - Demo - ICP',
       'Website - Contact forms - Demo',
-      'Website - GitOps',
-      'Webinar',
+      'Website - Workshop request',
       'Website - Gated document',
+      'Website - Gated video',
     ];
     if(contactSource && formBasedContactSources.includes(contactSource)) {
       contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase
@@ -229,33 +232,30 @@ module.exports = {
     //  ║  ║ ║║ ║╠╩╗║║╣
     //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
     let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
+
     if(marketingAttributionCookie) {
       attributionDetails = {};
       // Determine if this user is "Digital" or "Organic"
       let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
       let sourceFriendlyNameByCodeName = {
         // "Organic" sources:
-        // os: 'Organic search',
-        // dt: 'Direct traffic',
-        // wr: 'Web referral',
-        // soc: 'Organic social',
+        // os: 'Search (ORGSRC)',
+        // dt: 'Direct traffic (DIRTRF)',
+        // wr: 'Web referral (WEBREF)',
+        // soc: 'Social (ORGSOC)',
+        // ai: '  AI (ORGAI)'
         // "Digital" sources:
-        cpc: 'Paid search (PS)', //note: either cpc or ps both map to Paid Search
-        ps: 'Paid search (PS)',
-        so: 'Paid social (SO)',
-        pm: 'Paid media (PM)',
-        cs: 'Content syndication (CS)',
-        em: 'Email marketing (EM)',
+        cpc: 'Paid search (PAYSRC)', //note: either cpc or ps both map to Paid Search
+        ps: 'Paid search (PAYSRC)',
+        so: 'Paid social (PAYSOC)',
+        pm: 'Paid media (PAYMED)',
+        cs: 'Content syndication (CONSYD)',
+        em: 'Email marketing (EMLMRK)',
         // "Event" sources:
-        mc: 'Major conference (MC)',
-        rc: 'Regional conference (RC)',
-        le: 'Local event/meetup (LE)',
-        ec: 'Executive community (EC)',
-        fe: 'Field/sales event (FE)',
-        pe: 'Partner event (PE)',
-        se: 'Speaking engagement (SE)',
-        wh: 'Webinar hosted (WH)',
-        ws: 'Webinar sponsored (WS)',
+        mc: 'Conference (CONF)',
+        rc: 'Conference (CONF)',
+        pe: 'Partner event (PTREVT)',
+        wh: 'Webinar (WBINR)',
       };
 
       attributionDetails.gclid = marketingAttributionCookie.gclid;
@@ -280,8 +280,7 @@ module.exports = {
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
-          attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
-          attributionDetails.campaign = 'Default-DT-Direct';
+          attributionDetails.sourceChannelDetails = 'Direct traffic (DIRTRF)';
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
@@ -362,31 +361,20 @@ module.exports = {
 
           if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
             // If search engine » Organic search
-            attributionDetails.sourceChannelDetails = 'Organic search (OS)';
-            attributionDetails.campaign = 'Default-OS-Organic';
+            attributionDetails.sourceChannelDetails = 'Search (ORGSRC)';
           } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
             // If social media » Organic social
-            attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
-            attributionDetails.campaign = 'Default-SOC-Social';
+            attributionDetails.sourceChannelDetails = 'Social (ORGSOC)';
           } else if(REFERRER_DOMAINS_FOR_ORGANIC_AI.some((domain) => referrer.startsWith(domain))) {
             // If AI/LLM » Organic AI
-            attributionDetails.sourceChannelDetails = 'Organic AI (AI)';
-            // Determine specific campaign based on which AI platform referred the visitor
-            if(['https://chat.openai.com/', 'https://chatgpt.com/'].some((domain) => referrer.startsWith(domain))) {
-              attributionDetails.campaign = 'Default-AI-ChatGPT';
-            } else if(['https://claude.ai/', 'https://claude.com/'].some((domain) => referrer.startsWith(domain))) {
-              attributionDetails.campaign = 'Default-AI-Claude';
-            } else if(['https://gemini.google.com/', 'https://bard.google.com/'].some((domain) => referrer.startsWith(domain))) {
-              attributionDetails.campaign = 'Default-AI-Gemini';
-            } else {
-              attributionDetails.campaign = 'Default-AI-Other';
-            }
+            attributionDetails.sourceChannelDetails = 'AI (ORGAI)';
           } else {
             // If not either of those » Web referral
-            attributionDetails.sourceChannelDetails = 'Web referral (WR)';
-            attributionDetails.campaign = 'Default-WR-Referral';
+            attributionDetails.sourceChannelDetails = 'Web referral (WEBREF)';
           }
         }
+        // Build the campaign value using the sourceChannel and sourceChannelDetails values
+        attributionDetails.campaign = `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
       }
     }
 
@@ -477,9 +465,9 @@ module.exports = {
         // If we didn't find an existing account by name or website, try to get the global domain of the user's organization and look for a matching account record.
         if(!existingAccountRecord) {
           let glboalDomainPrompt = `Given this domain "${enrichmentData.employer.emailDomain}", assuming we want a global customer account entry in our CRM, what might be the equivalent global domain? If the website is already the global domain, respond with that. (Respond only with the domain, as a JSON string.)`;
-          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'gpt-5-nano-2025-08-07', expectJson: true})
+          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'claude-haiku-4-5', expectJson: true})
           .tolerate((err)=>{
-            sails.log.warn(`When trying to ask ChatGPT about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+            sails.log.warn(`When trying to ask an LLM about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
             // If an error occurs getting the global domain, return the emailDomain from the get-enriched helper.
             return enrichmentData.employer.emailDomain;// Note: This will make the account search below
           });

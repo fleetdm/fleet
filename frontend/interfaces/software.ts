@@ -3,10 +3,10 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
+import { ICommandResult } from "./command";
+import { ILabelSoftwareTitle } from "./label";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
-import { ILabelSoftwareTitle } from "./label";
-import { ICommandResult } from "./command";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -49,6 +49,7 @@ export interface ISoftware {
   installed_paths?: string[];
   extension_for?: string;
   vendor?: string;
+  release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
@@ -62,6 +63,7 @@ export type IVulnerabilitySoftware = Omit<
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
+  release?: string;
   vulnerabilities: string[] | null; // TODO: does this return null or is it omitted?
   hosts_count?: number;
 }
@@ -69,6 +71,9 @@ export interface ISoftwareTitleVersion {
 export interface ISoftwarePatchPolicy {
   id: number;
   name: string;
+  patch_when_closed: boolean;
+  continuous_automations_enabled: boolean;
+  notify_before_patching?: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -99,6 +104,7 @@ export type SoftwareCategory =
   | "Developer tools"
   | "Productivity"
   | "Security"
+  | "Support"
   | "Utilities";
 
 export interface ISoftwarePackageStatus {
@@ -115,12 +121,18 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
-interface IFleetMaintainedVersion {
+export interface IFleetMaintainedVersion {
   id: number;
   version: string;
+  filename: string;
+  uploaded_at: string;
 }
 
 export interface ISoftwarePackage {
+  /** Per-installer id — distinct from `title_id`. Used by per-package edit
+   * and delete endpoints so the request targets one specific package on a
+   * title that may have several. */
+  installer_id: number;
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
    * Custom name set per team by admin
@@ -147,6 +159,9 @@ export interface ISoftwarePackage {
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
+  /** Version pin: null/absent = Latest, exact version = exact pin, caret
+   * ("^149") = major-version pin. */
+  pinned_version?: string | null;
   hash_sha256?: string | null;
   /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
   configuration?: string;
@@ -200,14 +215,22 @@ export interface ISoftwareTitle {
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
+  bundle_identifier?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title (trimmed shape on list responses).
+   * `null` when the title has no custom packages. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -219,7 +242,13 @@ export interface ISoftwareTitleDetails {
   /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title, in first-added order (smallest
+   * `installer_id` first). `null` when the title has no custom packages.
+   * When present, treat as the source of truth; `software_package` is a
+   * convenience alias to `packages[0]`. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
@@ -257,7 +286,8 @@ export interface ISoftwareVersion {
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
   extension_for: SoftwareExtensionFor;
-  release: string; // TODO: on software/verions/:id?
+  /** OS release ("30.el7") or, for go_binaries, the Go toolchain version ("go1.26.1"). */
+  release: string;
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
   generated_cpe: string;
@@ -286,15 +316,17 @@ export const SOURCE_TYPE_CONVERSION = {
   firefox_addons: "Browser plugin", // we rely on `extension_for` when computing which browser to show in firefox_addons display names.
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
-  programs: "Program (Windows)",
+  programs: "Application (Windows)",
   ie_extensions: "Browser plugin (IE)",
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   sh_packages: "Script-only package (macOS & Linux)",
   ps1_packages: "Script-only package (Windows)",
+  py_packages: "Script-only package (macOS & Linux)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   go_binaries: "Binary (Go)",
+  adobe_plugins: "Plugin (Adobe)", // the type label is flat: Fleet doesn't store a host Adobe application for adobe_plugins, so `extension_for` is always empty for this source (see softwareAdobePlugins in server/service/osquery_utils/queries.go).
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -326,11 +358,34 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   vscode_extensions: null,
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
+  py_packages: "linux", // stored as linux; also runs on macOS via the unix-like install exception
   jetbrains_plugins: null,
   go_binaries: null,
+  adobe_plugins: null,
 } as const;
 
-export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
+/** Look up an installable source's platform, normalizing the mapping's
+ * `null` entries to `undefined` so callers can treat the return as an
+ * optional `string`. */
+export const getInstallablePlatform = (
+  source?: SoftwareSource
+): string | undefined => {
+  if (!source) return undefined;
+  return INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] ?? undefined;
+};
+
+export const SCRIPT_PACKAGE_SOURCES = [
+  "sh_packages",
+  "ps1_packages",
+  "py_packages",
+];
+
+/** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
+ * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
+ * conflict error — the UI uses this constant to disable "+ Add package" and
+ * surface a matching tooltip before the user hits the API. Keep in sync if
+ * the backend limit changes. */
+export const MAX_PACKAGES_PER_TITLE = 10;
 
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:
@@ -386,6 +441,20 @@ export type SoftwareExtensionFor =
   | keyof typeof EXTENSION_FOR_TYPE_CONVERSION
   | "";
 
+/** For go_binaries the toolchain version is part of the row's identity, so it's shown
+ * alongside the version. rpm_packages also populates `release` and must not be.
+ * Version entries carry no source of their own; spread the entry and add the row's. */
+export const formatSoftwareVersion = ({
+  version,
+  release,
+  source,
+}: {
+  version: string;
+  release?: string;
+  source?: string;
+}) =>
+  source === "go_binaries" && release ? `${version} (${release})` : version;
+
 export const formatSoftwareType = ({
   source,
   extension_for,
@@ -438,6 +507,12 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  * SoftwareInstallUninstallStatus represents the possible states of software install operations.
  */
 export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
+
+/** Activity-backed install details can display a skipped state while the
+ * persisted install result remains failed_install. */
+export type SoftwareInstallDetailsStatus =
+  | SoftwareInstallUninstallStatus
+  | "skipped_install";
 
 /** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
@@ -519,6 +594,10 @@ export interface ISoftwareInstallResult {
   created_at: string;
   updated_at: string | null;
   self_service: boolean;
+  /** SHA-256 of the installer package. Present when the payload was
+   * hydrated from a package-backed install; absent for VPP / older results
+   * whose backend join hasn't been extended. */
+  hash_sha256?: string;
 }
 
 // Script results are only install results, never uninstall
@@ -552,7 +631,11 @@ export interface IAppLastInstall {
 interface SignatureInformation {
   installed_path: string;
   team_identifier: string;
+  /** The cdhash of a code-signed app bundle. Null for anything Fleet hashes as
+   * a plain Mach-O file, such as a Homebrew formula's executables. */
   hash_sha256: string | null;
+  executable_sha256: string | null;
+  executable_path: string | null;
 }
 export interface ISoftwareLastUninstall {
   script_execution_id: string;
@@ -561,6 +644,7 @@ export interface ISoftwareLastUninstall {
 
 export interface ISoftwareInstallVersion {
   version: string;
+  release?: string;
   bundle_identifier: string;
   last_opened_at?: string;
   vulnerabilities: string[] | null;
@@ -578,6 +662,12 @@ export interface IHostSoftwarePackage {
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
+  /** True when the installer has a non-empty uninstall script. Absent (not
+   * `false`) for VPP and in-house apps, and absent on /software/titles
+   * responses; only host software responses set it. Used to gate the
+   * Uninstall action for script-only (.ps1/.sh/.py) and .tgz packages,
+   * where the uninstall script is optional. */
+  has_uninstall_script?: boolean;
 }
 
 export interface IHostAppStoreApp {
@@ -604,7 +694,16 @@ export interface IHostSoftware {
   extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
+  /**
+   * True when the most recent install was a patch-when-closed skip (the target
+   * app was open); `status` is then `failed_install`. Rendered as "Patch
+   * skipped" rather than "Failed".
+   */
+  skipped_install?: boolean;
   installed_versions: ISoftwareInstallVersion[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
 }
 
 /**
@@ -685,6 +784,7 @@ export const isSoftwareSuccessStatus = (
 // Update-available UI status
 export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
   "update_available", // In inventory, but newer fleet installer version is available
+  "skipped_install", // Patch-when-closed skip; renders as a deferred update
 ] as const;
 export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
 export const isSoftwareUpdateAvailableStatus = (
@@ -885,6 +985,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
+  slug: string; // "<app-token>/<platform>", e.g. "figma/darwin"; the token uniquely identifies an app across its platform entries
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
@@ -907,6 +1008,7 @@ export interface IFleetMaintainedAppDetails {
   install_script: string;
   post_install_script: string;
   uninstall_script: string;
+  automatic_install_query: string;
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
@@ -919,6 +1021,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(

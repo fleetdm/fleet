@@ -122,23 +122,46 @@ sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT"
 MOUNT_POINT=""
 # copy to the applications folder
+# Quitting Docker Desktop with a staged self-update triggers its install-on-quit
+# updater, which renames Docker.app to Docker.app.back and races this script.
+# Remove the staging dir (staged bundle + updater state) first so it can't fire.
+sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install
 quit_and_track_application 'com.electron.dockerdesktop'
+# Wait out any updater already in flight before touching /Applications/Docker.app.
+SECONDS=0
+while pgrep -f 'com\.docker\.install' >/dev/null 2>&1 && (( SECONDS < 30 )); do
+  sleep 1
+done
 if [ -d "$APPDIR/Docker.app" ]; then
 	sudo mv "$APPDIR/Docker.app" "$TMPDIR/Docker.app.bkp"
 fi
-# Docker Desktop's own in-app updater leaves a Docker.app.back bundle alongside
-# Docker.app when it self-updates. osquery's apps table still picks up the
-# stale bundle by its bundle_identifier, which causes Fleet patch policies to
-# report Docker as out of date even after a successful upgrade.
+# Remove stale self-updater leftovers; osquery's apps table picks them up by
+# bundle_identifier and patch policies report Docker as out of date.
 sudo rm -rf "$APPDIR/Docker.app.back"
 sudo cp -R "$TMPDIR/Docker.app" "$APPDIR"
+# Docker Desktop manages its own CLI symlinks: on every launch it compares each
+# /usr/local/bin link byte-for-byte with /Applications/Docker.app/Contents/Resources/bin/<name>
+# and asks the user for an admin password to rewrite any that differ. Earlier versions of
+# this script wrote those links with a "/Applications//Docker.app/..." target, which fails
+# that check after every update. Repair the links this script created so affected hosts
+# converge without a prompt, and otherwise leave the links to Docker.
+for name in docker docker-credential-desktop docker-credential-ecr-login docker-credential-osxkeychain kubectl.docker hub-tool; do
+  link="/usr/local/bin/$name"
+  [ -L "$link" ] || continue
+  target=$(readlink "$link")
+  case "$target" in
+    /Applications//Docker.app/*) ;;
+    *) continue ;;
+  esac
+  clean="/Applications/${target#/Applications//}"
+  if [ -e "$clean" ]; then
+    /bin/ln -h -f -s -- "$clean" "$link"
+  else
+    # The binary no longer ships (hub-tool); Docker treats the link as obsolete.
+    rm -f -- "$link"
+  fi
+done
 relaunch_application 'com.electron.dockerdesktop'
-mkdir -p /usr/local/cli-plugins
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/cli-plugins/docker-compose" "/usr/local/cli-plugins/docker-compose"
-mkdir -p /usr/local/bin
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/hub-tool" "/usr/local/bin/hub-tool"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/kubectl" "/usr/local/bin/kubectl.docker"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker" "/usr/local/bin/docker"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-desktop" "/usr/local/bin/docker-credential-desktop"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-ecr-login" "/usr/local/bin/docker-credential-ecr-login"
-/bin/ln -h -f -s -- "$APPDIR/Docker.app/Contents/Resources/bin/docker-credential-osxkeychain" "/usr/local/bin/docker-credential-osxkeychain"
+# Remove stale copies recreated during the quit/relaunch window, if any.
+sudo rm -rf "$APPDIR/Docker.app.back"
+sudo rm -rf /Users/*/Library/"Application Support"/com.docker.install/in_progress/Docker.app

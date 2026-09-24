@@ -13,4 +13,17 @@
   .reveal-button {
     width: min-content;
   }
+
+  // Hash + copy button sit inline. `min-width: 0` on the truncated text is
+  // load-bearing — flex items don't shrink below their content by default,
+  // which would push the copy button off-screen for long hashes.
+  &__hash-row .data-set dd {
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__hash {
+    min-width: 0;
+    flex: 1;
+  }
 }

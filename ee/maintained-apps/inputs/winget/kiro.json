@@ -1,0 +1,12 @@
+{
+  "name": "Kiro",
+  "slug": "kiro/windows",
+  "package_identifier": "Amazon.Kiro",
+  "unique_identifier": "Kiro (User)",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/kiro_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/kiro_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

@@ -508,7 +508,7 @@ func listPacksForHost(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]
 	(
 		SELECT p.* FROM packs p
 		JOIN pack_targets pt ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = ?)
-		WHERE p.pack_type IS NULL
+		WHERE NOT p.disabled AND p.pack_type IS NULL
 	)
 	UNION ALL
 	(
@@ -516,7 +516,7 @@ func listPacksForHost(ctx context.Context, db sqlx.QueryerContext, hid uint) ([]
 		FROM packs p
 		JOIN pack_targets pt
 		ON (p.id = pt.pack_id AND pt.type = ? AND pt.target_id = (SELECT team_id FROM hosts WHERE id = ?))
-		WHERE p.pack_type IS NULL
+		WHERE NOT p.disabled AND p.pack_type IS NULL
 	)) packs`
 
 	packs := []*fleet.Pack{}

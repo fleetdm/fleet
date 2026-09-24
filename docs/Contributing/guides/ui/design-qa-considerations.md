@@ -146,6 +146,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Error states (conditions, clientside vs. server side, location of error message, trigger onBlur/onChange/onSubmit)
 - Disabled states (conditions, on button, on form fields)
 - Dynamic views (show/hide buttons, dynamic help text, edge case views)
+- Views that load data have an empty state defined.
 
 ## Responsiveness and low-width browsers
 - Long database names rendered in the UI e.g. fleet names, scripts, software titles...

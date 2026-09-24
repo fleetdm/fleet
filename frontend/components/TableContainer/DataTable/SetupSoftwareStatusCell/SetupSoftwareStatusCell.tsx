@@ -1,10 +1,9 @@
 import React from "react";
 
-import { SetupStepStatus } from "interfaces/setup";
-
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
+import { SetupStepStatus } from "interfaces/setup";
 
 const baseClass = "setup-software-status-cell";
 
@@ -36,7 +35,7 @@ const SetupSoftwareStatusCell = ({ status }: ISetupSoftwareStatusCell) => {
     <div className={baseClass}>
       <div className={`${baseClass}__icon`}>
         {icon === "spinner" ? (
-          <Spinner size="x-small" includeContainer={false} delay={0} />
+          <Spinner size="x-small" delay={0} />
         ) : (
           <Icon name={icon} />
         )}

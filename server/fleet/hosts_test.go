@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -21,6 +22,37 @@ func TestHostLinuxPlatformPackageCompatibility(t *testing.T) {
 		}
 
 		require.True(t, h.PlatformSupportsDebPackages() || h.PlatformSupportsRpmPackages())
+	}
+}
+
+func TestIsLUKSSupported(t *testing.T) {
+	for _, tc := range []struct {
+		platform  string
+		osVersion string
+		expected  bool
+	}{
+		{platform: "ubuntu", expected: true},
+		{platform: "zorin", expected: true},
+		// Fedora hosts report their platform as "rhel", so they are identified by OS version.
+		{platform: "rhel", osVersion: "Fedora Linux 41", expected: true},
+		{platform: "rhel", osVersion: "CentOS Linux 7.9.2009", expected: false},
+		// Arch and its derivatives.
+		{platform: "arch", expected: true},
+		{platform: "archarm", expected: true},
+		{platform: "manjaro", expected: true},
+		{platform: "manjaro-arm", expected: true},
+		{platform: "cachyos", expected: true},
+		{platform: "omarchy", expected: true},
+		// Linux platforms without LUKS support, and non-Linux platforms.
+		{platform: "debian", expected: false},
+		{platform: "amd-ryzen-ai-developer-platform", expected: false},
+		{platform: "darwin", expected: false},
+		{platform: "windows", expected: false},
+	} {
+		t.Run(tc.platform+" "+tc.osVersion, func(t *testing.T) {
+			h := &Host{Platform: tc.platform, OSVersion: tc.osVersion}
+			require.Equal(t, tc.expected, h.IsLUKSSupported())
+		})
 	}
 }
 
@@ -61,6 +93,94 @@ func TestHostStatus(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.status, h.Status(mockClock.Now()))
+		})
+	}
+}
+
+func TestHostStatusMobile(t *testing.T) {
+	now := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
+	recent := now.Add(-15 * time.Minute) // well inside MobileOnlineWindow (~61 min)
+	stale := now.Add(-2 * time.Hour)     // well outside MobileOnlineWindow
+
+	neverTS := neverTimestampParsed
+
+	cases := []struct {
+		name string
+		h    Host
+		want HostStatus
+	}{
+		{
+			name: "ios online via LastMDMCheckedInAt",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS, LastMDMCheckedInAt: &recent},
+			want: StatusOnline,
+		},
+		{
+			name: "ios offline when MDM signal is stale and nothing else",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS, LastMDMCheckedInAt: &stale},
+			want: StatusOffline,
+		},
+		{
+			name: "ipados ignores SeenTime (host_seen_times is osquery-only, coalesced with created_at at load)",
+			h:    Host{Platform: "ipados", LabelUpdatedAt: neverTS, SeenTime: recent},
+			want: StatusOffline,
+		},
+		{
+			name: "ipados online via LabelUpdatedAt when it is fresh and not the never sentinel",
+			h:    Host{Platform: "ipados", LabelUpdatedAt: recent},
+			want: StatusOnline,
+		},
+		{
+			name: "ios ignores LabelUpdatedAt when equal to the never sentinel",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			// Android's AMAPI-stamped DetailUpdatedAt is deliberately skipped
+			// so pubsub delivery lag doesn't skew status. LabelUpdatedAt is
+			// Fleet-authored on every Android check-in and carries the signal.
+			name: "android online via LabelUpdatedAt (no nano row, DetailUpdatedAt ignored)",
+			h:    Host{Platform: "android", LabelUpdatedAt: recent, DetailUpdatedAt: stale},
+			want: StatusOnline,
+		},
+		{
+			name: "android offline when LabelUpdatedAt is stale even if DetailUpdatedAt is fresh",
+			h:    Host{Platform: "android", LabelUpdatedAt: stale, DetailUpdatedAt: recent},
+			want: StatusOffline,
+		},
+		{
+			name: "android offline when LabelUpdatedAt is still the never sentinel",
+			h:    Host{Platform: "android", LabelUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			name: "ios takes freshest of all three signals",
+			h: Host{
+				Platform:           "ios",
+				SeenTime:           stale,
+				LastMDMCheckedInAt: &recent,
+				LabelUpdatedAt:     stale,
+			},
+			want: StatusOnline,
+		},
+		{
+			name: "ios freshly enrolled but never checked in stays offline (no created_at fallback)",
+			h:    Host{Platform: "ios", LabelUpdatedAt: neverTS},
+			want: StatusOffline,
+		},
+		{
+			// LabelUpdatedAt is NOT gated on enrollment state. nesm.enabled = 0
+			// upstream masks LastMDMCheckedInAt to nil, but a fresh
+			// label_updated_at still reads online for up to MobileOnlineWindow
+			// after checkout.
+			name: "ios online via fresh LabelUpdatedAt with nil LastMDMCheckedInAt (checked-out enrollment)",
+			h:    Host{Platform: "ios", LabelUpdatedAt: recent},
+			want: StatusOnline,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, c.h.Status(now))
 		})
 	}
 }
@@ -155,6 +275,14 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "omarchy",
+			expPlatform: "linux",
+		},
+		{
+			host:        "amd-ryzen-ai-developer-platform",
+			expPlatform: "linux",
+		},
+		{
 			host:        "darwin",
 			expPlatform: "darwin",
 		},
@@ -224,7 +352,7 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
-			expected: "On (personal)",
+			expected: "On (manual - personal)",
 		},
 		{
 			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
@@ -441,6 +569,8 @@ func TestMDMNameFromServerURL(t *testing.T) {
 		// AirWatch/awmdm.com infrastructure, so jumpcloud.awmdm.com must resolve to
 		// JumpCloud rather than VMware Workspace ONE.
 		{"jumpcloud on awmdm infrastructure", "https://jumpcloud.awmdm.com", WellKnownMDMJumpCloud},
+		{"zentral cloud", "https://mdm.example.zentral.io/public/mdm/connect/", WellKnownMDMZentral},
+		{"zentral self-hosted", "https://zentral.company.com/public/mdm/connect/", WellKnownMDMZentral},
 	}
 
 	for _, tc := range testCases {
@@ -507,4 +637,313 @@ func TestIsPlaceholderHardwareSerial(t *testing.T) {
 			assert.Equal(t, tc.want, IsPlaceholderHardwareSerial(tc.serial))
 		})
 	}
+}
+
+// The frontend keys the host page's Enrollment ID row off this exact field name, so pin
+// the wire format: MDMHostData is scanned from a JSON_OBJECT built in SQL, which makes a
+// silent rename easy to miss.
+func TestMDMHostDataIsPersonalEnrollmentJSON(t *testing.T) {
+	for _, want := range []bool{true, false} {
+		b, err := json.Marshal(MDMHostData{IsPersonalEnrollment: want})
+		require.NoError(t, err)
+		require.Contains(t, string(b), fmt.Sprintf(`"is_personal_enrollment":%t`, want))
+	}
+
+	// It is also the key the datastore's JSON_OBJECT emits, so round-tripping through
+	// Scan has to land on the same field.
+	var data MDMHostData
+	require.NoError(t, data.Scan([]byte(`{"is_personal_enrollment": true}`)))
+	require.True(t, data.IsPersonalEnrollment)
+}
+
+func TestHostMDMHostNameSettingJSON(t *testing.T) {
+	// Omitted entirely when there is no enforcement (host_name is a nil pointer
+	// with omitempty), matching the recovery-lock treatment for ineligible hosts.
+	b, err := json.Marshal(HostMDMOSSettings{})
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "host_name")
+
+	// Present with the fleets-forward status/detail contract the frontend consumes.
+	b, err = json.Marshal(HostMDMOSSettings{
+		HostName: &HostMDMHostNameSetting{Status: HostNameSettingFailed, Detail: "boom"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, string(b), `"host_name":{"status":"failed","detail":"boom"}`)
+}
+
+func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
+	const fvIdent = "com.fleetdm.fleet.mdm.filevault"
+
+	bothOn := DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}
+	enforceOnly := DiskEncryptionConfig{MacOSEnabled: true}
+	escrowOnly := DiskEncryptionConfig{MacOSEscrowEnabled: true}
+	offOff := DiskEncryptionConfig{}
+
+	type want struct {
+		status DiskEncryptionStatus // "" means no status
+		action ActionRequiredState  // "" means no action
+	}
+	fvProf := func(op MDMOperationType, status *MDMDeliveryStatus) *HostMDMAppleProfile {
+		return &HostMDMAppleProfile{HostUUID: "abc", Identifier: fvIdent, OperationType: op, Status: status}
+	}
+	w := func(s DiskEncryptionStatus, a ActionRequiredState) want { return want{s, a} }
+
+	// key signals: "none" (no key row), "undecryptable", "unknown" (row, not yet checked), "decryptable"
+	keySignals := map[string]*int{"none": new(-1), "undecryptable": new(0), "unknown": nil, "decryptable": new(1)}
+	// disk signals: "unknown" (not reported), "unencrypted", "encrypted"
+	diskSignals := map[string]*bool{"unknown": nil, "unencrypted": new(false), "encrypted": new(true)}
+
+	keyBasedVerifying := map[string]want{
+		"none": w(DiskEncryptionActionRequired, ActionRequiredRotateKey), "undecryptable": w(DiskEncryptionActionRequired, ActionRequiredRotateKey),
+		"unknown": w(DiskEncryptionVerifying, ""), "decryptable": w(DiskEncryptionVerifying, ""),
+	}
+	keyBasedVerified := map[string]want{
+		"none": w(DiskEncryptionActionRequired, ActionRequiredRotateKey), "undecryptable": w(DiskEncryptionActionRequired, ActionRequiredRotateKey),
+		"unknown": w(DiskEncryptionVerifying, ""), "decryptable": w(DiskEncryptionVerified, ""),
+	}
+	diskBasedVerifying := map[string]want{
+		"unknown": w(DiskEncryptionVerifying, ""), "unencrypted": w(DiskEncryptionActionRequired, ActionRequiredLogOut), "encrypted": w(DiskEncryptionVerifying, ""),
+	}
+	diskBasedVerified := map[string]want{
+		"unknown": w(DiskEncryptionVerifying, ""), "unencrypted": w(DiskEncryptionActionRequired, ActionRequiredLogOut), "encrypted": w(DiskEncryptionVerified, ""),
+	}
+
+	fixedCases := []struct {
+		name string
+		prof *HostMDMAppleProfile
+		want want
+	}{
+		{"no profile", nil, want{}},
+		{"pending install", fvProf(MDMOperationTypeInstall, &MDMDeliveryPending), w(DiskEncryptionEnforcing, "")},
+		{"null status install", fvProf(MDMOperationTypeInstall, nil), w(DiskEncryptionEnforcing, "")},
+		{"failed install", fvProf(MDMOperationTypeInstall, &MDMDeliveryFailed), w(DiskEncryptionFailed, "")},
+		{"pending remove", fvProf(MDMOperationTypeRemove, &MDMDeliveryPending), w(DiskEncryptionRemovingEnforcement, "")},
+		{"failed remove", fvProf(MDMOperationTypeRemove, &MDMDeliveryFailed), w(DiskEncryptionFailed, "")},
+		{"removed", fvProf(MDMOperationTypeRemove, &MDMDeliveryVerifying), want{}},
+	}
+
+	check := func(t *testing.T, cfg DiskEncryptionConfig, prof *HostMDMAppleProfile, rawDecryptable *int, disk *bool, exp want) {
+		var d MDMHostData
+		raw := "null"
+		if rawDecryptable != nil {
+			raw = fmt.Sprintf("%d", *rawDecryptable)
+		}
+		require.NoError(t, d.Scan(fmt.Appendf(nil, `{"raw_decryptable": %s}`, raw)))
+		var profs []HostMDMAppleProfile
+		if prof != nil {
+			profs = []HostMDMAppleProfile{*prof}
+		}
+		d.PopulateOSSettingsAndMacOSSettings(profs, fvIdent, cfg, disk)
+
+		require.NotNil(t, d.MacOSSettings)
+		require.NotNil(t, d.OSSettings)
+		if exp.status == "" {
+			require.Nil(t, d.MacOSSettings.DiskEncryption)
+			require.Nil(t, d.OSSettings.DiskEncryption.Status)
+		} else {
+			require.NotNil(t, d.MacOSSettings.DiskEncryption)
+			require.Equal(t, exp.status, *d.MacOSSettings.DiskEncryption)
+			require.NotNil(t, d.OSSettings.DiskEncryption.Status)
+			require.Equal(t, exp.status, *d.OSSettings.DiskEncryption.Status)
+		}
+		if exp.action == "" {
+			require.Nil(t, d.MacOSSettings.ActionRequired)
+		} else {
+			require.NotNil(t, d.MacOSSettings.ActionRequired)
+			require.Equal(t, exp.action, *d.MacOSSettings.ActionRequired)
+		}
+	}
+
+	for _, combo := range []struct {
+		name     string
+		cfg      DiskEncryptionConfig
+		keyBased bool
+	}{
+		{"enforce on, escrow on", bothOn, true},
+		{"enforce off, escrow on", escrowOnly, true},
+		{"enforce off, escrow off", offOff, true},
+		{"enforce on, escrow off", enforceOnly, false},
+	} {
+		t.Run(combo.name, func(t *testing.T) {
+			for _, c := range fixedCases {
+				for keyName, key := range keySignals {
+					for diskName, disk := range diskSignals {
+						t.Run(fmt.Sprintf("%s/key=%s/disk=%s", c.name, keyName, diskName), func(t *testing.T) {
+							check(t, combo.cfg, c.prof, key, disk, c.want)
+						})
+					}
+				}
+			}
+
+			for _, delivered := range []struct {
+				status                      MDMDeliveryStatus
+				keyBasedWant, diskBasedWant map[string]want
+			}{
+				{MDMDeliveryVerifying, keyBasedVerifying, diskBasedVerifying},
+				{MDMDeliveryVerified, keyBasedVerified, diskBasedVerified},
+			} {
+				for keyName, key := range keySignals {
+					for diskName, disk := range diskSignals {
+						exp := delivered.keyBasedWant[keyName]
+						switch {
+						case !combo.keyBased:
+							exp = delivered.diskBasedWant[diskName]
+						case combo.cfg.MacOSEscrowEnabled && !combo.cfg.MacOSEnabled && diskName == "unencrypted" && exp.action == ActionRequiredRotateKey:
+							// without enforcement there is no key to rotate until the disk is encrypted
+							exp.action = ActionRequiredTurnOnEncryption
+						}
+						t.Run(fmt.Sprintf("%s install/key=%s/disk=%s", delivered.status, keyName, diskName), func(t *testing.T) {
+							status := delivered.status
+							check(t, combo.cfg, fvProf(MDMOperationTypeInstall, &status), key, disk, exp)
+						})
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestHostEscrowStateInFlightRemaining(t *testing.T) {
+	window := 5 * time.Minute
+	since := func(d time.Duration) *time.Duration { return &d }
+
+	cases := []struct {
+		name  string
+		state *HostEscrowState
+		want  time.Duration
+	}{
+		{"nil state", nil, 0},
+		{"no activity", &HostEscrowState{Pending: true}, 0},
+		{"recent activity", &HostEscrowState{SinceLastActivity: since(30 * time.Second)}, 4*time.Minute + 30*time.Second},
+		{"activity at the window", &HostEscrowState{SinceLastActivity: since(window)}, 0},
+		{"activity past the window", &HostEscrowState{SinceLastActivity: since(time.Hour)}, 0},
+		{"activity in the future", &HostEscrowState{SinceLastActivity: since(-time.Second)}, window},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, c.state.InFlightRemaining(window))
+		})
+	}
+}
+
+func TestHostMDMDiskEncryptionNeedsBitLockerPIN(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		de   *HostMDMDiskEncryption
+		want bool
+	}{
+		{name: "no disk encryption status"},
+		{name: "no action required", de: &HostMDMDiskEncryption{}},
+		{
+			name: "create pin",
+			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredCreatePIN)},
+			want: true,
+		},
+		{
+			name: "restart required",
+			de:   &HostMDMDiskEncryption{ActionRequired: new(ActionRequiredRestart)},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.de.NeedsBitLockerPIN())
+		})
+	}
+}
+
+func TestHostSoftwareInstalledPathKey(t *testing.T) {
+	t.Run("round trips every field", func(t *testing.T) {
+		key := HostSoftwareInstalledPathKey{
+			InstalledPath:     "/opt/homebrew/Cellar/git",
+			TeamIdentifier:    "TEAM123456",
+			CDHashSHA256:      "cdhash",
+			ExecutableSHA256:  "exechash",
+			ExecutablePath:    "/opt/homebrew/Cellar/git/2.46.0/bin/git",
+			SoftwareUniqueStr: Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}.ToUniqueStr(),
+		}
+
+		parsed, ok := ParseHostSoftwareInstalledPathKey(key.String())
+		require.True(t, ok)
+		require.Equal(t, key, parsed)
+	})
+
+	t.Run("round trips a unique string holding separators", func(t *testing.T) {
+		// ToUniqueStr joins with the same separator the key does, so the software unique string
+		// is only recoverable because it is the last field.
+		unqStr := Software{
+			Name: "Foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.foo",
+			Vendor: "Example", ExtensionID: "ext", UpgradeCode: new("code"),
+		}.ToUniqueStr()
+		require.Contains(t, unqStr, SoftwareFieldSeparator)
+
+		key := HostSoftwareInstalledPathKey{InstalledPath: "/Applications/Foo.app", SoftwareUniqueStr: unqStr}
+		parsed, ok := ParseHostSoftwareInstalledPathKey(key.String())
+		require.True(t, ok)
+		require.Equal(t, unqStr, parsed.SoftwareUniqueStr)
+		require.Equal(t, key, parsed)
+	})
+
+	t.Run("rejects a key with too few fields", func(t *testing.T) {
+		_, ok := ParseHostSoftwareInstalledPathKey("/Applications/Foo.app" + SoftwareFieldSeparator + "TEAM123456")
+		require.False(t, ok)
+	})
+
+	t.Run("empty fields are preserved", func(t *testing.T) {
+		key := HostSoftwareInstalledPathKey{
+			InstalledPath:     "/usr/local/Cellar/fortune",
+			SoftwareUniqueStr: Software{Name: "fortune", Version: "9708", Source: "homebrew_packages"}.ToUniqueStr(),
+		}
+		parsed, ok := ParseHostSoftwareInstalledPathKey(key.String())
+		require.True(t, ok)
+		require.Equal(t, key, parsed)
+		require.Empty(t, parsed.ExecutablePath)
+	})
+}
+
+func TestExecutableHashes(t *testing.T) {
+	t.Run("an empty document is stored as NULL", func(t *testing.T) {
+		for _, execs := range []ExecutableHashes{nil, {}} {
+			v, err := execs.Value()
+			require.NoError(t, err)
+			require.Nil(t, v)
+		}
+	})
+
+	t.Run("round trips through a driver value", func(t *testing.T) {
+		execs := ExecutableHashes{
+			"2.46.0/bin/git":           "9a881b9b",
+			"2.46.0/bin/git-cvsserver": "",
+		}
+		v, err := execs.Value()
+		require.NoError(t, err)
+
+		var got ExecutableHashes
+		require.NoError(t, got.Scan(v))
+		require.Equal(t, execs, got)
+
+		// MySQL hands back bytes.
+		got = nil
+		require.NoError(t, got.Scan([]byte(v.(string))))
+		require.Equal(t, execs, got)
+	})
+
+	t.Run("keys are serialized in a stable order", func(t *testing.T) {
+		execs := ExecutableHashes{"b": "2", "a": "1", "c": "3"}
+		v, err := execs.Value()
+		require.NoError(t, err)
+		// Not JSONEq: the point is the key order, which an equality of documents ignores.
+		require.Equal(t, `{"a":"1","b":"2","c":"3"}`, v) //nolint:testifylint
+	})
+
+	t.Run("a NULL column scans to a nil document", func(t *testing.T) {
+		got := ExecutableHashes{"stale": "value"}
+		require.NoError(t, got.Scan(nil))
+		require.Nil(t, got)
+	})
+
+	t.Run("an unsupported type is rejected", func(t *testing.T) {
+		var got ExecutableHashes
+		require.Error(t, got.Scan(42))
+	})
 }

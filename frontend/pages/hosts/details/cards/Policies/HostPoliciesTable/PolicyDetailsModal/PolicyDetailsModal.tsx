@@ -1,9 +1,9 @@
 import React from "react";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
 
-import { IHostPolicy } from "interfaces/policy";
+import Button from "components/buttons/Button";
 import ClickableUrls from "components/ClickableUrls/ClickableUrls";
+import Modal from "components/Modal";
+import { IHostPolicy } from "interfaces/policy";
 
 interface IPolicyDetailsProps {
   onCancel: () => void;
@@ -58,7 +58,7 @@ const PolicyDetailsModal = ({
           {policy?.conditional_access_enabled &&
             policy.response === "fail" &&
             onResolveLater && (
-              <Button onClick={onResolveLater} variant="inverse">
+              <Button onClick={onResolveLater} variant="secondary">
                 Resolve later
               </Button>
             )}

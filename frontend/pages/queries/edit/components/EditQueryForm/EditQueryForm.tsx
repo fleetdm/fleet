@@ -1,3 +1,6 @@
+import { Ace } from "ace-builds";
+import { Location } from "history";
+import { size } from "lodash";
 import React, {
   useState,
   useContext,
@@ -5,74 +8,64 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { InjectedRouter } from "react-router";
-import { Location } from "history";
 import { useQuery } from "react-query";
-
-import { size } from "lodash";
+import { InjectedRouter } from "react-router";
 import { useDebouncedCallback } from "use-debounce";
-import { Ace } from "ace-builds";
 
-import PATHS from "router/paths";
-
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon/Icon";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import SQLEditor from "components/SQLEditor";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-
-import { getCustomDropdownOptions, secondsToDhms } from "utilities/helpers";
-
-import {
-  FREQUENCY_DROPDOWN_OPTIONS,
-  MIN_OSQUERY_VERSION_OPTIONS,
-  LOGGING_TYPE_OPTIONS,
-  DEFAULT_USE_QUERY_OPTIONS,
-} from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
-
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   ISchedulableQuery,
   ICreateQueryFormData,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
-
+import PATHS from "router/paths";
 import labelsAPI, {
   getCustomLabels,
   ILabelsSummaryResponse,
 } from "services/entities/labels";
-
-import SQLEditor from "components/SQLEditor";
 import {
-  validateQuery,
-  EMPTY_QUERY_ERR,
-} from "components/forms/validators/validate_query";
-import Button from "components/buttons/Button";
-import RevealButton from "components/buttons/RevealButton";
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Slider from "components/forms/fields/Slider";
-import TooltipWrapper from "components/TooltipWrapper";
-import Spinner from "components/Spinner";
-import Icon from "components/Icon/Icon";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import LogDestinationIndicator from "components/LogDestinationIndicator";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import PageDescription from "components/PageDescription";
+  FREQUENCY_DROPDOWN_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
+import { getCustomDropdownOptions, secondsToDhms } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
-import {
-  getCustomTargetOptions,
-  LabelScope,
-} from "components/TargetLabelSelector/labelScopes";
-
-import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 import DiscardDataOption from "../DiscardDataOption";
 import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
+import SaveNewQueryModal from "../SaveNewQueryModal";
 
 const baseClass = "edit-query-form";
 
@@ -433,11 +426,13 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
-        <>
-          Schema
-          <Icon name="info" size="small" />
-        </>
+      <Button
+        variant="subdued"
+        onClick={onOpenSchemaSidebar}
+        icon="info"
+        iconPosition="right"
+      >
+        Schema
       </Button>
     );
   };
@@ -464,6 +459,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
@@ -480,7 +476,7 @@ const EditQueryForm = ({
           placeholder="Add description"
           value={lastEditedQueryDescription}
           type="textarea"
-          helpText="What information does your report reveal? (Optional)"
+          helpText="What information does your report reveal? (optional)"
           onChange={(value: string) => setLastEditedQueryDescription(value)}
           disabled={gitOpsModeEnabled}
         />
@@ -560,7 +556,7 @@ const EditQueryForm = ({
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
             className="live-query-button-tooltip"
-            tipContent="Live reports are disabled in organization settings"
+            tipContent="Live reports are disabled in organization settings."
             disableTooltip={!disabledLiveQuery}
             position="top"
             showArrow
@@ -577,8 +573,10 @@ const EditQueryForm = ({
                 );
               }}
               disabled={disabledLiveQuery}
+              icon="run"
+              iconPosition="right"
             >
-              Live report <Icon name="run" />
+              Live report
             </Button>
           </TooltipWrapper>
         </div>
@@ -673,7 +671,17 @@ const EditQueryForm = ({
                 value={lastEditedQueryFrequency}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                helpText="This is how often your report collects data."
+                helpText={
+                  <>
+                    Hosts report at fixed times (e.g., on the hour for a 1-hour
+                    interval).{" "}
+                    <CustomLink
+                      url="https://fleetdm.com/guides/reports#schedule-a-report"
+                      text="Learn more"
+                      newTab
+                    />
+                  </>
+                }
               />
               <Slider
                 onChange={() =>
@@ -689,8 +697,8 @@ const EditQueryForm = ({
                       <TooltipWrapper
                         tipContent={
                           <>
-                            Automations and reporting will be paused <br />
-                            for this report until an interval is set.
+                            Automations and reporting will be paused for this
+                            report until an interval is set.
                           </>
                         }
                         position="right"
@@ -814,19 +822,6 @@ const EditQueryForm = ({
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {hasSavePermissions && (
               <>
-                {isExistingQuery && (
-                  <GitOpsModeTooltipWrapper
-                    renderChildren={(disableChildren) => (
-                      <Button
-                        variant="inverse"
-                        onClick={toggleSaveAsNewQueryModal}
-                        disabled={disableSaveFormErrors || disableChildren}
-                      >
-                        Save as new
-                      </Button>
-                    )}
-                  />
-                )}
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
                   <GitOpsModeTooltipWrapper
                     tipOffset={8}
@@ -846,11 +841,24 @@ const EditQueryForm = ({
                     )}
                   />
                 </div>
+                {isExistingQuery && (
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant="secondary"
+                        onClick={toggleSaveAsNewQueryModal}
+                        disabled={disableSaveFormErrors || disableChildren}
+                      >
+                        Save as new
+                      </Button>
+                    )}
+                  />
+                )}
               </>
             )}
             <TooltipWrapper
               className="live-query-button-tooltip"
-              tipContent="Live reports are disabled in organization settings"
+              tipContent="Live reports are disabled in organization settings."
               disableTooltip={!disabledLiveQuery}
               position="top"
               showArrow
@@ -859,7 +867,7 @@ const EditQueryForm = ({
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="inverse"
+                variant="secondary"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
@@ -880,8 +888,10 @@ const EditQueryForm = ({
                   );
                 }}
                 disabled={disabledLiveQuery}
+                icon="run"
+                iconPosition="right"
               >
-                Live report <Icon name="run" />
+                Live report
               </Button>
             </TooltipWrapper>
           </div>

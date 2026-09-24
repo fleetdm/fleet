@@ -1,0 +1,10 @@
+{
+  "name": "Threema",
+  "unique_identifier": "threema-consumer-web",
+  "token": "threema",
+  "installer_format": "dmg",
+  "slug": "threema/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

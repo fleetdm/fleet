@@ -58,18 +58,27 @@ module.exports = {
       pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') + ' by ' + thisPage.meta.authorFullName;
     }//ﬁ
 
+
+    // If an article was updated three days after it was published, we'll show the user the date when it was last updated.
+    let showUpdatedTimestamp = false;
+    let publishedAt = new Date(thisPage.meta.publishedOn).getTime();
+    if(publishedAt + (1000 * 60 * 60 * 24 * 3) <= thisPage.lastModifiedAt) {
+      showUpdatedTimestamp = true;
+    }
+
     let articleCategorySlug = this.req.path.split('/')[1];
     // console.log(articleCategorySlug);
     let categoryFriendlyNamesByCategorySlug = {
-      'success-stories': 'Success stories',
       'releases': 'Releases',
       'guides': 'Guides',
       'securing': 'Security articles',
       'engineering': 'Engineering articles',
-      'announcements': 'Announcements',
+      'announcements': 'Roadmap',
       'podcasts': 'Podcasts',
       'report': 'Reports',
+      'newsletters': 'Newsletters',
       'articles': 'Blog',
+      'industry-news': 'Industry news',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];
 
@@ -78,6 +87,7 @@ module.exports = {
     return {
       path: require('path'),
       thisPage: thisPage,
+      showUpdatedTimestamp,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
       pageTitleForMeta,

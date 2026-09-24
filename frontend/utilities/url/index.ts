@@ -5,13 +5,13 @@ import {
   BootstrapPackageStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
+import { isValidSoftwareAggregateStatus } from "interfaces/software";
+import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { isValidSoftwareAggregateStatus } from "interfaces/software";
-import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -52,7 +52,7 @@ interface IMutuallyExclusiveHostParams {
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -232,7 +232,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
-    // (label + mdm enrollment status). all other params are still mutually exclusive.
+    // (label + mdm enrollment status) OR (label + os settings) OR (label +
+    // disk encryption). all other params are still mutually exclusive.
     if (mdmId) {
       return { mdm_id: mdmId };
     }
@@ -244,6 +245,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
     }
     if (osSettings) {
       return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
+    }
+    if (diskEncryptionStatus) {
+      return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     }
     return {};
   }

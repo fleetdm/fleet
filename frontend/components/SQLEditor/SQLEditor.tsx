@@ -1,12 +1,16 @@
+import classnames from "classnames";
 import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
-import classnames from "classnames";
+
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
-import { noop } from "lodash";
+
 import ace, { Ace } from "ace-builds";
+import { noop } from "lodash";
+
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 import {
   osqueryTableNames,
   selectedTableColumns,
@@ -18,12 +22,12 @@ import {
   sqlKeyWords,
 } from "utilities/sql_tools";
 
-import { stringToClipboard } from "utilities/copy_text";
-import Button from "components/buttons/Button";
+import "utilities/ace_theme";
+
+import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 
 import "./mode";
-import "./theme";
 
 export interface ISQLEditorProps {
   focus?: boolean;
@@ -79,7 +83,6 @@ const SQLEditor = ({
   enableCopy = false,
 }: ISQLEditorProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
-  const [copied, setCopied] = React.useState(false);
 
   /** Keeps label actions clickable and removes all mouse/keyboard access/hover states of editor */
   const isReadonlyCopy = _readOnly && enableCopy && !disabled;
@@ -90,13 +93,6 @@ const SQLEditor = ({
     // This is for read only that has a copy button so we disallow selecting the text
     [`${baseClass}__wrapper--readonly-copy`]: !!isReadonlyCopy,
   });
-
-  const onClickCopy = () => {
-    stringToClipboard(value || "").then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
 
   const fixHotkeys = (editor: Ace.Editor) => {
     editor.commands.removeCommand("gotoline");
@@ -113,14 +109,8 @@ const SQLEditor = ({
     // Takes SQL and returns what table(s) are being used
     const checkTableValues = checkTable(value);
 
-    // Update completers if no sql errors or the errors include syntax near table name
-    const updateCompleters =
-      !checkTableValues.error ||
-      checkTableValues.error
-        .toString()
-        .includes("Syntax error found near Identifier (FROM Clause)");
-
-    if (updateCompleters) {
+    // Update completers only when the query parses cleanly.
+    if (!checkTableValues.error) {
       langTools.setCompleters([]); // Reset completers as modifications are additive
 
       // Autocomplete sql keywords, builtin functions, and datatypes
@@ -239,6 +229,9 @@ const SQLEditor = ({
       readOnly: true,
     });
 
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
     if (isReadonlyCopy) {
       // keep Ace read-only and remove any selection
       editor.setOption("readOnly", true);
@@ -294,26 +287,14 @@ const SQLEditor = ({
         <div className={`${baseClass}__label-actions`}>
           {labelActionComponent}
           {enableCopy && (
-            <div className={`${baseClass}__copy-wrapper`}>
-              {copied && (
-                <span className={`${baseClass}__copied-confirmation`}>
-                  Copied!
-                </span>
-              )}
-              <Button
-                variant="text-icon"
-                onClick={onClickCopy}
-                size="small"
-                iconStroke
-              >
-                Copy <Icon name="copy" />
-              </Button>
-            </div>
+            <CopyButton copyText={value || ""} variant="subdued" size="small">
+              Copy <Icon name="copy" />
+            </CopyButton>
           )}
         </div>
       </div>
     );
-  }, [error, label, labelActionComponent, enableCopy, copied]);
+  }, [error, label, labelActionComponent, enableCopy, value]);
 
   const renderHelpText = () => {
     if (helpText) {

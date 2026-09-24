@@ -1,0 +1,10 @@
+{
+  "name": "Timing",
+  "unique_identifier": "info.eurocomp.Timing2",
+  "token": "timing",
+  "installer_format": "dmg",
+  "slug": "timing/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

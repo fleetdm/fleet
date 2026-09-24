@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { renderWithSetup } from "test/test-utils";
 
@@ -160,7 +160,7 @@ describe("LoginForm - component", () => {
     expect(screen.getByText("Log in").parentElement).toHaveFocus();
     await user.tab();
     expect(
-      screen.getByText("Sign in with Test IdP").parentElement
+      screen.getByRole("button", { name: /sign in with sso/i })
     ).toHaveFocus();
     await user.tab();
     expect(screen.getByText("Forgot password?")).toHaveFocus();

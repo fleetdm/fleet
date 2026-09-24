@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from "react";
 
-import PATHS from "router/paths";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
 import { ITeam } from "interfaces/team";
+import PATHS from "router/paths";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -111,7 +111,7 @@ const TransferHostModal = ({
             <CustomLink
               url={PATHS.ADMIN_FLEETS}
               className={`${baseClass}__team-link`}
-              text="Create a fleet"
+              text="Add a fleet"
             />
           </p>
         ) : null}
@@ -125,7 +125,7 @@ const TransferHostModal = ({
           >
             Transfer
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

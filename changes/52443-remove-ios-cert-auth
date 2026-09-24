@@ -1,0 +1,1 @@
+- Removed the `X-Client-Cert-Serial` certificate authentication path from the device API. iOS and iPadOS hosts authenticate with the host UUID in the URL, which is what Fleet's self-service Web Clip profile uses.

@@ -1,6 +1,6 @@
 # Fleet Privacy Policy
 
-**Effective Date:** 12/01/2025
+**Effective Date:** 08/17/2026
 
 At Fleet, we take your privacy and data protection seriously. This Privacy Policy explains how Fleet Device Management Inc. (“Fleet,” “we,” “our,” or “us”) collects, uses, shares, and protects personal information across our services, websites, and products. It also explains your rights and choices regarding your information.
 
@@ -196,13 +196,34 @@ If you are located in the **European Economic Area (EEA)**, **United Kingdom**, 
    We may use your personal information, with your consent, for specific purposes such as marketing, surveys, and research. You may withdraw your consent for these specific purposes or object to processing at any time.
 
 
-## **6\. Security**
+## **6\. EU & UK Representatives**
+
+Fleet has appointed Workstreet as our representative under Article 27 of the EU General Data Protection Regulation (GDPR) and as our representative under the UK GDPR. If you are located in the **European Economic Area (EEA)** or the **United Kingdom**, you may contact the representative for your region about any matter relating to our processing of your personal information, including Article 27 requests.
+
+**EU representative**  
+Ria Pardeep, Workstreet  
+[ria@workstreet.com](mailto:ria@workstreet.com)  
+Workstreet, Bahnhofstraße 8, 30159 Hanover, Germany
+
+**UK representative**  
+Rebecca Sham, Workstreet  
+[rebecca@workstreet.com](mailto:rebecca@workstreet.com)  
+Workstreet, Regus Exeter Business Park, 1 Emperor Way, Exeter, Devon, EX1 3QS, United Kingdom
+
+**Data Protection Officer**  
+Graham Reilly, Workstreet  
+[graham.reilly@workstreet.com](mailto:graham.reilly@workstreet.com)
+
+You may also contact us directly using the details in the "Contact Us" section below.
+
+
+## **7\. Security**
 
 Fleet employs layered administrative, technical, and physical controls to protect your information against unauthorized access, loss, misuse, or alteration.  
 You can learn more about our security practices at [Security | Fleet handbook](https://fleetdm.com/handbook/finance/security) 
 
 
-## **7\. Data Retention**
+## **8\. Data Retention**
 
 Fleet retains personal information only as long as necessary to:
 
@@ -215,15 +236,17 @@ Fleet retains personal information only as long as necessary to:
 Inactive accounts and related data may be deleted after 12 months of inactivity.
 
 
-## **8\. Policy Updates**
+## **9\. Policy Updates**
 
 Fleet may update this Privacy Policy periodically. Updates will be posted on our website with a revised “Effective Date.” For significant changes, Fleet may also provide email notifications.
 
 
-## **9\. Contact Us**
+## **10\. Contact Us**
 
 **Fleet Device Management Inc.**  
 If you have questions, concerns, or data-access requests, please contact us via [fleetdm.com/contact](https://fleetdm.com/contact).
+
+If you are located in the EEA or the United Kingdom, you may also contact our representative for your region as listed in the "EU & UK Representatives" section above.
 
 
 

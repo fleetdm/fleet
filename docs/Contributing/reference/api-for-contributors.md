@@ -12,7 +12,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live report](#live-report)
 - [Trigger cron schedule](#trigger-cron-schedule)
-- [Device-authenticated routes](#device-authenticated-routes)
+- [Fleet-desktop-token-authenticated routes](#Fleet-desktop-token-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -554,15 +554,15 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple Business public key (ADE)](#generate-apple-business-manager-public-key-ade)
+- [Generate Apple Business public key (ADE)](#generate-apple-business-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
-- [Add ABM token](#add-abm-token)
-- [Count ABM tokens](#count-abm-tokens)
+- [Add AB token](#add-ab-token)
+- [Count AB tokens](#count-ab-tokens)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
-- [Update ABM token's fleets](#update-abm-tokens-fleets)
-- [Renew ABM token](#renew-abm-token)
-- [Delete ABM token](#delete-abm-token)
+- [Update AB token's fleets](#update-ab-tokens-fleets)
+- [Renew AB token](#renew-ab-token)
+- [Delete AB token](#delete-ab-token)
 - [Add VPP token](#add-VPP-token)
 - [Update VPP token's fleets](#update-vpp-tokens-fleets)
 - [Renew VPP token](#renew-vpp-token)
@@ -584,7 +584,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
-- [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
@@ -593,11 +592,11 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 ### Generate Apple Business public key (ADE)
 
-`GET /api/v1/fleet/mdm/apple/abm_public_key`
+`GET /api/v1/fleet/mdm/apple/ab_public_key`
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/abm_public_key`
+`GET /api/v1/fleet/mdm/apple/ab_public_key`
 
 ##### Default response
 
@@ -667,9 +666,9 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Add ABM token
+### Add AB token
 
-`POST /api/v1/fleet/abm_tokens`
+`POST /api/v1/fleet/ab_tokens`
 
 #### Parameters
 
@@ -679,7 +678,7 @@ Content-Type: application/octet-stream
 
 #### Example
 
-`POST /api/v1/fleet/abm_tokens`
+`POST /api/v1/fleet/ab_tokens`
 
 ##### Request header
 
@@ -705,25 +704,43 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 ```json
-"abm_token": {
-  "id": 1,
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management Inc.",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "terms_expired": false,
-  "macos_team": null,
-  "ios_team": null,
-  "ipados_team": null,
-  "macos_fleet": null,
-  "ios_fleet": null,
-  "ipados_fleet": null
+{
+  "ab_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-10-20T00:00:00Z",
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-10-20T00:00:00Z",
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null
+  }
 }
 ```
 
 ### Count AB tokens
 
-`GET /api/v1/fleet/abm_tokens/count`
+`GET /api/v1/fleet/ab_tokens/count`
 
 Get the number of AB tokens on the Fleet server.
 
@@ -733,7 +750,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm_tokens/count`
+`GET /api/v1/fleet/ab_tokens/count`
 
 ##### Default response
 
@@ -757,22 +774,23 @@ None.
 
 `Status: 204`
 
-### Update ABM token's fleets
+### Update AB token's fleets
 
-`PATCH /api/v1/fleet/abm_tokens/:id/fleets`
+`PATCH /api/v1/fleet/ab_tokens/:id/fleets`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The Apple Business (AB) token's ID |
-| macos_team_id | integer | body | macOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
-| ios_team_id | integer | body | iOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
-| ipados_team_id | integer | body | iPadOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| macos_fleet_id | integer | body | macOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| ios_fleet_id | integer | body | iOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| ipados_fleet_id | integer | body | iPadOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| byod_fleet_id | integer | body | iOS/iPadOS BYOD hosts enrolling via Account-driven User Enrollment are automatically added to this fleet. If not specified, defaults to "Unassigned". |
 
 #### Example
 
-`PATCH /api/v1/fleet/abm_tokens/1/fleets`
+`PATCH /api/v1/fleet/ab_tokens/1/fleets`
 
 ##### Request body
 
@@ -780,7 +798,8 @@ None.
 {
   "macos_fleet_id": 1,
   "ios_fleet_id": 2,
-  "ipados_fleet_id": 3
+  "ipados_fleet_id": 3,
+  "byod_fleet_id": 4
 }
 ```
 
@@ -789,35 +808,52 @@ None.
 `Status: 200`
 
 ```json
-"abm_token": {
-  "id": 1,
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management Inc.",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-11-29T00:00:00Z",
-  "terms_expired": false,
-  "macos_team": 1,
-  "ios_team": 2,
-  "ipados_team": 3,
-  "macos_fleet": 1,
-  "ios_fleet": 2,
-  "ipados_fleet": 3
+{
+  "ab_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-11-29T00:00:00Z",
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": 1,
+    "ios_fleet": 2,
+    "ipados_fleet": 3,
+    "byod_fleet": 3
+  },
+  "abm_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-11-29T00:00:00Z",
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": 1,
+    "ios_fleet": 2,
+    "ipados_fleet": 3,
+    "macos_team": 1,
+    "ios_team": 2,
+    "ipados_team": 3,
+    "byod_team": 3
+  }
 }
 ```
 
-### Renew ABM token
+### Renew AB token
 
-`PATCH /api/v1/fleet/abm_tokens/:id/renew`
+`PATCH /api/v1/fleet/ab_tokens/:id/renew`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
+| id | integer | path | *Required* The AB token's ID |
 
 #### Example
 
-`PATCH /api/v1/fleet/abm_tokens/1/renew`
+`PATCH /api/v1/fleet/ab_tokens/1/renew`
 
 ##### Request header
 
@@ -843,35 +879,52 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 ```json
-"abm_token": {
-  "id": 1,
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management Inc.",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2025-10-20T00:00:00Z",
-  "terms_expired": false,
-  "macos_team": null,
-  "ios_team": null,
-  "ipados_team": null,
-  "macos_fleet": null,
-  "ios_fleet": null,
-  "ipados_fleet": null
+{
+  "ab_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null
+  }
 }
 ```
 
-### Delete ABM token
+### Delete AB token
 
-`DELETE /api/v1/fleet/abm_tokens/:id`
+`DELETE /api/v1/fleet/ab_tokens/:id`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
+| id | integer | path | *Required* The AB token's ID |
 
 #### Example
 
-`DELETE /api/v1/fleet/abm_tokens/1`
+`DELETE /api/v1/fleet/ab_tokens/1`
 
 ##### Default response
 
@@ -1077,7 +1130,7 @@ If no fleet (id or name) is provided, the profiles are applied for all hosts (fo
 
 `204`
 
-### Initiate SSO for end-user authentication during macOS, Windows or Linux setup
+### Initiate SSO for IdP authentication during macOS, Windows or Linux setup
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
 
@@ -1107,8 +1160,10 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 Example response cookie in the HTTP `Set-Cookie` header:
 ```
-Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=900; HttpOnly; Secure
 ```
+
+`Max-Age` matches `auth.sso_session_validity_period`, which defaults to 15 minutes.
 
 ### Complete SSO during DEP or Account Driven enrollment
 
@@ -1162,6 +1217,16 @@ enrollment flow:
 
  - `access-token` a token that is passed by the device in the Authorization header on the second call to the Account Driven
    Enrollment endpoint to download an enrollment profile.
+
+If the credentials can't be validated, the server redirects the client to the Fleet UI with the
+following query parameters:
+
+- `error=true` is set for any failure.
+- `reason=session_expired` is added when the SSO session created by `POST /api/v1/fleet/mdm/sso` is
+  no longer available, so the Fleet UI can tell the end user their sign-in timed out rather than
+  showing a generic error. This happens when the user takes longer than
+  `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
+  or when the callback is replayed (the session is single use).
 
 ### Over the air enrollment
 
@@ -1353,7 +1418,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business Manager.
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business. If there is an error communicating with the DEP APIs, `dep_device` will be null and `dep_device_error` will contain human-readable error details.
 
 `GET /api/v1/fleet/hosts/:id/dep_assignment`
 
@@ -1395,10 +1460,11 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "response_updated_at": "2025-12-04T01:35:27Z",
     "added_at": "2025-12-04T01:35:27Z",
     "deleted_at": null,
-    "abm_token_id": 1,
+    "ab_token_id": 1,
     "mdm_migration_deadline": "2025-12-05T00:00:00Z",
     "mdm_migration_completed": "2025-12-05T00:00:00Z"
-  }
+  },
+  "dep_device_error": null
 }
 ```
 
@@ -1459,21 +1525,6 @@ This is callback URL that will be open after user completes Google's signup flow
 ```
 <html><!-- self-closing page --></html>
 ```
-
-### Delete Android Enterprise
-
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
-
-`DELETE /api/v1/fleet/android_enterprise/`
-
-#### Example
-
-`DELETE /api/v1/fleet/android_enterprise`
-
-##### Default response
-
-`Status: 200`
 
 ### Get Android enrollment token
 
@@ -1548,32 +1599,84 @@ This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 ### Get Apple Account Driven User Enrollment Profile
 
-This endpoint initiates Account Driven User Enrollment on iOS and iPadOS devices and is used by the
-Apple. Devices are directed to this endpoint via Apple Account Driven Enrollment service discovery.
-The first request made to this endpoint is unauthenticated and will return a 401 Unauthorized
-including a Www-Authenticate header with a URL redirecting them to /mdm/sso. After authentication,
-the client will return to this endpoint and make a second request including the returned token in
-the Authorization header and an enrollment profile will be returned. Devices that fail to identify
-via plist or that identify as other than iPhone or iPad will return a 400 Bad Request.
+This endpoint initiates Account-driven User Enrollment on iOS and iPadOS devices. Devices are directed here via service discovery. The URL is scoped to one of Fleet's Apple Business organizations via a randomly generated token within the path. Hosts enrolling here are placed in that organization's `byod_fleet`. Fleet registers this URL with Apple automatically; admins don't need to handle it. The first request is unauthenticated and returns 401 with a
+`Www-Authenticate` header pointing at SSO. After authenticating, the device retries with
+`Authorization: Bearer <access-token>`; Access token returned after SSO authentication.
 
-`POST /api/mdm/apple/account_driven_enroll`
+
+`POST /api/mdm/apple/account_driven_enroll/:token`
+
+Requires Fleet Premium. Returns 400 if the device is not an iPhone/iPad, 401 if the access token is invalid or reused.
 
 #### Parameters
 
-A plist including LANGUAGE, VERSION, PRODUCT, SOFTWARE_UPDATE_DEVICE_ID, SUPPLEMENTAL_BUILD_VERSION
-and VERSION
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| token | string | path | **Required.** A randomly-generated token corresponding to an AB organization in Fleet |
+| body | blob   | body | **Required.** A PKCS#7-signed DeviceInfo plist with LANGUAGE, VERSION, PRODUCT, OS_VERSION, SOFTWARE_UPDATE_DEVICE_ID, and SUPPLEMENTAL_BUILD_VERSION.|
 
 ### Get Apple Account Driven User Enrollment service discovery payload
 
-This endpoint will be used by devices to get the data needed to initiate an account driven user
-enrollment into MDM. The devices will get the URL for the mdm server and will call that endpoint
-while passing the `mdm-byod` enrollment type.
+Used by devices to discover the enrollment endpoint for an AB organization in Fleet.
 
-`GET /api/mdm/apple/service_discovery`
+`GET /mdm/apple/service_discovery/:token`
+
+Requires Fleet Premium.
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| token | string | path | **Required.** A randomly-generated token corresponding to an AB organization in Fleet |
 
 #### Example
 
-`GET /api/mdm/apple/service_discovery`
+`GET /mdm/apple/service_discovery/a671c2216bdd765f992aa0557d33766c`
+
+##### Response
+
+`Status 200`
+
+```json
+{
+  "Servers": [
+    {
+      "Version": "mdm-byod",
+      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll/a671c2216bdd765f992aa0557d33766c"
+    }
+  ]
+}
+```
+
+### Get Unassigned Apple Account Driven User Enrollment Profile
+
+This endpoint initiates Account-driven User Enrollment on iOS and iPadOS devices. Devices are directed here via service discovery. The first request is unauthenticated and returns 401 with a
+`Www-Authenticate` header pointing at SSO. After authenticating, the device retries with
+`Authorization: Bearer <access-token>`; Access token returned after SSO authentication.
+
+> Deprecated as of v4.88. Hosts enrolling through this endpoint will not be assigned to a fleet. Fleet now registers the AB-organization-specific enrollment endpoint with Apple
+
+`POST /api/mdm/apple/account_driven_enroll`
+
+Requires Fleet Premium. Returns 400 if the device is not an iPhone/iPad, 401 if the access token is invalid or reused.
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| body | blob   | body | **Required.** A PKCS#7-signed DeviceInfo plist with LANGUAGE, VERSION, PRODUCT, OS_VERSION, SOFTWARE_UPDATE_DEVICE_ID, and SUPPLEMENTAL_BUILD_VERSION.|
+
+### Get Unassigned Apple Account Driven User Enrollment service discovery payload
+
+Used by devices to discover the enrollment endpoint.
+
+> Deprecated as of v4.88. Hosts enrolling through the returned endpoint will not be assigned to a fleet. Fleet now registers the AB-organization-specific endpoint with Apple
+
+`GET /mdm/apple/service_discovery`
+
+#### Example
+
+`GET /mdm/apple/service_discovery`
 
 ##### Response
 
@@ -1588,7 +1691,6 @@ while passing the `mdm-byod` enrollment type.
     }
   ]
 }
-
 ```
 
 ## Get or apply configuration files
@@ -2121,10 +2223,15 @@ If the `name` is not already associated with an existing fleet, this API route c
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
+| mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this fleet so they can be executed at a later time.                                                                                                                                                 |
+| webhook_settings                          | object | body  | The fleet's webhook settings. Only the keys provided are applied; omitted webhooks are left unchanged.                                                                                                                               |
+| webhook_settings.host_status_webhook      | object | body  | See [`webhook_settings.host_status_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-status-webhook2).                                                                                                       |
+| webhook_settings.failing_policies_webhook | object | body  | See [`webhook_settings.failing_policies_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-failing-policies-webhook2).                                                                                             |
+| webhook_settings.host_activities_webhook  | object | body  | See [`webhook_settings.host_activities_webhook`](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-host-activities-webhook).                                                                                               |
 | software                                   | object   | body  | The fleet's software that will be available for install.  |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
@@ -2200,12 +2307,17 @@ If the `name` is not already associated with an existing fleet, this API route c
         "apple_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile1.mobileconfig"
+              "path": "path/to/profile1.mobileconfig",
               "labels_include_all": ["Label 1", "Label 2"]
             },
             {
-              "path": "path/to/profile2.json"
+              "path": "path/to/profile2.json",
               "labels_exclude_any": ["Label 3", "Label 4"]
+            },
+          ],
+          "assets": [
+            {
+              "path": "path/to/assets/asset.json"
             },
           ],
           "enable_disk_encryption": true
@@ -2213,7 +2325,7 @@ If the `name` is not already associated with an existing fleet, this API route c
         "windows_settings": {
           "configuration_profiles": [
             {
-              "path": "path/to/profile3.xml"
+              "path": "path/to/profile3.xml",
               "labels_include_all": ["Label 1", "Label 2"]
             }
           ]
@@ -2358,7 +2470,7 @@ Gets all labels visible to the currently logged-in user.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2396,9 +2508,9 @@ Gets all labels visible to the currently logged-in user.
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "label_type": "builtin",
-      "label_membership_type": "dynamic",,
+      "label_membership_type": "dynamic",
       "team_id": null,
       "team_name": null,
       "fleet_id": null,
@@ -2568,10 +2680,6 @@ These API routes are used by the Fleet UI.
 - [Check result store status](#check-result-store-status)
 - [Search targets](#search-targets)
 - [Count targets](#count-targets)
-- [Run live report](#run-live-report)
-- [Run live report by name](#run-live-report-by-name)
-- [Retrieve live report results (standard WebSocket API)](#retrieve-live-report-results-standard-websocket-api)
-- [Retrieve live report results (SockJS)](#retrieve-live-report-results-sockjs)
 
 ### Check live report status
 
@@ -2734,514 +2842,6 @@ Counts the number of online and offline hosts included in a given set of selecte
 }
 ```
 
-### Run live report
-
-Runs the specified report as a live report on the specified hosts or group of hosts and returns a new live report campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
-
-After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
-
-`POST /api/v1/fleet/queries/run`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and fleet IDs (`selected.fleets`). When provided, builtin label IDs, custom label IDs and fleet IDs become `AND` filters. Within each selector, selecting two or more fleets, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.fleets`). Use `0` fleet ID to filter by hosts assigned to "Unassigned". See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by ID
-
-`POST /api/v1/fleet/queries/run`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info",
-  "selected": {
-    "hosts": [171]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 1,
-      "OnlineHosts": 0,
-      "OfflineHosts": 1,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 1,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with multiple hosts targeted by label ID
-
-`POST /api/v1/fleet/queries/run`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info;",
-  "selected": {
-    "labels": [7]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 102,
-      "OnlineHosts": 0,
-      "OfflineHosts": 24,
-      "MissingInActionHosts": 0,
-      "NewHosts": 0
-    },
-    "id": 2,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-### Run live report by name
-
-Runs the specified saved report as a live report on the specified targets. Returns a new live report campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
-
-After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by hostname
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-##### Request body
-
-```json
-{
-  "query_id": 1,
-  "selected": {
-    "hosts": ["macbook-pro.local"]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 1,
-      "OnlineHosts": 0,
-      "OfflineHosts": 1,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 1,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with multiple hosts targeted by label name
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info",
-  "selected": {
-    "labels": ["All Hosts"]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 102,
-      "OnlineHosts": 0,
-      "OfflineHosts": 24,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 2,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with invalid label
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info",
-  "selected": {
-    "labels": ["Windows", "Banana", "Apple"]
-  }
-}
-```
-
-##### Default response
-
-`Status: 400`
-
-```json
-{
-  "message": "Bad request",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Invalid label name(s): Banana, Apple."
-    }
-  ],
-  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
-}
-```
-
-
-### Retrieve live report results (standard WebSocket API)
-
-You can retrieve the results of a live report using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
-
-Before you retrieve the live report results, you must create a live report campaign by running the live report. Use the [Run live report](#run-live-report) or [Run live report by name](#run-live-report-by-name) endpoints to create a live report campaign.
-
-Note that live reports are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the report.
-
-`/api/v1/fleet/results/websocket`
-
-### Parameters
-
-| Name       | Type    | In  | Description                                                      |
-| ---------- | ------- | --- | ---------------------------------------------------------------- |
-| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
-
-### Example
-
-#### Example script to handle request and response
-
-```js
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
-
-socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
-  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaign-id> } }));
-};
-
-socket.onmessage = ({ data }) => {
-  console.log(data);
-  const message = JSON.parse(data);
-  if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close();
-  }
-}
-```
-
-### Detailed request and response walkthrough with example data
-
-#### webSocket.onopen()
-
-##### Response data
-
-```json
-o
-```
-
-#### webSocket.send()
-
-##### Request data
-
-```json
-[
-  {
-    "type": "auth",
-    "data": { "token": <insert_token_here> }
-  }
-]
-```
-
-```json
-[
-  {
-    "type": "select_campaign",
-    "data": { "campaign_id": 12 }
-  }
-]
-```
-
-#### webSocket.onmessage()
-
-##### Response data
-
-```json
-// Sends the total number of hosts targeted and segments them by status
-
-[
-  {
-    "type": "totals",
-    "data": {
-      "count": 24,
-      "online": 6,
-      "offline": 18,
-      "missing_in_action": 0
-    }
-  }
-]
-```
-
-```json
-// Sends the expected results, actual results so far, and the status of the live report
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 0,
-      "status": "pending"
-    }
-  }
-]
-```
-
-```json
-// Sends the result for a given host
-
-[
-  {
-    "type": "result",
-    "data": {
-      "distributed_query_execution_id": 39,
-      "host": {
-        "id": 42,
-        "hostname": "foobar",
-        "display_name": "foobar"
-      },
-      "rows": [
-        // query results data for the given host
-      ],
-      "error": null
-    }
-  }
-]
-```
-
-```json
-// Sends the status of "finished" when messages with the results for all expected hosts have been sent
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 6,
-      "status": "finished"
-    }
-  }
-]
-```
-
-### Retrieve live report results (SockJS)
-
-You can also retrieve live report results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
-
-Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-report-results-standard-websocket-api).
-
-`/api/v1/fleet/results/`
-
-### Parameters
-
-| Name       | Type    | In  | Description                                                      |
-| ---------- | ------- | --- | ---------------------------------------------------------------- |
-| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
-
-### Example
-
-#### Example script to handle request and response
-
-```js
-const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
-
-socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
-  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
-};
-
-socket.onmessage = ({ data }) => {
-  console.log(data);
-  const message = JSON.parse(data);
-
-  if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close();
-  }
-}
-```
-
-##### Detailed request and response walkthrough
-
-#### socket.onopen()
-
-##### Response data
-
-```json
-o
-```
-
-#### socket.send()
-
-##### Request data
-
-```json
-[
-  {
-    "type": "auth",
-    "data": { "token": <insert_token_here> }
-  }
-]
-```
-
-```json
-[
-  {
-    "type": "select_campaign",
-    "data": { "campaign_id": 12 }
-  }
-]
-```
-
-#### socket.onmessage()
-
-##### Response data
-
-```json
-// Sends the total number of hosts targeted and segments them by status
-
-[
-  {
-    "type": "totals",
-    "data": {
-      "count": 24,
-      "online": 6,
-      "offline": 18,
-      "missing_in_action": 0
-    }
-  }
-]
-```
-
-```json
-// Sends the expected results, actual results so far, and the status of the live report
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 0,
-      "status": "pending"
-    }
-  }
-]
-```
-
-```json
-// Sends the result for a given host
-
-[
-  {
-    "type": "result",
-    "data": {
-      "distributed_query_execution_id": 39,
-      "host": {
-        "id": 42,
-        "hostname": "foobar",
-        "display_name": "foobar"
-      },
-      "rows": [
-        // query results data for the given host
-      ],
-      "error": null
-    }
-  }
-]
-```
-
-```json
-// Sends the status of "finished" when messages with the results for all expected hosts have been sent
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 6,
-      "status": "finished"
-    }
-  }
-]
-```
-
 ---
 
 ## Trigger cron schedule
@@ -3274,27 +2874,40 @@ currently pending.
 
 ---
 
-## Device-authenticated routes
+## Fleet-desktop-token-authenticated routes
 
-Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
-- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
-- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
-- [Get Fleet Desktop information](#get-fleet-desktop-information)
-- [Get device's software](#get-devices-software)
-- [Get device's software install results](#get-devices-software-install-results)
-- [Get device's software MDM command results](#get-devices-software-mdm-command-results)
-- [Install self-service software](#install-self-service-software)
-- [Uninstall software via self-service](#uninstall-software-via-self-service)
-- [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
-- [Get device's policies](#get-devices-policies)
-- [Get device's certificate](#get-devices-certificate)
-- [Get device's API features](#get-devices-api-features)
-- [Get device's transparency URL](#get-devices-transparency-url)
-- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
-- [Report an agent error](#report-an-agent-error)
+If you're using Fleet Premium, you can require single sign-on (SSO) in front of these routes.
+
+Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
+
+- [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *always exempt; polled by the Fleet Desktop tray app*
+- [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *always exempt; polled by the Fleet Desktop tray app*
+- `POST /api/v1/fleet/device/{token}/debug/errors` — *always exempt; agent error reporting*
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *always exempt*
+- [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *always exempt*
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *always exempt; starts the sign-in flow*
+- `GET /api/v1/fleet/device/{token}` — *exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
+- `POST /api/v1/fleet/device/{token}/refetch` — *exempt during setup experience*
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *exempt during setup experience*
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
+- [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
+- [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
+- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
+- [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *exempt during setup experience*
+- [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
 
 #### Get device's Google Chrome profiles
 
@@ -3389,6 +3002,69 @@ In regards to the `notifications` key:
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
 
+#### Initiate Fleet Desktop single sign-on
+_Available in Fleet Premium_
+
+Starts the SAML authentication flow for the Fleet Desktop "My device" page. Returns the IdP URL to send the browser to. Fleet also sets a handshake cookie, which it reads back when the IdP redirects to the callback.
+
+`POST /api/v1/fleet/device/{token}/sso`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/sso`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "url": "https://idp.example.com/saml/sso?SAMLRequest=..."
+}
+```
+
+This endpoint sets the `__Host-FLEETSSOSESSIONID` handshake cookie. Fleet uses it to validate the SAML response when the IdP redirects back to the existing MDM SSO callback, `POST /api/v1/fleet/mdm/sso/callback`. There's no new callback route, so IdP apps that already point at that URL keep working. On success, the callback replies `303` to the device page and sets the `__Host-FLEET_DESKTOP_SESSION` cookie that carries the device SSO session.
+
+##### Error responses
+
+| Status | When |
+| ------ | ---- |
+| `400`  | `fleet_desktop.sso_enabled` is `false`, no IdP is configured under `mdm.end_user_authentication`, the device page and the IdP callback aren't served from the same host, or Fleet couldn't fetch and parse the IdP metadata. |
+| `401`  | The device token is invalid or expired. |
+| `402`  | Fleet Premium is required. |
+| `429`  | The rate limit was exceeded. This endpoint uses its own bucket, set by `auth.sso_rate_limit_per_minute`. The default is the login rate of 10 requests per minute. |
+
+##### Which IdP identity is accepted
+
+Fleet accepts any identity the configured IdP authenticates. Completing the flow proves that a person signed in at the IdP. Fleet doesn't compare that identity against the host's enrollment-time IdP account, so the device token stays the only host-specific secret.
+
+Fleet records the authenticated identity in `mdm_idp_accounts`, which it shares with the MDM SSO flows, and the device SSO session references it. This flow never writes a host-to-IdP-account association in `host_mdm_idp_accounts`. That link belongs to enrollment.
+
+##### Callback failures
+
+Once the callback has verified the assertion and identified the flow as Fleet Desktop, failures redirect to `/device/{token}?sso_error=<reason>` and set no session cookie. Reasons are `sso_disabled` (the setting was turned off between initiation and the callback) and `server_error`.
+
+Failures before that point have no SSO session to read the device page URL from. To handle them, Fleet sets `RelayState` to `fleet_desktop` on the SAML `AuthnRequest`, and the IdP echoes it back with the assertion. The callback uses that value to tell a Fleet Desktop flow apart from the MDM flows. It then redirects to a device error page instead of the shared MDM one:
+
+- An assertion that doesn't verify redirects to `/device/sso-error?reason=error`.
+- A missing or expired handshake cookie redirects to `/device/sso-error?reason=session_expired`.
+
+Without a `RelayState` that Fleet recognizes, these fall back to `/mdm/sso/callback?error=true` and `/mdm/sso/callback?error=true&reason=session_expired`.
+
+##### Hosts and cookies
+
+Both cookies use the `__Host-` prefix, which scopes them to a single host name. The device page and the SAML callback must therefore be reached on the same host name. The port can differ, because cookies aren't port-scoped.
+
+Pointing `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` at a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable. Neither cookie reaches the leg that needs to read it. Rather than send the end user into a redirect loop, this endpoint fails with `400`.
+
+Only this endpoint sets the `fleet_desktop` SSO initiator, and it sets it server-side. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`. Accepting it there would create a device SSO session for any host UUID, without the caller ever holding that host's device token.
+
 #### Get device's software
 
 Lists the software installed on the current device.
@@ -3402,6 +3078,10 @@ Lists the software installed on the current device.
 | token | string | path | The device's authentication token. |
 | self_service | bool | query | Filter `self_service` software. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
+| vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value. Must be provided with `vulnerable=true`. |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified. Must be provided with `vulnerable=true`. |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`. Must be provided with `vulnerable=true`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -3436,6 +3116,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
+        "has_uninstall_script": true,
         "categories": ["Browsers"],
      	"last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
@@ -3645,32 +3326,23 @@ For VPP `InstallApplication` command results, `results_metadata` may include:
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
-#### Install self-service software
+#### Install all self-service software
 
-Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
+Queues an install for every self-service software title available to the device that isn't already installed.
 
-`POST /api/v1/fleet/device/{token}/software/install/{software_title_id}`
+`POST /api/v1/fleet/device/{token}/software/install_all`
 
 ##### Parameters
 
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | **Required**. The device's authentication token. |
-| software_title_id | string | path | **Required**. The software title's ID. |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
+| Name        | Type    | In    | Description                                                                                                                                          |
+| ----------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token       | string  | path  | **Required**. The device's authentication token.                                                                                                     |
+| category_id | integer | query | Restrict to a single [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories). Must exist on the device's fleet. If omitted, all categories are included. |
+| query       | string  | query | Restrict to titles whose name matches (same semantics as the self-service list endpoint). If omitted, no name filter is applied. |
 
 ##### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12&query=zoom`
 
 ##### Default response
 
@@ -3746,7 +3418,7 @@ Gets the result of a uninstall performed on a host, viewed from the My device pa
 
 _Available in Fleet Premium_
 
-Lists the policies applied to the current device.
+Lists the policies applied to the current device. Policies are returned in a device-safe representation that excludes the policy author's identity and the raw SQL query.
 
 `GET /api/v1/fleet/device/{token}/policies`
 
@@ -3769,29 +3441,31 @@ Lists the policies applied to the current device.
   "policies": [
     {
       "id": 1,
-      "name": "SomeQuery",
-      "query": "SELECT * FROM foo;",
-      "description": "this is a query",
+      "name": "SomePolicy",
+      "description": "this is a policy",
       "resolution": "fix with these steps...",
       "platform": "windows,linux",
+      "critical": false,
+      "conditional_access_enabled": false,
       "response": "pass"
     },
     {
       "id": 2,
-      "name": "SomeQuery2",
-      "query": "SELECT * FROM bar;",
-      "description": "this is another query",
+      "name": "SomePolicy2",
+      "description": "this is another policy",
       "resolution": "fix with these other steps...",
       "platform": "darwin",
+      "critical": true,
+      "conditional_access_enabled": false,
       "response": "fail"
     },
     {
       "id": 3,
-      "name": "SomeQuery3",
-      "query": "SELECT * FROM baz;",
+      "name": "SomePolicy3",
       "description": "",
-      "resolution": "",
       "platform": "",
+      "critical": false,
+      "conditional_access_enabled": false,
       "response": ""
     }
   ]
@@ -3924,6 +3598,32 @@ with the download option.
 
 ---
 
+#### Send APNs ping to device
+
+Sends an APNs push notification to the current device, prompting it to check in with the Fleet server and pick up any pending MDM commands or configuration profiles. Used by the **My device** page when the user refetches.
+
+This is intentionally separate from the refetch endpoint so that programmatic refetches don't each trigger an APNs push.
+
+The device must be an Apple host with MDM turned on. The request has no body. If the device is offline, the push notification will be delivered when the device comes back online.
+
+`POST /api/v1/fleet/device/{token}/apns_ping`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/apns_ping`
+
+##### Default response
+
+`Status: 204`
+
+---
+
 #### Migrate device to Fleet from another MDM solution
 
 Signals the Fleet server to send a webbook request with the device UUID and serial number to the webhook URL configured for MDM migration. **Requires Fleet Premium license**
@@ -3975,6 +3675,8 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/device/{token}/setup_experience/status`
+
+> Polling this endpoint advances the setup experience: each poll dispatches the next queued item. On Windows and Linux hosts, this includes deciding whether to skip or install software with associated policies. Such an item stays `pending` or `running` while Fleet waits for the host's policy results. If the host passes all of the software's in-scope policies, the item is skipped: it reports `success` without an install.
 
 ##### Parameters
 
@@ -4095,6 +3797,8 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 `POST /api/fleet/orbit/setup_experience/status`
 
+> Polling this endpoint advances the setup experience: each poll dispatches the next queued item. On Windows and Linux hosts, this includes deciding whether to skip or install software with associated policies. Such an item stays `pending` or `running` while Fleet waits for the host's policy results. If the host passes all of the software's in-scope policies, the item is skipped: it reports `success` without an install.
+
 ##### Parameters
 
 | Name  | Type   | In   | Description                        |
@@ -4191,6 +3895,8 @@ Notifies the server about an agent error, resulting in two outcomes:
 `Status: 200`
 
 Returns `enabled` set to `true` if items (e.g. software) for the setup experience were queued for the host.
+
+On Windows and Linux hosts, if any queued software has associated policies (policies whose **Install software** automation points at it), this endpoint also clears the host's existing results for those policies and requests a host refetch, so the skip-or-install decisions use policy results reported after enrollment.
 
 ```json
 {
@@ -6061,3 +5767,180 @@ MIICijCCAXKgAwIBAgIRAOaJt2Mi0tzs06t0YwVUI7owDQYJKoZIhvcNAQELBQAw
 LhF5zOH2B/pJftzHZRIUPTg5doECxNFV6WB+4jr2
 -----END CERTIFICATE-----
 ```
+
+## Apple Platform SSO
+The following endpoints describe Fleet's Platform SSO implementation used for initial user provisioning and password sync. These endpoints are used only by Fleet's Platform SSO extension, included in the Fleet Desktop app, not by third-party Platform SSO extensions such as Company Portal or Okta Verify.
+
+### Platform SSO Device Registration
+
+`POST /api/mdm/apple/psso/registration`
+
+This endpoint is used by the Device Registration phase of Platform SSO to establish per-device communication keys and authenticate the device based on the Registration Token in the Platform SSO payload. Only registration using a Registration Token is supported.
+
+The registration token is a per-host secret Fleet substitutes into the `RegistrationToken` key of the `com.apple.extensiblesso` profile (via the `$FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN` profile variable) at profile-send time. Fleet validates the presented token, derives the owning `host_id` from it, and persists the device's public keys against that host. The request is sent directly by the extension (`URLSession`, no web view) as a urlencoded form.
+
+#### Parameters
+
+| Name                  | Type   | In   | Description                                                                                       |
+| --------------------- | ------ | ---- | ------------------------------------------------------------------------------------------------- |
+| registration_token    | string | body | **Required.** The per-host token Fleet placed in the profile's `RegistrationToken` key. Validated and used to identify the host. |
+| device_signing_key     | string | body | **Required.** PEM-encoded public half of the device's Secure Enclave signing keypair.            |
+| device_encryption_key  | string | body | **Required.** PEM-encoded public half of the device's Secure Enclave encryption keypair.         |
+| signing_key_id          | string | body | **Required.** The `kid` (base64 SHA-256) of the signing key, used to resolve the device on later token requests. |
+| encryption_key_id       | string | body | **Required.** The `kid` (base64 SHA-256) of the encryption key.                                  |
+
+#### Example
+
+`POST /api/mdm/apple/psso/registration`
+
+##### Request body
+
+```
+Content-Type: application/x-www-form-urlencoded
+
+registration_token=<per-host token>&device_signing_key=<PEM>&device_encryption_key=<PEM>&signing_key_id=<kid>&encryption_key_id=<kid>
+```
+
+##### Default response
+
+`Status: 204`
+
+No response body. A `2xx` tells the extension the keys were persisted; the framework only then proceeds to the nonce and token endpoints. An invalid or missing registration token returns `400`.
+
+### Platform SSO Nonce endpoint
+
+`POST /api/mdm/apple/psso/nonce`
+
+This endpoint is used prior to every call to the Token endpoint to obtain a new nonce, which is immediately consumed on the call to the token endpoint, where it is sent as the `request_nonce` claim of the JWT. Nonces have a five-minute expiry. The returned nonce is a random 32-byte value, base64url-encoded.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`POST /api/mdm/apple/psso/nonce`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "Nonce": "P0GgTgrobM_PuYT3RpatJBrDHzCtP_Iky54pTFYEkZg="
+}
+```
+
+### Platform SSO Token endpoint
+
+`POST /api/mdm/apple/psso/token`
+
+This endpoint is used for User Registration, Key Request, and Key Exchange requests of Platform SSO to authenticate users of previously-registered devices and support operations such as Key Exchange, which allows a user who has changed their IDP password and logged in with it to unlock their keychain without the prior password.
+
+The request body is an OAuth `jwt-bearer`-style urlencoded form whose `assertion` field carries a compact JWS signed by the device's registered signing key. Fleet resolves the device from the JWS header's `kid`, verifies the signature against the registered signing key, then dispatches on a claim in the JWS payload. The signed payload must always include a valid, unexpired `request_nonce` from the nonce endpoint and a `jwe_crypto` recipe (`ECDH-ES` / `A256GCM` against the device encryption key) describing how Fleet must encrypt the response.
+
+The response is a compact JWE encrypted to the device's registered encryption key; the JWE's protected-header `typ` distinguishes the operation (`platformsso-login-response+jwt` for password login, `platformsso-key-response+jwt` for key request/exchange). 
+
+The dispatched operation is selected by the JWS payload:
+
+| Operation     | Selecting claim         | Purpose                                                                                          |
+| ------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
+| Password login | `grant_type: password` | Carries the user's plaintext password. Fleet validates it against the upstream IdP and returns a login response JWE containing a Fleet-signed `id_token`, `refresh_token`, and token lifetimes. |
+| Key request   | `request_type: key_request`  | Fleet provisions an EC key pair, certifies its public half, and returns a key response JWE containing the certificate and an opaque, server-sealed `key_context`. |
+| Key exchange  | `request_type: key_exchange` | The device presents its DH public key and the `key_context` from the key request. Fleet recovers the provisioned key, computes the ECDH unlock key, and returns it in a key response JWE. |
+
+#### Parameters
+
+| Name      | Type   | In   | Description                                                                                          |
+| --------- | ------ | ---- | ---------------------------------------------------------------------------------------------------- |
+| assertion | string | body | **Required.** A compact JWS, signed by the device's registered signing key, whose payload carries the `grant_type`/`request_type`, `request_nonce`, `jwe_crypto` recipe, and operation-specific claims. |
+
+#### Example
+
+`POST /api/mdm/apple/psso/token`
+
+##### Request body
+
+```
+Content-Type: application/x-www-form-urlencoded
+
+assertion=<compact JWS signed by the device signing key>
+```
+
+##### Default response
+
+`Status: 200`
+
+```
+Content-Type: application/platformsso-login-response+jwt
+X-Content-Type-Options: nosniff
+
+<compact JWE encrypted to the device encryption key>
+```
+
+### Platform SSO JWKS
+
+`GET /api/mdm/apple/psso/jwks`
+
+This endpoint is used by the Platform SSO extension to fetch the server's JSON Web Key Set. The device uses it to verify the `id_token` Fleet signs in the login response. Fleet's PSSO signing key is a P-256 / ES256 key; it is minted and persisted on first use.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/mdm/apple/psso/jwks`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "keys": [
+    {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "MKBNYXBCNdfHLRMtZUXhN4uSfbKnNQRvMTTdTmJZhirnDcY",
+      "y": "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM",
+      "kid": "E5AVRldE3gjJZElDI7LxVHQ54LrHEj8dv8N8dbGa9PM=",
+      "alg": "ES256",
+      "use": "sig"
+    }
+  ]
+}
+```
+
+The response is served with `Content-Type: application/jwk-set+json`.
+
+### Platform SSO Associated Domains Configuration
+
+`GET /.well-known/apple-app-site-association`
+
+This endpoint is used by Apple's Associated Domains functionality to ensure that a given Platform SSO (or other security-related extension) and a given hostname both agree that they can communicate with each other. This server URL lists which applications may communicate with this server and for which purposes, and the app must contain, or be deployed alongside, an MDM profile with an Associated Domains payload listing the server URL. See https://developer.apple.com/documentation/xcode/supporting-associated-domains. If Fleet's Platform SSO-enabled Password Sync feature has not been configured, this will return a 404 error.
+
+> **Note:** Hosts do not communicate with this endpoint directly; instead, they communicate with an Apple CDN, which only occasionally requests data from this endpoint. Hosts cache this information locally for several hours between CDN requests. As such, it may take 6-24 hours for changes to be reflected on a host if this endpoint ever returns different data, and this should be accounted for in future modifications to this endpoint. Finally, Apple's framework requires this endpoint to be served over a publicly-trusted TLS certificate; self-signed certificates are silently rejected.
+
+The `apps` arrays list the `<team_id>.<bundle_id>` identifiers permitted to bind to this hostname as an authentication server (`authsrv:`).
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /.well-known/apple-app-site-association`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "authsrv": {
+    "apps": ["8VBZ3948LU.com.fleetdm.fleet-desktop", "8VBZ3948LU.com.fleetdm.fleet-desktop.pssoextension"]
+  }
+}
+```
+

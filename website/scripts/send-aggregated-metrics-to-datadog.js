@@ -130,6 +130,32 @@ module.exports = {
       }//∞
     }//∞
 
+    // Emit per-instance host counts grouped by major OS type.
+    for (let instanceStats of latestStatisticsForEachInstance) {
+      if (!instanceStats.hostsEnrolledByOperatingSystem) {
+        continue;
+      }
+      let hostCountByMajorOs = {};
+      for (let platform in instanceStats.hostsEnrolledByOperatingSystem) {
+        let totalForPlatform = 0;
+        for (let osVersion of instanceStats.hostsEnrolledByOperatingSystem[platform]) {
+          totalForPlatform += osVersion.numEnrolled || 0;
+        }
+        if (totalForPlatform > 0) {
+          hostCountByMajorOs[platform] = (hostCountByMajorOs[platform] || 0) + totalForPlatform;
+        }
+      }
+      for (let osType in hostCountByMajorOs) {
+        metricsToReport.push({
+          metric: 'usage_statistics_v2.host_count_by_os_type',
+          type: 3,
+          points: [{ timestamp: timestampForTheseMetrics, value: hostCountByMajorOs[osType] }],
+          resources: [{ name: instanceStats.anonymousIdentifier, type: 'fleet_instance' }],
+          tags: [`os_type:${osType}`, `license_tier:${instanceStats.licenseTier}`, `organization:${instanceStats.organization}`],
+        });
+      }
+    }//∞
+
 
     let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsReportedByReleasedFleetVersions, 'hostsEnrolledByOsqueryVersion');
     let combinedHostsEnrolledByOsqueryVersion = [];
@@ -403,6 +429,27 @@ module.exports = {
       }],
       tags: [`enabled:false`],
     });
+    // mdmAndroidEnabled
+    let numberOfInstancesWithMdmAndroidEnabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {mdmAndroidEnabled: true}).length;
+    let numberOfInstancesWithMdmAndroidDisabled = numberOfInstancesToReport - numberOfInstancesWithMdmAndroidEnabled;
+    metricsToReport.push({
+      metric: 'usage_statistics.android_mdm',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMdmAndroidEnabled
+      }],
+      tags: [`enabled:true`],
+    });
+    metricsToReport.push({
+      metric: 'usage_statistics.android_mdm',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: numberOfInstancesWithMdmAndroidDisabled
+      }],
+      tags: [`enabled:false`],
+    });
     // liveQueryDisabled
     let numberOfInstancesWithLiveQueryDisabled = _.where(latestStatisticsReportedByReleasedFleetVersions, {liveQueryDisabled: true}).length;
     let numberOfInstancesWithLiveQueryEnabled = numberOfInstancesToReport - numberOfInstancesWithLiveQueryDisabled;
@@ -508,6 +555,64 @@ module.exports = {
       }],
       tags: [`configured:false`],
     });
+    // Third-party integrations
+    let thirdPartyIntegrationBooleanMetrics = [
+      {statistic: 'anyVulnerabilitiesWebhookEnabled', metric: 'usage_statistics.vulnerabilities_webhook', tag: 'enabled'},
+      {statistic: 'anyFailingPoliciesWebhookEnabled', metric: 'usage_statistics.failing_policies_webhook', tag: 'enabled'},
+      {statistic: 'anyHostActivitiesWebhookEnabled', metric: 'usage_statistics.host_activities_webhook', tag: 'enabled'},
+      {statistic: 'globalActivityWebhookEnabled', metric: 'usage_statistics.global_activity_webhook', tag: 'enabled'},
+      {statistic: 'ticketDestinationConfigured', metric: 'usage_statistics.ticket_destination_configured', tag: 'configured'},
+      {statistic: 'ssoConfiguredFleetUsers', metric: 'usage_statistics.sso_fleet_users_configured', tag: 'configured'},
+      {statistic: 'ssoConfiguredEndUsers', metric: 'usage_statistics.sso_end_users_configured', tag: 'configured'},
+      {statistic: 'accountProvisioningConfigured', metric: 'usage_statistics.account_provisioning_configured', tag: 'configured'},
+      {statistic: 'idpSCIMConfigured', metric: 'usage_statistics.idp_scim_configured', tag: 'configured'},
+      {statistic: 'idpGoogleWorkspaceConfigured', metric: 'usage_statistics.idp_google_workspace_configured', tag: 'configured'},
+      {statistic: 'certificateAuthorityConfigured', metric: 'usage_statistics.certificate_authority_configured', tag: 'configured'},
+    ];
+    for(let booleanMetric of thirdPartyIntegrationBooleanMetrics) {
+      let numberOfInstancesWithThisStatisticTrue = _.where(latestStatisticsReportedByReleasedFleetVersions, {[booleanMetric.statistic]: true}).length;
+      metricsToReport.push({
+        metric: booleanMetric.metric,
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesWithThisStatisticTrue
+        }],
+        tags: [`${booleanMetric.tag}:true`],
+      });
+      metricsToReport.push({
+        metric: booleanMetric.metric,
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesToReport - numberOfInstancesWithThisStatisticTrue
+        }],
+        tags: [`${booleanMetric.tag}:false`],
+      });
+    }
+    // Log destinations
+    let logDestinationMetrics = [
+      {statistic: 'resultLogDestination', metric: 'usage_statistics.result_log_destination'},
+      {statistic: 'statusLogDestination', metric: 'usage_statistics.status_log_destination'},
+      {statistic: 'auditLogDestination', metric: 'usage_statistics.audit_log_destination'},
+    ];
+    for(let logDestinationMetric of logDestinationMetrics) {
+      let statisticsByLogDestination = _.groupBy(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+        // Snapshots from Fleet versions that predate this statistic have no value for it.
+        return statistics[logDestinationMetric.statistic] || 'unknown';
+      });
+      for(let destination in statisticsByLogDestination) {
+        metricsToReport.push({
+          metric: logDestinationMetric.metric,
+          type: 3,
+          points: [{
+            timestamp: timestampForTheseMetrics,
+            value: statisticsByLogDestination[destination].length
+          }],
+          tags: [`destination:${destination}`],
+        });
+      }
+    }
 
 
     //
@@ -544,6 +649,52 @@ module.exports = {
       points: [{
         timestamp: timestampForTheseMetrics,
         value: totalNumberOfHostsReportedByFreeInstancesInTheLastWeek
+      }],
+      tags: [`license_tier:free`],
+    });
+
+    // numHostsFleetMDMEnrolledWindows
+    let totalNumHostsFleetMDMEnrolledWindowsByPremiumInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'premium'}), 'numHostsFleetMDMEnrolledWindows'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_windows',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledWindowsByPremiumInstances
+      }],
+      tags: [`license_tier:premium`],
+    });
+
+    let totalNumHostsFleetMDMEnrolledWindowsByFreeInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'free'}), 'numHostsFleetMDMEnrolledWindows'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_windows',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledWindowsByFreeInstances
+      }],
+      tags: [`license_tier:free`],
+    });
+
+    // numHostsFleetMDMEnrolledMacOS
+    let totalNumHostsFleetMDMEnrolledMacOSByPremiumInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'premium'}), 'numHostsFleetMDMEnrolledMacOS'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_macos',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledMacOSByPremiumInstances
+      }],
+      tags: [`license_tier:premium`],
+    });
+
+    let totalNumHostsFleetMDMEnrolledMacOSByFreeInstances = _.sum(_.pluck(_.filter(latestStatisticsReportedByReleasedFleetVersions, {licenseTier: 'free'}), 'numHostsFleetMDMEnrolledMacOS'));
+    metricsToReport.push({
+      metric: 'usage_statistics.total_num_hosts_fleet_mdm_enrolled_macos',
+      type: 3,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: totalNumHostsFleetMDMEnrolledMacOSByFreeInstances
       }],
       tags: [`license_tier:free`],
     });
@@ -928,6 +1079,56 @@ module.exports = {
       }],
     });
 
+    // numHostsFleetMDMEnrolledWindows
+    let fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+      return statistics.numHostsFleetMDMEnrolledWindows > 0;
+    });
+
+    let averageNumberOfHostsFleetMDMEnrolledWindows = Math.floor(_.sum(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows, 'numHostsFleetMDMEnrolledWindows')) / fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows.length);
+    metricsToReport.push({
+      metric: 'usage_statistics.avg_num_hosts_fleet_mdm_enrolled_windows',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: averageNumberOfHostsFleetMDMEnrolledWindows
+      }],
+    });
+
+    let highestNumberOfHostsFleetMDMEnrolledWindows = _.max(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledWindows, 'numHostsFleetMDMEnrolledWindows'));
+    metricsToReport.push({
+      metric: 'usage_statistics.max_num_hosts_fleet_mdm_enrolled_windows',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: highestNumberOfHostsFleetMDMEnrolledWindows
+      }],
+    });
+
+    // numHostsFleetMDMEnrolledMacOS
+    let fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+      return statistics.numHostsFleetMDMEnrolledMacOS > 0;
+    });
+
+    let averageNumberOfHostsFleetMDMEnrolledMacOS = Math.floor(_.sum(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS, 'numHostsFleetMDMEnrolledMacOS')) / fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS.length);
+    metricsToReport.push({
+      metric: 'usage_statistics.avg_num_hosts_fleet_mdm_enrolled_macos',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: averageNumberOfHostsFleetMDMEnrolledMacOS
+      }],
+    });
+
+    let highestNumberOfHostsFleetMDMEnrolledMacOS = _.max(_.pluck(fleetInstancesThatReportedNumHostsFleetMDMEnrolledMacOS, 'numHostsFleetMDMEnrolledMacOS'));
+    metricsToReport.push({
+      metric: 'usage_statistics.max_num_hosts_fleet_mdm_enrolled_macos',
+      type: 1,
+      points: [{
+        timestamp: timestampForTheseMetrics,
+        value: highestNumberOfHostsFleetMDMEnrolledMacOS
+      }],
+    });
+
     // numQueries
     let fleetInstancesThatReportedNumQueries = _.filter(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
       return statistics.numQueries > 0;
@@ -952,6 +1153,40 @@ module.exports = {
         value: highestNumberOfQueries
       }],
     });
+
+    // numThirdPartyIntegrations
+    let thirdPartyIntegrationStatistics = [
+      'gitOpsModeEnabled',
+      'hostsStatusWebHookEnabled',
+      'maintenanceWindowsConfigured',
+      'ticketDestinationConfigured',
+      'ssoConfiguredFleetUsers',
+      'ssoConfiguredEndUsers',
+      'idpSCIMConfigured',
+      'idpGoogleWorkspaceConfigured',
+      'certificateAuthorityConfigured',
+      'oktaConditionalAccessConfigured',
+      'entraConditionalAccessConfigured',
+      'globalActivityWebhookEnabled',
+    ];
+    let numThirdPartyIntegrationsForEachInstance = _.map(latestStatisticsReportedByReleasedFleetVersions, (statistics)=>{
+      return _.filter(thirdPartyIntegrationStatistics, (statistic)=>{
+        return statistics[statistic] === true;
+      }).length;
+    });
+    let numberOfInstancesByNumThirdPartyIntegrations = _.countBy(numThirdPartyIntegrationsForEachInstance);
+    for(let numIntegrations in numberOfInstancesByNumThirdPartyIntegrations) {
+      metricsToReport.push({
+        metric: 'usage_statistics.num_third_party_integrations',
+        type: 3,
+        points: [{
+          timestamp: timestampForTheseMetrics,
+          value: numberOfInstancesByNumThirdPartyIntegrations[numIntegrations]
+        }],
+        tags: [`num_integrations:${numIntegrations}`],
+      });
+    }
+
 
 
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.

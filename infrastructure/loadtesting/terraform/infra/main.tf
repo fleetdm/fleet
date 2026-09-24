@@ -57,14 +57,15 @@ module "loadtest" {
       require_secure_transport = "ON"
     }
     observability = {
-      database_insights_mode = "standard"
+      performance_insights_enabled = true
+      database_insights_mode       = "standard"
     }
   }
   redis_config = {
     name                          = local.customer
-    engine                        = "redis"
-    engine_version                = "7.1"
-    family                        = "redis7"
+    engine                        = var.redis_engine
+    engine_version                = var.redis_engine_version
+    family                        = var.redis_parameter_group_family
     instance_type                 = var.redis_instance_size
     cluster_size                  = var.redis_instance_count
     subnets                       = data.terraform_remote_state.shared.outputs.vpc.private_subnets
@@ -95,6 +96,7 @@ module "loadtest" {
   fleet_config = {
     image               = local.fleet_image
     family              = local.customer
+    command             = ["fleet", "serve", "--dev"]
     mem                 = var.fleet_task_memory
     cpu                 = var.fleet_task_cpu
     security_group_name = local.customer

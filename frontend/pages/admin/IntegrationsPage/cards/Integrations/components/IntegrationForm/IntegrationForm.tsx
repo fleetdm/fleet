@@ -1,5 +1,12 @@
 import React, { FormEvent, useState, useEffect } from "react";
 
+import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import {
   IIntegrationFormData,
   IIntegrationTableData,
@@ -7,15 +14,6 @@ import {
   IZendeskJiraIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
-
-import Button from "components/buttons/Button";
-import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
-
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 
 const baseClass = "integration-form";
 
@@ -253,12 +251,8 @@ const IntegrationForm = ({
               tooltip={
                 <>
                   To find the Zendesk group ID, select{" "}
-                  <b>
-                    Admin &gt; <br />
-                    People &gt; Groups
-                  </b>
-                  . Find the group and select it. <br />
-                  The group ID will appear in the search field.
+                  <strong>Admin &gt; People &gt; Groups</strong>. Find the group
+                  and select it. The group ID will appear in the search field.
                 </>
               }
             />
@@ -281,11 +275,7 @@ const IntegrationForm = ({
                       formData.groupId === 0;
                 return (
                   <TooltipWrapper
-                    tipContent={
-                      <>
-                        Complete all fields to save <br /> the integration.
-                      </>
-                    }
+                    tipContent="Complete all fields to save the integration."
                     tooltipClass="add-integration-tooltip"
                     position="top"
                     disableTooltip={!formInvalid || disableChildren}
@@ -303,7 +293,7 @@ const IntegrationForm = ({
                 );
               }}
             />
-            <Button onClick={onCancel} variant="inverse">
+            <Button onClick={onCancel} variant="secondary">
               Cancel
             </Button>
           </div>

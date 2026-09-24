@@ -4,12 +4,13 @@ import React, {
   useImperativeHandle,
   useState,
 } from "react";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import PATHS from "router/paths";
+
 import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
-import { AppContext } from "context/app";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { IAutomationFormHandle } from "../../types";
 
@@ -59,22 +60,20 @@ const ConditionalAccessModal = forwardRef<
         </p>
         {!configured && (
           <InfoBanner>
-            To use conditional access automations, connect Fleet to{" "}
-            {providerText} in{" "}
             {isGlobalAdmin ? (
               // Only global admins can access the Conditional Access settings page.
               <CustomLink
                 url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
-                text="Settings &gt; Integrations &gt; Conditional access"
-                multiline
+                text={`Connect Fleet to ${providerText}`}
+                emphasized
               />
             ) : (
               <>
-                <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-                <b>Conditional access</b>
+                Admin can connect Fleet to {providerText} via <b>Settings</b>{" "}
+                &gt; <b>Integrations</b> &gt; <b>Conditional access</b>
               </>
-            )}
-            .
+            )}{" "}
+            to use conditional access automations.
           </InfoBanner>
         )}
         {configured && (

@@ -54,6 +54,10 @@ func TestOvalPlatform(t *testing.T) {
 			{"rhel", "Fedora Linux 35.0.0", "rhel_09"},
 			{"rhel", "Fedora Linux 36.0.0", "rhel_09"},
 			{"ubuntu", "Ubuntu 20.04.2 LTS", "ubuntu_2004"},
+			{"zorin", "Zorin OS 16.0.0", "ubuntu_2004"},
+			{"zorin", "Zorin OS 17.0.0", "ubuntu_2204"},
+			{"zorin", "Zorin OS 18.1", "ubuntu_2404"},
+			{"zorin", "Zorin OS 99.0.0", "zorin_99"},
 		}
 
 		for _, c := range cases {

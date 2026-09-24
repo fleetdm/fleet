@@ -1,0 +1,10 @@
+{
+  "name": "TRex",
+  "unique_identifier": "com.ameba.TRex",
+  "token": "trex",
+  "installer_format": "zip",
+  "slug": "trex/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

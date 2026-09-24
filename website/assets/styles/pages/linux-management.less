@@ -154,6 +154,14 @@
     }
   }
 
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    white-space: nowrap;
+  }
+
   [purpose='section-with-image'] {
     display: flex;
     flex-direction: row;
@@ -163,6 +171,7 @@
       display: flex;
       flex-direction: column;
       gap: 24px;
+      max-width: 50%;
     }
     [purpose='section-image'] {
       img {
@@ -434,12 +443,6 @@
             height: 23px;
           }
         }
-        &.mozilla {
-          padding: 25px 31.451px 26px 32px;
-          img {
-            height: 25px;
-          }
-        }
         &.calendly {
           padding: 26px 34.551px 26px 34px;
           img {
@@ -561,15 +564,7 @@
       }
     }
   }
-  [purpose='bottom-gradient'] {
-    // background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
-  }
-  [purpose='bottom-cloud-city-banner'] {
-    background: linear-gradient(180deg, #E9F4F4 0%, #FFFFFF 100%);
-    img {
-      width: 100%;
-    }
-  }
+
 
   [purpose='bottom-cta'] {
     text-align: center;
@@ -728,6 +723,12 @@
         padding-bottom: 80px;
       }
     }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
     [purpose='quote-and-logos'] {
       display: flex;
       flex-direction: row;
@@ -781,12 +782,6 @@
             padding: 0 8.138px 0 7.804px;
             img {
               height: 18px;
-            }
-          }
-          &.mozilla {
-            padding: 0 24.239px 0 25.455px;
-            img {
-              height: 20px;
             }
           }
           &.calendly {
@@ -885,6 +880,15 @@
       &.reverse {
         flex-direction: column-reverse;
       }
+      [purpose='feature-text'] {
+        max-width: unset;
+      }
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
     }
     [purpose='checklists'] {
       display: flex;
@@ -978,12 +982,6 @@
               padding: 26px 17px 27px 16px;
               img {
                 height: 23px;
-              }
-            }
-            &.mozilla {
-              padding: 25px 31.451px 26px 32px;
-              img {
-                height: 25px;
               }
             }
             &.calendly {
@@ -1112,7 +1110,12 @@
         flex: 1 0 80%;
       }
     }
-
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
     [purpose='quote-and-logos'] {
       [purpose='logo-grid'] {
         width: 100%;

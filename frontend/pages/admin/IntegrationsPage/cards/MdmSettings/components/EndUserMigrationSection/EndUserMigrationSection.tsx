@@ -1,34 +1,26 @@
+import classnames from "classnames";
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import classnames from "classnames";
-
 import isURL from "validator/lib/isURL";
 
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
-import { getErrorReason } from "interfaces/errors";
-
-import configAPI from "services/entities/config";
-
-import SettingsSection from "pages/admin/components/SettingsSection";
-
+import Button from "components/buttons/Button/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
-import Button from "components/buttons/Button/Button";
-import SectionHeader from "components/SectionHeader";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
-import CustomLink from "components/CustomLink";
-
-import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 
 import MdmMigrationVideo from "../../../../../../../../assets/videos/mdm-migration-video.mp4";
+import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
 const baseClass = "end-user-migration-section";
 
@@ -57,7 +49,6 @@ const validateWebhookUrl = (val: string) => {
 
 const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   const { config, isPremiumTier, setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<IEndUserMigrationFormData>({
     isEnabled: config?.mdm.macos_migration.enable || false,
@@ -70,6 +61,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   // track validation. If we need to validate more inputs in the future we can
   // use a formErrors object.
   const [isValidWebhookUrl, setIsValidWebhookUrl] = useState(true);
+
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const toggleExamplePayloadModal = () => {
     setShowExamplePayload(!showExamplePayload);
@@ -107,6 +100,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       return;
     }
 
+    setIsUpdating(true);
     try {
       const updatedConfig = await configAPI.update({
         mdm: {
@@ -117,7 +111,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           },
         },
       });
-      renderFlash("success", "Successfully updated end user migration.");
+      notify.success("Successfully updated end user migration.");
       setConfig(updatedConfig);
     } catch (err) {
       if (
@@ -128,7 +122,9 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         setIsValidWebhookUrl(false);
         return;
       }
-      renderFlash("error", "Could not update. Please try again.");
+      notify.error("Could not update. Please try again.", { response: err });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -242,15 +238,19 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         </div>
         <Button
           className={`${baseClass}__preview-button`}
-          variant="inverse"
+          variant="secondary"
           onClick={toggleExamplePayloadModal}
         >
-          Preview payload
+          Example payload
         </Button>
         <GitOpsModeTooltipWrapper
           tipOffset={8}
           renderChildren={(disableChildren) => (
-            <Button onClick={onSubmit} disabled={disableChildren}>
+            <Button
+              onClick={onSubmit}
+              disabled={disableChildren || isUpdating}
+              isLoading={isUpdating}
+            >
               Save
             </Button>
           )}

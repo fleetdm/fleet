@@ -8,9 +8,7 @@
       margin-top: 5px;
 
       &__label {
-        font-size: $x-small;
-        font-weight: $bold;
-        color: $core-fleet-black;
+        @include form-label;
       }
     }
   }

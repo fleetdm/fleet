@@ -2,14 +2,13 @@
 
 import React from "react";
 
-import { IActivityDetails } from "interfaces/activity";
-import { isAndroid } from "interfaces/platform";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
-
+import Modal from "components/Modal";
+import { IActivityDetails } from "interfaces/activity";
+import { isAndroid } from "interfaces/platform";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import {
   TargetTitle,
   TargetValue,
@@ -53,7 +52,7 @@ const AppStoreDetailsModal = ({
           value={details.app_store_id}
         />
         <DataSet
-          title="Self-Service"
+          title="Self service"
           value={details.self_service ? "Yes" : "No"}
         />
         <DataSet

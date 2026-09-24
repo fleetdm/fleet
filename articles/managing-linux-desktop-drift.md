@@ -1,14 +1,21 @@
 # How to detect and remediate Linux desktop drift with Fleet
 
-Configuration drift is a familiar concept to many server administrators and DevOps engineers. Put simply, drift is the difference between the desired state of a system and the actual state of that system. The desired state of a system is often expressed using infrastructure as code (IaC) in the Linux server world. Linux desktop environments have traditionally lacked this capability, so they have relied on configuration via a central management console.
+*A Linux user with root can edit a config the moment your back is turned. Here's how to catch that drift and pull the machine back into line automatically, without stripping away the flexibility Linux users depend on.*
 
-Systems can drift in many ways:
+## Key takeaways
 
-- Overly permissive security rules may allow an administrator to manually install packages or override configuration.
-- A misconfigured config management system may fail to update a host.
-- A security event may allow an attacker to perform an unauthorized configuration.
+- **The Linux desktop has no single source of truth.** Every distribution ships its own packages, config locations, and software formats, so the consistency that makes Windows and Mac drift manageable simply isn't there to lean on.
+- **Root access turns drift into a security problem.** Linux users often need elevated permissions to do their jobs, which makes it trivial for a workstation to slip out of policy, and much harder to notice when it does.
+- **Sudo rules are a concrete place drift bites.** A single unauthorized entry in `/etc/sudoers.d` can hand out passwordless root, and it's exactly the kind of change a user can make on their own device.
+- **You express the desired state once, across distributions.** Fleet policies are SQL questions with yes/no answers, so the same policy tells you which hosts pass and which have drifted, regardless of the underlying distro.
+- **Remediation runs itself.** When a host fails a policy, Fleet can trigger a script automatically to rewrite the offending configuration and bring the machine back into compliance, no manual intervention required.
+- **Linux becomes a first-class citizen.** Detection plus automatic remediation gives you confidence that Linux devices are correctly configured even when end users have root, so Linux stops being the unmanaged corner of your fleet.
 
-All of these scenarios result in a system that does not match the desired state for an organization. Over time, this state diverges further from the desired state. This can introduce security, performance, and stability problems.
+<a purpose="cta-button" href="/policies">Explore Fleet policies</a>
+
+Configuration drift, the gap between a system's desired state and its actual state, is familiar to server administrators and DevOps engineers, who close it with infrastructure as code (IaC). Linux desktop environments have traditionally lacked that capability, relying instead on configuration through a central management console.
+
+Drift creeps in through overly permissive rules that let someone install packages or override configuration by hand, a misconfigured config-management system that silently fails to update a host, or a security event that plants an unauthorized change. Each one leaves a machine that no longer matches the state your organization intends, and the gap only widens over time, introducing security, performance, and stability problems. Nowhere is that harder to control than on the Linux desktop.
 
 ## Drift in Linux desktop environments
 
@@ -42,17 +49,13 @@ These policies are usually enforced when a new workstation is created. However, 
 
 This results in dangerous drift between the desired and actual state of a user's system. Organizational policy defines a specific set of rules, and the system is properly configured to meet these requirements. Over time, the configuration drifts due to manual user changes.
 
-To remediate this problem, an organization must implement a Linux desktop management solution to enforce policy. This system should:
+To remediate this problem, an organization needs a Linux desktop management solution that enforces policy. That solution should:
 
 - Allow administrators to express policy in a consistent language across different Linux distributions
-- Provide visibility into systems that are failing or passing a policy check
+- Provide visibility into which systems are passing or failing a policy check
 - Enable automatic remediation by running scripts and utilities to bring a system back into compliance
 
-Fleet's drift management capabilities allow you to define and enforce policies. Using Fleet's drift management features, you can:
-
-- Understand your systems using osquery
-- Define the desired state of your environment using policies
-- Automatically remediate drift using scripted controls
+Fleet covers all three. Its agent (fleetd) collects the actual state of each host as queryable tables, you define the desired state as policies, and scripted controls bring drifted hosts back into compliance automatically.
 
 The screenshot below shows hosts that are failing a policy check. Fleet will automatically remediate this policy violation by running a script to bring the system back into compliance.
 
@@ -72,9 +75,9 @@ Let's take a look at each step below.
 
 ### Determine a system baseline
 
-First, we need to understand the default sudo rules on a fresh Ubuntu 24.04 installation. This establishes a baseline we can use to write a policy. Fleet uses osquery to write policies, so we can start by querying a freshly installed system.
+First, we need to understand the default sudo rules on a fresh Ubuntu 24.04 installation. This establishes a baseline we can use to write a policy. Fleet's agent exposes each host as a set of queryable tables and policies are written as SQL, so we can start by querying a freshly installed system.
 
-The [sudoers](https://osquery.io/schema/5.22.1/#sudoers) table in osquery provides information about sudo rules on a system:
+The [sudoers](https://osquery.io/schema/5.22.1/#sudoers) table that Fleet's agent exposes provides information about sudo rules on a system:
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -82,7 +85,7 @@ The [sudoers](https://osquery.io/schema/5.22.1/#sudoers) table in osquery provid
 | header | TEXT | Symbol for given rule |
 | rule_details | TEXT | Rule definition |
 
-The easiest way to query this table is with an live report from the Fleet dashboard:
+The easiest way to query this table is with a live report from the Fleet dashboard:
 
 1. Navigate to **Hosts**
 2. Click into the host that you want to query
@@ -190,13 +193,13 @@ This statement effectively inverts the result of the inner `SELECT` statement. I
 This is the desired behavior. We want the SQL statement to return a result if there are no offending rules. This causes the policy to pass. Otherwise, we want the statement to return nothing, which causes the policy to fail.
 
 3. Define the query by:
-    * navigating to **Policies > Add Policy** and, if you have the Fleet Premium tier, selecting the fleet that you want the Policy to apply to.
+    * navigating to **Policies > Add policy** and, if you have the Fleet Premium tier, selecting the fleet that you want the policy to apply to.
     * Provide the complete query from above as the value in the **Query** dialog box
     * Click **Save**.
 
 4. The **Save policy** dialog box will appear.
     * Provide a **name, description**, and **resolution** for the policy.
-    * Configure the policy to target only hosts Linux hosts by specifying “Linux” under the **Target** section. If you have the Fleet Premium tier and want to be OS specific, select **Custom** and then the “Ubuntu 24.04” label we created earlier.
+    * Configure the policy to target only Linux hosts by specifying “Linux” under the **Target** section. If you have the Fleet Premium tier and want to be OS specific, select **Custom** and then the “Ubuntu 24.04” label we created earlier.
     * Then click **Save**.
 
 ![Fleet Save policy dialog with Ubuntu 24.04 label targeted](../website/assets/images/articles/managing-linux-desktop-drift-2-478x729@2x.png)
@@ -275,7 +278,7 @@ Save this script as a file on your local system, and upload it by navigating to 
 
 ### Connect the policy with the control
 
-Finally, tie the Policy and Control together by navigating to **Policies > Manage automations > Scripts** and specifying the script as the resolution for the previously created Policy:
+Finally, tie the policy and control together by navigating to **Policies > Manage automations > Scripts** and specifying the script as the resolution for the previously created policy:
 
 ![Fleet policy automation configured to trigger the sudoers remediation script](../website/assets/images/articles/managing-linux-desktop-drift-3-593x273@2x.png)
 
@@ -283,7 +286,7 @@ Everything is now in place to detect and remediate sudo rule drift in Ubuntu 24.
 
 ### Testing the policy and remediation
 
-It's always a good idea to test a new policy and control. We can test this particular policy by adding an unauthorized sudo rule on a host, triggering a Policy refresh, and confirming that the remediation action worked.
+It's always a good idea to test a new policy and control. We can test this particular policy by adding an unauthorized sudo rule on a host, triggering a policy refresh, and confirming that the remediation action worked.
 
 First, add an unauthorized sudo rule on a host:
 
@@ -291,7 +294,7 @@ First, add an unauthorized sudo rule on a host:
 root@dev-desktop-1:~# echo "docker ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/docker
 ```
 
-Fleet performs hourly policy evaluations. However, we can manually trigger a policy refresh for a host. Navigate to **Hosts**, select the host, and click **Refetch**. Fleet will refresh information about the host and evaluate any policies applied to it.
+By default, Fleet evaluates policies about once an hour (the interval is configurable). To avoid waiting, we can manually trigger a policy refresh for a host. Navigate to **Hosts**, select the host, and click **Refetch**. Fleet will refresh information about the host and evaluate any policies applied to it.
 
 The host will now show as failing a policy once the refetch completes:
 
@@ -312,7 +315,7 @@ Detecting and automatically remediating drift is an important part of a secure, 
 
 Fleet changes this by introducing drift management features to automatically detect policy violations and trigger remediation controls. This gives you confidence that Linux devices are correctly configured, even if end-users have root access. You can save time, improve your security posture, and treat Linux as a first-class citizen in your desktop environment with Fleet.
 
-To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact)
+To learn more about Fleet or to get a demo, [contact us](https://fleetdm.com/contact).
 
 <meta name="articleTitle" value="How to detect and remediate Linux desktop drift with Fleet">
 <meta name="authorFullName" value="Anthony Critelli">

@@ -38,6 +38,7 @@ import (
 const (
 	appConfigKey                       = "AppConfig:%s"
 	defaultAppConfigExpiration         = 1 * time.Second
+	windowsEnrollmentDefaultFleetKey   = "WindowsEnrollmentDefaultFleet"
 	packsHostKey                       = "Packs:host:%d"
 	defaultPacksExpiration             = 1 * time.Minute
 	scheduledQueriesKey                = "ScheduledQueries:pack:%d"
@@ -52,11 +53,13 @@ const (
 	defaultDefaultTeamConfigExpiration = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
 	defaultQueryByNameExpiration       = 1 * time.Second
-	queryResultsCountKey               = "QueryResultsCount:%d"
-	defaultQueryResultsCountExpiration = 1 * time.Second
-	yaraRuleCachePrefix                = "YaraRuleByName:"
-	yaraRuleByNameKey                  = yaraRuleCachePrefix + "%s"
-	defaultYaraRuleByNameExpiration    = 1 * time.Minute
+	// The host's team is part of the key so that a transferred host never reads the
+	// schedule of its previous team.
+	queriesPerHostKey               = "QueriesPerHost:host:%d:team:%d"
+	defaultQueriesPerHostExpiration = 1 * time.Minute
+	yaraRuleCachePrefix             = "YaraRuleByName:"
+	yaraRuleByNameKey               = yaraRuleCachePrefix + "%s"
+	defaultYaraRuleByNameExpiration = 1 * time.Minute
 	// NOTE: MDM assets are cached using their checksum as well, as it's
 	// important for them to always be fresh if they changed (see cachedi
 	// mplementation below for details)
@@ -72,6 +75,21 @@ const (
 	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
 )
+
+// MaxConfigInputTTL is the longest default expiration among the cached items
+// that feed the osquery config build: app config, team agent options, the
+// host's packs, and a pack's scheduled queries. The osquery config ETag write
+// fence must outlive it, so that a config assembled from a stale in-memory
+// read can never be published as the current validator. See
+// redis_config_etag.DefaultFenceTTL.
+func MaxConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultPacksExpiration,
+		defaultScheduledQueriesExpiration,
+		defaultTeamAgentOptionsExpiration,
+	)
+}
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
 type cloneCache struct {
@@ -128,7 +146,7 @@ type cachedMysql struct {
 	teamMDMConfigExp        time.Duration
 	defaultTeamConfigExp    time.Duration
 	queryByNameExp          time.Duration
-	queryResultsCountExp    time.Duration
+	queriesPerHostExp       time.Duration
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
 	fmaNamesByIdentifierExp time.Duration
@@ -178,9 +196,9 @@ func WithQueryByNameExpiration(d time.Duration) Option {
 	}
 }
 
-func WithQueryResultsCountExpiration(d time.Duration) Option {
+func WithQueriesPerHostExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
-		o.queryResultsCountExp = d
+		o.queriesPerHostExp = d
 	}
 }
 
@@ -220,7 +238,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamMDMConfigExp:        defaultTeamMDMConfigExpiration,
 		defaultTeamConfigExp:    defaultDefaultTeamConfigExpiration,
 		queryByNameExp:          defaultQueryByNameExpiration,
-		queryResultsCountExp:    defaultQueryResultsCountExpiration,
+		queriesPerHostExp:       defaultQueriesPerHostExpiration,
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
 		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
@@ -268,6 +286,31 @@ func (ds *cachedMysql) SaveAppConfig(ctx context.Context, info *fleet.AppConfig)
 
 	ds.c.Set(ctx, appConfigKey, info, ds.appConfigExp)
 
+	return nil
+}
+
+func (ds *cachedMysql) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
+	if x, found := ds.c.Get(ctx, windowsEnrollmentDefaultFleetKey); found {
+		if v, ok := x.(*fleet.WindowsEnrollmentDefaultFleet); ok {
+			return v.FleetID, v.FleetName, nil
+		}
+	}
+
+	fleetID, fleetName, err := ds.Datastore.GetWindowsEnrollmentDefaultFleet(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+
+	ds.c.Set(ctx, windowsEnrollmentDefaultFleetKey, &fleet.WindowsEnrollmentDefaultFleet{FleetID: fleetID, FleetName: fleetName}, ds.appConfigExp)
+
+	return fleetID, fleetName, nil
+}
+
+func (ds *cachedMysql) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error {
+	if err := ds.Datastore.SetWindowsEnrollmentDefaultFleet(ctx, fleetID); err != nil {
+		return err
+	}
+	ds.c.Delete(windowsEnrollmentDefaultFleetKey)
 	return nil
 }
 
@@ -421,23 +464,33 @@ func (ds *cachedMysql) QueryByName(ctx context.Context, teamID *uint, name strin
 	return query, nil
 }
 
-func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
-	key := fmt.Sprintf(queryResultsCountKey, queryID)
+// QueriesByName delegates straight to the underlying store: a batch lookup is
+// already a single round-trip, so there is nothing for the per-name cache to add.
+func (ds *cachedMysql) QueriesByName(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+	return ds.Datastore.QueriesByName(ctx, names)
+}
+
+func (ds *cachedMysql) QueriesPerHost(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+	teamID_ := uint(0) // global team is 0
+	if teamID != nil {
+		teamID_ = *teamID
+	}
+	key := fmt.Sprintf(queriesPerHostKey, hostID, teamID_)
 
 	if x, found := ds.c.Get(ctx, key); found {
-		if count, ok := x.(integer); ok {
-			return int(count), nil
+		if queryIDs, ok := x.(queryIDList); ok {
+			return queryIDs, nil
 		}
 	}
 
-	count, err := ds.Datastore.ResultCountForQuery(ctx, queryID)
+	queryIDs, err := ds.Datastore.QueriesPerHost(ctx, hostID, teamID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	ds.c.Set(ctx, key, integer(count), ds.queryResultsCountExp)
+	ds.c.Set(ctx, key, queryIDList(queryIDs), ds.queriesPerHostExp)
 
-	return count, nil
+	return queryIDs, nil
 }
 
 func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,

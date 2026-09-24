@@ -1,0 +1,10 @@
+{
+  "name": "LookAway",
+  "unique_identifier": "com.mysticalbits.lookaway",
+  "token": "lookaway",
+  "installer_format": "dmg",
+  "slug": "lookaway/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

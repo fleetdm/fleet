@@ -1,0 +1,7 @@
+.assets-tab {
+  @include vertical-page-tab-panel-layout;
+
+  &__tab-header {
+    @include tab-header;
+  }
+}

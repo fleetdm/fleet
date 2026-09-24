@@ -4,6 +4,7 @@
   "package_identifier": "JetBrains.DataGrip",
   "unique_identifier": "DataGrip",
   "fuzzy_match_name": true,
+  "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/datagrip_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/datagrip_uninstall.ps1",
   "installer_arch": "x64",

@@ -1,13 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
 import classnames from "classnames";
-
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { PlacesType } from "react-tooltip-5";
 
-import { stringToClipboard } from "utilities/copy_text";
-
-import FormField from "components/forms/FormField";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import CopyButton from "components/buttons/CopyButton";
+import FormField from "components/forms/FormField";
 
 const baseClass = "input-field";
 
@@ -59,6 +56,8 @@ export interface IInputFieldProps {
   min?: string | number;
   /** Only effective on input type number */
   max?: string | number;
+  /** Only effective on textarea elements */
+  disableResize?: boolean;
 }
 
 const InputField = ({
@@ -86,12 +85,12 @@ const InputField = ({
   helpText = "",
   enableShowSecret = false,
   enableCopy = false,
+  disableResize = false,
   ignore1password = true,
   step,
   min,
   max,
 }: IInputFieldProps): JSX.Element => {
-  const [copied, setCopied] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -123,31 +122,15 @@ const InputField = ({
     setShowSecret((prev) => !prev);
   }, []);
 
-  const onClickCopy = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        setCopied(true);
-        setTimeout(() => {
-          setCopied(false);
-        }, 2000);
-      });
-    },
-    [value]
-  );
+  const copyText = typeof value === "string" ? value : String(value ?? "");
 
-  // Old-style icon copy button for textarea (positioned absolutely above textarea)
+  // Copy button for textarea (positioned absolutely above textarea)
   const renderTextareaCopyButton = () => {
     return (
       <div
         className={`${baseClass}__copy-wrapper ${baseClass}__copy-wrapper--text-area`}
       >
-        {copied && (
-          <span className={`${baseClass}__copied-confirmation`}>Copied!</span>
-        )}
-        <Button variant="icon" onClick={onClickCopy} size="small" iconStroke>
-          <Icon name="copy" />
-        </Button>
+        <CopyButton copyText={copyText} variant="secondary" size="small" />
       </div>
     );
   };
@@ -157,32 +140,22 @@ const InputField = ({
     return (
       <div className={`${baseClass}__action-buttons`}>
         {enableCopy && (
-          <div className={`${baseClass}__action-button-wrapper`}>
-            {copied && (
-              <span className={`${baseClass}__copied-confirmation`}>
-                Copied!
-              </span>
-            )}
-            <button
-              type="button"
-              className={`${baseClass}__action-button`}
-              onClick={onClickCopy}
-              aria-label="Copy to clipboard"
-            >
-              <Icon name="copy" />
-            </button>
-          </div>
+          <CopyButton
+            copyText={copyText}
+            variant="secondary"
+            className={`${baseClass}__action-button`}
+            tooltipOffset={10}
+          />
         )}
         {enableShowSecret && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             className={`${baseClass}__action-button`}
             onClick={onToggleSecret}
-            aria-label={showSecret ? "Hide secret" : "Show secret"}
-            aria-pressed={showSecret}
-          >
-            <Icon name="eye" />
-          </button>
+            ariaLabel={showSecret ? "Hide secret" : "Show secret"}
+            ariaPressed={showSecret}
+            icon="eye"
+          />
         )}
       </div>
     );
@@ -219,6 +192,10 @@ const InputField = ({
       { "copy-enabled": enableCopy }
     );
 
+    const textAreaInputClasses = classnames(inputClasses, {
+      [`${baseClass}__textarea--resize-disabled`]: disableResize,
+    });
+
     return (
       <FormField
         {...formFieldProps}
@@ -232,7 +209,7 @@ const InputField = ({
             onChange={onInputChange}
             onBlur={onBlur}
             onFocus={onFocus}
-            className={inputClasses}
+            className={textAreaInputClasses}
             disabled={readOnly || disabled}
             placeholder={placeholder}
             ref={(r) => {

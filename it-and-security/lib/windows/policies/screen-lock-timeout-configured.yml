@@ -1,4 +1,4 @@
-- name: Windows - Interactive logon screen lock timeout configured
+- name: Interactive logon screen lock timeout configured
   query: |-
     SELECT 1 FROM registry
     WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'

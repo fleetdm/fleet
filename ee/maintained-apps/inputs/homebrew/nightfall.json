@@ -1,0 +1,10 @@
+{
+  "name": "Nightfall",
+  "unique_identifier": "net.ryanthomson.Nightfall",
+  "token": "nightfall",
+  "installer_format": "dmg",
+  "slug": "nightfall/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

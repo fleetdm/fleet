@@ -1,4 +1,4 @@
-- name: Linux - Sufficient disk space available
+- name: Sufficient disk space available (Linux)
   query: SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL) / blocks > 0.10;
   critical: false
   description: >-

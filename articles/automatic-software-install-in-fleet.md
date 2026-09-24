@@ -25,9 +25,11 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 ![Install software modal](../website/assets/images/articles/automatic-software-install-install-software-398x259@2x.png)
 
+> If a software title has more than one [custom package](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title), you can select which package to install. Fleet selects the package that was added first by default. Fleet installs the package on hosts within that package's label scope.
+
 Once the software is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
-Policy automation software installs are automatically attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+Policy automation software installs are automatically attempted up to 3 total times per policy run. Each time the policy runs and fails, Fleet triggers the software install again, up to a total of 3 attempts. If the host passes the policy, the retry count resets. Across policy runs, Fleet attempts the install up to 10 times per host, then waits 24 hours before retrying.
 
 If the software install still fails after all attempts, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
@@ -37,7 +39,8 @@ If software has a custom target (labels), it will only be installed on hosts wit
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
 * The policy check mechanism runs on a typical one-hour cadence on all online hosts.
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Currently, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". By default, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* To send an install request on _every_ failing result, including consecutive failures ("No" -> "No"), set `continuous_automations_enabled` to `true` on the policy (_Available in Fleet Premium_). Because this can retry an install that doesn't resolve the policy, it may cause a retry loop.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*

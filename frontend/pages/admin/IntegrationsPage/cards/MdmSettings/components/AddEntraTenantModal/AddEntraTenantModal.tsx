@@ -1,13 +1,12 @@
 import React, { useState, useContext } from "react";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-
-import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
 
 import { IAddTenantFormValidation, validateFormData } from "./helpers";
 
@@ -22,7 +21,6 @@ interface IAddEntraTenantModalProps {
 }
 
 const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { setConfig, config } = useContext(AppContext);
 
   const [isAdding, setIsAdding] = React.useState(false);
@@ -54,7 +52,7 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
     const tenantIdExists =
       config?.mdm.windows_entra_tenant_ids?.includes(tenantId ?? "") ?? false;
     if (tenantIdExists) {
-      renderFlash("error", "Couldn't add tenant. Tenant ID already exists.");
+      notify.error("Couldn't add tenant. Tenant ID already exists.");
       return;
     }
 
@@ -68,10 +66,12 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
           },
         });
         setConfig(updateData);
-        renderFlash("success", "Successfully added tenant");
+        notify.success("Successfully added tenant");
         onExit();
       } catch (error) {
-        renderFlash("error", "Couldn't add tenant. Please try again");
+        notify.error("Couldn't add tenant. Please try again", {
+          response: error,
+        });
       } finally {
         setIsAdding(false);
       }
@@ -115,7 +115,7 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
         >
           Add
         </Button>
-        <Button onClick={onExit} variant="inverse">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

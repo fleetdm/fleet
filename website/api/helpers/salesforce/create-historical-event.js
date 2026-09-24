@@ -81,6 +81,36 @@ module.exports = {
     },
     relatedCampaign: {
       type: 'string',
+    },
+    eventSource: {
+      type: 'string',
+      isIn: [
+        'Attended a call with Fleet',
+        'Event',
+        'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
+        'GitHub - Contributed to fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Stared fleetdm/fleet',
+        'LinkedIn - Comment',
+        'LinkedIn - Liked the LinkedIn company page',
+        'LinkedIn - Reaction',
+        'LinkedIn - Share',
+        'Prospecting - AE',
+        'Prospecting - Meeting service',
+        'Prospecting - Specialist',
+        'Website - Chat',
+        'Website - Contact forms',
+        'Website - Contact forms - Demo',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
+        'Website - Newsletter',
+        'Website - Sign up',
+        'Website - Swag request',
+        'Website - Workshop request'
+      ],
     }
   },
 
@@ -96,7 +126,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ salesforceAccountId, salesforceContactId, eventType, linkedinUrl, intentSignal, eventContent, eventContentUrl, fleetWebsitePageUrl, websiteVisitReason, relatedCampaign}) {
+  fn: async function ({ salesforceAccountId, salesforceContactId, eventType, linkedinUrl, intentSignal, eventContent, eventContentUrl, fleetWebsitePageUrl, websiteVisitReason, relatedCampaign, eventSource}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -148,7 +178,8 @@ module.exports = {
 
         Page_URL__c: fleetWebsitePageUrl,// eslint-disable-line camelcase
         Website_visit_reason__c: websiteVisitReason,// eslint-disable-line camelcase
-        Related_campaign__c: relatedCampaign// eslint-disable-line camelcase
+        Related_campaign__c: relatedCampaign,// eslint-disable-line camelcase
+        Historical_event_source__c: eventSource// eslint-disable-line camelcase
       });
     }).intercept((err)=>{
       return new Error(`An error occured when creating a new Historical event record in Salesforce. full error ${require('util').inspect(err, {depth: null})}`);

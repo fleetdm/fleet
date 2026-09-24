@@ -1,9 +1,9 @@
 import React from "react";
-import { ISoftware } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { ISoftware } from "interfaces/software";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -77,6 +77,7 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
           queryParams={{ software_id: cellProps.cell.value, fleet_id: teamId }} // TODO: Should redirect with the current team id?
           className="software-link"
           condensed
+          rowHover
         />
       );
     },

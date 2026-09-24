@@ -1,15 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import React from "react";
 
-import { ILabelSummary } from "interfaces/label";
+import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import PolicyProvider from "context/policy";
+import { ILabelSummary } from "interfaces/label";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import SaveNewPolicyModal from "./SaveNewPolicyModal";
 
 const baseUrl = (path: string) => {
@@ -85,6 +86,23 @@ describe("SaveNewPolicyModal", () => {
 
     // Check that the target selector is not present.
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
+  it("caps the policy name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewPolicyModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
   });
 
   describe("in premium tier", () => {

@@ -1,11 +1,13 @@
-import React, { useContext, useState } from "react";
-import { NotificationContext } from "context/notification";
-import scriptAPI from "services/entities/scripts";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { getErrorMessage } from "./helpers";
+import { notify } from "components/ToastNotification";
+import scriptAPI from "services/entities/scripts";
+
 import ScriptUploader from "../ScriptUploader";
+
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "script-upload-modal";
 
@@ -20,7 +22,6 @@ const ScriptUploadModal = ({
   onExit,
   currentTeamId,
 }: IScriptUploadModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showLoading, setShowLoading] = useState(false);
 
@@ -31,10 +32,10 @@ const ScriptUploadModal = ({
     setShowLoading(true);
     try {
       await scriptAPI.uploadScript(selectedFile, currentTeamId);
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onSubmit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     } finally {
       setShowLoading(false);
     }

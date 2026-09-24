@@ -1,0 +1,10 @@
+{
+  "name": "AirServer",
+  "unique_identifier": "com.pratikkumar.airserver-mac",
+  "token": "airserver",
+  "installer_format": "dmg",
+  "slug": "airserver/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

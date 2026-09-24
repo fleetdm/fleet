@@ -1,0 +1,3 @@
+# A label must set name (or path/paths); this one has neither.
+labels:
+  - query: "SELECT 1;"

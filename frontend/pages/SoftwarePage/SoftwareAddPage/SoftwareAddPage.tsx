@@ -1,22 +1,21 @@
-import React, { useCallback, useContext } from "react";
-import { Tab, TabList, Tabs } from "react-tabs";
-import { InjectedRouter } from "react-router";
 import { Location } from "history";
+import React, { useCallback, useContext } from "react";
+import { InjectedRouter } from "react-router";
+import { Tab, TabList, Tabs } from "react-tabs";
 
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
+import BackButton from "components/BackButton";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-
-import SidePanelPage from "components/SidePanelPage";
-import MainContent from "components/MainContent";
-import BackButton from "components/BackButton";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import PageDescription from "components/PageDescription";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import {
   FmaPlatformValue,
@@ -122,7 +121,7 @@ const SoftwareAddPage = ({
             />
           </div>
           <h1>Add software</h1>
-          <PageDescription content="Add software to your library. You can add it to self-service later." />
+          <PageDescription content="Add software to your library. You can add it to self service later." />
           <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}

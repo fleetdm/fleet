@@ -15,7 +15,7 @@ module.exports.bootstrap = async function() {
   var path = require('path');
 
   // This bootstrap version indicates what version of fake data we're dealing with here.
-  var HARD_CODED_DATA_VERSION = 1;
+  var HARD_CODED_DATA_VERSION = 2;
 
   // This path indicates where to store/look for the JSON file that tracks the "last run bootstrap info"
   // locally on this development computer (if we happen to be on a development computer).
@@ -79,7 +79,6 @@ module.exports.bootstrap = async function() {
     fleetPremiumTrialLicenseKeyExpiresAt: Date.now() + (60 * 60 * 24 * 30 * 1000),
   }).fetch();
 
-  // Note: We do not create a platform record to avoid potential consistency violations.
 
   if (sails.config.custom.enableBillingFeatures) {
     let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
@@ -92,6 +91,12 @@ module.exports.bootstrap = async function() {
     });
   }
 
+  // Create a platform record.
+  await Platform.create({
+    currentUnfrozenGitHubPrNumbers: [],
+    workshopDetails: [],
+    workshopDetailsLastUpdatedAt: Date.now()
+  });
 
   // Save new bootstrap version
   await sails.helpers.fs.writeJson.with({

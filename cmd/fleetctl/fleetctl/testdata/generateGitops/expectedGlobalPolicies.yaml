@@ -22,6 +22,8 @@
   labels_include_all:
   - Label C
   - Label D
+  labels_exclude_all:
+  - Label E
   name: Global Policy Include All
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 2

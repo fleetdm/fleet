@@ -1,0 +1,12 @@
+{
+  "name": "Foxit PDF Reader",
+  "slug": "foxit-pdf-reader/windows",
+  "package_identifier": "Foxit.FoxitReader",
+  "unique_identifier": "Foxit PDF Reader",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/foxit-pdf-reader_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/foxit-pdf-reader_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

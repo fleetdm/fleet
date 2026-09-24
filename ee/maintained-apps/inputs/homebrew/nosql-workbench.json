@@ -1,0 +1,10 @@
+{
+  "name": "NoSQL Workbench",
+  "unique_identifier": "com.dynamodb.workbench",
+  "token": "nosql-workbench",
+  "installer_format": "dmg",
+  "slug": "nosql-workbench/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

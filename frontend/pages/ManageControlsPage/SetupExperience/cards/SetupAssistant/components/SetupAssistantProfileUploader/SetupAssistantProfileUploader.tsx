@@ -1,12 +1,11 @@
-import React, { useContext, useState } from "react";
 import { AxiosResponse } from "axios";
-
-import { IApiError } from "interfaces/errors";
-import { NotificationContext } from "context/notification";
-import mdmAPI from "services/entities/mdm";
+import React, { useState } from "react";
 
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
+import { notify } from "components/ToastNotification";
+import { IApiError } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 import { getErrorMessage } from "./helpers";
 
@@ -21,7 +20,6 @@ const SetupAssistantProfileUploader = ({
   currentTeamId,
   onUpload,
 }: ISetupAssistantProfileUploaderProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showLoading, setShowLoading] = useState(false);
 
   const onUploadFile = async (files: FileList | null) => {
@@ -36,7 +34,7 @@ const SetupAssistantProfileUploader = ({
 
     try {
       await mdmAPI.uploadSetupEnrollmentProfile(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
@@ -56,7 +54,7 @@ const SetupAssistantProfileUploader = ({
           </>
         );
       }
-      renderFlash("error", errComponent);
+      notify.error(errComponent, { response: e });
     } finally {
       setShowLoading(false);
     }

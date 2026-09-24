@@ -20,24 +20,31 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 		return fleet.TargetMetrics{}, nil
 	}
 
-	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets)
+	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "h")
 
-	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts
+	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts.
+	// Mobile hosts are excluded here (WHERE platform NOT IN ...) because they
+	// can't respond to a live report, and counting them as "online" would
+	// overstate what a run would actually reach. SearchHosts and
+	// HostIDsInTargets apply the same filter so the picker hides mobile and a
+	// mobile-inclusive team target still drops mobile before the campaign
+	// fires. Desktop online/offline uses the osquery interval; the mobile
+	// CASE arm and its joins are absent since no mobile rows pass the filter.
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
-			COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
+			COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
 			COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 			COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
-			COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
+			COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 		FROM hosts h
-		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-		WHERE %s AND %s`,
+		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`+hostMDMSeenTimeJoin+`
+		WHERE h.platform NOT IN ('ios','ipados','android') AND %s AND %s`,
 		fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer,
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query, args, err := sqlx.In(sql, append([]interface{}{now, now, now, now}, queryTargetArgs...)...)
+	query, args, err := sqlx.In(sql, append([]any{now, now, now, now}, queryTargetArgs...)...)
 	if err != nil {
 		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}
@@ -53,14 +60,14 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 
 // targetSQLCondAndArgs returns the SQL condition and the arguments for matching whether
 // a host ID is a target of a live query.
-func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interface{}) {
+func targetSQLCondAndArgs(targets fleet.HostTargets, hostKey string) (sql string, args []any) {
 	const queryTargetLogicCondition = `(
 	/* The host was selected explicitly. */
-	id IN (? /* queryHostIDs */)
+	%[1]s.id IN (? /* queryHostIDs */)
 	OR
 	(
 		/* 'All hosts' builtin label was selected. */
-		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = (SELECT id from labels WHERE name = 'All Hosts') AND label_id IN (? /* queryLabelIDs */))
+		%[1]s.id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = (SELECT id from labels WHERE name = 'All Hosts') AND label_id IN (? /* queryLabelIDs */))
 	)
 	OR
 	(
@@ -72,7 +79,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 		(
 			SELECT NOT EXISTS (SELECT id FROM labels WHERE label_type <> 1 AND id IN (? /* queryLabelIDs */))
 			OR
-			(id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type <> 1 AND lm.label_id IN (? /* queryLabelIDs */)))
+			(%[1]s.id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type <> 1 AND lm.label_id IN (? /* queryLabelIDs */)))
 		)
 		AND
 		/* A builtin label filter was not specified OR if it was specified then the host must be
@@ -80,7 +87,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 		(
 			SELECT NOT EXISTS (SELECT id FROM labels WHERE label_type = 1 AND id IN (? /* queryLabelIDs */))
 			OR
-			(id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type = 1 AND lm.label_id IN (? /* queryLabelIDs */)))
+			(%[1]s.id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type = 1 AND lm.label_id IN (? /* queryLabelIDs */)))
 		)
 		AND
 		/* A team filter was not specified OR if it was specified then the host must be a
@@ -114,7 +121,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	labelsSpecified := len(queryLabelIDs) > 1
 	teamsSpecified := len(queryTeamIDs) > 1 || extraTeamIDCondition != ""
 
-	return fmt.Sprintf(queryTargetLogicCondition, extraTeamIDCondition), []interface{}{
+	return fmt.Sprintf(queryTargetLogicCondition, hostKey, extraTeamIDCondition), []any{
 		queryHostIDs,
 		queryLabelIDs,
 		labelsSpecified, teamsSpecified,
@@ -130,12 +137,17 @@ func (ds *Datastore) HostIDsInTargets(ctx context.Context, filter fleet.TeamFilt
 		return []uint{}, nil
 	}
 
-	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets)
+	queryTargetLogicCondition, queryTargetArgs := targetSQLCondAndArgs(targets, "hosts")
 
+	// Live-query targets are desktop-only: mobile hosts don't run osquery, so
+	// forwarding them here would fire a campaign that never gets a response.
+	// Kept in lockstep with CountHostsInTargets and SearchHosts so a
+	// mobile-only target rejects at the "no hosts targeted" gate in
+	// NewDistributedQueryCampaign.
 	sql := fmt.Sprintf(`
 			SELECT DISTINCT id
 			FROM hosts
-			WHERE %s AND %s
+			WHERE hosts.platform NOT IN ('ios','ipados','android') AND %s AND %s
 			ORDER BY id ASC
 		`,
 		queryTargetLogicCondition,

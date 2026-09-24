@@ -47,10 +47,6 @@ parasails.registerPage('customers', {
 
     },
 
-    clickShowMoreCaseStudies: function() {
-      this.pageOfCaseStudiesVisible++;
-    },
-
     closeModal: function() {
       this.modal = undefined;
     },

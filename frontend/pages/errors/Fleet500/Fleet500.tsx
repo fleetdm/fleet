@@ -1,66 +1,25 @@
 import React from "react";
-import { Link } from "react-router";
 
-import PATHS from "router/paths";
-
-import { SUPPORT_LINK } from "utilities/constants";
-import { isDarkMode } from "utilities/theme";
-import Button from "components/buttons/Button";
-// @ts-ignore
-import fleetLogoText from "../../../../assets/images/fleet-logo-text-white.svg";
-// @ts-ignore
-import backgroundImg from "../../../../assets/images/500.svg";
-// @ts-ignore
-import backgroundImgDark from "../../../../assets/images/500-dark.svg";
-import githubLogo from "../../../../assets/images/github-mark-white-24x24@2x.png";
-import slackLogo from "../../../../assets/images/logo-slack-24x24@2x.png";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 const baseClass = "fleet-500";
 
 const Fleet500 = () => (
-  <div className={baseClass}>
-    <header className="primary-header">
-      <Link to={PATHS.DASHBOARD}>
-        <img
-          className="primary-header__logo"
-          src={fleetLogoText}
-          alt="Fleet logo"
-        />
-      </Link>
-    </header>
-    <img
-      className="background-image"
-      src={isDarkMode() ? backgroundImgDark : backgroundImg}
-      alt="500 background"
-    />
-    <main>
-      <h1>
-        <span>500:</span> Oh, something went wrong.
-      </h1>
-      <p>Please file an issue if you believe this is a bug.</p>
-      <div className={`${baseClass}__button-wrapper`}>
-        <a href={SUPPORT_LINK} target="_blank" rel="noopener noreferrer">
-          <Button variant="unstyled" className={`${baseClass}__slack-btn`}>
-            <>
-              <img src={slackLogo} alt="Slack icon" />
-              Get help on Slack
-            </>
-          </Button>
-        </a>
-        <a
-          href="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title="
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Button>
-            <>
-              <img src={githubLogo} alt="Github icon" />
-              File an issue
-            </>
-          </Button>
-        </a>
-      </div>
-    </main>
+  <div className="error-page__details">
+    <h1 className="error-page__status-code">500</h1>
+    <p className="error-page__subtitle">Oh, something went wrong.</p>
+    <p className="error-page__message">
+      Please{" "}
+      <a
+        className={`${baseClass}__link`}
+        href={GITHUB_NEW_ISSUE_LINK}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        file an issue
+      </a>{" "}
+      if you believe this is a bug.
+    </p>
   </div>
 );
 

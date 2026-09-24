@@ -13,13 +13,18 @@
 
   &__list-item {
     margin-bottom: 0;
+    max-width: 100%;
+    min-width: 0;
   }
 
-  .button,
-  .children-wrapper {
+  .tag {
     max-width: 100%;
     .__react_component_tooltip {
       font-weight: $regular;
     }
+  }
+
+  .tag.host-labels-card__list-button {
+    max-width: 300px;
   }
 }

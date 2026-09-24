@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IAppLastInstall,
   IDeviceSoftware,
@@ -9,16 +15,9 @@ import {
   ISoftwareLastInstall,
   SoftwareInstallStatus,
 } from "interfaces/software";
-import { dateAgo } from "utilities/date_format";
-
-import Card from "components/Card";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { dateAgo } from "utilities/date_format";
 
 import { HostInstallerActionButton } from "../../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
@@ -118,24 +117,19 @@ const InstallerStatus = ({
       >
         <div className={`${baseClass}__status-with-tooltip`}>
           {displayConfig.iconName === "pending-outline" && (
-            <Spinner
-              size="x-small"
-              includeContainer={false}
-              centered={false}
-              delay={0}
-            />
+            <Spinner size="x-small" centered={false} delay={0} />
           )}
           {last_install && displayConfig.displayText === "Failed" && (
             <span data-testid={`${baseClass}__status--test`}>
               <Button
                 className={`${baseClass}__item-status-button`}
-                variant="inverse"
+                variant="subdued"
                 onClick={() => {
                   onShowInstallerDetails();
                 }}
                 size="small"
+                icon={displayConfig.iconName || "install"}
               >
-                <Icon name={displayConfig.iconName || "install"} />
                 {displayConfig.displayText}
               </Button>
             </span>
@@ -176,13 +170,7 @@ const InstallerStatusAction = ({
     if (ui_status === "updating") {
       return (
         <>
-          <Spinner
-            size="x-small"
-            includeContainer={false}
-            centered={false}
-            delay={0}
-          />{" "}
-          Updating...{" "}
+          <Spinner size="x-small" centered={false} delay={0} /> Updating...{" "}
         </>
       );
     }
@@ -243,11 +231,7 @@ const UpdateSoftwareItem = ({
   onShowInstallerDetails,
 }: IUpdateSoftwareItemProps) => {
   return (
-    <Card
-      borderRadiusSize="large"
-      paddingSize="medium"
-      className={`${baseClass}__item`}
-    >
+    <Card paddingSize="medium" className={`${baseClass}__item`}>
       <div className={`${baseClass}__item-content`}>
         <InstallerInfo software={software} />
         <InstallerStatusAction

@@ -1,0 +1,13 @@
+{
+  "name": "Air Explorer",
+  "slug": "air-explorer/windows",
+  "package_identifier": "AirExplorer.AirExplorer",
+  "unique_identifier": "Air Explorer",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/air-explorer_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/air-explorer_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

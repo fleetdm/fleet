@@ -1,14 +1,14 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
-
+import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IJiraIntegration,
   IZendeskIntegration,
   IIntegrationTableData as IIntegrationCompleteData,
 } from "interfaces/integration";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import JiraIcon from "../../../../../../assets/images/icon-jira-24x24@2x.png";
 import ZendeskIcon from "../../../../../../assets/images/icon-zendesk-32x24@2x.png";
@@ -31,7 +31,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IActionsDropdownProps extends IRowProps {
+interface IActionsCellProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -43,7 +43,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IActionsDropdownProps) => JSX.Element);
+    | ((props: IActionsCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -98,21 +98,21 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IActionsDropdownProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
-          variant="small-button"
-        />
+      Cell: (cellProps: IActionsCellProps) => (
+        <Button
+          className="row-hover-button"
+          variant="subdued"
+          size="small"
+          ariaLabel="Delete integration"
+          onClick={() => actionSelectHandler("delete", cellProps.row.original)}
+        >
+          <Icon name="trash" />
+        </Button>
       ),
     },
   ];
 };
 
-// NOTE: may need current user ID later for permission on actions.
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {

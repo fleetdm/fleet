@@ -1,0 +1,10 @@
+{
+  "name": "lo-rain",
+  "unique_identifier": "lo.cafe.lo-rain",
+  "token": "lo-rain",
+  "installer_format": "dmg",
+  "slug": "lo-rain/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

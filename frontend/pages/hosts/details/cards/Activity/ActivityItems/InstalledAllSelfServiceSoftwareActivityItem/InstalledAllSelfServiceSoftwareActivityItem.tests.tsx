@@ -1,5 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType } from "interfaces/activity";
 
@@ -20,7 +21,7 @@ describe("InstalledAllSelfServiceSoftwareActivityItem", () => {
 
     expect(screen.getByText("End user")).toBeVisible();
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeVisible();
     // The actor is dropped in favor of "End user".
     expect(screen.queryByText("Test User")).not.toBeInTheDocument();
@@ -38,7 +39,7 @@ describe("InstalledAllSelfServiceSoftwareActivityItem", () => {
     );
 
     expect(
-      screen.getByText(/installed all the software in self-service/i)
+      screen.getByText(/installed all the software in self service/i)
     ).toBeVisible();
   });
 

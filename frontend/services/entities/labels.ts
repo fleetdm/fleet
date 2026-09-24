@@ -1,12 +1,17 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+
+import { IHost } from "interfaces/host";
+import {
+  CUSTOM_HOST_VITAL_CRITERION,
+  ILabel,
+  ILabelSummary,
+} from "interfaces/label";
+import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
+import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
+import { INewLabelFormData } from "pages/labels/NewLabelPage/NewLabelPage";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
-import { ILabel, ILabelSummary } from "interfaces/label";
-import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
-import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
-import { IHost } from "interfaces/host";
-import { INewLabelFormData } from "pages/labels/NewLabelPage/NewLabelPage";
 import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ILabelsResponse {
@@ -33,15 +38,26 @@ const isManualLabelFormData = (
   return "targetedHosts" in formData;
 };
 
+export interface IUpdateLabelOptions {
+  /** Send only the label's host membership, leaving its definition untouched. Used for a manual
+   * label whose definition is managed in git while its membership is managed in Fleet. */
+  membershipOnly?: boolean;
+}
+
 const generateUpdateLabelBody = (
-  formData: IDynamicLabelFormData | IManualLabelFormData
+  formData: IDynamicLabelFormData | IManualLabelFormData,
+  { membershipOnly = false }: IUpdateLabelOptions = {}
 ) => {
   // we need to prepare the post body for only manual labels.
   if (isManualLabelFormData(formData)) {
+    const hostIds = formData.targetedHosts.map((host) => host.id);
+    if (membershipOnly) {
+      return { host_ids: hostIds };
+    }
     return {
       name: formData.name,
       description: formData.description,
-      host_ids: formData.targetedHosts.map((host) => host.id),
+      host_ids: hostIds,
     };
   }
   return formData;
@@ -66,9 +82,15 @@ const generateCreateLabelBody = (formData: INewLabelFormData) => {
       return {
         name: formData.name,
         description: formData.description,
+        // `custom_host_vital_id` is only sent for the custom-vital path
         criteria: {
           vital: formData.vital,
           value: formData.vitalValue,
+          ...(formData.vital === CUSTOM_HOST_VITAL_CRITERION &&
+          formData.customHostVitalId != null &&
+          Number.isFinite(formData.customHostVitalId)
+            ? { custom_host_vital_id: formData.customHostVitalId }
+            : {}),
         },
       };
     default:
@@ -169,10 +191,11 @@ export default {
 
   update: async (
     labelId: number,
-    formData: IDynamicLabelFormData | IManualLabelFormData
+    formData: IDynamicLabelFormData | IManualLabelFormData,
+    options?: IUpdateLabelOptions
   ): Promise<IUpdateLabelResponse> => {
     const { LABEL } = endpoints;
-    const updateAttrs = generateUpdateLabelBody(formData);
+    const updateAttrs = generateUpdateLabelBody(formData, options);
     return sendRequest("PATCH", LABEL(labelId), updateAttrs);
   },
 

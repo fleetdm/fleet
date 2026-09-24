@@ -1,31 +1,27 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { getErrorReason } from "interfaces/errors";
-
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
-
-import PATHS from "router/paths";
-
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
@@ -55,7 +51,6 @@ const Passwords = ({
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const isTechnician = isTeamTechnician || isGlobalTechnician;
 
@@ -83,8 +78,10 @@ const Passwords = ({
           res.mdm?.enable_recovery_lock_password ?? false
         );
       },
-      onError: () => {
-        renderFlash("error", "Couldn't load team settings. Please try again.");
+      onError: (err) => {
+        notify.error("Couldn't load team settings. Please try again.", {
+          response: err,
+        });
       },
     }
   );
@@ -119,8 +116,7 @@ const Passwords = ({
           currentTeamId
         );
       }
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully updated Recovery Lock password enforcement."
       );
       onMutation();
@@ -128,7 +124,7 @@ const Passwords = ({
       const errorMsg =
         getErrorReason(e) ??
         "Couldn't update Recovery Lock password enforcement. Please try again.";
-      renderFlash("error", errorMsg);
+      notify.error(errorMsg, { response: e });
     } finally {
       setUpdating(false);
     }

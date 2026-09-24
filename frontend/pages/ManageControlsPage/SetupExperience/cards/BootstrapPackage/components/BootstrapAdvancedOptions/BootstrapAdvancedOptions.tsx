@@ -1,13 +1,12 @@
-import React, { useContext, useState } from "react";
-
-import mdmAPI from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "bootstrap-advanced-options";
 
@@ -24,7 +23,6 @@ const BootstrapAdvancedOptions = ({
   selectManualAgentInstall,
   onChange,
 }: IBootstrapAdvancedOptionsProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -36,9 +34,11 @@ const BootstrapAdvancedOptions = ({
         fleet_id: currentTeamId,
         macos_manual_agent_install: selectManualAgentInstall,
       });
-      renderFlash("success", "Successfully updated.");
-    } catch {
-      renderFlash("error", "Something went wrong. Please try again.");
+      notify.success("Successfully updated.");
+    } catch (err) {
+      notify.error("Something went wrong. Please try again.", {
+        response: err,
+      });
     }
     setIsSaving(false);
   };

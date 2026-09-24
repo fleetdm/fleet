@@ -1,40 +1,35 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
+import { Row } from "react-table";
 
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
-import { getNextLocationPath } from "utilities/helpers";
-import { QueryParams } from "utilities/url";
-
-import {
-  buildSoftwareVulnFiltersQueryParams,
-  getVulnFilterRenderDetails,
-  ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
-
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   HostPlatform,
   PLATFORM_DISPLAY_NAMES,
   isMacOS,
   isVulnUnsupportedPlatform,
 } from "interfaces/platform";
-
-import TableContainer from "components/TableContainer";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import DropdownWrapper, {
-  CustomOptionType,
-} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import EmptyState from "components/EmptyState";
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import TableCount from "components/TableContainer/TableCount";
-import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
-import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import {
+  buildSoftwareVulnFiltersQueryParams,
+  getVulnFilterRenderDetails,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { getNextLocationPath } from "utilities/helpers";
+import { QueryParams } from "utilities/url";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -204,11 +199,11 @@ const HostSoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button
-          variant="inverse"
+          variant="secondary"
           onClick={onAddFiltersClick}
           disabled={isTrulyEmpty}
+          icon="filter"
         >
-          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>
@@ -217,9 +212,7 @@ const HostSoftwareTable = ({
 
   // The /Applications filter is only relevant for macOS hosts.
   const showApplicationsFilter =
-    !isMyDevicePage &&
-    isMacOS(platform) &&
-    macosApplicationsFilter !== undefined;
+    isMacOS(platform) && macosApplicationsFilter !== undefined;
 
   const applicationsFilterOptions: CustomOptionType[] = [
     { label: "Full inventory", value: "false" },

@@ -1,0 +1,12 @@
+{
+  "name": "Mullvad Browser",
+  "slug": "mullvad-browser/windows",
+  "package_identifier": "MullvadVPN.MullvadBrowser",
+  "unique_identifier": "Mullvad Browser",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/mullvad-browser_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/mullvad-browser_uninstall.ps1",
+  "default_categories": ["Browsers"]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Noun Project",
+  "unique_identifier": "com.thenounproject.Noun-Project",
+  "token": "noun-project",
+  "installer_format": "dmg",
+  "slug": "noun-project/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

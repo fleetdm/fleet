@@ -1,7 +1,7 @@
 import { IVariable, IVariableFormData } from "interfaces/variables";
 import sendRequest from "services";
-import { buildQueryStringFromParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IListVariablesApiParams {
   page?: number;
@@ -21,8 +21,8 @@ export default {
   getVariables(
     params: IListVariablesApiParams
   ): Promise<IListVariablesResponse> {
-    const { VARIABLES } = endpoints;
-    const path = `${VARIABLES}?${buildQueryStringFromParams({
+    const { GLOBAL_VARIABLES } = endpoints;
+    const path = `${GLOBAL_VARIABLES}?${buildQueryStringFromParams({
       page: params.page,
       per_page: params.per_page,
     })}`;
@@ -31,12 +31,12 @@ export default {
   },
 
   addVariable(variable: IVariableFormData) {
-    const { VARIABLES } = endpoints;
-    return sendRequest("POST", VARIABLES, variable);
+    const { GLOBAL_VARIABLES } = endpoints;
+    return sendRequest("POST", GLOBAL_VARIABLES, variable);
   },
 
   deleteVariable(variableId: number) {
-    const { VARIABLES } = endpoints;
-    return sendRequest("DELETE", `${VARIABLES}/${variableId}`);
+    const { GLOBAL_VARIABLES } = endpoints;
+    return sendRequest("DELETE", `${GLOBAL_VARIABLES}/${variableId}`);
   },
 };

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -18,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	mocksvc "github.com/fleetdm/fleet/v4/server/mock/service"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -49,7 +49,7 @@ func setup(t *testing.T) (*mock.Store, *Service) {
 	return ds, svc
 }
 
-func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
+func TestMDMAppleReconcileFileVaultProfile(t *testing.T) {
 	ctx := context.Background()
 
 	getPayloadWithType := func(mc mobileconfig.Mobileconfig, payloadType string) map[string]interface{} {
@@ -67,33 +67,53 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 		return nil
 	}
 
+	// withMacOSSettings points the reconciler at the given macOS settings for
+	// no-team and for any fleet, so each case only states the settings it means
+	withMacOSSettings := func(ds *mock.Store, enforcement, escrow bool) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enforcement)
+			ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(escrow)
+			return ac, nil
+		}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			tm := &fleet.TeamMDM{}
+			tm.MacOSSettings.EnableDiskEncryption = optjson.SetBool(enforcement)
+			tm.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(escrow)
+			return tm, nil
+		}
+	}
+
 	t.Run("fails if SCEP is not configured", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := &Service{ds: ds}
+		withMacOSSettings(ds, true, true)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 			_ sqlx.QueryerContext,
 		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return nil, nil
 		}
-		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
+		err := svc.MDMAppleReconcileFileVaultProfile(ctx, nil)
 		require.Error(t, err)
 	})
 
 	t.Run("fails if the profile can't be saved in the db", func(t *testing.T) {
 		ds, svc := setup(t)
+		withMacOSSettings(ds, true, true)
 		testErr := errors.New("test")
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-			return nil, testErr
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+			return testErr
 		}
-		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
+		err := svc.MDMAppleReconcileFileVaultProfile(ctx, nil)
 		require.ErrorIs(t, err, testErr)
-		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 	})
 
-	t.Run("happy path", func(t *testing.T) {
+	t.Run("both settings on upserts the full profile", func(t *testing.T) {
 		var teamID uint = 4
 		ds, svc := setup(t)
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+		withMacOSSettings(ds, true, true)
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
 			require.Equal(t, &teamID, p.TeamID)
 			require.Equal(t, p.Identifier, mobileconfig.FleetFileVaultPayloadIdentifier)
 			require.Equal(t, p.Name, mdm.FleetFileVaultProfileName)
@@ -103,30 +123,96 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 			require.NotNil(t, testPayload)
 			require.Equal(t, true, testPayload["Defer"])
 			require.EqualValues(t, 0, testPayload["DeferForceAtUserLoginMaxBypassAttempts"])
+			require.Equal(t, false, testPayload["ShowRecoveryKey"])
 
-			return nil, nil
+			return nil
 		}
 
-		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, ptr.Uint(teamID))
+		err := svc.MDMAppleReconcileFileVaultProfile(ctx, new(teamID))
 		require.NoError(t, err)
-		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
+	})
+
+	t.Run("enforcement only carries no escrow payloads", func(t *testing.T) {
+		ds, svc := setup(t)
+		withMacOSSettings(ds, true, false)
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+			require.NotNil(t, getPayloadWithType(p.Mobileconfig, "com.apple.MCX.FileVault2"))
+			require.NotNil(t, getPayloadWithType(p.Mobileconfig, "com.apple.MCX"))
+			require.Nil(t, getPayloadWithType(p.Mobileconfig, "com.apple.security.FDERecoveryKeyEscrow"))
+			require.Nil(t, getPayloadWithType(p.Mobileconfig, "com.apple.security.pkcs1"))
+			// no escrow means the user needs to be shown the key
+			require.Equal(t, true, getPayloadWithType(p.Mobileconfig, "com.apple.MCX.FileVault2")["ShowRecoveryKey"])
+			return nil
+		}
+		require.NoError(t, svc.MDMAppleReconcileFileVaultProfile(ctx, new(uint(4))))
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
+	})
+
+	t.Run("escrow only carries no enforcement payloads", func(t *testing.T) {
+		ds, svc := setup(t)
+		withMacOSSettings(ds, false, true)
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+			require.Nil(t, getPayloadWithType(p.Mobileconfig, "com.apple.MCX.FileVault2"))
+			require.Nil(t, getPayloadWithType(p.Mobileconfig, "com.apple.MCX"))
+			require.NotNil(t, getPayloadWithType(p.Mobileconfig, "com.apple.security.FDERecoveryKeyEscrow"))
+			require.NotNil(t, getPayloadWithType(p.Mobileconfig, "com.apple.security.pkcs1"))
+			return nil
+		}
+		require.NoError(t, svc.MDMAppleReconcileFileVaultProfile(ctx, new(uint(4))))
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
+	})
+
+	t.Run("enforcement only does not need the CA certificate", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := &Service{ds: ds}
+		withMacOSSettings(ds, true, false)
+		// the escrow payload is what carries the certificate, so an unreadable
+		// CA asset must not stop an enforcement-only profile from rendering
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return nil, errors.New("CA asset unavailable")
+		}
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+			require.NotContains(t, string(p.Mobileconfig), "com.apple.security.pkcs1")
+			return nil
+		}
+		require.NoError(t, svc.MDMAppleReconcileFileVaultProfile(ctx, nil))
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
+		require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked, "the CA asset should not be read at all")
+	})
+
+	t.Run("both settings off removes the profile", func(t *testing.T) {
+		var wantTeamID uint = 4
+		ds, svc := setup(t)
+		withMacOSSettings(ds, false, false)
+		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
+			require.NotNil(t, teamID)
+			require.Equal(t, wantTeamID, *teamID)
+			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
+			return nil
+		}
+		require.NoError(t, svc.MDMAppleReconcileFileVaultProfile(ctx, new(wantTeamID)))
+		require.True(t, ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
+	})
+
+	t.Run("both settings off tolerates an already-absent profile", func(t *testing.T) {
+		ds, svc := setup(t)
+		withMacOSSettings(ds, false, false)
+		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
+			return notFoundErr{}
+		}
+		require.NoError(t, svc.MDMAppleReconcileFileVaultProfile(ctx, nil))
+		require.True(t, ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
 	})
 }
 
-func TestMDMAppleDisableFileVaultAndEscrow(t *testing.T) {
-	var wantTeamID uint
-	ds, svc := setup(t)
-	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-		require.NotNil(t, teamID)
-		require.Equal(t, wantTeamID, *teamID)
-		require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
-		return nil
-	}
+type notFoundErr struct{}
 
-	err := svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), ptr.Uint(wantTeamID))
-	require.NoError(t, err)
-	require.True(t, ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
-}
+func (notFoundErr) Error() string    { return "not found" }
+func (notFoundErr) IsNotFound() bool { return true }
 
 var (
 	testCert = `-----BEGIN CERTIFICATE-----
@@ -260,6 +346,9 @@ func TestClearPasscode(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return &fleet.HostMDMApplePermissions{HostUUID: hostUUID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+	}
 
 	// Common mdmStorage mocks for enqueue + push.
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *nanomdm_mdm.CommandWithSubtype) (map[string]error, error) {
@@ -285,9 +374,6 @@ func TestClearPasscode(t *testing.T) {
 	}
 
 	t.Run("authorization", func(t *testing.T) {
-		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, Platform: "ipados"}, nil
-		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return &fleet.HostMDM{}, nil
 		}
@@ -295,26 +381,99 @@ func TestClearPasscode(t *testing.T) {
 			return &fleet.NanoMDMEnrollmentDetails{UnlockToken: new("fake-token")}, nil
 		}
 
+		team1 := new(uint(1))
+
 		cases := []struct {
-			desc              string
-			user              *fleet.User
-			shoudFailWithAuth bool
+			desc       string
+			user       *fleet.User
+			hostTeamID *uint
+			wantErr    error
 		}{
-			{"no role", test.UserNoRoles, true},
-			{"observer", test.UserObserver, true},
-			{"observer+", test.UserObserverPlus, true},
-			{"technician", test.UserTechnician, true},
-			{"gitops", test.UserGitOps, true},
-			{"maintainer", test.UserMaintainer, false},
-			{"admin", test.UserAdmin, false},
+			{"no role", test.UserNoRoles, nil, test.ErrForbidden},
+			{"observer", test.UserObserver, nil, test.ErrForbidden},
+			{"observer+", test.UserObserverPlus, nil, test.ErrForbidden},
+			{"technician", test.UserTechnician, nil, nil},
+			{"gitops", test.UserGitOps, nil, test.ErrForbidden},
+			{"maintainer", test.UserMaintainer, nil, nil},
+			{"admin", test.UserAdmin, nil, nil},
+			{"team 1 technician", test.UserTeamTechnicianTeam1, team1, nil},
+			{"team 1 admin", test.UserTeamAdminTeam1, team1, nil},
+			{"team 1 observer", test.UserTeamObserverTeam1, team1, test.ErrForbidden},
+			{"team 2 technician", test.UserTeamTechnicianTeam2, team1, test.ErrNotFound},
 		}
 		for _, c := range cases {
 			t.Run(c.desc, func(t *testing.T) {
+				ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: hostID, Platform: "ipados", TeamID: c.hostTeamID}, nil
+				}
+
 				ctx := test.UserContext(t.Context(), c.user)
 				_, err := svc.ClearPasscode(ctx, 1)
-				checkAuthErr(t, c.shoudFailWithAuth, err)
+				test.RequireErrKind(t, c.wantErr, err)
 			})
 		}
+	})
+
+	t.Run("access rights disallow clear passcode", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: "host-uuid-rights", Platform: "ipados"}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{}, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{
+				HostUUID:     hostUUID,
+				AccessRights: apple_mdm.MDMAccessRightAll &^ apple_mdm.MDMAccessRightDeviceLock,
+			}, nil
+		}
+		t.Cleanup(func() {
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return &fleet.HostMDMApplePermissions{HostUUID: hostUUID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+			}
+		})
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		_, err := svc.ClearPasscode(ctx, 1)
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Contains(t, badReq.Message, fleet.CantClearPasscodeAccessRightsMessage)
+	})
+
+	t.Run("authorization non-Apple-mobile platforms", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "android"}, nil
+		}
+
+		// Technicians can only clear passcodes on iOS/iPadOS hosts; Android still
+		// requires full MDM command write.
+		ctx := test.UserContext(t.Context(), test.UserTechnician)
+		_, err := svc.ClearPasscode(ctx, 1)
+		checkAuthErr(t, true, err)
+
+		// Same for macOS: it is not an Apple mobile platform, so technicians are
+		// denied at the authorization gate rather than by platform validation.
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
+		}
+		_, err = svc.ClearPasscode(ctx, 1)
+		checkAuthErr(t, true, err)
+
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "android"}, nil
+		}
+
+		// Admin passes authorization and fails on Android MDM not being configured,
+		// proving the gate itself lets admins through.
+		ctx = test.UserContext(t.Context(), test.UserAdmin)
+		_, err = svc.ClearPasscode(ctx, 1)
+		require.Error(t, err)
+		var forbiddenError *authz.Forbidden
+		require.NotErrorAs(t, err, &forbiddenError)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Contains(t, badReq.Message, fleet.AndroidMDMNotConfiguredMessage)
 	})
 
 	t.Run("happy path ipados", func(t *testing.T) {
@@ -440,5 +599,795 @@ func TestClearPasscode(t *testing.T) {
 		ctx := test.UserContext(t.Context(), test.UserAdmin)
 		_, err := svc.ClearPasscode(ctx, 999)
 		require.Error(t, err)
+	})
+}
+
+func TestCancelHostMDMCommand(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	var lastActivity fleet.ActivityDetails
+	svc := Service{ds: ds, authz: authorizer, Service: &mocksvc.Service{
+		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			lastActivity = activity
+			return nil
+		},
+	}}
+
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, UUID: "host-uuid-1", Platform: "darwin", Hostname: "mac-1"}, nil
+	}
+	ds.CancelHostMDMCommandFunc = func(ctx context.Context, host *fleet.Host, commandUUID string) (string, error) {
+		return "DeviceLock", nil
+	}
+
+	t.Run("authorization", func(t *testing.T) {
+		// The selective-list gate admits gitops (which can send raw MDM
+		// commands via POST /commands/run); mdm_command write then decides.
+		cases := []struct {
+			desc              string
+			user              *fleet.User
+			shoudFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, true},
+			{"observer", test.UserObserver, true},
+			{"observer+", test.UserObserverPlus, true},
+			{"technician", test.UserTechnician, true},
+			{"gitops", test.UserGitOps, false},
+			{"maintainer", test.UserMaintainer, false},
+			{"admin", test.UserAdmin, false},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				ctx := test.UserContext(t.Context(), c.user)
+				err := svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid")
+				checkAuthErr(t, c.shoudFailWithAuth, err)
+			})
+		}
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		ds.CancelHostMDMCommandFuncInvoked = false
+		lastActivity = nil
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		require.NoError(t, svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid"))
+		require.True(t, ds.CancelHostMDMCommandFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeCanceledMDMCommand)
+		require.True(t, ok)
+		assert.Equal(t, uint(1), act.HostID)
+		assert.Equal(t, "mac-1", act.HostDisplayName)
+		assert.Equal(t, "DeviceLock", act.CommandType)
+	})
+
+	t.Run("non-apple platform", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, Platform: "windows"}, nil
+		}
+		ds.CancelHostMDMCommandFuncInvoked = false
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid")
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		assert.Contains(t, badReq.Message, "Only Apple MDM commands can be canceled")
+		require.False(t, ds.CancelHostMDMCommandFuncInvoked)
+
+		// Restore for subsequent tests.
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: "host-uuid-1", Platform: "darwin", Hostname: "mac-1"}, nil
+		}
+	})
+
+	t.Run("datastore error means no activity", func(t *testing.T) {
+		ds.CancelHostMDMCommandFunc = func(ctx context.Context, host *fleet.Host, commandUUID string) (string, error) {
+			return "", &notFoundError{}
+		}
+		lastActivity = nil
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		err := svc.CancelHostMDMCommand(ctx, 1, "cmd-uuid")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, lastActivity)
+	})
+}
+
+func TestUpdateABMTokenTeams(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	// Set up the real commander with mocked storage and pusher.
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushProvider := &svcmock.APNSPushProvider{}
+	pushProvider.PushFunc = func(_ context.Context, pushes []*nanomdm_mdm.Push) (map[string]*nanomdm_push.Response, error) {
+		res := make(map[string]*nanomdm_push.Response, len(pushes))
+		for _, p := range pushes {
+			res[p.Token.String()] = &nanomdm_push.Response{Id: "ok"}
+		}
+		return res, nil
+	}
+	pushFactory := &svcmock.APNSPushProviderFactory{}
+	pushFactory.NewPushProviderFunc = func(*tls.Certificate) (nanomdm_push.PushProvider, error) {
+		return pushProvider, nil
+	}
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
+	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: &mocksvc.Service{
+		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		},
+	}}
+
+	orgName := "Fake Organization"
+	tokenID := uint(1)
+	abmToken := &fleet.ABMToken{ID: tokenID, OrganizationName: orgName}
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		return abmToken, nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, AppleBusinessManager: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: orgName},
+	})}}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+
+	var updatedAppCfg *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+		updatedAppCfg = cfg
+		return nil
+	}
+
+	validTeamID := new(uint(2))
+	validTeamName := "Valid Team"
+	invalidTeamID := new(uint(3))
+	teamLiteCalls := 0
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		teamLiteCalls++
+		if tid == *validTeamID {
+			return &fleet.TeamLite{ID: *validTeamID, Name: validTeamName}, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	t.Run("team ids is validated and updated", func(t *testing.T) {
+		teamLiteCalls = 0
+		ds.SaveAppConfigFuncInvoked = false
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		require.NoError(t, err)
+
+		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
+		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
+		assert.Equal(t, 4, teamLiteCalls)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		assert.Equal(t, validTeamName, appCfgToken.BYODTeam)
+		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+	})
+
+	t.Run("invalid team id returns error", func(t *testing.T) {
+		teamLiteCalls = 0
+		_, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, invalidTeamID)
+		require.Error(t, err)
+	})
+
+	t.Run("does not validate nil team ids", func(t *testing.T) {
+		teamLiteCalls = 0
+		ds.SaveAppConfigFuncInvoked = false
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: orgName, MacOSTeam: validTeamName, IOSTeam: validTeamName, IpadOSTeam: validTeamName, BYODTeam: validTeamName},
+		})
+		abmToken.MacOSDefaultTeamID = validTeamID
+		abmToken.IOSDefaultTeamID = validTeamID
+		abmToken.IPadOSDefaultTeamID = validTeamID
+		abmToken.BYODDefaultTeamID = validTeamID
+		abmToken.MacOSTeam.Name = validTeamName
+		abmToken.MacOSTeam.ID = *validTeamID
+		abmToken.IOSTeam.Name = validTeamName
+		abmToken.IOSTeam.ID = *validTeamID
+		abmToken.IPadOSTeam.Name = validTeamName
+		abmToken.IPadOSTeam.ID = *validTeamID
+		abmToken.BYODTeam.Name = validTeamName
+		abmToken.BYODTeam.ID = *validTeamID
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		assert.Nil(t, token.BYODDefaultTeamID)
+		assert.Nil(t, token.MacOSDefaultTeamID)
+		assert.Nil(t, token.IOSDefaultTeamID)
+		assert.Nil(t, token.IPadOSDefaultTeamID)
+		assert.Equal(t, 0, teamLiteCalls) // no calls to TeamLite since all team ids are nil
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		// Validate we clear out the "No team"
+		assert.Empty(t, appCfgToken.BYODTeam)
+		assert.Empty(t, appCfgToken.MacOSTeam)
+		assert.Empty(t, appCfgToken.IOSTeam)
+		assert.Empty(t, appCfgToken.IpadOSTeam)
+	})
+
+	t.Run("updates app config with new entry if not present", func(t *testing.T) {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		require.NoError(t, err)
+
+		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
+		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		assert.Equal(t, validTeamName, appCfgToken.BYODTeam)
+		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+	})
+}
+
+func TestSetABMTokenDefault(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := Service{ds: ds, authz: authorizer}
+
+	tokA := &fleet.ABMToken{ID: 1, OrganizationName: "Org A"}
+	tokB := &fleet.ABMToken{ID: 2, OrganizationName: "Org B"}
+	tokenCount := 2
+
+	resetState := func(defaultID uint) {
+		tokA.IsDefault = tokA.ID == defaultID
+		tokB.IsDefault = tokB.ID == defaultID
+		ds.SetABMTokenDefaultFuncInvoked = false
+		ds.ClearABMTokenDefaultFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+	}
+
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		switch tokenID {
+		case tokA.ID:
+			return tokA, nil
+		case tokB.ID:
+			return tokB, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+		tokA.IsDefault = tokA.ID == tokenID
+		tokB.IsDefault = tokB.ID == tokenID
+		return nil
+	}
+	ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
+		tokA.IsDefault = false
+		tokB.IsDefault = false
+		return nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return tokenCount, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{tokA, tokB}[:tokenCount], nil
+	}
+	appCfg := &fleet.AppConfig{MDM: fleet.MDM{AppleBusinessManager: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: tokA.OrganizationName},
+		{OrganizationName: tokB.OrganizationName},
+	})}}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+	var updatedAppCfg *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+		updatedAppCfg = cfg
+		return nil
+	}
+
+	appCfgDefaults := func() map[string]bool {
+		m := make(map[string]bool)
+		for _, e := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	t.Run("only admins are authorized", func(t *testing.T) {
+		cases := []struct {
+			desc    string
+			user    *fleet.User
+			wantErr error
+		}{
+			{"no role", test.UserNoRoles, test.ErrForbidden},
+			{"observer", test.UserObserver, test.ErrForbidden},
+			{"observer+", test.UserObserverPlus, test.ErrForbidden},
+			{"maintainer", test.UserMaintainer, test.ErrForbidden},
+			{"gitops", test.UserGitOps, test.ErrForbidden},
+			{"admin", test.UserAdmin, nil},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				resetState(tokA.ID)
+				ctx := test.UserContext(t.Context(), c.user)
+				_, err := svc.SetABMTokenDefault(ctx, tokB.ID, new(true))
+				test.RequireErrKind(t, c.wantErr, err)
+			})
+		}
+	})
+
+	adminCtx := test.UserContext(t.Context(), test.UserAdmin)
+
+	t.Run("omitted default value is rejected", func(t *testing.T) {
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "missing required argument")
+		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+	})
+
+	t.Run("unknown token id is not found", func(t *testing.T) {
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, 999, new(true))
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("setting default moves it from the other token", func(t *testing.T) {
+		resetState(tokA.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(true))
+		require.NoError(t, err)
+		assert.True(t, token.IsDefault)
+		assert.True(t, ds.SetABMTokenDefaultFuncInvoked)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		assert.Equal(t, map[string]bool{"Org A": false, "Org B": true}, appCfgDefaults())
+	})
+
+	t.Run("unsetting the default clears it", func(t *testing.T) {
+		resetState(tokB.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(false))
+		require.NoError(t, err)
+		assert.False(t, token.IsDefault)
+		assert.True(t, ds.ClearABMTokenDefaultFuncInvoked)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		assert.Equal(t, map[string]bool{"Org A": false, "Org B": false}, appCfgDefaults())
+	})
+
+	t.Run("unsetting a non-default token is a no-op", func(t *testing.T) {
+		resetState(tokA.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(false))
+		require.NoError(t, err)
+		assert.False(t, token.IsDefault)
+		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("unsetting the only token's default is rejected", func(t *testing.T) {
+		tokenCount = 1
+		t.Cleanup(func() { tokenCount = 2 })
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokA.ID, new(false))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "always the default")
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+	})
+}
+
+func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
+	ctx := context.Background()
+	teamID := uint(1)
+
+	// captured records what the datastore was handed, so the tests assert on the
+	// generated declaration rather than on a real write.
+	type captured struct {
+		decl    *fleet.MDMAppleDeclaration
+		vars    []fleet.FleetVarName
+		deleted string
+		labels  []string
+	}
+
+	newSvc := func() (*Service, *captured) {
+		got := &captured{}
+		ds := new(mock.Store)
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			got.labels = names
+			ids := make(map[string]uint, len(names))
+			for i, name := range names {
+				ids[name] = uint(i + 1) //nolint:gosec
+			}
+			return ids, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration,
+			usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction,
+		) (*fleet.MDMAppleDeclaration, error) {
+			got.decl = decl
+			got.vars = usesFleetVars
+			decl.DeclarationUUID = "decl-uuid"
+			return decl, nil
+		}
+		ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, declTeamID *uint, name string) error {
+			got.deleted = name
+			return nil
+		}
+		return &Service{ds: ds}, got
+	}
+
+	// Each platform gets its own declaration name and built-in label; a mix-up
+	// would send the OS update declaration to the wrong devices.
+	platforms := []struct {
+		name      string
+		device    fleet.AppleDevice
+		declName  string
+		labelName string
+	}{
+		{"macos", fleet.MacOS, mdm.FleetMacOSUpdatesProfileName, fleet.BuiltinLabelMacOS14Plus},
+		{"ios", fleet.IOS, mdm.FleetIOSUpdatesProfileName, fleet.BuiltinLabelIOS},
+		{"ipados", fleet.IPadOS, mdm.FleetIPadOSUpdatesProfileName, fleet.BuiltinLabelIPadOS},
+	}
+
+	t.Run("latest emits Fleet variable placeholders", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+					DeadlineDays:   optjson.SetInt(14),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, got.decl)
+				require.Empty(t, got.deleted)
+
+				// The literal placeholder text matters: it is what gets substituted
+				// per host at declaration fetch time.
+				require.Contains(t, string(got.decl.RawJSON), `"TargetOSVersion": "$FLEET_VAR_HOST_TARGET_OS_VERSION"`)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetLocalDateTime": "${FLEET_VAR_HOST_TARGET_OS_DEADLINE}T12:00:00"`)
+				// Without these the declaration is stored but never expanded.
+				require.ElementsMatch(t, []fleet.FleetVarName{
+					fleet.FleetVarHostTargetOSVersion,
+					fleet.FleetVarHostTargetOSDeadline,
+				}, got.vars)
+
+				require.Equal(t, p.declName, got.decl.Name)
+				require.Equal(t, []string{p.labelName}, got.labels)
+			})
+		}
+	})
+
+	t.Run("specific version emits literal values and no variables", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("15.7.8"),
+					Deadline:       optjson.SetString("2026-09-01"),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, got.decl)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetOSVersion": "15.7.8"`)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetLocalDateTime": "2026-09-01T12:00:00"`)
+				require.NotContains(t, string(got.decl.RawJSON), "FLEET_VAR_")
+				require.Empty(t, got.vars)
+
+				require.Equal(t, p.declName, got.decl.Name)
+				require.Equal(t, []string{p.labelName}, got.labels)
+			})
+		}
+	})
+
+	t.Run("disabled deletes the declaration", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{})
+				require.NoError(t, err)
+				require.Nil(t, got.decl, "no declaration should be written when OS updates are off")
+				require.Equal(t, p.declName, got.deleted)
+			})
+		}
+	})
+}
+
+func TestSyncABMTokensToAppConfig(t *testing.T) {
+	t.Parallel()
+
+	abmToken := func(orgName string, isDefault bool, macOSTeam string) *fleet.ABMToken {
+		return &fleet.ABMToken{
+			OrganizationName: orgName,
+			IsDefault:        isDefault,
+			MacOSTeam:        fleet.ABMTokenTeam{Name: macOSTeam},
+			IOSTeam:          fleet.ABMTokenTeam{Name: macOSTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: macOSTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: macOSTeam},
+		}
+	}
+	abmEntry := func(orgName string, isDefault bool, teamName string) fleet.MDMAppleABMAssignmentInfo {
+		return fleet.MDMAppleABMAssignmentInfo{
+			OrganizationName: orgName,
+			Default:          isDefault,
+			MacOSTeam:        teamName,
+			IOSTeam:          teamName,
+			IpadOSTeam:       teamName,
+			BYODTeam:         teamName,
+		}
+	}
+
+	cases := []struct {
+		name    string
+		appCfg  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]
+		tokens  []*fleet.ABMToken
+		want    []fleet.MDMAppleABMAssignmentInfo
+		wantSet bool
+	}{
+		{
+			name:    "creates entry when app config was never set",
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
+			wantSet: true,
+		},
+		{
+			name:    "creates entry when app config is set but empty",
+			appCfg:  optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name:    "creates entry when app config is explicitly null",
+			appCfg:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Valid: false},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name: "updates the matching entry in place",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", false, "Stale"),
+			}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name: "normalizes No team to an empty team name",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", true, "Workstations"),
+			}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
+			wantSet: true,
+		},
+		{
+			name: "clears a stale default",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", true, "Workstations"),
+			}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", false, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", false, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name: "mirrors the default across several tokens, updating and appending",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", true, "Workstations"),
+				abmEntry("org2", false, "Servers"),
+			}),
+			tokens: []*fleet.ABMToken{
+				abmToken("org1", false, "Workstations"),
+				abmToken("org2", true, "Servers"),
+				abmToken("org3", false, fleet.TeamNameNoTeam),
+			},
+			want: []fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("org1", false, "Workstations"),
+				abmEntry("org2", true, "Servers"),
+				abmEntry("org3", false, ""),
+			},
+			wantSet: true,
+		},
+		{
+			name: "leaves entries without a matching token untouched",
+			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("gone", true, "Workstations"),
+			}),
+			tokens: []*fleet.ABMToken{abmToken("org1", true, "Servers")},
+			want: []fleet.MDMAppleABMAssignmentInfo{
+				abmEntry("gone", true, "Workstations"),
+				abmEntry("org1", true, "Servers"),
+			},
+			wantSet: true,
+		},
+		{
+			name:    "does not duplicate an entry when a token org repeats",
+			appCfg:  optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{}),
+			tokens:  []*fleet.ABMToken{abmToken("org1", false, "Servers"), abmToken("org1", true, "Workstations")},
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+		{
+			name:    "no tokens leaves the app config alone",
+			appCfg:  optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")}),
+			tokens:  nil,
+			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "Workstations")},
+			wantSet: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			appCfg := &fleet.AppConfig{MDM: fleet.MDM{AppleBusinessManager: c.appCfg}}
+
+			syncABMTokensToAppConfig(appCfg, c.tokens)
+
+			assert.Equal(t, c.want, appCfg.MDM.AppleBusinessManager.Value)
+			assert.Equal(t, c.wantSet, appCfg.MDM.AppleBusinessManager.Set)
+			assert.True(t, appCfg.MDM.AppleBusinessManager.Valid)
+		})
+	}
+
+	t.Run("is idempotent", func(t *testing.T) {
+		appCfg := &fleet.AppConfig{}
+		tokens := []*fleet.ABMToken{
+			abmToken("org1", true, "Workstations"),
+			abmToken("org2", false, fleet.TeamNameNoTeam),
+		}
+
+		syncABMTokensToAppConfig(appCfg, tokens)
+		first := append([]fleet.MDMAppleABMAssignmentInfo(nil), appCfg.MDM.AppleBusinessManager.Value...)
+		syncABMTokensToAppConfig(appCfg, tokens)
+
+		assert.Equal(t, first, appCfg.MDM.AppleBusinessManager.Value)
+	})
+}
+
+func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
+	t.Parallel()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	// remaining is what ListABMTokens returns after the delete, standing in for
+	// the promotion the datastore performs when a single token is left.
+	setupDeleteTest := func(t *testing.T, entries []fleet.MDMAppleABMAssignmentInfo, remaining []*fleet.ABMToken) (*mock.Store, *Service, **fleet.AppConfig) {
+		ds := new(mock.Store)
+		svc := &Service{ds: ds, authz: authorizer}
+
+		ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+			return &fleet.ABMToken{ID: tokenID, OrganizationName: "org1"}, nil
+		}
+		ds.DeleteABMTokenFunc = func(ctx context.Context, tokenID uint) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{
+				AppleBMEnabledAndConfigured: true,
+				AppleBusinessManager:        optjson.SetSlice(entries),
+			}}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return remaining, nil
+		}
+
+		saved := new(*fleet.AppConfig)
+		ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+			*saved = cfg
+			return nil
+		}
+
+		return ds, svc, saved
+	}
+
+	t.Run("sole survivor is promoted to default", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "org1", Default: true},
+			{OrganizationName: "org2", MacOSTeam: "Workstations"},
+		}
+		remaining := []*fleet.ABMToken{{
+			ID:               2,
+			OrganizationName: "org2",
+			IsDefault:        true, // the datastore promoted it inside the delete tx
+			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations"},
+			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+		}}
+		ds, svc, saved := setupDeleteTest(t, entries, remaining)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+
+		appCfg := *saved
+		require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 1)
+		got := appCfg.MDM.AppleBusinessManager.Value[0]
+		assert.Equal(t, "org2", got.OrganizationName)
+		assert.True(t, got.Default, "survivor should inherit the default flag")
+		// the sync rewrites the whole entry, so existing assignments must survive
+		assert.Equal(t, "Workstations", got.MacOSTeam)
+		assert.Empty(t, got.IOSTeam)
+		assert.True(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+
+	t.Run("no promotion when several tokens remain", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "org1", Default: true},
+			{OrganizationName: "org2"},
+			{OrganizationName: "org3"},
+		}
+		remaining := []*fleet.ABMToken{
+			{ID: 2, OrganizationName: "org2"},
+			{ID: 3, OrganizationName: "org3"},
+		}
+		_, svc, saved := setupDeleteTest(t, entries, remaining)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+
+		appCfg := *saved
+		require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 2)
+		for _, got := range appCfg.MDM.AppleBusinessManager.Value {
+			assert.NotEqual(t, "org1", got.OrganizationName, "deleted org entry should be removed")
+			assert.False(t, got.Default, "no token is default once the default one is deleted")
+		}
+		assert.True(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+
+	t.Run("deleting the last token disables ABM", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "org1", Default: true}}
+		_, svc, saved := setupDeleteTest(t, entries, nil)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+
+		appCfg := *saved
+		assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+		assert.False(t, appCfg.MDM.AppleBMEnabledAndConfigured)
+	})
+
+	t.Run("cleans up any dangling appCfg entries", func(t *testing.T) {
+		entries := []fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: "org1", Default: true},
+			{OrganizationName: "org2"},
+		}
+		remaining := []*fleet.ABMToken{{ID: 2, OrganizationName: "org2"}}
+		_, svc, saved := setupDeleteTest(t, entries, remaining)
+
+		require.NoError(t, svc.DeleteABMToken(ctx, 1))
+
+		appCfg := *saved
+		require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 1)
+		got := appCfg.MDM.AppleBusinessManager.Value[0]
+		assert.Equal(t, "org2", got.OrganizationName)
+		assert.False(t, got.Default)
 	})
 }

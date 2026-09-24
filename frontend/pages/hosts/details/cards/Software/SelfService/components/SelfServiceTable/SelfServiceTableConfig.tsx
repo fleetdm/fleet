@@ -1,22 +1,24 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   IDeviceSoftware,
   IDeviceSoftwareWithUiStatus,
   IHostSoftware,
   IVPPHostSoftware,
 } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import VersionCell, {
+  VersionsColumnCell,
+} from "pages/SoftwarePage/components/tables/VersionCell";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-
-import InstallStatusCell from "../../../InstallStatusCell/InstallStatusCell";
-import { installStatusSortType } from "../../../helpers";
 import HostInstallerActionCell from "../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import { installStatusSortType } from "../../../helpers";
+import InstallStatusCell from "../../../InstallStatusCell/InstallStatusCell";
 
 type ISelfServiceTableConfig = Column<IDeviceSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IDeviceSoftwareWithUiStatus>;
@@ -24,6 +26,11 @@ type ITableStringCellProps = IStringCellProps<IDeviceSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
   IDeviceSoftwareWithUiStatus["ui_status"]
+>;
+type IAvailableVersionCellProps = CellProps<
+  IDeviceSoftwareWithUiStatus,
+  | IDeviceSoftwareWithUiStatus["software_package"]
+  | IDeviceSoftwareWithUiStatus["app_store_app"]
 >;
 type IActionCellProps = CellProps<
   IDeviceSoftwareWithUiStatus,
@@ -47,7 +54,10 @@ interface ISelfServiceTableHeaders {
   onShowUninstallDetails: (
     uninstallDetails: ISWUninstallDetailsParentState
   ) => void;
-  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
+  onClickInstallAction: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => Promise<boolean> | void;
   onClickUninstallAction: (software: IDeviceSoftwareWithUiStatus) => void;
   onClickOpenInstructionsAction: (
     software: IDeviceSoftwareWithUiStatus
@@ -72,7 +82,10 @@ export const generateSoftwareTableHeaders = ({
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
-      accessor: "name",
+      id: "name",
+      // Client-side sort: the key must be the string the cell renders.
+      accessor: (originalRow) =>
+        getDisplayedSoftwareName(originalRow.name, originalRow.display_name),
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
@@ -113,6 +126,34 @@ export const generateSoftwareTableHeaders = ({
           isSelfService
         />
       ),
+    },
+    {
+      Header: "Installed version",
+      id: "version",
+      disableSortBy: true,
+      // we use function as accessor because we have two columns that
+      // need to access the same data. This is not supported with a string
+      // accessor.
+      accessor: (originalRow) => originalRow.installed_versions,
+      Cell: VersionsColumnCell,
+    },
+    {
+      Header: "Available version",
+      id: "available_version",
+      disableSortBy: true,
+      accessor: (originalRow) =>
+        originalRow.software_package || originalRow.app_store_app,
+      Cell: (cellProps: IAvailableVersionCellProps) => {
+        const softwareTitle = cellProps.row.original;
+        const installerData =
+          softwareTitle.software_package ?? softwareTitle.app_store_app;
+        return (
+          <VersionCell
+            versions={[{ version: installerData?.version || "" }]}
+            source={cellProps.row.original.source}
+          />
+        );
+      },
     },
     {
       Header: "Actions",

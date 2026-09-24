@@ -1,0 +1,10 @@
+{
+  "name": "Weasis",
+  "slug": "weasis/windows",
+  "package_identifier": "WeasisTeam.Weasis",
+  "unique_identifier": "Weasis",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

@@ -1,52 +1,49 @@
+import { size } from "lodash";
 import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 
-import { size } from "lodash";
-
-import { AppContext } from "context/app";
-
-import useDeepEffect from "hooks/useDeepEffect";
-import { IPlatformSelector } from "hooks/usePlatformSelector";
-
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import Icon from "components/Icon";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+import Modal from "components/Modal";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import {
   getCustomTargetOptions,
   LabelScope,
 } from "components/TargetLabelSelector/labelScopes";
-
-import {
-  FREQUENCY_DROPDOWN_OPTIONS,
-  LOGGING_TYPE_OPTIONS,
-  MIN_OSQUERY_VERSION_OPTIONS,
-  DEFAULT_USE_QUERY_OPTIONS,
-} from "utilities/constants";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   ICreateQueryFormData,
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-
-import Checkbox from "components/forms/fields/Checkbox";
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Slider from "components/forms/fields/Slider";
-import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import RevealButton from "components/buttons/RevealButton";
-import LogDestinationIndicator from "components/LogDestinationIndicator";
-import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import labelsAPI, {
   getCustomLabels,
   ILabelsSummaryResponse,
 } from "services/entities/labels";
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+  DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
 
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
+
 export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
@@ -238,6 +235,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"
@@ -258,7 +256,17 @@ const SaveNewQueryModal = ({
           value={selectedFrequency}
           label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-          helpText="This is how often your report collects data."
+          helpText={
+            <>
+              Hosts report at fixed times (e.g., on the hour for a 1-hour
+              interval).{" "}
+              <CustomLink
+                url="https://fleetdm.com/guides/reports#schedule-a-report"
+                text="Learn more"
+                newTab
+              />
+            </>
+          }
         />
         <Checkbox
           name="observerCanRun"
@@ -279,8 +287,8 @@ const SaveNewQueryModal = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Automations and reporting will be paused <br />
-                      for this report until an interval is set.
+                      Automations and reporting will be paused for this report
+                      until an interval is set.
                     </>
                   }
                   position="right"
@@ -377,7 +385,7 @@ const SaveNewQueryModal = ({
           >
             Save
           </Button>
-          <Button onClick={toggleSaveNewQueryModal} variant="inverse">
+          <Button onClick={toggleSaveNewQueryModal} variant="secondary">
             Cancel
           </Button>
         </div>

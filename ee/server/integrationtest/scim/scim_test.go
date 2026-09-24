@@ -1,17 +1,19 @@
 package scim
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/elimity-com/scim/errors"
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,13 +30,19 @@ func TestSCIM(t *testing.T) {
 		{"Users", testUsersBasicCRUD},
 		{"Groups", testGroupsBasicCRUD},
 		{"CreateUser", testCreateUser},
+		{"HostIdPAssociationAndRename", testHostIdPAssociationAndRename},
 		{"CreateGroup", testCreateGroup},
 		{"UpdateUser", testUpdateUser},
+		{"DeactivationDeprovisionsMutatedUser", testDeactivationDeprovisionsMutatedUser},
+		{"TwoStepDeactivationDeprovisionsFleetUser", testTwoStepDeactivationDeprovisionsFleetUser},
+		{"JITDeactivationDeprovisionsFleetUser", testJITDeactivationDeprovisionsFleetUser},
+		{"DeactivationWithoutIdentifiersFlagsSkippedDeprovision", testDeactivationWithoutIdentifiersFlagsSkippedDeprovision},
 		{"UpdateGroup", testUpdateGroup},
 		{"PatchUserEmails", testPatchUserEmails},
 		{"PatchUserAttributes", testPatchUserAttributes},
 		{"PatchGroupAttributes", testPatchGroupAttributes},
 		{"PatchGroupMembers", testPatchGroupMembers},
+		{"NestedGroups", testNestedGroups},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
 		{"UsersAndGroups", testUsersAndGroups},
@@ -43,7 +51,7 @@ func TestSCIM(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			defer mysqltest.TruncateTables(t, s.DS, []string{
 				"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
-				"scim_user_group", "scim_last_request",
+				"scim_user_group", "scim_group_group", "scim_last_request",
 			}...)
 			c.fn(t, s)
 		})
@@ -64,30 +72,47 @@ func testAuth(t *testing.T, s *Suite) {
 	scimDetails := contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusUnauthorized, &scimDetails)
 	// Make sure unauthenticated response wasn't saved as the last SCIM request
-	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	s.Token = s.GetTestAdminToken(t)
 	scimDetails = contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for unauthenticated requests")
 
-	// Unauthorized
+	// Unauthorized (observer)
 	resp = nil
 	s.Token = s.GetTestToken(t, service.TestObserverUserEmail, test.GoodPassword)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
-	// Make sure unauthorized response WAS saved as the last SCIM request
-	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	// Make sure the forbidden response wasn't saved as the last SCIM request. An
+	// authenticated-but-unauthorized user must not be able to overwrite the
+	// admin-visible SCIM telemetry with their rejected attempts.
+	s.Token = s.GetTestAdminToken(t)
 	scimDetails = contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
-	require.NotNil(t, scimDetails.LastRequest)
-	assert.Equal(t, "error", scimDetails.LastRequest.Status)
-	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
-	assert.Equal(t, authz.ForbiddenErrorMessage, scimDetails.LastRequest.Details)
+	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for forbidden requests")
 
-	// Authorized
+	// Unauthorized (maintainer - no longer allowed)
 	resp = nil
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	// Maintainer denied on read (Schemas endpoint)
+	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+	assert.EqualValues(t, []any{"urn:ietf:params:scim:api:messages:2.0:Error"}, resp["schemas"])
+	// Maintainer denied on write (create user)
+	resp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "maintainer-attempt@example.com",
+	}, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+	// Maintainer denied on details endpoint
+	resp = nil
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &resp)
+
+	// Authorized (admin only)
+	resp = nil
+	s.Token = s.GetTestAdminToken(t)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 }
@@ -215,6 +240,177 @@ func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string
 	assert.NotEmpty(t, userID)
 
 	return userID, createResp
+}
+
+func testDeactivationDeprovisionsMutatedUser(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Create an SSO-enabled Fleet user that SCIM deactivation should deprovision.
+	email := "deprovision_target@example.com"
+	role := fleet.RoleObserver
+	_, err := s.DS.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "Deprovision Target",
+		Email:      email,
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Create a matching SCIM user (userName and email set to the same address).
+	userID, _ := createTestUser(t, s, email)
+
+	// Deactivate while mutating identifiers in the same PATCH: rename userName to a
+	// non-email value and drop emails before setting active=false.
+	patchPayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_user_bypass"},
+			{"op": "remove", "path": "emails"},
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var patchResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusOK, &patchResp)
+	assert.Equal(t, false, patchResp["active"])
+
+	// The Fleet user must have been deprovisioned despite the mutated identifiers.
+	_, err = s.DS.UserByEmail(ctx, email)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deleted, got: %v", err)
+}
+
+func testTwoStepDeactivationDeprovisionsFleetUser(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	email := "two_step_target@example.com"
+	role := fleet.RoleObserver
+	_, err := s.DS.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "Two Step Target",
+		Email:      email,
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Creating the SCIM user links it to the Fleet user (both exist now).
+	userID, _ := createTestUser(t, s, email)
+
+	// Request 1: mutate identifiers, leave active=true.
+	mutatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_user_bypass"},
+			{"op": "remove", "path": "emails"},
+		},
+	}
+	var mutateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), mutatePayload, http.StatusOK, &mutateResp)
+
+	// Request 2: deactivate in a separate request.
+	deactivatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var deactivateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deactivatePayload, http.StatusOK, &deactivateResp)
+
+	// The Fleet account must be deprovisioned via the durable link.
+	_, err = s.DS.UserByEmail(ctx, email)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deprovisioned, got: %v", err)
+}
+
+func testJITDeactivationDeprovisionsFleetUser(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	email := "jit_target@example.com"
+
+	// SCIM user created first; no Fleet user exists yet, so it links to nothing.
+	userID, _ := createTestUser(t, s, email)
+
+	// Fleet SSO user appears later (e.g., via JIT SSO login), with no re-sync.
+	role := fleet.RoleObserver
+	_, err := s.DS.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "JIT Target",
+		Email:      email,
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Request 1: mutate identifiers, leave active=true. Linking runs off the
+	// pre-mutation identifiers, so the link is established now.
+	mutatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_user_bypass"},
+			{"op": "remove", "path": "emails"},
+		},
+	}
+	var mutateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), mutatePayload, http.StatusOK, &mutateResp)
+
+	// Request 2: deactivate.
+	deactivatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var deactivateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deactivatePayload, http.StatusOK, &deactivateResp)
+
+	_, err = s.DS.UserByEmail(ctx, email)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deprovisioned via the pre-mutation link, got: %v", err)
+}
+
+func testDeactivationWithoutIdentifiersFlagsSkippedDeprovision(t *testing.T, s *Suite) {
+	// SCIM user with no matching Fleet user, so it never links.
+	userID, _ := createTestUser(t, s, "orphan_target@example.com")
+
+	// Wipe the identifiers, then deactivate in a separate request.
+	mutatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_orphan"},
+			{"op": "remove", "path": "emails"},
+		},
+	}
+	var mutateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), mutatePayload, http.StatusOK, &mutateResp)
+
+	deactivatePayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var deactivateResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deactivatePayload, http.StatusOK, &deactivateResp)
+
+	// The skipped deprovisioning must be flagged in the audit log.
+	var rawDetails []json.RawMessage
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(t.Context(), q, &rawDetails,
+			`SELECT details FROM activity_past WHERE activity_type = 'scim_user_deprovision_skipped'`)
+	})
+	require.Len(t, rawDetails, 1, "expected a scim_user_deprovision_skipped activity in the audit log")
+	var details struct {
+		ScimUserID   uint   `json:"scim_user_id"`
+		ScimUserName string `json:"scim_user_name"`
+	}
+	require.NoError(t, json.Unmarshal(rawDetails[0], &details))
+	require.Equal(t, userID, fmt.Sprint(details.ScimUserID))
+	require.Equal(t, "nondomain_orphan", details.ScimUserName)
 }
 
 func testUsersBasicCRUD(t *testing.T, s *Suite) {
@@ -1062,6 +1258,159 @@ func testCreateUser(t *testing.T, s *Suite) {
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID6), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID7), nil, http.StatusNoContent)
+}
+
+// testCreateUserAssociatesAllMatchingHosts verifies, end to end through the SCIM
+// API, that provisioning a user links every host whose MDM IdP account matches the
+// user — not just the first. This is the integration-level counterpart to the
+// datastore regression test for the multi-host reverse-linker fix.
+func testHostIdPAssociationAndRename(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Two hosts belonging to the same person, both authenticated via the same IdP account.
+	host1 := test.NewHost(t, s.DS, "scim-multi-1", "1", "scim-mh1-key", "scim-mh1-uuid", time.Now())
+	host2 := test.NewHost(t, s.DS, "scim-multi-2", "2", "scim-mh2-key", "scim-mh2-uuid", time.Now())
+
+	t.Cleanup(func() {
+		// This test mutates host/MDM IdP tables, but the per-subtest truncation in TestSCIM
+		// only clears SCIM tables. Clean up here to keep subtests isolated.
+		mysqltest.TruncateTables(t, s.DS,
+			"host_mdm_idp_accounts",
+			"mdm_idp_accounts",
+			"host_emails",
+			"host_seen_times",
+			"host_display_names",
+			"hosts",
+		)
+	})
+	const idpUUID = "scim-multi-idp-uuid"
+	const userName = "scim.multi@example.com"
+	require.NoError(t, s.DS.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		UUID:     idpUUID,
+		Username: userName,
+		Fullname: "SCIM Multi",
+		Email:    userName,
+	}))
+	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID))
+	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID))
+
+	// Provision the user through the SCIM API, as an IdP would.
+	createPayload := map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": userName,
+		"name": map[string]any{
+			"givenName":  "SCIM",
+			"familyName": "Multi",
+		},
+		"emails": []map[string]any{
+			{"value": userName, "type": "work", "primary": true},
+		},
+		"active": true,
+	}
+	var createResp struct {
+		ID string `json:"id"`
+	}
+	s.DoJSON(t, "POST", scimPath("/Users"), createPayload, http.StatusCreated, &createResp)
+	require.NotEmpty(t, createResp.ID)
+
+	// Both hosts must expose the user's IdP host vitals through the host detail API.
+	for _, hostID := range []uint{host1.ID, host2.ID} {
+		var resp struct {
+			Host struct {
+				EndUsers []fleet.HostEndUser `json:"end_users"`
+			} `json:"host"`
+		}
+		s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		require.Len(t, resp.Host.EndUsers, 1, "host %d should expose one IdP end user", hostID)
+		assert.Equal(t, userName, resp.Host.EndUsers[0].IdpUserName, "host %d idp_username", hostID)
+		assert.Equal(t, "SCIM Multi", resp.Host.EndUsers[0].IdpFullName, "host %d idp_full_name", hostID)
+	}
+
+	// Every surface that reports the host's IdP identity must give the same answer:
+	// the single-host endpoints, the hosts list, and host search.
+	requireHostsReport := func(t *testing.T, want string) {
+		t.Helper()
+		for _, hostID := range []uint{host1.ID, host2.ID} {
+			var detail struct {
+				Host struct {
+					EndUsers []fleet.HostEndUser `json:"end_users"`
+				} `json:"host"`
+			}
+			s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &detail)
+			require.Len(t, detail.Host.EndUsers, 1, "host %d", hostID)
+			assert.Equal(t, want, detail.Host.EndUsers[0].IdpUserName, "host %d GET /hosts/:id", hostID)
+
+			var mapping struct {
+				DeviceMapping []fleet.HostDeviceMapping `json:"device_mapping"`
+			}
+			s.DoJSON(t, "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hostID), nil, http.StatusOK, &mapping)
+			require.Len(t, mapping.DeviceMapping, 1, "host %d", hostID)
+			assert.Equal(t, want, mapping.DeviceMapping[0].Email, "host %d GET /hosts/:id/device_mapping", hostID)
+			assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mapping.DeviceMapping[0].Source, "host %d", hostID)
+		}
+
+		var list struct {
+			Hosts []struct {
+				ID            uint             `json:"id"`
+				DeviceMapping *json.RawMessage `json:"device_mapping"`
+			} `json:"hosts"`
+		}
+		s.DoJSON(t, "GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &list, "device_mapping", "true")
+		var seen int
+		for _, h := range list.Hosts {
+			if h.ID != host1.ID && h.ID != host2.ID {
+				continue
+			}
+			seen++
+			require.NotNil(t, h.DeviceMapping, "host %d device_mapping", h.ID)
+			var mapped []fleet.HostDeviceMapping
+			require.NoError(t, json.Unmarshal(*h.DeviceMapping, &mapped))
+			require.Len(t, mapped, 1, "host %d", h.ID)
+			assert.Equal(t, want, mapped[0].Email, "host %d GET /hosts device_mapping", h.ID)
+		}
+		require.Equal(t, 2, seen, "both hosts should be listed")
+
+		var search struct {
+			Hosts []struct {
+				ID uint `json:"id"`
+			} `json:"hosts"`
+		}
+		s.DoJSON(t, "GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &search, "query", want)
+		require.Len(t, search.Hosts, 2, "both hosts should be searchable by %q", want)
+	}
+
+	requireHostsReport(t, userName)
+
+	// An IdP rename has to reach the device mapping, or GET /hosts and
+	// GET /hosts/:id report different identities for the same host. Okta sends a
+	// PUT, Entra sends a PATCH; both must land.
+	const putName = "scim.multi.put@example.com"
+	createPayload["userName"] = putName
+	createPayload["emails"] = []map[string]any{{"value": putName, "type": "work", "primary": true}}
+	var putResp map[string]any
+	s.DoJSON(t, "PUT", scimPath("/Users/"+createResp.ID), createPayload, http.StatusOK, &putResp)
+	assert.Equal(t, putName, putResp["userName"])
+	requireHostsReport(t, putName)
+
+	const patchName = "scim.multi.patch@example.com"
+	var patchResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+createResp.ID), map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": patchName},
+		},
+	}, http.StatusOK, &patchResp)
+	assert.Equal(t, patchName, patchResp["userName"])
+	requireHostsReport(t, patchName)
+
+	// and the pre-rename address stops matching anything
+	var stale struct {
+		Hosts []struct {
+			ID uint `json:"id"`
+		} `json:"hosts"`
+	}
+	s.DoJSON(t, "GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &stale, "query", userName)
+	require.Empty(t, stale.Hosts, "hosts still searchable by the pre-rename address")
 }
 
 func testUpdateUser(t *testing.T, s *Suite) {
@@ -4263,6 +4612,26 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), nonExistentMemberPayload, http.StatusBadRequest, &errorResp)
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
 	})
+
+	t.Run("Non-existent member ID in a replace", func(t *testing.T) {
+		errorResp := patchGroup(t, s, groupID, http.StatusBadRequest, map[string]any{
+			"op":    "replace",
+			"path":  "members",
+			"value": []map[string]any{{"value": "4294967295"}},
+		})
+		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
+	})
+
+	t.Run("Patched attributes are persisted", func(t *testing.T) {
+		patchGroup(t, s, groupID, http.StatusOK,
+			map[string]any{"op": "replace", "path": "displayName", "value": "Persisted Group Name"},
+			map[string]any{"op": "replace", "path": "externalId", "value": "persisted-external-id"},
+		)
+
+		got := getGroup(t, s, groupID)
+		assert.Equal(t, "Persisted Group Name", got["displayName"], "displayName should be persisted")
+		assert.Equal(t, "persisted-external-id", got["externalId"], "externalId should be persisted")
+	})
 }
 
 func testPatchGroupMembers(t *testing.T, s *Suite) {
@@ -4595,6 +4964,74 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member")
 	})
+
+	t.Run("Member changes are persisted and leave other members alone", func(t *testing.T) {
+		member := func(id string) map[string]any { return map[string]any{"value": id} }
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "members",
+			"value": []map[string]any{member(userIDs[0]), member(userIDs[1])},
+		})
+		require.ElementsMatch(t, []string{userIDs[0], userIDs[1]}, groupMemberValues(t, s, groupID),
+			"replace should be persisted")
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "add", "path": "members", "value": []map[string]any{member(userIDs[2])},
+		})
+		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
+			"adding a member must not drop the members the request never mentioned")
+
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "displayName", "value": "Renamed Patch Members Group",
+		})
+		require.ElementsMatch(t, userIDs, groupMemberValues(t, s, groupID),
+			"a displayName-only patch must not touch membership")
+	})
+
+	t.Run("Unfiltered remove with a value removes only the named member", func(t *testing.T) {
+		member := func(id string) map[string]any { return map[string]any{"value": id} }
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "replace", "path": "members",
+			"value": []map[string]any{member(userIDs[0]), member(userIDs[1]), member(userIDs[2])},
+		})
+
+		// The form Entra ID sends to remove a single member.
+		patchGroup(t, s, groupID, http.StatusOK, map[string]any{
+			"op": "remove", "path": "members",
+			"value": []map[string]any{member(userIDs[0])},
+		})
+		require.ElementsMatch(t, []string{userIDs[1], userIDs[2]}, groupMemberValues(t, s, groupID),
+			"removing one member must not remove the others")
+	})
+}
+
+func patchGroup(t *testing.T, s *Suite, groupID string, expectedStatus int, ops ...map[string]any) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), map[string]any{
+		"schemas":    []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": ops,
+	}, expectedStatus, &resp)
+	return resp
+}
+
+func getGroup(t *testing.T, s *Suite, groupID string) map[string]any {
+	t.Helper()
+	var resp map[string]any
+	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusOK, &resp)
+	return resp
+}
+
+func groupMemberValues(t *testing.T, s *Suite, groupID string) []string {
+	t.Helper()
+	raw, _ := getGroup(t, s, groupID)["members"].([]any)
+	values := make([]string, 0, len(raw))
+	for _, m := range raw {
+		member, ok := m.(map[string]any)
+		require.True(t, ok, "member should be an object")
+		values = append(values, member["value"].(string))
+	}
+	return values
 }
 
 func scimPath(suffix string) string {

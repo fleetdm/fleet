@@ -1,0 +1,10 @@
+{
+  "name": "Cribl Edge",
+  "slug": "cribl-edge/windows",
+  "package_identifier": "Cribl.CriblEdge",
+  "unique_identifier": "Cribl Edge",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -1,28 +1,25 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import { AppContext } from "context/app";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
-import { IConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
-import { ApplePlatform } from "interfaces/platform";
-
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { ApplePlatform } from "interfaces/platform";
+import { ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { getPathWithQueryParams } from "utilities/url";
 
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
 import CurrentVersionSection from "./components/CurrentVersionSection";
-import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
+import TargetSection from "./components/TargetSection";
 
 export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
@@ -124,10 +121,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
       <div className={baseClass}>
         <EmptyState
           header="Additional configuration required"
-          info="MDM must be turned on to change settings on your hosts."
+          info="Apple or Windows MDM must be turned on to change settings on your hosts."
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-              Turn on
+              Go to MDM settings
             </Button>
           }
         />

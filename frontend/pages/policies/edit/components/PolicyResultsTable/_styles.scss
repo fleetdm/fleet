@@ -3,7 +3,7 @@
 
   &__wrapper {
     border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
+    border-radius: $border-radius-large;
     overflow: hidden;
     margin-top: $pad-medium;
   }
@@ -39,11 +39,6 @@
         height: 16px;
         vertical-align: sub;
         padding-right: 4px;
-      }
-    }
-    .query_results__cell {
-      .status-header-text {
-        margin-left: 10px;
       }
     }
   }
@@ -120,7 +115,7 @@
 }
 
 .no-team-policy {
-  border: 1px solid #e2e4ea;
+  border: 1px solid $ui-fleet-black-10;
   box-sizing: border-box;
   border-radius: 8px;
 }

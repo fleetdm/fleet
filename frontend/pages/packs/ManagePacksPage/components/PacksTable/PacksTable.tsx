@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { IPack } from "interfaces/pack";
-import { IEmptyStateProps } from "interfaces/empty_state";
 import Button from "components/buttons/Button";
-
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
+import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
+import { IEmptyStateProps } from "interfaces/empty_state";
+import { IPack } from "interfaces/pack";
+
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
 const baseClass = "packs-table";
@@ -68,7 +68,7 @@ const PacksTable = ({
           className={`${baseClass}__create-button`}
           onClick={onCreatePackClick}
         >
-          Create new pack
+          Add new pack
         </Button>
       ),
     };
@@ -88,14 +88,14 @@ const PacksTable = ({
       name: "enable",
       onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "check",
     },
     {
       name: "disable",
       onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "disable",
     },
   ];
@@ -123,7 +123,7 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
           onClick: onDeletePackClick,
         }}
         renderCount={renderPackCount}

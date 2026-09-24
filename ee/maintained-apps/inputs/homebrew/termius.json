@@ -1,0 +1,10 @@
+{
+  "name": "Termius",
+  "unique_identifier": "com.termius-dmg.mac",
+  "token": "termius",
+  "installer_format": "dmg",
+  "slug": "termius/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

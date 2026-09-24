@@ -2,36 +2,26 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import {
-  HostPlatform,
-  isIPadOrIPhone,
-  isLinuxLike,
-  isMacOS,
-  isWindows,
-} from "interfaces/platform";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
+import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
+import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
+import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
-import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-
-import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -47,7 +37,6 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onShowInventoryVersions: (software: IHostSoftware) => void;
-  platform: HostPlatform;
 }
 
 // NOTE: cellProps come from react-table
@@ -56,7 +45,6 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onShowInventoryVersions,
-  platform,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -70,10 +58,14 @@ export const generateSoftwareTableHeaders = ({
           id,
           name,
           display_name,
+          bundle_identifier,
           source,
           app_store_app,
           software_package,
           icon_url,
+          auto_update_enabled,
+          auto_update_window_start,
+          auto_update_window_end,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -94,6 +86,7 @@ export const generateSoftwareTableHeaders = ({
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -104,6 +97,10 @@ export const generateSoftwareTableHeaders = ({
             pageContext="hostDetails"
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!app_store_app}
+            autoUpdateEnabled={auto_update_enabled}
+            autoUpdateWindowStart={auto_update_window_start}
+            autoUpdateWindowEnd={auto_update_window_end}
           />
         );
       },
@@ -116,9 +113,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",
@@ -132,24 +127,19 @@ export const generateSoftwareTableHeaders = ({
     },
     {
       Header: (): JSX.Element => {
-        let tooltipContent = <></>;
-
-        if (isMacOS(platform)) {
-          tooltipContent = (
-            <>When the version installed most recently was last opened.</>
-          );
-        } else if (isLinuxLike(platform) || isWindows(platform)) {
-          tooltipContent = <>When any version was last opened.</>;
-        } else if (isIPadOrIPhone(platform)) {
-          tooltipContent = <>Date and time of last open.</>;
-        }
-
-        const lastOpenedHeader = tooltipContent ? (
-          <TooltipWrapper tipContent={tooltipContent}>
+        const lastOpenedHeader = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                Only supported for macOS, Windows, and Linux native apps and
+                packages. Browser extensions, other package managers, and mobile
+                apps don&apos;t report this information.
+              </>
+            }
+            fixedPositionStrategy
+          >
             Last opened
           </TooltipWrapper>
-        ) : (
-          "Last opened"
         );
         return <HeaderCell value={lastOpenedHeader} disableSortBy />;
       },

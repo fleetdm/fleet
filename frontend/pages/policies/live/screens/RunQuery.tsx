@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 
+import { notify } from "components/ToastNotification";
 import { PolicyContext } from "context/policy";
-import { NotificationContext } from "context/notification";
-import { formatSelectedTargetsForApi } from "utilities/helpers";
-
-import campaignHelpers from "utilities/campaign_helpers";
-import queryAPI from "services/entities/queries";
-import debounce from "utilities/debounce";
-import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
-import authToken from "utilities/auth_token";
-
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
-
 import PolicyResults from "pages/policies/edit/components/PolicyResults";
+import queryAPI from "services/entities/queries";
+import authToken from "utilities/auth_token";
+import campaignHelpers from "utilities/campaign_helpers";
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+import debounce from "utilities/debounce";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;
@@ -32,8 +29,6 @@ const RunQuery = ({
   goToQueryEditor,
   targetsTotalCount,
 }: IRunQueryProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isQueryFinished, setIsQueryFinished] = useState(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
@@ -139,8 +134,7 @@ const RunQuery = ({
 
   const onRunQuery = debounce(async () => {
     if (!lastEditedQueryBody) {
-      renderFlash(
-        "error",
+      notify.error(
         "Something went wrong running your report. Please try again."
       );
       return;
@@ -164,9 +158,9 @@ const RunQuery = ({
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError) {
       if (campaignError === "resource already created") {
-        renderFlash(
-          "error",
-          "A campaign with the provided query text has already been created"
+        notify.error(
+          "A campaign with the provided query text has already been created",
+          { response: campaignError }
         );
       }
 
@@ -178,12 +172,14 @@ const RunQuery = ({
         const { message } = campaignError as { message: string };
 
         if (message === "forbidden") {
-          renderFlash(
-            "error",
-            "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
+          notify.error(
+            "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator.",
+            { response: campaignError }
           );
         } else {
-          renderFlash("error", "Something has gone wrong. Please try again.");
+          notify.error("Something has gone wrong. Please try again.", {
+            response: campaignError,
+          });
         }
       }
 

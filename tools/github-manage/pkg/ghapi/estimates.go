@@ -12,7 +12,7 @@ import (
 // when syncing to Releases: drafting and product group projects.
 func DefaultEstimateSourceProjects() []int {
 	// unique list; ignore releases itself (87) as a source
-	return []int{Aliases["draft"], Aliases["mdm"], Aliases["g-software"], Aliases["g-orchestration"], Aliases["g-security-compliance"]}
+	return []int{Aliases["draft"], Aliases["mdm"], Aliases["g-software"], Aliases["g-orchestration"], Aliases["g-supply-chain"]}
 }
 
 // GetEstimateFromProject returns the numeric estimate for an issue from a specific project.

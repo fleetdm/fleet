@@ -1,0 +1,10 @@
+{
+  "name": "Fontlab",
+  "unique_identifier": "com.fontlab.fontlab8",
+  "token": "fontlab",
+  "installer_format": "dmg",
+  "slug": "fontlab/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

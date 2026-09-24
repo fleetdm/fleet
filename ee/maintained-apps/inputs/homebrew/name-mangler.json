@@ -1,0 +1,10 @@
+{
+  "name": "Name Mangler",
+  "unique_identifier": "com.manytricks.NameMangler",
+  "token": "name-mangler",
+  "installer_format": "dmg",
+  "slug": "name-mangler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

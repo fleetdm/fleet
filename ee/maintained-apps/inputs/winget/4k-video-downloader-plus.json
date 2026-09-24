@@ -1,0 +1,13 @@
+{
+  "name": "4K Video Downloader+",
+  "slug": "4k-video-downloader-plus/windows",
+  "package_identifier": "OpenMedia.4KVideoDownloaderPlus",
+  "unique_identifier": "4K Video Downloader+",
+  "program_publisher": "InterPromo GMBH",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/4k-video-downloader-plus_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/4k-video-downloader-plus_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

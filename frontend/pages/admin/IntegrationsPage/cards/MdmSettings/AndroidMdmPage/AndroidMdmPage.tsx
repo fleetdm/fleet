@@ -5,25 +5,25 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { IConfig } from "interfaces/config";
-import { getErrorReason } from "interfaces/errors";
-import mdmAndroidAPI from "services/entities/mdm_android";
-import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
-
-import MainContent from "components/MainContent";
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
-import DataSet from "components/DataSet";
-import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import DataSet from "components/DataSet";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
+import PATHS from "router/paths";
+import mdmAndroidAPI from "services/entities/mdm_android";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
@@ -37,7 +37,6 @@ interface ITurnOnAndroidMdmProps {
 }
 
 const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -51,8 +50,10 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
     async (abortController: AbortController) => {
       try {
         await mdmAndroidAPI.startSSE(abortController.signal);
-      } catch {
-        renderFlash("error", "Couldn't turn on Android MDM. Please try again.");
+      } catch (e) {
+        notify.error("Couldn't turn on Android MDM. Please try again.", {
+          response: e,
+        });
         setSetupSse(false);
         return;
       }
@@ -71,13 +72,11 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         setConfig(patched);
         queryClient.setQueryData(["config"], patched);
       }
-      renderFlash("success", "Android MDM turned on successfully.", {
-        persistOnPageChange: true,
-      });
+      notify.success("Android MDM turned on successfully.");
       setSetupSse(false);
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     },
-    [queryClient, renderFlash, router, setConfig]
+    [queryClient, router, setConfig]
   );
 
   useEffect(() => {
@@ -92,7 +91,7 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
     }
 
     return undefined;
-  }, [setupSse, router, renderFlash, handleSSE]);
+  }, [setupSse, router, handleSSE]);
 
   const onConnectMdm = async () => {
     setFetchingSignupUrl(true);
@@ -113,8 +112,7 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
     } catch (e) {
       const reason = getErrorReason(e);
       if (reason.includes("android enterprise already exists")) {
-        renderFlash(
-          "error",
+        notify.error(
           <>
             Couldn&apos;t connect. Android enterprise already exists for this
             Fleet server. For help, please contact{" "}
@@ -124,13 +122,13 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
               newTab
               variant="flash-message-link"
             />
-          </>
+          </>,
+          { response: e }
         );
       } else {
-        renderFlash(
-          "error",
-          `Couldn't connect. ${reason || "Please try again."}`
-        );
+        notify.error(`Couldn't connect. ${reason || "Please try again."}`, {
+          response: e,
+        });
       }
     }
     setFetchingSignupUrl(false);
@@ -146,9 +144,18 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
           url="https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
         />
       </div>
-      <Button isLoading={fetchingSignupUrl} onClick={onConnectMdm}>
-        Connect
-      </Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button
+            isLoading={fetchingSignupUrl}
+            disabled={disableChildren}
+            onClick={onConnectMdm}
+          >
+            Connect
+          </Button>
+        )}
+      />
     </>
   );
 };
@@ -194,12 +201,19 @@ const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
               </>
             }
           >
-            Android Enterprise Id
+            Android Enterprise ID
           </TooltipWrapper>
         }
         value={data.android_enterprise_id}
       />
-      <Button onClick={onClickTurnOff}>Turn off Android MDM</Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button onClick={onClickTurnOff} disabled={disableChildren}>
+            Turn off Android MDM
+          </Button>
+        )}
+      />
     </>
   );
 };

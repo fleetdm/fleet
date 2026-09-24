@@ -2,9 +2,11 @@ package fleet
 
 import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -97,7 +99,8 @@ type Software struct {
 	BundleIdentifier string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// Source is the source of the data (osquery table name).
 	Source string `json:"source" db:"source"`
-	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
+	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons),
+	// the Adobe plugin bundle id (adobe_plugins), or the Go module path (go_binaries).
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
@@ -105,7 +108,8 @@ type Software struct {
 	Browser string `json:"browser"`
 
 	// Release is the version of the OS this software was released on
-	// (e.g. "30.el7" for a CentOS package).
+	// (e.g. "30.el7" for a CentOS package), or the Go toolchain version for go_binaries
+	// (e.g. "go1.26.1").
 	Release string `json:"release,omitempty" db:"release"`
 	// Vendor is the supplier of the software (e.g. "CentOS").
 	Vendor string `json:"vendor,omitempty" db:"vendor"`
@@ -171,6 +175,15 @@ func (s *Software) populateBrowserField() {
 	}
 }
 
+// marshalExtensionID hides the Go module path stored in extension_id for go_binaries: it
+// exists only for vulnerability detection, which reads it from the database.
+func marshalExtensionID(source, extensionID string) string {
+	if source == "go_binaries" {
+		return ""
+	}
+	return extensionID
+}
+
 // MarshalJSON populates the browser field for backwards compatibility then calls the typical
 // MarshalJSON implementation
 func (s *Software) MarshalJSON() ([]byte, error) {
@@ -178,10 +191,12 @@ func (s *Software) MarshalJSON() ([]byte, error) {
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
-		LastOpenedAt any `json:"last_opened_at,omitempty"`
+		LastOpenedAt any    `json:"last_opened_at,omitempty"`
+		ExtensionID  string `json:"extension_id,omitempty"`
 	}{
 		Alias:        (*Alias)(s),
 		LastOpenedAt: marshalLastOpenedAt(s.Source, s.LastOpenedAt),
+		ExtensionID:  marshalExtensionID(s.Source, s.ExtensionID),
 	})
 }
 
@@ -227,8 +242,14 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
-// computeRawChecksum computes the checksum for a software entry
-// The calculation must match the one in softwareChecksumComputedColumn
+// ComputeRawChecksum computes the checksum for a software entry.
+//
+// This is the SOLE source of truth for the software checksum. The checksum is
+// stored on insert from this value and is never recomputed in SQL during normal
+// operation. Do not add a parallel SQL implementation of this calculation: a
+// SQL formula that drifts from this one (e.g. a different field order) silently
+// produces a different checksum for identical software, which orphans existing
+// rows and creates duplicate software entries.
 func (s Software) ComputeRawChecksum() ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID, s.Name}
@@ -262,6 +283,7 @@ type VulnerableSoftware struct {
 	Name              string  `json:"name" db:"name"`
 	Version           string  `json:"version" db:"version"`
 	Source            string  `json:"source" db:"source"`
+	Release           string  `json:"release,omitempty" db:"release"`
 	ExtensionFor      string  `json:"extension_for" db:"extension_for"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
@@ -269,19 +291,50 @@ type VulnerableSoftware struct {
 }
 
 type VulnSoftwareFilter struct {
-	HostID      *uint
-	Name        string // LIKE filter
-	Source      string // exact match
-	KernelsOnly bool   // filter to kernel packages only (for RHEL goval-dictionary scanning)
+	HostID *uint
+	Name   string // LIKE filter
+	// Sources restricts the results to these sources, or to every source when empty. Package
+	// scanners set it so a binary that happens to share a distro package's name is never
+	// compared as one.
+	Sources     []string
+	KernelsOnly bool // filter to kernel packages only (for RHEL goval-dictionary scanning)
+}
+
+// Validate reports whether the filter is well formed.
+func (f VulnSoftwareFilter) Validate() error {
+	return ValidateSoftwareSources(f.Sources)
+}
+
+// ValidateSoftwareSources checks that a list of software sources is well formed: no empty
+// entry, and no source listed twice. An empty list is valid and means "every source".
+func ValidateSoftwareSources(sources []string) error {
+	seen := make(map[string]struct{}, len(sources))
+	for _, source := range sources {
+		if source == "" {
+			return errors.New("empty software source")
+		}
+		if _, ok := seen[source]; ok {
+			return fmt.Errorf("duplicate software source %q", source)
+		}
+		seen[source] = struct{}{}
+	}
+	return nil
 }
 
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
 	if tv, ok := v.([]byte); ok {
-		return json.Unmarshal(tv, &c)
+		return json.Unmarshal(tv, c)
 	}
 	return errors.New("unsupported type")
+}
+
+func (c SliceString) Value() (driver.Value, error) {
+	if c == nil {
+		return nil, nil
+	}
+	return json.Marshal(c)
 }
 
 // SoftwareVersion is an abstraction over the `software` table to support the
@@ -290,6 +343,8 @@ type SoftwareVersion struct {
 	ID uint `db:"id" json:"id"`
 	// Version is the version string we grab for this specific software.
 	Version string `db:"version" json:"version"`
+	// Release is the software's release; see Software.Release.
+	Release string `db:"release" json:"release,omitempty"`
 	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
 	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities"`
 	// HostsCount is the number of hosts that use this software version.
@@ -345,29 +400,36 @@ type SoftwareAutoUpdateSchedule struct {
 
 func (s SoftwareAutoUpdateSchedule) WindowIsValid() error {
 	if s.AutoUpdateStartTime == nil || s.AutoUpdateEndTime == nil || *s.AutoUpdateStartTime == "" || *s.AutoUpdateEndTime == "" {
-		return errors.New("Start and end time must both be set")
+		return NewInvalidArgumentError("auto_update_window", "Start and end time must both be set")
 	}
-	// Validate that the times are in HH:MM format.
-	// Note that durations can be arbitrarily long, but parsing in this way
-	// automatically validates that the hours are between 0 and 23 and the minutes are between 0 and 59.
-	startDuration, err := time.Parse("15:04", *s.AutoUpdateStartTime)
+	startDuration, err := parseAutoUpdateHHMM(*s.AutoUpdateStartTime)
 	if err != nil {
-		return fmt.Errorf("Error parsing start time: %w", err)
+		return NewInvalidArgumentError("auto_update_window_start", "must be in HH:MM (24-hour) format")
 	}
-	endDuration, err := time.Parse("15:04", *s.AutoUpdateEndTime)
+	endDuration, err := parseAutoUpdateHHMM(*s.AutoUpdateEndTime)
 	if err != nil {
-		return fmt.Errorf("Error parsing end time: %w", err)
+		return NewInvalidArgumentError("auto_update_window_end", "must be in HH:MM (24-hour) format")
 	}
-	// Validate that the window is at least one hour long.
-	// If the end time is less than the start time, the window wraps to the next day, so we need to add 24 hours to the end time in that case.
+	// If end < start the window wraps past midnight.
 	if endDuration.Before(startDuration) {
 		endDuration = endDuration.Add(24 * time.Hour)
 	}
 	if endDuration.Sub(startDuration) < time.Hour {
-		return errors.New("The update window must be at least one hour long")
+		return NewInvalidArgumentError("auto_update_window", "The update window must be at least one hour long")
 	}
 
 	return nil
+}
+
+var autoUpdateHHMMPattern = regexp.MustCompile(`^\d{1,2}:\d{2}$`)
+
+// parseAutoUpdateHHMM validates the 24-hour time shape and parses it. Unpadded hours
+// ("1:00") are accepted because the cron reader (isTimezoneInWindow) tolerates them.
+func parseAutoUpdateHHMM(s string) (time.Time, error) {
+	if !autoUpdateHHMMPattern.MatchString(s) {
+		return time.Time{}, errors.New("must be HH:MM")
+	}
+	return time.Parse("15:04", s)
 }
 
 type SoftwareAutoUpdateScheduleFilter struct {
@@ -380,6 +442,33 @@ type FleetMaintainedVersion struct {
 	ID uint `json:"id" db:"id"`
 	// Version is the version string.
 	Version string `json:"version" db:"version"`
+	// Filename is the installer filename for this version.
+	Filename string `json:"filename" db:"filename"`
+	// UploadedAt is when this version was added to the database.
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
+}
+
+// FMAAutoUpdateCandidate is the active installer for one (team, title) backed
+// by a Fleet-maintained app. The auto-update cron uses it to decide whether to
+// advance the active version among the team's cached versions.
+type FMAAutoUpdateCandidate struct {
+	// TeamID is nil for the no-team scope (the team_id column is NULL there).
+	TeamID *uint `db:"team_id"`
+	// TitleID is the software_titles.id.
+	TitleID uint `db:"title_id"`
+	// FleetMaintainedAppID is the fleet_maintained_apps.id backing this title,
+	// used to hydrate the latest manifest and check the cache without a second
+	// lookup.
+	FleetMaintainedAppID uint `db:"fleet_maintained_app_id"`
+	// InstallerID is the currently active software_installers.id.
+	InstallerID uint `db:"installer_id"`
+	// Version is the currently active version (for logging).
+	Version string `db:"version"`
+	// Slug is the Fleet-maintained app slug (for logging).
+	Slug string `db:"slug"`
+	// InstallScriptEdited and UninstallScriptEdited are the active installer's flags.
+	InstallScriptEdited   bool `db:"install_script_edited"`
+	UninstallScriptEdited bool `db:"uninstall_script_edited"`
 }
 
 // SoftwareTitle represents a title backed by the `software_titles` table.
@@ -415,8 +504,10 @@ type SoftwareTitle struct {
 	// InHouseAppsCount is 0 or 1, indicating if the software title has
 	// an in house app (.ipa) installer
 	InHouseAppCount int `json:"-" db:"in_house_apps_count"`
-	// SoftwarePackage is the software installer information for this title.
+	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
+	// Packages holds every package, first-added first; nil (marshals to null) when none.
+	Packages []SoftwareInstaller `json:"packages" db:"-"`
 	// AppStoreApp is the VPP app information for this title.
 	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
@@ -500,9 +591,11 @@ type SoftwareTitleListResult struct {
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 
-	// SoftwarePackage provides software installer package information, it is
-	// only present if a software installer is available for the software title.
+	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
 	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+
+	// Packages holds the trimmed per-package info, first-added first; nil (marshals to null) when none.
+	Packages []SoftwarePackageListItem `json:"packages"`
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
@@ -606,11 +699,13 @@ func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		*Alias
 		LastOpenedAt             any                        `json:"last_opened_at,omitempty"`
+		ExtensionID              string                     `json:"extension_id,omitempty"`
 		InstalledPaths           []string                   `json:"installed_paths"`
 		PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
 	}{
 		Alias:                    (*Alias)(&hse.Software),
 		LastOpenedAt:             marshalLastOpenedAt(hse.Source, hse.LastOpenedAt),
+		ExtensionID:              marshalExtensionID(hse.Source, hse.ExtensionID),
 		InstalledPaths:           hse.InstalledPaths,
 		PathSignatureInformation: hse.PathSignatureInformation,
 	})
@@ -897,9 +992,10 @@ var DefaultSelfServiceCategoryNames = []string{
 	"🌎 Browsers",
 	"👬 Communication",
 	"🧰 Developer tools",
-	"💻 Productivity",
+	"🖥️ Productivity",
 	"🔐 Security",
 	"🛟 Support",
+	"🛠️ Utilities",
 }
 
 // Map the old default category names that don't include emojis to the new ones
@@ -909,28 +1005,58 @@ var LegacySoftwareCategoryNames = map[string]string{
 	"Browsers":        "🌎 Browsers",
 	"Communication":   "👬 Communication",
 	"Developer tools": "🧰 Developer tools",
-	"Productivity":    "💻 Productivity",
+	"Productivity":    "🖥️ Productivity",
 	"Security":        "🔐 Security",
-	"Utilities":       "🛟 Support",
+	"Support":         "🛟 Support",
+	"Utilities":       "🛠️ Utilities",
 }
 
 func TranslateLegacySoftwareCategoryNames(names []string) []string {
 	out := make([]string, len(names))
 	for i, n := range names {
-		if newName, ok := LegacySoftwareCategoryNames[n]; ok {
-			out[i] = newName
-		} else {
-			out[i] = n
+		out[i] = n
+		for legacy, newName := range LegacySoftwareCategoryNames {
+			if strings.EqualFold(n, legacy) {
+				out[i] = newName
+				break
+			}
 		}
 	}
 	return out
 }
 
+// normalizeSoftwareCategoryName strips Unicode variation selectors (U+FE00–U+FE0F)
+// from a category name. These code points carry zero weight (they are ignorable)
+// under the utf8mb4_unicode_ci collation that backs the software_categories
+// (team_id, name) unique index, so names differing only by a variation selector —
+// e.g. "🖥️ Productivity" (U+1F5A5 U+FE0F) vs "🖥 Productivity" (U+1F5A5) — are the
+// SAME row to MySQL even though Go's byte/rune comparisons treat them as distinct.
+// Normalizing before comparing in Go keeps our notion of category identity aligned
+// with the database's, so we don't try to insert a name the DB already considers a
+// duplicate (which would fail with a 1062 error) and we correctly resolve such a
+// name back to its existing category.
+func normalizeSoftwareCategoryName(name string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 0xFE00 && r <= 0xFE0F { // variation selectors VS1-VS16 (ignorable in utf8mb4_unicode_ci)
+			return -1
+		}
+		return r
+	}, name)
+}
+
+// SoftwareCategoryNamesEqual reports whether two category names refer to the same
+// category as far as the software_categories unique index is concerned:
+// case-insensitive and ignoring variation selectors, matching the column's
+// utf8mb4_unicode_ci collation.
+func SoftwareCategoryNamesEqual(a, b string) bool {
+	return strings.EqualFold(normalizeSoftwareCategoryName(a), normalizeSoftwareCategoryName(b))
+}
+
 func SoftwareCategoryReferenceMatches(reference string, name string) bool {
-	if strings.EqualFold(reference, name) {
+	if SoftwareCategoryNamesEqual(reference, name) {
 		return true
 	}
-	if t, ok := LegacySoftwareCategoryNames[reference]; ok && strings.EqualFold(t, name) {
+	if t, ok := LegacySoftwareCategoryNames[reference]; ok && SoftwareCategoryNamesEqual(t, name) {
 		return true
 	}
 	return false

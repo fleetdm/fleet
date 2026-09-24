@@ -909,12 +909,23 @@ def wait_for_ip(name: str, timeout: int = 180) -> str:
 def wait_for_ssh(ip: str, timeout: int = 120) -> None:
     """Wait until SSH is available on the VM."""
     deadline = time.time() + timeout
-    while time.time() < deadline:
-        result = ssh(ip, "echo ok", timeout=10)
-        if result.returncode == 0:
-            log("SSH is ready")
-            return
-        time.sleep(3)
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            break
+        try:
+            # Bound each probe by the smaller of 10s and the time left so a
+            # slow probe can't overshoot the overall timeout.
+            result = ssh(ip, "echo ok", timeout=min(10, remaining))
+            if result.returncode == 0:
+                log("SSH is ready")
+                return
+        except subprocess.TimeoutExpired:
+            # A freshly booted VM's first SSH probes commonly hang until
+            # sshd is ready; keep retrying within the deadline instead of
+            # treating the timeout as fatal.
+            pass
+        time.sleep(min(3, max(0, deadline - time.time())))
     raise TimeoutError(f"SSH not available on {ip} within {timeout}s")
 
 

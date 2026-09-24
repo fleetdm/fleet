@@ -1,12 +1,14 @@
-import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
 import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
+import { notify } from "components/ToastNotification";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
 import ManageHostsPage from "./ManageHostsPage";
 
@@ -146,13 +148,243 @@ describe("ManageHostsPage", () => {
     ).toBeDisabled();
     expect(screen.getByPlaceholderText(/search name/i)).toBeDisabled();
 
-    // Add hosts button still visible in the page header
+    // Add hosts button still visible in the page header, next to the
+    // settings gear menu (which now contains Enroll secrets).
     const headerWrap = screen
-      .getByText("Manage enroll secret")
+      .getByRole("button", { name: "Hosts page settings" })
       .closest(".manage-hosts__button-wrap");
     expect(
       within(headerWrap as HTMLElement).getByText("Add hosts")
     ).toBeInTheDocument();
+  });
+
+  it("shows the no enroll secrets banner with an Add enroll secret link", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(
+      await screen.findByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/new hosts will not enroll until an enroll secret/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+  });
+
+  it("opens the Add hosts modal in its no enroll secrets state instead of crashing", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      }),
+      http.get(baseUrl("/config/certificate"), () => {
+        return HttpResponse.json({ certificate_chain: "" });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText(/you have no enroll secrets\./i);
+    const headerWrap = screen
+      .getByRole("button", { name: "Hosts page settings" })
+      .closest(".manage-hosts__button-wrap");
+    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+
+    // The banner carries the same copy and CTA, so scope to the modal.
+    await waitFor(() => {
+      expect(document.querySelector(".add-hosts-modal")).toBeInTheDocument();
+    });
+    const modal = within(
+      document.querySelector(".add-hosts-modal") as HTMLElement
+    );
+    expect(
+      modal.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+    expect(
+      modal.getByText(/new hosts will not enroll until an enroll secret/i)
+    ).toBeInTheDocument();
+  });
+
+  it("hides the no enroll secrets banner but keeps Add hosts when one-time enroll secrets are on", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      }),
+      http.get(baseUrl("/config/certificate"), () => {
+        return HttpResponse.json({ certificate_chain: "" });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...mockAppContext,
+          config: createMockConfig({
+            auth: { use_one_time_enroll_secrets: true },
+          }),
+        },
+      },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    expect(await screen.findByText("No hosts")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/you have no enroll secrets\./i)
+    ).not.toBeInTheDocument();
+
+    const headerWrap = screen
+      .getByRole("button", { name: "Hosts page settings" })
+      .closest(".manage-hosts__button-wrap");
+    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+
+    expect(
+      await screen.findByText(/only apple hosts that automatically enroll/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders the settings gear menu with its options", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText("No hosts");
+
+    const gear = screen.getByRole("button", { name: "Hosts page settings" });
+    expect(gear).toBeInTheDocument();
+
+    await user.click(gear);
+
+    expect(screen.getByText("Enroll secrets")).toBeInTheDocument();
+    expect(screen.getByText("Custom host vitals")).toBeInTheDocument();
+    expect(screen.getByText("Activity automations")).toBeInTheDocument();
+  });
+
+  it("disables Activity automations on Fleet Free with a premium tooltip", async () => {
+    setupHandlers(0);
+    // mockAppContext is Free tier (isPremiumTier: false).
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText("No hosts");
+    await user.click(
+      screen.getByRole("button", { name: "Hosts page settings" })
+    );
+
+    const option = screen
+      .getByText("Activity automations")
+      .closest('[data-testid="dropdown-option"]');
+    expect(option).toHaveAttribute("aria-disabled", "true");
+
+    await user.hover(screen.getByText("Activity automations"));
+    expect(
+      await screen.findByText(
+        "Activity automations are available in Fleet Premium."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error and keeps the modal closed when activity automations fail to load", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          teams: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      // the activity automations settings load fails
+      http.get(baseUrl("/fleets/1"), () => {
+        return HttpResponse.json(
+          { message: "internal error" },
+          { status: 500 }
+        );
+      })
+    );
+
+    const errorSpy = jest
+      .spyOn(notify, "error")
+      .mockImplementation(() => "toast-id");
+    try {
+      const premiumAdminContext = {
+        ...mockAppContext,
+        isPremiumTier: true,
+        isFreeTier: false,
+        availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+        setCurrentTeam: jest.fn(),
+      };
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: premiumAdminContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?fleet_id=1",
+          hash: "",
+          query: { fleet_id: "1" },
+        },
+      });
+      const { user } = render(<ManageHostsPage {...(props as any)} />);
+
+      await screen.findByText("No hosts");
+      await user.click(
+        screen.getByRole("button", { name: "Hosts page settings" })
+      );
+      await user.click(screen.getByText("Activity automations"));
+
+      // The load fails: the user is notified and the modal never mounts —
+      // mounting it would seed disabled defaults that, if saved, overwrite
+      // the configured webhook.
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Could not load activity automations. Please try again."
+        );
+      });
+      // Assert on the modal's description ("Activity automations" would also
+      // match the gear menu item).
+      expect(
+        screen.queryByText(/Send webhooks for host-level activities/)
+      ).not.toBeInTheDocument();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("renders filtered empty state with enabled controls", async () => {

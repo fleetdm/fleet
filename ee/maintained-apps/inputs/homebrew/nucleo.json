@@ -1,0 +1,10 @@
+{
+  "name": "Nucleo",
+  "unique_identifier": "co.ambercreative.nucleo",
+  "token": "nucleo",
+  "installer_format": "zip",
+  "slug": "nucleo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

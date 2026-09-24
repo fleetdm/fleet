@@ -1,0 +1,12 @@
+{
+  "name": "Agent Ransack",
+  "slug": "agent-ransack/windows",
+  "package_identifier": "Mythicsoft.AgentRansack",
+  "unique_identifier": "Agent Ransack",
+  "installer_arch": "x64",
+  "installer_type": "zip",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/agent-ransack_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/agent-ransack_uninstall.ps1",
+  "default_categories": ["Utilities"]
+}

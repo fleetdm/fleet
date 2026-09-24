@@ -1,0 +1,11 @@
+{
+  "name": "dnGrep",
+  "slug": "dngrep/windows",
+  "package_identifier": "dnGrep.dnGrep",
+  "unique_identifier": "dnGrep",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Utilities"]
+}

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/server/agentws"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -67,7 +68,9 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 type extraHandlerOpts struct {
 	loginRateLimit  *throttled.Rate
 	mdmSsoRateLimit *throttled.Rate
+	ssoRateLimit    *throttled.Rate
 	httpSigVerifier mux.MiddlewareFunc
+	agentWSHub      *agentws.Hub
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -87,9 +90,27 @@ func WithMdmSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	}
 }
 
+// WithSsoRateLimit configures the rate of the SSO callback's dedicated rate
+// limit bucket (the rate defaults to the login rate limit otherwise; the bucket
+// is always separate from the login bucket).
+func WithSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.ssoRateLimit = &r
+	}
+}
+
 func WithHTTPSigVerifier(m mux.MiddlewareFunc) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.httpSigVerifier = m
+	}
+}
+
+// WithAgentWSHub provides the hub of agent WebSocket connections; when set
+// (and the websocket transport is enabled in the config), the agent
+// notifications WebSocket endpoint is registered.
+func WithAgentWSHub(hub *agentws.Hub) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.agentWSHub = hub
 	}
 }
 
@@ -110,7 +131,7 @@ func MakeHandler(
 	carveStore fleet.CarveStore,
 	featureRoutes []endpointer.HandlerRoutesFunc,
 	extra ...ExtraHandlerOption,
-) http.Handler {
+) (http.Handler, error) {
 	var eopts extraHandlerOpts
 	for _, fn := range extra {
 		fn(&eopts)
@@ -119,7 +140,7 @@ func MakeHandler(
 	// Create the client IP extraction strategy based on config.
 	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
 	if err != nil {
-		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
 	fleetAPIOptions := []kithttp.ServerOption{
@@ -139,6 +160,8 @@ func MakeHandler(
 	}
 
 	r := mux.NewRouter()
+
+	fastPathEnabled := true
 	if config.Logging.TracingEnabled {
 		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
@@ -149,18 +172,24 @@ func MakeHandler(
 					return r.Method + " " + route
 				})))
 		} else {
+			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
+			// cannot be installed alongside it.
 			apmgorilla.Instrument(r)
+			fastPathEnabled = false
 		}
 	}
 
+	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
+	var middlewares []mux.MiddlewareFunc
+
 	if config.Server.GzipResponses {
-		r.Use(func(h http.Handler) http.Handler {
+		middlewares = append(middlewares, func(h http.Handler) http.Handler {
 			return gzhttp.GzipHandler(h)
 		})
 	}
 
 	// Add middleware to extract the client IP and set it in the request context.
-	r.Use(func(handler http.Handler) http.Handler {
+	middlewares = append(middlewares, func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
 			if ip != "" {
@@ -171,7 +200,11 @@ func MakeHandler(
 	})
 
 	if eopts.httpSigVerifier != nil {
-		r.Use(eopts.httpSigVerifier)
+		middlewares = append(middlewares, eopts.httpSigVerifier)
+	}
+
+	for _, mw := range middlewares {
+		r.Use(mw)
 	}
 
 	attachFleetAPIRoutes(r, svc, config, logger, limitStore, redisPool, fleetAPIOptions, eopts)
@@ -180,7 +213,10 @@ func MakeHandler(
 	}
 	addMetrics(r)
 
-	return r
+	if !fastPathEnabled {
+		return r, nil
+	}
+	return newFastPathHandler(r, middlewares, config)
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -274,9 +310,11 @@ const (
 	// ban requests from such IP for a duration of 1 minute.
 	//
 
-	deviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
-	deviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
-	deviceIPBanTime                                     = 1 * time.Minute
+	// Exported so bounded contexts with their own device-token endpoints (e.g.
+	// notifications) can apply the same IP ban policy.
+	DeviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
+	DeviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
+	DeviceIPBanTime                                     = 1 * time.Minute
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
@@ -349,10 +387,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/policies/count", countGlobalPoliciesEndpoint, fleet.CountGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
 	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, fleet.GetPolicyByIDRequest{})
+	ue.GET("/api/_version_/fleet/policies/{policy_id}/automation_activities", listPolicyAutomationActivitiesEndpoint, fleet.ListPolicyAutomationActivitiesRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, fleet.DeleteGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
 	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, fleet.ModifyGlobalPolicyRequest{})
+	ue.POST("/api/_version_/fleet/policies/{policy_id}/reset", resetPolicyEndpoint, fleet.ResetPolicyRequest{})
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, fleet.ResetAutomationRequest{})
 
 	ue.POST("/api/_version_/fleet/fleets/{fleet_id}/policies", teamPolicyEndpoint, fleet.TeamPolicyRequest{})
@@ -577,6 +617,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/scripts", getHostScriptDetailsEndpoint, fleet.GetHostScriptDetailsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming", listHostUpcomingActivitiesEndpoint, listHostUpcomingActivitiesRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming/{activity_id}", cancelHostUpcomingActivityEndpoint, cancelHostUpcomingActivityRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/commands/{command_uuid}", cancelHostMDMCommandEndpoint, cancelHostMDMCommandRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, fleet.LockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, fleet.UnlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, fleet.WipeHostRequest{})
@@ -584,6 +625,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password", getHostManagedAccountPasswordEndpoint, getHostManagedAccountPasswordRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password/rotate", rotateManagedLocalAccountPasswordEndpoint, rotateManagedLocalAccountPasswordRequest{})
+	ue.POST("/api/_version_/fleet/hosts/release_ab", releaseABDevicesEndpoint, releaseABDevicesRequest{})
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, fleet.AutofillPoliciesRequest{})
@@ -593,6 +635,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/custom_variables", createSecretVariableEndpoint, fleet.CreateSecretVariableRequest{})
 	ue.GET("/api/_version_/fleet/custom_variables", listSecretVariablesEndpoint, fleet.ListSecretVariablesRequest{})
 	ue.DELETE("/api/_version_/fleet/custom_variables/{id:[0-9]+}", deleteSecretVariableEndpoint, fleet.DeleteSecretVariableRequest{})
+
+	// Custom host vitals
+	ue.GET("/api/_version_/fleet/custom_host_vitals", listCustomHostVitalsEndpoint, fleet.ListCustomHostVitalsRequest{})
+	ue.POST("/api/_version_/fleet/custom_host_vitals", createCustomHostVitalEndpoint, fleet.CreateCustomHostVitalRequest{})
+	ue.PATCH("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", updateCustomHostVitalEndpoint, fleet.UpdateCustomHostVitalRequest{})
+	ue.DELETE("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", deleteCustomHostVitalEndpoint, fleet.DeleteCustomHostVitalRequest{})
+	ue.PUT("/api/_version_/fleet/hosts/{host_id:[0-9]+}/custom_host_vitals/{id:[0-9]+}", setHostCustomHostVitalValueEndpoint, fleet.SetHostCustomHostVitalValueRequest{})
+	ue.PUT("/api/_version_/fleet/spec/custom_host_vitals", upsertCustomHostVitalsEndpoint, fleet.UpsertCustomHostVitalsRequest{})
 
 	// API end-points
 	ue.GET("/api/_version_/fleet/rest_api", listAPIEndpointsEndpoint, listAPIEndpointsRequest{})
@@ -627,10 +677,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// platform-agnostic POST /mdm/commands/run. It is still supported
 	// indefinitely for backwards compatibility.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
-	// Deprecated: POST /mdm/apple/commandresults is now deprecated, replaced by the
-	// platform-agnostic POST /mdm/commands/commandresults. It is still supported
-	// indefinitely for backwards compatibility.
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 	// Deprecated: POST /mdm/apple/commands is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/commands. It is still supported
 	// indefinitely for backwards compatibility.
@@ -760,6 +806,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
+	// This section handles MDM "assets", specifically for Apple DDM.
+	mdmAppleMW.GET("/api/_version_/fleet/assets", listAppleDDMAssetsEndpoint, listAppleDDMAssetsRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/assets/{asset_uuid}", getAppleDDMAssetEndpoint, getAppleDDMAssetRequest{})
+	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxMDMAssetSize).POST("/api/_version_/fleet/assets", createAppleDDMAssetEndpoint, createAppleDDMAssetRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/assets/{asset_uuid}", deleteAppleDDMAssetEndpoint, deleteAppleDDMAssetRequest{})
+	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/assets/batch", batchSetAppleDDMAssetsEndpoint, batchSetAppleDDMAssetsRequest{})
+
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/apns_ping", apnsPingRequestEndpoint, sendAPNSPingRequest{})
+
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
@@ -818,6 +873,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /configuration_profiles endpoint.
 	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).PATCH("/api/_version_/fleet/configuration_profiles/{profile_uuid}", updateMDMConfigProfileEndpoint, updateMDMConfigProfileRequest{})
 	// Batch needs to allow being called without any MDM enabled, to support deleting profiles, but will fail later if trying to add
 	ue.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesEndpoint, batchModifyMDMConfigProfilesRequest{})
 
@@ -825,6 +881,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/name_template/resend", resendHostNameTemplateEndpoint, resendHostNameTemplateRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles/resend/batch", batchResendMDMProfileToHostsEndpoint, batchResendMDMProfileToHostsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/{profile_uuid}/status", getMDMConfigProfileStatusEndpoint, getMDMConfigProfileStatusRequest{})
 
@@ -832,6 +889,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// It was only used to set disk encryption.
 	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
 	ue.POST("/api/_version_/fleet/disk_encryption", updateDiskEncryptionEndpoint, updateDiskEncryptionRequest{})
+	ue.POST("/api/_version_/fleet/host_name_template", updateHostNameTemplateEndpoint, updateHostNameTemplateRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
@@ -848,6 +906,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/ab_tokens", listABMTokensEndpoint, nil)
 	ue.GET("/api/_version_/fleet/ab_tokens/count", countABMTokensEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/fleets", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
+	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/default", setABMTokenDefaultEndpoint, setABMTokenDefaultRequest{})
 	ue.PATCH("/api/_version_/fleet/ab_tokens/{id:[0-9]+}/renew", renewABMTokenEndpoint, renewABMTokenRequest{})
 
 	ue.GET("/api/_version_/fleet/mdm/apple/request_csr", getMDMAppleCSREndpoint, getMDMAppleCSRRequest{})
@@ -887,6 +946,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Certificate Authority endpoints
 	ue.POST("/api/_version_/fleet/certificate_authorities", createCertificateAuthorityEndpoint, createCertificateAuthorityRequest{})
 	ue.GET("/api/_version_/fleet/certificate_authorities", listCertificateAuthoritiesEndpoint, listCertificateAuthoritiesRequest{})
+	ue.GET("/api/_version_/fleet/microsoft_graph_credentials", listMicrosoftGraphCredentialsEndpoint, nil)
+	ue.PUT("/api/_version_/fleet/microsoft_graph_credentials", applyMicrosoftGraphCredentialsEndpoint, applyMicrosoftGraphCredentialsRequest{})
 	ue.GET("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", getCertificateAuthorityEndpoint, getCertificateAuthorityRequest{})
 	ue.DELETE("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", deleteCertificateAuthorityEndpoint, deleteCertificateAuthorityRequest{})
 	ue.PATCH("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", updateCertificateAuthorityEndpoint, updateCertificateAuthorityRequest{})
@@ -898,24 +959,44 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAndroidMW.POST("/api/_version_/fleet/software/web_apps", createAndroidWebAppEndpoint, createAndroidWebAppRequest{})
 
 	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
-		deviceIPAllowedConsecutiveFailingRequestsCount,
-		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
-		deviceIPBanTime,
+		DeviceIPAllowedConsecutiveFailingRequestsCount,
+		DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		DeviceIPBanTime,
 	)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
+
+	// Rate limiters shared across the login/SSO endpoints.
+	limiter := ratelimit.NewMiddleware(limitStore)
+
+	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
+	// own rate limit bucket.
+	loginRateLimit := throttled.PerMin(10)
+	if extra.loginRateLimit != nil {
+		loginRateLimit = *extra.loginRateLimit
+	}
+	loginLimiter := limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})
+	mdmSsoLimiter := loginLimiter
+	if extra.mdmSsoRateLimit != nil {
+		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
+	}
+	// The SSO callback gets its own dedicated bucket (separate from the login
+	// bucket) so a flood on the unauthenticated callback can't exhaust the
+	// rate-limit budget that legitimate password logins depend on. The rate
+	// defaults to the login rate unless explicitly overridden.
+	ssoRateLimit := loginRateLimit
+	if extra.ssoRateLimit != nil {
+		ssoRateLimit = *extra.ssoRateLimit
+	}
+	ssoLimiter := limiter.Limit("sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
 
 	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
-	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
-	de.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	// Deprecated: Device mapping data is now included in host details endpoint
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
-	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
-	de.WithCustomMiddleware(errorLimiter).WithRequestBodySizeLimit(fleet.MaxFleetdErrorReportSize).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/software/install_all", submitSelfServiceSoftwareInstallAll, fleetSelfServiceSoftwareInstallAllRequest{})
@@ -927,13 +1008,37 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/disk_encryption_pin", submitDiskEncryptionPINEndpoint, submitDiskEncryptionPINRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
+
+	// Endpoints exempt from the Fleet Desktop SSO gate.
+	deNoSSO := newDeviceSSOExemptEndpointer(svc, logger, opts, r, apiVersions...)
+	deNoSSO.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/desktop", getFleetDesktopEndpoint, getFleetDesktopRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).HEAD("/api/_version_/fleet/device/{token}/ping", devicePingEndpoint, deviceAuthPingRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).WithRequestBodySizeLimit(fleet.MaxFleetdErrorReportSize).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
+	// Device-authenticated, so unlike the unauthenticated SSO routes this needs no
+	// pre-auth flood guard. It is quota-limited for amplification instead: each
+	// successful call refetches the IdP metadata, so one leaked device token could
+	// drive sustained outbound traffic at the customer's IdP from Fleet's own IP,
+	// and errorLimiter cannot see it because those requests succeed. Own bucket so
+	// device traffic cannot exhaust the budget logins and enrollments depend on,
+	// at the same rate as the other end-user-facing SSO path, so
+	// auth.sso_rate_limit_per_minute tunes both.
+	deviceSsoLimiter := limiter.Limit("device_sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
+	deNoSSO.WithCustomMiddleware(errorLimiter, deviceSsoLimiter).POST("/api/_version_/fleet/device/{token}/sso", initiateDeviceSSOEndpoint, initiateDeviceSSORequest{})
+	// migrate_mdm is posted by the tray app's "Migrate to Fleet" dialog with the
+	// device token alone (orbit/pkg/useraction -> DeviceClient.MigrateMDM), and it
+	// has no browser to complete an IdP round-trip in.
+	deNoSSOmdm := deNoSSO.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	deNoSSOmdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
+
 	// Device authenticated, Apple MDM endpoints.
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
-	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/migrate_mdm", migrateMDMDeviceEndpoint, deviceMigrateMDMRequest{})
+	demdm.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
 
 	// host-authenticated endpoints
 	//
@@ -966,8 +1071,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// API. This allows us to deprecate osquery endpoints separately.
 	heHeader.WithAltPaths("/api/v1/osquery/config").
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
+	distReadEndpoint := getDistributedQueriesEndpoint
+	if extra.agentWSHub != nil && config.Logging.Debug {
+		// Count distributed/read requests per host and path for /debug/agentws.
+		// Debug-mode only: production servers skip the per-request accounting.
+		distReadEndpoint = recordDistributedReadStats(extra.agentWSHub, getDistributedQueriesEndpoint)
+	}
 	heHeader.WithAltPaths("/api/v1/osquery/distributed/read").
-		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+		POST("/api/osquery/distributed/read", distReadEndpoint, getDistributedQueriesRequest{})
 		// /distributed/write and /log accept large payloads. The body-size
 		// policy depends on which auth scheme is in effect:
 		//   - body-auth mode: per-route limit (operator-tunable via
@@ -1031,6 +1142,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, fleet.OrbitPostDiskEncryptionKeyRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_protection", postOrbitDiskEncryptionProtectionEndpoint, fleet.OrbitPostDiskEncryptionProtectionRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/details", getOrbitDiskEncryptionPINDetailsEndpoint, fleet.OrbitGetDiskEncryptionPINDetailsRequest{})
+	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_pin/result", postOrbitDiskEncryptionPINResultEndpoint, fleet.OrbitPostDiskEncryptionPINResultRequest{})
+	// managed local account escrow is Windows-MDM-specific, so it fails fast when Windows MDM is off.
+	oeWindowsMDM.POST("/api/fleet/orbit/managed_local_account", postOrbitManagedLocalAccountEndpoint, fleet.OrbitPostManagedLocalAccountRequest{})
 
 	oe.POST("/api/fleet/orbit/luks_data", postOrbitLUKSEndpoint, fleet.OrbitPostLUKSRequest{})
 
@@ -1076,7 +1192,21 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.GET("/api/_version_/fleet/enrollment_profiles/ota", getOTAProfileEndpoint, getOTAProfileRequest{})
 
 	// This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
+	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollTokenPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
+	// Deprecated: Non unique token enrollment is deprecated in favour of AccountDrivenEnrollTokenPath. This is the account-driven enrollment endpoint for BYoD Apple devices, also known as User Enrollment.
 	neAppleMDM.POST(apple_mdm.AccountDrivenEnrollPath, mdmAppleAccountEnrollEndpoint, mdmAppleAccountEnrollRequest{})
+
+	// Apple Platform SSO (PSSO) endpoints, used by Fleet's Platform SSO
+	// extension. Unauthenticated at the HTTP layer: the token endpoint
+	// authenticates protocol-level via JWTs signed with registered device
+	// keys, and all endpoints are gated in the service layer on the feature
+	// being configured. Request bodies are capped at the endpointer's default
+	// size limit. The related /.well-known/apple-app-site-association document
+	// is served from the root mux (see registerPSSO).
+	ne.POST(pssoNoncePath, pssoNonceEndpoint, pssoNonceRequest{})
+	ne.POST(pssoRegistrationPath, pssoRegistrationEndpoint, pssoRegistrationRequest{})
+	ne.POST(pssoTokenPath, pssoTokenEndpoint, pssoTokenRequest{})
+	ne.GET(pssoJWKSPath, pssoJWKSEndpoint, pssoJWKSRequest{})
 	// This is for OAUTH2 token based auth
 	// ne.POST(apple_mdm.EnrollPath+"/token", mdmAppleAccountEnrollTokenEndpoint, mdmAppleAccountEnrollTokenRequest{})
 
@@ -1086,9 +1216,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Microsoft MS-MDE2 Endpoints
 	// This endpoint is unauthenticated and is used by Microsoft devices to discover the MDM server endpoints
 	neWindowsMDM.WithRequestBodySizeLimit(fleet.MaxMicrosoftMDMSize).POST(microsoft_mdm.MDE2DiscoveryPath, mdmMicrosoftDiscoveryEndpoint, SoapRequestContainer{})
-
-	// This endpoint is unauthenticated and is used by Microsoft devices to retrieve the opaque STS auth token
-	neWindowsMDM.WithRequestBodySizeLimit(fleet.MaxMicrosoftMDMSize).GET(microsoft_mdm.MDE2AuthPath, mdmMicrosoftAuthEndpoint, SoapRequestContainer{})
 
 	// This endpoint is authenticated using the BinarySecurityToken header field
 	neWindowsMDM.WithRequestBodySizeLimit(fleet.MaxMicrosoftMDMSize).POST(microsoft_mdm.MDE2PolicyPath, mdmMicrosoftPolicyEndpoint, SoapRequestContainer{})
@@ -1148,7 +1275,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		GET("/api/_version_/fleet/logo", getOrgLogoEndpoint, getOrgLogoRequest{})
 
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
-	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
+	// The SSO callback is unauthenticated and internet-reachable. Rate-limit it
+	// (dedicated bucket) and cap the body to keep pre-auth attacks surface small.
+	ne.WithCustomMiddleware(ssoLimiter).
+		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
+		POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
 
 	// the websocket distributed query results endpoint is a bit different - the
@@ -1159,23 +1290,20 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/",
 		makeStreamDistributedQueryCampaignResultsHandler(config.Server, svc, logger))
 
+	// The agent notifications WebSocket endpoint is a raw http.Handler on the
+	// NoAuth endpointer: the upgrade request is authenticated inside the
+	// handler with the orbit node key. Registered only when the websocket
+	// transport is enabled, so with the feature off (the default) upgrade
+	// attempts get a 404.
+	if config.WebSocket.TransportEnabled && extra.agentWSHub != nil {
+		ne.HandleHTTPHandler("/api/fleet/orbit/notifications",
+			agentws.NewHandler(extra.agentWSHub, svc, logger), "GET")
+	}
+
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
-	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
 		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
 		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
-
-	// By default, MDM SSO shares the login rate limit bucket; if MDM SSO limit is overridden, MDM SSO gets its
-	// own rate limit bucket.
-	loginRateLimit := throttled.PerMin(10)
-	if extra.loginRateLimit != nil {
-		loginRateLimit = *extra.loginRateLimit
-	}
-	loginLimiter := limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})
-	mdmSsoLimiter := loginLimiter
-	if extra.mdmSsoRateLimit != nil {
-		mdmSsoLimiter = limiter.Limit("mdm_sso", throttled.RateQuota{MaxRate: *extra.mdmSsoRateLimit, MaxBurst: 9})
-	}
 
 	ne.WithCustomMiddleware(loginLimiter).
 		POST("/api/_version_/fleet/login", loginEndpoint, fleet.LoginRequest{})
@@ -1191,7 +1319,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	neAppleMDM.WithCustomMiddleware(mdmSsoLimiter).
 		POST("/api/_version_/fleet/mdm/sso", initiateMDMSSOEndpoint, initiateMDMSSORequest{})
+	// Same posture as the regular SSO callback: rate-limited (already) plus a
+	// tight body cap to keep pre-auth attacks surface small.
 	ne.WithCustomMiddleware(mdmSsoLimiter).
+		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMSSOEndpoint, callbackMDMSSORequest{})
 
 	// Register all deprecated URL path aliases from the declarative table.
@@ -1289,17 +1420,23 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	svc fleet.Service,
+	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig, ds); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
+	}
+	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
+		return fmt.Errorf("psso: %w", err)
 	}
 	return nil
 }
@@ -1309,21 +1446,57 @@ func registerMDMServiceDiscovery(
 	logger *slog.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
-	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		appCfg, err := appCfgGetter.AppConfig(r.Context())
+		if err != nil {
+			serviceDiscoveryLogger.ErrorContext(r.Context(), "error loading app config for service discovery", "err", err)
+			return
+		} else if appCfg.MDM.OnlyAllowAppleBusinessEnrollment {
+			err := &fleet.ABOnlyEnrollmentForbiddenError{}
+			http.Error(w, err.Error(), err.StatusCode())
+			return
+		}
+
+		var mdmEnrollmentURL string
+		token := r.PathValue("token")
+		if token != "" {
+			tokenPath := strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", url.PathEscape(token), 1)
+			mdmEnrollmentURL = serverURLPrefix + tokenPath
+		} else {
+			mdmEnrollmentURL = serverURLPrefix + apple_mdm.AccountDrivenEnrollPath // nolint:staticcheck // deprecated path, kept for backwards compatibility
+		}
+
 		ctx := r.Context()
-		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
+		serviceDiscoveryLogger.InfoContext(ctx, "serving MDM service discovery response", "url", mdmEnrollmentURL)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, fullMDMEnrollmentURL)
+		_, err = fmt.Fprintf(w, `{"Servers":[{"Version": "mdm-byod", "BaseURL": "%s"}]}`, mdmEnrollmentURL)
 		if err != nil {
 			serviceDiscoveryLogger.ErrorContext(ctx, "error writing service discovery response", "err", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	})
+	mux.Handle(apple_mdm.ServiceDiscoveryTokenPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryTokenPath, fleetConfig))
 	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
+	return nil
+}
+
+func registerPSSO(
+	mux *http.ServeMux,
+	svc fleet.Service,
+	logger *slog.Logger,
+	fleetConfig config.FleetConfig,
+) error {
+	// Only the apple-app-site-association document is served from the root
+	// *http.ServeMux: Apple's CDN fetches it at a spec-defined /.well-known
+	// path that can't live under /api. The rest of the PSSO endpoints are
+	// registered on the unauthenticated endpointer in attachFleetAPIRoutes.
+	pssoLogger := logger.With("component", "mdm-apple-psso")
+	handler := pssoAASAHandler(svc, pssoLogger)
+	mux.Handle(pssoAASAPath, otel.WrapHandler(handler, pssoAASAPath, fleetConfig))
 	return nil
 }
 
@@ -1336,6 +1509,7 @@ func registerSCEP(
 	mdmStorage fleet.MDMAppleStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	appCfgGetter fleet.GetsAppConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1361,8 +1535,11 @@ func registerSCEP(
 
 	scepSlogLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.ACMEOnlyEnrollmentMiddleware(appCfgGetter)(e.PostEndpoint)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepSlogLogger)(e.PostEndpoint)
+
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepSlogLogger)
 	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
@@ -1426,8 +1603,10 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	getTokenService nanomdm_service.GetToken,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
+	ds fleet.Datastore,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
@@ -1441,7 +1620,9 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
-		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService))
+		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService),
+		nanomdm.WithGetToken(getTokenService))
+
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to
@@ -1449,6 +1630,10 @@ func registerMDM(
 	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
 
 	mdmService = certauth.New(mdmService, mdmStorage, certauth.WithLogger(mdmLogger.With("handler", "cert-auth")))
+	// Wraps the whole chain above (not a multi.New sub-service) so a rejection here is what
+	// the HTTP handler actually returns to the device. See abOnlyEnrollmentCheckinService's
+	// doc comment for why this can't live inside checkinAndCommandService itself.
+	mdmService = newABOnlyEnrollmentCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "ab-only-enrollment"))
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
 	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {
@@ -1519,12 +1704,35 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 		// if x-apple-aspen-deviceinfo custom header is present, we need to check for minimum os version
 		di := r.Header.Get("x-apple-aspen-deviceinfo")
 		if di != "" {
-			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+			parsed, p7, err := apple_mdm.ParseDeviceinfo(di)
 			if err != nil {
-				// just log the error and continue to next
-				logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo", "err", err)
+				if apple_mdm.MachineInfoVerificationEnabled() {
+					// a present-but-unparseable header can't be verified; reject
+					// it in enforce mode rather than letting it through
+					logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo failed, rejecting request", "err", err)
+					http.Error(w, "unable to parse deviceinfo", http.StatusForbidden)
+					return
+				}
+				// audit mode: log the error and continue to next
+				logger.WarnContext(r.Context(), "parsing x-apple-aspen-deviceinfo failed, continuing because verification is disabled", "err", err)
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			if err := apple_mdm.VerifyMachineInfoSignature(p7); err != nil {
+				logAttrs := []any{
+					"lane", "mdm_sso",
+					"machine_info_verify_reason", err.Error(),
+					"serial", parsed.Serial,
+					"udid", parsed.UDID,
+					"product", parsed.Product,
+				}
+				if apple_mdm.MachineInfoVerificationEnabled() {
+					logger.ErrorContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, rejecting request", logAttrs...)
+					http.Error(w, "unable to verify deviceinfo signature", http.StatusForbidden)
+					return
+				}
+				logger.WarnContext(r.Context(), "x-apple-aspen-deviceinfo signature verification failed, continuing because verification is disabled", logAttrs...)
 			}
 
 			// TODO: skip os version check if deviceinfo query param is present? or find another way

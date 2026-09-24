@@ -1,23 +1,23 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
-import paths from "router/paths";
-
-import { NotificationContext } from "context/notification";
-import certificatesAPI from "services/entities/certificates";
-import { getErrorReason } from "interfaces/errors";
-
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import paths from "router/paths";
+import certificatesAPI from "services/entities/certificates";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
+} from "utilities/constants";
 
 import {
   validateFormData,
@@ -45,8 +45,6 @@ const AddCertModal = ({
   onSuccess,
   currentTeamId,
 }: IAddCertModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isUpdating, setIsUpdating] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [formData, setFormData] = useState<IAddCertFormData>({
@@ -89,10 +87,13 @@ const AddCertModal = ({
   );
   const caPartials = cAResp ?? [];
 
-  const caDropdownOptions = caPartials.map((cAP) => ({
-    value: cAP.id.toString(),
-    label: cAP.name,
-  }));
+  // Only custom SCEP CAs are supported for Android certificate profiles.
+  const caDropdownOptions = caPartials
+    .filter((cAP) => cAP.type === "custom_scep_proxy")
+    .map((cAP) => ({
+      value: cAP.id.toString(),
+      label: cAP.name,
+    }));
 
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
@@ -136,7 +137,7 @@ const AddCertModal = ({
         subjectAlternativeName: formData.subjectAlternativeName,
         teamId: currentTeamId,
       });
-      renderFlash("success", "Successfully added your certificate.");
+      notify.success("Successfully added your certificate.");
       onSuccess();
       onExit();
     } catch (e) {
@@ -153,7 +154,9 @@ const AddCertModal = ({
           name: "Name is already used by another certificate.",
         });
       } else {
-        renderFlash("error", "Couldn't add certificate. Please try again.");
+        notify.error("Couldn't add certificate. Please try again.", {
+          response: e,
+        });
       }
     } finally {
       setIsUpdating(false);
@@ -170,17 +173,6 @@ const AddCertModal = ({
     }
     return (
       <form className={baseClass} onSubmit={onSubmitForm}>
-        <InputField
-          name="name"
-          label="Name"
-          value={formData.name}
-          onChange={onInputChange}
-          error={serverErrors.name ?? formValidation.name?.message}
-          helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
-          parseTarget
-          placeholder="VPN certificate"
-          autofocus
-        />
         <DropdownWrapper
           label="Certificate authority (CA)"
           name="certificateAuthority"
@@ -201,6 +193,17 @@ const AddCertModal = ({
             </>
           }
           error={formValidation.certAuthorityId?.message}
+        />
+        <InputField
+          name="name"
+          label="Name"
+          value={formData.name}
+          onChange={onInputChange}
+          error={serverErrors.name ?? formValidation.name?.message}
+          helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
+          parseTarget
+          placeholder="VPN certificate"
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="subjectName"
@@ -231,7 +234,7 @@ const AddCertModal = ({
           <Button isLoading={isUpdating} disabled={isUpdating} type="submit">
             Add
           </Button>
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="secondary" onClick={onExit}>
             Cancel
           </Button>
         </div>

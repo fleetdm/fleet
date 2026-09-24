@@ -1,10 +1,9 @@
-import React, { useContext, useState } from "react";
-
-import mdmAPI from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "delete-setup-experience-script-modal";
 
@@ -21,19 +20,17 @@ const DeleteSetupExperienceScriptModal = ({
   onExit,
   onDeleted,
 }: IDeleteSetupExperienceScriptModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onDelete = async () => {
     setIsDeleting(true);
     try {
       await mdmAPI.deleteSetupExperienceScript(currentTeamId);
-      renderFlash("success", "Successfully deleted setup script.");
+      notify.success("Successfully deleted setup script.");
     } catch (error) {
-      renderFlash(
-        "error",
-        "Couldn't delete the setup script. Please try again."
-      );
+      notify.error("Couldn't delete the setup script. Please try again.", {
+        response: error,
+      });
       console.error(error);
     }
     setIsDeleting(false);
@@ -65,7 +62,7 @@ const DeleteSetupExperienceScriptModal = ({
         >
           Delete
         </Button>
-        <Button onClick={onExit} variant="inverse-alert">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

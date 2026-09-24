@@ -24,21 +24,25 @@ import (
 
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
-	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
+	serverPrivateKey := flag.String("key", "", "fleet server's private key (to decrypt MDM assets)")
 	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
 	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
+	command := flag.String("command", "", "the supported command to execute, if not providing profile-uuid or serial-number.")
 	orgName := flag.String("org-name", "", "organization name of the token")
 
 	flag.Parse()
+	args := flag.Args()
 
 	if *serverPrivateKey == "" {
-		log.Fatal("must provide -server-private-key")
+		log.Fatal("must provide -key")
 	}
 	if *orgName == "" {
 		log.Fatal("must provide -org-name")
 	}
-	if *profileUUID != "" && *serialNum != "" {
-		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
+	if (*profileUUID != "" && *serialNum != "") ||
+		(*profileUUID != "" && *command != "") ||
+		(*serialNum != "" && *command != "") {
+		log.Fatal("only one of -profile-uuid, -serial-number, or -command must be provided")
 	}
 
 	if len(*serverPrivateKey) > 32 {
@@ -85,6 +89,15 @@ func main() {
 		res, err = depClient.GetProfile(ctx, *orgName, *profileUUID)
 	case *serialNum != "":
 		res, err = depClient.GetDeviceDetails(ctx, *orgName, *serialNum)
+	case *command == "adue":
+		res, err = depClient.FetchAccountDrivenEnrollmentServiceDiscovery(ctx, *orgName)
+	case *command == "fetch_devices":
+		var cursor string
+		if len(args) > 0 {
+			// treat first arg as cursor
+			cursor = args[0]
+		}
+		res, err = depClient.FetchDevices(ctx, *orgName, godep.WithCursor(cursor))
 	default:
 		res, err = depClient.AccountDetail(ctx, *orgName)
 	}

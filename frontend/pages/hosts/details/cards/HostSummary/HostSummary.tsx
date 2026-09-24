@@ -1,39 +1,23 @@
-import React from "react";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
-import {
-  IHostMdmProfile,
-  BootstrapPackageStatus,
-  isEnrolledInMdm,
-  isWindowsDiskEncryptionStatus,
-  isLinuxDiskEncryptionStatus,
-} from "interfaces/mdm";
-import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
-import {
-  isAndroid,
-  isIPadOrIPhone,
-  isDiskEncryptionSupportedLinuxPlatform,
-  isOsSettingsDisplayPlatform,
-} from "interfaces/platform";
+import React from "react";
 
-import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
-
-import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHostMaintenanceWindow } from "interfaces/host";
+import { BootstrapPackageStatus } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
-
-import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
-
-import OSSettingsIndicator from "./OSSettingsIndicator";
-import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
-
+import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 import {
-  generateLinuxDiskEncryptionSetting,
-  generateRecoveryLockPasswordSetting,
-  generateWinDiskEncryptionSetting,
-} from "../../helpers";
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
+
+import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 const baseClass = "host-summary-card";
 
@@ -46,10 +30,8 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
-  toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostSettings?: IHostMdmProfile[];
-  osSettings?: IOSSettings;
+  toggleOnlineHistoryModal?: () => void;
   className?: string;
 }
 
@@ -57,15 +39,13 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
-  toggleOSSettingsModal,
   toggleBootstrapPackageModal,
-  hostSettings,
-  osSettings,
+  toggleOnlineHistoryModal,
   className,
 }: IHostSummaryProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
-  const { status, platform, os_version, mdm } = summaryData;
+  const { status, platform, mdm } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
   const isIosOrIpadosHost = isIPadOrIPhone(platform);
@@ -90,7 +70,7 @@ const HostSummary = ({
     <DataSet
       title="Fleet"
       value={
-        summaryData.team_name !== "---" ? (
+        summaryData.team_name !== DEFAULT_EMPTY_CELL_VALUE ? (
           `${summaryData.team_name}`
         ) : (
           <span className="no-team">Unassigned</span>
@@ -98,6 +78,31 @@ const HostSummary = ({
       }
     />
   );
+
+  const renderStatus = () => {
+    const displayedStatus = getHostStatus(status, mdm?.enrollment_status);
+    const tooltipText = getHostStatusTooltipText(displayedStatus, platform);
+    const indicator = (
+      <StatusIndicator
+        value={displayedStatus}
+        tooltip={tooltipText ? { tooltipText, position: "bottom" } : undefined}
+      />
+    );
+    return (
+      <DataSet
+        title="Status"
+        value={
+          toggleOnlineHistoryModal ? (
+            <Button variant="link" onClick={toggleOnlineHistoryModal}>
+              {indicator}
+            </Button>
+          ) : (
+            indicator
+          )
+        }
+      />
+    );
+  };
 
   const renderMaintenanceWindow = ({
     starts_at,
@@ -137,93 +142,26 @@ const HostSummary = ({
     );
   };
 
-  // for windows and linux hosts we have to manually add a profile for disk encryption
-  // as this is not currently included in the `profiles` value from the API
-  // response for windows and linux hosts.
-  if (
-    platform === "windows" &&
-    osSettings?.disk_encryption?.status &&
-    isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
-  ) {
-    const winDiskEncryptionSetting: IHostMdmProfile = generateWinDiskEncryptionSetting(
-      osSettings.disk_encryption.status,
-      osSettings.disk_encryption.detail
-    );
-    hostSettings = hostSettings
-      ? [...hostSettings, winDiskEncryptionSetting]
-      : [winDiskEncryptionSetting];
-  }
-
-  if (
-    isDiskEncryptionSupportedLinuxPlatform(platform, os_version) &&
-    osSettings?.disk_encryption?.status &&
-    isLinuxDiskEncryptionStatus(osSettings.disk_encryption.status)
-  ) {
-    const linuxDiskEncryptionSetting: IHostMdmProfile = generateLinuxDiskEncryptionSetting(
-      osSettings.disk_encryption.status,
-      osSettings.disk_encryption.detail
-    );
-    hostSettings = hostSettings
-      ? [...hostSettings, linuxDiskEncryptionSetting]
-      : [linuxDiskEncryptionSetting];
-  }
-
-  if (
-    platform === "darwin" &&
-    isEnrolledInMdm(mdm?.enrollment_status ?? null) &&
-    osSettings?.recovery_lock_password?.status
-  ) {
-    const recoveryLockSetting = generateRecoveryLockPasswordSetting(
-      osSettings.recovery_lock_password.status,
-      osSettings.recovery_lock_password.detail
-    );
-    hostSettings = hostSettings
-      ? [...hostSettings, recoveryLockSetting]
-      : [recoveryLockSetting];
-  }
+  // Status renders for all platforms now that mobile hosts return real online/offline.
+  const showTeam = !!isPremiumTier;
+  const showIssues =
+    summaryData.issues?.total_issues_count > 0 &&
+    !isIosOrIpadosHost &&
+    !isAndroidHost;
+  const showBootstrapPackage =
+    !!bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost;
+  const showMaintenanceWindow =
+    !!isPremiumTier &&
+    // TODO - refactor normalizeEmptyValues pattern
+    !!summaryData.maintenance_window &&
+    summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
-      {!isIosOrIpadosHost && !isAndroidHost && (
-        <DataSet
-          title="Status"
-          value={
-            <StatusIndicator
-              value={getHostStatus(status, mdm?.enrollment_status)}
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(
-                  getHostStatus(status, mdm?.enrollment_status)
-                ),
-                position: "bottom",
-              }}
-            />
-          }
-        />
-      )}
-      {isPremiumTier && renderHostTeam()}
-      {isOsSettingsDisplayPlatform(platform, os_version) &&
-        hostSettings &&
-        hostSettings.length > 0 && (
-          <DataSet
-            className={`${baseClass}__os-settings`}
-            title="OS settings"
-            value={
-              <OSSettingsIndicator
-                profiles={hostSettings}
-                onClick={toggleOSSettingsModal}
-              />
-            }
-          />
-        )}
-      {summaryData.issues?.total_issues_count > 0 &&
-        !isIosOrIpadosHost &&
-        !isAndroidHost &&
-        renderIssues()}
-      {bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost && (
+    <Card paddingSize="xlarge" className={classNames}>
+      {renderStatus()}
+      {showTeam && renderHostTeam()}
+      {showIssues && renderIssues()}
+      {showBootstrapPackage && bootstrapPackageData?.status && (
         <DataSet
           title="Bootstrap package"
           value={
@@ -234,10 +172,7 @@ const HostSummary = ({
           }
         />
       )}
-      {isPremiumTier &&
-        // TODO - refactor normalizeEmptyValues pattern
-        !!summaryData.maintenance_window &&
-        summaryData.maintenance_window !== "---" &&
+      {showMaintenanceWindow &&
         renderMaintenanceWindow(summaryData.maintenance_window)}
     </Card>
   );

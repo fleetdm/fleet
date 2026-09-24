@@ -1,1 +1,1 @@
-export { default } from "./PolicyAutomationsList";
+export { default, mapAutomationRows } from "./PolicyAutomationsList";

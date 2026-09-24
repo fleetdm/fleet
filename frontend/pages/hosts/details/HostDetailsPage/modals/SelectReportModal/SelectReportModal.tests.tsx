@@ -1,14 +1,14 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import createMockUser from "__mocks__/userMock";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   createMockRouter,
   baseUrl,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import createMockUser from "__mocks__/userMock";
 
 import SelectReportModal from "./SelectReportModal";
 
@@ -28,7 +28,7 @@ const baseProps = {
 };
 
 describe("SelectReportModal", () => {
-  it("renders empty state with Create a report link when user can create", async () => {
+  it("renders empty state with Add a report link when user can create", async () => {
     mockServer.use(createReportsHandler([]));
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -43,11 +43,11 @@ describe("SelectReportModal", () => {
     render(<SelectReportModal {...baseProps} />);
 
     expect(await screen.findByText("No saved reports")).toBeInTheDocument();
-    expect(screen.getByText("Create a report")).toBeInTheDocument();
+    expect(screen.getByText("Add a report")).toBeInTheDocument();
     expect(screen.getByText(/to run\./)).toBeInTheDocument();
   });
 
-  it("renders empty state without Create a report link for observer-only users", async () => {
+  it("renders empty state without Add a report link for observer-only users", async () => {
     mockServer.use(createReportsHandler([]));
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -65,7 +65,7 @@ describe("SelectReportModal", () => {
     expect(
       screen.getByText("No reports are available to run.")
     ).toBeInTheDocument();
-    expect(screen.queryByText("Create a report")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add a report")).not.toBeInTheDocument();
   });
 
   it("renders report list when reports exist", async () => {

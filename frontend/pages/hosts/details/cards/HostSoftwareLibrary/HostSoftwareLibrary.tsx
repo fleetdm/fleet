@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import React, {
   useCallback,
   useContext,
@@ -6,48 +7,43 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
-import { AxiosError } from "axios";
+import { InjectedRouter } from "react-router";
 
-import hostAPI, {
-  IGetHostSoftwareResponse,
-  IHostSoftwareQueryKey,
-} from "services/entities/hosts";
-import PATHS from "router/paths";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import CardHeader from "components/CardHeader";
+import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
 } from "interfaces/software";
-import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
-
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import PATHS from "router/paths";
+import hostAPI, {
+  IGetHostSoftwareResponse,
+  IHostSoftwareQueryKey,
+} from "services/entities/hosts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-
-import CardHeader from "components/CardHeader";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
-import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
-import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
-import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
-import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
-import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 import { getUiStatus } from "../Software/helpers";
 import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
+
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
+import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
+import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 
 const baseClass = "host-software-library-card";
 
@@ -131,7 +127,6 @@ const HostSoftwareLibrary = ({
   refetchHostDetails,
   isHostDetailsPolling,
 }: IHostSoftwareLibraryProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -296,11 +291,11 @@ const HostSoftwareLibrary = ({
           setHostSoftwareLibraryRes(response);
         }
       },
-      onError: () => {
+      onError: (error) => {
         pendingSoftwareSetRef.current = new Set();
-        renderFlash(
-          "error",
-          "We're having trouble checking pending installs. Please refresh the page."
+        notify.error(
+          "We're having trouble checking pending installs. Please refresh the page.",
+          { response: error }
         );
       },
     }
@@ -496,7 +491,7 @@ const HostSoftwareLibrary = ({
   }, []);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number, isScriptPackage = false) => {
+    async (softwareId: number, isScriptPackage = false): Promise<boolean> => {
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         if (isMountedRef.current) {
@@ -519,21 +514,22 @@ const HostSoftwareLibrary = ({
           }
         };
 
-        renderFlash(
-          "success",
+        notify.success(
           <>
             {message()} To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
+        return true;
       } catch (e) {
-        renderFlash("error", getInstallErrorMessage(e));
+        notify.error(getInstallErrorMessage(e), { response: e });
+        return false;
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
+    [id, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const onClickUninstallAction = useCallback(
-    async (softwareId: number) => {
+    async (softwareId: number): Promise<boolean> => {
       try {
         await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
         if (isMountedRef.current) {
@@ -542,8 +538,7 @@ const HostSoftwareLibrary = ({
         queryClient.invalidateQueries({
           queryKey: [{ scope: "upcoming-activities" }],
         });
-        renderFlash(
-          "success",
+        notify.success(
           <>
             Software{" "}
             {isHostOnline
@@ -552,11 +547,13 @@ const HostSoftwareLibrary = ({
             . To see details, go to <b>Details &gt; Activity</b>.
           </>
         );
+        return true;
       } catch (e) {
-        renderFlash("error", getUninstallErrorMessage(e));
+        notify.error(getUninstallErrorMessage(e), { response: e });
+        return false;
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
+    [id, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const tableConfig = useMemo(() => {
@@ -637,12 +634,6 @@ const HostSoftwareLibrary = ({
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
-        {canAddSoftware && (
-          <Button variant="inverse" onClick={onAddSoftware}>
-            <Icon name="plus" />
-            <span>Add software</span>
-          </Button>
-        )}
       </div>
       {renderHostSoftware()}
       {selectedSoftwareUpdates && (
@@ -660,6 +651,7 @@ const HostSoftwareLibrary = ({
             install_uuid:
               selectedHostSWInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+            skipped_install: selectedHostSWInstallDetails.skipped_install,
           }}
           hostSoftware={selectedHostSWInstallDetails}
           onCancel={() => setSelectedHostSWInstallDetails(null)}

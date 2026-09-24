@@ -1,0 +1,12 @@
+{
+  "name": "WinDirStat",
+  "slug": "windirstat/windows",
+  "package_identifier": "WinDirStat.WinDirStat",
+  "unique_identifier": "WinDirStat",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Utilities"],
+  "program_publisher": "WinDirStat Team"
+}

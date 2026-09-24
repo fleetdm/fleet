@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockSoftwareTitlesResponse } from "__mocks__/softwareMock";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareLibraryTable from "./SoftwareLibraryTable";
 
@@ -81,7 +81,7 @@ describe("Software library table", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
-    expect(screen.getByText("Self-service only")).toBeInTheDocument();
+    expect(screen.getByText("Self service only")).toBeInTheDocument();
   });
 
   it("Renders the empty search state and self-service toggle when self-service filter is applied", () => {
@@ -116,7 +116,7 @@ describe("Software library table", () => {
     expect(
       screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
-    expect(screen.getByText("Self-service only")).toBeInTheDocument();
+    expect(screen.getByText("Self service only")).toBeInTheDocument();
   });
 
   it("Navigates to the categories page when the Categories button is clicked", async () => {

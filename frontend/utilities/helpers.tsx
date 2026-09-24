@@ -1,30 +1,30 @@
-import React from "react";
 import {
-  isEmpty,
-  flatMap,
-  omit,
-  pick,
-  memoize,
-  reduce,
-  trim,
-  trimEnd,
-  union,
-  uniqueId,
-} from "lodash";
-import md5 from "js-md5";
-import {
-  formatDistanceToNow,
   formatDuration,
   intlFormat,
   intervalToDuration,
   isAfter,
   addDays,
 } from "date-fns";
+import md5 from "js-md5";
+import {
+  isEmpty,
+  flatMap,
+  omit,
+  pick,
+  reduce,
+  trim,
+  trimEnd,
+  union,
+  uniqueId,
+} from "lodash";
+import React from "react";
 
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 import {
   PerformanceImpactIndicatorValue,
@@ -41,9 +41,6 @@ import {
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-
-import stringUtils from "utilities/strings";
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -54,9 +51,9 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import type { IRegistrationFormData } from "interfaces/registration_form_data";
-import CustomLink from "components/CustomLink";
+import { timeAgo } from "utilities/date_format";
+import stringUtils from "utilities/strings";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
 const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -450,6 +447,9 @@ export const formatScriptNameForActivityItem = (name: string | undefined) => {
   );
 };
 
+export const ROLE_VARIOUS = "Various";
+export const ROLE_GLOBAL = "Global";
+
 export const generateRole = (
   teams: ITeam[],
   globalRole: UserRole | null
@@ -477,14 +477,14 @@ export const generateRole = (
       return "Technician";
     }
 
-    return "Various"; // no global role and multiple teams
+    return ROLE_VARIOUS; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
     return stringUtils.capitalizeRole(globalRole);
   }
-  return "Various"; // global role and one or more teams
+  return ROLE_VARIOUS; // global role and one or more teams
 };
 
 export const generateTeam = (
@@ -504,13 +504,39 @@ export const generateTeam = (
 
   if (teams.length === 0) {
     // global role and no teams
-    return "Global";
+    return ROLE_GLOBAL;
   }
   return `${teams.length + 1} fleets`; // global role and one or more teams
 };
 
+export const generateTeamNames = (teams: ITeam[]): string[] => {
+  return teams.map((t) => t.name);
+};
+
+export const generateRoleGroups = (
+  teams: ITeam[]
+): { role: string; names: string[] }[] => {
+  const groups: { role: string; names: string[] }[] = [];
+  teams.forEach((team) => {
+    const role = stringUtils.capitalizeRole(team.role || "Unassigned");
+    const existing = groups.find((g) => g.role === role);
+    if (existing) {
+      existing.names.push(team.name);
+    } else {
+      groups.push({ role, names: [team.name] });
+    }
+  });
+  return groups;
+};
+
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
+  const GREYED_TEXT = [
+    ROLE_GLOBAL,
+    "Unassigned",
+    ROLE_VARIOUS,
+    "No team",
+    "Unknown",
+  ];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
@@ -549,14 +575,14 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (lastSeen === "Unavailable") {
     return "Unavailable";
   }
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
   if (!enrolled || enrolled < INITIAL_FLEET_DATE) {
     return "Never";
   }
-  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
+  return timeAgo(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -570,7 +596,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
     return "unavailable";
   }
   try {
-    return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+    return timeAgo(new Date(detailUpdated), { addSuffix: true });
   } catch {
     return "unavailable";
   }
@@ -585,7 +611,7 @@ export const humanLastSeen = (lastSeen: string): string => {
     return "Unavailable";
   }
 
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const internationalTimeFormat = (date: number | Date): string => {
@@ -599,6 +625,22 @@ export const internationalTimeFormat = (date: number | Date): string => {
       minute: "numeric",
       second: "numeric",
     },
+    { locale: window.navigator.languages[0] }
+  );
+};
+
+/** Renders an "HH:MM" 24-hour string in the viewer's locale. UTC anchor
+ * + `timeZone: "UTC"` avoid DST wall-clock shifts on spring-forward. */
+export const internationalTimeOnlyFormat = (hhmm: string): string => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!match) return hhmm;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return hhmm;
+  const date = new Date(Date.UTC(2000, 0, 1, hours, minutes));
+  return intlFormat(
+    date,
+    { hour: "numeric", minute: "numeric", timeZone: "UTC" },
     { locale: window.navigator.languages[0] }
   );
 };
@@ -622,7 +664,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 
   try {
-    return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+    return timeAgo(new Date(lastRun), { addSuffix: true });
   } catch {
     return "Unavailable";
   }
@@ -698,36 +740,36 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.MINIMAL:
       return (
         <>
-          Running this report very frequently has little to no <br /> impact on
-          your device&apos;s performance.
+          Running this report very frequently has little to no impact on your
+          device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.CONSIDERABLE:
       return (
         <>
-          Running this report frequently can have a noticeable <br />
-          impact on your device&apos;s performance.
+          Running this report frequently can have a noticeable impact on your
+          device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.EXCESSIVE:
       return (
         <>
-          Running this report, even infrequently, can have a <br />
-          significant impact on your device&apos;s performance.
+          Running this report, even infrequently, can have a significant impact
+          on your device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.DENYLISTED:
       return (
         <>
-          This report has been <br /> stopped from running <br /> because of
-          excessive <br /> resource consumption.
+          This report has been stopped from running because of excessive
+          resource consumption.
         </>
       );
     case PerformanceImpactIndicatorValue.UNDETERMINED:
       return (
         <>
-          Performance impact will be available
-          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          Performance impact will be available when{" "}
+          {isHostSpecific ? "the" : "this"} report runs
           {isHostSpecific && " on this host"}.
         </>
       );
@@ -797,18 +839,6 @@ export const tooltipTextWithLineBreaks = (lines: string[]) => {
     );
   });
 };
-
-export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
 
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
@@ -973,6 +1003,32 @@ export const isDateTimePast = (dt: string) => {
   return new Date(dt) < new Date();
 };
 
+/**
+ * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
+ */
+export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
+  const lowercasedErr = errMsg.toLowerCase();
+  if (lowercasedErr.includes(" learn more: https://")) {
+    const message = errMsg.substring(
+      0,
+      lowercasedErr.indexOf(" learn more: https://")
+    );
+    const link = errMsg.substring(lowercasedErr.indexOf("https://"));
+    return (
+      <>
+        {message}{" "}
+        <CustomLink
+          url={link}
+          text="Learn more"
+          variant="flash-message-link"
+          newTab
+        />
+      </>
+    );
+  }
+  return errMsg;
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
@@ -990,7 +1046,11 @@ export default {
   formatSelectedTargetsForApi,
   formatPackTargetsForApi,
   generateRole,
+  generateRoleGroups,
   generateTeam,
+  generateTeamNames,
+  ROLE_VARIOUS,
+  ROLE_GLOBAL,
   getUniqueColsAreNumTypeFromRows,
   getCustomDropdownOptions,
   greyCell,
@@ -1000,6 +1060,7 @@ export default {
   humanHostDetailUpdated,
   humanLastSeen,
   internationalTimeFormat,
+  internationalTimeOnlyFormat,
   internallyTruncateText,
   hostTeamName,
   humanQueryLastRun,
@@ -1016,4 +1077,5 @@ export default {
   wait,
   wrapFleetHelper,
   isDateTimePast,
+  generateGenericLearnMoreErrMsg,
 };

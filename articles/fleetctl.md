@@ -51,9 +51,9 @@ sudo npm install -g fleetctl
 
 ### Upgrading fleetctl
 
-If you used npm to install fleetctl, fleetctl will update itself the next time you run it.
+To upgrade fleetctl, install it again from the [fleetdm.com/download page](https://fleetdm.com/download) or [GitHub](https://github.com/fleetdm/fleet/releases). Match the version of fleetctl to the version of your Fleet server.
 
-You can also install the latest version of the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+If you installed fleetctl with npm, upgrade it with `npm update -g fleetctl`. The new binary is downloaded the next time you run a `fleetctl` command.
 
 ## Usage
 
@@ -155,10 +155,10 @@ An API-only user can be given the same permissions as a regular user. The defaul
 fleetctl user create --name 'API User' --api-only --global-role 'admin'
 ```
 
-On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a fleet:
+With Fleet Premium, use the `--fleet <fleet_id>:<role>` to create an API-only user that only has access to a specific fleet:
 
 ```sh
-fleetctl user create --name 'API User' --api-only --team 4:gitops
+fleetctl user create --name 'API User' --api-only --fleet 4:gitops
 ```
 
 #### Changing permissions

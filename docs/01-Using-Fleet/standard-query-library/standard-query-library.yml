@@ -254,7 +254,7 @@ spec:
   name: Get installed macOS software
   platform: darwin
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT safari_extensions.name AS name, safari_extensions.version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM users CROSS JOIN safari_extensions USING (uid) UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -264,8 +264,8 @@ kind: report
 spec:
   name: Get installed Safari extensions
   platform: darwin
-  description: Retrieves the list of installed Safari Extensions for all users in the target system.
-  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  description: Retrieves installed Safari App Extensions and Web Extensions for all users. Requires Full Disk Access for osquery. Unlike bash plist enumeration, this table only returns extensions whose .appex is under /Applications.
+  query: SELECT safari_extensions.* FROM users CROSS JOIN safari_extensions USING (uid);
   purpose: Informational
   tags: browser, built-in, inventory
   contributors: zwass
@@ -2060,6 +2060,44 @@ spec:
   purpose: Informational
   tags: crowdstrike, plist, network, content filter
   contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get CrowdStrike sensor status
+  platform: darwin, linux, windows
+  description: Reports whether the CrowdStrike sensor is running on each host by looking for its processes (com.crowdstrike.falcon.Agent or falcond on macOS, falcon-sensor on Linux, CSFalconService on Windows). Hosts that report "no" have no sensor running.
+  query: |
+    SELECT
+      CASE WHEN COUNT(*) > 0 THEN 'yes' ELSE 'no' END AS crowdstrike_running,
+      GROUP_CONCAT(DISTINCT name) AS sensor_processes
+    FROM processes
+    WHERE name IN ('com.crowdstrike.falcon.Agent', 'falcond', 'falcon-sensor', 'falcon-sensor-bpf', 'CSFalconService.exe', 'CSFalconContainer.exe');
+  purpose: Informational
+  tags: compliance, inventory, crowdstrike
+  contributors: allenhouchins
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get SCCM client status
+  platform: windows
+  description: Reports whether the Microsoft Configuration Manager (SCCM) client is running on each host by checking the SMS Agent Host service (CcmExec). Returns "yes" when the service is running, "no" when it is installed but stopped, and "not installed" when the service is missing.
+  query: |
+    SELECT
+      CASE
+        WHEN s.status = 'RUNNING' THEN 'yes'
+        WHEN s.status IS NULL THEN 'not installed'
+        ELSE 'no'
+      END AS sccm_client_running,
+      s.display_name,
+      s.status AS service_status,
+      s.start_type,
+      s.path
+    FROM (SELECT 1) LEFT JOIN services s ON s.name = 'CcmExec';
+  purpose: Informational
+  tags: compliance, inventory, sccm
+  contributors: allenhouchins
 ---
 apiVersion: v1
 kind: report

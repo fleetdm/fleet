@@ -1,18 +1,17 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { screen, waitFor, within } from "@testing-library/react";
+import createMockConfig from "__mocks__/configMock";
+import createMockQuery from "__mocks__/queryMock";
+import createMockUser from "__mocks__/userMock";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   createMockRouter,
   createMockLocation,
 } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
-import userEvent from "@testing-library/user-event";
-
-import createMockQuery from "__mocks__/queryMock";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
 
 import EditQueryForm from "./EditQueryForm";
 
@@ -111,6 +110,69 @@ describe("EditQueryForm - component", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
+  it("caps the report name input at 255 characters in edit mode", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: mockQuery.name,
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: mockQuery.query,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    render(
+      <EditQueryForm
+        router={mockRouter}
+        location={mockLocation}
+        queryIdForEdit={1}
+        apiTeamIdForQuery={1}
+        showOpenSchemaActionText
+        storedQuery={createMockQuery()}
+        isStoredQueryLoading={false}
+        isQuerySaving={false}
+        isQueryUpdating={false}
+        onSubmitNewQuery={jest.fn()}
+        onOsqueryTableSelect={jest.fn()}
+        onUpdate={jest.fn()}
+        onOpenSchemaSidebar={jest.fn()}
+        renderLiveQueryWarning={jest.fn()}
+        backendValidators={{}}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
   it("disables live query button for globally disabled live queries", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -182,7 +244,7 @@ describe("EditQueryForm - component", () => {
 
     expect(
       await screen.findByText(
-        /live reports are disabled in organization settings/i
+        /live reports are disabled in organization settings\./i
       )
     ).toBeInTheDocument();
   });

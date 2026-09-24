@@ -1,23 +1,23 @@
-import React from "react";
 import classnames from "classnames";
-
-import { IGetHostCertificatesResponse } from "services/entities/hosts";
-
-import { IHostCertificate } from "interfaces/certificates";
-import { IListSort } from "interfaces/list_options";
-import { HostPlatform } from "interfaces/platform";
+import React from "react";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import DeviceUserError from "components/DeviceUserError";
+import { IHostCertificate } from "interfaces/certificates";
+import { IListSort } from "interfaces/list_options";
+import { HostPlatform } from "interfaces/platform";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import CertificatesTable from "./CertificatesTable";
 
 const baseClass = "certificates-card";
 
 interface ICertificatesProps {
-  data: IGetHostCertificatesResponse;
+  // data may be undefined while the fetch is in flight or has errored; in the
+  // error case the card renders DataError below without reading it.
+  data?: IGetHostCertificatesResponse;
   hostPlatform: HostPlatform;
   page: number;
   pageSize: number;
@@ -56,10 +56,18 @@ const CertificatesCard = ({
       );
     }
 
+    if (!data) {
+      return null;
+    }
+
     return (
       <CertificatesTable
         data={data}
-        showHelpText={!isMyDevicePage && hostPlatform === "darwin"}
+        hostPlatform={hostPlatform}
+        showHelpText={
+          !isMyDevicePage &&
+          (hostPlatform === "darwin" || hostPlatform === "windows")
+        }
         page={page}
         pageSize={pageSize}
         sortDirection={sortDirection}
@@ -75,11 +83,7 @@ const CertificatesCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <CardHeader header="Certificates" />
       {renderContent()}
     </Card>

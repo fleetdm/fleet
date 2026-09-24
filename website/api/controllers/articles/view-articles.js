@@ -48,7 +48,9 @@ module.exports = {
         }
       });
     }
-    // Sort articles in descending order by publish date.
+    // Sort articles in descending order by publish date. The listview only shows this single
+    // date per article (instead of also showing a separate "last updated" timestamp) to keep
+    // the list easy to scan, since the date shown always matches how the list is sorted.
     articles = _.sortByOrder(articles, 'meta.publishedOn', 'DESC');
 
     let pageTitleForMeta = 'Fleet blog';
@@ -60,11 +62,6 @@ module.exports = {
 
     // Set a pageTitleForMeta, pageDescriptionForMeta, and currentSection variable based on the article category.
     switch(category) {
-      case 'success-stories':
-        pageTitleForMeta = 'Success stories';
-        pageDescriptionForMeta = 'Read about how others are using Fleet and osquery.';
-        currentSection = 'platform';
-        break;
       case 'deploy':
         pageTitleForMeta = 'Deployment guides';
         pageDescriptionForMeta = 'Learn how to deploy Fleet on a variety of production environments.';
@@ -89,7 +86,7 @@ module.exports = {
         pageDescriptionForMeta = 'Read about engineering at Fleet and beyond.';
         break;
       case 'announcements':
-        pageTitleForMeta = 'Announcements';
+        pageTitleForMeta = 'Roadmap';
         pageDescriptionForMeta = 'Read the latest news from Fleet.';
         break;
       case 'podcasts':
@@ -107,6 +104,14 @@ module.exports = {
       case 'webinars':
         pageTitleForMeta = 'Webinars';
         pageDescriptionForMeta = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
+        break;
+      case 'newsletters':
+        pageTitleForMeta = 'Newsletters';
+        pageDescriptionForMeta = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        pageTitleForMeta = 'Industry news';
+        pageDescriptionForMeta = 'Device management and security news, and what it means for the devices you manage.';
         break;
     }
 

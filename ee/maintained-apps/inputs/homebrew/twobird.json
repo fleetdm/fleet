@@ -1,0 +1,10 @@
+{
+  "name": "Twobird",
+  "unique_identifier": "com.gingerlabs.bagel",
+  "token": "twobird",
+  "installer_format": "dmg",
+  "slug": "twobird/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

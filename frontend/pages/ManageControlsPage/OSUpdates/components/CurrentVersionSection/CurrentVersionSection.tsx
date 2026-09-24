@@ -1,22 +1,21 @@
+import { AxiosError } from "axios";
 import React from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
+import DataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import {
   getOSVersions,
   IOSVersionsResponse,
 } from "services/entities/operating_systems";
 
-import LastUpdatedText from "components/LastUpdatedText";
-import SectionHeader from "components/SectionHeader";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-
-import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 import OSVersionsEmptyState from "../OSVersionsEmptyState";
+import OSVersionTable from "../OSVersionTable";
 
 /** This overrides the `platform` attribute on IOperatingSystemVersion so that only our filtered platforms (currently
  * "darwin" and "windows") values are included */
@@ -70,7 +69,12 @@ const CurrentVersionSection = ({
     AxiosError
   >(
     ["os_versions", currentTeamId, queryParams],
-    () => getOSVersions({ teamId: currentTeamId, ...queryParams }),
+    () =>
+      getOSVersions({
+        teamId: currentTeamId,
+        ...queryParams,
+        query: "windows,darwin,ios,ipados", // We only want to show windows mac, ios, ipados versions atm.
+      }),
     {
       retry: false,
       refetchOnWindowFocus: false,
@@ -81,17 +85,7 @@ const CurrentVersionSection = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data?.counts_updated_at}
-        customTooltipText={
-          <>
-            Fleet periodically queries all hosts to
-            <br />
-            retrieve operating systems. Click to
-            <br />
-            view hosts for the most up-to-date
-            <br />
-            lists.
-          </>
-        }
+        customTooltipText="Fleet periodically queries all hosts to retrieve operating systems. Click to view hosts for the most up-to-date lists."
       />
     );
   };
@@ -119,20 +113,10 @@ const CurrentVersionSection = ({
       return <OSVersionsEmptyState />;
     }
 
-    // We only want to show windows mac, ios, ipados versions atm.
-    const filteredOSVersionData = data.os_versions.filter((osVersion) => {
-      return (
-        osVersion.platform === "windows" ||
-        osVersion.platform === "darwin" ||
-        osVersion.platform === "ios" ||
-        osVersion.platform === "ipados"
-      );
-    }) as IFilteredOperatingSystemVersion[];
-
     return (
       <OSVersionTable
         router={router}
-        osVersionData={filteredOSVersionData}
+        osVersionData={data.os_versions as IFilteredOperatingSystemVersion[]}
         currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
         queryParams={queryParams}

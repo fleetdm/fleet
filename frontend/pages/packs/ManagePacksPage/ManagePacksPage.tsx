@@ -2,20 +2,20 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
-import { IPack, IStoredPacksResponse } from "interfaces/pack";
-import { IFleetApiError } from "interfaces/errors";
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import packsAPI from "services/entities/packs";
-import PATHS from "router/paths";
-
 // @ts-ignore
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
-import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import PacksTable from "./components/PacksTable";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IFleetApiError } from "interfaces/errors";
+import { IPack, IStoredPacksResponse } from "interfaces/pack";
+import PATHS from "router/paths";
+import packsAPI from "services/entities/packs";
+
 import DeletePackModal from "./components/DeletePackModal";
+import PacksTable from "./components/PacksTable";
 
 const baseClass = "manage-packs-page";
 
@@ -52,7 +52,6 @@ const renderTable = (
 
 const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const { isOnlyObserver } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const onCreatePackClick = () => router.push(PATHS.NEW_PACK);
 
@@ -95,13 +94,12 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
 
     return Promise.all(promises)
       .then(() => {
-        renderFlash("success", `Successfully deleted ${packOrPacks}.`);
+        notify.success(`Successfully deleted ${packOrPacks}.`);
       })
-      .catch(() => {
-        renderFlash(
-          "error",
-          `Unable to delete ${packOrPacks}. Please try again.`
-        );
+      .catch((e) => {
+        notify.error(`Unable to delete ${packOrPacks}. Please try again.`, {
+          response: e,
+        });
       })
       .finally(() => {
         refetchPacks();
@@ -121,15 +119,14 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
 
       return Promise.all(promises)
         .then(() => {
-          renderFlash(
-            "success",
+          notify.success(
             `Successfully ${enableOrDisable} selected ${packOrPacks}.`
           );
         })
-        .catch(() => {
-          renderFlash(
-            "error",
-            `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`
+        .catch((e) => {
+          notify.error(
+            `Unable to ${enableOrDisable} selected ${packOrPacks}. Please try again.`,
+            { response: e }
           );
         })
         .finally(() => {
@@ -172,7 +169,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
                 className={`${baseClass}__create-button`}
                 onClick={onCreatePackClick}
               >
-                Create new pack
+                Add new pack
               </Button>
             </div>
           )}

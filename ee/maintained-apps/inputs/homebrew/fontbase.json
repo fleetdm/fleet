@@ -1,0 +1,10 @@
+{
+  "name": "FontBase",
+  "unique_identifier": "com.dominiklevitsky.fontbase",
+  "token": "fontbase",
+  "installer_format": "dmg",
+  "slug": "fontbase/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

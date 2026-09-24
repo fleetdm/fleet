@@ -1,7 +1,10 @@
 import PropTypes from "prop-types";
+
+import type { ActivityType, IActivityDetails } from "interfaces/activity";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { IScript } from "./script";
+
 import { ILabelPolicy } from "./label";
+import { IScript } from "./script";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -33,6 +36,22 @@ export interface IPoliciesCountResponse {
   inherited_policy_count?: number;
 }
 
+export type PolicyAutomationActivityStatus = "error" | "success";
+
+export interface IPolicyAutomationActivity {
+  id: number;
+  created_at: string;
+  type: ActivityType;
+  fleet_initiated: boolean;
+  details: IActivityDetails;
+  host_id: number;
+  host_display_name: string;
+  status: PolicyAutomationActivityStatus;
+  output: string | null;
+  pre_install_output: string | null;
+  post_install_output: string | null;
+}
+
 export interface IPolicy {
   id: number;
   name: string;
@@ -53,8 +72,11 @@ export interface IPolicy {
   type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  resend_configuration_profile?: IPolicyResendConfigurationProfile;
   patch_software?: IPolicySoftwareToInstall;
   continuous_automations_enabled?: boolean;
+  patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
@@ -65,6 +87,15 @@ export interface IPolicySoftwareToInstall {
   display_name?: string;
   software_title_id: number;
   icon_url?: string | null;
+  /** Present when the policy pins a specific package on a multi-package
+   * title. Absent for VPP-backed policies. When absent the automations UI
+   * falls back to auto-selecting the title's first-added package. */
+  software_package_id?: number;
+}
+
+export interface IPolicyResendConfigurationProfile {
+  profile_uuid: string;
+  name: string;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -125,9 +156,16 @@ export interface IPolicyFormData {
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
   continuous_automations_enabled?: boolean;
+  patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
   software_title_id?: number | null;
+  /** Pins the policy to a specific package on a multi-package title. `null`
+   * on PATCH clears the pinned package (mirrors `software_title_id`'s unset
+   * asymmetry). */
+  software_package_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
+  profile_uuid?: string | null;
   labels_include_any?: string[];
   labels_include_all?: string[];
   labels_exclude_any?: string[];

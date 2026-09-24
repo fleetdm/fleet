@@ -1,0 +1,10 @@
+{
+  "name": "AdLock",
+  "unique_identifier": "com.hankuper.adlock.desktop",
+  "token": "adlock",
+  "installer_format": "dmg",
+  "slug": "adlock/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

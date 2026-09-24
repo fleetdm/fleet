@@ -1,11 +1,10 @@
+import { add, differenceInSeconds, formatDistanceStrict } from "date-fns";
 import React from "react";
 
-import { add, differenceInSeconds, formatDistance } from "date-fns";
-
-import PATHS from "router/paths";
-import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
+import PATHS from "router/paths";
 
 interface INoResultsProps {
   queryId: number;
@@ -32,22 +31,39 @@ const NoResults = ({
   canLiveQuery,
   canEditQuery,
 }: INoResultsProps): JSX.Element => {
-  // Returns how many seconds it takes to expect a cached update
-  const secondsCheckbackTime = () => {
-    const secondsSinceUpdate = queryUpdatedAt
-      ? differenceInSeconds(new Date(), new Date(queryUpdatedAt))
-      : 0;
-    const secondsUpdateWaittime = (queryInterval || 0) + 60;
-    return secondsUpdateWaittime - secondsSinceUpdate;
+  // Give up on "still collecting" once more than one interval (plus a
+  // buffer for config propagation) has passed since the report was last
+  // saved — after that, something other than "waiting for the next
+  // checkpoint" is more likely going on.
+  const secondsSinceUpdate = queryUpdatedAt
+    ? differenceInSeconds(new Date(), new Date(queryUpdatedAt))
+    : 0;
+  const collectingResults =
+    (queryInterval ?? 0) > 0 && secondsSinceUpdate < (queryInterval || 0) + 60;
+
+  // Fleet's scheduled reports fire on a fixed wall-clock grid (epoch time
+  // that's a multiple of the interval), not counted from when the report
+  // was saved, so estimate the next checkpoint directly instead of
+  // assuming a full interval from save time. Hosts also need up to ~60s
+  // (config_tls_refresh) to pick up a newly saved/edited schedule before a
+  // checkpoint can apply.
+  const secondsUntilNextCheckpoint = () => {
+    if (!queryInterval) {
+      return 0;
+    }
+    const nowSeconds = Date.now() / 1000;
+    const updatedAtSeconds = queryUpdatedAt
+      ? new Date(queryUpdatedAt).getTime() / 1000
+      : nowSeconds;
+    const earliestApplicable = Math.max(nowSeconds, updatedAtSeconds + 60);
+    const nextCheckpoint =
+      Math.ceil(earliestApplicable / queryInterval) * queryInterval;
+    return nextCheckpoint - nowSeconds;
   };
 
-  // Update status of collecting cached results
-  const collectingResults =
-    (queryInterval ?? 0) > 0 && secondsCheckbackTime() > 0;
-
-  // Converts seconds takes to update to human readable format
-  const readableCheckbackTime = formatDistance(
-    add(new Date(), { seconds: secondsCheckbackTime() }),
+  // Converts seconds until the next checkpoint to human readable format
+  const readableCheckbackTime = formatDistanceStrict(
+    add(new Date(), { seconds: secondsUntilNextCheckpoint() }),
     new Date()
   );
 
@@ -55,8 +71,13 @@ const NoResults = ({
   if (collectingResults && !disabledCaching) {
     const collectingResultsInfo = () => (
       <>
-        Fleet is collecting report results. <br />
-        Check back in about {readableCheckbackTime}.
+        Results expected in about {readableCheckbackTime} if hosts are online
+        then.{" "}
+        <CustomLink
+          url="https://fleetdm.com/guides/reports#schedule-a-report"
+          text="Learn more"
+          newTab
+        />
       </>
     );
 
@@ -76,11 +97,8 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this report&apos;s results
-                in Fleet:
-              </div>
-              <div>
-                &nbsp; • Reports are globally disabled in organization settings.
+                <b>Store report results</b> is globally disabled in organization
+                settings.
               </div>
             </>
           );
@@ -89,11 +107,7 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this report&apos;s results
-                in Fleet:
-              </div>
-              <div>
-                &nbsp; • This report has <b>Discard data</b> enabled.
+                <b>Store data</b> is disabled.
               </div>
             </>
           );
@@ -102,12 +116,7 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this report&apos;s results
-                in Fleet:
-              </div>
-              <div>
-                &nbsp; • The logging setting for this report is not{" "}
-                <b>Snapshot</b>.
+                <b>Differential logging</b> is enabled.
               </div>
             </>
           );
@@ -119,7 +128,7 @@ const NoResults = ({
         <>
           Results from this report are{" "}
           <TooltipWrapper tipContent={tipContent()}>
-            not reported in Fleet
+            not stored in Fleet
           </TooltipWrapper>
           .
         </>,

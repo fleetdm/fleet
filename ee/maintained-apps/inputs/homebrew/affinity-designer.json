@@ -1,0 +1,10 @@
+{
+  "name": "Affinity Designer 2",
+  "unique_identifier": "com.seriflabs.affinitydesigner2",
+  "token": "affinity-designer",
+  "installer_format": "zip",
+  "slug": "affinity-designer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

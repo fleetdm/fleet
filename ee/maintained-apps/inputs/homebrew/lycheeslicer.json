@@ -1,0 +1,10 @@
+{
+  "name": "Lychee Slicer",
+  "unique_identifier": "com.mango3d.lychee",
+  "token": "lycheeslicer",
+  "installer_format": "dmg",
+  "slug": "lycheeslicer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

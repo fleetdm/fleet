@@ -72,13 +72,30 @@ Additionally, refer to the [Reference Architecture sizing recommendations](https
 
 ## OpenTelemetry tracing with SigNoz
 
-By default, the loadtest environment uses Elastic APM. You can optionally use OpenTelemetry with SigNoz instead by setting `enable_otel=true`:
+By default, the loadtest environment runs without tracing. Elastic APM is not supported. Its instrumentation is gorilla-specific, so the Fleet server turns off the stdlib ServeMux fast path whenever Elastic APM is active. To trace a load test, enable OpenTelemetry with SigNoz by setting `enable_otel=true`:
 
 ```sh
 terraform apply -var=tag=v4.72.0 -var=enable_otel=true
 ```
 
 This deploys both Fleet and SigNoz in a single command. See [../signoz/README.md](../signoz/README.md) for architecture details.
+
+## Running against Valkey instead of Redis
+
+By default the loadtest environment provisions ElastiCache with the Redis engine. To load test
+against [Valkey](https://valkey.io/) instead, override the engine, version, and parameter group
+family together (all three must match):
+
+```sh
+# Valkey 8.x
+terraform apply -var=tag=v4.72.0 -var=redis_engine=valkey -var=redis_engine_version=8.0 -var=redis_parameter_group_family=valkey8
+
+# Valkey 7.2
+terraform apply -var=tag=v4.72.0 -var=redis_engine=valkey -var=redis_engine_version=7.2 -var=redis_parameter_group_family=valkey7
+```
+
+Fleet connects to ElastiCache the same way regardless of engine (Valkey is wire-compatible with
+Redis), so no other variables need to change.
 
 ### Accessing the SigNoz UI
 
@@ -194,12 +211,15 @@ terraform workspace delete <workspace_name>
 |------|-------------|------|---------|:--------:|
 | <a name="input_database_instance_count"></a> [database\_instance\_count](#input\_database\_instance\_count) | The number of Aurora database instances | `number` | `2` | no |
 | <a name="input_database_instance_size"></a> [database\_instance\_size](#input\_database\_instance\_size) | The instance size for Aurora database instances | `string` | `"db.t4g.medium"` | no |
-| <a name="input_enable_otel"></a> [enable\_otel](#input\_enable\_otel) | Enable OpenTelemetry tracing with SigNoz instead of Elastic APM | `bool` | `false` | no |
+| <a name="input_enable_otel"></a> [enable\_otel](#input\_enable\_otel) | Enable OpenTelemetry tracing with SigNoz. Tracing is disabled when false | `bool` | `false` | no |
 | <a name="input_fleet_task_count"></a> [fleet\_task\_count](#input\_fleet\_task\_count) | The total number (max) that ECS can scale Fleet containers up to | `number` | `5` | no |
 | <a name="input_fleet_task_cpu"></a> [fleet\_task\_cpu](#input\_fleet\_task\_cpu) | The CPU configuration for Fleet containers | `number` | `512` | no |
 | <a name="input_fleet_task_memory"></a> [fleet\_task\_memory](#input\_fleet\_task\_memory) | The memory configuration for Fleet containers | `number` | `4096` | no |
+| <a name="input_redis_engine"></a> [redis\_engine](#input\_redis\_engine) | The Elasticache engine to use: "redis" or "valkey". | `string` | `"redis"` | no |
+| <a name="input_redis_engine_version"></a> [redis\_engine\_version](#input\_redis\_engine\_version) | The Elasticache engine version (e.g. "7.1" for Redis, "8.0" for Valkey). | `string` | `"7.1"` | no |
 | <a name="input_redis_instance_count"></a> [redis\_instance\_count](#input\_redis\_instance\_count) | The number of Elasticache nodes | `number` | `3` | no |
 | <a name="input_redis_instance_size"></a> [redis\_instance\_size](#input\_redis\_instance\_size) | The instance size for Elasticache nodes | `string` | `"cache.t4g.micro"` | no |
+| <a name="input_redis_parameter_group_family"></a> [redis\_parameter\_group\_family](#input\_redis\_parameter\_group\_family) | The Elasticache parameter group family (e.g. "redis7", "valkey7", "valkey8"). Must match the engine and version. | `string` | `"redis7"` | no |
 | <a name="input_tag"></a> [tag](#input\_tag) | The tag to deploy. This would be the same as the branch name | `string` | `"v4.76.1"` | no |
 
 ## Outputs

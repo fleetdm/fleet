@@ -20,6 +20,9 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryOnlyExpired,
 	testLiveQueryCleanupInactive,
 	testLiveQuerySetBitOnlyIfKeyExists,
+	testLiveQueryResultsCounts,
+	testLiveQueryReportsHostCount,
+	testLiveQueryReportClipped,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -263,4 +266,154 @@ func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore
 	n, err := redigo.Int(conn.Do("EXISTS", queryKeyPrefix+"{test-2}"))
 	require.NoError(t, err)
 	require.Zero(t, n)
+}
+
+func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
+	// Use many query IDs so that, in cluster mode, their keys spread across
+	// multiple hash slots - exercising the split-by-slot pipelining.
+	queryIDs := []uint{1, 2, 3, 4, 5, 10, 42, 100, 250, 999}
+
+	// The query_results_count keys are not covered by the test cleanup key
+	// prefix, so clear any leftover state from previous runs and after this one.
+	cleanup := func() {
+		for _, id := range append(append([]uint{}, queryIDs...), 123456) {
+			require.NoError(t, store.DeleteQueryResultsCount(id))
+		}
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	// never-incremented queries are absent so callers can fall back to the database
+	counts, err := store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	require.Empty(t, counts)
+
+	// seeding only applies to queries with no stored count
+	require.NoError(t, store.SetQueryResultsCountsIfAbsent(nil))
+	require.NoError(t, store.SetQueryResultsCountsIfAbsent(map[uint]int{queryIDs[0]: 50, queryIDs[1]: 60}))
+	require.NoError(t, store.SetQueryResultsCountsIfAbsent(map[uint]int{queryIDs[0]: 1}))
+	counts, err = store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]int{queryIDs[0]: 50, queryIDs[1]: 60}, counts)
+	require.NoError(t, store.DeleteQueryResultsCount(queryIDs[0]))
+	require.NoError(t, store.DeleteQueryResultsCount(queryIDs[1]))
+
+	// increment each query by a distinct amount
+	increments := make(map[uint]int, len(queryIDs))
+	for i, id := range queryIDs {
+		increments[id] = i + 1
+	}
+	err = store.IncrQueryResultsCounts(increments)
+	require.NoError(t, err)
+
+	counts, err = store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	for _, id := range queryIDs {
+		require.Equal(t, increments[id], counts[id])
+	}
+
+	// incrementing again accumulates
+	err = store.IncrQueryResultsCounts(increments)
+	require.NoError(t, err)
+
+	counts, err = store.GetQueryResultsCounts(queryIDs)
+	require.NoError(t, err)
+	for _, id := range queryIDs {
+		require.Equal(t, 2*increments[id], counts[id])
+	}
+
+	// a query that was never incremented is explicitly populated with 0 in the
+	// returned map, mixed with ones that were incremented
+	counts, err = store.GetQueryResultsCounts([]uint{queryIDs[0], 123456})
+	require.NoError(t, err)
+	require.Equal(t, 2*increments[queryIDs[0]], counts[queryIDs[0]])
+	require.NotContains(t, counts, uint(123456))
+
+	// empty inputs are no-ops
+	err = store.IncrQueryResultsCounts(nil)
+	require.NoError(t, err)
+	counts, err = store.GetQueryResultsCounts(nil)
+	require.NoError(t, err)
+	require.Empty(t, counts)
+}
+
+func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {
+	// The key is not covered by the test cleanup key prefix, so remove it before and after.
+	cleanup := func() {
+		conn := store.(*redisLiveQuery).pool.Get()
+		defer conn.Close()
+		_, err := conn.Do("DEL", queryReportsHostCountKey)
+		require.NoError(t, err)
+	}
+	cleanup()
+	t.Cleanup(cleanup)
+
+	// Nothing stored reads as a miss.
+	count, ok, err := store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Zero(t, count)
+
+	// Seeding only takes effect on a miss.
+	require.NoError(t, store.SetQueryReportsHostCountIfAbsent(12345))
+	count, ok, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, 12345, count)
+	require.NoError(t, store.SetQueryReportsHostCountIfAbsent(1))
+	count, ok, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, 12345, count)
+
+	require.NoError(t, store.SetQueryReportsHostCount(7))
+	count, ok, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, 7, count)
+
+	require.NoError(t, store.IncrQueryReportsHostCount(3))
+	count, _, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Equal(t, 10, count)
+
+	// The cron's full refresh still wins over accumulated increments.
+	require.NoError(t, store.SetQueryReportsHostCount(4))
+	count, _, err = store.GetQueryReportsHostCount()
+	require.NoError(t, err)
+	require.Equal(t, 4, count)
+}
+
+func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {
+	// Keys are not covered by the test cleanup key prefix, so clear them after the test.
+	t.Cleanup(func() {
+		require.NoError(t, store.ClearQueryReportsClipped([]uint{1, 2, 3}))
+	})
+
+	clipped, err := store.QueryReportsClipped(nil)
+	require.NoError(t, err)
+	require.Empty(t, clipped)
+
+	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
+	require.NoError(t, err)
+	require.Empty(t, clipped)
+
+	require.NoError(t, store.MarkQueryReportsClipped(nil))
+	require.NoError(t, store.MarkQueryReportsClipped(map[uint]time.Duration{1: time.Hour, 3: time.Hour}))
+	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, map[uint]bool{1: true, 3: true}, clipped)
+
+	require.NoError(t, store.ClearQueryReportsClipped(nil))
+	require.NoError(t, store.ClearQueryReportsClipped([]uint{1}))
+	clipped, err = store.QueryReportsClipped([]uint{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, map[uint]bool{3: true}, clipped)
+
+	// The marker expires on its own.
+	require.NoError(t, store.MarkQueryReportsClipped(map[uint]time.Duration{2: time.Second}))
+	require.Eventually(t, func() bool {
+		clipped, err := store.QueryReportsClipped([]uint{2})
+		return err == nil && !clipped[2]
+	}, 5*time.Second, 100*time.Millisecond)
 }

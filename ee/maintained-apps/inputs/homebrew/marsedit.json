@@ -1,0 +1,10 @@
+{
+  "name": "MarsEdit",
+  "unique_identifier": "com.red-sweater.marsedit5",
+  "token": "marsedit",
+  "installer_format": "zip",
+  "slug": "marsedit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

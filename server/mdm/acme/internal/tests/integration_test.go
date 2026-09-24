@@ -30,6 +30,7 @@ func TestIntegration(t *testing.T) {
 		{"GetAuthorization", testGetAuthorization},
 		{"FinalizeOrder", testFinalizeOrder},
 		{"DoChallengeDeviceAttestation", testDoChallengeDeviceAttestation},
+		{"InvalidPathIDs", testInvalidPathIDs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1206,6 +1207,35 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 		require.Contains(t, acmeErr.Type, "badNonce")
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 	})
+}
+
+// testInvalidPathIDs exercises the account and order id decoding to return a malformed request error rather than internal server error.
+func testInvalidPathIDs(t *testing.T, s *integrationTestSuite) {
+	// A valid enrollment is not required: the invalid ID fails to decode before
+	// the request ever reaches the service layer, so any path identifier works.
+	const pathID = "some-identifier"
+
+	cases := []struct {
+		desc string
+		url  string
+	}{
+		{"order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/not-a-uint", s.server.URL, pathID)},
+		{"account id", fmt.Sprintf("%s/api/mdm/acme/%s/accounts/not-a-uint/orders", s.server.URL, pathID)},
+		{"certificate order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/not-a-uint/certificate", s.server.URL, pathID)},
+		{"authorization id", fmt.Sprintf("%s/api/mdm/acme/%s/authorizations/not-a-uint", s.server.URL, pathID)},
+		{"challenge id", fmt.Sprintf("%s/api/mdm/acme/%s/challenges/not-a-uint", s.server.URL, pathID)},
+		{"finalize order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/not-a-uint/finalize", s.server.URL, pathID)},
+		{"negative order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/-1", s.server.URL, pathID)},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			_, acmeErr, resp := doACMERequest[struct{}](t, http.MethodPost, c.url, []byte("{}"))
+			require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			require.NotNil(t, acmeErr)
+			require.Contains(t, acmeErr.Type, "malformed")
+		})
+	}
 }
 
 func testGetCertificate(t *testing.T, s *integrationTestSuite) {

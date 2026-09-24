@@ -1,11 +1,12 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
-
+import createMockUser from "__mocks__/userMock";
 import { BootstrapPackageStatus } from "interfaces/mdm";
+import { HostPlatform } from "interfaces/platform";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
+
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
@@ -135,6 +136,79 @@ describe("Host Summary section", () => {
 
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
       expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
+    });
+  });
+
+  describe("Mobile Status row", () => {
+    it.each<[string, HostPlatform, string]>([
+      ["Android", "android", "Android 14"],
+      ["iOS", "ios", "iOS 17.4"],
+      ["iPadOS", "ipados", "iPadOS 17.4"],
+    ])(
+      "renders the Status row for a Free-tier %s host",
+      (_label, platform, os_version) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: false,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+        const summaryData = createMockHostSummary({
+          platform,
+          os_version,
+          status: "online",
+        });
+
+        render(<HostSummary summaryData={summaryData} isPremiumTier={false} />);
+
+        expect(screen.getByText("Status")).toBeInTheDocument();
+        expect(screen.getByText("Online")).toBeInTheDocument();
+      }
+    );
+  });
+
+  describe("Online history entry point", () => {
+    it.each<[string, HostPlatform]>([
+      ["macOS", "darwin"],
+      ["iOS", "ios"],
+      ["iPadOS", "ipados"],
+      ["Android", "android"],
+    ])(
+      "wraps the status pill in a clickable button for %s when toggleOnlineHistoryModal is provided",
+      async (_label, platform) => {
+        const toggleOnlineHistoryModal = jest.fn();
+        const summaryData = createMockHostSummary({
+          platform,
+          status: "online",
+        });
+
+        const { user } = renderWithSetup(
+          <HostSummary
+            summaryData={summaryData}
+            toggleOnlineHistoryModal={toggleOnlineHistoryModal}
+          />
+        );
+
+        await user.click(screen.getByRole("button", { name: /online/i }));
+        expect(toggleOnlineHistoryModal).toHaveBeenCalled();
+      }
+    );
+
+    it("renders the status pill as plain text when toggleOnlineHistoryModal is not provided (e.g., My device page)", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        status: "online",
+      });
+
+      renderWithSetup(<HostSummary summaryData={summaryData} />);
+
+      expect(screen.getByText("Online")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /online/i })
+      ).not.toBeInTheDocument();
     });
   });
 

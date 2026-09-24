@@ -1,1 +1,0 @@
-- Updated the error displayed when GitOps encounters an unknown env var to account for cases where the string is a literal that needs escaping.

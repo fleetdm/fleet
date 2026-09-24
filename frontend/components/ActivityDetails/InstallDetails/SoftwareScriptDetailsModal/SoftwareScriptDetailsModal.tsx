@@ -1,5 +1,5 @@
 /** This component is intentionally separate from SoftwareInstallDetailsModal
- * because it handles script-only package installs (e.g. sh_packages or ps1_packages)
+ * because it handles script-only package installs (e.g. sh_packages, ps1_packages, or py_packages)
  *
  * Key differences from SoftwareInstallDetailsModal:
  * - Uses Script/Run/Rerun language in UI instead of Install/Retry.
@@ -9,31 +9,29 @@
  * Keeping these components and its tests separate improves maintainability and clarity
  */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
-import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
 import {
   IHostSoftware,
   ISoftwareScriptResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
 import deviceUserAPI from "services/entities/device_user";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 import {
   SCRIPT_DETAILS_STATUS_ICONS,
@@ -88,7 +86,7 @@ export const StatusMessage = ({
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
@@ -167,7 +165,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRerun}>

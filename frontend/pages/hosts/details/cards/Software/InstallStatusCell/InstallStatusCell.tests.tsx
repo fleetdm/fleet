@@ -1,12 +1,13 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import {
   createMockHostSoftware,
   createMockHostAppStoreApp,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { noop } from "lodash";
+import { renderWithSetup } from "test/test-utils";
 
 import InstallStatusCell from "./InstallStatusCell";
 
@@ -372,6 +373,40 @@ describe("InstallStatusCell - component", () => {
         screen.getByText(/Software failed to install/i)
       ).toBeInTheDocument();
     });
+  });
+
+  it("renders 'Patch skipped' status with tooltip and opens install details on click", async () => {
+    const onShowInstallDetails = jest.fn();
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            skipped_install: true,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "skipped_install",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: /patch skipped/i });
+    expect(button).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+
+    await user.hover(button);
+    await waitFor(() => {
+      expect(screen.getByText(/The app was open/i)).toBeInTheDocument();
+    });
+
+    await user.click(button);
+    expect(onShowInstallDetails).toHaveBeenCalledTimes(1);
   });
 
   it("renders 'Failed' for a script-only package that failed to run", async () => {
@@ -763,8 +798,7 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     await waitFor(() => {
-      expect(screen.getByText(/can be/i)).toBeInTheDocument();
-      expect(screen.getByText(/ran/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be run on the host/i)).toBeInTheDocument();
     });
 
     // Not clickable
@@ -829,9 +863,8 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getAllByText("---")[0]);
     await waitFor(() => {
-      expect(
-        screen.getByText(/App store app can be installed/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Mock Software/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
     });
 
     // Not clickable

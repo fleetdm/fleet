@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/smallstep/scep"
 )
@@ -116,12 +117,25 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &BadRequestError{Message: "missing data for PKIOperation"}
 	}
+
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		svc.debugLogger.ErrorContext(ctx, "invalid request body", "err", err)
+		return nil, &BadRequestError{
+			Message: "invalid request body",
+		}
+	}
+
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.debugLogger)))
 	if err != nil {
 		return nil, err
 	}
 	if err := msg.DecryptPKIEnvelope(svc.crt, svc.key); err != nil {
-		return nil, err
+		svc.debugLogger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(svc.crt, svc.key, scep.BadRequest)
+		if err != nil {
+			return nil, err
+		}
+		return certRep.Raw, nil
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
@@ -131,11 +145,17 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if err != nil {
 		svc.debugLogger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 		certRep, err := msg.Fail(svc.crt, svc.key, scep.BadRequest)
-		return certRep.Raw, err
+		if err != nil {
+			return nil, err
+		}
+		return certRep.Raw, nil
 	}
 
 	certRep, err := msg.Success(svc.crt, svc.key, crt)
-	return certRep.Raw, err
+	if err != nil {
+		return nil, err
+	}
+	return certRep.Raw, nil
 }
 
 func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {

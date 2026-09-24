@@ -1,0 +1,12 @@
+{
+  "name": "ocenaudio",
+  "slug": "ocenaudio/windows",
+  "package_identifier": "Ocenaudio.Ocenaudio",
+  "unique_identifier": "ocenaudio",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/ocenaudio_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/ocenaudio_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

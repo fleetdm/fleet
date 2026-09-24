@@ -1,11 +1,11 @@
-import React, { useContext, useState } from "react";
-
-import scriptAPI from "services/entities/scripts";
-import { NotificationContext } from "context/notification";
-
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
 import { AxiosResponse } from "axios";
+import React, { useState } from "react";
+
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import scriptAPI from "services/entities/scripts";
+
 import { IApiError } from "../../../../../interfaces/errors";
 import { getErrorMessage } from "../ScriptUploadModal/helpers";
 
@@ -26,22 +26,21 @@ const DeleteScriptModal = ({
   afterDelete,
   isHidden = false,
 }: IDeleteScriptModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onClickDelete = async (id: number) => {
     setIsDeleting(true);
     try {
       await scriptAPI.deleteScript(id);
-      renderFlash("success", "Successfully deleted.");
+      notify.success("Successfully deleted.");
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
       const apiErrMessage = getErrorMessage(error);
-      renderFlash(
-        "error",
+      notify.error(
         apiErrMessage.includes("Policy automation")
           ? apiErrMessage
-          : "Couldn’t delete. Please try again."
+          : "Couldn’t delete. Please try again.",
+        { response: e }
       );
     }
     setIsDeleting(false);
@@ -77,7 +76,7 @@ const DeleteScriptModal = ({
           >
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

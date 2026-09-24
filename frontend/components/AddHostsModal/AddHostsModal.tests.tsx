@@ -1,12 +1,23 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import AddHostsModal from "./AddHostsModal";
 
 const ENROLL_SECRET = "abcdefg12345678";
+
+// Joins every path's geometry rather than picking one out, so the comparison
+// does not depend on how many paths qrcode.react emits or in what order.
+const getQrCodeData = () => {
+  const paths = screen.getByTestId("enroll-qr-code").querySelectorAll("path");
+  expect(paths.length).toBeGreaterThan(0);
+  return Array.from(paths)
+    .map((path) => path.getAttribute("d"))
+    .join("|");
+};
 
 describe("AddHostsModal", () => {
   it("renders loading state", async () => {
@@ -94,6 +105,50 @@ describe("AddHostsModal", () => {
     expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
   });
 
+  it("renders enroll url input for macOS if mac mdm is enabled", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isMacMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "macOS" }));
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Share this link with your end users:")
+    ).toBeInTheDocument();
+
+    // Company-owned is selected by default — URL has no byod param
+    const urlInput = screen.getByDisplayValue(
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+    );
+    expect(urlInput).toBeInTheDocument();
+
+    // Switching to Personal (BYOD) appends byod=true
+    await user.click(screen.getByLabelText("Personal (BYOD)"));
+    const byodUrlInput = screen.getByDisplayValue(
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true`)
+    );
+    expect(byodUrlInput).toBeInTheDocument();
+  });
+
   it("renders enroll url input for ios & ipadOS if mac mdm is enabled", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -117,8 +172,14 @@ describe("AddHostsModal", () => {
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
     expect(
-      screen.queryByText(/Send this to your end users:/i)
+      screen.getByText("Share this link with your end users:")
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(screen.getByText("To test, scan the QR code:")).toBeInTheDocument();
+    expect(screen.getByTestId("enroll-qr-code")).toBeInTheDocument();
   });
 
   it("renders enroll url input for android if android mdm is enabled", async () => {
@@ -143,7 +204,132 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
-    expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("Share this link with your end users:")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(screen.getByText("To test, scan the QR code:")).toBeInTheDocument();
+    expect(screen.getByTestId("enroll-qr-code")).toBeInTheDocument();
+  });
+
+  it("hides the android qr code when company-owned is selected", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isAndroidMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Android" }));
+
+    // Personal (BYOD) is selected by default — URL has no fully_managed param.
+    expect(
+      screen.getByDisplayValue(
+        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+      )
+    ).toBeInTheDocument();
+    expect(getQrCodeData()).toBeTruthy();
+
+    await user.click(screen.getByLabelText("Company-owned (fully-managed)"));
+
+    expect(
+      screen.getByDisplayValue(
+        new RegExp(
+          `/enroll\\?enroll_secret=${ENROLL_SECRET}&fully_managed=true$`
+        )
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("To test, scan the QR code:")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("enroll-qr-code")).not.toBeInTheDocument();
+  });
+
+  it("updates the ios & ipadOS qr code when the enrollment type changes", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isMacMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
+
+    // Personal (BYOD) is selected by default — URL carries byod=true.
+    expect(
+      screen.getByDisplayValue(
+        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true$`)
+      )
+    ).toBeInTheDocument();
+    const personalQrData = getQrCodeData();
+    expect(personalQrData).toBeTruthy();
+
+    await user.click(screen.getByLabelText("Company-owned (fully-managed)"));
+
+    expect(
+      screen.getByDisplayValue(
+        new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+      )
+    ).toBeInTheDocument();
+    expect(getQrCodeData()).not.toEqual(personalQrData);
+  });
+
+  it("renders no qr code while the mdm gate is showing", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
+    expect(screen.getByText(/Turn on Apple MDM/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("enroll-qr-code")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Android" }));
+    expect(screen.getByText(/Turn on Android MDM/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("enroll-qr-code")).not.toBeInTheDocument();
   });
 
   it("renders installer with secret", async () => {
@@ -194,18 +380,54 @@ describe("AddHostsModal", () => {
       />
     );
 
-    expect(screen.getByText("Something's gone wrong.")).toBeInTheDocument();
     expect(
       screen.getByText(/you have no enroll secrets\./i)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /new hosts will not enroll until an enroll secret is added to/i
+      )
+    ).toBeInTheDocument();
 
-    const cta = screen.getByText(/manage enroll secrets/i);
-    expect(cta).toBeInTheDocument();
-
-    await user.click(cta);
+    await user.click(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    );
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(openEnrollSecretModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("explains manual enrollment in the no enroll secret state when one-time enroll secrets are on", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPreviewMode: false,
+          config: createMockConfig({
+            auth: { use_one_time_enroll_secrets: true },
+          }),
+        },
+      },
+    });
+
+    render(
+      <AddHostsModal
+        isAnyTeamSelected={false}
+        isLoading={false}
+        onCancel={noop}
+        openEnrollSecretModal={noop}
+      />
+    );
+
+    expect(
+      screen.getByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/only apple hosts that automatically enroll via/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
   });
 
   it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {

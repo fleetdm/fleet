@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
 
 interface DeleteProfileModalProps {
   profileName: string;
@@ -59,7 +58,7 @@ const DeleteProfileModal = ({
           >
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

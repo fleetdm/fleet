@@ -1,61 +1,71 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-
 import { useQuery } from "react-query";
-import PATHS from "router/paths";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
-import { IMdmProfile } from "interfaces/mdm";
-
-import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
-
-import Card from "components/Card/Card";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
 import Pagination from "components/Pagination";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IMdmProfile } from "interfaces/mdm";
+import PATHS from "router/paths";
+import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
+import { getPathWithQueryParams } from "utilities/url";
 
 import UploadList from "../../../../../components/UploadList";
-
-import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
-import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
-import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
-import ProfileListItem from "./components/ProfileListItem";
-import UploadListHeading from "../../../components/UploadListHeading";
-import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
-import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
+
+import AssetsTab from "./components/AssetsTab";
+import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
+import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
+import EditProfileModal from "./components/EditProfileModal";
+import ProfileListItem from "./components/ProfileListItem";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
+import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 
 const PROFILES_PER_PAGE = 10;
 
 const baseClass = "configuration-profiles";
 
+export type ConfigProfilesTab = "profiles" | "assets";
+
+const TABS_BY_INDEX: ConfigProfilesTab[] = ["profiles", "assets"];
+
 export type IConfigurationProfilesProps = IOSSettingsCommonProps & {
   currentPage?: number;
+  /** Which secondary tab is active, derived from the route section. */
+  activeTab?: ConfigProfilesTab;
 };
 
 const ConfigurationProfiles = ({
   currentTeamId,
   router,
   currentPage = 0,
+  activeTab = "profiles",
   onMutation,
 }: IConfigurationProfilesProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     config,
     isPremiumTier,
+    isGlobalAdmin,
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  const canAddConfigurationProfile = !isTechnician;
+  // The "Turn on" button links to /settings/integrations/mdm, which is
+  // gated to global admins only (AuthGlobalAdminRoutes).
+  const canTurnOnMdm = !!isGlobalAdmin;
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
@@ -63,10 +73,7 @@ const ConfigurationProfiles = ({
     config?.mdm.android_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
-  const [
-    profileLabelsModalData,
-    setProfileLabelsModalData,
-  ] = useState<IMdmProfile | null>(null);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
   const [
     showConfigProfileStatusModal,
@@ -119,6 +126,18 @@ const ConfigurationProfiles = ({
     setShowConfigProfileStatusModal(false);
   };
 
+  const onCancelEdit = () => {
+    selectedProfile.current = null;
+    setShowEditProfileModal(false);
+  };
+
+  const onUpdateProfile = () => {
+    selectedProfile.current = null;
+    setShowEditProfileModal(false);
+    refetchProfiles();
+    onMutation();
+  };
+
   const onCancelDelete = () => {
     selectedProfile.current = null;
     setShowDeleteProfileModal(false);
@@ -130,9 +149,16 @@ const ConfigurationProfiles = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted.");
+      notify.success("Successfully deleted.");
     } catch (e) {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      const reason = getErrorReason(e, {
+        reasonIncludes: "Policy automations",
+      });
+      if (reason === "") {
+        notify.error("Couldn't delete. Please try again.", { response: e });
+      } else {
+        notify.error(reason, { response: e });
+      }
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
@@ -152,9 +178,26 @@ const ConfigurationProfiles = ({
     router.push(path.concat(`${queryString}page=${currentPage + 1}`));
   }, [router, path, currentPage, queryString]);
 
+  const handleTabChange = (index: number) => {
+    const tabPath =
+      TABS_BY_INDEX[index] === "assets"
+        ? PATHS.CONTROLS_ASSETS
+        : PATHS.CONTROLS_CUSTOM_SETTINGS;
+    router.push(
+      getPathWithQueryParams(tabPath, {
+        fleet_id: isPremiumTier ? currentTeamId : undefined,
+      })
+    );
+  };
+
   const onClickInfo = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
     setShowConfigProfileStatusModal(true);
+  };
+
+  const onClickEdit = (profile: IMdmProfile) => {
+    selectedProfile.current = profile;
+    setShowEditProfileModal(true);
   };
 
   const onClickDelete = (profile: IMdmProfile) => {
@@ -172,14 +215,31 @@ const ConfigurationProfiles = ({
     }
 
     if (!profiles?.length) {
-      if (isTechnician) {
-        return (
-          <Card className="empty-profiles">
-            No configuration profiles have been added.
-          </Card>
-        );
-      }
-      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No configuration profiles"
+          info={
+            canAddConfigurationProfile
+              ? "Add a configuration profile to enforce custom settings on your hosts."
+              : "No configuration profiles have been added."
+          }
+          primaryButton={
+            canAddConfigurationProfile ? (
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={() => setShowAddProfileModal(true)}
+                  >
+                    Add profile
+                  </Button>
+                )}
+              />
+            ) : undefined
+          }
+        />
+      );
     }
 
     return (
@@ -187,21 +247,12 @@ const ConfigurationProfiles = ({
         <UploadList
           keyAttribute="profile_uuid"
           listItems={profiles}
-          HeadingComponent={() => (
-            <UploadListHeading
-              onClickAdd={
-                isTechnician ? undefined : () => setShowAddProfileModal(true)
-              }
-              entityName="Configuration profile"
-              createEntityText="Add profile"
-            />
-          )}
           ListItemComponent={({ listItem }) => (
             <ProfileListItem
               isPremium={!!isPremiumTier}
               profile={listItem}
-              setProfileLabelsModalData={setProfileLabelsModalData}
               onClickInfo={onClickInfo}
+              onClickEdit={onClickEdit}
               onClickDelete={onClickDelete}
               isTechnician={isTechnician}
             />
@@ -220,49 +271,103 @@ const ConfigurationProfiles = ({
     );
   };
 
-  const hasLabels =
-    !!profileLabelsModalData?.labels_include_all?.length ||
-    !!profileLabelsModalData?.labels_include_any?.length ||
-    !!profileLabelsModalData?.labels_exclude_any?.length;
+  const profilesDescription = (
+    <>
+      {isTechnician
+        ? "View configuration profiles."
+        : "Create and upload configuration profiles to apply custom settings."}{" "}
+      <CustomLink
+        newTab
+        text="Learn more"
+        url="https://fleetdm.com/guides/custom-os-settings"
+      />
+    </>
+  );
+
+  const showAddProfileButton = mdmEnabled && canAddConfigurationProfile;
 
   return (
     <div className={baseClass}>
       <SectionHeader title="Configuration profiles" alignLeftHeaderVertically />
-      <PageDescription
-        variant="right-panel"
-        content={
-          <>
-            {isTechnician
-              ? "View configuration profiles."
-              : "Create and upload configuration profiles to apply custom settings."}{" "}
-            <CustomLink
-              newTab
-              text="Learn more"
-              url="https://fleetdm.com/guides/custom-os-settings"
-            />
-          </>
-        }
-      />
-      {!mdmEnabled ? (
-        <EmptyState
-          variant="header-list"
-          header="Additional configuration required"
-          info="MDM must be turned on to add configuration profiles."
-          primaryButton={
-            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-              Turn on
-            </Button>
-          }
-        />
-      ) : (
-        renderProfileList()
-      )}
+      <TabNav secondary>
+        <Tabs
+          selectedIndex={TABS_BY_INDEX.indexOf(activeTab)}
+          onSelect={handleTabChange}
+        >
+          <TabList>
+            <Tab>
+              <TabText>Profiles</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Assets</TabText>
+            </Tab>
+          </TabList>
+          <TabPanel>
+            <div className="profiles-tab">
+              <div className="profiles-tab__tab-header">
+                <PageDescription
+                  variant="right-panel"
+                  content={profilesDescription}
+                />
+                {showAddProfileButton && (
+                  <GitOpsModeTooltipWrapper
+                    position="left"
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        onClick={() => setShowAddProfileModal(true)}
+                        disabled={disableChildren}
+                        icon="plus"
+                      >
+                        Add profile
+                      </Button>
+                    )}
+                  />
+                )}
+              </div>
+              {!mdmEnabled ? (
+                <EmptyState
+                  variant="header-list"
+                  header="Additional configuration required"
+                  info="MDM must be turned on to add configuration profiles."
+                  primaryButton={
+                    canTurnOnMdm ? (
+                      <Button
+                        onClick={() =>
+                          router.push(PATHS.ADMIN_INTEGRATIONS_MDM)
+                        }
+                      >
+                        Turn on
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                renderProfileList()
+              )}
+            </div>
+          </TabPanel>
+          <TabPanel>
+            <AssetsTab currentTeamId={currentTeamId} router={router} />
+          </TabPanel>
+        </Tabs>
+      </TabNav>
       {showAddProfileModal && (
         <AddProfileModal
           currentTeamId={currentTeamId}
           isPremiumTier={!!isPremiumTier}
           onUpload={onUploadProfile}
           setShowModal={setShowAddProfileModal}
+        />
+      )}
+      {showEditProfileModal && selectedProfile.current && (
+        <EditProfileModal
+          profile={selectedProfile.current}
+          currentTeamId={currentTeamId}
+          isPremiumTier={!!isPremiumTier}
+          onUpdate={onUpdateProfile}
+          onCancel={onCancelEdit}
         />
       )}
       {showDeleteProfileModal && selectedProfile.current && (
@@ -274,17 +379,12 @@ const ConfigurationProfiles = ({
           isDeleting={isDeleting}
         />
       )}
-      {isPremiumTier && hasLabels && (
-        <ProfileLabelsModal
-          profile={profileLabelsModalData}
-          setModalData={setProfileLabelsModalData}
-        />
-      )}
       {showConfigProfileStatusModal && selectedProfile.current && (
         <ConfigProfileStatusModal
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
+          platform={selectedProfile.current.platform}
           onClickResend={(hostCount) => {
             selectedStatusHostCount.current = hostCount;
             setShowConfigProfileStatusModal(false);

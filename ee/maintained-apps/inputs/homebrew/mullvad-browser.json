@@ -1,0 +1,10 @@
+{
+  "name": "Mullvad Browser",
+  "unique_identifier": "net.mullvad.mullvadbrowser",
+  "token": "mullvad-browser",
+  "installer_format": "dmg",
+  "slug": "mullvad-browser/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

@@ -55,6 +55,7 @@ GitHub issue: [#31138](https://github.com/fleetdm/fleet/issues/31138)
 
 ### IT Admins
 
+- Cleared host vitals on ABM host re-enrollment, with a config option to preserve past host activities. This option is set to on by default to maintain the current behavior: host activities are presevered.
 - Added automatic rotation of managed local admin account passwords after they have been viewed.
 - Added a `require_all_software_windows` setting to cancel the Windows setup experience if any software install fails during Autopilot enrollment, matching the existing macOS behavior.
 - Added GitOps support for uploading custom org logos. `fleetctl gitops` accepts `org_logo_path_dark_mode` and `org_logo_path_light_mode` keys to upload local files, and `fleetctl generate-gitops` exports Fleet-hosted logos as local files alongside path keys while keeping external URLs as `org_logo_url_*_mode` keys.
@@ -84,7 +85,6 @@ GitHub issue: [#31138](https://github.com/fleetdm/fleet/issues/31138)
 - Updated OS version reporting for iOS and iPadOS to include the Rapid Security Response suffix (e.g. `(a)`) when the device reports a `SupplementalOSVersionExtra` field via MDM.
 - Updated fleetd and MDM enroll activities to display the serial number and preserve the osquery-provided display name.
 - Required the `--host` flag for `fleetctl get mdm-commands`, and deprecated `GET /api/v1/fleet/commands` without a `host_identifier`.
-- Cleared host vitals on ABM host re-enrollment, with a config option to preserve past host activities.
 
 ### Security Engineers
 

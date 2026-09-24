@@ -13,25 +13,34 @@ import (
 )
 
 var Aliases = map[string]int{
-	"mdm":                   58,
-	"g-mdm":                 58,
-	"draft":                 67,
-	"drafting":              67,
-	"g-software":            70,
-	"soft":                  70,
-	"g-orchestration":       71,
-	"orch":                  71,
-	"sec":                   97,
-	"g-security-compliance": 97,
-	"releases":              87,
+	"mdm":             58,
+	"g-mdm":           58,
+	"draft":           67,
+	"drafting":        67,
+	"g-software":      70,
+	"soft":            70,
+	"g-orchestration": 71,
+	"orch":            71,
+	"sec":             97,
+	"g-supply-chain":  97,
+	"releases":        87,
+	"apple-at-work":   108,
+	"apple":           108,
+	"aaw":             108,
+	"auto-patching":   109,
+	"auto":            109,
+	"ap":              109,
+	"byod":            112,
+	"g-byod":          112,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
 var ProjectLabels = map[int]string{
-	58: "#g-mdm",                 // mdm project
-	70: "#g-software",            // g-software project
-	71: "#g-orchestration",       // g-orchestration project
-	97: "#g-security-compliance", // g-security-compliance project
+	58:  "#g-mdm",           // mdm project
+	70:  "#g-software",      // g-software project
+	71:  "#g-orchestration", // g-orchestration project
+	97:  "#g-supply-chain",  // g-supply-chain project
+	112: "#g-byod",          // g-byod project
 }
 
 // ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID.
@@ -88,6 +97,33 @@ func GetProjectItemsWithTotal(projectID, limit int) ([]ProjectItem, int, error) 
 func GetProjectItems(projectID, limit int) ([]ProjectItem, error) { // backward compatible helper
 	items, _, err := GetProjectItemsWithTotal(projectID, limit)
 	return items, err
+}
+
+// OrgProject is a lightweight org-level project listing entry.
+type OrgProject struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Closed bool   `json:"closed"`
+}
+
+// ListOrgProjects lists an org's projects (number, title, URL) so callers can
+// resolve a project name to its number/URL.
+func ListOrgProjects(owner string) ([]OrgProject, error) {
+	if owner == "" {
+		owner = "fleetdm"
+	}
+	out, err := RunCommandWithRetry(fmt.Sprintf("gh project list --owner %s --format json --limit 200", owner), 3)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Projects []OrgProject `json:"projects"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Projects, nil
 }
 
 // GetCurrentSprintItems returns only the items in the current sprint for a project.

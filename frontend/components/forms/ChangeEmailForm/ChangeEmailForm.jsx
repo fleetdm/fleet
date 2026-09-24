@@ -1,10 +1,10 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
-import InputField from "components/forms/fields/InputField";
 
 const baseClass = "change-email-form";
 
@@ -32,7 +32,7 @@ class ChangeEmailForm extends Component {
         />
         <div className="modal-cta-wrap">
           <Button type="submit">Submit</Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

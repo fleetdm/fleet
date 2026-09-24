@@ -53,7 +53,7 @@ func TestExtractRPMMetadata(t *testing.T) {
 	t.Cleanup(func() {
 		out.Close()
 	})
-	err = rpm.Default.Package(info, out)
+	err = rpm.DefaultRPM.Package(info, out)
 	require.NoError(t, err)
 	err = out.Close()
 	require.NoError(t, err)

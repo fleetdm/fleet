@@ -1,0 +1,114 @@
+{
+  "metadata": {
+    "workspace": "482plusvc",
+    "collected_at": "2026-03-18T00:00:00Z",
+    "interval": "1h",
+    "release": "4.82.1",
+    "category": "other",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 62
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 33.0
+    },
+    "memory_utilization": {
+      "Average": 8.0
+    },
+    "task_counts": {
+      "runningCount": 25
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 17.0
+    },
+    "memory_utilization": {
+      "Average": 9.61
+    },
+    "task_counts": {
+      "runningCount": 200
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 20.0
+    },
+    "write_iops": {
+      "Average": 2700.0
+    },
+    "deadlocks": {
+      "Sum": 0
+    }
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 3.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 35.0
+      },
+      "read_iops": {
+        "Average": 2.0,
+        "Maximum": 38.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 4.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 1.7,
+        "Maximum": 2.2
+      },
+      "memory_utilization": {
+        "Average": 0.2
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Confirming db spike fix for 4.82.1",
+    "one_click": "yes",
+    "notes": null,
+    "raw": {
+      "full_day": "no",
+      "fleet_containers": "25",
+      "loadtest_containers": "200",
+      "fleet_cpu": "~33",
+      "fleet_mem": "~8%",
+      "errors": "No errors",
+      "writer_top_sql": "COMMIT",
+      "writer_cpu": "~20%",
+      "writer_sessions": "avg 3",
+      "writer_iops": "~2700",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~35%",
+      "reader_sessions": "avg 4",
+      "reader_iops": "avg 2 spikes to 38",
+      "redis_cpu": "1.2-2.2%",
+      "redis_mem": "0.20%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "17%",
+      "osquery_mem": "9.61%",
+      "deadlocks": "~0"
+    }
+  }
+}

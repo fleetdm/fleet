@@ -1,0 +1,5 @@
+# `paths` is a single glob string, not a list.
+policies:
+  - paths:
+      - "../lib/policies/a.yml"
+      - "../lib/policies/b.yml"

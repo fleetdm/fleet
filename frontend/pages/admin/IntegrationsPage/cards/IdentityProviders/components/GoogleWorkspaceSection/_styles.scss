@@ -1,0 +1,27 @@
+.google-workspace-section {
+  @include vertical-card-layout;
+
+  form {
+    .card {
+      // The generic `.card` is content-box, so its `width: 100%` plus
+      // padding/border renders ~50px wider than the section and overflows.
+      // border-box makes its total width equal the section width.
+      box-sizing: border-box;
+
+      // Stack the fields with consistent vertical spacing so each field's help
+      // text doesn't crowd the next field's label.
+      @include vertical-form-layout;
+    }
+  }
+
+  &__api-key-json {
+    font-family: "SourceCodePro", $monospace;
+    width: 100%;
+    height: 294px;
+    font-size: $x-small;
+  }
+
+  .button-wrap {
+    align-self: flex-end;
+  }
+}

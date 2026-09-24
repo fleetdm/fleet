@@ -1,0 +1,10 @@
+{
+  "name": "Modern CSV",
+  "unique_identifier": "net.galliumdigital.Modern-CSV",
+  "token": "modern-csv",
+  "installer_format": "dmg",
+  "slug": "modern-csv/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

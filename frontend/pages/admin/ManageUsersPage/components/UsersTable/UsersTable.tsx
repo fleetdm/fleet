@@ -1,32 +1,33 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
-import PATHS from "router/paths";
-import { IInvite } from "interfaces/invite";
-import { IUser } from "interfaces/user";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import authToken from "utilities/auth_token";
-
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import usersAPI from "services/entities/users";
-import invitesAPI from "services/entities/invites";
-
+import ActionsDropdown from "components/ActionsDropdown";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TableDataError from "components/DataError";
-import ActionsDropdown from "components/ActionsDropdown";
-import EmptyState from "components/EmptyState";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IInvite } from "interfaces/invite";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import invitesAPI from "services/entities/invites";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+
+import DeleteUserModal from "../DeleteUserModal";
+import ResetPasswordModal from "../ResetPasswordModal";
+import ResetSessionsModal from "../ResetSessionsModal";
+
 import {
   generateTableHeaders,
   combineDataSets,
   IUserTableData,
 } from "./UsersTableConfig";
-import DeleteUserModal from "../DeleteUserModal";
-import ResetPasswordModal from "../ResetPasswordModal";
-import ResetSessionsModal from "../ResetSessionsModal";
 
 const ADD_USER_OPTIONS: IDropdownOption[] = [
   {
@@ -48,12 +49,15 @@ const EmptyUsersTable = () => (
   />
 );
 
+interface IRowProps extends Row {
+  original: IUserTableData;
+}
+
 interface IUsersTableProps {
   router: InjectedRouter; // v3
 }
 const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { currentUser, isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   // STATES
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
@@ -74,6 +78,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     () => usersAPI.loadAll({ globalFilter: querySearchText }),
     {
       select: (data: IUser[]) => data,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -89,6 +94,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       select: (data: IInvite[]) => {
         return data;
       },
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -120,16 +126,27 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
+  const goToEditUser = useCallback(
+    (user: IUserTableData) => {
+      if (user.type === "user" && user.apiId === currentUser?.id) {
+        router.push(PATHS.ACCOUNT);
+        return;
+      }
+      const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
+      router.push(
+        user.type === "invite" ? `${editPath}?type=invite` : editPath
+      );
+    },
+    [router, currentUser?.id]
+  );
+
   const onActionSelect = useCallback(
     (value: string, user: IUserTableData) => {
       switch (value) {
-        case "edit": {
-          const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
-          router.push(
-            user.type === "invite" ? `${editPath}?type=invite` : editPath
-          );
+        case "edit":
+        case "editMyAccount":
+          goToEditUser(user);
           break;
-        }
         case "delete":
           toggleDeleteUserModal(user);
           break;
@@ -139,16 +156,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         case "resetSessions":
           toggleResetSessionsUserModal(user);
           break;
-        case "editMyAccount":
-          router.push(PATHS.ACCOUNT);
-          break;
         default:
           return null;
       }
       return null;
     },
     [
-      router,
+      goToEditUser,
       toggleDeleteUserModal,
       toggleResetPasswordUserModal,
       toggleResetSessionsUserModal,
@@ -174,11 +188,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       invitesAPI
         .destroy(userEditing.apiId)
         .then(() => {
-          renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
+          notify.success(`Successfully deleted ${userEditing?.name}.`);
         })
         .catch(() => {
-          renderFlash(
-            "error",
+          notify.error(
             `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
@@ -191,11 +204,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       usersAPI
         .destroy(userEditing.apiId)
         .then(() => {
-          renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
+          notify.success(`Successfully deleted ${userEditing?.name}.`);
         })
         .catch(() => {
-          renderFlash(
-            "error",
+          notify.error(
             `Could not delete ${userEditing?.name}. Please try again.`
           );
         })
@@ -222,10 +234,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           }, 500);
           return;
         }
-        renderFlash("success", "Successfully reset sessions.");
+        notify.success("Successfully reset sessions.");
       })
       .catch(() => {
-        renderFlash("error", "Could not reset sessions. Please try again.");
+        notify.error("Could not reset sessions. Please try again.");
       })
       .finally(() => {
         toggleResetSessionsUserModal();
@@ -237,13 +249,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     usersAPI
       .requirePasswordReset(userEditing.apiId, { require: true })
       .then(() => {
-        renderFlash("success", "Successfully required a password reset.");
+        notify.success("Successfully required a password reset.");
       })
       .catch(() => {
-        renderFlash(
-          "error",
-          "Could not require a password reset. Please try again."
-        );
+        notify.error("Could not require a password reset. Please try again.");
       })
       .finally(() => {
         toggleResetPasswordUserModal();
@@ -321,7 +330,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         options={ADD_USER_OPTIONS}
         onChange={onAddUserSelect}
         placeholder="Add user"
-        variant="brand-button"
+        variant="primary"
         buttonLabel="Add user"
         className="add-user-dropdown"
         menuAlign="left"
@@ -351,6 +360,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           isAllPagesSelected={false}
           isClientSidePagination
           renderCount={renderUsersCount}
+          disableMultiRowSelect
+          onClickRow={(row: IRowProps) => goToEditUser(row.original)}
         />
       )}
       {showDeleteUserModal && renderDeleteUserModal()}

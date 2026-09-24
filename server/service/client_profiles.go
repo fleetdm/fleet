@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -69,6 +70,49 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 		return b, nil
 	}
 	return nil, nil
+}
+
+// GetProfileActivation returns the custom activation attached to a declaration,
+// or nil if it has none. GetProfileContents can't serve this because alt=media
+// returns the declaration file itself, not the payload the activation rides on.
+func (c *Client) GetProfileActivation(profileID string) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/profiles/"+profileID
+	var responseBody getMDMConfigProfileResponse
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	if responseBody.MDMConfigProfilePayload == nil {
+		return nil, nil
+	}
+	return responseBody.MDMConfigProfilePayload.Activation, nil
+}
+
+// ListDDMAssets returns the Apple DDM assets for the given team.
+func (c *Client) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	verb, path := "GET", "/api/latest/fleet/assets"
+	query := make(url.Values)
+	if teamID != nil {
+		query.Add("fleet_id", strconv.FormatUint(uint64(*teamID), 10))
+	}
+	var responseBody listAppleDDMAssetsResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
+		return nil, err
+	}
+	return responseBody.Assets, nil
+}
+
+// DownloadDDMAsset returns the raw JSON contents of the DDM asset with the given UUID.
+func (c *Client) DownloadDDMAsset(assetUUID string) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/assets/"+assetUUID
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	if err := c.ParseResponse(verb, path, response, nil); err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	return io.ReadAll(response.Body)
 }
 
 func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, error) {
@@ -163,4 +207,30 @@ func (c *Client) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetup
 		return nil, err
 	}
 	return &responseBody.MDMAppleSetupAssistant, nil
+}
+
+// rewrapProfileBatchNameErr surfaces the offending profile's name when the
+// batch-set profiles endpoint rejects one of them. The server puts the name in
+// the error's name field, bare or as "profiles[<name>]", but not in the reason,
+// so fleetctl output could not say which profile failed. Names that don't match
+// a profile in the batch (e.g. "mdm", "labels") are left alone.
+func rewrapProfileBatchNameErr(err error, profiles []fleet.MDMProfileBatchPayload) error {
+	var scErr *StatusCodeErr
+	if !errors.As(err, &scErr) || scErr.Name == "" {
+		return err
+	}
+	name := scErr.Name
+	if inner, ok := strings.CutPrefix(name, "profiles["); ok {
+		inner, ok = strings.CutSuffix(inner, "]")
+		if !ok {
+			return err
+		}
+		name = inner
+	}
+	for _, p := range profiles {
+		if p.Name == name {
+			return fmt.Errorf("profile %q: %w", name, err)
+		}
+	}
+	return err
 }

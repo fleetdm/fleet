@@ -1,18 +1,17 @@
 import React, { useCallback, useMemo } from "react";
-
-import { isAndroid, HostPlatform } from "interfaces/platform";
-import { IQueryStats } from "interfaces/query_stats";
-import { SUPPORT_LINK } from "utilities/constants";
-import TableContainer from "components/TableContainer";
-import Card from "components/Card";
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import CardHeader from "components/CardHeader";
-import Icon from "components/Icon";
-import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
+
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { isAndroid, HostPlatform } from "interfaces/platform";
+import { IQueryStats } from "interfaces/query_stats";
+import PATHS from "router/paths";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import {
   generateColumnConfigs,
@@ -139,12 +138,16 @@ const HostQueries = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader header="Reports" />
         {canAddQuery && (
-          <Button variant="inverse" onClick={onClickAddQuery} size="small">
-            <Icon name="plus" />
+          <Button
+            variant="secondary"
+            onClick={onClickAddQuery}
+            size="small"
+            icon="plus"
+          >
             Add report
           </Button>
         )}

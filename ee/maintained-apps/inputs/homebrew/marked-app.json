@@ -1,0 +1,10 @@
+{
+  "name": "Marked",
+  "unique_identifier": "com.brettterpstra.marked",
+  "token": "marked-app",
+  "installer_format": "zip",
+  "slug": "marked-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

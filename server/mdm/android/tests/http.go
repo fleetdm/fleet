@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test/httptest"
-	"github.com/go-json-experiment/json"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +42,7 @@ func (ts *WithServer) DoRaw(verb string, path string, rawBytes []byte, expectedS
 func (ts *WithServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	opts := []fleethttp.ClientOpt{}
+	opts := []fleethttp.ClientOpt{fleethttp.WithNoTimeout()}
 	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
 		opts = append(opts, fleethttp.WithFollowRedir(false))
 	}

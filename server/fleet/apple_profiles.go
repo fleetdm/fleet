@@ -39,8 +39,12 @@ func FindProfilesWithSecrets(
 			continue
 		}
 		profileStr := string(p)
+		// Both org-wide secrets ($FLEET_SECRET_*) and host-scoped secrets
+		// ($FLEET_HOST_SECRET_*) are expanded at command-delivery time, never
+		// stored, so a profile carrying either must take the secret command path.
 		vars := ContainsPrefixVars(profileStr, ServerSecretPrefix)
-		if len(vars) > 0 {
+		hostVars := ContainsPrefixVars(profileStr, HostSecretPrefix)
+		if len(vars) > 0 || len(hostVars) > 0 {
 			profilesWithSecrets[profUUID] = struct{}{}
 		}
 	}

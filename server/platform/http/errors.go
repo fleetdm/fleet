@@ -157,6 +157,13 @@ func NewUserMessageError(err error, statusCode int) *UserMessageError {
 	}
 }
 
+// Embedding the error interface promotes Error() but not Unwrap(). Returns the
+// slice form for the same reason BadRequestError does: errors.As traverses it,
+// ctxerr.Cause does not.
+func (e *UserMessageError) Unwrap() []error {
+	return []error{e.error}
+}
+
 // StatusCode returns the HTTP status code for this error.
 func (e *UserMessageError) StatusCode() int {
 	if e.statusCode > 0 {
@@ -208,6 +215,12 @@ func (e *UserMessageError) UserMessage() string {
 		if curType != cause.Type {
 			// it was an array
 			sb.WriteString("s")
+		}
+
+		if cause.Field == "" {
+			// Since Go 1.27, encoding/json no longer records the field path for errors surfaced by a custom
+			// UnmarshalJSON (optjson types, for instance), so drop the empty location instead of printing "at ''".
+			return fmt.Sprintf("invalid value type: expected %s but got %s", sb.String(), cause.Value)
 		}
 
 		return fmt.Sprintf("invalid value type at '%s': expected %s but got %s", cause.Field, sb.String(), cause.Value)
@@ -331,6 +344,34 @@ func (e *AuthRequiredError) IsClientError() bool {
 	return true
 }
 
+// DeviceSSORequiredError is returned by device endpoints when
+// fleet_desktop.sso_enabled is on and the request carries no valid device SSO
+// session. It answers 401 like an invalid device token does, but its encoded
+// body carries an sso_required marker so the "My device" page starts the SSO
+// flow instead of reporting an invalid URL.
+type DeviceSSORequiredError struct {
+	// internal is the reason that should only be logged internally
+	internal string
+
+	ErrorWithUUID
+}
+
+func NewDeviceSSORequiredError(internal string) *DeviceSSORequiredError {
+	return &DeviceSSORequiredError{internal: internal}
+}
+
+func (e *DeviceSSORequiredError) Error() string {
+	return "Single sign-on required"
+}
+
+func (e *DeviceSSORequiredError) Internal() string {
+	return e.internal
+}
+
+func (e *DeviceSSORequiredError) IsClientError() bool {
+	return true
+}
+
 // AuthHeaderRequiredError is returned when an authorization header is required.
 type AuthHeaderRequiredError struct {
 	// internal is the reason that should only be logged internally
@@ -392,6 +433,10 @@ func (e *passwordResetRequiredError) IsClientError() bool {
 // clients when an action is forbidden. It is intentionally vague to prevent
 // disclosing information that a client should not have access to.
 const ForbiddenErrorMessage = "forbidden"
+
+// GenericErrorMessage replaces error text that describes Fleet's own internals
+// rather than the caller's request. Vague for the same reason as ForbiddenErrorMessage.
+const GenericErrorMessage = "The request could not be processed."
 
 // CheckMissing is the error to return when no authorization check was performed
 // by the service.

@@ -1,13 +1,13 @@
 import React from "react";
 import { browserHistory } from "react-router";
 
+import Button from "components/buttons/Button";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Button from "components/buttons/Button";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import TooltipWrapper from "components/TooltipWrapper";
 import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "report-updated-cell";
 
@@ -44,9 +44,8 @@ const ReportUpdatedCell = ({
               <TooltipWrapper
                 tipContent={
                   <>
-                    Results from this report are not reported in Fleet.
-                    <br />
-                    Data is being sent to your log destination.
+                    Results from this report are not reported in Fleet. Data is
+                    being sent to your log destination.
                   </>
                 }
                 position="top"
@@ -115,7 +114,7 @@ const ReportUpdatedCell = ({
       {should_link_to_hqr && hostId && queryId && (
         // parent row has same onClick functionality but link here is required for keyboard accessibility
         <Button
-          variant="inverse"
+          variant="subdued"
           className={`${baseClass}__view-report`}
           onClick={onClick}
           size="small"

@@ -4,7 +4,8 @@
       "version": "5.1.1998.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Remote Help' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Remote Help' AND publisher = 'Microsoft Corporation' AND version_compare(version, '5.1.1998.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Remote Help' AND publisher = 'Microsoft Corporation' AND version_compare(version, '5.1.1998.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'remotehelp.exe');"
       },
       "installer_url": "https://catalog.s.download.windowsupdate.com/c/msdownload/update/software/updt/2025/03/remotehelpinstaller_bd142b4c833c024a512ed124a1f9058461e18cab.exe",
       "install_script_ref": "0907f7e7",

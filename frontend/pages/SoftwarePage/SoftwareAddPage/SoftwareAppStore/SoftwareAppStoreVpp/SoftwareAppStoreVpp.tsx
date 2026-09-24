@@ -1,34 +1,34 @@
-import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
-import PATHS from "router/paths";
+import React, { useContext, useState } from "react";
+import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import PATHS from "router/paths";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Button from "components/buttons/Button";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-
 import { getPathWithQueryParams } from "utilities/url";
+
 import SoftwareVppForm from "../../../components/forms/SoftwareVppForm";
-import { getErrorMessage, teamHasVPPToken } from "./helpers";
 import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
+
+import { getErrorMessage, teamHasVPPToken } from "./helpers";
 
 const baseClass = "software-app-store-vpp";
 //
@@ -109,7 +109,6 @@ const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -195,12 +194,10 @@ const SoftwareAppStoreVpp = ({
         software_title_id: softwareVppTitleId,
       } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <b>{formData.selectedApp.name}</b> successfully added.
-        </>,
-        { persistOnPageChange: true }
+        </>
       );
 
       queryClient.invalidateQueries({
@@ -220,7 +217,7 @@ const SoftwareAppStoreVpp = ({
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     setIsLoading(false);

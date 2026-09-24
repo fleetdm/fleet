@@ -1,50 +1,72 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import InputField from "components/forms/fields/InputField";
+import { IconNames } from "components/icons";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
 import { ICommandResult } from "interfaces/command";
-
 import commandApi, {
   IGetCommandResultsResponse,
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
-
-import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import IconStatusMessage from "components/IconStatusMessage";
-import { IconNames } from "components/icons";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
+import decodeBase64Utf8 from "utilities/base64";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+import formatJsonForDisplay from "utilities/json_format";
 
 const baseClass = "command-details-modal";
 
-export const GetIconName = (status: string): IconNames => {
+export const getIconName = (status: string): IconNames => {
+  // Apple MDM status strings
   switch (status) {
     case "Error":
-      return "error";
     case "CommandFormatError":
       return "error";
     case "Acknowledged":
       return "success";
     case "Pending":
-      return "pending-outline";
     case "NotNow":
       return "pending-outline";
-
+    // sentinel used when the command results API returns a 200 with no
+    // results (e.g. the host it was sent to was wiped and re-enrolled since)
+    case "Deleted":
+      return "info-outline";
     default:
-      // FIXME: update for other platforms and design appropriate default handling for unknown
-      // statuses; for now, just return warning icon to indicate unknown state
-      return "warning";
+      break;
+  }
+  // Windows OMA-DM status codes (numeric strings): 101 = pending, 200-399 = ran, 400+ = failed
+  const code = parseInt(status, 10);
+  if (!Number.isNaN(code)) {
+    if (code >= 400) return "error";
+    if (code >= 200) return "success";
+    return "pending-outline";
+  }
+  return "warning";
+};
+
+export const getVerbForCommandStatus = (status: string): string => {
+  const icon = getIconName(status);
+  switch (icon) {
+    case "error":
+      return "failed to run";
+    case "success":
+      return "ran";
+    case "pending-outline":
+      return "sent";
+    default:
+      // unknown status
+      return "sent";
   }
 };
 
 const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   const displayTime = result.updated_at
-    ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+    ? ` (${timeAgo(new Date(result.updated_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
@@ -94,6 +116,9 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
         </span>
       );
 
+    case "Deleted":
+      return <span>This command has been deleted.</span>;
+
     default:
       // FIXME: update for other platforms and design appropriate default handling for unknown
       // statuses; for now, just fallback to status string
@@ -101,15 +126,35 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   }
 };
 
+/** Decodes the base64 payload and result of each command result.
+ * The API returns a null result for a command that hasn't run on the host yet
+ * (e.g. a pending Android command); decoding that null must yield an empty
+ * string so the response section stays hidden rather than rendering garbage. */
+export const decodeCommandResults = (
+  resp: IGetCommandResultsResponse
+): IGetCommandResultsResponse => {
+  if (!resp?.results?.map) {
+    // this should not happen, but just in case return the response as is
+    return resp;
+  }
+  return {
+    results: resp.results.map((r) => ({
+      ...r,
+      payload: decodeBase64Utf8(r.payload),
+      result: decodeBase64Utf8(r.result),
+    })),
+  };
+};
+
 const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
   <IconStatusMessage
     className={`${baseclass}__status-message`}
-    iconName={GetIconName(result.status)}
+    iconName={getIconName(result.status)}
     message={getStatusMessage(result)}
   />
 );
 
-const ModalContent = ({
+export const ModalContent = ({
   data,
   isLoading,
   error,
@@ -129,9 +174,29 @@ const ModalContent = ({
   }
 
   if (!data?.results?.[0]) {
-    // this should not happen, but just in case
-    console.error("No results found in MDM command results data");
-    return <DataError description="Close this modal and try again." />;
+    // a 200 with no results means the command no longer has anything to show --
+    // most commonly because the host it was sent to was wiped and re-enrolled
+    // since. Render the modal normally (via the caller's contentBody, same as a
+    // real result) rather than as an error, since nothing actually went wrong.
+    // The "Deleted" sentinel status lets the caller render its own copy for
+    // this case using the activity's own details, since there's no real
+    // result to pull hostname/request_type from.
+    const deletedCommandResult: ICommandResult = {
+      host_uuid: "",
+      command_uuid: "",
+      status: "Deleted",
+      updated_at: "",
+      request_type: "",
+      hostname: "",
+      payload: "",
+      result: "",
+      name: null,
+    };
+    return (
+      <div className={`${baseClass}__modal-content`}>
+        {contentBody(baseClass, deletedCommandResult)}
+      </div>
+    );
   }
 
   if (data.results.length > 1) {
@@ -151,9 +216,10 @@ const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={result.payload}
+          value={formatJsonForDisplay(result.payload)}
           readOnly
           enableCopy
+          disableResize
         />
       )}
       {!!result.result && (
@@ -164,9 +230,10 @@ const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
-          value={result.result}
+          value={formatJsonForDisplay(result.result)}
           readOnly
           enableCopy
+          disableResize
         />
       )}
     </div>
@@ -213,17 +280,7 @@ const CommandResultsModal = ({
             await commandApi.getCommandResults(queryKey[0].command_uuid)
           : await commandApi.getHostCommandResults(queryKey[0]);
 
-      if (!resp?.results) {
-        // this should not happen, but just in case return the response as is
-        return resp;
-      }
-      return {
-        results: resp.results.map?.((r) => ({
-          ...r,
-          payload: atob(r.payload),
-          result: atob(r.result),
-        })),
-      };
+      return decodeCommandResults(resp);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,

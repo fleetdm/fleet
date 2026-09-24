@@ -1,0 +1,10 @@
+{
+  "name": "Middle",
+  "unique_identifier": "com.knollsoft.Middle",
+  "token": "middle",
+  "installer_format": "dmg",
+  "slug": "middle/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

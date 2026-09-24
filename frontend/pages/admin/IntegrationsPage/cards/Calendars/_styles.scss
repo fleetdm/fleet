@@ -36,6 +36,10 @@
   &__oauth-scopes {
     @include vertical-form-layout;
     padding-bottom: $pad-large;
+
+    .input-field__input-container.copy-enabled {
+      padding-top: 4px;
+    }
   }
 
   #oauth-scopes {
@@ -45,21 +49,6 @@
     min-width: 100%;
     padding: $pad-medium;
     resize: none;
-  }
-
-  &__oauth-scopes-copy-icon-wrapper {
-    display: flex;
-    flex-direction: row-reverse;
-    align-items: center;
-    position: relative;
-    top: 36px;
-    right: 16px;
-    height: 0;
-    gap: 0.5rem;
-  }
-
-  &__copy-message {
-    @include copy-message;
   }
 
   &__code {

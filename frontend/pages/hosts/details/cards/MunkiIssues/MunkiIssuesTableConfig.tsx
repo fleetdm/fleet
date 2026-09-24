@@ -1,14 +1,13 @@
-import React from "react";
 import { capitalize } from "lodash";
-
-import { formatDistanceToNowStrict } from "date-fns";
-import { abbreviateTimeUnits } from "utilities/helpers";
+import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IMunkiIssue } from "interfaces/host";
+import { timeAgo } from "utilities/date_format";
+import { abbreviateTimeUnits } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {
@@ -107,8 +106,9 @@ export const munkiIssuesTableHeaders: IDataColumn[] = [
     accessor: "created_at",
     Cell: (cellProps: IStringCellProps) => {
       const time = abbreviateTimeUnits(
-        formatDistanceToNowStrict(new Date(cellProps.cell.value), {
+        timeAgo(new Date(cellProps.cell.value), {
           addSuffix: true,
+          strict: true,
         })
       );
       return <TextCell value={time} />;

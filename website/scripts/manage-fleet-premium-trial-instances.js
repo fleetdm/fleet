@@ -76,8 +76,8 @@ module.exports = {
       await sails.helpers.flow.simultaneouslyForEach(newRenderPovRecordsToCreate, async()=>{
         await sails.helpers.flow.build(async ()=>{
           let slugForThisInstance = await sails.helpers.ai.prompt.with({
-            prompt: 'You are a creative developer. Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur"). Return only the slug as JSON string.',
-            baseModel:'gpt-5-nano-2025-08-07',
+            prompt: 'You are a creative developer naming a server. Return a unique, lowercase, two-word slug joined by a hyphen (e.g. "bumbling-bumblesaur"): an adjective followed by a concrete noun. Choose words you would almost never choose. The noun must be specific and a little obscure, not a common household object, and the adjective must not be a mood word. Avoid the dreamy, cosmic, fantasy-novel register (whispering, luminous, ethereal, zephyr, whimsical) and avoid the kitchen-and-appliance register (spatula, toaster, kettle, colander). Keep it friendly: nothing about illness, death, violence, or anatomy. Return only the slug as JSON string.',
+            baseModel:'claude-haiku-4-5',
             expectJson: true,
           }).retry();
 
@@ -258,11 +258,14 @@ module.exports = {
             ownerId: sails.config.custom.renderOwnerId,
             type: 'private_service',
             name: povRecord.slug+'-fleet-mysql',
-            repo: 'https://github.com/render-examples/mysql',
-            autoDeploy: 'yes',
+            image: {
+              ownerId: sails.config.custom.renderOwnerId,
+              imagePath: 'docker.io/library/mysql:8.0.44'
+            },
+            autoDeploy: 'no',
             serviceDetails: {
               plan: 'standard',
-              runtime: 'docker',
+              runtime: 'image',
               disk: {
                 sizeGB: 5,
                 name: 'mysql',

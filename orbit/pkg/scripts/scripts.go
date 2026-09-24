@@ -171,7 +171,7 @@ func (r *Runner) runOneDisabled(execID string) error {
 	err := r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 		ExecutionID: execID,
 		Output:      "Scripts are disabled",
-		ExitCode:    -2, // fleetctl knows that -2 means script was disabled on host
+		ExitCode:    fleet.ExitCodeScriptsDisabled,
 	})
 	if err != nil {
 		return fmt.Errorf("save script result: %w", err)

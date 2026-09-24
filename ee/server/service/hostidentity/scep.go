@@ -192,6 +192,13 @@ func renewalMiddleware(ds fleet.Datastore, logger *slog.Logger, next scepserver.
 			return nil, errors.New("invalid renewal signature")
 		}
 
+		// Enforce that the CSR's CN matches the original certificate's CN.
+		// Without this check, a host with a valid cert could submit a CSR
+		// with a different CN and obtain a certificate for another identity.
+		if m.CSR.Subject.CommonName != oldCertData.CommonName {
+			return nil, errors.New("renewal CSR common name does not match original certificate")
+		}
+
 		logger.InfoContext(ctx, "renewal signature verified", "serial", renewalData.SerialNumber, "cn", oldCertData.CommonName)
 
 		// Issue the new certificate
@@ -285,7 +292,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
-		return nil, err
+		svc.logger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if certRep == nil {
+			return nil, err
+		}
+		return certRep.Raw, err
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)

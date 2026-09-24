@@ -20,6 +20,10 @@ Collect from your Okta tenant:
 * **SCEP Challenge**: Your static SCEP challenge (plain text, avoid special characters)
 * **CA Thumbprint**: The SHA-256 thumbprint of your Okta CA certificate
 
+> **Note:** Use a static SCEP challenge, which is the best practice on Windows. Dynamic SCEP challenges are also supported, but Okta's dynamic SCEP challenges sometimes include `_`, which Windows doesn't accept, so enrollment fails on some hosts. Windows only accepts letters, numbers, spaces, and `' ( ) + , - . / : = ?` in a SCEP challenge. Fleet resends failed profiles, but that doesn't guarantee success. Automatically requesting a new challenge from Okta when this happens is [coming soon](https://github.com/fleetdm/fleet/issues/49552).
+>
+> To use a dynamic SCEP challenge, connect Okta to Fleet as a certificate authority (see [Steps 1 and 2 of the Okta section](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#okta)). Then, in the profile, replace `$FLEET_SECRET_OKTA_SCEP_URL` with `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` with `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the SubjectName OU.
+
 ### 2. Get your CA thumbprint
 
 Download your Okta CA certificate and extract the SHA-256 thumbprint.
@@ -129,6 +133,7 @@ Check:
 * Try a simpler plain text challenge (alphanumeric only)
 * Avoid special characters, especially underscores
 * If your challenge contains `! @ # $ % ^ & * ( ) _`, rotate to a simpler value in Okta
+* If you're using a dynamic SCEP challenge, switch to a static one. See [Gather your Okta details](#1-gather-your-okta-details).
 
 ### Nothing in Cert:\LocalMachine\My
 
@@ -139,11 +144,21 @@ Review Device Management logs:
 Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin -MaxEvents 50
 ```
 
-## Plan and automate renewal
+## Automatic renewal
 
-### Monitor expiration
+Include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the SubjectName OU of your SCEP profile to opt into auto-renewal. Fleet renews certificates about 30 days before expiration; new profiles deployed without this variable continue to work but must be renewed manually.
 
-Use a Fleet policy to identify devices with certificates expiring within 30 days:
+**Example SubjectName containing the marker:**
+
+```
+CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID
+```
+
+**CA-side requirement**: your SCEP CA must preserve the Subject OU in issued certificates. Verify by decoding an issued cert (`openssl x509 -text`) and confirming the OU contains `fleet-<profile_uuid>` after deployment.
+
+### Monitor expiration (optional safeguard)
+
+If you'd like a manual safeguard alongside auto-renewal, use a Fleet policy to flag devices with certificates expiring soon:
 
 ```sql
 SELECT 1 
@@ -153,15 +168,11 @@ WHERE
     AND julianday(not_valid_after) - julianday('now') < 30;
 ```
 
-This policy will:
-- **Fail**: When a certificate exists and expires within 30 days (needs renewal)
+The policy will:
+- **Fail**: When a certificate exists and expires within 30 days
 - **Pass**: When no certificate exists yet, or certificate is valid for more than 30 days
 
-### Renewal workflow
-
-To renew certificates, you can:
-
-**Manual redeployment**: Redeploy the same configuration profile to trigger renewal
+If you haven't opted into auto-renewal, redeploy the same configuration profile to trigger renewal manually.
 
 ## Important notes
 

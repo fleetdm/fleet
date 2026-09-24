@@ -1,1 +1,0 @@
-- Fixed `fleetctl gitops` to refuse to apply SSO / EUA config that is missing required fields, if SSO is enabled globally or EUA is enabled on any team.

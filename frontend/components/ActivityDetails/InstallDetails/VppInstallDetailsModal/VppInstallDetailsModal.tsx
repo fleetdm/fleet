@@ -2,44 +2,42 @@
  * For iOS/iPadOS .ipa packages (software source: ios_apps or ipados_apps),
  * use SoftwareIpaInstallDetailsModal with the command_uuid instead. */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
-import { formatDistanceToNow } from "date-fns";
 
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ICommandResult } from "interfaces/command";
+import { isAndroid, isAppleDevice, isMacOS } from "interfaces/platform";
+import {
+  IHostSoftware,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
+import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import commandAPI, {
   IGetCommandResultsResponse,
 } from "services/entities/command";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
-
-import {
-  IHostSoftware,
-  SoftwareInstallUninstallStatus,
-} from "interfaces/software";
-import { ICommandResult } from "interfaces/command";
-import { isAppleDevice, isMacOS } from "interfaces/platform";
+import decodeBase64Utf8 from "utilities/base64";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 import { secondsToDhms } from "utilities/helpers";
-
-import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import RevealButton from "components/buttons/RevealButton";
 
 import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
-import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
@@ -96,7 +94,7 @@ export const getStatusMessage = ({
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
-      ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
+      ? ` (${timeAgo(new Date(commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -185,59 +183,67 @@ export const getStatusMessage = ({
 
   // Verification failed (timeout)
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
+    if (isAppleDevice(platform)) {
+      return (
+        <>
+          <div>
+            The host acknowledged the MDM command to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>}, but the install took
+            longer than {formattedVerifyTimeout}, so Fleet marked it as failed.
+          </div>
+          {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
+            <div className="vpp-install-details-modal__update-tip">
+              If you&apos;re updating the app and the app is open,{" "}
+              <TooltipWrapper
+                tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+                position="top"
+              >
+                close it
+              </TooltipWrapper>{" "}
+              and try again.
+            </div>
+          )}
+        </>
+      );
+    }
+
+    // Reached for Android app store installs. This copy makes no
+    // Android-specific claim, so it also covers any other unexpected
+    // platform value safely.
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            <div>
-              The host acknowledged the MDM command to install <b>{appName}</b>
-              {!isMyDevicePage && <> on {formattedHost}</>}, but the install
-              took longer than {formattedVerifyTimeout}, so Fleet marked it as
-              failed.
-            </div>
-            {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
-              <div className="vpp-install-details-modal__update-tip">
-                If you&apos;re updating the app and the app is open,{" "}
-                <TooltipWrapper
-                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
-                  position="top"
-                >
-                  close it
-                </TooltipWrapper>{" "}
-                and try again.
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
-            the installation has not been verified. Please re-attempt this
-            installation.
-          </>
-        )}
+        The MDM command (request) to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
+        installation has not been verified. Please re-attempt this installation.
       </>
     );
   }
 
   // Install command failed
-  if (displayStatus === "failed_install") {
+  if (displayStatus === "failed_install" && isAppleDevice(platform)) {
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            The MDM command to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
-            again.
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed
-            {displayTimestamp && <> {displayTimestamp}</>}. Please re-attempt
-            this installation.
-          </>
-        )}
+        The MDM command to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try again.
+      </>
+    );
+  }
+
+  if (displayStatus === "failed_install" && isAndroid(platform || "")) {
+    if (isMyDevicePage) {
+      return (
+        <>
+          Fleet failed to install <b>{appName}</b>
+          {displayTimestamp && <> {displayTimestamp}</>}. Retry via the Google
+          Play Store in your work profile, or select <b>Retry</b> below.
+        </>
+      );
+    }
+    return (
+      <>
+        Fleet failed to install <b>{appName}</b> on {formattedHost}
+        {displayTimestamp && <> {displayTimestamp}</>}. The end user can retry
+        via the Google Play Store in their work profile.
       </>
     );
   }
@@ -292,7 +298,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -405,7 +411,9 @@ export const VppInstallDetailsModal = ({
         : commandAPI.getCommandResults(commandUuid).then(responseHandler);
     },
     {
-      refetchOnWindowFocus: false,
+      // Brings in the shared retry rule, which skips 4xx. A 404 here means the
+      // result doesn't exist yet — a definitive answer, so don't retry it.
+      ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
       // Pre-flight Fleet failures (e.g. unresolvable managed-config var) never
       // enqueue an MDM command, so there's no command result to fetch — the

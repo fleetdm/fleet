@@ -1,25 +1,25 @@
-import React, { useContext, useState } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
+import React, { useState } from "react";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IConfig } from "interfaces/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
-import RevealButton from "components/buttons/RevealButton";
-import InputField from "components/forms/fields/InputField";
-import TooltipWrapper from "components/TooltipWrapper";
-import TabNav from "components/TabNav";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-import CustomLink from "components/CustomLink/CustomLink";
-import Radio from "components/forms/fields/Radio";
-import TabText from "components/TabText";
-
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
-import IosIpadosPanel from "./IosIpadosPanel";
+
 import AndroidPanel from "./AndroidPanel";
+import IosIpadosPanel from "./IosIpadosPanel";
+import MacosPanel from "./MacosPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -76,8 +76,6 @@ const PlatformWrapper = ({
   fetchCertificateError,
   config,
 }: IPlatformWrapperProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [hostType, setHostType] = useState<"workstation" | "server">(
     "workstation"
   );
@@ -159,8 +157,7 @@ const PlatformWrapper = ({
 
       FileSaver.saveAs(file);
     } else {
-      renderFlash(
-        "error",
+      notify.error(
         "Your certificate could not be downloaded. Please check your Fleet configuration."
       );
     }
@@ -200,12 +197,13 @@ const PlatformWrapper = ({
                 </>
               )}
               <Button
-                variant="inverse"
+                variant="secondary"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
+                icon="download"
+                iconPosition="right"
               >
                 Download
-                <Icon name="download" size="small" />
               </Button>
             </p>
           ) : (
@@ -284,9 +282,6 @@ const PlatformWrapper = ({
           hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
-    } else if (packageType === "pkg") {
-      packageTypeHelpText =
-        "Run this on your computer, then deploy the generated package to your hosts.";
     } else {
       packageTypeHelpText = "";
     }
@@ -343,11 +338,29 @@ const PlatformWrapper = ({
     }
 
     if (packageType === "ios-ipados") {
-      return <IosIpadosPanel enrollSecret={enrollSecret} />;
+      return (
+        <IosIpadosPanel
+          enrollSecret={enrollSecret}
+          isManualAppleEnrollmentsBlocked={
+            config?.mdm.only_allow_apple_business_enrollment || false
+          }
+        />
+      );
     }
 
     if (packageType === "android") {
       return <AndroidPanel enrollSecret={enrollSecret} />;
+    }
+
+    if (packageType === "pkg") {
+      return (
+        <MacosPanel
+          enrollSecret={enrollSecret}
+          isManualAppleEnrollmentsBlocked={
+            config?.mdm.only_allow_apple_business_enrollment || false
+          }
+        />
+      );
     }
 
     if (packageType === "advanced") {
@@ -394,13 +407,13 @@ const PlatformWrapper = ({
                   Osquery uses an enroll secret to authenticate with the Fleet
                   server.
                   <br />
-                  <Button variant="inverse" onClick={onDownloadEnrollSecret}>
+                  <Button
+                    variant="secondary"
+                    onClick={onDownloadEnrollSecret}
+                    icon="download"
+                    iconPosition="right"
+                  >
                     Download
-                    <Icon
-                      name="download"
-                      color="ui-fleet-black-75"
-                      size="small"
-                    />
                   </Button>
                 </p>
               </div>
@@ -419,9 +432,13 @@ const PlatformWrapper = ({
                       {fetchCertificateError}
                     </span>
                   ) : (
-                    <Button variant="inverse" onClick={onDownloadFlagfile}>
+                    <Button
+                      variant="secondary"
+                      onClick={onDownloadFlagfile}
+                      icon="download"
+                      iconPosition="right"
+                    >
                       Download
-                      <Icon name="download" size="small" />
                     </Button>
                   )}
                 </p>

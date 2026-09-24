@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"html/template"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -122,7 +121,7 @@ func (svc *Service) InviteNewUser(ctx context.Context, payload fleet.InvitePaylo
 		SMTPSettings: smtpSettings,
 		Mailer: &mail.InviteMailer{
 			Invite:    invite,
-			BaseURL:   template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:   emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL:  getAssetURL(),
 			OrgName:   config.OrgInfo.OrgName,
 			InvitedBy: invitedBy,

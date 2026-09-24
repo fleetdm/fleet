@@ -2,34 +2,31 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
+import BackButton from "components/BackButton";
+import EditPackForm from "components/forms/packs/EditPackForm";
+import MainContent from "components/MainContent";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
+import { getErrorReason } from "interfaces/errors";
 import { IPack, IStoredPackResponse } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
+import {
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import {
   IPackQueryFormData,
   IScheduledQuery,
   IStoredScheduledQueriesResponse,
 } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
-import {
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
-import { getErrorReason } from "interfaces/errors";
-
+import PATHS from "router/paths";
 import packsAPI from "services/entities/packs";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import scheduledQueriesAPI from "services/entities/scheduled_queries";
-
-import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
-import BackButton from "components/BackButton";
-import EditPackForm from "components/forms/packs/EditPackForm";
-import MainContent from "components/MainContent";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 
@@ -51,7 +48,6 @@ const EditPacksPage = ({
   params: { id: paramsPackId },
 }: IEditPacksPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const packId: number = parseInt(paramsPackId, 10);
 
@@ -157,8 +153,8 @@ const EditPacksPage = ({
     packsAPI
       .update(packId, updatedPack)
       .then(() => {
+        notify.success(`Successfully updated this pack.`);
         router.push(PATHS.MANAGE_PACKS);
-        renderFlash("success", `Successfully updated this pack.`);
       })
       .catch((e) => {
         if (
@@ -166,12 +162,13 @@ const EditPacksPage = ({
             reasonIncludes: "Duplicate entry",
           })
         ) {
-          renderFlash(
-            "error",
-            "Unable to update pack. Pack names must be unique."
-          );
+          notify.error("Unable to update pack. Pack names must be unique.", {
+            response: e,
+          });
         } else {
-          renderFlash("error", `Could not update pack. Please try again.`);
+          notify.error(`Could not update pack. Please try again.`, {
+            response: e,
+          });
         }
       })
       .finally(() => {
@@ -189,10 +186,12 @@ const EditPacksPage = ({
       : scheduledQueriesAPI.create(formData);
     request
       .then(() => {
-        renderFlash("success", `Successfully updated this pack.`);
+        notify.success(`Successfully updated this pack.`);
       })
-      .catch(() => {
-        renderFlash("error", "Could not update this pack. Please try again.");
+      .catch((e) => {
+        notify.error("Could not update this pack. Please try again.", {
+          response: e,
+        });
       })
       .finally(() => {
         togglePackQueryEditorModal();
@@ -213,15 +212,14 @@ const EditPacksPage = ({
 
     return Promise.all(promises)
       .then(() => {
-        renderFlash(
-          "success",
+        notify.success(
           `Successfully removed ${queryOrQueries} from this pack.`
         );
       })
-      .catch(() => {
-        renderFlash(
-          "error",
-          `Unable to remove ${queryOrQueries} from this pack. Please try again.`
+      .catch((e) => {
+        notify.error(
+          `Unable to remove ${queryOrQueries} from this pack. Please try again.`,
+          { response: e }
         );
       })
       .finally(() => {

@@ -1,16 +1,19 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
-import createMockPolicy from "__mocks__/policyMock";
-import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import createMockPolicy from "__mocks__/policyMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
-
+import createMockUser from "__mocks__/userMock";
+import { expectedSelectErr } from "components/forms/validators/validate_query";
 import { ILabelSummary } from "interfaces/label";
+import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI from "services/entities/teams";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
 import PolicyForm from "./PolicyForm";
 
 const baseUrl = (path: string) => {
@@ -41,6 +44,8 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
 });
 
 describe("PolicyForm - component", () => {
+  afterEach(() => jest.restoreAllMocks());
+
   const defaultProps = {
     router: createMockRouter(),
     teamIdForApi: 3,
@@ -83,6 +88,50 @@ describe("PolicyForm - component", () => {
 
     // Check that the target selector is not present.
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
+  it("caps the policy name input at 255 characters in edit mode", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<PolicyForm {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
+  it("hides patch options in the free tier", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(
+      <PolicyForm
+        {...defaultProps}
+        storedPolicy={createMockPolicy({
+          type: "patch",
+          patch_software: { name: "Firefox", software_title_id: 42 },
+        })}
+      />
+    );
+
+    expect(
+      screen.queryByRole("radiogroup", { name: "Patch options" })
+    ).not.toBeInTheDocument();
   });
 
   describe("in premium tier", () => {
@@ -306,9 +355,7 @@ describe("PolicyForm - component", () => {
       // Wait past the 500ms debounce so the SQL validator runs and flags the
       // syntax error. The error surfaces as SQLEditor's label text.
       await waitFor(() => {
-        expect(
-          screen.getByText("Syntax error. Please review before saving.")
-        ).toBeInTheDocument();
+        expect(screen.getByText(expectedSelectErr(1))).toBeInTheDocument();
       });
 
       const saveButton = screen.getByRole("button", { name: "Save" });
@@ -783,6 +830,208 @@ describe("PolicyForm - component", () => {
         expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
       });
 
+      it("selects Patch when app is closed from the stored policy flags", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              patch_when_closed: true,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Patch when app is closed" })
+        ).toBeChecked();
+      });
+
+      it("selects Force patch from the stored policy flags", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: {
+                name: "Firefox",
+                software_title_id: 42,
+              },
+              patch_when_closed: false,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Force patch" })
+        ).toBeChecked();
+      });
+
+      it("selects Force patch for a migrated attached policy without continuous automation", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: {
+                name: "Firefox",
+                software_title_id: 42,
+              },
+              patch_when_closed: false,
+              continuous_automations_enabled: false,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Force patch" })
+        ).toBeChecked();
+      });
+
+      it("selects manual when continuous automation is on without install software", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: undefined,
+              patch_when_closed: false,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "End user initiated (manual)" })
+        ).toBeChecked();
+      });
+
+      it("saves the selected patch option before automation configuration loads", async () => {
+        jest
+          .spyOn(teamsAPI, "load")
+          .mockReturnValue(new Promise(() => undefined));
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          team_id: 1,
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            team_id: 1,
+            software_title_id: 42,
+            patch_when_closed: false,
+            notify_before_patching: false,
+            continuous_automations_enabled: false,
+          })
+        );
+        expect(onUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it("shows Patch when app is closed (not Force + Notify) for a legacy policy with both flags set", () => {
+        // Invariant violation guard: if a policy somehow stored both
+        // patch_when_closed:true AND notify_before_patching:true, the radio
+        // must show Patch when app is closed and the dropdown must be
+        // hidden. Otherwise the notify state would leak the moment the
+        // user picked Force patch.
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              install_software: {
+                name: "Firefox",
+                software_title_id: 42,
+              },
+              patch_when_closed: true,
+              notify_before_patching: true,
+              continuous_automations_enabled: true,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", { name: "Patch when app is closed" })
+        ).toBeChecked();
+        expect(
+          screen.queryByRole("combobox", { name: /End user experience/i })
+        ).not.toBeInTheDocument();
+      });
+
+      it("does not carry notify_before_patching for a Windows patch policy", async () => {
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const windowsPatchPolicy = {
+          ...patchPolicy,
+          team_id: 1,
+          platform: "windows" as const,
+          patch_when_closed: false,
+          notify_before_patching: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={windowsPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(
+            windowsPatchPolicy.id,
+            expect.objectContaining({
+              notify_before_patching: false,
+              continuous_automations_enabled: false,
+            })
+          )
+        );
+        // Dropdown never renders for a Windows patch policy.
+        expect(
+          screen.queryByRole("combobox", { name: /End user experience/i })
+        ).not.toBeInTheDocument();
+      });
+
+      it("selects End user initiated when both stored policy flags are false", () => {
+        renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={{
+              ...patchPolicy,
+              patch_when_closed: false,
+              continuous_automations_enabled: false,
+            }}
+          />
+        );
+
+        expect(
+          screen.getByRole("radio", {
+            name: "End user initiated (manual)",
+          })
+        ).toBeChecked();
+      });
+
       it("submits only editable fields on save", async () => {
         const onUpdate = jest.fn();
         renderPatchPolicy(
@@ -803,14 +1052,17 @@ describe("PolicyForm - component", () => {
         expect(payload).not.toHaveProperty("labels_include_any");
       });
 
-      it("shows 'Add automation' CTA when patch policy has no install_software", async () => {
+      it("hides the legacy Add automation CTA because the Patch radios own install automation", async () => {
         renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
         await waitFor(() => {
           expect(
-            screen.getByText(/Automatically patch Firefox/)
+            screen.getByRole("radio", { name: "End user initiated (manual)" })
           ).toBeInTheDocument();
-          expect(screen.getByText(/Add automation/)).toBeInTheDocument();
         });
+        expect(
+          screen.queryByText(/Automatically patch Firefox/)
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/Add automation/)).not.toBeInTheDocument();
       });
 
       it("hides 'Add automation' CTA when automation already exists", async () => {

@@ -1,14 +1,15 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import createMockQuery from "__mocks__/queryMock";
-import createMockUser from "__mocks__/userMock";
-import createMockTeam from "__mocks__/teamMock";
-import createMockConfig from "__mocks__/configMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import React from "react";
+
+import createMockConfig from "__mocks__/configMock";
+import createMockQuery from "__mocks__/queryMock";
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import { QueryablePlatform } from "interfaces/platform";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SaveNewQueryModal from "./SaveNewQueryModal";
 
@@ -104,6 +105,23 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Logging")).toBeInTheDocument();
 
     await user.click(advancedOptionsButton);
+  });
+
+  it("caps the report name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewQueryModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
   });
 
   it("displays error when query name is empty", async () => {

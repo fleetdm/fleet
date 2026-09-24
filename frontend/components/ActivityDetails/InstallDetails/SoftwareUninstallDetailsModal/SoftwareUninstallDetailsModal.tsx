@@ -1,27 +1,25 @@
-import React, { useState } from "react";
 import { AxiosError } from "axios";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
-
-import deviceUserAPI from "services/entities/device_user";
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
-import {
-  IHostSoftwareWithUiStatus,
-  isPendingStatus,
-  SoftwareUninstallStatus,
-} from "interfaces/software";
 
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import DataError from "components/DataError";
 import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
-import RevealButton from "components/buttons/RevealButton";
+import {
+  IHostSoftwareWithUiStatus,
+  isPendingStatus,
+  SoftwareUninstallStatus,
+} from "interfaces/software";
+import deviceUserAPI from "services/entities/device_user";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+
 import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
@@ -54,7 +52,7 @@ export const StatusMessage = ({
   const isPending = isPendingStatus(status);
   const displayTimeStamp =
     !isPending && timestamp
-      ? ` (${formatDistanceToNow(new Date(timestamp), {
+      ? ` (${timeAgo(new Date(timestamp), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -125,7 +123,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>

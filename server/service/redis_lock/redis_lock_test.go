@@ -2,6 +2,8 @@ package redis_lock
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ func TestRedisLock(t *testing.T) {
 	for _, f := range []func(*testing.T, fleet.Lock){
 		testRedisAcquireLock,
 		testRedisSet,
+		testRedisGetAndDeleteConcurrent,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -124,6 +127,38 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	getResult, err = lock.Get(ctx, "test2")
 	assert.NoError(t, err)
 	assert.Nil(t, getResult)
+}
+
+// testRedisGetAndDeleteConcurrent asserts that GetAndDelete consumes a key
+// atomically: when many callers race for the same key, exactly one gets the
+// value and all others get nil. This guards the single-use guarantee relied on
+// by one-time software installer download tokens.
+func testRedisGetAndDeleteConcurrent(t *testing.T, lock fleet.Lock) {
+	ctx := context.Background()
+
+	const workers = 50
+	result, err := lock.SetIfNotExist(ctx, "raceKey", "1", 0)
+	require.NoError(t, err)
+	require.True(t, result)
+
+	var wg sync.WaitGroup
+	var start sync.WaitGroup
+	var winners atomic.Int64
+	start.Add(1)
+	for range workers {
+		wg.Go(func() {
+			start.Wait() // release all goroutines at once to maximize contention
+			got, err := lock.GetAndDelete(ctx, "raceKey")
+			require.NoError(t, err)
+			if got != nil {
+				winners.Add(1)
+			}
+		})
+	}
+	start.Done()
+	wg.Wait()
+
+	assert.Equal(t, int64(1), winners.Load(), "exactly one caller should consume the key")
 }
 
 func testRedisSet(t *testing.T, lock fleet.Lock) {

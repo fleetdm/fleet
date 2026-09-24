@@ -1,7 +1,8 @@
-import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import createMockConfig from "__mocks__/configMock";
+import { createCustomRenderer } from "test/test-utils";
 
 import CommandPalette from "./CommandPalette";
 
@@ -189,6 +190,47 @@ describe("CommandPalette", () => {
       // Reopen — input should be empty
       await openPalette(user);
       expect(screen.getByPlaceholderText(/search/i)).toHaveValue("");
+    });
+
+    // Regression: cmdk's selected `value` is controlled here, so if we
+    // don't clear it on close, the previously highlighted row stays
+    // selected across close/reopen. Enter would then activate a prior
+    // row instead of the (expected) first item.
+    it("resets the highlight when reopened, not sticking on a prior row", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Move the highlight away from the first item. ArrowDown twice so
+      // even if the first row starts unselected, we land somewhere past it.
+      await user.keyboard("{ArrowDown}");
+      await user.keyboard("{ArrowDown}");
+
+      // Capture what's highlighted so we can assert it's NOT what's
+      // highlighted after reopen.
+      const highlightedBeforeClose = document.querySelector(
+        `.command-palette__item[aria-selected="true"]`
+      );
+      expect(highlightedBeforeClose).not.toBeNull();
+      const priorLabel = highlightedBeforeClose?.textContent;
+
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(
+          screen.queryByPlaceholderText(/search/i)
+        ).not.toBeInTheDocument();
+      });
+
+      await openPalette(user);
+
+      await waitFor(() => {
+        const highlightedAfterReopen = document.querySelector(
+          `.command-palette__item[aria-selected="true"]`
+        );
+        // Something is highlighted (cmdk auto-selects the first item on a
+        // fresh mount), and it's not the row we left on.
+        expect(highlightedAfterReopen).not.toBeNull();
+        expect(highlightedAfterReopen?.textContent).not.toBe(priorLabel);
+      });
     });
   });
 
@@ -421,6 +463,62 @@ describe("CommandPalette", () => {
       expect(
         osSettingsItem?.querySelector(`.command-palette__item-more`)
       ).toBeInTheDocument();
+    });
+
+    it("auto-expands sub-items when a parent is highlighted via arrow keys", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Sub-items hidden initially.
+      expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+
+      // Arrow down until OS settings is highlighted (aria-selected="true").
+      // Derive the upper bound from the number of rendered items so this
+      // doesn't silently miss if the list grows or reorders.
+      const itemCount = document.querySelectorAll(`.command-palette__item`)
+        .length;
+      const maxPresses = itemCount + 2;
+      let osSettingsItem: Element | null = null;
+      for (let i = 0; i < maxPresses; i += 1) {
+        osSettingsItem = screen
+          .getByText("OS settings")
+          .closest(`.command-palette__item`);
+        if (osSettingsItem?.getAttribute("aria-selected") === "true") {
+          break;
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await user.keyboard("{ArrowDown}");
+      }
+
+      // Assert OS settings actually got selected so a failure here points
+      // at the navigation step, not at the expansion check below.
+      expect(osSettingsItem?.getAttribute("aria-selected")).toBe("true");
+
+      await waitFor(() => {
+        expect(screen.getByText("Disk encryption")).toBeInTheDocument();
+      });
+    });
+
+    it("does not auto-expand sub-items when a parent is hovered with the mouse", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      const osSettingsItem = screen
+        .getByText("OS settings")
+        .closest(`.command-palette__item`);
+      expect(osSettingsItem).toBeInTheDocument();
+
+      // Hovering moves cmdk's selected value (selection-follows-pointer)
+      // but must not pop sub-items open — that should only happen on
+      // keyboard nav. The expand/collapse bridge runs through a
+      // useEffect, so wrap the negative assertion in waitFor to make
+      // sure pending effects have flushed before we conclude that
+      // nothing expanded.
+      await user.hover(osSettingsItem!);
+
+      await waitFor(() => {
+        expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
+      });
     });
 
     it("expands sub-items on chevron click", async () => {

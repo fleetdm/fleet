@@ -3,6 +3,8 @@ package externalsvc
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 	"github.com/andygrunwald/go-jira"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 // Jira is a Jira client to be used to make requests to a jira external
@@ -79,16 +82,27 @@ func (j *Jira) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Is
 	issue.Fields.Project.Key = j.opts.ProjectKey
 
 	var createdIssue *jira.Issue
+	var respBody string
 	op := func() (*jira.Response, error) {
 		var (
 			err  error
 			resp *jira.Response
 		)
 		createdIssue, resp, err = j.client.Issue.CreateWithContext(ctx, issue)
+		if err != nil && resp != nil && resp.Response != nil && resp.Response.Body != nil {
+			// Read one byte past the limit so TruncateErrorResponse can detect
+			// overflow and append "[truncated]" while cutting at a valid UTF-8 boundary.
+			b, _ := io.ReadAll(io.LimitReader(resp.Response.Body, int64(str.MaxErrorResponseBytes)+1))
+			resp.Response.Body.Close()
+			respBody = str.TruncateErrorResponse(string(b))
+		}
 		return resp, err
 	}
 
 	if err := doWithRetry(op); err != nil {
+		if respBody != "" {
+			return nil, fmt.Errorf("%w: %s", err, respBody)
+		}
 		return nil, err
 	}
 	return createdIssue, nil
@@ -116,6 +130,10 @@ func doWithRetry(fn func() (*jira.Response, error)) error {
 				// retryable error
 				return err
 			}
+		}
+
+		if resp == nil {
+			return backoff.Permanent(err)
 		}
 
 		if resp.StatusCode >= http.StatusInternalServerError {

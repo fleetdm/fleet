@@ -1,31 +1,29 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+// @ts-ignore
+import ChangeEmailForm from "components/forms/ChangeEmailForm";
+// @ts-ignore
+import ChangePasswordForm from "components/forms/ChangePasswordForm";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+// @ts-ignore
+import UserSettingsForm from "components/forms/UserSettingsForm";
+import InfoBanner from "components/InfoBanner";
+import MainContent from "components/MainContent";
+// @ts-ignore
+import Modal from "components/Modal";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import authToken from "utilities/auth_token";
 import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
 
-import Button from "components/buttons/Button";
-// @ts-ignore
-import ChangeEmailForm from "components/forms/ChangeEmailForm";
-// @ts-ignore
-import ChangePasswordForm from "components/forms/ChangePasswordForm";
-// @ts-ignore
-import Modal from "components/Modal";
-
-import SidePanelPage from "components/SidePanelPage";
-// @ts-ignore
-import UserSettingsForm from "components/forms/UserSettingsForm";
-import InfoBanner from "components/InfoBanner";
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import CustomLink from "components/CustomLink";
-
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import AccountSidePanel from "./AccountSidePanel";
 import { getErrorMessage } from "./helpers";
 
@@ -37,7 +35,6 @@ interface IAccountPageProps {
 
 const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const { config, currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [pendingEmail, setPendingEmail] = useState("");
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -100,16 +97,16 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         setPendingEmail(updated.email);
       }
 
-      renderFlash("success", accountUpdatedFlashMessage);
+      notify.success(accountUpdatedFlashMessage);
       return true;
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      renderFlash(
-        "error",
+      notify.error(
         errorObject.base.includes("already exists")
           ? "A user with this email address already exists."
-          : "Could not edit user. Please try again."
+          : "Could not edit user. Please try again.",
+        { response }
       );
 
       setShowEmailModal(false);
@@ -123,10 +120,10 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   }) => {
     try {
       await usersAPI.changePassword(formData);
-      renderFlash("success", "Password changed successfully");
+      notify.success("Password changed successfully");
       setShowPasswordModal(false);
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
   };
 

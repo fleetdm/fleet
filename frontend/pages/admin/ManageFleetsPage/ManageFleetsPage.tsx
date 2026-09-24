@@ -5,36 +5,33 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { LEARN_MORE_ABOUT_BASE_LINK, PRIMO_TOOLTIP } from "utilities/constants";
-import { getGitOpsModeTipContent } from "utilities/helpers";
-
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import { ITeam as IFleet } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
+import { ITeam as IFleet } from "interfaces/team";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData as IFleetFormData,
 } from "services/entities/teams";
-
-import TableContainer from "components/TableContainer";
-import TableDataError from "components/DataError";
-import TableCount from "components/TableContainer/TableCount";
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import PageDescription from "components/PageDescription";
-import TooltipWrapper from "components/TooltipWrapper";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
+import { LEARN_MORE_ABOUT_BASE_LINK, PRIMO_TOOLTIP } from "utilities/constants";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import CreateFleetModal from "./components/CreateFleetModal";
 import DeleteFleetModal from "./components/DeleteFleetModal";
 import RenameFleetModal from "./components/RenameFleetModal";
-
 import { generateTableHeaders, generateDataSet } from "./FleetTableConfig";
 
 const baseClass = "manage-fleets";
@@ -52,7 +49,6 @@ const ManageFleetsPage = ({
   router,
   location,
 }: IManageFleetsPageProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     currentTeam,
     setCurrentTeam,
@@ -65,7 +61,7 @@ const ManageFleetsPage = ({
   const [isUpdatingFleets, setIsUpdatingFleets] = useState(false);
   const [showCreateFleetModal, setShowCreateFleetModal] = useState(false);
 
-  // Mirror the gate used by the in-page "Create fleet" button:
+  // Mirror the gate used by the in-page "Add fleet" button:
   // Primo mode and GitOps mode both disable creation.
   const isCreateFleetDisabled =
     !!config?.partnerships?.enable_primo ||
@@ -159,7 +155,7 @@ const ManageFleetsPage = ({
       teamsAPI
         .create(formData)
         .then(() => {
-          renderFlash("success", `Successfully created ${formData.name}.`);
+          notify.success(`Successfully created ${formData.name}.`);
           setBackendValidators({});
           toggleCreateFleetModal();
           refetchMe();
@@ -184,7 +180,9 @@ const ManageFleetsPage = ({
               name: `"${formData.name}" is a reserved fleet name. Please try another name.`,
             });
           } else {
-            renderFlash("error", "Could not create fleet. Please try again.");
+            notify.error("Could not create fleet. Please try again.", {
+              response: createError,
+            });
             toggleCreateFleetModal();
           }
         })
@@ -192,7 +190,7 @@ const ManageFleetsPage = ({
           setIsUpdatingFleets(false);
         });
     },
-    [toggleCreateFleetModal, refetchMe, refetchFleets, renderFlash]
+    [toggleCreateFleetModal, refetchMe, refetchFleets]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -201,14 +199,13 @@ const ManageFleetsPage = ({
       teamsAPI
         .destroy(fleetEditing.id)
         .then(() => {
-          renderFlash("success", `Successfully deleted ${fleetEditing.name}.`);
+          notify.success(`Successfully deleted ${fleetEditing.name}.`);
           if (currentTeam?.id === fleetEditing.id) {
             setCurrentTeam(undefined);
           }
         })
         .catch(() => {
-          renderFlash(
-            "error",
+          notify.error(
             `Could not delete ${fleetEditing.name}. Please try again.`
           );
         })
@@ -224,7 +221,6 @@ const ManageFleetsPage = ({
     fleetEditing,
     refetchMe,
     refetchFleets,
-    renderFlash,
     setCurrentTeam,
     toggleDeleteFleetModal,
   ]);
@@ -238,8 +234,7 @@ const ManageFleetsPage = ({
         teamsAPI
           .update(formData, fleetEditing.id)
           .then(() => {
-            renderFlash(
-              "success",
+            notify.success(
               `Successfully updated fleet name to ${formData.name}.`
             );
             setBackendValidators({});
@@ -271,9 +266,9 @@ const ManageFleetsPage = ({
                 name: `"Unassigned" is a reserved fleet name. Please try another name.`,
               });
             } else {
-              renderFlash(
-                "error",
-                `Could not rename ${fleetEditing.name}. Please try again.`
+              notify.error(
+                `Could not rename ${fleetEditing.name}. Please try again.`,
+                { response: updateError }
               );
             }
           })
@@ -282,7 +277,7 @@ const ManageFleetsPage = ({
           });
       }
     },
-    [fleetEditing, toggleRenameFleetModal, refetchFleets, renderFlash]
+    [fleetEditing, toggleRenameFleetModal, refetchFleets]
   );
 
   const onActionSelection = useCallback(
@@ -346,7 +341,7 @@ const ManageFleetsPage = ({
           defaultSortDirection="asc"
           actionButton={{
             name: "create fleet",
-            buttonText: "Create fleet",
+            buttonText: "Add fleet",
             variant: "default",
             onClick: toggleCreateFleetModal,
             hideButton: false,
@@ -360,7 +355,7 @@ const ManageFleetsPage = ({
                 onClick={toggleCreateFleetModal}
                 className={`${noFleetsClass}__create-button`}
               >
-                Create fleet
+                Add fleet
               </Button>
             );
             const primaryButton = disabledPrimaryActionTooltip ? (
@@ -379,7 +374,7 @@ const ManageFleetsPage = ({
             return (
               <EmptyState
                 header="No fleets yet"
-                info="Create a fleet to add hosts and assign users."
+                info="Add a fleet to add hosts and assign users."
                 primaryButton={primaryButton}
               />
             );

@@ -1,20 +1,19 @@
 import React, { ReactNode, useCallback, useMemo } from "react";
 
-import { IHostReport } from "services/entities/host_reports";
-import { humanLastSeen } from "utilities/helpers";
-import { pluralize } from "utilities/strings/stringUtils";
-
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
-import ActionsDropdown from "components/ActionsDropdown";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
+import { humanLastSeen } from "utilities/helpers";
+import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
 const ICON_COLOR: Colors = "ui-fleet-black-75";
@@ -31,7 +30,7 @@ const ReportBanner = ({
   message: ReactNode;
   children?: ReactNode;
 }) => (
-  <InfoBanner borderRadius="xlarge">
+  <InfoBanner>
     <div className={`${baseClass}__banner-content`}>
       <div className={`${baseClass}__banner-text`}>
         <Icon name={iconName} color={ICON_COLOR} />
@@ -152,12 +151,13 @@ const HostReportCard = ({
         >
           <Button
             className={`${baseClass}__view-full-report`}
-            variant="inverse"
+            variant="subdued"
             size="small"
+            icon="chevron-right"
+            iconPosition="right"
             onClick={() => onShowDetails(report)}
           >
             View full report
-            <Icon name="chevron-right" color={ICON_COLOR} />
           </Button>
         </ReportBanner>
       );
@@ -167,11 +167,13 @@ const HostReportCard = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
           <div className={`${baseClass}__title-row`}>
-            <h3 className={`${baseClass}__name`}>{report.name}</h3>
+            <h3 className={`${baseClass}__name`}>
+              <TooltipTruncatedText value={report.name} fixedPositionStrategy />
+            </h3>
             {renderLastUpdated()}
           </div>
           {report.description && (
@@ -180,19 +182,16 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <PillBadge
-              className={`${baseClass}__clipped-badge`}
-              tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination."
-            >
+            <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
-            </PillBadge>
+            </Tag>
           )}
           <ActionsDropdown
             options={actionOptions}
             placeholder="Actions"
             onChange={onActionChange}
-            variant="button"
+            variant="secondary"
             menuAlign="right"
           />
         </div>

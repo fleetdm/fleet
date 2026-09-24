@@ -1,11 +1,11 @@
 import { http, HttpResponse } from "msw";
 
-import { baseUrl } from "test/test-utils";
 import {
   ICreateSelfServiceCategoryFormData,
   IEditSelfServiceCategoryFormData,
   ISelfServiceCategory,
 } from "interfaces/self_service_category";
+import { baseUrl } from "test/test-utils";
 
 const DEFAULT_TIMESTAMP = "2026-05-28T00:00:00Z";
 
@@ -29,7 +29,7 @@ export const listSelfServiceCategoriesHandler = (
     { id: 1, name: "🌎 Browsers" },
     { id: 2, name: "👬 Communication" },
     { id: 3, name: "🧰 Developer tools" },
-    { id: 4, name: "💻 Productivity" },
+    { id: 4, name: "🖥️ Productivity" },
     { id: 5, name: "🔐 Security" },
   ]
 ) =>
@@ -52,7 +52,7 @@ export const listDeviceSelfServiceCategoriesHandler = (
     { id: 1, name: "🌎 Browsers" },
     { id: 2, name: "👬 Communication" },
     { id: 3, name: "🧰 Developer tools" },
-    { id: 4, name: "💻 Productivity" },
+    { id: 4, name: "🖥️ Productivity" },
     { id: 5, name: "🔐 Security" },
   ]
 ) =>

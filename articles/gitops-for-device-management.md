@@ -1,8 +1,21 @@
-Managing device configurations across thousands of devices raises familiar questions during compliance audits: who changed this policy, when did it happen, and why? MDM consoles handle the day-to-day work, but reconstructing change history from audit logs can be challenging. GitOps workflows solve this by bringing version control to device management.
+# What is GitOps? MDM compliance without the audit scramble
 
-GitOps grew out of infrastructure-as-code practices that became common in teams managing cloud services, where configurations moved from admin consoles and one-off commands into version-controlled files. Many organizations already have platform or cloud teams working this way, even if device management teams still rely mostly on MDM consoles. Applying GitOps to device management brings those same code-based practices to device configuration and compliance workflows.
+*When an auditor asks who changed a device policy six months ago, "let me dig through the console logs" is the wrong answer. GitOps makes the answer a line in Git history.*
 
-This guide covers what GitOps is, how it applies to device management, and when it makes sense for IT and security teams.
+## Key takeaways
+
+- **Change history stops being an archaeology project.** Every configuration change flows through a Git commit and pull request, so the record of who changed what, when, and why is created as you work instead of reconstructed from scattered console logs during an audit.
+- **Git adds version control without taking the console away.** Configurations live as reviewable YAML or JSON and merge through peer-reviewed pull requests, while quick day-to-day edits in the MDM console still work when you need them.
+- **The payoff scales with change frequency and audit pressure.** Small fleets with rare changes may do fine on console logs; teams making frequent changes or facing regular SOC 2, HIPAA, or FedRAMP audits get compliance evidence built into everyday work.
+- **Drift gets caught and corrected on a schedule, not at audit time.** Policies compare real device state against the baseline in Git on a recurring cadence, and remediation can run a script or install software automatically instead of waiting for someone to notice.
+- **One commit history answers several compliance frameworks at once.** The same tamper-evident Git record maps to change-management and access-control requirements across SOC 2, HIPAA, and FedRAMP, so you aren't maintaining separate evidence trails for each program.
+- **Fleet runs the GitOps workflow natively across macOS, Windows, and Linux.** `fleetctl gitops` applies declarative YAML from your repository to Fleet without custom glue code, and because Fleet is open source you can inspect exactly how reconciliation and remediation behave.
+
+<a purpose="cta-button" href="https://fleetdm.com/fleet-gitops">See how Fleet GitOps works</a>
+
+Managing device configurations across thousands of devices raises familiar questions during a compliance audit: who changed this policy, when did it happen, and why? MDM consoles handle the day-to-day work well, but reconstructing a change's history from audit logs is slow and often missing the "why." GitOps brings version control to device management so that history is never lost in the first place.
+
+The practice grew out of the infrastructure-as-code workflows that cloud and platform teams already use, where configuration moved out of admin consoles and one-off commands and into version-controlled files. Applying the same approach to device management is a smaller leap than it sounds, and it starts with a clear definition of what GitOps actually is.
 
 ## What is GitOps?
 
@@ -48,9 +61,7 @@ GitOps is most valuable in environments with frequent configuration changes or a
 
 When branch protection rules and signed commits are in place, Git's commit history uses cryptographic hashes to create a tamper-evident record of configuration changes. Each commit captures who made the change, when it happened, what specifically changed, and (through commit messages and pull request discussions) why it was necessary.
 
-This provides strong evidence for change management requirements across multiple compliance frameworks.
-
-For SOC 2 assessments, Git commit history satisfies Common Criteria around logical access controls and change management. The pull request approval chain demonstrates that changes went through proper review before deployment. For HIPAA technical safeguards, the commit history shows how configurations protecting electronic protected health information evolved over time.
+This provides strong evidence for change management requirements across multiple compliance frameworks, and because the pull request approval chain shows that changes were reviewed before deployment, the same record supports access-control controls as well. (The framework-by-framework mapping is below.)
 
 ### Continuous compliance validation
 
@@ -96,7 +107,7 @@ Fleet provides labels that let you group devices by operating system version, de
 
 For organizations managing compliance across frameworks like SOC 2, FedRAMP, and PCI-DSS, Git-based approaches provide the audit trail and change control documentation these programs require. With Fleet's GitOps workflow, configuration changes are managed via Git with full attribution through commit history and pull request reviews.
 
-Fleet Premium provides pre-built CIS Benchmark policies that administrators can import and apply, alongside custom Fleet Policies that evaluate device state on a configurable cadence. When a device fails a policy check, Fleet can automatically run a remediation script or install required software. Up to three retry attempts run before the device is flagged for manual review. This closes the loop from drift detection to remediation between audit cycles.
+Fleet Premium provides pre-built CIS Benchmark policies that administrators can import and apply, alongside custom policies that evaluate device state on a configurable cadence. When a device fails a policy check, Fleet can automatically run a remediation script or install required software, retrying before flagging the device for manual review. This closes the loop from drift detection to remediation between audit cycles.
 
 Because Fleet is open source, security and compliance teams can inspect how reconciliation, policy evaluation, and remediation logic work. That matters for audit defense in regulated industries. Fleet's REST API and webhook automations also let you feed compliance evidence into common GRC platforms and ticketing systems rather than maintaining a separate evidence pipeline.
 
@@ -108,7 +119,7 @@ Modern device management can benefit from many of the same infrastructure-as-cod
 
 Fleet is an open-source device management solution that provides device visibility and vulnerability management across macOS, Windows, and Linux, with MDM capabilities extending to iOS, iPadOS, and Android.
 
-Define Fleet Policies, configuration profiles, and update schedules in version-controlled YAML files, then let Fleet apply them across your device fleet through GitOps workflows. [Get a demo](https://fleetdm.com/contact) to see how GitOps-based device management works for your team.
+Define policies, configuration profiles, and update schedules in version-controlled YAML files, then let Fleet apply them across your device fleet through GitOps workflows. [Get a demo](https://fleetdm.com/contact) to see how GitOps-based device management works for your team.
 
 ## Frequently asked questions
 

@@ -1,7 +1,8 @@
-import React from "react";
 import type { Meta, StoryObj } from "@storybook/react";
+import React from "react";
 
 import Button from "components/buttons/Button";
+
 import EmptyState from "./EmptyState";
 
 const meta: Meta<typeof EmptyState> = {
@@ -46,7 +47,7 @@ export const WithTwoButtons: Story = {
     header: "No policies",
     info: "Start monitoring compliance by creating your first policy.",
     primaryButton: <Button>Create policy</Button>,
-    secondaryButton: <Button variant="inverse">Import from library</Button>,
+    secondaryButton: <Button variant="secondary">Import from library</Button>,
   },
 };
 

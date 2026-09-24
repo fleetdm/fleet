@@ -11,9 +11,10 @@ import (
 
 func TestValidateUserProvided(t *testing.T) {
 	tests := []struct {
-		name    string
-		profile MDMWindowsConfigProfile
-		wantErr string
+		name                      string
+		profile                   MDMWindowsConfigProfile
+		allowCustomDiskEncryption bool
+		wantErr                   string
 	}{
 		{
 			name: "Valid XML with Replace",
@@ -76,6 +77,19 @@ func TestValidateUserProvided(t *testing.T) {
 <Replace>
   <Item>
     <Target><LocURI>./Vendor/MSFT/BitLocker/Foo</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
+			name: "Reserved LocURI with scope-less prefix",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target>
   </Item>
 </Replace>
 `),
@@ -408,22 +422,6 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "Valid XML with reserved name",
-			profile: MDMWindowsConfigProfile{
-				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
-			},
-			wantErr: `Profile name "Windows OS Updates" is not allowed`,
-		},
-		{
-			name: "Valid XML with Windows Update LocURI",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
-			},
-			wantErr: "",
-		},
-		{
 			name: "XML with top level comment",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -575,6 +573,53 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
 		},
 		{
+			// Regression test for #46982: a non-SCEP LocURI before the SCEP LocURIs used to panic with
+			// index out of range instead of returning a validation error.
+			name: "SCEP profile with other LocURIs, non-SCEP LocURI first",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+				    </Target>
+				  </Replace>
+				  <Exec>
+				    <Item>
+				      <Target>
+				        <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+				      </Target>
+				    </Item>
+				  </Exec>
+				`),
+			},
+			wantErr: "Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.",
+		},
+		{
+			// Regression test for #46982: same non-SCEP-first ordering without an Exec block (e.g. a root CA
+			// cert install combined with SCEP nodes) also used to panic.
+			name: "SCEP profile with non-SCEP LocURI first and no Exec block",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/CA/ABCDEF/EncodedCertificate</LocURI>
+				    </Target>
+				  </Replace>
+				  <Replace>
+				    <Target>
+				      <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "\"ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll\" must be included within <Exec>. Please add and try again.",
+		},
+		{
 			name: "SCEP profile without Exec block",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -648,6 +693,21 @@ func TestValidateUserProvided(t *testing.T) {
 							<Format xmlns="syncml:metinf">chr</Format>
 						</Meta>
 						<Data>0DE4135C02E5E3C040FE1353E204D8B6F331F47A</Data>
+					</Item>
+				</Add>
+				`),
+			},
+			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
+		},
+		{
+			name: fmt.Sprintf("scope-less SCEP LocURI is treated as Device SCEP (missing $FLEET_VAR_%s rejected)", FleetVarSCEPWindowsCertificateID),
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+					<Item>
+						<Target>
+							<LocURI>Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-id-that-is-not-fleet-var/Install/CAThumbprint</LocURI>
+						</Target>
 					</Item>
 				</Add>
 				`),
@@ -881,11 +941,106 @@ func TestValidateUserProvided(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "BitLocker LocURI split across CDATA boundary is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/Bit<![CDATA[Locker]]>/RequireDeviceEncryption</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
+			name: "BitLocker LocURI split across XML comment boundary is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/Bit<!--x-->Locker/RequireDeviceEncryption</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
+			name: "BitLocker LocURI allowed when custom disk encryption is enabled",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/BitLocker/Foo</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			allowCustomDiskEncryption: true,
+			wantErr:                   "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.profile.ValidateUserProvided()
+			prof := tt.profile
+			// These cases exercise SyncML validation, so any non-empty name will do.
+			// Naming rules are covered by TestValidateUserProvidedProfileName.
+			prof.Name = "Test profile"
+			err := prof.ValidateUserProvided(tt.allowCustomDiskEncryption)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateUserProvidedProfileName(t *testing.T) {
+	syncML := []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`)
+
+	tests := []struct {
+		name        string
+		profileName string
+		wantErr     string
+	}{
+		{
+			name:        "empty name is rejected (#52125)",
+			profileName: "",
+			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "whitespace-only name is rejected (#52125)",
+			profileName: "   ",
+			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "tab and newline name is rejected (#52125)",
+			profileName: "\t\n",
+			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "reserved name is rejected",
+			profileName: mdm.FleetWindowsOSUpdatesProfileName,
+			wantErr:     `Profile name "Windows OS Updates" is not allowed.`,
+		},
+		{
+			name:        "name with surrounding whitespace is allowed",
+			profileName: "  Firewall  ",
+		},
+		{
+			name:        "name is allowed",
+			profileName: "Firewall",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prof := MDMWindowsConfigProfile{Name: tt.profileName, SyncML: syncML}
+			err := prof.ValidateUserProvided(false)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {

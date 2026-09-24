@@ -1,7 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
 import userEvent from "@testing-library/user-event";
+import React from "react";
+
+import { createCustomRenderer } from "test/test-utils";
 
 import RenameFleetModal from "./RenameFleetModal";
 
@@ -59,6 +60,13 @@ describe("RenameFleetModal", () => {
     await userEvent.click(saveButton);
 
     expect(defaultProps.onSubmit).toHaveBeenCalledWith({ name: "New Name" });
+  });
+
+  it("caps the fleet name input at 255 characters (matches DB varchar(255))", () => {
+    render(<RenameFleetModal {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText("Fleet name") as HTMLInputElement;
+    expect(nameInput.maxLength).toBe(255);
   });
 
   it("does not call onSubmit when name is whitespace-only", async () => {

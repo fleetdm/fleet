@@ -2,9 +2,32 @@
 
 In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
 
-Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
+Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and run `fleetctl new` to generate a starter repository. [Learn how](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
 
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
+
+## custom_host_vitals
+
+[Custom host vitals](https://fleetdm.com/guides/custom-host-vitals) are global and can only be specified inline in your `default.yml` file. They cannot be specified in `fleets/fleet-name.yml` or `fleets/unassigned.yml`.
+
+- `name` specifies the vital's name. Must be unique across all custom host vitals.
+
+Each vital is assigned an ID by Fleet when it's created, which isn't set in YAML. Find it in the Custom host vitals table in the Fleet UI to reference the vital as `$FLEET_HOST_VITAL_<id>` in scripts and configuration profiles, or as `custom_host_vital_id` in a [Host vitals label](#labels)'s `criteria`.
+
+> `custom_host_vitals` is an optional key, but unlike `labels`, omitting it entirely deletes every existing custom host vital. To keep existing vitals, list them.
+>
+> Removing an entry deletes that vital on the next GitOps run. A run fails if the vital is still referenced by a script, configuration profile, or Host vitals label. Remove the reference first.
+
+### Example
+
+`default.yml`
+
+```yaml
+custom_host_vitals:
+  - name: Asset tag
+  - name: Function
+  - name: ITAM device ID
+```
 
 ## labels
 
@@ -15,17 +38,21 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `name` specifies the label's name. Must be unique across all global and fleet labels.
     + Changing a label's `name` in GitOps will delete and re-create the label, temporarily clearing its membership. To avoid this, update the label name in the UI before making the change in YAML. 
 - `description` specifies the label's description.
-- `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
+- `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `linux`, `ubuntu`, and `centos`. The `linux` option targets hosts on any Linux distribution. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines how hosts are added to the label. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
-- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
+- `criteria` is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. To match on a [custom host vital](https://fleetdm.com/guides/custom-host-vitals), set `vital` to `custom_host_vital` and also specify `custom_host_vital_id`. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
 
 The `hostname` host identifier is deprecated. Please use a host's `id`, `hardware_serial`, or `uuid` instead.
 
-> `labels` is an optional key: if included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> `labels` is an optional key. Its behavior depends on the labels exception in **Settings** > **Integrations** > **Change management**.
+>
+> When the labels exception is disabled, labels are managed in git. If `labels` is included in `default.yml`, existing global labels not listed will be deleted. If included in `fleets/fleet-name.yml`, the fleet's existing labels not listed will be deleted. Omitting the `labels` key also deletes that file's existing labels. The Fleet UI prevents creating and editing labels while [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) is enabled.
+>
+> When the labels exception is enabled, labels are managed outside of git. `fleetctl gitops` leaves existing labels intact, and fails if a YAML file includes a `labels` key. The Fleet UI allows creating and editing labels, even while GitOps mode is enabled. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 >
 > Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [reports](https://fleetdm.com/docs/configuration/yaml-files#reports) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
@@ -38,8 +65,8 @@ The `hostname` host identifier is deprecated. Please use a host's `id`, `hardwar
 ```yaml
 labels:
   - name: Arm64
-    platform: darwin,windows
-    description: Hosts on the Arm64 architecture
+    platform: darwin
+    description: macOS hosts on the Arm64 architecture
     query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
   - name: C-Suite
@@ -54,6 +81,13 @@ labels:
     criteria:
       vital: end_user_idp_department
       value: Engineering
+  - name: Point of sale terminals
+    description: Hosts whose "Function" custom host vital is set to "Point of sale"
+    label_membership_type: host_vitals
+    criteria:
+      vital: custom_host_vital
+      custom_host_vital_id: 2
+      value: Point of sale
 ```
 
 #### Separate file
@@ -106,7 +140,15 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+
+To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`.
+
+To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+
+Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. 
+
+The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
@@ -115,11 +157,11 @@ To automatically install the app when this policy fails, you can add an automati
 _Available in Fleet Premium_
 
 To trigger software install, when policy fails, specify one of:
-  - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
+  - `install_software.package_path` is the path to a [custom package YAML file](#packages) with one package in it. If the file has multiple packages, use `install_software.hash_sha256` instead, or split the multi-package file into single-package files.
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
-#### Run script
+##### Run script
 
 _Available in Fleet Premium_
 
@@ -129,9 +171,19 @@ To trigger script run, when policy fails, specify:
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
 
-### Example
+##### Resend configuration profile
 
-#### Inline
+_Available in Fleet Premium_
+
+To trigger a configuration profile resend when a policy fails, specify:
+
+- `resend_configuration_profile` is the name of the configuration profile to resend. The profile must already be added to the same fleet's **Controls > OS settings > Configuration profiles** section.
+
+> When the configuration profile automation is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
+
+##### Example
+
+##### Inline
 
 `default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
@@ -150,7 +202,7 @@ policies:
       - Customer Support
 ```
 
-#### Separate file
+##### Separate file
 
 `lib/policies-name.policies.yml`
 
@@ -163,6 +215,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -177,6 +230,7 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
+  continuous_automations_enabled: true
   install_software:
     package_path: ./firefox.package.yml
 - name: macOS - Logic Pro installed
@@ -200,7 +254,22 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: zoom/darwin
+  continuous_automations_enabled: true
+  patch_when_closed: true
+- name: Slack
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: slack/darwin
+  continuous_automations_enabled: true
   install_software: true
+- name: 1Password up to date
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: 1password/darwin
+  install_software: true
+  notify_before_patching: true
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleet/unassigned.yml`
@@ -212,6 +281,8 @@ policies:
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
+
+> Currently, the `resend_configuration_profile` policy automation can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The profile must be defined in the same fleet's controls section.
 
 > If using `labels_include_any`/`labels_exclude_any` for targeting, these keys are specified on the individual policies. Specifying at the top level of `policies` will _not_ apply the labels to each policy.
 
@@ -340,16 +411,20 @@ agent_options:
 
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
-- `scripts` is a list of paths to macOS, Windows, or Linux scripts. Supports `path:` (single file) and `paths:` (glob pattern, filtered to `.sh` and `.ps1` files only). Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details.
+- `scripts` is a list of paths to macOS, Windows, or Linux scripts. Supports `path:` (single file) and `paths:` (glob pattern, filtered to `.sh`, `.py`, and `.ps1` files only). Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for "All fleets" (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
-- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for "All fleets" (`default.yml`).
+- `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
+- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
-- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
-- `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`).
+- `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Can only be configured for "All fleets" (default.yml).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
+- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
 - `android_enabled_and_configured` specifies whether or not to turn on Android MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
+
+> `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
+> `windows_require_bitlocker_pin` at this level is deprecated. Please use `windows_settings.require_bitlocker_pin` instead.
+
 
 #### Example
 
@@ -359,37 +434,64 @@ controls:
     - path: ../lib/macos-script.sh
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
-    - paths: ../lib/scripts/*.sh  # Glob pattern (filtered to .sh and .ps1 only)
+    - paths: ../lib/scripts/*.sh  # Glob pattern (filtered to .sh, .py, and .ps1 only)
   windows_enabled_and_configured: true
   windows_entra_tenant_ids:
     - 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
+  windows_entra_client_ids:
+    - 8c8e3fd4-9b2c-4d3e-8f10-2233445566aa
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
-  enable_disk_encryption: true # Available in Fleet Premium
   apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
+  name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL" # Available in Fleet Premium
   android_enabled_and_configured: true
   macos_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
-    minimum_version: "15.1"
+    # Custom version
+    minimum_version: "15.4.1"
+    deadline: "2025-07-01"
+    # OR — Latest version (based on host hardware)
+    minimum_version: "latest"
+    deadline_days: 14
     update_new_hosts: true
   ios_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    # Custom version
     minimum_version: "18.1"
+    deadline: "2024-12-31"
+    # OR — Latest version (based on host hardware)
+    minimum_version: "latest"
+    deadline_days: 14
   ipados_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    # Custom version
     minimum_version: "18.1"
+    deadline: "2024-12-31"
+    # OR — Latest version (based on host hardware)
+    minimum_version: "latest"
+    deadline_days: 14
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
   apple_settings:
+    enable_disk_encryption: true # Available in Fleet Premium
+    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
     configuration_profiles:
-      - paths: ../lib/macos/profiles/*.mobileconfig
+      - path: ../lib/macos/profiles/ddm.json
+        labels_include_any:
+          - Engineering
+        activation: ../lib/macos/activations/activation.json
+    assets:
+      - path: ../lib/macos/assets/my-asset.json  
+    end_user_local_account_type: "admin"
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+    enable_disk_encryption: true # Available in Fleet Premium
+    require_bitlocker_pin: true # Available in Fleet Premium
+  linux_settings:
+    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
+    enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -404,44 +506,65 @@ controls:
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
+    enable_managed_local_account: true
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
+  apple_account_provisioning: # Available in Fleet Premium
+    oauth_idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
+    oauth_idp_client_id: Ooa12345abcdeFGHI678
+    oauth_idp_client_secret: a1b2c3d4e5
 ```
 
 ### macos_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
-- `minimum_version` specifies the minimum required macOS version (default: `""`).
+- `minimum_version` specifies the minimum required macOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest macOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest". (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 - `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
 ### ios_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
-- `minimum_version` specifies the minimum required iOS version (default: `""`).
+- `minimum_version` specifies the minimum required iOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest iOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### ipados_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
-- `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+- `minimum_version` specifies the minimum required iPadOS version. Accepts a specific version number (e.g., `"15.4.1"`) `"latest"` (latest iPadOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### windows_updates
 
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
-### apple_settings and windows_settings
 
-- `apple_settings.configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
-- `windows_settings.configuration_profiles` is a list of Windows configuration profiles (.xml).
+### apple_settings
+- `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig/.json) or declaration profiles (.json). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
+  - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `enable_disk_encryption` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
+- `managed_local_account_settings` are settings for the managed local account.
+  - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
 
-Each entry can use either `path:` or `paths:`:
+### windows_settings
+- `configuration_profiles` is a list of Windows configuration profiles (.xml). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
+- `require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
+- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`).
 
-- **`path:`** references a single file. Filenames must not contain `*`, `?`, `[`, or `{`.
-- **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+### linux_settings
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
+
+> `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
+
+> PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
+
 
 ### android_settings
 
@@ -467,23 +590,31 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
-### macos_setup
+### apple_account_provisioning
+
+The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`) and only supports macOS hosts today
+
+  - `oauth_idp_token_url` is the token URL for your Oauth ROPG(Resource Owner Password Grant) IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
+  - `oauth_idp_client_id` is the client ID of your Oauth ROPG application within your IdP. In Okta this can be found under your application's Client Credentials
+  - `oauth_idp_client_secret` is the client secret of your Oauth ROPG application within your IdP
+
+### setup_experience
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
-> **Experimental feature.** The `macos_manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android. 
+- `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail.
+- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
+- `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
-- `enable_managed_local_account` specifies whether or not to create a local admin managed account on macOS hosts (default: `false`).
-- `end_user_local_account_type` specifies the end user account type. `enable_managed_local_account` must be set to `true`. (default: `admin`).
+
+`enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
+Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
 
 #### Example
 
@@ -510,13 +641,20 @@ The `macos_migration` section lets you control the [end user migration workflow]
 
 Can only be configured for "All fleets" (`default.yml`).
 
-## software
+### Referencing and targeting configuration profiles
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+Each entry can use either `path:` or `paths:`:
+
+- **`path:`** references a single file. Filenames must not contain `*`, `?`, `[`, or `{`.
+- **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
+
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+## software
 
 The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
 
-- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, or .ps1).
+- `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .py, or .ps1).
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
@@ -525,6 +663,8 @@ Currently, you can specify `install_software` in the [`policies` YAML](#policies
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
 Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
+
+Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fleet replaces them with their values when the install script is sent to the host.
 
 #### Example
 
@@ -535,9 +675,11 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
       categories:
-        - Browsers
+        - "🌎 Browsers"
       self_service: true
       setup_experience: true
+    - path: ../lib/onboarding-script.sh.package.yml
+      setup_experience_platform: darwin, linux
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "546505307"
@@ -546,7 +688,7 @@ software:
         - Product
         - Marketing
       categories:
-        - Communication
+        - "👬 Communication"
       setup_experience: true
       auto_update_enabled: true
       auto_update_window_start: "00:00"
@@ -574,8 +716,8 @@ software:
         - Design
         - Sales
       categories:
-        - Communication
-        - Productivity
+        - "👬 Communication"
+        - "💻 Productivity"
     - slug: parallels/darwin
       version: "^26"
       self_service: true
@@ -583,32 +725,73 @@ software:
         - Engineering
 ```
 
-#### self_service, labels, categories, and setup_experience
-  
+#### self_service, labels, categories, setup_experience, and display_name
+
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
-- `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
-  - `Browsers`: shown as **🌎 Browsers**
-  - `Communication`: shown as **👬 Communication**
-  - `Developer tools`: shown as **🧰 Developer tools**
-  - `Productivity`: shown as **🖥️ Productivity**
-  - `Security`: shown as **🔐 Security**
-  - `Utilities`: shown as **🛠️ Utilities**
-- `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `categories` is a list of self-service category names. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once. They can be created and modified via GitOps.
+  - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
+  - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
+- `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
+- `setup_experience_platform` specifies which platform to target for the `.sh` script-only packages and `.ipa` packages in setup experience. Choices for `platform` are `darwin` and `linux` for `.sh` and `ios` and `ipados` for `.ipa`. If not specified and `setup_experience` is `true`, Linux is the default platform for `.sh` and `ios` is the default for `.ipa`.
+- `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
+  - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
+  - `fleet_maintained_apps`: the Fleet-maintained app name is used.
+  - `app_store_apps`: the App Store or Google Play app name is used.
+
+In all cases, once Fleet collects software inventory, the inventory name is used instead.
 
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (up to 3 attempts). If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `always_download` disables conditional HTTP downloads using ETag headers. By default (`false`), Fleet stores the ETag from the download response and sends it as `If-None-Match` on subsequent GitOps runs. If the server returns 304 Not Modified, the download is skipped entirely. Set to `true` to force Fleet to re-download the package on every GitOps run. Cannot be used together with `hash_sha256` (hash-pinned packages are already cached by hash). Not all servers support ETags correctly; if your download URL returns unreliable ETags, set `always_download: true`.
-- `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
-- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
-- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default. Not supported for `.sh` and `.ps1` files.
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
+- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 
 #### Example
+
+##### Multiple versions of the same software
+
+You can add multiple packages for the same software in a package YAML file. This enables staged rollouts and support of architecture-specific installers.
+
+`self_service`, `categories`, and labels are defined per package. `setup_experience` is defined on the fleet-level.
+
+If multiple packages target the same host, Fleet will install the one that was added first.
+
+> In GitOps, the first package added is the first one in the package YAML file's list on the initial run that adds the title's packages. Reordering the list on a later run doesn't change the order.
+>
+> You can preview the order of the packages in the UI. The first package in the list is always a fallback in case multiple packages are scoped to the same host.
+
+`fleets/fleet-name.yml`, or `fleets/unassigned.yml`
+
+```yaml
+software:
+  packages:
+    - path: ../lib/software/santa.package.yml
+```
+
+`lib/software/santa.package.yml`
+
+```yaml
+- url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
+  install_script:
+    path: ../lib/software/santa-install-script.sh
+  self_service: true
+  labels_exclude_any:
+    - IT test team
+- url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
+  install_script:
+    path: ../lib/software/santa-install-script.sh
+  self_service: true
+  categories:
+    - "💻 Productivity"
+  labels_include_all:
+    - IT test team
+```
 
 ##### URL
 
@@ -648,7 +831,9 @@ If your server doesn't support ETags reliably, you can disable this behavior wit
 
 ##### Script-only
 
-Script-only packages (`.sh` and `.ps1` files) are created by referencing a script file in the fleet YAML file. Currently, script-only packages don't support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the fleet's YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
+
+`self_service`, `categories`, `labels`, and `icon` are specified inline in the team's YAML file.
 
 ```yaml
 software:
@@ -659,7 +844,7 @@ software:
          path: ../lib/icons/vpn-setup.png
       self_service: true
       categories:
-        - Utilities
+        - "🛟 Support"
       labels_include_any:
       - Engineering
       - Customer Support
@@ -672,7 +857,7 @@ software:
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `configuration.path` is the app managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
-  + Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
+  + Android: `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
 - `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
@@ -691,17 +876,18 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).  If a [patch policy](#patch-policy) has `patch_when_closed` or `notify_before_patching` set to `true`, Fleet manages this query and rejects this field.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
-- `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
+- `⁠version` specifies the app version. Available versions are listed in the Fleet UI under **Actions > Versions**. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
   - To pin to the major version, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will continuously download the latest version until the app updates to 148.0.
+- `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 
 If the fields below are omitted, they default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
-- `categories` is an array of categories, from [supported categories](#labels-and-categories).
+- `categories` is an array of categories, see [categories](#self-service-labels-categories-and-setup-experience).
 
 ## org_settings and settings
 
@@ -715,9 +901,15 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
-  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
-
-  A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
+- `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
+  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+  - `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
+  - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
+  - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
+  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+ 
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -734,13 +926,30 @@ org_settings:
     historical_data:
       uptime: true
       vulnerabilities: false
+    vulnerability_exposure_historical_reporting:
+      software_filters:
+        - os
+        - browsers
+        - office
+        - adobe
+      has_known_exploit: true
+      cvss_min: 9
+      cvss_max: 10
+      epss_min: 0
+      epss_max: 100
+      exclude_vulnerabilities:
+        - CVE-2025-50897
+        - CVE-2025-76306
 ```
 
 ### fleet_desktop
 
-The `fleet_desktop` section lets you customize the Fleet Desktop experience by overriding default URLs.
+The `fleet_desktop` section lets you customize the Fleet Desktop experience.
 - `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
 - `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
+- `sso_enabled` determines whether to require IdP authentication in addition to the Fleet Desktop token to access the device page.
+
+> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is completing [setup experience](https://fleetdm.com/guides/setup-experience). To require SSO during setup, use [setup_experience.enable_end_user_authentication](https://fleetdm.com/docs/configuration/yaml-files#setup-experience).
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -751,6 +960,7 @@ org_settings:
   fleet_desktop:
     transparency_url: https://example.org/transparency
     alternative_browser_host: fleet-desktop.example.com
+    sso_enabled: false
 ```
 
 ### gitops
@@ -761,6 +971,8 @@ The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-
 - `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
 
 Can only be configured for "All fleets" (`org_settings`).
+
+> GitOps mode exceptions for labels, software, and enroll secrets can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 
 > If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
 
@@ -783,6 +995,12 @@ If this setting is not defined in your YAML files, unlike all other settings, it
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
+`host_expiry_window` does nothing unless `host_expiry_enabled` is `true` in `org_settings` or on the fleet.
+
+Setting `host_expiry_enabled: false` on a fleet tells that fleet to use the `org_settings` value. It doesn't exempt the fleet. To apply host expiry to only some fleets, leave it off in `org_settings` and turn it on for those fleets.
+
+Fleet measures the window from the host's last check-in, not from **Last fetched**. Host expiry skips hosts assigned to Fleet in Apple Business or Windows Autopilot. If hosts aren't expiring as expected, see [Why aren't my hosts being deleted after the host expiry window?](https://fleetdm.com/docs/get-started/faq#why-arent-my-hosts-being-deleted-after-the-host-expiry-window) in the FAQ.
+
 #### Example
 
 ```yaml
@@ -797,7 +1015,7 @@ org_settings:
 The `activity_expiry_settings` section lets you define how to handle activities.
 - `activity_expiry_enabled` when enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days. Activities linked to a host are preserved until the host is deleted.
 - `activity_expiry_window` the number of days to retain activity records, if activity expiry is enabled.
-- `preserve_host_activity_on_reenrollment` When enabled, preserves host activities after a wipe and re-enrollment. Currently only supported for company-owned (AB) Apple hosts. **Delete activities > Max activity age** still applies. (Default: `false`)
+- `preserve_host_activities_on_reenrollment` when enabled, preserves host activities after a wipe and re-enrollment. Supported for company-owned (AB) Apple hosts and Android hosts. **Delete activities > Max activity age** still applies. (Default: `false` on new Fleet instances. Fleet sets it to `true` when you upgrade an existing instance, so that prior behavior is preserved.)
 
 #### Example
 
@@ -806,7 +1024,7 @@ org_settings:
   activity_expiry_settings:
     activity_expiry_enabled: true
     activity_expiry_window: 30
-    preserve_host_activity_on_reenrollment: true
+    preserve_host_activities_on_reenrollment: true
 ```
 
 ### org_info
@@ -911,6 +1129,8 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+This section also lets you connect Google Workspace to sync identity provider (IdP) host vitals directly from your directory.
+
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
 #### Example
@@ -924,6 +1144,10 @@ org_settings:
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com
+    google_workspace:
+      - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
+        domain: fleetdm.com
+        impersonated_user_email: admin@example.com
     jira:
       - url: https://example.atlassian.net
         username: user1
@@ -957,6 +1181,18 @@ For specific fleets (`settings`):
 - `enable_calendar_events` to enable calendar events for a fleet (default: `false`).
 - `webhook_url` is the webhook URL triggered during a user's calendar event (default: `""`).
 
+#### google_workspace
+
+_Available in Fleet Premium._
+
+Connecting Google Workspace populates identity provider (IdP) host vitals directly from your directory. While Google Workspace is configured, SCIM provisioning (Okta, Entra ID, etc.) is ignored; configure one or the other, not both.
+
+- `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key. The service account must have domain-wide delegation enabled (default: `""`).
+- `domain` is your Google Workspace primary domain (default: `""`).
+- `impersonated_user_email` is a Google Workspace admin the service account impersonates via domain-wide delegation (default: `""`).
+
+Can be configured for "All fleets" (`org_settings`).
+
 #### jira
 
 - `url` is the URL of your Jira (default: `""`)
@@ -979,7 +1215,7 @@ Can be configured for "All fleets" (`org_settings`). Use API to configure Zendes
 
 _Available in Fleet Premium._
 
-This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
+This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) to help your end users connect to Wi-Fi and VPN.
 
 #### Example
 
@@ -1043,6 +1279,8 @@ Can only be configured for "All fleets" (`org_settings`).
 
 #### ndes_scep_proxy
 
+Used to connect both Microsoft NDES and Okta CAs, since Okta uses NDES under the hood.
+
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
@@ -1080,6 +1318,36 @@ Can only be configured for "All fleets" (`org_settings`).
 
 Can only be configured for "All fleets" (`org_settings`).
 
+### microsoft_graph_credentials
+
+_Available in Fleet Premium._
+
+This section lets you connect Fleet to the Microsoft Graph API so that [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) devices appear in Fleet as pending hosts before they enroll.
+
+The app registration needs the `DeviceManagementServiceConfig.Read.All` application permission, with admin consent granted for your tenant. Fleet currently supports one credential.
+
+#### Example
+
+`default.yml`
+
+```yaml
+org_settings:
+  microsoft_graph_credentials:
+    - tenant_id: 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
+      client_id: 122349c0-9b2c-4d3e-8f10-aabbccddeeff
+      client_secret: $MICROSOFT_GRAPH_CLIENT_SECRET
+```
+
+- `tenant_id` is the Microsoft Entra tenant ID. Find your **Tenant ID** on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
+- `client_id` is the Microsoft Entra application (client) ID. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
+- `client_secret` is the client secret for the app registration. Required when you add a credential, and when you change an existing credential's `tenant_id` or `client_id`. Omit it to keep the secret Fleet already stores. Find your **Client secret** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Certificates & secrets**.
+
+Fleet verifies each credential against Microsoft Graph before saving it, so GitOps fails with an error if the credential is wrong. Re-applying an unchanged credential makes no request to Microsoft and changes nothing in Fleet.
+
+This section is declarative. Removing a credential from the list deletes it, and omitting `microsoft_graph_credentials` entirely deletes any credentials Fleet has stored.
+
+Can only be configured for "All fleets" (`org_settings`).
+
 ### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
@@ -1091,7 +1359,7 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 - `enable_activities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
 
-Can be configured for all fleets (`org_settings`), specific fleets (`settings`), or "Unassigned" (`settings`).
+Can only be configured for "All fleets" (`org_settings`). To send webhooks for a specific fleet's host activities, see [host_activities_webhook](#host-activities-webhook).
 
 ### Example
 
@@ -1100,6 +1368,26 @@ org_settings:
   webhook_settings:
     activities_webhook:
       enable_activities_webhook: true
+      destination_url: https://example.org/webhook_handler
+```
+
+#### host_activities_webhook
+
+_Available in Fleet Premium._
+
+- `enable_host_activities_webhook` (default: `false`)
+- `destination_url` is the URL to `POST` to when an activity linked to one of the fleet's hosts is generated (default: `""`)
+
+Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` in `unassigned.yml`). The webhook payload has the same format as [activities_webhook](#activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not returned via the activities API, and currently don't trigger this webhook. If `webhook_settings` is specified for "Unassigned" hosts and `host_activities_webhook` is omitted, the webhook is turned off.
+
+### Example
+
+```yaml
+name: Workstations
+team_settings:
+  webhook_settings:
+    host_activities_webhook:
+      enable_host_activities_webhook: true
       destination_url: https://example.org/webhook_handler
 ```
 
@@ -1177,6 +1465,7 @@ After [adding an Apple Business (AB) token via the UI](https://fleetdm.com/guide
 - `macos_fleet` is the fleet where macOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ios_fleet` is the the fleet where iOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
+- `byod_fleet` is the fleet where BYOD hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1190,6 +1479,22 @@ org_settings:
       macos_fleet: 💻 Workstations
       ios_fleet: 📱🏢 Company-owned iPhones
       ipados_fleet: 🔳🏢 Company-owned iPads
+      byod_fleet: 📱 BYOD iPhones
+```
+
+#### windows_automatic_enrollment
+
+The `windows_automatic_enrollment` section lets you control the default fleet that new MDM enrolled Windows hosts get placed in.
+
+- `default_fleet` specifies the name of the fleet that new MDM enrolled Windows hosts will automatically be added to (default: `""`).
+
+#### Example
+
+```yaml
+org_settings:
+  mdm:
+    windows_automatic_enrollment: # Available in Fleet Premium
+      default_fleet: Windows Workstations
 ```
 
 #### volume_purchasing_program
@@ -1216,7 +1521,7 @@ org_settings:
 
 #### end_user_authentication
 
-The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during Automated Device Enrollment (ADE).
+The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during Automated Device Enrollment (ADE).
 
 Once the IdP settings are configured, you can use the [`controls.setup_experience.enable_end_user_authentication`](#setup-experience) key to control the end user experience during ADE.
 

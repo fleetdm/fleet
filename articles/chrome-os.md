@@ -1,4 +1,5 @@
 # ChromeOS
+
 For visibility on ChromeOS hosts, Fleet provides the fleetd Chrome extension which provides similar functionality as osquery on other operating systems.
 
 Follow the instructions in our [host enrollment guide](https://fleetdm.com/guides/enroll-hosts#enroll-chromebooks) to add Chromebooks to Fleet.
@@ -12,8 +13,8 @@ See our [ChromeOS tables list](https://fleetdm.com/tables/chrome_extensions?plat
 By default, the hostname for a Chromebook host will be blank. The hostname can be customized in Google Admin under Devices > Chrome > Settings > Device > Device Settings > Other Settings > [Device network hostname template](https://support.google.com/chrome/a/answer/1375678#zippy=%2Cdevice-network-hostname-template%2Creport-device-os-information).
 
 ## Current limitations in ChromeOS
-- Scheduled queries are currently not available in ChromeOS
-- The Fleetd Chrome extension must be force-installed by enterprise policy in order to have full access to the host's data.
+- Scheduled reports are currently not available for ChromeOS
+- The fleetd Chrome extension must be force-installed by enterprise policy in order to have full access to the host's data.
 - More tables that could be added:
   - `disk_events`: https://github.com/fleetdm/fleet/issues/12405
   - `client_certificates`: https://github.com/fleetdm/fleet/issues/12465

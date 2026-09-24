@@ -1,23 +1,20 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import { AxiosError } from "axios";
-
+import BackButton from "components/BackButton";
+import DataError from "components/DataError";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IMdmApple, getMdmServerUrl } from "interfaces/mdm";
 import PATHS from "router/paths";
 import mdmAppleAPI from "services/entities/mdm_apple";
-import { IMdmApple, getMdmServerUrl } from "interfaces/mdm";
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-
-import ApplePushCertSetup from "./components/content/ApplePushCertSetup";
 import ApplePushCertInfo from "./components/content/ApplePushCertInfo";
-
+import ApplePushCertSetup from "./components/content/ApplePushCertSetup";
 import RenewCertModal from "./components/modals/RenewCertModal";
 import TurnOffAppleMdmModal from "./components/modals/TurnOffAppleMdmModal";
 
@@ -26,7 +23,6 @@ export const baseClass = "apple-mdm-page";
 const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
   const queryClient = useQueryClient();
   const { config } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [showRenewCertModal, setShowRenewCertModal] = useState(false);
@@ -70,13 +66,15 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     try {
       await mdmAppleAPI.deleteApplePushCertificate();
       await queryClient.invalidateQueries(["config"]);
+      notify.success("MDM turned off successfully.");
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-      renderFlash("success", "MDM turned off successfully.");
     } catch (e) {
-      renderFlash("error", "Couldn't turn off MDM. Please try again.");
+      notify.error("Couldn't turn off MDM. Please try again.", {
+        response: e,
+      });
       setIsUpdating(false);
     }
-  }, [queryClient, renderFlash, router]);
+  }, [queryClient, router]);
 
   const onRenewCert = useCallback(() => {
     refetch();
@@ -130,8 +128,9 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
             onRenew={onRenewCert}
           />
         )}
-        {showTurnOffMdmModal && (
+        {showTurnOffMdmModal && config && (
           <TurnOffAppleMdmModal
+            serverUrl={config.server_settings.server_url}
             onCancel={toggleTurnOffMdmModal}
             onConfirm={turnOffMdm}
           />

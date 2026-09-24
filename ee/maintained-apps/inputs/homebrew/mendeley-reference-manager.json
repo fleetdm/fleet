@@ -1,0 +1,10 @@
+{
+  "name": "Mendeley Reference Manager",
+  "unique_identifier": "com.elsevier.mendeley",
+  "token": "mendeley-reference-manager",
+  "installer_format": "dmg",
+  "slug": "mendeley-reference-manager/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,20 +1,21 @@
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
 
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import deepDifference from "utilities/deep_difference";
-import Spinner from "components/Spinner";
 import paths from "router/paths";
+import configAPI from "services/entities/config";
+import deepDifference from "utilities/deep_difference";
 
 import SideNav from "../components/SideNav";
-import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
+
 import { DeepPartial } from "./cards/constants";
+import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
 
 interface IOrgSettingsPageProps {
   params: Params;
@@ -36,7 +37,6 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
     // redirect to Integrations page in sandbox mode
     router.push(paths.ADMIN_INTEGRATIONS);
   }
-  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
 
   const {
@@ -64,17 +64,16 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
 
       try {
         await configAPI.update(diff);
-        renderFlash("success", "Successfully updated settings.");
+        notify.success("Successfully updated settings.");
         refetchConfig();
         return true;
       } catch (response) {
         const resp = response as undefined | { data: IApiError };
 
         if (resp?.data.errors[0].reason.includes("could not dial smtp host")) {
-          renderFlash(
-            "error",
-            "Could not connect to SMTP server. Please try again."
-          );
+          notify.error("Could not connect to SMTP server. Please try again.", {
+            response,
+          });
         } else if (resp?.data.errors) {
           const reason = resp?.data.errors[0].reason;
           const agentOptionsInvalid =
@@ -83,8 +82,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
           const isAgentOptionsError =
             agentOptionsInvalid ||
             reason.includes("script_execution_timeout' value exceeds limit.");
-          renderFlash(
-            "error",
+          notify.error(
             <>
               Couldn&apos;t update{" "}
               {isAgentOptionsError ? "agent options" : "settings"}: {reason}
@@ -95,7 +93,8 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
                   apply --force command to override validation.
                 </>
               )}
-            </>
+            </>,
+            { response }
           );
         }
         return false;
@@ -103,7 +102,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
         setIsUpdatingSettings(false);
       }
     },
-    [appConfig, refetchConfig, renderFlash]
+    [appConfig, refetchConfig]
   );
 
   // filter out non-premium options

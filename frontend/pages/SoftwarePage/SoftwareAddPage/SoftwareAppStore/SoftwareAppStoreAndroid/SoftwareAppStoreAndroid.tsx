@@ -1,18 +1,17 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import PATHS from "router/paths";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import softwareAPI from "services/entities/software";
-
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
-
-import { getPathWithQueryParams } from "utilities/url";
+import EmptyState from "components/EmptyState";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import PATHS from "router/paths";
+import softwareAPI from "services/entities/software";
+import { getPathWithQueryParams } from "utilities/url";
+
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-app-store-android";
@@ -51,7 +50,6 @@ const SoftwareAppStoreAndroid = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     isPremiumTier,
     isAndroidMdmEnabledAndConfigured,
@@ -85,13 +83,11 @@ const SoftwareAppStoreAndroid = ({
         name: softwareTitleName,
       } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <strong>{softwareTitleName || "Android app"}</strong> successfully
           added.
-        </>,
-        { persistOnPageChange: true }
+        </>
       );
 
       router.push(
@@ -101,7 +97,7 @@ const SoftwareAppStoreAndroid = ({
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     setIsLoading(false);

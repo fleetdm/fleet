@@ -1,0 +1,10 @@
+{
+  "name": "NetSpot",
+  "unique_identifier": "com.etwok.netspotwifi",
+  "token": "netspot",
+  "installer_format": "dmg",
+  "slug": "netspot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

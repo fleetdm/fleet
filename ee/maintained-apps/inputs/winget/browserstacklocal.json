@@ -1,0 +1,11 @@
+{
+  "name": "BrowserStackLocal",
+  "slug": "browserstacklocal/windows",
+  "package_identifier": "BrowserStack.BrowserStackLocal",
+  "unique_identifier": "BrowserStackLocal",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": ["Developer tools"]
+}

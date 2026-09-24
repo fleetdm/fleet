@@ -1,0 +1,157 @@
+/* Fleet-hangar mirrors Fleet's themed-token approach: light values live
+ * on :root, dark overrides on body.dark-mode. Mirror of the token
+ * structure in frontend/styles/var/colors.scss — when Fleet changes
+ * those, mirror them here. The theme class is applied by App.tsx based
+ * on the user's Settings.theme preference (system | light | dark). */
+
+:root {
+  /* Brand (light) */
+  --core-fleet-black: #192147;
+  --core-fleet-green: #009a7d;
+  --core-fleet-green-over: #00886c;
+  --core-fleet-green-down: #00775f;
+  --core-fleet-white: #ffffff;
+
+  /* Accent (light) */
+  --core-vibrant-blue: #6a67fe;
+  --core-vibrant-blue-over: #5d5ae7;
+  --core-vibrant-blue-down: #4b4ab4;
+  --core-vibrant-red: #ff5c83;
+  --core-vibrant-red-over: #e93661;
+  --core-vibrant-red-down: #cb3559;
+  --core-fleet-purple: #ae6ddf;
+
+  /* Status (light) */
+  --ui-success: #3db67b;
+  --ui-warning: #ebbc43;
+  --ui-error: #d66c7b;
+  --ui-info: #6a67fe;
+  /* Fixed dark text for yellow backgrounds. The yellow (--ui-warning) is
+     yellow in BOTH themes, so its text must stay dark in both — deliberately
+     NOT overridden in the dark-mode block below (unlike --core-fleet-black,
+     which flips to a light color and produced unreadable white-on-yellow). */
+  --ui-on-warning: #192147;
+  --ui-offline: #8b8fa2;
+
+  /* Surface scale (light) */
+  --app-bg: #f9fafc;
+  --app-surface: #ffffff;
+  --app-surface-2: #f4f4f6;
+  --app-surface-3: #e2e4ea;
+  --app-border: #e2e4ea;
+  --app-text: #192147;
+  --app-text-dim: #515774;
+  --log-bg: #f4f4f6;
+
+  /* Type */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SourceCodePro", "Source Code Pro", ui-monospace, Menlo, monospace;
+
+  /* Font-size scale. Use the role hint to keep tabs visually consistent:
+   *   xxx-small (10px): caption / panel-label / status pill (e.g. the
+   *                     `.section-title` UPPERCASE caption)
+   *   xx-small  (12px): default body text, dense data, mono runs
+   *   x-small   (14px): bold inline labels, modal body, important toggles
+   *                     (also the document body size — see global.css)
+   *   medium    (20px): page-level section heading (`<PageHeading>` in
+   *                     Settings; the gear icon glyph)
+   *   large     (24px): hero / welcome only (FirstRunGate)
+   *
+   * fs-small (16px) is reserved for future use; don't introduce new
+   * call sites without a deliberate reason — picking between 14 and 20
+   * is almost always clearer than landing on 16.
+   */
+  --fs-xxx-small: 10px;
+  --fs-xx-small: 12px;
+  --fs-x-small: 14px;
+  --fs-small: 16px;
+  --fs-medium: 20px;
+  --fs-large: 24px;
+
+  /* Spacing */
+  --pad-xxsmall: 2px;
+  --pad-xsmall: 4px;
+  --pad-small: 8px;
+  --pad-smedium: 12px;
+  --pad-medium: 16px;
+  --pad-large: 24px;
+  --pad-xlarge: 32px;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
+  /* Shadow */
+  --shadow-card: 0 1px 3px rgba(25, 33, 71, 0.06), 0 1px 2px rgba(25, 33, 71, 0.04);
+  --shadow-modal: 0 8px 24px rgba(25, 33, 71, 0.16);
+  --shadow-popover: 0 6px 18px rgba(25, 33, 71, 0.12);
+
+  /* Motion */
+  --motion-fast: 0.2s ease-in-out;
+
+  /* Soft tints — derived from the parent color via color-mix so they
+   * follow the active theme automatically (success tint stays in step
+   * with --core-fleet-green's per-mode value). Used for "selected" /
+   * "active" / "success-of-state" backgrounds. */
+  --tint-success-soft: color-mix(in srgb, var(--core-fleet-green) 10%, transparent);
+  --tint-success-strong: color-mix(in srgb, var(--core-fleet-green) 18%, transparent);
+  --tint-error-soft: color-mix(in srgb, var(--ui-error) 10%, transparent);
+  --tint-error-strong: color-mix(in srgb, var(--ui-error) 18%, transparent);
+  --tint-error-border: color-mix(in srgb, var(--ui-error) 40%, transparent);
+  --tint-danger-soft: color-mix(in srgb, var(--core-vibrant-red) 10%, transparent);
+  --tint-danger-border: color-mix(in srgb, var(--core-vibrant-red) 40%, transparent);
+  --tint-info-soft: color-mix(in srgb, var(--core-vibrant-blue) 10%, transparent);
+  --tint-warning-soft: color-mix(in srgb, var(--ui-warning) 18%, transparent);
+
+  /* Overlays */
+  --overlay-modal: rgba(25, 33, 71, 0.4);
+}
+
+body.dark-mode {
+  /* Brand (dark) */
+  --core-fleet-black: #e2e4ea;
+  --core-fleet-green: #00c28b;
+  --core-fleet-green-over: #01a889;
+  --core-fleet-green-down: #02be9c;
+  --core-fleet-white: #1a1c21;
+
+  /* Accent (dark) */
+  --core-vibrant-blue: #7b79ff;
+  --core-vibrant-blue-over: #8c8aff;
+  --core-vibrant-blue-down: #6b69d9;
+  --core-vibrant-red: #ff7a9a;
+  --core-vibrant-red-over: #ff8da5;
+  --core-vibrant-red-down: #e07090;
+  --core-fleet-purple: #c08ae8;
+
+  /* Status (dark) */
+  --ui-success: #4dc98b;
+  --ui-warning: #f0ca5e;
+  --ui-error: #e07888;
+  --ui-info: #7b79ff;
+  --ui-offline: #8b8fa2;
+
+  /* Surface scale (dark) */
+  --app-bg: #181a1f;
+  --app-surface: #1e2128;
+  --app-surface-2: #252830;
+  --app-surface-3: #32363e;
+  --app-border: #2e323c;
+  --app-text: #e8eaf0;
+  --app-text-dim: #9aa0b4;
+  --log-bg: #0e0f12;
+
+  /* Shadow (dark) — black-driven shadows read better on dark surfaces.
+   * Cards drop their shadow entirely in dark mode: the surface-vs-bg
+   * contrast (#1e2128 on #181a1f) is enough on its own, and a dark
+   * shadow under a dark card just reads as a halo. */
+  --shadow-card: none;
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-popover: 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  /* Overlays (dark) */
+  --overlay-modal: rgba(0, 0, 0, 0.7);
+}

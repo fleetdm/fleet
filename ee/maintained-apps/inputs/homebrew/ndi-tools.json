@@ -1,0 +1,10 @@
+{
+  "name": "NDI Tools",
+  "unique_identifier": "com.newtek.Application-Mac-NDI-ScanConverter",
+  "token": "ndi-tools",
+  "installer_format": "pkg",
+  "slug": "ndi-tools/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

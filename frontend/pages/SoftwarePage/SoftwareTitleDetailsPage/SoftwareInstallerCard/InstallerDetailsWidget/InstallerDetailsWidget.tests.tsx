@@ -1,7 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
+
 import { InstallerType } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 
@@ -32,6 +33,18 @@ describe("InstallerDetailsWidget", () => {
     render(<InstallerDetailsWidget {...defaultProps} />);
     expect(screen.queryByTestId("file-pkg-graphic")).toBeInTheDocument();
     expect(screen.queryByTestId("software-icon")).not.toBeInTheDocument();
+  });
+
+  it("renders the Python icon for a py_packages script package", () => {
+    render(<InstallerDetailsWidget {...defaultProps} source="py_packages" />);
+    expect(screen.queryByTestId("file-py-graphic")).toBeInTheDocument();
+    expect(screen.queryByTestId("file-pkg-graphic")).not.toBeInTheDocument();
+  });
+
+  it("renders the generic package icon for other script sources", () => {
+    render(<InstallerDetailsWidget {...defaultProps} source="sh_packages" />);
+    expect(screen.queryByTestId("file-pkg-graphic")).toBeInTheDocument();
+    expect(screen.queryByTestId("file-py-graphic")).not.toBeInTheDocument();
   });
 
   it("renders the software name", () => {
@@ -137,16 +150,5 @@ describe("InstallerDetailsWidget", () => {
     render(<InstallerDetailsWidget {...defaultProps} />);
     // TooltipWrapper is mocked, so we just check that the child is rendered
     expect(screen.getByText("Test Software")).toBeInTheDocument();
-  });
-
-  it("renders the sha256 hash when provided and a copy button", () => {
-    const sha256 =
-      "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
-    render(<InstallerDetailsWidget {...defaultProps} sha256={sha256} />);
-    // The component shows the first 6 chars + ellipsis
-    expect(screen.getByText(/^abcdef1…$/)).toBeInTheDocument();
-    const copyIcon = screen.getByTestId("copy-icon");
-    const copyButton = copyIcon.closest("button");
-    expect(copyButton).toBeInTheDocument();
   });
 });

@@ -1,0 +1,10 @@
+{
+  "name": "Firefly",
+  "unique_identifier": "org.iota.firefly",
+  "token": "firefly-iota-desktop",
+  "installer_format": "dmg",
+  "slug": "firefly-iota-desktop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

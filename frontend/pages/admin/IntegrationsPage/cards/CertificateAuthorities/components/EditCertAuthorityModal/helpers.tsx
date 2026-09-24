@@ -1,21 +1,21 @@
 import React from "react";
 
-import { IEditCertAuthorityFormData } from "services/entities/certificates";
 import {
   ICertificateAuthority,
   ICertificatesCustomSCEP,
 } from "interfaces/certificates";
-import deepDifference from "utilities/deep_difference";
+import { IEditCertAuthorityFormData } from "services/entities/certificates";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import deepDifference from "utilities/deep_difference";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
 export const generateDefaultFormData = (
   certAuthority: ICertificateAuthority
@@ -253,7 +253,11 @@ export const updateFormData = (
     }
     case "ndes_scep_proxy": {
       const formData = prevFormData as INDESFormData;
-      if (update.name === "adminURL" || update.name === "username") {
+      if (
+        update.name === "scepURL" ||
+        update.name === "adminURL" ||
+        update.name === "username"
+      ) {
         return {
           ...newData,
           password:

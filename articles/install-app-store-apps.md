@@ -84,15 +84,41 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 
+#### Convert unmanaged iOS and iPadOS apps to managed
+
+If an end user already installed an app from the App Store, you can take over management by installing the same app through Fleet. Managing the app lets you apply [managed configuration](#ios-and-ipados-managed-configuration) and makes sure the app is removed when the host is unenrolled.
+
+On company-owned hosts (enrolled automatically via Apple Business Manager), the app becomes managed silently. On BYOD hosts and hosts that are manually enrolled, the end user is prompted to allow management. If the end user declines, the app stays unmanaged.
+
+> **Warning:** Fleet can't currently tell that the end user declined. Apple returns the app in the `InstalledApplicationList` MDM command as if it were managed, so Fleet reports the install as successful and lists the app in the host's software inventory. The app may drop out of inventory within minutes, or stay for up to 24 hours. In the meantime, managed configuration isn't applied and the app won't be removed when the host is unenrolled. Fleet plans to use the app's real management status to report these installs as failed. Follow [this issue](https://github.com/fleetdm/fleet/issues/52923) for progress.
+
+To confirm whether an app is actually managed, send [ManagedApplicationList](https://developer.apple.com/documentation/devicemanagement/managed-application-list-command) as a [custom MDM command](https://fleetdm.com/guides/mdm-commands). The response includes a `Status` for each app Fleet tried to manage:
+
+- `Managed`: the app is managed by Fleet.
+- `PromptingForManagement`: the end user hasn't answered the prompt yet.
+- `ManagementRejected`: the end user declined the prompt, and the app is not managed.
+
+If the end user declined, installing the app again from **Host details** usually prompts them again. Sometimes the prompt doesn't show up, and Apple acknowledges the command without doing anything. If that happens, ask the end user to delete the app, then install it through Fleet again.
+
+> **Note:** If the app wasn't already installed and the end user declines the prompt, the app never appears in the host's software inventory, and the install fails verification after 10 minutes.
+
+#### Updating iOS and iPadOS apps in Single App Mode (kiosk)
+
+[AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
+
+Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
+
 #### iOS and iPadOS managed configuration
 
 Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
-##### Example (Zoom)
+New or updated configuration isn't applied until the end user fully quits and reopens the app.
 
-This configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
+
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
 
 ```xml
 <dict>
@@ -110,7 +136,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Managed configuration
 
-Currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+Currently, only the `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
@@ -137,6 +163,16 @@ This configuration allows end users to add widgets from the Google Calendar in t
 ```json
 {
   "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
+
+##### Example (1Password)
+
+On Android 14 and above, third-party credential providers are blocked in the work profile unless the app is explicitly allowed. This configuration allows end users to select 1Password as their autofill and passkey (credential) provider in the work profile.
+
+```json
+{
+  "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
 }
 ```
 

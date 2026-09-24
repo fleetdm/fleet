@@ -1,19 +1,19 @@
-import React from "react";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+import { ScriptBatchStatus } from "interfaces/script";
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { http, HttpResponse } from "msw";
 
-import { ScriptBatchStatus } from "interfaces/script";
-
-import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+import { ScriptsLocation } from "../../Scripts";
 
 import ScriptBatchProgress from "./ScriptBatchProgress";
-import { ScriptsLocation } from "../../Scripts";
 
 const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {
@@ -245,5 +245,60 @@ describe("ScriptBatchProgress", () => {
       expect(screen.getByText(/Canceled/)).toBeInTheDocument();
       expect(screen.getByText(/20\s+\/\s+50/m)).toBeInTheDocument();
     });
+  });
+
+  // Regression coverage for #47019: the auto-correction effect for an
+  // invalid/missing ?status must use router.replace, not router.push, so the
+  // browser Back button isn't trapped.
+  it("Replaces (does not push) the URL with ?status=started when status is invalid", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <ScriptBatchProgress
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/progress",
+          query: { status: "bogus" },
+          search: "?status=bogus",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/scripts/progress?status=started"
+      );
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("Replaces (does not push) the URL with ?status=started when status is missing", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <ScriptBatchProgress
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/progress",
+          query: {},
+          search: "",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/scripts/progress?status=started"
+      );
+    });
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

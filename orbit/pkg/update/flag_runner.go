@@ -65,7 +65,7 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 	flagFileExists := true
 
 	// try and read osquery.flags from disk
-	osqueryFlagMapFromFile, err := readFlagFile(r.opt.RootDir)
+	osqueryFlagMapFromFile, err := ReadFlagFile(r.opt.RootDir)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			return err
@@ -268,7 +268,7 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 	return nil
 }
 
-// readFlagFile reads and parses the osquery.flags file on disk of the form
+// ReadFlagFile reads and parses the osquery.flags file on disk of the form
 //
 //	--foo="bar"
 //	--bar=5
@@ -284,7 +284,7 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 // Returns:
 //   - an error if the file does not exist.
 //   - an empty map if the file is empty.
-func readFlagFile(rootDir string) (map[string]string, error) {
+func ReadFlagFile(rootDir string) (map[string]string, error) {
 	flagfile := filepath.Join(rootDir, "osquery.flags")
 	bytes, err := os.ReadFile(flagfile)
 	if err != nil {

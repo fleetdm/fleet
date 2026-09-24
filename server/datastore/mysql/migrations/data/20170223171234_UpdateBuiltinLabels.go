@@ -26,7 +26,7 @@ func Labels2() []fleet.Label {
 		},
 		{
 			Name:        "Ubuntu Linux",
-			Query:       "select 1 from os_version where platform = 'ubuntu';",
+			Query:       "select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';",
 			Description: "All Ubuntu hosts",
 			LabelType:   fleet.LabelTypeBuiltIn,
 		},

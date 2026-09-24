@@ -1,9 +1,8 @@
 import React from "react";
 
-import { InstallerType } from "interfaces/software";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { InstallerType } from "interfaces/software";
 
 const baseClass = "save-changes-modal";
 
@@ -61,7 +60,7 @@ const ConfirmSaveChangesModal = ({
           >
             Save
           </Button>
-          <Button onClick={onClose} variant="inverse">
+          <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
         </div>

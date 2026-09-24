@@ -1,14 +1,16 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { Platform } from "interfaces/platform";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 // TODO: add platforms to this constant as new ones are supported
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "darwin",
   "windows",
+  "linux",
   "chrome",
   "ios",
   "ipados",
@@ -25,6 +27,7 @@ export interface IGetOSVersionsQueryParams {
   page?: number;
   per_page?: number;
   max_vulnerabilities?: number;
+  query?: string; // filters the platform column
 }
 
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsQueryParams {
@@ -70,6 +73,7 @@ export const getOSVersions = ({
   page,
   per_page,
   max_vulnerabilities = 0,
+  query = "",
 }: IGetOSVersionsQueryParams = {}): Promise<IOSVersionsResponse> => {
   const { OS_VERSIONS } = endpoints;
   let path = OS_VERSIONS;
@@ -84,6 +88,7 @@ export const getOSVersions = ({
     page,
     per_page,
     max_vulnerabilities,
+    query,
   };
 
   const queryString = buildQueryStringFromParams(params);

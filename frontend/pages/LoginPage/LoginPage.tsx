@@ -1,24 +1,23 @@
+import { AxiosError } from "axios";
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
-
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { RoutingContext } from "context/routing";
-import { ISSOSettings } from "interfaces/ssoSettings";
-import { ILoginUserData } from "interfaces/user";
-import local from "utilities/local";
-import authToken from "utilities/auth_token";
-import configAPI from "services/entities/config";
-import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
-import formatErrorResponse from "utilities/format_error_response";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
 import Spinner from "components/Spinner/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { RoutingContext } from "context/routing";
+import { ISSOSettings } from "interfaces/ssoSettings";
+import { ILoginUserData } from "interfaces/user";
+import paths from "router/paths";
+import configAPI from "services/entities/config";
+import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
+import authToken from "utilities/auth_token";
+import formatErrorResponse from "utilities/format_error_response";
+import local from "utilities/local";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
@@ -57,7 +56,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -94,7 +92,12 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   }, []);
 
   useEffect(() => {
+    // Requiring `authToken.get()` matters after a SPA-navigated logout: the
+    // AppContext user/teams/config linger from the destroyed session, and
+    // without this check LoginPage would keep pushing to /dashboard while
+    // AuthenticatedRoutes keeps pushing back to /login on a missing token.
     if (
+      authToken.get() &&
       availableTeams &&
       config &&
       currentUser &&
@@ -104,12 +107,11 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     }
   }, [availableTeams, config, currentUser, redirectLocation, router]);
 
-  // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
   useEffect(() => {
     let status = new URLSearchParams(location.search).get("status");
     status = status && statusMessages[status as keyof IStatusMessages];
     if (status) {
-      renderFlash("error", status);
+      notify.error(status);
     }
   }, [location?.search]);
 

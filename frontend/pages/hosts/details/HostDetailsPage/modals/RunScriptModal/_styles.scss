@@ -39,3 +39,10 @@
     gap: 9px;
   }
 }
+
+// Added to fix the script name hover underline, which gets cut off when the text underline offset is applied.
+.script-info {
+  &:hover {
+    line-height: unset;
+  }
+}

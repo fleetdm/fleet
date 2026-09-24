@@ -6,5 +6,6 @@
   "installer_format": "zip",
   "default_categories": [
     "Developer tools"
-  ]
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/claude-install.sh"
 }

@@ -1,19 +1,18 @@
+import classnames from "classnames";
+import { format } from "date-fns";
+import FileSaver from "file-saver";
 import React from "react";
 
-import { format, formatDistanceToNow } from "date-fns";
-import FileSaver from "file-saver";
-import classnames from "classnames";
-
-import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
-import mdmAPI, { isDDMProfile } from "services/entities/mdm";
-
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
 import strUtils from "utilities/strings";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 
@@ -25,7 +24,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
-    <Icon name="filter" color="ui-fleet-black-75" />
+    <Icon name="tag" color="ui-fleet-black-75" />
     {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );
@@ -61,7 +60,7 @@ const ProfileDetails = ({
       <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
       <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
-        {`Uploaded ${formatDistanceToNow(new Date(uploadedAt))} ago`}
+        {`Uploaded ${timeAgo(new Date(uploadedAt), { addSuffix: true })}`}
       </span>
     </div>
   );
@@ -92,10 +91,8 @@ interface IProfileListItemProps {
   isPremium: boolean;
   profile: IMdmProfile;
   onClickInfo: (profile: IMdmProfile) => void;
+  onClickEdit: (profile: IMdmProfile) => void;
   onClickDelete: (profile: IMdmProfile) => void;
-  setProfileLabelsModalData: React.Dispatch<
-    React.SetStateAction<IMdmProfile | null>
-  >;
   isTechnician?: boolean;
 }
 
@@ -103,8 +100,8 @@ const ProfileListItem = ({
   isPremium,
   profile,
   onClickInfo,
+  onClickEdit,
   onClickDelete,
-  setProfileLabelsModalData,
   isTechnician,
 }: IProfileListItemProps) => {
   const {
@@ -114,8 +111,13 @@ const ProfileListItem = ({
     labels_exclude_any,
     name,
     platform,
+    scope,
   } = profile;
   const subClass = "list-item";
+
+  // iOS/iPadOS don't support user channels, so never show the user-scope icon
+  // for them (matches the host details OS settings table).
+  const isUserScoped = scope === "User" && !isIPadOrIPhone(platform);
 
   const onClickDownload = async () => {
     const fileContent = await createFileContent(profile);
@@ -151,7 +153,27 @@ const ProfileListItem = ({
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />
         <div className={`${subClass}__info`}>
-          <span className={`${subClass}__title`}>{name}</span>
+          <div className={`${baseClass}__title-row`}>
+            <TooltipWrapper
+              tipContent={`UUID: ${profile.profile_uuid}`}
+              underline={false}
+              position="top"
+              showArrow
+            >
+              <span className={`${subClass}__title`}>{name}</span>
+            </TooltipWrapper>
+            {isUserScoped && (
+              <TooltipWrapper
+                className={`${baseClass}__scope-tooltip`}
+                tipContent="Scoped to the user channel."
+                underline={false}
+                position="top"
+                showArrow
+              >
+                <Icon name="user" />
+              </TooltipWrapper>
+            )}
+          </div>
           <div className={`${subClass}__details`}>
             <ProfileDetails
               platform={platform}
@@ -164,40 +186,75 @@ const ProfileListItem = ({
       <div className={`${subClass}__actions-wrap`}>
         {renderLabelInfo()}
         <div className={`${subClass}__actions`}>
-          <Button
-            className={`${subClass}__action-button`}
-            variant="icon"
-            onClick={() => onClickInfo(profile)}
+          <TooltipWrapper
+            tipContent="Details"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
           >
-            <Icon name="info" size="medium" />
-          </Button>
-          {isPremium && labels.length > 0 && (
             <Button
               className={`${subClass}__action-button`}
-              variant="icon"
-              onClick={() => setProfileLabelsModalData({ ...profile })}
+              variant="secondary"
+              onClick={() => onClickInfo(profile)}
+              icon="info"
+              ariaLabel={`View ${profile.name} details`}
+            />
+          </TooltipWrapper>
+          {!isTechnician && (
+            // stays enabled in GitOps mode -- the modal is the only place to
+            // see a profile's label targeting; it blocks saving instead
+            <TooltipWrapper
+              tipContent="Edit"
+              underline={false}
+              position="top"
+              showArrow
+              tipOffset={8}
             >
-              <Icon name="filter" />
-            </Button>
+              <Button
+                className={`${subClass}__action-button`}
+                variant="secondary"
+                onClick={() => onClickEdit(profile)}
+                ariaLabel={`Edit ${profile.name}`}
+                icon="pencil"
+              />
+            </TooltipWrapper>
           )}
-          <Button
-            className={`${subClass}__action-button`}
-            variant="icon"
-            onClick={onClickDownload}
+          <TooltipWrapper
+            tipContent="Download"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
           >
-            <Icon name="download" />
-          </Button>
+            <Button
+              className={`${subClass}__action-button`}
+              variant="secondary"
+              onClick={onClickDownload}
+              icon="download"
+              ariaLabel={`Download ${profile.name}`}
+            />
+          </TooltipWrapper>
           {!isTechnician && (
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  className={`${subClass}__action-button`}
-                  variant="icon"
-                  onClick={() => onClickDelete(profile)}
+                <TooltipWrapper
+                  tipContent="Delete"
+                  underline={false}
+                  position="top"
+                  showArrow
+                  tipOffset={8}
+                  disableTooltip={disableChildren}
                 >
-                  <Icon name="trash" />
-                </Button>
+                  <Button
+                    disabled={disableChildren}
+                    className={`${subClass}__action-button`}
+                    variant="secondary"
+                    onClick={() => onClickDelete(profile)}
+                    icon="trash"
+                    ariaLabel={`Delete ${profile.name}`}
+                  />
+                </TooltipWrapper>
               )}
             />
           )}

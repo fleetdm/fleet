@@ -1,18 +1,18 @@
-import React, { useContext, useState } from "react";
-import PATHS from "router/paths";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
 
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon/Icon";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
+import { timeAgo } from "utilities/date_format";
 
-import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import Icon from "components/Icon/Icon";
-import CustomLink from "components/CustomLink";
 import LaptopMac from "../../../../../assets/images/laptop-mac.png";
 import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
 
@@ -30,7 +30,6 @@ const WelcomeHost = ({
   totalsHostsCount,
   toggleAddHostsModal,
 }: IWelcomeHostCardProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -77,16 +76,14 @@ const WelcomeHost = ({
                   fullyReloadHost();
                 }, 1000);
               } else {
-                renderFlash(
-                  "error",
+                notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
-              renderFlash(
-                "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+              notify.error(
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
               );
               setShowRefetchLoadingSpinner(false);
             }
@@ -110,7 +107,9 @@ const WelcomeHost = ({
         });
       } catch (error) {
         console.error(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
+        notify.error(`Host "${host.display_name}" refetch error`, {
+          response: error,
+        });
         setShowRefetchLoadingSpinner(false);
       }
     }
@@ -275,7 +274,7 @@ const WelcomeHost = ({
           </Button>
           <span>
             Last updated{" "}
-            {formatDistanceToNow(new Date(host.detail_updated_at), {
+            {timeAgo(new Date(host.detail_updated_at), {
               addSuffix: true,
             })}
           </span>

@@ -1,7 +1,8 @@
 import { http, HttpResponse } from "msw";
-import { baseUrl } from "test/test-utils";
-import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
+
 import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
+import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
+import { baseUrl } from "test/test-utils";
 
 // ---- Software Install Handlers ----
 
@@ -64,6 +65,17 @@ export const getSoftwareInstallResultHandler = http.get(
   }
 );
 
+// Requires Fleet Premium license (server returns 402)
+export const getSoftwareInstallResultHandlerPremiumRequired = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  () => {
+    return HttpResponse.json(
+      { message: "Requires Fleet Premium license" },
+      { status: 402 }
+    );
+  }
+);
+
 // ---- Pre install query output ----
 
 // Installed, outputs for pre-install, install, and post-install
@@ -98,6 +110,70 @@ export const getSoftwareInstallHandlerOnlyPreInstallOutput = http.get(
           pre_install_query_output: "Pre-install only",
         }),
       },
+    });
+  }
+);
+
+export const getSoftwareInstallHandlerAppOpen = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "failed_install",
+        output: "",
+        post_install_script_output: "",
+        pre_install_query_output:
+          "Query didn't return result or failed\nThe app was open.",
+      }),
+    });
+  }
+);
+
+export const getSoftwareInstallHandlerNotifyBeforePatchingSkip = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "failed_install",
+        output: "",
+        post_install_script_output: "",
+        pre_install_query_output:
+          "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
+      }),
+    });
+  }
+);
+
+// Installed, with SHA-256 hash
+export const getSoftwareInstallHandlerWithHash = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "installed",
+        hash_sha256:
+          "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad",
+      }),
+    });
+  }
+);
+
+// Failed install on the end-user (device_user) path — mirrors the admin
+// getSoftwareInstallHandlerOnlyPreInstallOutput but on the token-scoped route.
+export const getDeviceSoftwareInstallHandlerFailedWithPreInstall = http.get(
+  baseUrl("/device/:token/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "failed_install",
+        output: "",
+        post_install_script_output: "",
+        pre_install_query_output: "Pre-install only",
+      }),
     });
   }
 );

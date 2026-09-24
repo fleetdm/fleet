@@ -1,40 +1,40 @@
-import React, { useContext, useState } from "react";
-import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
+import React, { useState } from "react";
+import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-import { IApiError } from "interfaces/errors";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import { IApiError } from "interfaces/errors";
 import { ISoftwareTitle } from "interfaces/software";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 import mdmAPI, {
   IGetBootstrapPackageMetadataResponse,
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
-import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { NotificationContext } from "context/notification";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
-import Spinner from "components/Spinner";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import CustomLink from "components/CustomLink";
-
-import PackageUploader from "./components/BootstrapPackageUploader";
-import UploadedPackageView from "./components/UploadedPackageView";
-import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
-import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/InstallSoftwareForm/helpers";
-import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/InstallSoftwareForm/helpers";
+
+import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
+import PackageUploader from "./components/BootstrapPackageUploader";
+import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
+import UploadedPackageView from "./components/UploadedPackageView";
 
 const baseClass = "bootstrap-package";
 
@@ -46,7 +46,6 @@ const BootstrapPackage = ({
   currentTeamId,
   router,
 }: ISetupExperienceCardProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [
     selectedManualAgentInstall,
     setSelectedManualAgentInstall,
@@ -145,9 +144,9 @@ const BootstrapPackage = ({
         fleet_id: currentTeamId,
         macos_manual_agent_install: false,
       });
-      renderFlash("success", "Successfully deleted.");
-    } catch {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      notify.success("Successfully deleted.");
+    } catch (err) {
+      notify.error("Couldn't delete. Please try again.", { response: err });
     } finally {
       setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();

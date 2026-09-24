@@ -3,5 +3,33 @@
 
   form {
     @include vertical-form-layout;
+    max-width: $settings-form-max-width;
+  }
+
+  .form-field__label {
+    font-size: $small;
+    margin-bottom: $pad-small;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  // "Default fleet" is a sub-heading of the "User driven enrollment" section.
+  &__default-fleet-label {
+    font-size: $x-small;
+  }
+
+  // Keep the label readable when the dropdown is disabled; only the control greys out.
+  &__default-fleet-label.dropdown-wrapper__label--disabled {
+    color: $core-fleet-black;
   }
 }

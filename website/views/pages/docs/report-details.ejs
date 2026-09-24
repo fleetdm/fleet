@@ -20,10 +20,10 @@
           </div>
           <p purpose="report-description"><%- report.description %></p>
           <div purpose="report-check">
-            <p>To learn more about queries, <a href="/guides/queries">check this guide</a>.</p>
+            <p>To learn more about reports, <a href="/guides/reports">check this guide</a>.</p>
             <div purpose="codeblock">
               <div purpose="codeblock-tabs" >
-                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">report</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="report.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="report.bash">Bash<span purpose="new-badge">NEW</span></a>
                 <div purpose="copy-button-tab">
@@ -61,7 +61,7 @@
             </div>
             <div purpose="docs-links" class="order-3">
               <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/'+reportLibraryYmlRepoPath+'#L'+report.lineNumberInYaml"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Edit</a>
-              <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
+              <a purpose="sidebar-link" href="/contact?talkToUs"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Get a demo</a>
             </div>
           </div>
         </div>

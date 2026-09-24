@@ -1,7 +1,8 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
 import userEvent from "@testing-library/user-event";
+import React from "react";
+
+import { createCustomRenderer } from "test/test-utils";
 
 import CreateFleetModal from "./CreateFleetModal";
 
@@ -78,6 +79,13 @@ describe("CreateFleetModal", () => {
     render(<CreateFleetModal {...props} />);
 
     expect(screen.getByText("Team name already exists")).toBeInTheDocument();
+  });
+
+  it("caps the fleet name input at 255 characters (matches DB varchar(255))", () => {
+    render(<CreateFleetModal {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText("Fleet name") as HTMLInputElement;
+    expect(nameInput.maxLength).toBe(255);
   });
 
   it("clears errors when user types in the input", async () => {

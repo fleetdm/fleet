@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -100,6 +101,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -128,11 +130,18 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
+		noopGraphClientFactory,
 	)
 	if err != nil {
 		panic(err)
 	}
 	return ds, svc, ctx
+}
+
+func noopGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, error) {
+	return nil, nil
 }
 
 func TestGetOrCreatePreassignTeam(t *testing.T) {
@@ -174,7 +183,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.TeamByNameFuncInvoked = false
 		ds.NewTeamFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
-		ds.NewMDMAppleConfigProfileFuncInvoked = false
+		ds.UpsertMDMAppleFleetConfigProfileFuncInvoked = false
 		ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked = false
 		ds.AppConfigFuncInvoked = false
 		ds.NewJobFuncInvoked = false
@@ -247,7 +256,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 			return map[string]uint{names[0]: 1}, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
@@ -285,6 +294,12 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
 		}
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return false, nil
+		}
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
+		}
 		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 			return nil, &eeservice.NotFoundError{}
 		}
@@ -307,7 +322,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
-		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.AppConfigFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
@@ -347,10 +362,19 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			teamStore[tm.ID] = team
 			return team, nil
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) error {
 			require.Equal(t, lastTeamID, *profile.TeamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
-			return &profile, nil
+			return nil
+		}
+		// the reconciler reads the stored settings back before writing
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			tm, ok := teamStore[teamID]
+			if !ok {
+				return &fleet.TeamMDM{}, nil
+			}
+			mdm := tm.Config.MDM
+			return &mdm, nil
 		}
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
 			require.Equal(t, lastTeamID, *teamID)
@@ -426,7 +450,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.True(t, ds.NewTeamFuncInvoked)
 		require.True(t, ds.SaveTeamFuncInvoked)
-		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
@@ -451,7 +475,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
-		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.AppConfigFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
@@ -481,7 +505,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.True(t, ds.NewTeamFuncInvoked)
 		require.True(t, ds.SaveTeamFuncInvoked)
-		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
@@ -521,7 +545,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
-		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
@@ -559,7 +583,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.False(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
-		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
@@ -620,7 +644,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
-		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
@@ -633,7 +657,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.AppConfigFuncInvoked)
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
-		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
 		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()

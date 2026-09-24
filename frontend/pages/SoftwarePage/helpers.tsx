@@ -9,6 +9,8 @@
 
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 import {
   IHostSoftware,
@@ -19,11 +21,8 @@ import {
   ISoftwareInstallPolicy,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import CustomLink from "components/CustomLink";
+import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 /**
  * helper function to generate error message for secret variables based
@@ -78,7 +77,7 @@ export const getInstallType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getTargetType = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (!softwareInstaller) return "All hosts";
 
@@ -91,7 +90,7 @@ export const getTargetType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getCustomTarget = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (!softwareInstaller) return "labelsIncludeAny";
 
@@ -102,7 +101,7 @@ export const getCustomTarget = (
 
 // Used in EditSoftwareModal and PackageForm
 export const generateSelectedLabels = (
-  softwareInstaller: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp
 ) => {
   if (
     !softwareInstaller ||
@@ -227,7 +226,7 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong> <br />
+        End users can install from the <strong>Play Store</strong>
         in their work profile.
       </>
     );
@@ -235,11 +234,10 @@ export const getSelfServiceTooltip = (
   if (isIosOrIpadosApp)
     return (
       <>
-        End users can install from self-service.
-        <br />
+        End users can install from{" "}
         <CustomLink
           newTab
-          text="Learn how to deploy self-service"
+          text="self service"
           variant="tooltip-link"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/deploy-self-service-to-ios`}
         />
@@ -248,11 +246,10 @@ export const getSelfServiceTooltip = (
 
   return (
     <>
-      End users can install from <br />
-      <strong>Fleet Desktop</strong> &gt; <strong>Self-service</strong>. <br />
+      End users can install from <strong>Fleet Desktop</strong> &gt;{" "}
       <CustomLink
         newTab
-        text="Learn more"
+        text="Self service"
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
@@ -263,11 +260,9 @@ export const getSelfServiceTooltip = (
 export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
   return (
     <>
-      When a new version is available,
-      <br />
-      targeted hosts will begin updating between
-      <br />
-      {startTime} and {endTime} (host&rsquo;s local time).
+      When a new version is available, targeted hosts will begin updating
+      between {internationalTimeOnlyFormat(startTime)} and{" "}
+      {internationalTimeOnlyFormat(endTime)} (host local time).
     </>
   );
 };
@@ -316,19 +311,25 @@ const WELL_KNOWN_SOFTWARE_TITLES: Record<string, string> = {
   "microsoft.companyportal": "Company Portal",
 };
 
+/** Whether a string renders as anything at all. Excludes whitespace and the
+ * Unicode format (Cf) and control (Cc) categories, which String.trim() leaves
+ * in place. Cf + Cc is also the set utf8mb4_unicode_ci ignores. */
+const hasVisibleChars = (value?: string | null): value is string =>
+  !!value && /[^\s\p{Cc}\p{Cf}]/u.test(value);
+
 /** Prioritizes display_name over name and converts awkward software titles
  * listed in WELL_KNOWN_SOFTWARE_TITLES to more human readable names */
 export const getDisplayedSoftwareName = (
   name?: string | null,
-  display_name?: string | null
+  display_name?: string | null,
+  bundle_identifier?: string | null
 ): string => {
-  // 1. End-user custom name always wins. Treat whitespace-only as absent so
-  // an inadvertent " " from the backend doesn't render a blank label.
-  if (display_name?.trim()) {
+  // 1. End-user custom name always wins.
+  if (hasVisibleChars(display_name)) {
     return display_name;
   }
 
-  if (name?.trim()) {
+  if (hasVisibleChars(name)) {
     // 2. Normalize known titles only from the raw name.
     const key = name.toLowerCase();
     if (WELL_KNOWN_SOFTWARE_TITLES[key]) {
@@ -337,7 +338,11 @@ export const getDisplayedSoftwareName = (
     return name;
   }
 
-  // This should not happen
+  // 3. An app with no readable name is still identifiable by its bundle ID.
+  if (hasVisibleChars(bundle_identifier)) {
+    return bundle_identifier;
+  }
+
   return "Software";
 };
 
@@ -352,41 +357,31 @@ export interface MergePoliciesParams {
   patchPolicy: ISoftwarePackage["patch_policy"] | null | undefined;
 }
 
-// const mergePolicies(params: MergePoliciesParams): ISoftwareInstallerPolicyUI[] = function (...) { ... }
 export const mergePolicies = ({
   automaticInstallPolicies,
   patchPolicy,
 }: MergePoliciesParams): ISoftwareInstallPolicyUI[] => {
-  // Map keyed by policy id so we can merge dynamic and patch info for the same id.
+  // Each entry's `type` Set is rebuilt rather than mutated, so two calls on the
+  // same input return independent results — safe to memoize or freeze.
   const byId = new Map<number, ISoftwareInstallPolicyUI>();
 
-  // 1. Seed the map with automatic install ("dynamic") policies.
   (automaticInstallPolicies ?? []).forEach((installPolicy) => {
-    // Type Set with "dynamic" for automatic install policies
-    const type: SoftwareInstallPolicyTypeSet = new Set(["dynamic"]);
     byId.set(installPolicy.id, {
       ...installPolicy,
-      type,
+      type: new Set(["dynamic"]),
     });
   });
 
-  // 2. Merge in the patch policy by its id, updating type if there's a match.
   if (patchPolicy) {
     const existing = byId.get(patchPolicy.id);
-
-    if (existing) {
-      // If there is already a dynamic policy with this id, just add "patch"
-      // to the existing Set so type becomes Set(["dynamic", "patch"]).
-      existing.type.add("patch");
-    } else {
-      // If there is no dynamic policy with this id, create a new entry that
-      // has only "patch" in the Set.
-      const type: SoftwareInstallPolicyTypeSet = new Set(["patch"]);
-      byId.set(patchPolicy.id, {
-        ...((patchPolicy as unknown) as ISoftwareInstallPolicy),
-        type,
-      });
-    }
+    const typeSet: SoftwareInstallPolicyTypeSet = existing
+      ? new Set([...existing.type, "patch"])
+      : new Set(["patch"]);
+    byId.set(patchPolicy.id, {
+      id: patchPolicy.id,
+      name: patchPolicy.name,
+      type: typeSet,
+    });
   }
 
   return Array.from(byId.values());

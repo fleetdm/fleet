@@ -1,3 +1,8 @@
+import {
+  Title as DialogTitle,
+  Description as DialogDescription,
+} from "@radix-ui/react-dialog";
+import { Command } from "cmdk";
 import React, {
   useContext,
   useEffect,
@@ -7,15 +12,25 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Command } from "cmdk";
 import { browserHistory } from "react-router";
 
-import { AppContext } from "context/app";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Icon from "components/Icon";
-import { isDarkMode, setThemeMode } from "utilities/theme";
+import { AppContext } from "context/app";
+import {
+  APP_CONTEXT_ALL_TEAMS_ID,
+  APP_CONTEXT_NO_TEAM_ID,
+} from "interfaces/team";
 import paths from "router/paths";
+import { isDarkMode, setThemeMode } from "utilities/theme";
 
+import { isPreFilteredResult } from "./components/constants";
+import FleetPicker from "./components/FleetPicker";
+import HighlightedLabel from "./components/HighlightedLabel";
+import HostPicker from "./components/HostPicker";
+import PolicyPicker from "./components/PolicyPicker";
+import ReportPicker from "./components/ReportPicker";
+import SoftwarePicker from "./components/SoftwarePicker";
+import UprightEmoji from "./components/UprightEmoji";
 import {
   ICommandItem,
   ICommandSubItem,
@@ -23,14 +38,9 @@ import {
   buildPaletteItems,
   buildFleetSwitchUrl,
   computeBestMatch,
+  pathSupportsAllFleets,
+  pathSupportsUnassigned,
 } from "./helpers";
-import FleetPicker from "./components/FleetPicker";
-import HostPicker from "./components/HostPicker";
-import SoftwarePicker from "./components/SoftwarePicker";
-import ReportPicker from "./components/ReportPicker";
-import PolicyPicker from "./components/PolicyPicker";
-import HighlightedLabel from "./components/HighlightedLabel";
-import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
 
@@ -67,6 +77,11 @@ const CommandPalette = (): JSX.Element | null => {
   const [page, setPage] = useState<Page>("root");
   const [search, setSearch] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  // Controlled highlight — cmdk's uncontrolled auto-select doesn't re-run
+  // when a picker's async results replace the previous set (state.value
+  // still points at the now-unmounted row), so we set it explicitly.
+  // Empty string means "let cmdk pick the first item on next mount."
+  const [cmdkValue, setCmdkValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -110,6 +125,16 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamMaintainer ||
     isTechnician;
 
+  // The Variables section (and its Global variables / Custom host vitals
+  // sub-tabs) is hidden from technicians in the Controls sub-nav — they only
+  // get OS settings and Scripts (see ManageControlsPage). canAccessControls
+  // includes technicians, so use this narrower flag for Variables.
+  const canAccessVariables =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
+
   // Custom variables are admin-tier global config (mirrors Variables.tsx
   // `canEdit`). Team admins/maintainers/technicians lack the role even
   // though they have `canWrite`, so the destination page would render
@@ -126,6 +151,16 @@ const CommandPalette = (): JSX.Element | null => {
     !!isGlobalMaintainer ||
     !!isTeamAdmin ||
     !!isTeamMaintainer;
+
+  // Admin/maintainer-only Controls sub-items (Certificates, Passwords, Host
+  // names). Technicians can reach Controls (canAccessControls) but not these,
+  // so gate them on the positive admin/maintainer role rather than
+  // `!isTechnician`.
+  const isAdminOrMaintainer =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
 
   // Observer+ users can run live queries even though they can't write.
   const canRunLiveReport =
@@ -176,6 +211,12 @@ const CommandPalette = (): JSX.Element | null => {
   // current one — they'd land on Reports and see no button.
   const canManageReportAutomations = isGlobalAdmin || isTeamAdmin;
 
+  // Host activity automations: per-fleet setting on the Hosts page, admin
+  // only (mirrors ManageHostsPage's canManageHostActivityAutomations). The
+  // destination opens the modal from `?manage_automations=1` and re-checks
+  // the same gate.
+  const canManageHostActivityAutomations = isGlobalAdmin || isTeamAdmin;
+
   const canAccessSettings = isGlobalAdmin;
 
   // Whether a specific team is selected (not "All teams")
@@ -201,8 +242,28 @@ const CommandPalette = (): JSX.Element | null => {
       setPage("root");
       setSearch("");
       setExpandedItems(new Set());
+      // Also clear cmdkValue: if we closed while on root, the page-change
+      // effect won't fire on reopen, and a stale highlight would carry
+      // over — making Enter accidentally activate a prior row.
+      setCmdkValue("");
     }
   }, [open]);
+
+  // Reset the highlight when the page changes so cmdk auto-selects the
+  // first item on the new page rather than sticking on a value that
+  // belongs to the page we just left.
+  useEffect(() => {
+    setCmdkValue("");
+  }, [page]);
+
+  // Picker results arrive asynchronously; when they do, snap the highlight
+  // to the first row so pressing Enter opens it without a preceding arrow.
+  const handlePickerResultsChange = useCallback(
+    (firstItemValue: string | null) => {
+      setCmdkValue(firstItemValue ?? "");
+    },
+    []
+  );
 
   const canSwitchFleet =
     isPremiumTier &&
@@ -375,14 +436,17 @@ const CommandPalette = (): JSX.Element | null => {
         availableTeams,
         config,
         canAccessControls,
+        canAccessVariables,
         canWrite,
         canRunLiveReport,
         canAccessSettings,
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
         canManageReportAutomations,
+        canManageHostActivityAutomations,
         canEditCustomVariable,
         canAddSoftware,
+        isAdminOrMaintainer,
         isTechnician,
         isPremiumTier,
         isPrimoMode,
@@ -410,14 +474,17 @@ const CommandPalette = (): JSX.Element | null => {
       availableTeams,
       config,
       canAccessControls,
+      canAccessVariables,
       canWrite,
       canRunLiveReport,
       canAccessSettings,
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
       canManageReportAutomations,
+      canManageHostActivityAutomations,
       canEditCustomVariable,
       canAddSoftware,
+      isAdminOrMaintainer,
       isTechnician,
       isPremiumTier,
       isPrimoMode,
@@ -461,14 +528,50 @@ const CommandPalette = (): JSX.Element | null => {
     return map;
   }, [items]);
 
+  // Track whether the most recent input was a keystroke or pointer move.
+  // Hovering changes cmdk's selected value (selection-follows-pointer),
+  // which would otherwise pop sub-items open every time the mouse passes
+  // a parent row. We still want auto-expand on arrow-key navigation, so
+  // gate it on this ref instead of turning off pointer selection
+  // entirely (which would also kill the hover highlight).
+  const lastInputSourceRef = useRef<"keyboard" | "pointer">("keyboard");
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = () => {
+      lastInputSourceRef.current = "keyboard";
+    };
+    const onPointer = () => {
+      lastInputSourceRef.current = "pointer";
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointermove", onPointer, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointermove", onPointer, true);
+    };
+  }, [open]);
+
   // Auto expand/collapse sub-items as the user arrows through items.
   // Normalize to match how valueToParentId stores its keys — cmdk
   // hands back the raw `value` prop (preserves casing/whitespace).
   const handleHighlightChange = useCallback(
     (value: string) => {
       if (isSearching) return;
+      if (lastInputSourceRef.current !== "keyboard") return;
       const parentId = valueToParentId.get(value.toLowerCase().trim());
-      setExpandedItems(parentId ? new Set([parentId]) : new Set());
+      // Bail out when the target set is equivalent to the current one
+      // (arrowing within the same parent's sub-items, or moving between
+      // two non-parent rows). Without this, every arrow press allocates
+      // a new Set and forces a re-render even when no expansion state
+      // actually changes.
+      setExpandedItems((prev) => {
+        if (parentId) {
+          if (prev.size === 1 && prev.has(parentId)) return prev;
+          return new Set([parentId]);
+        }
+        if (prev.size === 0) return prev;
+        return new Set();
+      });
     },
     [valueToParentId, isSearching]
   );
@@ -546,7 +649,9 @@ const CommandPalette = (): JSX.Element | null => {
             )}
           </div>
           {item.teamName && (
-            <span className={`${baseClass}__item-fleet`}>{item.teamName}</span>
+            <span className={`${baseClass}__item-fleet`}>
+              <UprightEmoji text={item.teamName} />
+            </span>
           )}
         </Command.Item>
         {/* Render sub-items when expanded (browsing) or always when searching */}
@@ -634,7 +739,7 @@ const CommandPalette = (): JSX.Element | null => {
                       fleets shows "All fleets"). */}
                   {!sub && item.teamName && (
                     <span className={`${baseClass}__item-fleet`}>
-                      {item.teamName}
+                      <UprightEmoji text={item.teamName} />
                     </span>
                   )}
                   {/* Parent label as a context chip on promoted sub-items
@@ -738,7 +843,16 @@ const CommandPalette = (): JSX.Element | null => {
     <Command.Dialog
       open={open}
       onOpenChange={handleOpenChange}
-      onValueChange={handleHighlightChange}
+      // Controlling `value` also switches cmdk into a mode where
+      // `onValueChange` fires on every internal selection update
+      // (arrow keys, pointer hover, filter-driven re-selects), which is
+      // what lets us drive `handleHighlightChange` from a single source
+      // instead of a `useCommandState` bridge.
+      value={cmdkValue}
+      onValueChange={(value) => {
+        setCmdkValue(value);
+        handleHighlightChange(value);
+      }}
       label="Command palette"
       className={baseClass}
       overlayClassName={`${baseClass}__overlay`}
@@ -760,6 +874,14 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
+      {/* cmdk's Dialog wraps Radix Dialog.Content, which requires a Title and
+          a Description for screen reader accessibility — without these, Radix
+          logs a console error/warning on every open. Both are rendered
+          visually hidden so the palette UI stays unchanged. */}
+      <DialogTitle className="sr-only">Command palette</DialogTitle>
+      <DialogDescription className="sr-only">
+        Search for a page, command, or resource across Fleet.
+      </DialogDescription>
       <div className={`${baseClass}__input-wrapper`}>
         {page !== "root" && (
           // tabIndex=-1 so Radix's open-autofocus skips the back button
@@ -840,7 +962,28 @@ const CommandPalette = (): JSX.Element | null => {
         {page === "root" && renderRootPage()}
         {page === "switch-fleet" && (
           <FleetPicker
-            availableTeams={availableTeams}
+            // Drop "All fleets" and "Unassigned" on pages whose useTeamIdParam
+            // config rejects them (e.g. Dashboard hides Unassigned; the Fleet
+            // → Users/Options/Settings admin pages hide All). Otherwise the
+            // option appears valid but selecting it triggers a redirect-to-
+            // default and silently reverts. Read pathname at render — the
+            // palette can't be navigated away from without closing, so the
+            // value is stable per session.
+            availableTeams={availableTeams?.filter((t) => {
+              if (
+                t.id === APP_CONTEXT_NO_TEAM_ID &&
+                !pathSupportsUnassigned(window.location.pathname)
+              ) {
+                return false;
+              }
+              if (
+                t.id === APP_CONTEXT_ALL_TEAMS_ID &&
+                !pathSupportsAllFleets(window.location.pathname)
+              ) {
+                return false;
+              }
+              return true;
+            })}
             currentTeam={currentTeam}
             search={search}
             onSelect={handleSwitchFleet}
@@ -851,6 +994,7 @@ const CommandPalette = (): JSX.Element | null => {
             search={search}
             showTeamColumn={!!isPremiumTier && !isPrimoMode}
             onSelect={handleSelectHost}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-software" && (
@@ -858,6 +1002,7 @@ const CommandPalette = (): JSX.Element | null => {
             search={search}
             currentTeam={currentTeam}
             onSelect={handleSelectSoftware}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-software-library" && (
@@ -866,6 +1011,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             scope="library"
             onSelect={handleSelectSoftware}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-report" && (
@@ -874,6 +1020,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             isViewerObserver={isViewerObserverInScope}
             onSelect={handleSelectReport}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-policy" && (
@@ -882,6 +1029,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             isPremiumTier={!!isPremiumTier}
             onSelect={handleSelectPolicy}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
       </Command.List>

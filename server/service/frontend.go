@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 
+	"github.com/WatchBeam/clock"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -88,6 +91,8 @@ func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
 	ds fleet.Datastore,
+	kv fleet.KeyValueStore,
+	clk clock.Clock,
 	logger *slog.Logger,
 	serveCSP bool,
 ) http.Handler {
@@ -117,10 +122,11 @@ func ServeEndUserEnrollOTA(
 			herr(ctx, w, "load appconfig err: "+err.Error())
 			return
 		}
+		appleManualEnrollmentBlocked := appCfg.MDM.OnlyAllowAppleBusinessEnrollment
 
 		errorMsg := r.URL.Query().Get("error")
 		if errorMsg != "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce, appleManualEnrollmentBlocked); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -128,7 +134,7 @@ func ServeEndUserEnrollOTA(
 
 		enrollSecret := r.URL.Query().Get("enroll_secret")
 		if enrollSecret == "" {
-			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce); err != nil {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce, appleManualEnrollmentBlocked); err != nil {
 				herr(ctx, w, err.Error())
 			}
 			return
@@ -141,19 +147,20 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
+		var cookieIdPRef string
 		if authRequired {
 			// check if authentication cookie is present, in which case we go ahead with
 			// offering the enrollment profile to download.
-			var cookieIdPRef string
-			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil {
-				cookieIdPRef = byodCookie.Value
-
-				// if the cookie is present, we should also receive a (matching) enroll reference
-				if cookieIdPRef != "" {
-					enrollRef := r.URL.Query().Get("enrollment_reference")
-					if cookieIdPRef != enrollRef {
-						cookieIdPRef = "" // cookie does not match the enroll reference, so we ignore it and require authentication
-					}
+			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil && byodCookie.Value != "" {
+				uuid, err := shared_mdm.ValidateBYODIdPSession(r.Context(), kv, clk, byodCookie.Value)
+				var noSession *fleet.AuthRequiredError
+				switch {
+				case errors.As(err, &noSession):
+				case err != nil:
+					herr(ctx, w, "resolve IdP session err: "+err.Error())
+					return
+				default:
+					cookieIdPRef = uuid
 				}
 			}
 
@@ -171,7 +178,8 @@ func ServeEndUserEnrollOTA(
 		// if we get here, IdP SSO authentication is either not required, or has
 		// been successfully completed (we have a cookie with the IdP account
 		// reference).
-		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce); err != nil {
+
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce, appleManualEnrollmentBlocked); err != nil {
 			herr(ctx, w, err.Error())
 			return
 		}
@@ -195,7 +203,7 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string) error {
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string, appleManualEnrollmentBlocked bool) error {
 	fs := newBinaryFileSystem("/frontend")
 	file, err := fs.Open("templates/enroll-ota.html")
 	if err != nil {
@@ -217,21 +225,23 @@ func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSec
 		return fmt.Errorf("generate enroll ota url: %w", err)
 	}
 	if err := t.Execute(w, struct {
-		EnrollURL             string
-		URLPrefix             string
-		ErrorMessage          string
-		AndroidMDMEnabled     bool
-		MacMDMEnabled         bool
-		AndroidFeatureEnabled bool
-		CSPNonce              string
+		EnrollURL                    string
+		URLPrefix                    string
+		ErrorMessage                 string
+		AndroidMDMEnabled            bool
+		MacMDMEnabled                bool
+		AndroidFeatureEnabled        bool
+		CSPNonce                     string
+		AppleManualEnrollmentBlocked bool
 	}{
-		URLPrefix:             urlPrefix,
-		EnrollURL:             enrollURL,
-		ErrorMessage:          errorMessage,
-		AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
-		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
-		AndroidFeatureEnabled: true,
-		CSPNonce:              nonce,
+		URLPrefix:                    urlPrefix,
+		EnrollURL:                    enrollURL,
+		ErrorMessage:                 errorMessage,
+		AndroidMDMEnabled:            appCfg.MDM.AndroidEnabledAndConfigured,
+		MacMDMEnabled:                appCfg.MDM.EnabledAndConfigured,
+		AndroidFeatureEnabled:        true,
+		CSPNonce:                     nonce,
+		AppleManualEnrollmentBlocked: appleManualEnrollmentBlocked,
 	}); err != nil {
 		return fmt.Errorf("execute react template: %w", err)
 	}
@@ -245,6 +255,10 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	if r.URL.Query().Get("fully_managed") == "true" {
 		requestURL += "&fully_managed=true"
 	}
+	// Same with the byod modifier parameter for Apple enrollments
+	if r.URL.Query().Get("byod") == "true" {
+		requestURL += "&byod=true"
+	}
 	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), fleet.SSOInitiatorOTAEnroll, requestURL, "")
 	if err != nil {
 		return err
@@ -254,10 +268,16 @@ func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+// hashedAssetRe matches build-output filenames that embed a content hash, e.g.
+// "bundle-3ccf015bc0fac64b4ce8.js" or "logo@1a2b3c4d.png". A content change
+// produces a new hash and therefore a new URL, so these are safe to cache
+// forever. Unhashed names (dev builds like "bundle.js") must keep revalidating.
+var hashedAssetRe = regexp.MustCompile(`[-@][0-9a-f]{8,}\.[a-z0-9]+$`)
+
 func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	contentTypes := []string{"text/javascript", "text/css"}
 	staticAssetsServer := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.FileServer(newBinaryFileSystem("/assets")))
-	withoutGzip := http.StripPrefix(path, staticAssetsServer)
+	withoutGzip := http.StripPrefix(path, assetCacheControl(staticAssetsServer))
 
 	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
 	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
@@ -265,4 +285,42 @@ func ServeStaticAssets(path string, serveCSP bool) http.Handler {
 	}
 
 	return withOpts(withoutGzip)
+}
+
+func assetCacheControl(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&cacheControlResponseWriter{ResponseWriter: w, path: r.URL.Path}, r)
+	})
+}
+
+type cacheControlResponseWriter struct {
+	http.ResponseWriter
+	path        string
+	wroteHeader bool
+}
+
+// WriteHeader decides Cache-Control from the final status so the long-lived
+// immutable cache is applied only to successful responses for hashed assets.
+// Caching a transient 404/500 would otherwise pin a broken asset at the browser/CDN.
+func (w *cacheControlResponseWriter) WriteHeader(status int) {
+	if !w.wroteHeader {
+		w.wroteHeader = true
+		if (status == http.StatusOK || status == http.StatusNotModified) && hashedAssetRe.MatchString(w.path) {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *cacheControlResponseWriter) Write(b []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+func (w *cacheControlResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }

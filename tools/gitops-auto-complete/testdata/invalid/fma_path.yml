@@ -1,0 +1,5 @@
+# fleet_maintained_apps items don't accept a top-level path: and require slug.
+# fleetctl rejects this with an unknown-key error plus "slug is required".
+software:
+  fleet_maintained_apps:
+    - path: ../lib/software/multiple-packages.yml

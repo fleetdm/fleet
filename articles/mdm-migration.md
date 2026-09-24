@@ -2,8 +2,6 @@
 
 This guide provides instructions for migrating devices from your current MDM solution to Fleet. There are two different workflows to migrate your devices.
 
-> For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
-
 > For Apple's native MDM migration support for AB-registered devices running macOS, iOS or iPadOS 26, [consult Apple's documentation](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web)
 
 ## Requirements
@@ -15,6 +13,8 @@ This guide provides instructions for migrating devices from your current MDM sol
 > **Important:** Apple MDM enrollment relies on a Safari-based system web view. If Safari is blocked or restricted, enrollment can fail.
 
 ## Migrate hosts
+
+> During MDM migration, Fleet doesn't run the full setup experience. The [managed local account](https://fleetdm.com/guides/setup-experience#managed-local-account) is not created, and the [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) is not installed by default. Only Fleet's agent is installed.
 
 To migrate hosts, we will do the following steps:
 
@@ -37,7 +37,7 @@ First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by 
 There are three migration workflows in Fleet: 
 - Default: Requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
 - End user: Allows the user to kick off migration by unenrolling from the old MDM solution on their own. Once the user is unenrolled, they're prompted to turn on MDM features in Fleet, reducing the gap in MDM coverage.
-- [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-manager-abm)
+- [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-ab)
 
 Both the default and end user migration workflows require end users to have access to an admin account on their Mac. macOS asks for an admin username and password before installing the enrollment profile. The macOS Tahoe workflow supports admin and standard users.
 
@@ -106,11 +106,11 @@ Then, scroll down to the **Mobile device management (MDM)** section of the Dashb
 
 _Available in Fleet Premium_
 
-When migrating from a previous MDM, end users must restart or log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
+When migrating hosts, end users must log out of their device (or restart) to escrow new FileVault keys to Fleet. So, prior to migration, the best practice is to export all FileVault keys from your old MDM solution into a spreadsheet. This way, if you need to use a key before the end user has logged out, you can refer to your spreadsheet for the working key.
 
-To start, [enforce FileVault disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet.
+During migration, after you [turn on disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
-After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
+For new hosts that enroll via Apple Business, end users don't need to take action. Fleet automatically escrows the FileVault key on the next host vitals refetch.
 
 ### How to turn on disk encryption
 

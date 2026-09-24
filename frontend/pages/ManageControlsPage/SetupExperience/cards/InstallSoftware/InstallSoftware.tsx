@@ -1,42 +1,41 @@
+import { AxiosError } from "axios";
 import React, { useCallback } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
-import mdmAPI, {
-  IGetSetupExperienceSoftwareResponse,
-} from "services/entities/mdm";
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { ISoftwareTitle } from "interfaces/software";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import { IConfig } from "interfaces/config";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import {
   isSetupExperiencePlatform,
   SetupExperiencePlatform,
 } from "interfaces/platform";
+import { ISoftwareTitle } from "interfaces/software";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import mdmAPI, {
+  IGetSetupExperienceSoftwareResponse,
+} from "services/entities/mdm";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import getManualAgentInstallSetting from "../../helpers";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 import InstallSoftwareForm from "./components/InstallSoftwareForm";
-import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
-import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "install-software";
 
@@ -227,9 +226,9 @@ const InstallSoftware = ({
       <PageDescription
         variant="right-panel"
         content={
-          selectedPlatform === "windows" || selectedPlatform === "linux"
-            ? "Install software on hosts that enroll to Fleet."
-            : "Install software on hosts that automatically enroll to Fleet."
+          selectedPlatform === "macos"
+            ? "Install software on hosts that automatically enroll to Fleet."
+            : "Install software on hosts that enroll to Fleet."
         }
       />
       <SetupExperienceContentContainer>

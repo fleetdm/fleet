@@ -6,9 +6,9 @@
   ],
   "desc": "Conference room software for Zoom meetings",
   "homepage": "https://www.zoom.com/en/products/zoom-rooms/",
-  "url": "https://cdn.zoom.us/prod/7.0.5.12655/ZoomRooms.pkg",
+  "url": "https://cdn.zoom.us/prod/7.1.7.13891/ZoomRooms.pkg",
   "url_specs": {},
-  "version": "7.0.5.12655",
+  "version": "7.1.7.13891",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": true,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "8fb2ab355a5bdd0acdae3c6e0f10d8d41556a3011478f4faf6198dcad96dd0d1",
+  "sha256": "536588928c08c76a66c1fe6f6bea47a91164fcbc4e5f2ee5567c438da3daea0a",
   "artifacts": [
     {
       "uninstall": [
@@ -87,6 +87,6 @@
   "languages": [],
   "ruby_source_path": "Casks/zoom-rooms.rb",
   "ruby_source_checksum": {
-    "sha256": "98706d4c8a4f74ed1141121ece328aa42902c0b9366d4e6b374ede6174968f8f"
+    "sha256": "46e1496c9934141db3d58e5425edbefda42a635cab0be9a471ba3674aa13568b"
   }
 }

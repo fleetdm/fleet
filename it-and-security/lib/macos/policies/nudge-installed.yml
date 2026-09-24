@@ -1,4 +1,4 @@
-- name: macOS - Nudge installed
+- name: Nudge installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = "com.github.macadmins.Nudge";
   critical: true
   description: This policy ensures Nudge is installed.

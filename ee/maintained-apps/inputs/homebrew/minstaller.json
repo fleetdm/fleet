@@ -1,0 +1,10 @@
+{
+  "name": "mInstaller",
+  "unique_identifier": "com.motionvfx.mInstaller",
+  "token": "minstaller",
+  "installer_format": "zip",
+  "slug": "minstaller/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

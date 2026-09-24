@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules help
 
 export GO111MODULE=on
 
@@ -46,6 +46,17 @@ else
 	GOVERSION_CMD = "(go version).Split()[2]"
 	GOVERSION = $(shell powershell $(GOVERSION_CMD))
 	NOW	= $(shell powershell Get-Date -format "yyy-MM-dd")
+endif
+
+# Cap lint concurrency at half the logical CPUs (rounded up) so the incremental
+# linters (modernize, nilaway) don't saturate the machine. Override with LINT_CONCURRENCY=N.
+ifndef LINT_CONCURRENCY
+	ifeq ($(OS), Windows_NT)
+		LINT_NPROC := $(NUMBER_OF_PROCESSORS)
+	else
+		LINT_NPROC := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 2)
+	endif
+	LINT_CONCURRENCY := $(shell echo $$(( ($(LINT_NPROC) + 1) / 2 )))
 endif
 
 ifndef CIRCLE_PR_NUMBER
@@ -133,6 +144,24 @@ fdm:
 		echo "Linking to /usr/local/bin/fdm..."; \
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
+
+.help-short--dibble:
+	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
+dibble:
+	cd tools/dibble && go build -o dibble ./cmd/dibble
+
+.help-short--tidy-tool-modules:
+	@echo "Re-tidy tool modules that pin the parent fleet module (run after bumping the root go.mod)"
+# Tool modules under tools/ that pin the parent via `replace github.com/fleetdm/fleet/v4 => ../..`
+# mirror the root module's transitive dependency graph, so a root go.mod/go.sum bump leaves their
+# go.mod/go.sum out of sync. This discovers those modules and re-tidies each one.
+tidy-tool-modules:
+	@mods=$$(grep -rlF --include=go.mod 'replace github.com/fleetdm/fleet/v4 =>' tools); \
+	for mod in $$mods; do \
+		dir=$$(dirname $$mod); \
+		echo "==> go mod tidy in $$dir"; \
+		(cd $$dir && go mod tidy) || exit 1; \
+	done
 
 .help-short--serve:
 	@echo "Start the fleet server"
@@ -222,10 +251,11 @@ fleetctl-dev: fleetctl
 	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
+	yarn lint:icons
 
 .help-short--lint-go:
 	@echo "Run the Go linters"
-lint-go: check-no-testing-in-prod
+lint-go: check-no-testing-in-prod check-nilaway-func-size
 	golangci-lint run --allow-serial-runners --timeout 15m
 ifndef SKIP_INCREMENTAL
 	$(MAKE) lint-go-incremental
@@ -236,10 +266,17 @@ endif
 check-no-testing-in-prod:
 	go run ./tools/check-no-testing-in-prod
 
+.help-short--check-nilaway-func-size:
+	@echo "Fail if any function has too many CFG blocks for nilaway to analyze."
+# Deliberately not part of the incremental lint: nilaway reports this failure at a synthetic $GOROOT
+# position that --new-from-rev always filters out, so the gate has to run over the whole repo.
+check-nilaway-func-size:
+	go run ./tools/check-nilaway-func-size ./...
+
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
 lint-go-incremental: custom-gcl
-	./custom-gcl run --allow-serial-runners -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+	GOMAXPROCS=$(LINT_CONCURRENCY) ./custom-gcl run --allow-serial-runners --concurrency=$(LINT_CONCURRENCY) -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
 
 custom-gcl:
 	golangci-lint custom
@@ -416,13 +453,21 @@ test: lint test-go test-js
 	@echo "Generate and bundle required Go code and Javascript code"
 generate: clean-assets generate-js generate-go
 
-generate-ci:
+generate-ci: generate-osquery-sql-parser
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
+# The generated parser is gitignored; it is regenerated here and by the yarn
+# pre-hooks of every script that consumes it (test, lint, storybook). This
+# target is also the way to (re)create the file manually, e.g. to debug it.
+.help-short--generate-osquery-sql-parser:
+	@echo "Generate the osquery SQL parser from its grammar (frontend/utilities/osquery_sql_parser)"
+generate-osquery-sql-parser:
+	yarn generate:osquery-sql-parser
+
 .help-short--generate-js:
 	@echo "Generate and bundle required js code"
-generate-js: clean-assets .prefix
+generate-js: clean-assets .prefix generate-osquery-sql-parser
 	NODE_ENV=production yarn run webpack --progress
 
 .help-short--generate-go:
@@ -437,7 +482,7 @@ generate-go: .prefix
 # run webpack in watch mode to continuously re-generate the bundle
 .help-short--generate-dev:
 	@echo "Generate and bundle required Javascript code in a watch loop"
-generate-dev: .prefix
+generate-dev: .prefix generate-osquery-sql-parser
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
@@ -494,9 +539,6 @@ clean-assets:
 
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
-
-bomutils-docker:
-	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
 
 wix-docker:
 	cd tools/wix-docker && docker build -t fleetdm/wix --platform=linux/amd64 -f Dockerfile .
@@ -941,18 +983,16 @@ desktop-windows-arm64:
 
 # Build desktop executable for Linux.
 #
+# CGO is disabled so the result is a fully static binary with no glibc
+# dependency, runnable on older distros (e.g. Ubuntu 20.04) regardless of the
+# host used to build it.
+#
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
 #
 # Output: desktop.tar.gz
 desktop-linux:
-	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir -p /output/fleet-desktop && \
-		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-s -w -linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
-		cd /output && \
-		tar czf desktop.tar.gz fleet-desktop && \
-		rm -r fleet-desktop"
+	$(call build-desktop-linux,amd64)
 
 # Build desktop executable for Linux ARM.
 #
@@ -961,13 +1001,14 @@ desktop-linux:
 #
 # Output: desktop.tar.gz
 desktop-linux-arm64:
-	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir -p /output/fleet-desktop && \
-		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-s -w -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
-		cd /output && \
-		tar czf desktop.tar.gz fleet-desktop && \
-		rm -r fleet-desktop"
+	$(call build-desktop-linux,arm64)
+
+define build-desktop-linux
+	rm -rf fleet-desktop && mkdir -p fleet-desktop
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(1) go build -trimpath -o fleet-desktop/fleet-desktop -ldflags "-s -w -X=main.version=$(FLEET_DESKTOP_VERSION)" ./orbit/cmd/desktop
+	tar czf desktop.tar.gz fleet-desktop
+	rm -r fleet-desktop
+endef
 
 # Build orbit executable for Windows.
 # This generates orbit executable for Windows that includes versioninfo binary properties
@@ -1029,32 +1070,44 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
 	sh -c 'echo "## \`fleetdm/wix\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
-	sh -c 'echo "## \`fleetdm/bomutils\` docker image\n" >> security/status.md'
-	sh -c 'go run ./tools/vex-parser ./security/vex/bomutils >> security/status.md'
 
 # make update-go version=1.24.4
-UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_DOCKERFILES := ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
 UPDATE_GO_MODS := \
 	go.mod \
 	./tools/mdm/windows/bitlocker/go.mod \
 	./tools/snapshot/go.mod \
 	./tools/terraform/go.mod \
 	./third_party/vuln-check/go.mod \
+	./third_party/goval-dictionary/go.mod \
+	./tools/ci/apiparamcheck/go.mod \
 	./tools/ci/setboolcheck/go.mod \
 	./tools/github-manage/go.mod \
 	./tools/qacheck/go.mod \
-	./third_party/goval-dictionary/go.mod \
-	./tools/fleet-mcp/go.mod
+	./tools/screencap/go.mod \
+	./tools/hangar/go.mod \
+	./cmd/fleet-mcp/go.mod \
+	./tools/dibble/go.mod \
+	./tools/gitops-auto-complete/go.mod \
+	./tools/upgrade/go.mod
+# The index digest is scraped from the default `imagetools inspect` output rather than requested with
+# `--format '{{.Manifest.Digest}}'`: buildx >= v0.32 silently ignores that template and prints the full
+# report, which then gets written into the Dockerfile as the digest.
 update-go:
-	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
+	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
-		echo "Please update sha256 in $$dockerfile" ; \
+		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
+		echo "Resolving index digest for $$tag ..." ; \
+		digest=$$(docker buildx imagetools inspect $$tag | awk '/^Digest:/ { print $$2 ; exit }') ; \
+		echo "$$digest" | grep -qE '^sha256:[0-9a-f]{64}$$' || { echo "Failed to resolve digest for $$tag (got: $$digest)" ; exit 1 ; } ; \
+		go run ./tools/tuf/replace $$dockerfile "$$tag@sha256:[0-9a-f]+" "$$tag@$$digest" ; \
+		echo "* Updated $$dockerfile -> $$tag@$$digest" ; \
 	done
 	@for gomod in $(UPDATE_GO_MODS) ; do \
 		go run ./tools/tuf/replace $$gomod "(?m)^go .+$$" "go $(version)" ; \
 	done
-	@echo "* Updated go to $(version)" > changes/update-go-$(version)
-	@cp changes/update-go-$(version) orbit/changes/update-go-$(version)
+	@echo "- Updated Go to $(version)." > changes/update-go-$(version)
+	@echo "* Updated Go to $(version)." > orbit/changes/update-go-$(version)
 
 include ./tools/makefile-support/helpsystem-targets

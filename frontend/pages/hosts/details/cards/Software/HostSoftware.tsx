@@ -1,48 +1,45 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext, useMemo, useState } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import hostAPI, {
-  IGetHostSoftwareResponse,
-  IHostSoftwareQueryKey,
-} from "services/entities/hosts";
-import deviceAPI, {
-  IDeviceSoftwareQueryKey,
-  IGetDeviceSoftwareResponse,
-} from "services/entities/device_user";
-import { IHostSoftware, ISoftware } from "interfaces/software";
+import CardHeader from "components/CardHeader";
+import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
   isIPadOrIPhone,
   isMacOS,
 } from "interfaces/platform";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getNextLocationPath } from "utilities/helpers";
-import { convertParamsToSnakeCase } from "utilities/url";
-
-import { AppContext } from "context/app";
-
-import CardHeader from "components/CardHeader";
-import DataError from "components/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner";
+import { IHostSoftware, ISoftware } from "interfaces/software";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
-
 import {
   buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
-import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
-import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
-import HostSoftwareTable from "./HostSoftwareTable";
-import { getSoftwareSubheader } from "./helpers";
+import deviceAPI, {
+  IDeviceSoftwareQueryKey,
+  IGetDeviceSoftwareResponse,
+} from "services/entities/device_user";
+import hostAPI, {
+  IGetHostSoftwareResponse,
+  IHostSoftwareQueryKey,
+} from "services/entities/hosts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase } from "utilities/url";
 
-const baseClass = "host-software-card";
+import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
+import { getSoftwareSubheader } from "./helpers";
+import HostSoftwareTable from "./HostSoftwareTable";
+import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
+
+const baseClass = "host-software-section";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
@@ -65,6 +62,13 @@ interface IHostSoftwareProps {
   onShowInventoryVersions: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   isMyDevicePage?: boolean;
+  /**
+   * Premium status for the My device page. The device page is token-authenticated
+   * and has no app session, so `isPremiumTier` is not available from the app
+   * context there and must be passed in explicitly from the device's license info.
+   * Ignored on the host details page, which reads premium status from the app context.
+   */
+  isPremiumTier?: boolean;
   /** Used to show custom Software card header */
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
 }
@@ -144,14 +148,21 @@ const HostSoftware = ({
   onShowInventoryVersions,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  isPremiumTier: isPremiumTierProp,
   hostMdmEnrollmentStatus = null,
 }: IHostSoftwareProps) => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier: isPremiumTierFromContext } = useContext(AppContext);
+  // The My device page is token-authenticated and has no app session/context, so
+  // its premium status is provided explicitly by the caller. Everywhere else we
+  // read it from the app context.
+  const isPremiumTier = isMyDevicePage
+    ? isPremiumTierProp
+    : isPremiumTierFromContext;
 
   // The /Applications filter only applies to macOS hosts, and defaults to ON
   // (only top-level applications) when the host is macOS and no explicit value
-  // is set in the URL. It is left undefined for other platforms so the param is
-  // not sent to the API.
+  // is set in the URL. It is left undefined for other platforms, so the param
+  // is neither sent to the API nor appended to the URL on pagination.
   const macosApplicationsFilter = isMacOS(platform)
     ? queryParams.macos_applications ?? true
     : undefined;
@@ -210,6 +221,7 @@ const HostSoftware = ({
         id: id as string,
         softwareUpdatedAt,
         ...queryParams,
+        macos_applications: macosApplicationsFilter,
       },
     ],
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
@@ -290,9 +302,8 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
-          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading

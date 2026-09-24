@@ -1,42 +1,43 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
 import { AxiosError, AxiosResponse } from "axios";
-import { useQuery } from "react-query";
-import { ErrorBoundary } from "react-error-boundary";
 import { isBefore } from "date-fns";
+import React, { useContext, useEffect, useState, useCallback } from "react";
+import { ErrorBoundary } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import page_titles from "router/page_titles";
-import TableProvider from "context/table";
-import QueryProvider from "context/query";
-import PolicyProvider from "context/policy";
-import NotificationProvider from "context/notification";
+import Spinner from "components/Spinner";
+import ToastNotification from "components/ToastNotification";
 import { AppContext } from "context/app";
-import authToken from "utilities/auth_token";
+import PolicyProvider from "context/policy";
+import QueryProvider from "context/query";
+import TableProvider from "context/table";
 import useDeepEffect from "hooks/useDeepEffect";
-import { QueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import usersAPI from "services/entities/users";
-import configAPI from "services/entities/config";
-import hostCountAPI from "services/entities/host_count";
-import mdmAppleBMAPI, {
-  IGetAbTokensResponse,
-} from "services/entities/mdm_apple_bm";
-import mdmAppleAPI, {
-  IGetVppTokensResponse,
-} from "services/entities/mdm_apple";
-import mdmAndroidAPI from "services/entities/mdm_android";
-
+import ErrorPageLayout from "layouts/ErrorPageLayout";
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
 // @ts-ignore
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
-
-import Spinner from "components/Spinner";
+import page_titles from "router/page_titles";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import hostCountAPI from "services/entities/host_count";
+import mdmAndroidAPI from "services/entities/mdm_android";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
+import mdmAppleBMAPI, {
+  IGetAbTokensResponse,
+} from "services/entities/mdm_apple_bm";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
+  router: InjectedRouter;
   location?: {
     pathname: string;
     search: string;
@@ -70,7 +71,7 @@ export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
 
 const baseClass = "app";
 
-const App = ({ children, location }: IAppProps): JSX.Element => {
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
@@ -89,6 +90,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -122,15 +124,32 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ ab_tokens }) => {
-        ab_tokens.length &&
+        // Always update the context, even when the list is empty (e.g., the
+        // last token was deleted) -- otherwise stale expiry/banner state from
+        // a previous non-empty response would linger indefinitely.
+        if (ab_tokens.length === 0) {
           setABMExpiry({
-            earliestExpiry: getEarliestExpiry(ab_tokens),
-            needsAbmTermsRenewal: ab_tokens.some(
-              (token) => token.terms_expired
-            ),
+            earliestExpiry: "",
+            needsAbmTermsRenewal: false,
+            hasInvalidABMToken: false,
+            invalidAbmTokenOrgNames: [],
           });
+          return;
+        }
+
+        setABMExpiry({
+          earliestExpiry: getEarliestExpiry(ab_tokens),
+          needsAbmTermsRenewal: ab_tokens.some((token) => token.terms_expired),
+          hasInvalidABMToken: ab_tokens.some((token) => token.token_invalid),
+          invalidAbmTokenOrgNames: ab_tokens
+            .filter((token) => token.token_invalid)
+            .map((token) => token.org_name),
+        });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
       // API behaved this way when the token is already expired or invalid.
@@ -139,6 +158,8 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
           setABMExpiry({
             earliestExpiry: GUARANTEED_PAST_DATE,
             needsAbmTermsRenewal: true, // TODO: if order of precedence for banners changes, we may need to upate this
+            hasInvalidABMToken: false,
+            invalidAbmTokenOrgNames: [],
           });
         }
       },
@@ -160,7 +181,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ vpp_tokens }) => {
         vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
       },
@@ -224,7 +248,14 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   ]);
 
   useEffect(() => {
-    if (authToken.get() && !location?.pathname.includes("/device/")) {
+    // Skip on `/logout`: this request races the session-destroy call, and
+    // a 401 back here triggers the hard-reload branch below, which flashes
+    // the viewport white in dark mode.
+    if (
+      authToken.get() &&
+      !location?.pathname.includes("/device/") &&
+      !location?.pathname.includes("/logout")
+    ) {
       fetchCurrentUser();
     }
   }, [location?.pathname, fetchCurrentUser]);
@@ -275,15 +306,19 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     console.error(error);
 
     const overlayError = error as AxiosResponse;
+
+    let errorPage = <Fleet500 />;
     if (overlayError.status === 403 || overlayError.status === 402) {
-      return <Fleet403 />;
+      errorPage = <Fleet403 />;
+    } else if (overlayError.status === 404) {
+      errorPage = <Fleet404 />;
     }
 
-    if (overlayError.status === 404) {
-      return <Fleet404 />;
-    }
-
-    return <Fleet500 />;
+    return (
+      <ErrorPageLayout router={router} location={location}>
+        {errorPage}
+      </ErrorPageLayout>
+    );
   };
 
   return isLoading ? (
@@ -292,14 +327,16 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     <TableProvider>
       <QueryProvider>
         <PolicyProvider>
-          <NotificationProvider>
-            <ErrorBoundary
-              fallbackRender={renderErrorOverlay}
-              resetKeys={[location?.pathname]}
-            >
-              <div className={baseClass}>{children}</div>
-            </ErrorBoundary>
-          </NotificationProvider>
+          {/* Sonner toaster — single global mount; renders toasts
+          dispatched from `notify.*` anywhere in the app. Outside the
+          ErrorBoundary so toasts survive page-level error overlays. */}
+          <ToastNotification />
+          <ErrorBoundary
+            fallbackRender={renderErrorOverlay}
+            resetKeys={[location?.pathname]}
+          >
+            <div className={baseClass}>{children}</div>
+          </ErrorBoundary>
         </PolicyProvider>
       </QueryProvider>
     </TableProvider>

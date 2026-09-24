@@ -1,0 +1,10 @@
+{
+  "name": "Lunatask",
+  "unique_identifier": "com.mikekreeki.tasks",
+  "token": "lunatask",
+  "installer_format": "dmg",
+  "slug": "lunatask/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

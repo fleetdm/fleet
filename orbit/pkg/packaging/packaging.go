@@ -67,6 +67,9 @@ type Options struct {
 	DisableUpdates bool
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
+	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
+	// advertising the end-user auth capability to the Fleet server.
+	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
@@ -135,6 +138,9 @@ type Options struct {
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// CPUQuota is the systemd CPUQuota percentage applied to the orbit service
+	// (Linux only). Zero means the default of 20%.
+	CPUQuota uint
 	// Architecture that the package is being built for. (amd64, arm64)
 	Architecture string
 	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin
@@ -346,17 +352,24 @@ func writeSecret(opt Options, orbitRoot string) error {
 	return nil
 }
 
-func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, "osquery.flags")
-
-	if opt.OsqueryFlagfile == "" {
-		// Write empty flagfile
-		if err := os.WriteFile(path, []byte(""), constant.DefaultFileMode); err != nil {
-			return fmt.Errorf("write empty flagfile: %w", err)
-		}
-
+// writeMacOSSecret writes the enroll secret file unless the secret is empty.
+// An empty secret happens with --use-system-configuration, where the secret is
+// resolved at runtime from a configuration profile or the keystore. Writing an
+// empty secret.txt causes it to be read on the device as an empty enroll secret,
+// producing confusing keystore errors during ABM enrollment.
+func writeMacOSSecret(opt Options, orbitRoot string) error {
+	if opt.EnrollSecret == "" {
 		return nil
 	}
+	return writeSecret(opt, orbitRoot)
+}
+
+func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
+	if opt.OsqueryFlagfile == "" {
+		return nil
+	}
+
+	path := filepath.Join(orbitRoot, "osquery.flags")
 
 	if err := file.Copy(opt.OsqueryFlagfile, path, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("copy flagfile: %w", err)

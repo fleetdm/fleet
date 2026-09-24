@@ -1,11 +1,12 @@
 import React from "react";
+
+import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
+import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
   getAutomationsForPolicy,
 } from "./helpers";
-import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
-import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 
 describe("getInstallSoftwareErrorMessage", () => {
   const mockFormData: IInstallSoftwareFormData = [
@@ -343,6 +344,22 @@ describe("getAutomationsForPolicy", () => {
       },
     });
     expect(result[0].name).toBe("Company Portal");
+  });
+
+  it("preserves the raw install_software.name as iconName for fallback icon matching (regression: #47123)", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Zoom",
+        display_name: "Custom Renamed App",
+        software_title_id: 42,
+      },
+    });
+    expect(result[0]).toMatchObject({
+      type: "software",
+      name: "Custom Renamed App",
+      iconName: "Zoom",
+    });
   });
 
   it("returns script automation with file name", () => {

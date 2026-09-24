@@ -2,26 +2,22 @@ import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
-
-import { getNextLocationPath } from "utilities/helpers";
-import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
-import { SUPPORT_LINK } from "utilities/constants";
-
-import { HostPlatform, isAndroid } from "interfaces/platform";
-import { IHostSoftwareWithUiStatus } from "interfaces/software";
-
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import Button from "components/buttons/Button";
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
+import { HostPlatform, isAndroid } from "interfaces/platform";
+import { IHostSoftwareWithUiStatus } from "interfaces/software";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { SUPPORT_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
 
 import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
 
@@ -193,22 +189,34 @@ const HostSoftwareLibraryTable = ({
 
   const renderCustomControls = () => {
     return (
-      <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="host-library-filter"
-          value={selfService ? "selfService" : "available"}
-          className={`${baseClass}__host-library-filter`}
-          options={DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as IHostSWLibraryDropdownFilterVal
-            )
-          }
-          variant="table-filter"
-          isDisabled={isTrulyEmpty}
-        />
-      </div>
+      <>
+        <div className={`${baseClass}__filter-controls`}>
+          <DropdownWrapper
+            name="host-library-filter"
+            value={selfService ? "selfService" : "available"}
+            className={`${baseClass}__host-library-filter`}
+            options={DROPDOWN_OPTIONS}
+            onChange={(newValue: SingleValue<CustomOptionType>) =>
+              newValue &&
+              handleCustomFilterDropdownChange(
+                newValue.value as IHostSWLibraryDropdownFilterVal
+              )
+            }
+            variant="table-filter"
+            isDisabled={isTrulyEmpty}
+          />
+        </div>
+        {canAddSoftware && !isTrulyEmpty && (
+          <Button
+            className={`${baseClass}__add-software-button`}
+            variant="secondary"
+            onClick={onAddSoftware}
+            icon="plus"
+          >
+            <span>Add software</span>
+          </Button>
+        )}
+      </>
     );
   };
 

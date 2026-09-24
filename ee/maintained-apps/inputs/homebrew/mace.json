@@ -1,0 +1,10 @@
+{
+  "name": "MACE",
+  "unique_identifier": "com.mace.app",
+  "token": "mace",
+  "installer_format": "dmg",
+  "slug": "mace/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

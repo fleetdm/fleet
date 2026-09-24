@@ -1,6 +1,7 @@
 import React from "react";
-import Modal from "components/Modal";
+
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "reset-password-modal";
 
@@ -30,7 +31,7 @@ const ResetPasswordModal = ({
           <Button type="button" onClick={onResetConfirm}>
             Confirm
           </Button>
-          <Button onClick={onResetCancel} variant="inverse">
+          <Button onClick={onResetCancel} variant="secondary">
             Cancel
           </Button>
         </div>

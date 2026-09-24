@@ -1,6 +1,7 @@
-# RealVNC Viewer ships as a zip containing both the 32-bit and 64-bit MSIs
-# (VNC-Viewer-<ver>-Windows-en-64bit.msi). Fleet downloads the zip to INSTALLER_PATH;
-# this script extracts it and installs the 64-bit MSI per-machine and silently.
+# RealVNC Connect Viewer ships as a zip containing the 64-bit MSI
+# (RealVNC-Connect-Viewer-<ver>-Windows.msi). Older releases bundled separate
+# 32/64-bit MSIs named *-64bit.msi. Fleet downloads the zip to INSTALLER_PATH;
+# this script extracts it and installs the (64-bit) MSI per-machine and silently.
 # The MSI sets ALLUSERS=1, so it always installs machine-wide.
 
 $zipFilePath = "${env:INSTALLER_PATH}"
@@ -14,10 +15,14 @@ try {
 
     Expand-Archive -Path $zipFilePath -DestinationPath $extractPath -Force
 
-    # Prefer the 64-bit MSI; fall back to any *64bit*.msi found.
+    # Prefer the 64-bit MSI (older multi-arch zips); fall back to the single MSI
+    # shipped in current Connect Viewer zips.
     $msi = Get-ChildItem -Path $extractPath -Filter "*64bit*.msi" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $msi) {
-        Write-Host "Error: 64-bit MSI not found under $extractPath"
+        $msi = Get-ChildItem -Path $extractPath -Filter "*.msi" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+    if (-not $msi) {
+        Write-Host "Error: MSI not found under $extractPath"
         Exit 1
     }
 

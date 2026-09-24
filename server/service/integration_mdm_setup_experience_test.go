@@ -57,6 +57,12 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
+	// creating a team script generates a created_setup_experience_script activity
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityCreatedSetupExperienceScript{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "script_name": "script42.sh"}`, tm.ID, tm.Name),
+		0)
+
 	// test script secret validation
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script.sh", []byte(`echo "$FLEET_SECRET_INVALID"`), s.token, map[string][]string{})
@@ -80,12 +86,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	require.Equal(t, int64(len(`echo "hello"`)), res.ContentLength)
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script42.sh"), res.Header.Get("Content-Disposition"))
 
+	// record the latest activity id before a no-op re-upload so we can assert nothing new is logged
+	lastActID := s.lastActivityMatches("", "", 0)
+
 	// try to update script with same name, should not fail because this is allowed
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
+
+	// re-uploading identical content is a no-op and must NOT generate a new activity (GitOps re-applies every run)
+	require.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
 
 	// update with a different name and contents via PUT endpoint, should suceed
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -94,12 +106,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
 
+	// replacing the script content generates a new created_setup_experience_script activity
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityCreatedSetupExperienceScript{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "script_name": "different.sh"}`, tm.ID, tm.Name),
+		0)
+
 	// create no-team script
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
+
+	// creating the no-team script generates a created_setup_experience_script activity with null fleet
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityCreatedSetupExperienceScript{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "script_name": "script42.sh"}`,
+		0)
 	// // TODO: confirm if we will allow team_id=0 requests
 	// noTeamID := uint(0) // TODO: confirm if we will allow team_id=0 requests
 	// body, headers = generateNewScriptMultipartRequest(t,
@@ -128,11 +152,19 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// delete the no-team script
 	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
 
+	// deleting the no-team script generates a deleted_setup_experience_script activity with null fleet
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityDeletedSetupExperienceScript{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "script_name": "script42.sh"}`,
+		0)
+
 	// try get the no-team script
 	s.Do("GET", "/api/latest/fleet/setup_experience/script", nil, http.StatusNotFound)
 
-	// try deleting the no-team script again
+	// try deleting the no-team script again, which is a no-op and must not generate a new activity
+	lastActID = s.lastActivityMatches("", "", 0)
 	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK) // TODO: confirm if we want to return not found
+	require.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
 
 	// // TODO: confirm if we will allow team_id=0 requests
 	// s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script/?team_id=%d", noTeamID), nil, http.StatusOK)
@@ -140,11 +172,19 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	// delete the team script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK)
 
+	// deleting the team script generates a deleted_setup_experience_script activity naming the current script
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityDeletedSetupExperienceScript{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "script_name": "different.sh"}`, tm.ID, tm.Name),
+		0)
+
 	// try get the team script
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusNotFound)
 
-	// try deleting the team script again
+	// try deleting the team script again, which is a no-op and must not generate a new activity
+	lastActID = s.lastActivityMatches("", "", 0)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK) // TODO: confirm if we want to return not found
+	require.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
 }
 
 func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript() (device godep.Device, host *fleet.Host, tm *fleet.Team) {
@@ -498,15 +538,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "host_display_name": "%s",
   "software_title": "%s",
   "software_package": "%s",
+  "hash_sha256": "%s",
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
   "source": "apps",
   "policy_id": null,
   "policy_name": null,
-  "from_setup_experience": true
+  "from_setup_experience": true,
+  "patch_when_closed": false
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 
@@ -931,15 +973,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "host_display_name": "%s",
   "software_title": "1Password",
   "software_package": "%s",
+  "hash_sha256": "%s",
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
   "source": "apps",
   "policy_id": null,
   "policy_name": null,
-  "from_setup_experience": true
+  "from_setup_experience": true,
+  "patch_when_closed": false
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, titleDetail.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 }
 
@@ -2680,6 +2724,146 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	}
 }
 
+// TestSetupExperienceIOSInHouseApp runs the end-to-end iOS setup experience
+// flow with a mixed payload: an in-house app (.ipa) and a VPP app on the same
+// enrolling iPhone. Both must install while the device is held in Setup
+// Assistant, drive the release, and be recorded with setup-experience
+// attribution.
+func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+	abmOrgName := "fleet_ade_ios_in_house_test"
+
+	s.enableABM(abmOrgName)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team in-house se"})
+	require.NoError(t, err)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+			       "apple_business_manager": [{
+			         "organization_name": %q,
+			         "macos_team": %q,
+			         "ios_team": %q,
+			         "ipados_team": %q
+			       }]
+			}
+		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
+
+	// VPP token for the App Store half of the payload
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	iOSApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}},
+		Name:             "App 2",
+		BundleIdentifier: "b-2",
+		LatestVersion:    "2.0.0",
+	}
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iOSApp.AdamID, Platform: iOSApp.Platform},
+		http.StatusOK, &addAppResp)
+	var vppTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &vppTitleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, iOSApp.AdamID, iOSApp.Platform)
+	})
+
+	// upload the .ipa (creates the iOS and iPadOS titles) and select the iOS title
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa", TeamID: &team.ID}, http.StatusOK, "")
+	var ipaTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &ipaTitleID, `SELECT title_id FROM in_house_apps WHERE global_or_team_id = ? AND platform = 'ios'`, team.ID)
+	})
+
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "ios",
+		TeamID:   team.ID,
+		TitleIDs: []uint{vppTitleID, ipaTitleID},
+	}, http.StatusOK, &swInstallResp)
+
+	// custom profile, expected by the enroll/release helper
+	teamProfile := mobileconfigForTest("N1", "I1")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+	device := godep.Device{
+		Model:        "iPhone 16 Pro",
+		OS:           "iOS",
+		DeviceFamily: "iPhone",
+		OpType:       "added",
+		SerialNumber: "iphone-inhouse-1",
+	}
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+
+	// wrapped in t.Run so the helper's cleanups run before the suite teardown
+	t.Run("iPhoneInHouseSetupExperience", func(t *testing.T) {
+		s.runDEPEnrollReleaseMobileDeviceWithVPPTest(t, device, DEPEnrollMobileTestOpts{
+			ABMOrg:             abmOrgName,
+			TeamID:             &team.ID,
+			CustomProfileIdent: "N1",
+			VppAppsToInstall:   []*fleet.VPPApp{iOSApp},
+			InHouseAppsToInstall: []fleet.Software{
+				{BundleIdentifier: "com.ipa-test.ipa-test", Name: "ipa_test", Version: "1.0"},
+			},
+		})
+
+		// both setup experience items reached success, and the in-house row carries
+		// its app pointer and MDM command UUID
+		listHostsRes := listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+		require.Len(t, listHostsRes.Hosts, 1)
+		hostUUID := listHostsRes.Hosts[0].UUID
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		var inHouseSeen, vppSeen bool
+		for _, res := range results {
+			require.Equal(t, fleet.SetupExperienceStatusSuccess, res.Status)
+			switch {
+			case res.IsForInHouseApp():
+				inHouseSeen = true
+				require.NotNil(t, res.NanoCommandUUID)
+			case res.IsForVPPApp():
+				vppSeen = true
+			}
+		}
+		require.True(t, inHouseSeen)
+		require.True(t, vppSeen)
+
+		// the verified in-house install is recorded with setup-experience attribution
+		var activitiesResp listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "per_page", "50", "order_key", "id", "order_direction", "desc")
+		var inHouseActivitySeen bool
+		for _, act := range activitiesResp.Activities {
+			if act.Type != (fleet.ActivityTypeInstalledSoftware{}).ActivityName() || act.Details == nil {
+				continue
+			}
+			var details fleet.ActivityTypeInstalledSoftware
+			require.NoError(t, json.Unmarshal(*act.Details, &details))
+			if details.SoftwareTitle != "ipa_test" {
+				continue
+			}
+			inHouseActivitySeen = true
+			require.True(t, details.FromSetupExperience)
+			require.Equal(t, string(fleet.SoftwareInstalled), details.Status)
+		}
+		require.True(t, inHouseActivitySeen, "expected an installed_software activity for the in-house app")
+	})
+}
+
 type DEPEnrollMobileTestOpts struct {
 	ABMOrg                            string
 	EnableReleaseManually             bool
@@ -2687,6 +2871,9 @@ type DEPEnrollMobileTestOpts struct {
 	CustomProfileIdent                string
 	EnrollmentProfileFromDEPUsingPost bool
 	VppAppsToInstall                  []*fleet.VPPApp
+	// InHouseAppsToInstall lists in-house apps (.ipa) expected to install during
+	// setup, as the device would report them in InstalledApplicationList.
+	InHouseAppsToInstall []fleet.Software
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *testing.T, device godep.Device, opts DEPEnrollMobileTestOpts) {
@@ -2810,10 +2997,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 
+	totalAppsToInstall := len(opts.VppAppsToInstall) + len(opts.InHouseAppsToInstall)
 	// For reporting back via InstalledApplicationList
-	installedVPPApps := make([]fleet.Software, 0, len(opts.VppAppsToInstall))
+	reportedInstalledApps := make([]fleet.Software, 0, totalAppsToInstall)
 	// For verifying number of installs
-	installedApps := make(map[string]int, len(opts.VppAppsToInstall))
+	installedApps := make(map[string]int, totalAppsToInstall)
+	var inHouseInstallCount int
 
 	var installProfileCount, installAppCount, refetchVerifyCount, otherCount int
 	var profileCustomSeen, profileFleetCASeen, unexpectedProfileSeen bool
@@ -2854,14 +3043,29 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 				unexpectedProfileSeen = true
 			}
 		case "InstallApplication":
-			if logCommands {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID))
-			}
-			for _, app := range opts.VppAppsToInstall {
-				if app.AdamID == fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID) {
-					installedVPPApps = append(installedVPPApps, fleet.Software{BundleIdentifier: app.BundleIdentifier, Name: app.Name, Version: app.LatestVersion, Installed: true})
-					installedApps[app.AdamID]++
+			if fullCmd.Command.InstallApplication.ITunesStoreID != nil {
+				if logCommands {
+					fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID))
 				}
+				for _, app := range opts.VppAppsToInstall {
+					if app.AdamID == fmt.Sprint(*fullCmd.Command.InstallApplication.ITunesStoreID) {
+						reportedInstalledApps = append(reportedInstalledApps, fleet.Software{BundleIdentifier: app.BundleIdentifier, Name: app.Name, Version: app.LatestVersion, Installed: true})
+						installedApps[app.AdamID]++
+					}
+				}
+			} else {
+				// in-house app (.ipa) installs carry a manifest URL instead of an App Store ID
+				require.NotNil(t, fullCmd.Command.InstallApplication.ManifestURL)
+				if logCommands {
+					fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallApplication.ManifestURL)
+				}
+				require.Contains(t, *fullCmd.Command.InstallApplication.ManifestURL, "/in_house_app/manifest/")
+				require.Less(t, inHouseInstallCount, len(opts.InHouseAppsToInstall), "unexpected extra in-house app install command")
+				sw := opts.InHouseAppsToInstall[inHouseInstallCount]
+				sw.Installed = true
+				reportedInstalledApps = append(reportedInstalledApps, sw)
+				installedApps["inhouse:"+sw.BundleIdentifier]++
+				inHouseInstallCount++
 			}
 			installAppCount++
 
@@ -2880,17 +3084,22 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 			// If we are polling to verify the install, we should get an
 			// InstalledApplicationList command instead of an InstallApplication command.
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			// Hold off on verifying the last install until later so we can ensure it waits for verification
-			if len(installedVPPApps) == len(opts.VppAppsToInstall) {
-				installedVPPApps[len(installedVPPApps)-1].Installed = false
+			// Withhold the last install from the completed report so release
+			// provably waits for verification. Only the last entry can be
+			// withheld, whatever its kind: installs activate one at a time
+			// through the host's activity queue, so withholding an earlier one
+			// stalls the remaining install commands, and earlier apps are
+			// already verified by their own post-ack round by now.
+			if len(reportedInstalledApps) == totalAppsToInstall {
+				reportedInstalledApps[len(reportedInstalledApps)-1].Installed = false
 			}
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
 				mdmDevice.UUID,
 				cmd.CommandUUID,
-				installedVPPApps,
+				reportedInstalledApps,
 			)
 			// flip the status back for later
-			installedVPPApps[len(installedVPPApps)-1].Installed = true
+			reportedInstalledApps[len(reportedInstalledApps)-1].Installed = true
 			require.NoError(t, err)
 			// TODO: We don't actually normally get a command back from the acknowledgement of the InstalledAppList
 			// but we'll get additional install commands if we follow it up with an idle. Is this a bug? I think it
@@ -2929,19 +3138,22 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 
 	// expected commands: install CA, install profile (only the custom one),
 	// not expected: account configuration, since enrollment_reference not set
-	require.Len(t, cmds, 2+len(opts.VppAppsToInstall))
+	require.Len(t, cmds, 2+totalAppsToInstall)
 
 	require.Equal(t, 2, installProfileCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetCASeen)
 	require.Equal(t, false, unexpectedProfileSeen)
 
-	require.Equal(t, len(opts.VppAppsToInstall), installAppCount)
-	require.Equal(t, len(opts.VppAppsToInstall), len(installedApps))
+	require.Equal(t, totalAppsToInstall, installAppCount)
+	require.Len(t, installedApps, totalAppsToInstall)
 
 	// Each expected app should be installed exactly once
 	for _, app := range opts.VppAppsToInstall {
 		require.Equal(t, 1, installedApps[app.AdamID])
+	}
+	for _, sw := range opts.InHouseAppsToInstall {
+		require.Equal(t, 1, installedApps["inhouse:"+sw.BundleIdentifier])
 	}
 
 	require.Equal(t, 0, otherCount)
@@ -3015,7 +3227,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(
 				mdmDevice.UUID,
 				cmd.CommandUUID,
-				installedVPPApps,
+				reportedInstalledApps,
 			)
 			require.NoError(t, err)
 			// See above comment about cmd==nil, just want to make sure we don't get any additional
@@ -3769,9 +3981,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
 		http.StatusOK, &listSetupSoftware, "platform", "ios", "team_id", "0", "order_key", "name")
 
-	// only 1 installer, the VPP app, the ipa is filtered out because unsupported
-	require.Len(t, listSetupSoftware.SoftwareTitles, 1)
+	// the VPP app and the .ipa in-house app, which is supported for iOS/iPadOS setup experience
+	require.Len(t, listSetupSoftware.SoftwareTitles, 2)
 	require.Equal(t, "App 2", listSetupSoftware.SoftwareTitles[0].Name)
+	require.Equal(t, "ipa_test", listSetupSoftware.SoftwareTitles[1].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.False(t, *listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
 
 	// put software for setup experience macos with an unknown one
 	res := s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
@@ -3808,21 +4024,22 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
 
-	// put software for setup experience ios with an invalid one (ipa)
-	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
-		Platform: "ios",
-		TeamID:   0,
-		TitleIDs: []uint{ipaTitleID},
-	}, http.StatusBadRequest)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
-
-	// put software for setup experience ios with valid ones
+	// put software for setup experience ios with valid ones, including the ipa
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
 		Platform: "ios",
 		TeamID:   0,
-		TitleIDs: []uint{app2IOSTitleID},
+		TitleIDs: []uint{app2IOSTitleID, ipaTitleID},
 	}, http.StatusOK, &putSetupSoftware)
+
+	// the ipa selection round-trips on a re-GET
+	listSetupSoftware = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK, &listSetupSoftware, "platform", "ios", "team_id", "0", "order_key", "name")
+	require.Len(t, listSetupSoftware.SoftwareTitles, 2)
+	require.Equal(t, "ipa_test", listSetupSoftware.SoftwareTitles[1].Name)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *listSetupSoftware.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon() {
@@ -4526,31 +4743,45 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	s.runWorkerUntilDoneWithChecks(true)
 
-	// worker should have:
-	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
-	// (this is because I made the worker run after host enrollment, if there were no host, the task would have nothing to do)
-	// 2. added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
-	// 3. made all apps available to the enrolled host (for self-service), from the host enrollment
-	// 4. installed the apps, from the host enrollment
+	// worker should have (in any order due to staggered job queuing):
+	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
+	// - added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
+	// - made all apps available to the enrolled host (for self-service), from the host enrollment
+	// - installed the apps, from the host enrollment
 	require.Len(t, patchAppsPolicies, 5)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
-	}, patchAppsPolicies[0])
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[1])
-	// Fleet agent is added during enrollment before self-service apps
-	require.Len(t, patchAppsPolicies[2], 1)
-	require.Equal(t, "com.fleetdm.agent", patchAppsPolicies[2][0].PackageName)
-	require.Equal(t, "FORCE_INSTALLED", patchAppsPolicies[2][0].InstallType)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[3])
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`1`)},
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[4])
+
+	type appCall struct {
+		PackageName          string
+		InstallType          string
+		ManagedConfiguration string
+	}
+	var appCalls []appCall
+	var fleetAgentCount int
+	for _, policies := range patchAppsPolicies {
+		for _, p := range policies {
+			if p.PackageName == "com.fleetdm.agent" {
+				fleetAgentCount++
+				require.Equal(t, "FORCE_INSTALLED", p.InstallType)
+				require.Contains(t, string(p.ManagedConfiguration), "server_url")
+				require.Contains(t, string(p.ManagedConfiguration), "host_uuid")
+				continue
+			}
+			appCalls = append(appCalls, appCall{p.PackageName, p.InstallType, string(p.ManagedConfiguration)})
+		}
+	}
+	require.Equal(t, 1, fleetAgentCount, "fleet agent should be added exactly once")
+	require.ElementsMatch(t, []appCall{
+		// app1 made available individually (from PATCH config change)
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		// app2 made available individually (from PATCH config change)
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		// app1+app2 made available during enrollment (self-service)
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		// app1+app2 installed during enrollment (setup experience)
+		{app1.VPPAppID.AdamID, "PREINSTALLED", "1"},
+		{app2.VPPAppID.AdamID, "PREINSTALLED", "2"},
+	}, appCalls)
 
 	patchAppsPolicies = nil
 
@@ -4568,7 +4799,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// 1. made the apps available to the host (for self-service), without any config provided
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, // #nosec G101 - AMAPI enum value, not a credential
 	}, patchAppsPolicies[0])
 
 	patchAppsPolicies = nil
@@ -4600,6 +4831,23 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	require.Len(t, patchAppsPolicies, 0)
 
+	// set the other two supported top-level keys for app3
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	// worker should have:
+	// 1. made the app available with both policies set, not just the managed configuration
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`3`), WorkProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_ALLOWED"}, // #nosec G101 - AMAPI enum value, not a credential
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
 	// patch with a different config just to trigger the worker
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
@@ -4627,7 +4875,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// 1. made the app available with its config cleared
 	require.Len(t, patchAppsPolicies, 1)
 	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED"},
+		{PackageName: app3.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage{}, WorkProfileWidgets: "WORK_PROFILE_WIDGETS_UNSPECIFIED", CredentialProviderPolicy: "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"}, // #nosec G101 - AMAPI enum value, not a credential
 	}, patchAppsPolicies[0])
 }
 
@@ -5161,8 +5409,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	// device gets the regular MDM endpoints.
 	originalServerURL := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
-	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#")
+	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
 	loc, err := ssoResult.Location()
 	require.NoError(t, err)
 	require.NotNil(t, loc)
@@ -5193,7 +5442,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 		if h.UUID == mdmDevice.EnrollmentID() {
 			enrolledHostID = h.ID
 			require.NotNil(t, h.MDM.EnrollmentStatus)
-			require.Equal(t, "On (personal)", *h.MDM.EnrollmentStatus)
+			require.Equal(t, "On (manual - personal)", *h.MDM.EnrollmentStatus)
 			break
 		}
 	}
@@ -5213,11 +5462,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 
 	tracked, err := s.ds.GetHostMDMCommands(ctx, enrolledHostID)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: enrolledHostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: enrolledHostID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: enrolledHostID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, tracked)
+	requireTrackedRefetchCommands(t, tracked, enrolledHostID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Drain the device's command queue and check the three refetch commands
 	// arrive. InstalledApplicationList for BYOD MUST request managed apps only;
@@ -5259,7 +5505,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	enrollHostWithSEInstallers := func(t *testing.T, installers []struct {
 		Filename string
 		Title    string
-	}) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
+	},
+	) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
 		// unique per-subtest team name and ABM org so subtests don't collide
 		isoName := strings.ReplaceAll(t.Name(), "/", "_")
 		s.enableABM(isoName)
@@ -5473,7 +5720,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	})
 
 	// covers delete-while-pending and delete-while-running on the same host.
-	// The running case verifies the hsi row is cleaned up too (not left orphaned).
+	// The running case verifies the hsi row is preserved as canceled with its installer id nulled.
 	tOuter.Run("delete installer removes setup experience row", func(t *testing.T) {
 		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
 			{"dummy_installer.pkg", "DummyApp"},
@@ -5532,22 +5779,70 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 			require.NotEqual(t, "NoVersion", r.Name, "NoVersion SE row must be removed after installer delete")
 		}
 
-		// the hsi row for the running EchoApp install must also be cleaned up,
-		// not left orphaned with software_installer_id=NULL
+		// the running install is marked canceled with software_installer_id nulled, so it's filtered out of
+		// GetSoftwareInstallResults but still available for a late result.
 		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUID)
-		require.Error(t, err, "orphan hsi row remains after installer delete")
+		require.True(t, fleet.IsNotFound(err), "canceled install must not be returned by GetSoftwareInstallResults")
+
+		var echoRow struct {
+			InstallerID *uint `db:"software_installer_id"`
+			Canceled    bool  `db:"canceled"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &echoRow, `SELECT software_installer_id, canceled FROM host_software_installs WHERE execution_id = ?`, echoInstallUUID)
+		})
+		require.Nil(t, echoRow.InstallerID, "installer id must be nulled by the FK on installer delete")
+		require.True(t, echoRow.Canceled, "running install must be preserved as canceled, not deleted")
 
 		// orbit endpoint must show only DummyApp now, still successful
 		statusAfter := pollOrbitSetupStatus(t, host)
 		require.Len(t, statusAfter.Results.Software, 1)
 		require.Equal(t, "DummyApp", statusAfter.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, statusAfter.Results.Software[0].Status)
+
+		// a late result for the deleted install must not 500: the canceled row still lets
+		// CreateIntermediateInstallFailureRecord find the original install details.
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 1, "install_script_output": "boom", "retries_remaining": 1}`,
+				*host.OrbitNodeKey, echoInstallUUID)),
+			http.StatusNoContent)
+
+		// the intermediate failure record was written as a NEW row (distinct from the canceled original),
+		// carrying the reported failure output and the denormalized installer details from the original.
+		var failureCount int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &failureCount,
+				`SELECT COUNT(*) FROM host_software_installs
+				 WHERE host_id = ? AND execution_id != ? AND install_script_output = ?
+				 AND software_title_name = ? AND installer_filename = ?`,
+				host.ID, echoInstallUUID, "boom", "EchoApp", "EchoApp.pkg")
+		})
+		require.Equal(t, 1, failureCount)
+
+		// a completed install is marked removed (not canceled) when its installer is deleted.
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software",
+			putSetupExperienceSoftwareRequest{TeamID: *host.TeamID, TitleIDs: []uint{}},
+			http.StatusOK, &swInstallResp)
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install?team_id=%d", titleIDs["DummyApp"], *host.TeamID),
+			nil, http.StatusNoContent)
+
+		var dummyRow struct {
+			InstallerID *uint `db:"software_installer_id"`
+			Removed     bool  `db:"removed"`
+			Canceled    bool  `db:"canceled"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &dummyRow, `SELECT software_installer_id, removed, canceled FROM host_software_installs WHERE execution_id = ?`, dummyInstallUUID)
+		})
+		require.Nil(t, dummyRow.InstallerID)
+		require.True(t, dummyRow.Removed, "completed install must be marked removed when its installer is deleted")
+		require.False(t, dummyRow.Canceled, "completed install must not be canceled")
 	})
 
 	// covers the GitOps batch endpoint for both an installer edit (the
-	// runInstallerUpdateSideEffectsInTransaction isEdit=true path) and a
-	// not-in-list delete (the cancelSetupExperienceStatusForDeletedSoftwareInstalls
-	// + deletePendingSoftwareInstallsNotInListHSI path, unchanged by this PR).
+	// runInstallerUpdateSideEffectsInTransaction isEdit=true path) and a not-in-list delete (the
+	// cancelSetupExperienceStatusForDeletedSoftwareInstalls + cancelPendingSoftwareInstallsNotInListHSI path).
 	tOuter.Run("gitops batch edit then delete via /software/batch", func(t *testing.T) {
 		host, _, _ := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
 			{"dummy_installer.pkg", "DummyApp"},
@@ -5637,13 +5932,264 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 			}, http.StatusAccepted, &batchResp, "team_name", teamName)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResp.RequestUUID)
 
-		// EchoApp SE row gone, hsi cleaned up too
+		// EchoApp SE row gone; its running install is canceled with its installer id nulled, so it's
+		// filtered out of GetSoftwareInstallResults but still on the host.
 		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
 		require.NoError(t, err)
 		for _, r := range results {
 			require.NotEqual(t, "EchoApp", r.Name, "EchoApp SE row must be removed after GitOps delete")
 		}
 		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
-		require.Error(t, err, "orphan hsi row remains after GitOps delete")
+		require.True(t, fleet.IsNotFound(err), "canceled install must not be returned by GetSoftwareInstallResults")
+
+		var echoBatchRow struct {
+			InstallerID *uint `db:"software_installer_id"`
+			Canceled    bool  `db:"canceled"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &echoBatchRow, `SELECT software_installer_id, canceled FROM host_software_installs WHERE execution_id = ?`, echoInstallUUIDBefore)
+		})
+		require.Nil(t, echoBatchRow.InstallerID)
+		require.True(t, echoBatchRow.Canceled, "running install must be preserved as canceled after GitOps delete")
 	})
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceMacOSScriptOnlyPackage() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "macos-sh-test"})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "script.sh",
+		Platform: "linux",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	shTitleID := getSoftwareTitleID(t, s.ds, "script", "sh_packages")
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	macosTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+	t.Run("sh appears in macOS listing", func(t *testing.T) {
+		var resp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &resp,
+			"platform", "macos", "team_id", fmt.Sprint(team.ID))
+		names := make([]string, 0, len(resp.SoftwareTitles))
+		for _, title := range resp.SoftwareTitles {
+			if title.SoftwarePackage != nil {
+				names = append(names, title.SoftwarePackage.Name)
+			}
+		}
+		require.Contains(t, names, "script.sh")
+		require.Contains(t, names, "dummy_installer.pkg")
+	})
+
+	t.Run("saving sh for macOS succeeds", func(t *testing.T) {
+		var resp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "macos",
+			TeamID:   team.ID,
+			TitleIDs: []uint{shTitleID, macosTitleID},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+	})
+
+	t.Run("macOS listing shows sh as selected after save", func(t *testing.T) {
+		var resp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &resp,
+			"platform", "macos", "team_id", fmt.Sprint(team.ID))
+		var shSelected, macosSelected bool
+		for _, title := range resp.SoftwareTitles {
+			if title.SoftwarePackage == nil {
+				continue
+			}
+			if title.SoftwarePackage.Name == "script.sh" && title.SoftwarePackage.InstallDuringSetup != nil {
+				shSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+			if title.SoftwarePackage.Name == "dummy_installer.pkg" && title.SoftwarePackage.InstallDuringSetup != nil {
+				macosSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		require.True(t, shSelected)
+		require.True(t, macosSelected)
+	})
+
+	t.Run("linux tab selection is independent", func(t *testing.T) {
+		var resp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "linux",
+			TeamID:   team.ID,
+			TitleIDs: []uint{shTitleID},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+			Platform: "macos",
+			TeamID:   team.ID,
+			TitleIDs: []uint{},
+		}, http.StatusOK, &resp)
+		require.NoError(t, resp.Err)
+
+		var linuxResp getSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", nil, http.StatusOK, &linuxResp,
+			"platform", "linux", "team_id", fmt.Sprint(team.ID))
+		var linuxShSelected bool
+		for _, title := range linuxResp.SoftwareTitles {
+			if title.SoftwarePackage != nil && title.SoftwarePackage.Name == "script.sh" && title.SoftwarePackage.InstallDuringSetup != nil {
+				linuxShSelected = *title.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		require.True(t, linuxShSelected)
+	})
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallAppleServerError() {
+	t := s.T()
+	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
+
+	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+	require.NotNil(t, enrolledHost.TeamID)
+
+	s.setVPPTokenForTeam(team.ID)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, teamDevice.SerialNumber)
+
+	// Add an App Store app standing in for 1Password for Safari, with licenses available so the
+	// install is enqueued and only fails once Apple rejects the MDM command
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "1", Platform: fleet.MacOSPlatform}, http.StatusOK)
+	vppTitleID := getSoftwareTitleID(t, s.ds, "App 1", "apps")
+
+	// Install only the App Store app during setup experience, leaving "Cancel setup if software
+	// install fails" disabled so the script is the only step after it
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software",
+		putSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID}}, http.StatusOK, &swInstallResp)
+
+	// ADE enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = teamDevice.SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
+
+	// Acknowledge the profiles and fleetd install sent during Setup Assistant
+	var enrollCommands []string
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		enrollCommands = append(enrollCommands, cmd.Command.RequestType)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.Contains(t, enrollCommands, "InstallEnterpriseApplication")
+
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	enrolledHost.OsqueryHostID = new(mdmDevice.UUID)
+	enrolledHost.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
+	enrolledHost.OrbitNodeKey = &orbitKey
+
+	// Poll for the steps the way orbit does once the setup experience screen is up, which
+	// enqueues the App Store app install
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "App 1", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+
+	// Reject every InstallApplication with the error the affected hosts reported
+	appStoreRejection := []mdm.ErrorChain{{
+		ErrorDomain:          "ASDServerErrorDomain",
+		ErrorCode:            9610,
+		LocalizedDescription: "Unhandled exception",
+		USEnglishDescription: "Unhandled exception",
+	}}
+
+	// Answer commands and poll the status endpoint the way orbit does until the step resolves
+	var installCommandUUIDs []string
+	var deviceConfiguredCount int
+	for range 10 {
+		s.runWorker()
+
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstallApplication":
+				installCommandUUIDs = append(installCommandUUIDs, cmd.CommandUUID)
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, appStoreRejection)
+			case "InstalledApplicationList":
+				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, nil)
+			case "DeviceConfigured":
+				deviceConfiguredCount++
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			default:
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+
+		statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+		require.Len(t, statusResp.Results.Software, 1)
+		if statusResp.Results.Software[0].Status.IsTerminalStatus() {
+			break
+		}
+	}
+
+	// Check the retries stop at the attempt limit and the host is not released part way through
+	require.Len(t, installCommandUUIDs, fleet.MaxSoftwareInstallAttempts+1)
+	require.Zero(t, deviceConfiguredCount)
+
+	// Check the app ends failed, so the setup experience can move on to the script
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+
+	// Poll again to start the script, now that the failed app is no longer holding the queue
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
+
+	// Report the script result the way orbit does
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID, team.ID)
+	require.NoError(t, err)
+	var scriptExecutionID string
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			scriptExecutionID = *r.ScriptExecutionID
+		}
+	}
+	require.NotEmpty(t, scriptExecutionID)
+
+	var scriptResp fleet.OrbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, scriptExecutionID)),
+		http.StatusOK, &scriptResp)
+
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Script.Status)
+
+	// Check the host is released instead of sitting on the setup experience screen
+	var releaseCommands []string
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		releaseCommands = append(releaseCommands, cmd.Command.RequestType)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.Equal(t, []string{"DeviceConfigured"}, releaseCommands)
 }

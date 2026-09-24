@@ -1,0 +1,9 @@
+{
+  "name": "Microsoft Defender",
+  "unique_identifier": "com.microsoft.wdav",
+  "token": "microsoft-defender",
+  "installer_format": "pkg",
+  "slug": "microsoft-defender/darwin",
+  "default_categories": ["Security"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/microsoft-defender.json"
+}

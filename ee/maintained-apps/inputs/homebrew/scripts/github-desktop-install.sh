@@ -12,14 +12,16 @@ quit_and_track_application() {
   local timeout_duration=10
 
   # check if the application is running
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  local app_running
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
   fi
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     eval "export $var_name=0"
     return
@@ -63,15 +65,28 @@ relaunch_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
     return
   fi
 
   echo "Relaunching application '$bundle_id'..."
 
-  # Try to launch the application
-  if osascript -e "tell application id \"$bundle_id\" to activate" >/dev/null 2>&1; then
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_status=0
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  else
+    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  fi
+
+  if [[ $open_status -eq 0 ]]; then
     echo "Application '$bundle_id' relaunched successfully."
   else
     echo "Failed to relaunch application '$bundle_id'."
@@ -79,14 +94,22 @@ relaunch_application() {
 }
 
 # Extract with ditto and --noqtn so extracted files do NOT get quarantine.
-ditto -xk --noqtn "$INSTALLER_PATH" "$TMPDIR"
+ditto -xk --noqtn "$INSTALLER_PATH" "$TMPDIR" || exit $?
 
 # copy to the applications folder (do not modify the app bundle after extraction)
 quit_and_track_application 'com.github.GitHubClient'
 if [ -d "$APPDIR/GitHub Desktop.app" ]; then
-  sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp"
+  sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp" || exit $?
 fi
-sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"
+if ! sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"; then
+  # remove the partial copy so a failed install isn't inventoried as the new
+  # version, then restore the previous version if there was one
+  sudo rm -rf "$APPDIR/GitHub Desktop.app"
+  if [ -d "$TMPDIR/GitHub Desktop.app.bkp" ]; then
+    sudo mv "$TMPDIR/GitHub Desktop.app.bkp" "$APPDIR/GitHub Desktop.app"
+  fi
+  exit 1
+fi
 
 relaunch_application 'com.github.GitHubClient'
 

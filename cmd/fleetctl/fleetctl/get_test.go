@@ -304,12 +304,16 @@ func TestGetTeams(t *testing.T) {
 			actualJSON, err := runWithErrWriter([]string{"get", "fleets", "--json"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
-			require.Equal(t, expectedJson, actualJSON.String())
+			if !updateGoldenFile(t, "expectedGetTeamsJson.json", actualJSON.String()) {
+				require.Equal(t, expectedJson, actualJSON.String()) //nolint:testifylint // this is a list of JSON objects not a single JSON value
+			}
 
 			errBuffer.Reset()
 			actualYaml, err := runWithErrWriter([]string{"get", "fleets", "--yaml"}, &errBuffer)
 			require.NoError(t, err)
-			assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			if !updateGoldenFile(t, "expectedGetTeamsYaml.yml", actualYaml.String()) {
+				assert.YAMLEq(t, expectedYaml, actualYaml.String())
+			}
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
 			// Test --remove-deprecated-keys: "fleet" present, "team" absent at spec level
@@ -525,6 +529,9 @@ func TestGetHosts(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
@@ -751,6 +758,9 @@ func TestGetHostsMDM(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
@@ -1015,6 +1025,7 @@ spec:
   id: 0
   name: foo
   software_package: null
+  packages: null
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
@@ -1040,6 +1051,7 @@ spec:
   id: 0
   name: bar
   software_package: null
+  packages: null
   source: deb_packages
   extension_for: ""
   display_name: ""
@@ -1091,6 +1103,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     },
     {
@@ -1111,6 +1124,7 @@ spec:
         }
       ],
       "software_package": null,
+      "packages": null,
       "app_store_app": null
     }
   ]
@@ -2832,12 +2846,12 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		return nil, nil
 	}
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
@@ -2947,6 +2961,10 @@ func TestGetMDMCommandResults(t *testing.T) {
   </SyncBody>
 </SyncML>`
 
+	androidPayloadJSON := `{"clearAppsDataParams":{"packageNames":["com.fleetdm.definitelynotinstalled"]},"duration":"315360000s","type":"CLEAR_APP_DATA"}`
+
+	androidResultJSON := `{"done":true,"error":{"code":3},"metadata":{"errorCode":"INVALID_VALUE"}}`
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -3028,6 +3046,58 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
+	ds.GetMDMAndroidCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		case "pending-cmd":
+			// a command that hasn't reached a terminal state yet has no raw_result,
+			// and a result that isn't valid JSON must be printed as-is
+			return []*fleet.MDMCommandResult{
+				{
+					HostUUID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Pending",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     []byte(androidPayloadJSON),
+					Result:      nil,
+				},
+				{
+					HostUUID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     nil,
+					Result:      []byte(`{"done":true,`),
+				},
+			}, nil
+		default:
+			return []*fleet.MDMCommandResult{
+				{
+					HostUUID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "Acknowledged",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     []byte(androidPayloadJSON),
+					Result:      []byte(androidResultJSON),
+				},
+				{
+					HostUUID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "Error",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					RequestType: "CLEAR_APP_DATA",
+					Payload:     []byte(androidPayloadJSON),
+					Result:      []byte(androidResultJSON),
+				},
+			}, nil
+		}
+	}
 	var platform string
 	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		if commandUUID == "no-such-cmd" {
@@ -3060,6 +3130,14 @@ func TestGetMDMCommandResults(t *testing.T) {
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+
+		platform = "android"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
 	})
 
 	t.Run("command results error", func(t *testing.T) {
@@ -3082,6 +3160,15 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+
+		platform = "android"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 	})
 
 	t.Run("command results empty", func(t *testing.T) {
@@ -3104,6 +3191,15 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+
+		platform = "android"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), "No results received. Please check again later.")
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 	})
 
 	t.Run("darwin command results", func(t *testing.T) {
@@ -3378,6 +3474,114 @@ RESULTS:
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("android command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
+ID:
+valid-cmd
+
+TIME:
+2023-04-04T15:29:00Z
+
+TYPE:
+CLEAR_APP_DATA
+
+STATUS:
+Acknowledged
+
+HOSTNAME:
+host1
+
+PAYLOAD:
+{
+  "clearAppsDataParams": {
+    "packageNames": [
+      "com.fleetdm.definitelynotinstalled"
+    ]
+  },
+  "duration": "315360000s",
+  "type": "CLEAR_APP_DATA"
+}
+
+RESULTS:
+{
+  "done": true,
+  "error": {
+    "code": 3
+  },
+  "metadata": {
+    "errorCode": "INVALID_VALUE"
+  }
+}
+---
+
+ID:
+valid-cmd
+
+TIME:
+2023-04-04T15:29:00Z
+
+TYPE:
+CLEAR_APP_DATA
+
+STATUS:
+Error
+
+HOSTNAME:
+host2
+
+PAYLOAD:
+{
+  "clearAppsDataParams": {
+    "packageNames": [
+      "com.fleetdm.definitelynotinstalled"
+    ]
+  },
+  "duration": "315360000s",
+  "type": "CLEAR_APP_DATA"
+}
+
+RESULTS:
+{
+  "done": true,
+  "error": {
+    "code": 3
+  },
+  "metadata": {
+    "errorCode": "INVALID_VALUE"
+  }
+}`)
+
+		platform = "android"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		// the whole point of the fix: the JSON survives unescaped, so an extracted
+		// PAYLOAD/RESULTS block parses as JSON
+		require.NotContains(t, buf.String(), "&quot;")
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("android pending and malformed results", func(t *testing.T) {
+		platform = "android"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "pending-cmd"})
+		require.NoError(t, err)
+		out := buf.String()
+		require.NotContains(t, out, "&quot;")
+		// missing payload/result print as empty rather than erroring
+		require.Contains(t, out, "STATUS:\nPending")
+		require.Contains(t, out, "RESULTS:\n\n")
+		require.Contains(t, out, "PAYLOAD:\n\n")
+		// malformed JSON falls back to the raw bytes
+		require.Contains(t, out, `{"done":true,`)
+		require.True(t, ds.GetMDMAndroidCommandResultsFuncInvoked)
+		ds.GetMDMAndroidCommandResultsFuncInvoked = false
 	})
 
 	t.Run("host specific results", func(t *testing.T) {
@@ -3748,8 +3952,7 @@ func TestFormatXML(t *testing.T) {
 		{
 			name:    "Empty XML",
 			input:   []byte(""),
-			want:    nil,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "Invalid XML",
@@ -3783,4 +3986,129 @@ func TestFormatXML(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFormatCommandOutput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name:  "Android JSON payload",
+			input: []byte(`{"clearAppsDataParams":{"packageNames":["com.example.app"]},"duration":"315360000s","type":"CLEAR_APP_DATA"}`),
+			want: []byte(`{
+  "clearAppsDataParams": {
+    "packageNames": [
+      "com.example.app"
+    ]
+  },
+  "duration": "315360000s",
+  "type": "CLEAR_APP_DATA"
+}`),
+		},
+		{
+			name:  "Android JSON result",
+			input: []byte(`{"done":true,"error":{"code":3},"metadata":{"errorCode":"INVALID_VALUE"}}`),
+			want: []byte(`{
+  "done": true,
+  "error": {
+    "code": 3
+  },
+  "metadata": {
+    "errorCode": "INVALID_VALUE"
+  }
+}`),
+		},
+		{
+			name:  "JSON array",
+			input: []byte(`[{"a":1},{"b":2}]`),
+			want: []byte(`[
+  {
+    "a": 1
+  },
+  {
+    "b": 2
+  }
+]`),
+		},
+		{
+			name:  "JSON with surrounding whitespace",
+			input: []byte("\n  {\"a\":1}\n\n"),
+			want:  []byte("{\n  \"a\": 1\n}"),
+		},
+		{
+			name:  "JSON containing XML-sensitive characters",
+			input: []byte(`{"cmd":"a < b && c > d","quoted":"he said \"hi\""}`),
+			want: []byte(`{
+  "cmd": "a < b && c > d",
+  "quoted": "he said \"hi\""
+}`),
+		},
+		{
+			name:    "Invalid JSON falls through to an error so the caller prints it raw",
+			input:   []byte(`{"done":true,`),
+			wantErr: true,
+		},
+		{
+			name:  "Apple plist XML",
+			input: []byte(`<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Command</key></dict></plist>`),
+			want:  []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\">\n  <dict>\n    <key>Command</key>\n  </dict>\n</plist>\n"),
+		},
+		{
+			name:  "Windows SyncML XML",
+			input: []byte(`<SyncML><SyncBody><Status><CmdID>1</CmdID></Status></SyncBody></SyncML>`),
+			want:  []byte("<SyncML>\n  <SyncBody>\n    <Status>\n      <CmdID>1</CmdID>\n    </Status>\n  </SyncBody>\n</SyncML>\n"),
+		},
+		{
+			name:  "Empty input is not a formatting failure",
+			input: []byte(""),
+			want:  []byte(""),
+		},
+		{
+			name:  "Whitespace-only input is not a formatting failure",
+			input: []byte("\n  \t"),
+			want:  []byte("\n  \t"),
+		},
+		{
+			name:    "Bare JSON string is not XML and must not be escaped",
+			input:   []byte(`"just a string"`),
+			wantErr: true,
+		},
+		{
+			name:    "Plain text is not XML and must not be escaped",
+			input:   []byte(`some "quoted" text`),
+			wantErr: true,
+		},
+		{
+			name:    "Invalid XML",
+			input:   []byte(`<root><element>content</root`),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := formatCommandOutput(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, string(tt.want), string(got))
+		})
+	}
+
+	t.Run("JSON output stays parseable and unescaped", func(t *testing.T) {
+		in := []byte(`{"done":true,"error":{"code":3},"metadata":{"errorCode":"INVALID_VALUE"}}`)
+		got, err := formatCommandOutput(in)
+		require.NoError(t, err)
+		require.NotContains(t, string(got), "&quot;")
+
+		var before, after map[string]any
+		require.NoError(t, json.Unmarshal(in, &before))
+		require.NoError(t, json.Unmarshal(got, &after))
+		require.Equal(t, before, after)
+	})
 }

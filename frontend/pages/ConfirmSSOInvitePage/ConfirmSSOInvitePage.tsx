@@ -1,22 +1,21 @@
+import { AxiosError } from "axios";
 import React, { useCallback, useContext, useEffect } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
-import { AxiosError } from "axios";
-
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import usersAPI from "services/entities/users";
-import sessionsAPI from "services/entities/sessions";
-import inviteAPI, { IValidateInviteResponse } from "services/entities/invites";
-import { IInvite } from "interfaces/invite";
-import { getErrorReason } from "interfaces/errors";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import Spinner from "components/Spinner";
 import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IInvite } from "interfaces/invite";
+import paths from "router/paths";
+import inviteAPI, { IValidateInviteResponse } from "services/entities/invites";
+import sessionsAPI from "services/entities/sessions";
+import usersAPI from "services/entities/users";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 interface IConfirmSSOInvitePageProps {
   params: Params;
@@ -31,7 +30,6 @@ const ConfirmSSOInvitePage = ({
 }: IConfirmSSOInvitePageProps) => {
   const { invite_token } = params;
   const { currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
     if (currentUser) {
@@ -69,10 +67,10 @@ const ConfirmSSOInvitePage = ({
         const { url } = await sessionsAPI.initializeSSO(paths.DASHBOARD);
         window.location.href = url;
       } catch (error) {
-        renderFlash("error", getErrorReason(error));
+        notify.error(getErrorReason(error), { response: error });
       }
     },
-    [invite_token, renderFlash, validInvite]
+    [invite_token, validInvite]
   );
 
   const isInvalidInvite =

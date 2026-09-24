@@ -1,4 +1,4 @@
-- name: Windows - Slack up to date
+- name: Slack up to date (Windows)
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND version_compare(version, '4.48.100') < 0);
   critical: false
   description: The host may have an outdated version of Slack, potentially risking security vulnerabilities or compatibility issues.

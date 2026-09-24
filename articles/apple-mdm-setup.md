@@ -11,9 +11,8 @@ To turn on Windows MDM features, head to this [Windows MDM setup article](https:
 Apple uses Apple Push Notification service (APNs) APNs to authenticate and manage interactions between Fleet and hosts.
 
 > Apple requires that APNs certificates are renewed annually.
-> - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
-> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
-> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts.
+> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. If this happens, configuration profile changes and other MDM commands will remain stuck in “Pending” until renewal.
+> - When renewing, be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts. The recommended approach is to use a shared Apple Developer account to generate the APNs certificate to make sure it can be renewed regardless of an employee's availability.
 
 How to connect Fleet to APNs:
 
@@ -31,8 +30,8 @@ How to connect Fleet to APNs:
 3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
 5. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
 6. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
-7. Upload your CSR and download new APNs certificate.
-8. Upload APNs certificate (.pem file) in Fleet.
+7. Upload your CSR and download a new APNs certificate.
+8. Upload the APNs certificate (.pem file) in Fleet.
 
 ## Apple Business (AB)
 
@@ -40,13 +39,27 @@ How to connect Fleet to APNs:
 
 Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+### To connect Fleet to AB, you have to add an AB token to Fleet. To add an AB token:
+
 How to connect Fleet to AB:
 
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
 2. Under **Apple Business (AB)**, select **Add AB**.
 3. Select **Download public key** to download a public key for AB.
 4. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, create one.
-5. Select **Devices > Management** and select **Add** at the bottom of list.
+5. Select **Devices > Management Services**, then select **Add** next to **Device Management Services** (or **Set Up** if this is your first device management service).
+6. Select **Connect external device management** and select **Continue**.
 7. Enter a name for the server such as "Fleet" and upload the public key downloaded in step 3 and select **Next**.
 8. Download the service token and select **Done**.
 9. In the **Default Device Assignment** section, assign the newly created server as the default for your Macs, iPhones, and iPads. Then select **Save**.
@@ -68,7 +81,9 @@ When one of your uploaded AB tokens has expired or is within 30 days of expiring
 6. Select the **Actions > Renew** for the token.
 7. Upload the token (.p7m file) downloaded in step 3.
 
-### Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
+### Set a default fleet for hosts that automatically enroll
+
+Hosts that automatically enroll are assigned to a default fleet. To configure the default fleet for macOS, iOS, and iPadOS hosts:
 
 1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
 2. Navigate to the **Settings > Integrations > MDM** page and select **Edit** under **Apple Business (AB)**.
@@ -108,6 +123,8 @@ Fleet supports manually turning on MDM for macOS hosts that are already enrolled
 
 End users can turn on MDM from their **Fleet Desktop > My device** page.
 
+You can trigger policy automations right when MDM is turned on, because Fleet re-evaluates all policies immediately after MDM is turned on. In your policy's query, use `server_url` in the [`mdm` table](https://fleetdm.com/tables/mdm) to detect that a host is talking to Fleet for MDM features.
+
 ### Host is in Apple Business (AB)
 
 #### If a macOS host is listed in AB:
@@ -125,8 +142,8 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 
 2. Clicking **Turn on MDM** opens a new tab.
-   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
-   - If authentication is successful, or if end user authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
+   - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
+   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
 
 ## Volume Purchasing Program (VPP)
 
@@ -207,8 +224,6 @@ Entity A's VPP token will be assigned to the above fleets.
 
 ### International organizations
 
-> Support for Apple App Store (VPP) apps from non-US stores is [coming soon](https://github.com/fleetdm/fleet/issues/43846).
-
 For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
 
 The default fleets for each country's AB token will look like this:
@@ -243,17 +258,49 @@ How automatic enrollment profiles are assigned:
 
 ![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
 
-### Re-enrolling AB hosts
+### Release a host from Apple Business
 
-When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+> Available in Fleet Premium
+
+You can permanently release (disown) a host from Apple Business directly from Fleet. 
+This calls Apple's Disown Device API and removes the device from your Apple Business account. 
+
+**This action cannot be undone.** Once released, the device can no longer be automatically 
+re-enrolled via Apple Business. The host will remain enrolled in Fleet until an admin manually 
+unenrolls or wipes it.
+
+**Prerequisites:**
+- The host must be enrolled via Apple Business (DEP)
+- You must be a global admin or team admin
+
+**To release a host from Apple Business:**
+
+1. Navigate to the **Host details** page for the host.
+2. Select **Actions > Release from Apple Business**.
+3. Confirm the action in the modal.
+
+**To release multiple hosts via API:**
+
+`POST /api/v1/fleet/hosts/release_ab`
+
+See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#release-host-from-ab) 
+for details.
+
+> **Note:** Releasing a host from Apple Business does not unenroll it from Fleet or wipe it. 
+> Admins must manually unenroll or wipe the host after releasing.
+
+### Re-enrolling Apple Business hosts
+
+When an Apple Business host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
   - Cancels pending MDM commands, script runs, and software installs
   - Clears completed commands, scripts, and software from the previous enrollment
   - Resets host labels
 
-This means you **do not need to delete** an AB host from Fleet before 
-re-enrolling it. Fleet handles clearing stale state automatically.
+This means you **do not need to delete** an Apple Business host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
 
-> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+> This automatic state clearing does not apply to hosts undergoing Apple Business MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

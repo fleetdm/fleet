@@ -1,6 +1,3 @@
-import { buildQueryStringFromParams } from "utilities/url";
-import endpoints from "utilities/endpoints";
-import sendRequest from "services";
 import {
   ICertificateAuthorityPartial,
   ICertificateAuthority,
@@ -12,6 +9,10 @@ import {
   ICertificatesCustomEST,
 } from "interfaces/certificates";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
+
 import {
   ListEntitiesResponsePaginationCommon,
   PaginationParams,
@@ -56,6 +57,7 @@ export interface IQueryKeyGetCerts extends IGetCertsParams {
 export interface ICertificate {
   id: number;
   name: string;
+  subject_name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
   subject_alternative_name?: string;

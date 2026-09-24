@@ -120,15 +120,17 @@ func BuildAppleDeviceAttestationPayload(certs ...*x509.Certificate) (any, error)
 	}, nil
 }
 
-// generateCSRDER creates a base64 URL encoded DER-encoded ECDSA CSR with the given common name.
-func GenerateCSRDER(commonName string) (string, *ecdsa.PrivateKey, error) {
+// GenerateCSRDER creates a base64 URL encoded DER-encoded ECDSA CSR with the given common name and
+// optional organizational units.
+func GenerateCSRDER(commonName string, organizationalUnits ...string) (string, *ecdsa.PrivateKey, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate key for CSR: %w", err)
 	}
 	template := &x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName: commonName,
+			CommonName:         commonName,
+			OrganizationalUnit: organizationalUnits,
 		},
 	}
 	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, key)

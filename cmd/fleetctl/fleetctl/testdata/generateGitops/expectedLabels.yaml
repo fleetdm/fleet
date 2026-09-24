@@ -15,3 +15,8 @@
   criteria:
     vital: end_user_idp_group
     value: some-group
+- name: Label D
+  description: Label D description
+  label_membership_type: dynamic
+  query: SELECT 1
+  platform: linux

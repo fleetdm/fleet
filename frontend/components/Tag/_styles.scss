@@ -1,27 +1,102 @@
 .tag {
-  display: flex;
-  height: 18px;
-  padding: 3px 6px;
+  display: inline-flex;
   align-items: center;
-  gap: $pad-xsmall;
+  justify-content: center;
+  gap: $pad-small;
+  height: 28px;
+  padding: 0 $pad-small;
+  border: 1px solid $ui-fleet-black-25;
   border-radius: $border-radius;
-  border: 1px solid $ui-fleet-black-10;
-  color: $ui-fleet-black-75;
   font-size: $xx-small;
   font-weight: $bold;
+  color: $ui-fleet-black-75;
   white-space: nowrap;
+  box-sizing: border-box;
 
-  // styles to override the default <button> element styles for the tag
-  // when it is clickable
-  &__clickable-tag {
+  // per design, large (28px, the default set above) is used most often;
+  // small is reserved for tight contexts like a table row
+  &--small {
+    height: 24px;
+  }
+
+  &--xsmall {
+    height: 20px;
+    padding: 0 $pad-xsmall;
+    gap: $pad-xsmall;
+    font-size: $xx-small;
+  }
+
+  &--clickable {
     background: none;
     cursor: pointer;
-    outline: inherit;
-    box-sizing: inherit;
 
-    &:focus {
-      // this is defined in the Button component styles
-      @include button-focus-outline;
+    // Interactive states only apply while enabled — disabled clickable tags
+    // should look inert, not respond to hover/focus/press.
+    &:not(:disabled) {
+      &:hover {
+        background-color: $ui-off-white;
+        border-color: $ui-fleet-black-50;
+      }
+
+      &:focus-visible {
+        border-color: $core-fleet-black;
+        outline: none;
+      }
+
+      &:active {
+        background-color: $ui-fleet-black-5;
+        border-color: $ui-fleet-black-50;
+      }
+    }
+
+    &:disabled {
+      border-color: $ui-fleet-black-33;
+      color: $ui-fleet-black-33;
+      cursor: default;
+    }
+  }
+
+  &--dismissible {
+    padding: 0 $pad-xsmall 0 $pad-small;
+
+    // Only the dismiss button is interactive on a dismissible tag, so hover
+    // and active feedback lives on the button itself (see &__dismiss below).
+    // :focus-within stays here — when the button takes keyboard focus, the
+    // outer tag border lights up so the focused element is easy to see.
+    &:focus-within {
+      border-color: $core-fleet-black;
+    }
+  }
+
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+    overflow: hidden;
+  }
+
+  &__dismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $ui-off-white;
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-5;
+    }
+
+    &:focus-visible {
+      outline: none;
     }
   }
 }

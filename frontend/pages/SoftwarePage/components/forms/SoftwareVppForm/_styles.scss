@@ -64,7 +64,7 @@
   // list styles
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius-medium;
+    border-radius: $border-radius-large;
   }
 
   &__list {
@@ -114,6 +114,6 @@
   &__action-buttons {
     display: flex;
     flex-direction: row-reverse;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 }

@@ -28,12 +28,14 @@ func TestNanoMDMStorage(t *testing.T) {
 	}{
 		{"TestEnqueueDeviceLockCommand", testEnqueueDeviceLockCommand},
 		{"TestGetPendingLockCommand", testGetPendingLockCommand},
+		{"TestEnqueueDeviceLockReplacesOrphanRef", testEnqueueDeviceLockReplacesOrphanRef},
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
 		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
 		{"TestRetrievePushCert", testRetrievePushCert},
 		{"TestIsPushCertStale", testIsPushCertStale},
 		{"TestStorePushCert", testStorePushCert},
+		{"TestDisable", testNanoDisable},
 	}
 
 	for _, c := range cases {
@@ -242,6 +244,73 @@ func testGetPendingLockCommand(t *testing.T, ds *Datastore) {
 	require.Empty(t, pin)
 }
 
+// testEnqueueDeviceLockReplacesOrphanRef verifies that a lock_ref pointing to a
+// command that is no longer deliverable (nano_enrollment_queue.active = 0, e.g.
+// after re-enrollment, SCEP renewal, or wipe) is treated as an orphan: it does
+// not count as a pending lock and does not block a fresh lock command.
+// See https://github.com/fleetdm/fleet/issues/45931
+func testEnqueueDeviceLockReplacesOrphanRef(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "orphan-relock-name",
+		OsqueryHostID: new("4242"),
+		NodeKey:       new("4242"),
+		UUID:          "orphan-relock-uuid",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	// Enqueue an initial lock command: active=1, no result yet -> genuinely pending.
+	lockCmd := &mdm.Command{}
+	lockCmd.CommandUUID = "orphan-lock-cmd-1"
+	lockCmd.Command.RequestType = "DeviceLock"
+	lockCmd.Raw = []byte("<?xml")
+	require.NoError(t, ns.EnqueueDeviceLockCommand(ctx, host, lockCmd, "654321"))
+
+	pending, pin, err := ns.GetPendingLockCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	require.Equal(t, "orphan-lock-cmd-1", pending.CommandUUID)
+	require.Equal(t, "654321", pin)
+
+	// Simulate re-enrollment/SCEP renewal/wipe deactivating the queued command
+	// without a result (what nanomdm ClearQueue does on Authenticate).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`,
+		host.UUID, "orphan-lock-cmd-1")
+	require.NoError(t, err)
+
+	// Gate 1: the deactivated command is no longer deliverable, so it must not
+	// count as a pending lock.
+	pending, _, err = ns.GetPendingLockCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, pending)
+
+	// Gate 2: the stale lock_ref must not block a fresh lock command.
+	lockCmd2 := &mdm.Command{}
+	lockCmd2.CommandUUID = "orphan-lock-cmd-2"
+	lockCmd2.Command.RequestType = "DeviceLock"
+	lockCmd2.Raw = []byte("<?xml2")
+	require.NoError(t, ns.EnqueueDeviceLockCommand(ctx, host, lockCmd2, "222222"))
+
+	// The new (active) command is now the pending lock, and lock_ref was overwritten.
+	pending, pin, err = ns.GetPendingLockCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	require.Equal(t, "orphan-lock-cmd-2", pending.CommandUUID)
+	require.Equal(t, "222222", pin)
+
+	var lockRef string
+	require.NoError(t, ds.writer(ctx).QueryRowContext(ctx,
+		`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, host.ID).Scan(&lockRef))
+	require.Equal(t, "orphan-lock-cmd-2", lockRef)
+}
+
 // testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal verifies that
 // StoreAuthenticate does NOT clear the bootstrap token when a SCEP renewal is
 // in progress (renew_command_uuid is set in nano_cert_auth_associations), and
@@ -266,8 +335,8 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 
 	// Insert a nano_enrollment so cert auth association can reference it.
 	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
-		 VALUES (?, ?, 'Device', 'topic', 'magic', 'deadbeef', 1, NOW())`,
+		`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally)
+		 VALUES (?, ?, 'Device', 'topic', 'magic', 'deadbeef', 1)`,
 		deviceUUID, deviceUUID)
 	require.NoError(t, err)
 
@@ -389,8 +458,8 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 
 	// Create nano_enrollments record (required for MDM commands)
 	_, err = ds.writer(ctx).Exec(`
-		INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at)
-		VALUES (?, ?, 'Device', 'com.apple.mgmt.test', 'test-magic', 'deadbeef', NOW())`,
+		INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
+		VALUES (?, ?, 'Device', 'com.apple.mgmt.test', 'test-magic', 'deadbeef')`,
 		host.UUID, deviceID)
 	require.NoError(t, err)
 
@@ -623,4 +692,66 @@ func testStorePushCert(t *testing.T, ds *Datastore) {
 	err = ns.StorePushCert(ctx, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, "please use fleet.Datastore to manage MDM assets", err.Error())
+}
+
+func testNanoDisable(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	newEnrolledHost := func(i int, withUser bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("disable-host%d-name", i),
+			OsqueryHostID: new(fmt.Sprintf("disable-osquery-%d", i)),
+			NodeKey:       new(fmt.Sprintf("disable-nodekey-%d", i)),
+			UUID:          fmt.Sprintf("disable-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, withUser)
+		return h
+	}
+	host := newEnrolledHost(1, true)
+	otherHost := newEnrolledHost(2, false)
+	userID := host.UUID + ":" + nanoenroll_useruuid_prefix + host.UUID
+
+	// Backdate every seen time so the disable-time bump is observable.
+	stale := time.Now().Add(-24 * time.Hour).UTC().Truncate(time.Second)
+	for _, id := range []string{host.UUID, userID, otherHost.UUID} {
+		setNanoSeenTime(t, ds, id, stale)
+	}
+
+	type row struct {
+		Enabled  bool      `db:"enabled"`
+		SeenTime time.Time `db:"seen_time"`
+	}
+	getRow := func(id string) row {
+		var r row
+		err := ds.writer(ctx).GetContext(ctx, &r,
+			`SELECT ne.enabled, nst.seen_time FROM nano_enrollments ne JOIN nano_seen_times nst ON nst.id = ne.id WHERE ne.id = ?`, id)
+		require.NoError(t, err)
+		return r
+	}
+
+	require.NoError(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: host.UUID}}))
+
+	// Both channels are disabled and their seen times bumped, atomically.
+	for _, id := range []string{host.UUID, userID} {
+		got := getRow(id)
+		assert.False(t, got.Enabled, "enrollment %s should be disabled", id)
+		assert.True(t, got.SeenTime.After(stale), "seen time for %s should be bumped, got %s", id, got.SeenTime)
+	}
+
+	// The other device's enrollment is untouched.
+	other := getRow(otherHost.UUID)
+	assert.True(t, other.Enabled)
+	assert.True(t, other.SeenTime.Equal(stale), "unrelated seen time should not be bumped, got %s", other.SeenTime)
+
+	// Disabling again is a clean no-op: no error, and no further seen-time bump.
+	bumped := getRow(host.UUID).SeenTime
+	require.NoError(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: host.UUID}}))
+	assert.True(t, getRow(host.UUID).SeenTime.Equal(bumped), "no-op disable must not bump the seen time")
+
+	// A user-channel request is rejected.
+	require.Error(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: userID, ParentID: host.UUID}}))
 }

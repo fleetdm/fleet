@@ -1,36 +1,35 @@
-import React, { useContext, useMemo, useState } from "react";
-
-import { NotificationContext } from "context/notification";
-import certificatesAPI from "services/entities/certificates";
-import {
-  ICertificateAuthorityPartial,
-  ICertificateAuthorityType,
-} from "interfaces/certificates";
+import React, { useMemo, useState } from "react";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import {
+  ICertificateAuthorityPartial,
+  ICertificateAuthorityType,
+} from "interfaces/certificates";
+import certificatesAPI from "services/entities/certificates";
+
+import CustomESTForm, {
+  ICustomESTFormData,
+} from "../CustomESTForm/CustomESTForm";
+import CustomSCEPForm from "../CustomSCEPForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import DigicertForm from "../DigicertForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import HydrantForm from "../HydrantForm";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import NDESForm from "../NDESForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import SmallstepForm, {
+  ISmallstepFormData,
+} from "../SmallstepForm/SmallstepForm";
 
 import {
   generateAddCertAuthorityData,
   generateDropdownOptions,
   getErrorMessage,
 } from "./helpers";
-
-import DigicertForm from "../DigicertForm";
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import NDESForm from "../NDESForm";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import CustomSCEPForm from "../CustomSCEPForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import HydrantForm from "../HydrantForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import SmallstepForm, {
-  ISmallstepFormData,
-} from "../SmallstepForm/SmallstepForm";
-import CustomESTForm, {
-  ICustomESTFormData,
-} from "../CustomESTForm/CustomESTForm";
 
 export type ICertFormData =
   | IDigicertFormData
@@ -51,8 +50,6 @@ const AddCertAuthorityModal = ({
   certAuthorities,
   onExit,
 }: IAddCertAuthorityModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const dropdownOptions = useMemo(() => {
     return generateDropdownOptions(
       certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
@@ -193,10 +190,10 @@ const AddCertAuthorityModal = ({
     setIsAdding(true);
     try {
       await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
-      renderFlash("success", "Successfully added your certificate authority.");
+      notify.success("Successfully added your certificate authority.");
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
     setIsAdding(false);
   };

@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"unicode/utf16"
@@ -110,15 +111,8 @@ func NewTestNDESAdminServer(t *testing.T, responseTemplate string, _ int) *httpt
 	}))
 	t.Cleanup(ndesAdminServer.Close)
 
-	// We need to convert the HTML page to UTF-16 encoding, which is used by Windows servers
 	convertHTML := func(html []byte) []byte {
-		datUTF16, err := UTF16FromString(string(html))
-		require.NoError(t, err)
-		byteData := make([]byte, len(datUTF16)*2)
-		for i, v := range datUTF16 {
-			binary.LittleEndian.PutUint16(byteData[i*2:], v)
-		}
-		return byteData
+		return utf16LEEncode(t, html)
 	}
 
 	switch responseTemplate {
@@ -141,6 +135,53 @@ func NewTestNDESAdminServer(t *testing.T, responseTemplate string, _ int) *httpt
 	}
 
 	return ndesAdminServer
+}
+
+// NewTestNDESAdminServerWithAuth creates an httptest.Server that emulates the NDES admin
+// page protected by HTTP Basic auth. Requests without an Authorization header receive a
+// Basic challenge (the NTLM negotiator probes without credentials first and retries with
+// them). Requests whose credentials fail checkCreds receive a plain 401. Authenticated
+// requests are counted in authenticated (when non-nil) and served the canned
+// mscep_admin_password page, UTF-16 LE-encoded the way Windows servers serve it.
+func NewTestNDESAdminServerWithAuth(t *testing.T, checkCreds func(username, password string) bool, authenticated *atomic.Int64) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm=ndes`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		username, password, ok := r.BasicAuth()
+		if !ok || !checkCreds(username, password) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if authenticated != nil {
+			authenticated.Add(1)
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(utf16LEEncode(t, mscepAdminPassword)); err != nil {
+			t.Errorf("write NDES admin response: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	return server
+}
+
+// utf16LEEncode converts an HTML page to UTF-16 LE encoding, which is used by Windows
+// servers.
+func utf16LEEncode(t *testing.T, html []byte) []byte {
+	t.Helper()
+
+	datUTF16, err := UTF16FromString(string(html))
+	require.NoError(t, err)
+	byteData := make([]byte, len(datUTF16)*2)
+	for i, v := range datUTF16 {
+		binary.LittleEndian.PutUint16(byteData[i*2:], v)
+	}
+	return byteData
 }
 
 // NewTestDynamicChallengeServer creates an httptest.Server that emulates a

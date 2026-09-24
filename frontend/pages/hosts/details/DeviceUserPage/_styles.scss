@@ -17,6 +17,16 @@
   }
 }
 
+.device-user__sso-redirect {
+  @include vertical-page-layout;
+
+  align-items: center;
+  margin: $pad-xxxlarge 0;
+  color: $core-fleet-black;
+  font-size: $x-small;
+  text-align: center;
+}
+
 // styles specific to DeviceUserPage
 // for styles that should apply to both DeviceUserPage and HostDetailsPage (most of them),
 // update frontend/pages/hosts/details/_styles.scss/ `.host-details, .device-user {...}`
@@ -62,14 +72,6 @@
         grid-column: span 2; // card will fill the whole row
       }
     }
-  }
-
-  &__wrapper {
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: 6px;
-    margin-top: $pad-small;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
   .tooltip__tooltip-icon {

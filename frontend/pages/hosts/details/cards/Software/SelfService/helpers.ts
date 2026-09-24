@@ -1,10 +1,10 @@
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES,
   HOST_SOFTWARE_UI_PENDING_STATUSES,
   IDeviceSoftwareWithUiStatus,
   SoftwareCategory,
 } from "interfaces/software";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 type CategoryFilterValue = SoftwareCategory | "All";
 
@@ -12,6 +12,17 @@ type CategoryFilterValue = SoftwareCategory | "All";
 const IN_PROGRESS_UI_STATUSES = new Set<string>([
   ...HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES,
   ...HOST_SOFTWARE_UI_PENDING_STATUSES,
+]);
+
+/** Statuses that specifically indicate an install_all-style operation is in
+ * flight. Narrower than IN_PROGRESS_UI_STATUSES: updates and uninstalls aren't
+ * triggered by install_all, so they shouldn't keep the button visible after
+ * `uninstalledCount` drops to 0. */
+const INSTALL_ALL_IN_FLIGHT_UI_STATUSES = new Set<string>([
+  "installing",
+  "running_script",
+  "pending_install",
+  "pending_script",
 ]);
 
 /** Statuses indicating the user cannot click "Install" — already done or in-flight. */
@@ -56,7 +67,8 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 3, label: "🧰 Developer tools", value: "Developer tools" },
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
   { id: 5, label: "🔐 Security", value: "Security" },
-  { id: 6, label: "🛠️ Utilities", value: "Utilities" },
+  { id: 6, label: "🛟 Support", value: "Support" },
+  { id: 7, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
 // Client-side category filter by name — both sides come from
@@ -88,6 +100,40 @@ export const filterSoftwareByCustomCategory = (
   });
 };
 
+// Client-side match filter used by the desktop `SelfServiceTable`, the mobile
+// tile list, and the "Install all" count. Matches the backend `MatchQuery`
+// columns on `software_titles` (name, bundle_identifier, custom display_name)
+// so a rename-only admin edit is still findable and the Install all button
+// installs exactly what the user sees on screen.
+export const filterSoftwareByQuery = (
+  software: IDeviceSoftwareWithUiStatus[],
+  query: string | undefined
+): IDeviceSoftwareWithUiStatus[] => {
+  const q = query?.toLowerCase().trim() ?? "";
+  if (!q) return software;
+  return software.filter((item) => {
+    const fields = [item.name, item.display_name, item.bundle_identifier];
+    return fields.some((f) => f?.toLowerCase().includes(q));
+  });
+};
+
+// Keeps only categories that have at least one software item. Membership is
+// resolved the same way as `filterSoftwareByCustomCategory` so the dropdown
+// stays consistent with what selecting a category shows.
+export const filterCategoriesWithSoftware = (
+  categories: ISelfServiceCategory[],
+  software: IDeviceSoftwareWithUiStatus[]
+): ISelfServiceCategory[] => {
+  const categoryNamesInUse = new Set<string>();
+  software.forEach((item) => {
+    [
+      ...(item.software_package?.categories ?? []),
+      ...(item.app_store_app?.categories ?? []),
+    ].forEach((name) => categoryNamesInUse.add(name.toLowerCase()));
+  });
+  return categories.filter((c) => categoryNamesInUse.has(c.name.toLowerCase()));
+};
+
 /** Count of items in the list that are eligible to be queued by install_all. */
 export const countUninstalledForInstallAll = (
   software: IDeviceSoftwareWithUiStatus[]
@@ -96,9 +142,12 @@ export const countUninstalledForInstallAll = (
     (item) => !INSTALLED_OR_IN_FLIGHT_UI_STATUSES.has(item.ui_status)
   ).length;
 
-/** True if any item in the list is currently in-progress (install_all should
- * be disabled until they all leave that state). */
+/** True if any item in the list is currently being installed/scripted by an
+ * install_all-style operation. Updates and uninstalls don't count — those are
+ * orthogonal operations and shouldn't keep the install_all button visible. */
 export const hasInProgressInstallAllItems = (
   software: IDeviceSoftwareWithUiStatus[]
 ): boolean =>
-  software.some((item) => IN_PROGRESS_UI_STATUSES.has(item.ui_status));
+  software.some((item) =>
+    INSTALL_ALL_IN_FLIGHT_UI_STATUSES.has(item.ui_status)
+  );

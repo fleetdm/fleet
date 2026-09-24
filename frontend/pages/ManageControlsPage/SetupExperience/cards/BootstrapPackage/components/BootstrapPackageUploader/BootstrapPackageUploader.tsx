@@ -1,11 +1,10 @@
-import React, { useContext, useState } from "react";
 import { AxiosResponse } from "axios";
-
-import { IApiError } from "interfaces/errors";
-import { NotificationContext } from "context/notification";
-import mdmAPI from "services/entities/mdm";
+import React, { useState } from "react";
 
 import FileUploader from "components/FileUploader";
+import { notify } from "components/ToastNotification";
+import { IApiError } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
@@ -18,7 +17,6 @@ const BootstrapPackageUploader = ({
   currentTeamId,
   onUpload,
 }: IBootstrapPackageUploaderProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showLoading, setShowLoading] = useState(false);
 
   const onUploadFile = async (files: FileList | null) => {
@@ -33,19 +31,19 @@ const BootstrapPackageUploader = ({
 
     // quick exit if the file type is incorrect
     if (!file.name.includes(".pkg")) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
+      notify.error(UPLOAD_ERROR_MESSAGES.wrongType.message);
       setShowLoading(false);
       return;
     }
 
     try {
       await mdmAPI.uploadBootstrapPackage(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage);
+      notify.error(errMessage, { response: e });
     } finally {
       setShowLoading(false);
     }

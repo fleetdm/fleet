@@ -6,10 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Chief Marketing Officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([*@akuthiala*](https://github.com/akuthiala))_
-| Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
-| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) · [@danbgordon](https://github.com/danbgordon) · Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
-| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) · [*@miskaek*](https://github.com/miskaek) · Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
+| Marketing Coordinator | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -28,7 +25,7 @@ The complete list of all marketing assets is listed on [this handbook page](http
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by an human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
 Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 
@@ -108,6 +105,16 @@ On Thursdays, marketing reviews the names and accounts for upcoming meetings and
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
 
+### Monitor the #help-marketing Slack channel
+
+The Marketing Coordinator is the DRI for the #help-marketing Slack channel and is responsible for making sure nothing posted there goes unnoticed.
+
+To do this:
+- Check #help-marketing at least daily and review every new thread and top-level post.
+- Reply to each message within one business day, looping in the appropriate DRI as necessary. 
+- Keep an eye on open threads until they're resolved, following up as needed.
+
+
 ### Create UTM link
 
 Use the [Fleet UTM builder](https://docs.google.com/spreadsheets/d/1SO7-WIJSMPjEg89tskBIJmNj59xNySt0D-EjLg61IW8/edit?gid=0#gid=0) to create and record a UTM link needed for marketing campaigns
@@ -180,7 +187,29 @@ The CMO is the DRI for deploying Fleet's outward-facing content. The content sch
   - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
 2. Attend a 30m meeting with Fleet's Content Specialist  to review and settle the proposed content.
 
+To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/projects/114) project board, add the `content-planning` label to the issue.
+
 [Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
+
+
+### Localize content
+
+To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+
+- 🇮🇳 Hindi (Delhi, Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
+- 🇷🇺 Russian (Russia) (while Fleet is unable to advertise or do business with organizations in Russia, Belarus, and other markets with export controls, Fleet still advertises to native speakers of every supported language in every market where Fleet can do business, around the world)
+- 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- ळ Marathi (Maharashtra)
+- ಠ Kannada (Karnataka)
+- 🇲🇾 Malay (Malaysia)
+- 🇷🇴 Romanian (Romania, Moldova)
+- 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
+- 🇸🇪 Swedish (Sweden)
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark)
 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
@@ -338,11 +367,11 @@ After every GitOps workshop, Fleet issues a certificate to all participants who 
 -->
 
 
-### Publish sprint demo video
+### Publish release demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+After each release demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. **Download the sprint demo recording**
+1. **Download the release demo recording**
 
    This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
    
@@ -373,7 +402,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 6. **Upload the video to Youtube**
    Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
-   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+   Make sure the YouTube title follows the pattern `Release-demo - <version #.##.#>` (eg. "Release demo - 4.82.0").
 
    Add a brief description highlighting the new features.
 
@@ -382,14 +411,14 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 
 ### Upload to YouTube
 
-Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, release demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as:
     * title - make sure it is SEO friendly
     * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
     * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
-    * playlists - Add to appropiate one(s)
+    * playlists - Add to appropriate one(s)
     * audience - not "made for kids"
     * video details - allow auto chapters, no featured places or automatic concepts
     * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)
@@ -404,7 +433,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
 1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
-2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivalent
 3. Title the file with the slug version of your blog title, ending in `.md`
 4. First line should be the Title of the blog with H1 markdown (`#`)
 5. Put in your article, using markdown to format it
@@ -418,6 +447,12 @@ Although details on how to format and meta tag a blog are in [the writing handbo
     - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
 11. When ready, submit a PR to get it reviewed and merged
 
+## Update competitor database
+
+To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
+
+1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidaries, parent companies, and which category this company competes in.
+2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and then reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
 
 
 ## Rituals
@@ -425,6 +460,9 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 
 #### Stubs
 The following stubs are included only to make links backward compatible
+
+##### Publish sprint demo video
+Please see [handbook/marketing#publish-release-demo-video](https://fleetdm.com/handbook/marketing#publish-release-demo-video)
 
 ##### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
@@ -441,5 +479,5 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
-<meta name="maintainedBy" value="akuthiala">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🫧 Marketing">

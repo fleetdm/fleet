@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -33,9 +34,10 @@ func (s SetupExperienceStatusResultStatus) IsTerminalStatus() bool {
 	}
 }
 
-// SetupExperienceStatusResult represents the status of a particular step in the macOS setup
+// SetupExperienceStatusResult represents the status of a particular step in the setup
 // experience process for a particular host. These steps can either be a software installer
-// installation, a VPP app installation, or a script execution.
+// installation, a VPP app installation, an in-house app (.ipa) installation, or a script
+// execution.
 type SetupExperienceStatusResult struct {
 	ID                              uint                              `db:"id" json:"-" `
 	HostUUID                        string                            `db:"host_uuid" json:"-" `
@@ -47,6 +49,7 @@ type SetupExperienceStatusResult struct {
 	VPPAppAdamID                    *string                           `db:"vpp_app_adam_id" json:"-"`
 	VPPAppPlatform                  *string                           `db:"vpp_app_platform" json:"-"`
 	NanoCommandUUID                 *string                           `db:"nano_command_uuid" json:"-" `
+	InHouseAppID                    *uint                             `db:"in_house_app_id" json:"-"`
 	SetupExperienceScriptID         *uint                             `db:"setup_experience_script_id" json:"-" `
 	ScriptContentID                 *uint                             `db:"script_content_id" json:"-"`
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
@@ -82,6 +85,13 @@ func (s *SetupExperienceStatusResult) IsValid() error {
 		colsSet++
 		if s.HostSoftwareInstallsExecutionID != nil || s.ScriptExecutionID != nil {
 			return fmt.Errorf("invalid setup experience status row, vpp_app_team set with incorrect secondary value column: %d", s.ID)
+		}
+	}
+	if s.InHouseAppID != nil {
+		// like VPP apps, in-house apps pair with nano_command_uuid
+		colsSet++
+		if s.HostSoftwareInstallsExecutionID != nil || s.ScriptExecutionID != nil {
+			return fmt.Errorf("invalid setup experience status row, in_house_app_id set with incorrect secondary value column: %d", s.ID)
 		}
 	}
 	if s.SetupExperienceScriptID != nil {
@@ -120,10 +130,10 @@ func (s *SetupExperienceStatusResult) IsForScript() bool {
 	return s.SetupExperienceScriptID != nil
 }
 
-// IsForSoftware indicates if this result is for a setup experience software step: either a software
-// installer or a VPP app.
+// IsForSoftware indicates if this result is for a setup experience software step: a software
+// installer, a VPP app, or an in-house app.
 func (s *SetupExperienceStatusResult) IsForSoftware() bool {
-	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil
+	return s.VPPAppTeamID != nil || s.SoftwareInstallerID != nil || s.InHouseAppID != nil
 }
 
 // IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
@@ -133,6 +143,11 @@ func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 
 func (s *SetupExperienceStatusResult) IsForVPPApp() bool {
 	return s.VPPAppTeamID != nil
+}
+
+// IsForInHouseApp indicates if this result is for a setup experience in-house app (.ipa) step.
+func (s *SetupExperienceStatusResult) IsForInHouseApp() bool {
+	return s.InHouseAppID != nil
 }
 
 func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
@@ -263,10 +278,61 @@ func HostUUIDForSetupExperience(host *Host) (string, error) {
 	return *host.OsqueryHostID, nil
 }
 
+// HostIsInSetupExperience reports whether the host is still working through
+// setup experience.
+func HostIsInSetupExperience(ctx context.Context, ds Datastore, host *Host) (bool, error) {
+	switch {
+	case host.Platform == string(MacOSPlatform):
+		inSetupExperience, err := ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+		if err != nil && !IsNotFound(err) {
+			return false, fmt.Errorf("check if host is in setup experience: %w", err)
+		}
+		return inSetupExperience, nil
+
+	case IsLinux(host.Platform) || host.Platform == "windows":
+		hostUUID, err := HostUUIDForSetupExperience(host)
+		if err != nil {
+			return false, fmt.Errorf("get host's UUID for the setup experience: %w", err)
+		}
+		var teamID uint
+		if host.TeamID != nil {
+			teamID = *host.TeamID
+		}
+		inSetupExperience, err := hasSetupExperiencePendingOrRunningItems(ctx, ds, hostUUID, teamID)
+		if err != nil && !IsNotFound(err) {
+			return false, fmt.Errorf("check setup experience pending or running items: %w", err)
+		}
+		return inSetupExperience, nil
+
+	default:
+		return false, nil
+	}
+}
+
+func hasSetupExperiencePendingOrRunningItems(ctx context.Context, ds Datastore, hostUUID string, teamID uint) (bool, error) {
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
+	if err != nil {
+		return false, fmt.Errorf("retrieving setup experience results: %w", err)
+	}
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return false, fmt.Errorf("invalid row: %w", err)
+		}
+
+		switch status.Status {
+		case SetupExperienceStatusPending, SetupExperienceStatusRunning:
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 type SetupExperienceCount struct {
-	Installers uint `db:"installers"`
-	Scripts    uint `db:"scripts"`
-	VPP        uint `db:"vpp"`
+	Installers  uint `db:"installers"`
+	Scripts     uint `db:"scripts"`
+	VPP         uint `db:"vpp"`
+	InHouseApps uint `db:"in_house_apps"`
 }
 
 var SetupExperienceSupportedPlatforms = []string{

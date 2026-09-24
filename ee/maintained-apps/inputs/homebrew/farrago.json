@@ -1,0 +1,10 @@
+{
+  "name": "Farrago",
+  "unique_identifier": "com.rogueamoeba.farrago",
+  "token": "farrago",
+  "installer_format": "zip",
+  "slug": "farrago/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

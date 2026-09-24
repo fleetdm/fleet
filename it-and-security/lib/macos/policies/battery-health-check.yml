@@ -1,4 +1,4 @@
-- name: macOS - Battery healthy
+- name: Battery healthy (macOS)
   query: |-
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM battery

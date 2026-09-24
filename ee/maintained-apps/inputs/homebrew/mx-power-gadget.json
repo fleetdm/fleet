@@ -1,0 +1,10 @@
+{
+  "name": "Mx Power Gadget",
+  "unique_identifier": "com.fabriceleyne.MxPowerGadget",
+  "token": "mx-power-gadget",
+  "installer_format": "zip",
+  "slug": "mx-power-gadget/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

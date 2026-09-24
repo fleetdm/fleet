@@ -1,16 +1,18 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   IPolicyFormData,
   ILoadAllPoliciesResponse,
   IPoliciesCountResponse,
 } from "interfaces/policy";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
+
 import { AutomationType } from "./team_policies";
 
 export type GlobalPoliciesAutomationType = Exclude<
@@ -25,6 +27,8 @@ export interface IGlobalPoliciesApiQueryParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   automationType?: GlobalPoliciesAutomationType;
+  /** Targeted platform to filter policies by. */
+  platform?: QueryablePlatform;
 }
 
 export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
@@ -32,7 +36,10 @@ export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
 }
 
 export interface IPoliciesCountQueryKey
-  extends Pick<IGlobalPoliciesApiQueryParams, "query" | "automationType"> {
+  extends Pick<
+    IGlobalPoliciesApiQueryParams,
+    "query" | "automationType" | "platform"
+  > {
   scope: "policiesCount";
 }
 
@@ -76,6 +83,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     automationType,
+    platform,
   }: IGlobalPoliciesApiQueryParams): Promise<ILoadAllPoliciesResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
 
@@ -86,6 +94,7 @@ export default {
       orderDirection: orderDir,
       query,
       automationType,
+      platform,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -97,15 +106,17 @@ export default {
   getCount: ({
     query,
     automationType,
+    platform,
   }: Pick<
     IGlobalPoliciesApiQueryParams,
-    "query" | "automationType"
+    "query" | "automationType" | "platform"
   >): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
     const path = `${GLOBAL_POLICIES}/count`;
     const queryParams = {
       query,
       automationType,
+      platform,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

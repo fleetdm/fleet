@@ -1,0 +1,10 @@
+{
+  "name": "Free Download Manager",
+  "unique_identifier": "org.freedownloadmanager.fdm6",
+  "token": "free-download-manager",
+  "installer_format": "dmg",
+  "slug": "free-download-manager/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

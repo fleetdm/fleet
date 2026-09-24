@@ -1,17 +1,14 @@
 # Fleet Desktop
 
-Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux.
+Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux. Learn more about [Linux support](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support).
 
 Fleet Desktop unlocks two key benefits:
-
-* Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene. Available in Fleet Premium.
-* Scope transparency: end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
-If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](https://github.com/allenhouchins/fleet-desktop/releases). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open the app everytime the end user logs in or restarts their Mac. 
+If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can optionally deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open this app everytime the end user logs in or restarts their Mac. 
 
 ## Install Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
@@ -55,6 +52,102 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 - Older than one hour
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
+
+## Advanced
+
+### Hide the menu bar icon on macOS
+
+Some Fleet users want to hide the menu bar icon on macOS because of the limited menu bar "real estate." 
+
+If you're enrolling Macs manually, generate a Fleet agent (fleetd) without Fleet Desktop menu bar by excluding the `--fleet-desktop` flag from the `fleetctl package` command.
+
+How to hide the menu bar if you're automatically enrolling Macs via Apple Business:
+
+1. Add this script to Fleet:
+
+```sh
+#!/bin/sh
+
+if [ ! -f "/Library/LaunchDaemons/com.fleetdm.orbit.plist" ]; then
+    echo "Fleet's agent (fleetd) is not installed."
+    exit 1
+fi
+
+/usr/bin/plutil -replace EnvironmentVariables.ORBIT_FLEET_DESKTOP -string "false" /Library/LaunchDaemons/com.fleetdm.orbit.plist
+
+# Reload the LaunchDaemon out-of-band. Bootout-ing it directly from this
+# script would kill this script too, since orbit is what's running it.
+cat << 'EOF' > /private/tmp/fleet-hide-desktop-reload.sh
+#!/bin/sh
+/bin/sleep 15
+/bin/launchctl bootout system /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/bin/launchctl bootstrap system /Library/LaunchDaemons/com.fleetdm.orbit.plist
+/bin/launchctl bootout system /private/tmp/com.fleetdm.reload.plist
+EOF
+chmod 744 /private/tmp/fleet-hide-desktop-reload.sh
+
+cat << 'EOF' > /private/tmp/com.fleetdm.reload.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>com.fleetdm.reload</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/bin/sh</string>
+            <string>/private/tmp/fleet-hide-desktop-reload.sh</string>
+        </array>
+        <key>RunAtLoad</key>
+        <true/>
+    </dict>
+</plist>
+EOF
+
+/bin/launchctl bootstrap system /private/tmp/com.fleetdm.reload.plist
+
+echo "Fleet Desktop menu bar icon will be hidden in about 15 seconds."
+exit 0
+```
+
+This stops the Fleet Desktop process entirely, not just its icon. So, end users lose the menu bar entry point to self-service. If they still need self-service, deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin).
+
+2. Go to a hosts's **Host details** page.
+3. Select **Actions > Run script** and run the hide script.
+
+To run this script automatically across all macOS hosts create a policy in Fleet with the following query:
+
+```sql
+SELECT 1 FROM plist WHERE
+  path = '/Library/LaunchDaemons/com.fleetdm.orbit.plist' AND
+  key = 'EnvironmentVariables' AND
+  subkey = 'ORBIT_FLEET_DESKTOP' AND
+  value = 'false';
+```
+
+Then, add connect hide script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script). 
+
+Fleet's agent (fleetd) upgrades won't re-show the menu bar icon, because upgrades don't touch the plist the script updates.
+
+
+### Single sign-on (SSO) for Fleet-Desktop-token-authenticated routes
+
+_Available in Fleet Premium_
+
+Fleet Desktop's API routes authenticate with a per-device token, not your Fleet API token. Turning on [`fleet_desktop.sso_enabled`](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop) adds a second requirement: signing in through your IdP.
+
+See the [Fleet-desktop-token-authenticated routes reference](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#fleet-desktop-token-authenticated-routes) for how the session requirement, error responses, and exemptions (including during [setup experience](https://fleetdm.com/guides/setup-experience)) work.
+
+
+### How iOS/iPadOS hosts authenticate
+
+iOS and iPadOS hosts don't run a Fleet Desktop app. Instead, end users reach a self-service page through a [Web Clip configuration profile](https://fleetdm.com/guides/software-self-service#deploy-self-service-on-ios-and-ipados). Fleet authenticates the request via host UUID in the URL.
+
+This UUID-based authentication only works for iOS and iPadOS hosts and is supported for all [device-authenticated API routes](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes) except the following (neither of which applies to iOS/iPadOS hosts):
+- [Reporting an agent error](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#report-an-agent-error)
+- [Download device's MDM manual enrollment profile](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#download-devices-mdm-manual-enrollment-profile)
+
+Because iOS and iPadOS hosts authenticate by UUID, Fleet also strips identifying details, like hardware serial and configuration profile data, from the [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) response for those hosts.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

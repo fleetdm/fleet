@@ -35,26 +35,22 @@
     width: 100%;
   }
 
-  .table-container__data-table-block {
-    .data-table-block {
-      .data-table {
-        &__wrapper {
-          overflow-x: auto;
-        }
-      }
-    }
-  }
-
   &__item-actions {
-    display: flex;
-    flex-direction: row;
-    gap: $pad-medium;
+    // Fixed first-slot width so the second slot's position is independent
+    // of the primary button's rendered width. An oversized primary button
+    // now visibly overflows the slot (loud failure) instead of subtly
+    // shifting the second slot a few pixels right.
+    // 98px fits "Reinstall", the widest primary-action label (see
+    // getInstallerActionButtonConfig in cards/Software/helpers.tsx).
+    // Re-measure if a longer label is added or Button's padding/font
+    // changes.
+    display: grid;
+    grid-template-columns: 98px 1fr;
+    gap: $pad-small;
     align-items: center;
   }
 
   &__item-action {
-    min-width: 94px; // Fits the "Reinstall" button without shifting second item action
-
     .component__tooltip-wrapper {
       margin: 0; // Override 10px vertical margin
     }
@@ -81,6 +77,12 @@
 
     .data-table-block {
       .data-table__table {
+        thead {
+          .installer-actions__header {
+            border-left: none;
+          }
+        }
+
         tbody {
           tr {
             .name__cell {
@@ -95,7 +97,7 @@
               }
             }
 
-            .Actions__cell {
+            .installer-actions__cell {
               display: flex;
 
               // Undoes vertical click margin found on table container tooltips

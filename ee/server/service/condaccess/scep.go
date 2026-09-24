@@ -96,12 +96,17 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
-		_, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+		secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
 		switch {
 		case fleet.IsNotFound(err):
 			return nil, errors.New("invalid challenge")
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		}
+		// Only global enroll secrets (team_id IS NULL) are valid for
+		// conditional-access SCEP. Reject team-scoped secrets.
+		if secret.TeamID != nil {
+			return nil, errors.New("invalid challenge")
 		}
 		return next.SignCSRContext(ctx, m)
 	}
@@ -175,7 +180,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
-		return nil, err
+		svc.logger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if certRep == nil {
+			return nil, err
+		}
+		return certRep.Raw, err
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -19,9 +21,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -229,6 +234,95 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), notPython, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "3.14.5150.0", notPython.Version)
 
+	// Test AnyDesk version sanitizer - strips the client-ID prefix AnyDesk writes
+	// into its registry DisplayVersion ("ad 9.7.15" for the generic client).
+	anyDesk := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "ad 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDesk, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDesk.Version)
+
+	// Test AnyDesk custom clients, which carry an ID in the prefix
+	anyDeskCustom := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "ad1a2b3c4 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDeskCustom, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDeskCustom.Version)
+
+	// Test AnyDesk sanitizer leaves an already-clean version alone
+	anyDeskClean := &fleet.Software{
+		Name:    "AnyDesk",
+		Source:  "programs",
+		Vendor:  "AnyDesk Software GmbH",
+		Version: "9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), anyDeskClean, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "9.7.15", anyDeskClean.Version)
+
+	// Test AnyDesk sanitizer doesn't touch other vendors' prefixed versions
+	notAnyDesk := &fleet.Software{
+		Name:    "Some App",
+		Source:  "programs",
+		Vendor:  "Some Other Vendor",
+		Version: "ad 9.7.15",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notAnyDesk, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "ad 9.7.15", notAnyDesk.Version)
+
+	// Test Raspberry Pi Imager version sanitizer - strips the leading "v" the
+	// macOS build embeds in CFBundleShortVersionString.
+	rpiImager := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "v2.0.11.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImager, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImager.Version)
+
+	// Test Raspberry Pi Imager sanitizer leaves an already-clean version alone
+	rpiImagerClean := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "2.0.11.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerClean, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImagerClean.Version)
+
+	// Test Raspberry Pi Imager sanitizer drops a non-numeric suffix so the
+	// ingested version stays comparable with version_compare
+	rpiImagerSuffix := &fleet.Software{
+		BundleIdentifier: "com.raspberrypi.rpi-imager",
+		Source:           "apps",
+		Version:          "v2.0.11.1-beta",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerSuffix, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.11.1", rpiImagerSuffix.Version)
+
+	// Test Raspberry Pi Imager version sanitizer also applies on Windows,
+	// where the installer embeds the same leading "v" in DisplayVersion
+	rpiImagerWindows := &fleet.Software{
+		Name:    "Raspberry Pi Imager",
+		Source:  "programs",
+		Version: "v2.0.8",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpiImagerWindows, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.0.8", rpiImagerWindows.Version)
+
+	// Test Raspberry Pi Imager Windows sanitizer doesn't touch other software
+	notRpiImagerWindows := &fleet.Software{
+		Name:    "Some Other App",
+		Source:  "programs",
+		Version: "v2.0.8",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notRpiImagerWindows, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "v2.0.8", notRpiImagerWindows.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
@@ -304,6 +398,33 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 	MutateSoftwareOnIngestion(t.Context(), winDefenderWrongSource, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "MsMpEng.exe", winDefenderWrongSource.Name)
+
+	// Test R.app version sanitizer extracts the version from
+	// CFBundleShortVersionString; the "R" name is duplicated in some builds.
+	rAppDoubled := &fleet.Software{
+		BundleIdentifier: "org.R-project.R",
+		Source:           "apps",
+		Version:          "R R 4.6.1 GUI 1.83 High Sierra build",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rAppDoubled, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "4.6.1", rAppDoubled.Version)
+
+	rAppSingle := &fleet.Software{
+		BundleIdentifier: "org.R-project.R",
+		Source:           "apps",
+		Version:          "R 4.2.0 GUI 1.78 Big Sur ARM build",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rAppSingle, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "4.2.0", rAppSingle.Version)
+
+	// Test R.app sanitizer leaves an unrecognized version format alone
+	rAppNoMatch := &fleet.Software{
+		BundleIdentifier: "org.R-project.R",
+		Source:           "apps",
+		Version:          "4.6.1",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rAppNoMatch, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "4.6.1", rAppNoMatch.Version)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -574,6 +695,14 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
+	// the Entra join user query is premium only
+	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
+	premiumQueries := append([]string{}, baseQueries...)
+	premiumQueries = append(premiumQueries, "entra_join_user_windows")
+	require.Len(t, queriesPremium, len(premiumQueries))
+	sortedKeysCompare(t, queriesPremium, premiumQueries)
+
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
@@ -582,8 +711,8 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -637,6 +766,9 @@ func TestGetDetailQueries(t *testing.T) {
 				MDM: fleet.MDM{
 					WindowsEnabledAndConfigured: true,
 					EnableDiskEncryption:        optjson.SetBool(true),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
 				},
 			},
 		},
@@ -646,7 +778,28 @@ func TestGetDetailQueries(t *testing.T) {
 				MDM: fleet.MDM{
 					WindowsEnabledAndConfigured: true,
 					EnableDiskEncryption:        optjson.SetBool(true),
-					RequireBitLockerPIN:         optjson.SetBool(true),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
+					RequireBitLockerPIN: optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+		{
+			name: "TPM PIN queries follow the windows setting, not the aggregate",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					// aggregate off because linux escrow is off, but windows on
+					EnableDiskEncryption: optjson.SetBool(false),
+					WindowsSettings: fleet.WindowsSettings{
+						EnableDiskEncryption: optjson.SetBool(true),
+					},
+					LinuxSettings: fleet.LinuxSettings{
+						EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+					},
+					RequireBitLockerPIN: optjson.SetBool(true),
 				},
 			},
 			want: maps.Keys(tpmPINQueries),
@@ -660,6 +813,35 @@ func TestGetDetailQueries(t *testing.T) {
 				_, ok := got[name]
 				require.True(t, ok)
 			}
+		})
+	}
+}
+
+func TestLUKSVerifyQueryFollowsEffectiveLinuxEscrowSetting(t *testing.T) {
+	globalOn := &fleet.AppConfig{MDM: fleet.MDM{
+		LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
+	}}
+	globalOff := &fleet.AppConfig{MDM: fleet.MDM{
+		LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)},
+	}}
+	teamOn := &fleet.TeamMDM{LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)}}
+	teamOff := &fleet.TeamMDM{LinuxSettings: fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(false)}}
+
+	for _, tc := range []struct {
+		name string
+		ac   *fleet.AppConfig
+		team *fleet.TeamMDM
+		want bool
+	}{
+		{"global on, no team", globalOn, nil, true},
+		{"global off, no team", globalOff, nil, false},
+		{"the team setting overrides global on", globalOn, teamOff, false},
+		{"the team setting overrides global off", globalOff, teamOn, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GetDetailQueries(t.Context(), config.FleetConfig{}, tc.ac, nil, Integrations{}, tc.team)
+			_, ok := got["luks_verify"]
+			require.Equal(t, tc.want, ok)
 		})
 	}
 }
@@ -711,7 +893,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Simulate a linux with a proper version
+	// Arch Linux based distribution with a major, minor and patch should still be ingested with "rolling".
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -730,7 +912,55 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
-	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
+
+	// Omarchy reports its own platform and a versioned BUILD_ID. Unlike the OS
+	// inventory row, the host keeps the distro name and its real version.
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "omarchy-host",
+    "arch": "x86_64",
+    "build": "4.0.0",
+    "codename": "",
+    "major": "4",
+    "minor": "0",
+    "name": "Omarchy",
+    "patch": "0",
+    "platform": "omarchy",
+    "platform_like": "arch",
+    "version": "4.0.0"
+}]`),
+		&rows,
+	))
+
+	require.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
+	require.Equal(t, "Omarchy 4.0.0", host.OSVersion)
+	require.Equal(t, "omarchy", host.Platform)
+	require.Equal(t, "arch", host.PlatformLike)
+
+	// AMD Ryzen AI Developer Platform is a Debian-based distribution that ships its
+	// own os-release ID. Values below are what osquery 5.23.1 reports on a real host.
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "amd-halo",
+    "arch": "x86_64",
+    "build": "",
+    "codename": "rex",
+    "major": "1",
+    "minor": "0",
+    "name": "AMD Ryzen AI Developer Platform",
+    "patch": "0",
+    "platform": "amd-ryzen-ai-developer-platform",
+    "platform_like": "debian",
+    "version": "1 (rex)"
+}]`),
+		&rows,
+	))
+
+	require.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
+	require.Equal(t, "AMD Ryzen AI Developer Platform 1.0.0", host.OSVersion)
+	require.Equal(t, "amd-ryzen-ai-developer-platform", host.Platform)
+	require.Equal(t, "debian", host.PlatformLike)
 
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -1098,8 +1328,76 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 	})
 }
 
+// TestDirectIngestMDMMacPersonalEnrollment guards that the macOS detail-query
+// ingest reads the BYOD signal back from the profile's ServerURL (byod=1) rather
+// than hardcoding false, which would otherwise clobber the is_personal_enrollment
+// set by the Apple Authenticate flow on every check-in.
+func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	var host fleet.Host
+
+	generateRows := func(serverURL, payloadIdentifier string) []map[string]string {
+		return []map[string]string{
+			{
+				"enrolled":           "true",
+				"installed_from_dep": "false",
+				"server_url":         serverURL,
+				"payload_identifier": payloadIdentifier,
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name         string
+		mdmData      []map[string]string
+		wantPersonal bool
+	}{
+		{
+			name:         "Fleet byod=1",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet no byod",
+			mdmData:      generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "Fleet byod=1 alongside other params",
+			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: true,
+		},
+		{
+			name:         "Fleet byod=0",
+			mdmData:      generateRows("https://test.example.com?byod=0", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: false,
+		},
+		{
+			name:         "non-Fleet byod=1 ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", "com.unknown.mdm"),
+			wantPersonal: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+				require.Equal(t, tc.wantPersonal, isPersonalEnrollment)
+				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
+				return nil
+			}
+
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.mdmData)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	}
+}
+
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return nil, &notFoundErrorForTest{}
+	}
 	cases := []struct {
 		name                 string
 		data                 []map[string]string
@@ -1686,6 +1984,74 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "6.6.10-1-ARCH",
 			},
 		},
+		{
+			// CachyOS is an Arch-based rolling-release distribution. It reports a
+			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
+			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "CachyOS Linux",
+					"version":        "20260628.0.549485",
+					"major":          "20260628",
+					"minor":          "0",
+					"patch":          "549485",
+					"build":          "rolling",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-2-cachyos",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-2-cachyos",
+			},
+		},
+		{
+			// Omarchy is an Arch-based rolling-release distribution. Unlike CachyOS it
+			// reports a versioned BUILD_ID rather than "rolling", so it should still
+			// aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "Omarchy",
+					"version":        "4.0.0",
+					"major":          "4",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "4.0.0",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-arch1-1",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-arch1-1",
+			},
+		},
+		{
+			// AMD Ryzen AI Developer Platform is a distinct Debian-based release, so
+			// it keeps its own OS inventory row rather than aggregating onto Debian.
+			data: []map[string]string{
+				{
+					"name":           "AMD Ryzen AI Developer Platform",
+					"version":        "1 (rex)",
+					"major":          "1",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.18.44+rex+5-amd64",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "AMD Ryzen AI Developer Platform",
+				Version:       "1.0.0",
+				Arch:          "x86_64",
+				KernelVersion: "6.18.44+rex+5-amd64",
+			},
+		},
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
@@ -1763,7 +2129,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		t.Run("errors are reported back", func(t *testing.T) {
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 				return errors.New("some error")
 			}
 			require.Error(t, directIngestSoftware(ctx, logger, &host, ds, data), "some error")
@@ -1771,12 +2137,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 
 		t.Run("only entries with installed_path set are persisted", func(t *testing.T) {
-			var calledWith map[string]struct{}
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
-				calledWith = make(map[string]struct{})
-				for k, v := range sPaths {
-					calledWith[k] = v
-				}
+			var calledWith map[string]fleet.ExecutableHashes
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+				calledWith = maps.Clone(sPaths)
 				return nil
 			}
 
@@ -1826,7 +2189,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				return nil, nil
 			}
 
-			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 				// NOP - This functionality is tested elsewhere
 				return nil
 			}
@@ -1878,7 +2241,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			require.Len(t, sPaths, 2)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
@@ -1920,6 +2283,52 @@ func TestDirectIngestSoftware(t *testing.T) {
 		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 	})
 
+	t.Run("homebrew keg with several executables", func(t *testing.T) {
+		const kegPath = "/opt/homebrew/Cellar/git"
+		binaries := []string{"git", "git-shell", "git-upload-pack"}
+
+		var data []map[string]string
+		for _, binary := range binaries {
+			data = append(data, map[string]string{
+				"name":              "git",
+				"version":           "2.46.0",
+				"source":            "homebrew_packages",
+				"installed_path":    kegPath,
+				"executable_path":   kegPath + "/2.46.0/bin/" + binary,
+				"executable_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(binary))),
+			})
+		}
+		keg := fleet.Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			// The fanned out rows all describe the same software.
+			require.Len(t, software, len(binaries))
+			for _, s := range software {
+				require.Equal(t, keg.ToUniqueStr(), s.ToUniqueStr())
+			}
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			// ... but each one is its own installed path row, differing only in the executable.
+			require.Len(t, sPaths, len(binaries))
+			for _, row := range data {
+				require.Contains(t, sPaths, fleet.HostSoftwareInstalledPathKey{
+					InstalledPath:     kegPath,
+					ExecutableSHA256:  row["executable_sha256"],
+					ExecutablePath:    row["executable_path"],
+					SoftwareUniqueStr: keg.ToUniqueStr(),
+				}.String())
+			}
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+		require.True(t, ds.UpdateHostSoftwareInstalledPathsFuncInvoked)
+		ds.UpdateHostSoftwareFuncInvoked = false
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
 	t.Run("all software columns are copied properly", func(t *testing.T) {
 		data := []map[string]string{
 			{
@@ -1944,7 +2353,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			return nil, nil
 		}
 
-		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
 			return nil
 		}
 
@@ -2318,14 +2727,23 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
-	host := &fleet.Host{ID: 1}
+	host := &fleet.Host{ID: 1, Platform: "darwin"}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSettings: fleet.MacOSSettings{
+					EnableDiskEncryption:          optjson.SetBool(true),
+					EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+				},
 			},
 		}, nil
+	}
+
+	// Default to connected to Fleet MDM; the dedicated subtest below overrides this.
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+		return true, nil
 	}
 
 	var wantKey string
@@ -2365,6 +2783,28 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 		return false, nil
 	}
+
+	t.Run("host not connected to Fleet MDM", func(t *testing.T) {
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		defer func() {
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+				return true, nil
+			}
+		}()
+
+		// A host that isn't enrolled in Fleet's MDM must not have its key escrowed,
+		// even with an encrypted disk and a key present (e.g. left over from a prior MDM).
+		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds,
+			[]map[string]string{{"encrypted": "1", "hex_line": hex.EncodeToString([]byte("prk"))}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+		err = directIngestDiskEncryptionKeyFileDarwin(ctx, logger, host, ds, mockFilevaultPRK("prk", "1"))
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	})
 
 	t.Run("empty key", func(t *testing.T) {
 		err := directIngestDiskEncryptionKeyFileLinesDarwin(ctx, logger, host, ds, []map[string]string{})
@@ -2502,9 +2942,109 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect no error: empty rows
 	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, []map[string]string{}))
 
-	// expect error: install date format is not "2006-01-02 15:04:05 -0700"
+	// expect no error: locale-formatted install dates (12-hour with AM/PM and a
+	// narrow no-break space) as emitted by `/usr/bin/profiles` on macOS 14+
+	fixedInstall := time.Date(2026, 4, 10, 16, 25, 20, 0, time.UTC)
+	for i := range installedProfiles {
+		installedProfiles[i].InstallDate = fixedInstall
+	}
+	rows = toRows(installedProfiles)
+	for _, row := range rows {
+		row["install_date"] = "2026-04-10 4:25:20\u202fPM +0000"
+	}
+	require.NoError(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows))
+
+	// expect error: unrecognized install date format
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
-	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "parsing time")
+	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "unsupported install_date format")
+}
+
+func TestParseMacOSProfileInstallDate(t *testing.T) {
+	const (
+		nnbsp = "\u202f" // narrow no-break space (U+202F), emitted by macOS 14+ before AM/PM
+		nbsp  = "\u00a0" // no-break space (U+00A0)
+	)
+
+	mustUTC := func(s string) time.Time {
+		ts, err := time.Parse(time.RFC3339, s)
+		require.NoError(t, err)
+		return ts
+	}
+
+	for _, tc := range []struct {
+		name    string
+		input   string
+		want    time.Time
+		wantErr bool
+	}{
+		{
+			name:  "24-hour NSDate.description (common case)",
+			input: "2026-04-10 16:25:38 +0000",
+			want:  mustUTC("2026-04-10T16:25:38Z"),
+		},
+		{
+			// verbatim from a customer's `SELECT * FROM macos_profiles` output
+			name:  "12-hour PM with narrow no-break space (macOS 14+)",
+			input: "2026-04-10 4:25:20" + nnbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T16:25:20Z"),
+		},
+		{
+			// verbatim from the same customer output
+			name:  "12-hour AM with narrow no-break space",
+			input: "2024-09-25 8:53:53" + nnbsp + "AM +0000",
+			want:  mustUTC("2024-09-25T08:53:53Z"),
+		},
+		{
+			name:  "12-hour with regular space (macOS 13 and earlier)",
+			input: "2026-04-10 4:25:20 PM +0000",
+			want:  mustUTC("2026-04-10T16:25:20Z"),
+		},
+		{
+			name:  "12-hour with no-break space",
+			input: "2026-04-10 4:25:20" + nbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T16:25:20Z"),
+		},
+		{
+			name:  "noon",
+			input: "2026-04-10 12:00:00" + nnbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T12:00:00Z"),
+		},
+		{
+			name:  "after midnight",
+			input: "2026-04-10 12:30:00" + nnbsp + "AM +0000",
+			want:  mustUTC("2026-04-10T00:30:00Z"),
+		},
+		{
+			name:  "two-digit 12-hour",
+			input: "2026-04-10 11:05:00" + nnbsp + "PM +0000",
+			want:  mustUTC("2026-04-10T23:05:00Z"),
+		},
+		{
+			name:  "non-UTC offset",
+			input: "2026-04-10 4:25:20" + nnbsp + "PM -0700",
+			want:  mustUTC("2026-04-10T23:25:20Z"),
+		},
+		{
+			name:    "unsupported format",
+			input:   "Fri Apr 10 16:25:38 PDT 2026",
+			wantErr: true,
+		},
+		{
+			name:    "empty",
+			input:   "",
+			wantErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseMacOSProfileInstallDate(tc.input)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "unsupported install_date format")
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, got.Equal(tc.want), "got %s, want %s", got.UTC(), tc.want)
+		})
+	}
 }
 
 func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
@@ -2519,8 +3059,14 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		require.Equal(t, host.UUID, hostUUID)
 		return returnEnrollmentsUpdated, nil
 	}
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return nil, &notFoundErrorForTest{}
+	}
 	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
+	}
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
 	}
 
 	baseEnrolledDeviceToReturn := fleet.MDMWindowsEnrolledDevice{
@@ -2565,15 +3111,15 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		return nil, common_mysql.NotFound("SCIMUser")
 	}
 
-	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, baseSCIMUser.ID, scimUserID)
-		return nil
+		return nil, nil
 	}
 
-	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 		require.Equal(t, host.ID, hostID)
-		return nil
+		return nil, nil
 	}
 
 	testCases := []struct {
@@ -2843,7 +3389,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
@@ -2923,7 +3469,7 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 1)
 		cert := certs[0]
@@ -2944,139 +3490,188 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
+// windowsCertRow builds an osquery Windows `certificates` table row for tests,
+// starting from a common set of base fields and applying the given overrides.
+func windowsCertRow(overrides map[string]string) map[string]string {
+	r := map[string]string{
+		"ca":                "0",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2048",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "05",
+	}
+	maps.Copy(r, overrides)
+	return r
+}
+
 func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
 
-	// Fleet SCEP cert example based on data from a real Windows host
-	c1 := map[string]string{
-		"ca":                "-1",
-		"common_name":       "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
-		"subject":           "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
-		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
-		"key_algorithm":     "RSA",
-		"key_strength":      "2160",
-		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		"not_valid_after":   "1780784467",
-		"not_valid_before":  "1749248467",
-		"serial":            "05",
-		"sha1":              "1A395245953C61AE12657704FF45F31A1E7BC1E8",
-		"username":          "Admin",
-		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	const (
+		userSID    = "S-1-5-21-1043593016-4249271388-1765263865-1000"
+		secondUSID = "S-1-5-21-1043593016-4249271388-1765263865-1500"
+		// Microsoft Entra ID (Azure AD) accounts on Entra-joined devices use the
+		// S-1-12-1 SID prefix rather than S-1-5-21.
+		entraSID = "S-1-12-1-1234567890-1234567890-1234567890-1234567890"
+	)
+
+	const (
+		machineSHA1 = "AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555"
+		sysAcctSHA1 = "1111AAAA2222BBBB3333CCCC4444DDDD5555EEEE"
+		userSHA1    = "EE5E756CC1A0782078C7C45180A4544A37D0F6D7"
+		entraSHA1   = "FACE1234FACE1234FACE1234FACE1234FACE1234"
+	)
+
+	// Machine-wide LocalMachine store: empty sid and empty username.
+	machine := windowsCertRow(map[string]string{
+		"common_name": "Fleet Root CA",
+		"subject2":    "CN=Fleet Root CA, O=Fleet Device Management Inc., OU=Engineering, C=US",
+		"issuer2":     "CN=Fleet Root CA, O=Fleet Device Management Inc., C=US",
+		"sha1":        machineSHA1,
+		"username":    "",
+		"sid":         "",
+		"path":        "LocalMachine\\Personal",
+	})
+
+	// LocalSystem account (S-1-5-18) store, enumerated three times across redundant hive views. These must collapse into
+	// a single System entry and be retained (a distinct cert from LocalMachine, often a device/enrollment cert).
+	sysAcctCurrentUser := windowsCertRow(map[string]string{
+		"common_name": "Device Enrollment",
+		"subject2":    "CN=Device Enrollment, C=US",
+		"issuer2":     "CN=Fleet SCEP CA, C=US",
+		"sha1":        sysAcctSHA1,
+		"username":    "SYSTEM",
+		"sid":         "S-1-5-18",
+		"path":        "CurrentUser\\Personal",
+	})
+	sysAcctServices := maps.Clone(sysAcctCurrentUser)
+	sysAcctServices["path"] = "Services\\S-1-5-18\\Personal"
+	sysAcctUsersHive := maps.Clone(sysAcctCurrentUser)
+	sysAcctUsersHive["path"] = "Users\\S-1-5-18\\Personal"
+
+	// Real interactive user (S-1-5-21-*), present in the Personal hive and the redundant _Classes sub-hive (same base
+	// SID). These collapse into one User/Admin entry. The issuer carries a quoted comma to exercise the parser.
+	userAdmin := windowsCertRow(map[string]string{
+		"common_name": "admin@example.com",
+		"subject2":    "CN=admin@example.com, OU=fleet-abc, OU=People, O=Example",
+		"issuer2":     `CN=SCEP CA, O="Example, Inc.", C=US`,
+		"sha1":        userSHA1,
+		"username":    "Admin",
+		"sid":         userSID,
+		"path":        "Users\\" + userSID + "\\Personal",
+	})
+	userAdminClasses := maps.Clone(userAdmin)
+	userAdminClasses["sid"] = userSID + "_Classes"
+	userAdminClasses["path"] = "Users\\" + userSID + "_Classes\\Personal"
+
+	// The same certificate (same SHA1) also installed in a second user's store
+	userBob := maps.Clone(userAdmin)
+	userBob["username"] = "Bob"
+	userBob["sid"] = secondUSID
+	userBob["path"] = "Users\\" + secondUSID + "\\Personal"
+
+	// An Entra ID (Azure AD) user, whose hive SID uses the S-1-12-1 prefix
+	entraUser := windowsCertRow(map[string]string{
+		"common_name": "entra@example.com",
+		"subject2":    "CN=entra@example.com, O=Example",
+		"issuer2":     "CN=SCEP CA, C=US",
+		"sha1":        entraSHA1,
+		"username":    "AzureAD\\entrauser",
+		"sid":         entraSID,
+		"path":        "Users\\" + entraSID + "\\Personal",
+	})
+
+	rows := []map[string]string{
+		machine,
+		sysAcctCurrentUser, sysAcctServices, sysAcctUsersHive,
+		userAdmin, userAdminClasses,
+		userBob,
+		entraUser,
 	}
-	// Custom SCEP cert example based on data from a real Windows host
-	c2 := map[string]string{
-		"ca":                "-1",
-		"common_name":       "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN",
-		"subject":           "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"",
-		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
-		"key_algorithm":     "RSA",
-		"key_strength":      "1120",
-		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
-		"signing_algorithm": "sha256RSA",
-		"not_valid_after":   "1796430423",
-		"not_valid_before":  "1764893823",
-		"serial":            "23",
-		"sha1":              "EE5E756CC1A0782078C7C45180A4544A37D0F6D7",
-		"username":          "Admin",
-		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+
+	type scopeKey struct {
+		sha1     string
+		source   fleet.HostCertificateSource
+		username string
 	}
 
-	// We'll use the examples above to create rows with minor variations, similar to what
-	// we would get from a real Windows host.
-	c3 := maps.Clone(c1)
-	c3["username"] = "SYSTEM"
-	c3["path"] = "Users\\S-1-5-18\\Personal"
-
-	c4 := maps.Clone(c1)
-	c4["username"] = "SYSTEM"
-	c4["path"] = "CurrentUser\\Personal"
-
-	c5 := maps.Clone(c1)
-	c5["username"] = "SYSTEM"
-	c5["path"] = "Users\\S-1-5-18\\Personal"
-
-	c6 := maps.Clone(c1)
-	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	c7 := maps.Clone(c2)
-	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
-
-	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
-
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
 		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
-		require.Len(t, certs, 3)
 
-		// We expect that the ingest function will deduplicate certs based on SHA1+username
-		// so we should see only 3 unique combinations from the 7 rows above.
-		expectSha1Users := map[string]bool{
-			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "Admin":  true, // c1, c6
-			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "SYSTEM": true, // c3, c4, c5
-			"EE5E756CC1A0782078C7C45180A4544A37D0F6D7" + "Admin":  true, // c2, c7
+		// 8 rows collapse to 5 distinct (SHA1, scope, username) entries.
+		require.Len(t, certs, 5)
+
+		expected := map[scopeKey]bool{
+			{machineSHA1, fleet.SystemHostCertificate, ""}:               true,
+			{sysAcctSHA1, fleet.SystemHostCertificate, ""}:               true,
+			{userSHA1, fleet.UserHostCertificate, "Admin"}:               true,
+			{userSHA1, fleet.UserHostCertificate, "Bob"}:                 true,
+			{entraSHA1, fleet.UserHostCertificate, "AzureAD\\entrauser"}: true,
 		}
-		seenSha1Users := map[string]bool{}
+		seen := map[scopeKey]bool{}
 		for _, cert := range certs {
-			s := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-			_, ok := expectSha1Users[s+cert.Username]
-			require.True(t, ok, "unexpected cert SHA1+username combination: %s + %s", s, cert.Username)
-			seenSha1Users[s+cert.Username] = true
+			sha1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+			k := scopeKey{sha1, cert.Source, cert.Username}
+			require.True(t, expected[k], "unexpected (sha1, scope, username): %+v", k)
+			seen[k] = true
 
-			// Validate fields that differ between the cert examples
-			switch s {
-			case "1A395245953C61AE12657704FF45F31A1E7BC1E8":
-				require.Equal(t, "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
-				require.Equal(t, "05", cert.Serial)
-				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
-				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
-				require.Equal(t, 2160, cert.KeyStrength)
-				require.Equal(t, "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.CommonName)
-				require.Equal(t, "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.SubjectCommonName)
-				require.Equal(t, "\"\", scep-ca, SCEP CA, FleetDM", cert.IssuerCommonName)
-				require.Contains(t, []string{"Admin", "SYSTEM"}, cert.Username)
-
-			case "EE5E756CC1A0782078C7C45180A4544A37D0F6D7":
-				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
-				require.Equal(t, "23", cert.Serial)
-				require.Equal(t, int64(1796430423), cert.NotValidAfter.Unix())
-				require.Equal(t, int64(1764893823), cert.NotValidBefore.Unix())
-				require.Equal(t, 1120, cert.KeyStrength)
-				require.Equal(t, "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN", cert.CommonName)
-				require.Equal(t, "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"", cert.SubjectCommonName)
-				require.Equal(t, "US, scep-ca, SCEP CA, MICROMDM SCEP CA", cert.IssuerCommonName)
-				require.Equal(t, "Admin", cert.Username)
-
-			default:
-				t.Fatalf("unexpected cert SHA1: %s", s)
-			}
-
-			// Validate fields common across all Windows certs in this test
 			require.Equal(t, "RSA", cert.KeyAlgorithm)
 			require.Equal(t, "sha256RSA", cert.SigningAlgorithm)
-			require.False(t, cert.CertificateAuthority)
-			if cert.Username == "SYSTEM" {
-				require.Equal(t, fleet.SystemHostCertificate, cert.Source)
-			} else {
-				require.Equal(t, fleet.UserHostCertificate, cert.Source)
+
+			switch k {
+			case scopeKey{machineSHA1, fleet.SystemHostCertificate, ""}:
+				// non-DN fields are mapped straight from the osquery row
+				require.Equal(t, "Fleet Root CA", cert.CommonName)
+				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
+				require.Equal(t, "05", cert.Serial)
+				require.Equal(t, 2048, cert.KeyStrength)
+				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.False(t, cert.CertificateAuthority)
+				// distinguished name fields are parsed from subject2 / issuer2
+				require.Equal(t, "Fleet Root CA", cert.SubjectCommonName)
+				require.Equal(t, "Fleet Device Management Inc.", cert.SubjectOrganization)
+				require.Equal(t, "Engineering", cert.SubjectOrganizationalUnit)
+				require.Equal(t, "US", cert.SubjectCountry)
+				require.Equal(t, "Fleet Root CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
+			case scopeKey{sysAcctSHA1, fleet.SystemHostCertificate, ""}:
+				require.Equal(t, "Device Enrollment", cert.SubjectCommonName)
+				require.Equal(t, "US", cert.SubjectCountry)
+				require.Equal(t, "Fleet SCEP CA", cert.IssuerCommonName)
+			case scopeKey{userSHA1, fleet.UserHostCertificate, "Admin"}, scopeKey{userSHA1, fleet.UserHostCertificate, "Bob"}:
+				require.Equal(t, "admin@example.com", cert.SubjectCommonName)
+				require.Equal(t, "Example", cert.SubjectOrganization)
+				require.Equal(t, "fleet-abc+OU=People", cert.SubjectOrganizationalUnit)
+				// quoted comma inside the issuer organization must be preserved
+				require.Equal(t, "Example, Inc.", cert.IssuerOrganization)
+				require.Equal(t, "SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
+			case scopeKey{entraSHA1, fleet.UserHostCertificate, "AzureAD\\entrauser"}:
+				require.Equal(t, "entra@example.com", cert.SubjectCommonName)
+				require.Equal(t, "Example", cert.SubjectOrganization)
+				require.Equal(t, "SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "US", cert.IssuerCountry)
 			}
-
-			// For Windows certs, osquery squeezes all distinguished name fields into
-			// the comma-separated list that we store as Issuer/SubjectCommonName and
-			// we leave all other fields empty for now (see fleet.ExtractDetailsFromOsqueryDistinguishedName)
-			require.Empty(t, cert.SubjectOrganization)
-			require.Empty(t, cert.SubjectOrganizationalUnit)
-			require.Empty(t, cert.SubjectCountry)
-			require.Empty(t, cert.IssuerOrganization)
-			require.Empty(t, cert.IssuerOrganizationalUnit)
-			require.Empty(t, cert.IssuerCountry)
-
 		}
-		require.Equal(t, expectSha1Users, seenSha1Users)
+		require.Equal(t, expected, seen)
+
+		// Observed scopes: System is always observed, plus each user that reported
+		// a cert. This is what lets reconciliation preserve logged-off users.
+		require.ElementsMatch(t, []fleet.HostCertificateScope{
+			{Source: fleet.SystemHostCertificate},
+			{Source: fleet.UserHostCertificate, Username: "Admin"},
+			{Source: fleet.UserHostCertificate, Username: "Bob"},
+			{Source: fleet.UserHostCertificate, Username: "AzureAD\\entrauser"},
+		}, observedScopes)
 
 		return nil
 	}
@@ -3084,6 +3679,39 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	err := directIngestHostCertificatesWindows(ctx, logger, host, ds, rows)
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
+func TestDirectIngestHostCertificatesWindowsMalformedDN(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	// subject2 contains a non-empty fragment with no '=' (malformed osquery output).
+	// The certificate must still be ingested best-effort, not dropped.
+	row := windowsCertRow(map[string]string{
+		"common_name": "malformed.example.com",
+		"subject2":    "CN=malformed.example.com, garbage-no-equals, C=US",
+		"issuer2":     "CN=Issuer CA, C=US",
+		"sha1":        "1234123412341234123412341234123412341234",
+		"username":    "",
+		"sid":         "",
+		"path":        "LocalMachine\\Personal",
+	})
+
+	var got []*fleet.HostCertificateRecord
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
+		got = certs
+		return nil
+	}
+
+	require.NoError(t, directIngestHostCertificatesWindows(ctx, logger, host, ds, []map[string]string{row}))
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+	// The cert is kept, with the parseable fields populated (the malformed fragment is dropped).
+	require.Len(t, got, 1)
+	require.Equal(t, "malformed.example.com", got[0].SubjectCommonName)
+	require.Equal(t, "US", got[0].SubjectCountry)
+	require.Equal(t, fleet.SystemHostCertificate, got[0].Source)
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
@@ -3543,6 +4171,182 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 	}
 }
 
+// adobePluginsColumns are the columns the software_adobe_plugins query reports, which
+// are also the row keys the software ingestion reads.
+var adobePluginsColumns = []string{
+	"name", "version", "bundle_identifier", "extension_id", "extension_for",
+	"source", "vendor", "last_opened_at", "installed_path",
+}
+
+// selectedColumns returns the output column names of a single-table SELECT query: the
+// alias when an item has one, the column name otherwise. It splits the SELECT list on
+// commas rather than on newlines, so reformatting the query doesn't change the result.
+func selectedColumns(t *testing.T, query string) []string {
+	t.Helper()
+	_, selectList, ok := strings.Cut(query, "SELECT")
+	require.True(t, ok, "query has no SELECT")
+	selectList, _, ok = strings.Cut(selectList, "FROM")
+	require.True(t, ok, "query has no FROM")
+
+	var columns []string
+	for item := range strings.SplitSeq(selectList, ",") {
+		item = strings.TrimSpace(item)
+		require.NotEmpty(t, item, "empty item in SELECT list")
+		if _, alias, ok := strings.Cut(item, " AS "); ok {
+			item = alias
+		}
+		columns = append(columns, strings.TrimSpace(item))
+	}
+	require.NotEmpty(t, columns, "no columns parsed out of query")
+	return columns
+}
+
+// TestSoftwareLinuxPacmanVersion runs the pacman software query against sqlite,
+// which osquery embeds, to check the epoch is dropped and pkgrel becomes release.
+func TestSoftwareLinuxPacmanVersion(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE fleetd_pacman_packages (name TEXT, version TEXT, arch TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO fleetd_pacman_packages VALUES
+		('ffmpeg', '2:9.0.1-4', 'x86_64'),
+		('curl', '8.16.0-1', 'x86_64'),
+		('linux-omarchy', '6.17.1.arch1-2', 'x86_64'),
+		('some-split', '1:2.0-3.1', 'any'),
+		('no-release', '1.2.3', 'any')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareLinuxPacman.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type pkg struct{ name, version, release, source, arch string }
+	var got []pkg
+	for rows.Next() {
+		var p pkg
+		var extensionID, extensionFor, vendor, installedPath string
+		require.NoError(t, rows.Scan(&p.name, &p.version, &extensionID, &extensionFor, &p.source, &p.release, &vendor, &p.arch, &installedPath))
+		got = append(got, p)
+	}
+	require.NoError(t, rows.Err())
+
+	require.Equal(t, []pkg{
+		{name: "ffmpeg", version: "9.0.1", release: "4", source: "pacman_packages", arch: "x86_64"},
+		{name: "curl", version: "8.16.0", release: "1", source: "pacman_packages", arch: "x86_64"},
+		{name: "linux-omarchy", version: "6.17.1.arch1", release: "2", source: "pacman_packages", arch: "x86_64"},
+		{name: "some-split", version: "2.0", release: "3.1", source: "pacman_packages", arch: "any"},
+		{name: "no-release", version: "1.2.3", release: "", source: "pacman_packages", arch: "any"},
+	}, got)
+}
+
+func TestSoftwareAdobePlugins(t *testing.T) {
+	// Adobe Creative Cloud doesn't run on Linux, and the adobe_plugins table only
+	// exists on fleetd builds that ship it.
+	require.Equal(t, []string{"darwin", "windows"}, softwareAdobePlugins.Platforms)
+	require.Equal(t, discoveryTable("adobe_plugins"), softwareAdobePlugins.Discovery)
+
+	// The results of this query are appended to the main software queries, so it
+	// must not ingest anything on its own.
+	require.Nil(t, softwareAdobePlugins.IngestFunc)
+	require.Nil(t, softwareAdobePlugins.DirectIngestFunc)
+	require.Nil(t, softwareAdobePlugins.DirectTaskIngestFunc)
+
+	// The query reports exactly the columns the software ingestion reads, so a renamed
+	// or dropped alias (e.g. bundle_id not aliased to bundle_identifier) fails here
+	// instead of silently ingesting an empty field.
+	require.Equal(t, adobePluginsColumns, selectedColumns(t, softwareAdobePlugins.Query))
+	require.Contains(t, softwareAdobePlugins.Query, "FROM adobe_plugins")
+
+	// The fleetd table emits its own rows, one per plugin, including a user column, so
+	// there is no cached_users join.
+	require.NotContains(t, strings.ToUpper(softwareAdobePlugins.Query), "JOIN")
+	// No scan_level constraint, so the table's default (standard) scan level is used.
+	require.NotContains(t, softwareAdobePlugins.Query, "scan_level")
+
+	// bundle_identifier and extension_for stay empty, and the plugin's bundle id goes in
+	// extension_id, which is not part of a software title's identity. Storing either of the
+	// other two puts plugin titles on keys they can collide with (a macOS app with the same
+	// bundle id, the extension directory name when the manifest can't be read, or a manifest
+	// that changes which applications it supports), and a dropped title leaves the software
+	// row with no title at all.
+	require.Contains(t, softwareAdobePlugins.Query, "'' AS bundle_identifier")
+	require.Contains(t, softwareAdobePlugins.Query, "bundle_id AS extension_id")
+	require.Contains(t, softwareAdobePlugins.Query, "'' AS extension_for")
+	require.NotContains(t, softwareAdobePlugins.Query, "bundle_id AS bundle_identifier")
+	require.NotContains(t, softwareAdobePlugins.Query, "host_application")
+}
+
+func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
+	ds := new(mock.Store)
+	host := fleet.Host{ID: 1, Platform: "darwin"}
+
+	// Rows as the software_adobe_plugins query reports them: one plugin with a manifest, and
+	// one whose manifest is missing or unparseable, for which fleetd falls back to the
+	// extension's directory name and leaves the other fields empty. extension_for is empty for
+	// every row, because the query doesn't select the table's host_application.
+	withManifest := map[string]string{
+		"name":              "Artisan Pro X",
+		"version":           "1.3.3",
+		"bundle_identifier": "",
+		"extension_id":      "com.vendorx.artisanprox",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/CEP/extensions/com.vendorx.artisanprox",
+	}
+	withoutManifest := map[string]string{
+		"name":              "com.vendory.colorizer",
+		"version":           "",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
+	}
+	for _, row := range []map[string]string{withManifest, withoutManifest} {
+		require.ElementsMatch(t, adobePluginsColumns, maps.Keys(row))
+	}
+
+	var gotSoftware []fleet.Software
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		gotSoftware = software
+		return nil, nil
+	}
+	var gotPaths []string
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+		gotPaths = maps.Keys(sPaths)
+		return nil
+	}
+
+	require.NoError(t, directIngestSoftware(t.Context(), slog.New(slog.DiscardHandler), &host, ds,
+		[]map[string]string{withManifest, withoutManifest}))
+
+	require.Equal(t, []fleet.Software{
+		{
+			Name:        "Artisan Pro X",
+			Version:     "1.3.3",
+			Source:      "adobe_plugins",
+			Vendor:      "VendorX",
+			ExtensionID: "com.vendorx.artisanprox",
+		},
+		{
+			Name:   "com.vendory.colorizer",
+			Source: "adobe_plugins",
+		},
+	}, gotSoftware)
+
+	require.Len(t, gotPaths, 2)
+	for _, row := range []map[string]string{withManifest, withoutManifest} {
+		require.Contains(t, strings.Join(gotPaths, " "),
+			row["installed_path"]+fleet.SoftwareFieldSeparator)
+	}
+}
+
 func TestWindowsAcrobatDC(t *testing.T) {
 	processFunc := SoftwareOverrideQueries["windows_acrobat_dc"].SoftwareProcessResults
 	softwareResults := []map[string]string{
@@ -3768,58 +4572,130 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 	}
 }
 
-func TestTPMPinSetVerifyIngest(t *testing.T) {
+func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	ctx := t.Context()
+	testHost := &fleet.Host{UUID: "test-uuid", ID: 1}
+
+	// policyRows builds the registry rows for a host already configured the way Fleet's PIN flow needs, with overrides
+	// applied. An override with an empty value removes that registry value.
+	policyRows := func(overrides map[string]string) []map[string]string {
+		values := map[string]string{
+			"UseTPMPIN":                    strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional),
+			"UseEnhancedPin":               "1",
+			"MinimumPIN":                   strconv.Itoa(microsoft_mdm.BitLockerPINMinLength),
+			"DisallowStandardUserPINReset": "0",
+			// Policies Fleet does not check live under the same key.
+			"UseTPM": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional),
+		}
+		maps.Copy(values, overrides)
+		var rows []map[string]string
+		for name, data := range values {
+			if data != "" {
+				rows = append(rows, map[string]string{"name": name, "data": data})
+			}
+		}
+		return rows
+	}
+
 	tests := []struct {
-		name   string
-		host   *fleet.Host
-		rows   []map[string]string
-		pinSet *bool
+		name    string
+		host    *fleet.Host
+		rows    []map[string]string
+		wantCmd bool
 	}{
 		{
 			name: "nil host",
 			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name:    "no policy key",
+			host:    testHost,
+			rows:    []map[string]string{},
+			wantCmd: true,
+		},
+		{
+			name: "everything already configured",
+			host: testHost,
+			rows: policyRows(nil),
+		},
+		{
+			name: "a required PIN protector is fine",
+			host: testHost,
+			rows: policyRows(map[string]string{"UseTPMPIN": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)}),
+		},
+		{
+			// Both are Windows' defaults, which already match what Fleet sets.
+			name: "unset minimum length and unset standard user restriction are fine",
+			host: testHost,
+			rows: policyRows(map[string]string{"MinimumPIN": "", "DisallowStandardUserPINReset": ""}),
+		},
+		{
+			name: "registry value names match regardless of case",
+			host: testHost,
 			rows: []map[string]string{
-				{"host": "something", "criteria": "1"},
+				{"name": "usetpmpin", "data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+				{"name": "USEENHANCEDPIN", "data": "1"},
 			},
 		},
 		{
-			name: "empty uuid",
-			host: &fleet.Host{
-				ID: 1,
-			},
-			rows: []map[string]string{{"host": "something", "criteria": "1"}},
+			name:    "an unset PIN protector policy",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseTPMPIN": ""}),
+			wantCmd: true,
 		},
 		{
-			name: "no rows - pin not set",
-			host: &fleet.Host{
-				ID:   1,
-				UUID: "test-uuid",
-			},
-			rows:   []map[string]string{},
-			pinSet: ptr.Bool(false),
+			name:    "a disallowed PIN protector",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseTPMPIN": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)}),
+			wantCmd: true,
 		},
 		{
-			name: "with rows - pin set",
-			host: &fleet.Host{
-				ID:   1,
-				UUID: "test-uuid",
-			},
-			rows: []map[string]string{
-				{"host": "Mordor", "criteria": "1"},
-			},
-			pinSet: ptr.Bool(true),
+			name:    "an empty PIN protector policy",
+			host:    testHost,
+			rows:    append(policyRows(map[string]string{"UseTPMPIN": ""}), map[string]string{"name": "UseTPMPIN", "data": ""}),
+			wantCmd: true,
 		},
 		{
-			name: "multiple rows - pin set",
-			host: &fleet.Host{
-				ID:   1,
-				UUID: "test-uuid",
-			},
-			rows: []map[string]string{
-				{"host": "Mordor", "criteria": "1"},
-				{"host": "Mordor", "criteria": "1"},
-			},
-			pinSet: ptr.Bool(true),
+			name:    "an unrecognized PIN protector policy",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseTPMPIN": "3"}),
+			wantCmd: true,
+		},
+		{
+			name:    "enhanced PINs not configured",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseEnhancedPin": ""}),
+			wantCmd: true,
+		},
+		{
+			name:    "enhanced PINs disabled",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"UseEnhancedPin": "0"}),
+			wantCmd: true,
+		},
+		{
+			// A longer minimum would make Windows reject a PIN Fleet accepted.
+			name:    "a longer minimum PIN length",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"MinimumPIN": "8"}),
+			wantCmd: true,
+		},
+		{
+			name:    "a shorter minimum PIN length",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"MinimumPIN": "4"}),
+			wantCmd: true,
+		},
+		{
+			name:    "standard users are not allowed to change their PIN",
+			host:    testHost,
+			rows:    policyRows(map[string]string{"DisallowStandardUserPINReset": "1"}),
+			wantCmd: true,
 		},
 	}
 
@@ -3827,25 +4703,61 @@ func TestTPMPinSetVerifyIngest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
 
-			var setPinCalled bool
-			ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, pinSet bool) error {
-				setPinCalled = true
-				require.Equal(t, *tt.pinSet, pinSet)
-				require.Equal(t, tt.host.ID, hostID)
-				return nil
+			var inserted []*fleet.MDMWindowsCommand
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					inserted = append(inserted, cmd)
+					return nil
+				}
 			}
 
-			ingestFunc := tpmPINQueries["tpm_pin_set_verify"].DirectIngestFunc
-
-			require.NoError(t, ingestFunc(t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows))
-			require.Equal(t, setPinCalled, tt.pinSet != nil)
+			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+			require.NoError(t, ingestFunc(ctx, logger, tt.host, ds, tt.rows))
+			if !tt.wantCmd {
+				require.Empty(t, inserted)
+				return
+			}
+			// Any mismatch sends one command that sets the startup policy and every PIN policy together.
+			require.Len(t, inserted, 1)
+			require.Equal(t, "./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication", inserted[0].TargetLocURI)
+			raw := string(inserted[0].RawCommand)
+			for _, locURI := range []string{
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication",
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesMinimumPINLength",
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesEnhancedPIN",
+				"./Device/Vendor/MSFT/BitLocker/SystemDrivesDisallowStandardUsersCanChangePIN",
+			} {
+				require.Contains(t, raw, "<LocURI>"+locURI+"</LocURI>")
+			}
 		})
 	}
+
+	t.Run("a failed insert is returned", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return errors.New("insert failed")
+		}
+		ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+		require.ErrorContains(t, ingestFunc(ctx, logger, testHost, ds, []map[string]string{}), "insert failed")
+	})
 }
 
-func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
+// TestBitlockerStartupPolicyRelaxDirectIngest covers the query that lifts a startup-authentication policy blocking
+// Fleet from restoring BitLocker protection on an encrypted but unprotected volume.
+func TestBitlockerStartupPolicyRelaxDirectIngest(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	ctx := t.Context()
+
+	testHost := &fleet.Host{UUID: "test-uuid", ID: 1}
+	row := func(value int) []map[string]string {
+		return []map[string]string{{"data": strconv.Itoa(value)}}
+	}
 
 	tests := []struct {
 		name      string
@@ -3863,56 +4775,33 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			host: &fleet.Host{UUID: ""},
 		},
 		{
-			name: "too many rows",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
-			},
+			name:      "more rows than the query can return",
+			host:      testHost,
+			rows:      append(row(microsoft_mdm.PolicyOptDropdownDisallowed), row(microsoft_mdm.PolicyOptDropdownDisallowed)...),
 			wantError: true,
 		},
 		{
-			name: "no rows - requires command",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows:    []map[string]string{},
+			// The deadlock: policy forbids the only protector Fleet can add without the end user.
+			name:    "a banned TPM-only protector is permitted so protection can be restored",
+			host:    testHost,
+			rows:    row(microsoft_mdm.PolicyOptDropdownDisallowed),
 			wantCmd: true,
 		},
 		{
-			name: "disallowed state - requires command",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)},
-			},
-			wantCmd: true,
+			name: "an already permitted TPM-only protector needs no command",
+			host: testHost,
+			rows: row(microsoft_mdm.PolicyOptDropdownOptional),
 		},
 		{
-			name: "policy set to optinal",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
-			},
+			// Required also permits the protector, so nothing is blocking the agent.
+			name: "a required TPM-only protector needs no command",
+			host: testHost,
+			rows: row(microsoft_mdm.PolicyOptDropdownRequired),
 		},
 		{
-			name: "policy set to required",
-			host: &fleet.Host{
-				UUID: "test-uuid",
-				ID:   1,
-			},
-			rows: []map[string]string{
-				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)},
-			},
+			name: "an unset dropdown already permits a TPM-only protector",
+			host: testHost,
+			rows: []map[string]string{},
 		},
 	}
 
@@ -3930,14 +4819,17 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 					cmdInserted = true
 					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
 					require.NotNil(t, cmd)
+					// The command has to permit a TPM-only protector, otherwise it does not unblock the agent.
+					require.Contains(t, string(cmd.RawCommand),
+						fmt.Sprintf(`ConfigureTPMUsageDropDown_Name" value="%d"`, microsoft_mdm.PolicyOptDropdownOptional))
 					return nil
 				}
 			}
 
-			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+			ingestFunc := bitlockerPolicyQueries["bitlocker_startup_policy_relax"].DirectIngestFunc
 			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
 			require.Equal(t, tt.wantError, err != nil)
-			require.Equal(t, cmdInserted, tt.wantCmd)
+			require.Equal(t, tt.wantCmd, cmdInserted)
 		})
 	}
 }
@@ -4237,4 +5129,626 @@ func TestRpmLastOpenedAt(t *testing.T) {
 			assert.Equal(t, "", software["last_opened_at"])
 		}
 	}
+}
+
+func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	defaultTeamID := uint(7)
+	enrollmentCreatedAt := time.Now().UTC()
+
+	userDrivenDevice := &fleet.MDMWindowsEnrolledDevice{
+		ID:              1,
+		MDMDeviceID:     "device-1",
+		MDMEnrollUserID: "user@example.com",
+		CreatedAt:       enrollmentCreatedAt,
+	}
+
+	testCases := []struct {
+		name           string
+		defaultTeamID  *uint
+		hostTeamID     *uint
+		hostCreatedAt  time.Time
+		expectTransfer bool
+	}{
+		{
+			name:           "no default fleet configured",
+			defaultTeamID:  nil,
+			hostCreatedAt:  enrollmentCreatedAt.Add(2 * time.Minute),
+			expectTransfer: false,
+		},
+		{
+			name:           "new host gets the default fleet",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt.Add(2 * time.Minute),
+			expectTransfer: true,
+		},
+		{
+			name:           "host created at the same time as the enrollment gets the default fleet",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt,
+			expectTransfer: true,
+		},
+		{
+			name:           "host created before the enrollment (incl. parked Unassigned) stays put",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt.Add(-time.Minute),
+			expectTransfer: false,
+		},
+		{
+			name:           "host already on a fleet stays put",
+			defaultTeamID:  &defaultTeamID,
+			hostTeamID:     new(uint(3)),
+			hostCreatedAt:  enrollmentCreatedAt.Add(2 * time.Minute),
+			expectTransfer: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return tc.defaultTeamID, "Workstations", nil
+			}
+			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+				require.True(t, ctxdb.IsPrimaryRequired(ctx), "host read must hit the primary (read-after-write with orbit enroll)")
+				return &fleet.HostLite{ID: id, TeamID: tc.hostTeamID, CreatedAt: tc.hostCreatedAt}, nil
+			}
+			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+				require.NotNil(t, params.TeamID)
+				require.Equal(t, defaultTeamID, *params.TeamID)
+				require.Equal(t, []uint{42}, params.HostIDs)
+				return nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+				require.Equal(t, []uint{42}, hostIDs)
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, 42, userDrivenDevice)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectTransfer, ds.AddHostsToTeamFuncInvoked)
+			require.Equal(t, tc.expectTransfer, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
+			if tc.defaultTeamID == nil {
+				require.False(t, ds.HostLiteByIDFuncInvoked, "no host lookup needed when no default is configured")
+			}
+		})
+	}
+}
+
+func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+	hostUUID := "test-uuid"
+	host := fleet.Host{ID: 1, UUID: hostUUID}
+	var insertedDeviceID string
+	ds.InsertAppleSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
+		insertedDeviceID = updateDeviceID
+		return nil
+	}
+
+	t.Run("no rows returns with no error", func(t *testing.T) {
+		require.NoError(t, directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{}))
+		require.False(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("empty value return error", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"value": ""},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty software update device ID")
+		require.False(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("intel mac takes board-id", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-id", insertedDeviceID)
+
+		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+
+	t.Run("intel T2 mac takes bridge-model", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "bridge-model", "value": "valid-bridge-model"},
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-bridge-model", insertedDeviceID)
+	})
+
+	t.Run("apple silicon mac takes compatible", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Apple Silicon\x00Mac16,7"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "Apple Silicon", insertedDeviceID)
+
+		ds.InsertAppleSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+}
+
+type notFoundErrorForTest struct{}
+
+func (e *notFoundErrorForTest) Error() string    { return "not found" }
+func (e *notFoundErrorForTest) IsNotFound() bool { return true }
+
+// A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE.
+func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name            string
+		hasAutopilotRow bool
+		wantDEPCleared  bool
+	}{
+		{"an ordinary Windows host is demoted to manual", false, true},
+		{"a pending Autopilot host keeps its marker", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var depCleared bool
+
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+				return true, nil
+			}
+			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return &fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true}, nil
+			}
+			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+				if tc.hasAutopilotRow {
+					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
+				}
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
+				depCleared = !enrolledFromDEP
+				return nil
+			}
+			// No default fleet configured, so the assignment helper returns before touching anything else.
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return nil, "", nil
+			}
+			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+				return nil
+			}
+			ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+				return nil, &notFoundErrorForTest{}
+			}
+			ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+				return nil, nil
+			}
+
+			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1")
+			require.NoError(t, err)
+			require.True(t, updated)
+			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+// osquery detail ingest runs on every refetch and derives installed_from_dep from the enrollment's OOBE flag. An
+// already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception the next refetch would clear
+// the marker and demote the host to manual.
+func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	var gotAutomatic, gotEnrolled bool
+
+	ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
+		return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
+	}
+	ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		return &fleet.MDMWindowsEnrolledDevice{MDMNotInOOBE: true}, nil
+	}
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string,
+		installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool,
+	) error {
+		gotEnrolled, gotAutomatic = enrolled, installedFromDep
+		return nil
+	}
+
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+	rows := []map[string]string{{
+		"discovery_service_url": "https://example.com/api/mdm/microsoft/discovery",
+		"aad_resource_id":       "https://example.com",
+		"provider_id":           fleet.WellKnownMDMFleet,
+		"installation_type":     "Client",
+	}}
+	require.NoError(t, directIngestMDMWindows(t.Context(), slog.New(slog.DiscardHandler), host, ds, rows))
+
+	assert.True(t, gotEnrolled)
+	assert.True(t, gotAutomatic, "an Autopilot host that re-enrolls out of OOBE must still read as automatic")
+}
+
+// The Windows enrollment default fleet is assigned only to hosts created at or after their enrollment row.
+func TestWindowsEnrollmentDefaultFleetSkipsPendingAutopilotHost(t *testing.T) {
+	t.Parallel()
+
+	enrollmentCreated := time.Now()
+	for _, tc := range []struct {
+		name        string
+		hostCreated time.Time
+		wantMoved   bool
+	}{
+		{"a host the autopilot sync created days earlier is left alone", enrollmentCreated.Add(-72 * time.Hour), false},
+		{"a host created by the enrollment itself is assigned", enrollmentCreated.Add(time.Second), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			teamID := uint(7)
+			var moved bool
+
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+				return &teamID, "Workstations", nil
+			}
+			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: id, CreatedAt: tc.hostCreated}, nil
+			}
+			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+				moved = true
+				return nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint,
+				profileUUIDs, hostUUIDs []string,
+			) (fleet.MDMProfilesUpdates, error) {
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			device := &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID: "device-1",
+				CreatedAt:   enrollmentCreated,
+			}
+			require.NoError(t, maybeAssignWindowsEnrollmentDefaultFleet(t.Context(), slog.New(slog.DiscardHandler), ds, 1, device))
+			assert.Equal(t, tc.wantMoved, moved)
+		})
+	}
+}
+
+// This ingester is the only source of the signals that drive the missing-boot-protector repair and the startup PIN
+// requirement.
+func TestBitlockerKeyProtectorsVerifyDirectIngest(t *testing.T) {
+	host := &fleet.Host{ID: 42, UUID: "host-uuid"}
+
+	type written struct{ bootProtectorSet, tpmPINSet bool }
+	for _, tt := range []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		dsErr     error
+		wantWrite *written
+		wantErr   bool
+	}{
+		{name: "nil host stores nothing", host: nil},
+		{name: "empty UUID host stores nothing", host: &fleet.Host{ID: 42, UUID: ""}},
+		{
+			name: "no protectors at all records neither",
+			host: host, rows: []map[string]string{{"boot_protector_set": "0", "tpm_pin_set": "0"}},
+			wantWrite: &written{bootProtectorSet: false, tpmPINSet: false},
+		},
+		{
+			name: "a TPM-only protector records a boot protector without a PIN",
+			host: host, rows: []map[string]string{{"boot_protector_set": "1", "tpm_pin_set": "0"}},
+			wantWrite: &written{bootProtectorSet: true, tpmPINSet: false},
+		},
+		{
+			name: "a TPM and PIN protector records both",
+			host: host, rows: []map[string]string{{"boot_protector_set": "1", "tpm_pin_set": "1"}},
+			wantWrite: &written{bootProtectorSet: true, tpmPINSet: true},
+		},
+		{
+			name: "no rows leaves the columns alone rather than claiming no protector",
+			host: host, rows: nil,
+		},
+		{
+			name: "more rows than expected also leaves the columns alone",
+			host: host, rows: []map[string]string{
+				{"boot_protector_set": "1", "tpm_pin_set": "1"},
+				{"boot_protector_set": "0", "tpm_pin_set": "0"},
+			},
+		},
+		{
+			name: "a datastore failure is propagated rather than swallowed",
+			host: host, rows: []map[string]string{{"boot_protector_set": "0", "tpm_pin_set": "0"}}, dsErr: errors.New("write failed"),
+			wantWrite: &written{}, wantErr: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var got *written
+			ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(_ context.Context, hostID uint, bootProtectorSet, tpmPINSet bool) error {
+				require.Equal(t, tt.host.ID, hostID)
+				got = &written{bootProtectorSet: bootProtectorSet, tpmPINSet: tpmPINSet}
+				return tt.dsErr
+			}
+
+			err := bitlockerPolicyQueries["bitlocker_key_protectors_verify"].DirectIngestFunc(
+				t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.wantWrite == nil {
+				require.Nil(t, got, "must not write for a host it cannot identify or an answer it did not get")
+				return
+			}
+			require.NotNil(t, got)
+			require.Equal(t, *tt.wantWrite, *got)
+		})
+	}
+}
+
+func TestDirectIngestEntraJoinUser(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 42, UUID: "entra-join-uuid", Platform: "windows"}
+
+	cases := []struct {
+		name     string
+		rows     []map[string]string
+		wantCall bool
+		wantUPN  string
+	}{
+		{name: "no rows clears the mapping", rows: nil, wantCall: true, wantUPN: ""},
+		{name: "join record without a user clears the mapping", rows: []map[string]string{{"user_email": ""}}, wantCall: true, wantUPN: ""},
+		{name: "upn with entra-allowed punctuation", rows: []map[string]string{{"user_email": "o'brien@example.com"}}, wantCall: true, wantUPN: "o'brien@example.com"},
+		{name: "malformed value clears the mapping", rows: []map[string]string{{"user_email": "DESKTOP-ABC"}}, wantCall: true, wantUPN: ""},
+		{name: "valid upn is normalized", rows: []map[string]string{{"user_email": "  Join.User@Example.COM "}}, wantCall: true, wantUPN: "join.user@example.com"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+				require.Equal(t, host.ID, hostID)
+				require.Equal(t, c.wantUPN, upn)
+				return true, nil
+			}
+			err := directIngestEntraJoinUser(ctx, logger, host, ds, c.rows)
+			require.NoError(t, err)
+			require.Equal(t, c.wantCall, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
+		})
+	}
+
+	t.Run("datastore error is returned", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return false, errors.New("boom")
+		}
+		err := directIngestEntraJoinUser(ctx, logger, host, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.ErrorContains(t, err, "boom")
+	})
+
+	t.Run("results from a non-windows host are ignored", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.SetOrUpdateEntraJoinHostDeviceMappingFunc = func(ctx context.Context, hostID uint, upn string) (bool, error) {
+			return true, nil
+		}
+		macHost := &fleet.Host{ID: 43, UUID: "not-windows", Platform: "darwin"}
+		err := directIngestEntraJoinUser(ctx, logger, macHost, ds, []map[string]string{{"user_email": "join.user@example.com"}})
+		require.NoError(t, err)
+		require.False(t, ds.SetOrUpdateEntraJoinHostDeviceMappingFuncInvoked)
+	})
+}
+
+func TestMacOSHomebrewExecutableSHA256(t *testing.T) {
+	override := SoftwareOverrideQueries["macos_homebrew_executable_sha256"]
+	require.Equal(t, []string{"darwin"}, override.Platforms)
+	require.Equal(t, `SELECT 1 FROM pragma_table_info('executable_hashes') WHERE name = 'path_type'`, override.Discovery)
+	processFunc := override.SoftwareProcessResults
+
+	keg := func(name, version string) map[string]string {
+		return map[string]string{
+			"name":           name,
+			"version":        version,
+			"source":         "homebrew_packages",
+			"vendor":         "",
+			"installed_path": "/opt/homebrew/Cellar/" + name,
+		}
+	}
+	exec := func(name, version, binary, hash string) map[string]string {
+		return map[string]string{
+			"keg_path":          "/opt/homebrew/Cellar/" + name,
+			"version":           version,
+			"executable_path":   "/opt/homebrew/Cellar/" + name + "/" + version + "/bin/" + binary,
+			"executable_sha256": hash,
+			"hash_state":        "hashed",
+		}
+	}
+	withExecutablePath := func(row map[string]string, path string) map[string]string {
+		out := maps.Clone(row)
+		out["executable_path"] = path
+		return out
+	}
+	deferred := func(name, version, binary string) map[string]string {
+		row := exec(name, version, binary, "")
+		row["hash_state"] = "deferred"
+		return row
+	}
+	withExecs := func(row map[string]string, executables string) map[string]string {
+		out := maps.Clone(row)
+		out["executable_hashes"] = executables
+		return out
+	}
+	safariApp := map[string]string{
+		"name":           "Safari.app",
+		"version":        "18.1",
+		"source":         "apps",
+		"installed_path": "/Applications/Safari.app",
+	}
+
+	for _, tc := range []struct {
+		name     string
+		main     []map[string]string
+		results  []map[string]string
+		expected []map[string]string
+	}{
+		{
+			name:     "no override rows leaves the main results untouched",
+			main:     []map[string]string{keg("git", "2.46.0"), safariApp},
+			results:  nil,
+			expected: []map[string]string{keg("git", "2.46.0"), safariApp},
+		},
+		{
+			name: "a keg carries its executables keyed relative to the Cellar directory",
+			main: []map[string]string{keg("git", "2.46.0")},
+			results: []map[string]string{
+				exec("git", "2.46.0", "git", "aa"),
+				exec("git", "2.46.0", "git-shell", "bb"),
+				exec("git", "2.46.0", "git-upload-pack", "cc"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("git", "2.46.0"), `{"2.46.0/bin/git":"aa","2.46.0/bin/git-shell":"bb","2.46.0/bin/git-upload-pack":"cc"}`),
+			},
+		},
+		{
+			name: "two kegs of the same formula do not mix",
+			main: []map[string]string{keg("git", "2.45.0"), keg("git", "2.46.0")},
+			results: []map[string]string{
+				exec("git", "2.45.0", "git", "aa"),
+				exec("git", "2.46.0", "git", "bb"),
+				exec("git", "2.46.0", "git-shell", "cc"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("git", "2.45.0"), `{"2.45.0/bin/git":"aa"}`),
+				withExecs(keg("git", "2.46.0"), `{"2.46.0/bin/git":"bb","2.46.0/bin/git-shell":"cc"}`),
+			},
+		},
+		{
+			name:    "a formula with no Mach-O executables carries an empty document",
+			main:    []map[string]string{keg("cocoapods", "1.15.2"), keg("jq", "1.7.1")},
+			results: []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
+			expected: []map[string]string{
+				withExecs(keg("cocoapods", "1.15.2"), `{}`),
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"aa"}`),
+			},
+		},
+		{
+			name:    "rows from other sources are untouched",
+			main:    []map[string]string{safariApp, keg("jq", "1.7.1")},
+			results: []map[string]string{exec("jq", "1.7.1", "jq", "aa")},
+			expected: []map[string]string{
+				safariApp,
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"aa"}`),
+			},
+		},
+		{
+			name: "a deferred executable is membership without a hash",
+			main: []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{
+				deferred("jq", "1.7.1", "jq"),
+				exec("jq", "1.7.1", "jq-real", "aa"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"","1.7.1/bin/jq-real":"aa"}`),
+			},
+		},
+		{
+			name:    "a keg whose executables were all deferred still reports them",
+			main:    []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{deferred("jq", "1.7.1", "jq"), deferred("jq", "1.7.1", "jq-real")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq":"","1.7.1/bin/jq-real":""}`),
+			},
+		},
+		{
+			name: "an executable with neither a hash nor a state is not membership",
+			main: []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{
+				{
+					"keg_path": "/opt/homebrew/Cellar/jq", "version": "1.7.1",
+					"executable_path": "/opt/homebrew/Cellar/jq/1.7.1/bin/jq", "executable_sha256": "",
+					"hash_state": "unavailable",
+				},
+				exec("jq", "1.7.1", "jq-real", "aa"),
+			},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{"1.7.1/bin/jq-real":"aa"}`),
+			},
+		},
+		{
+			name:    "an executable outside its keg is ignored",
+			main:    []map[string]string{keg("jq", "1.7.1")},
+			results: []map[string]string{withExecutablePath(exec("jq", "1.7.1", "jq", "aa"), "/usr/local/bin/jq")},
+			expected: []map[string]string{
+				withExecs(keg("jq", "1.7.1"), `{}`),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, processFunc(tc.main, tc.results))
+		})
+	}
+}
+
+// TestMacOSHomebrewExecutableSHA256Query runs the Homebrew executable hash override query against
+// sqlite, which osquery embeds, to check that a keg only picks up its own executables.
+func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE homebrew_packages (name TEXT, path TEXT, version TEXT, type TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO homebrew_packages VALUES
+		('git', '/opt/homebrew/Cellar/git', '2.46.0', 'formula'),
+		('git', '/opt/homebrew/Cellar/git', '2.45.0', 'formula'),
+		('node', '/opt/homebrew/Cellar/node', '1.2', 'formula'),
+		('node_exporter', '/opt/homebrew/Cellar/node_exporter', '1.2', 'formula'),
+		('jq', '/usr/local/Cellar/jq', '1.7.1', 'formula'),
+		('docker', '/opt/homebrew/Caskroom/docker', '4.34.0', 'cask')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`CREATE TABLE executable_hashes (path TEXT, executable_path TEXT, executable_sha256 TEXT, path_type TEXT, hash_state TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO executable_hashes VALUES
+		('/opt/homebrew/Cellar/git/2.46.0/bin/git', '/opt/homebrew/Cellar/git/2.46.0/bin/git', 'aaaa', 'file', 'hashed'),
+		('/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', '/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon', 'bbbb', 'file', 'hashed'),
+		('/opt/homebrew/Cellar/git/2.45.0/bin/git', '/opt/homebrew/Cellar/git/2.45.0/bin/git', 'cccc', 'file', 'hashed'),
+		('/usr/local/Cellar/jq/1.7.1/bin/jq', '/usr/local/Cellar/jq/1.7.1/bin/jq', 'dddd', 'file', 'hashed'),
+		-- a file the hashing budget did not reach this run, which is still part of its keg
+		('/usr/local/Cellar/jq/1.7.1/bin/jq-deferred', '/usr/local/Cellar/jq/1.7.1/bin/jq-deferred', '', 'file', 'deferred'),
+		-- a keg of the same formula at a version this one is a prefix of
+		('/opt/homebrew/Cellar/node/1.2.3/bin/node', '/opt/homebrew/Cellar/node/1.2.3/bin/node', 'eeee', 'file', 'hashed'),
+		-- a formula whose name starts with another formula's name plus an underscore
+		('/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', '/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter', 'ffff', 'file', 'hashed'),
+		-- an app bundle, which the apps override already reports
+		('/Applications/Safari.app', '/Applications/Safari.app/Contents/MacOS/Safari', 'gggg', 'bundle', 'hashed'),
+		-- a cask binary, which is out of scope
+		('/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', '/opt/homebrew/Caskroom/docker/4.34.0/bin/docker', 'hhhh', 'file', 'hashed')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(SoftwareOverrideQueries["macos_homebrew_executable_sha256"].Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type execRow struct{ kegPath, version, executablePath, executableSHA256, hashState string }
+	var got []execRow
+	for rows.Next() {
+		var r execRow
+		require.NoError(t, rows.Scan(&r.kegPath, &r.version, &r.executablePath, &r.executableSHA256, &r.hashState))
+		got = append(got, r)
+	}
+	require.NoError(t, rows.Err())
+
+	require.ElementsMatch(t, []execRow{
+		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/bin/git", "aaaa", "hashed"},
+		{"/opt/homebrew/Cellar/git", "2.46.0", "/opt/homebrew/Cellar/git/2.46.0/sbin/git-daemon", "bbbb", "hashed"},
+		{"/opt/homebrew/Cellar/git", "2.45.0", "/opt/homebrew/Cellar/git/2.45.0/bin/git", "cccc", "hashed"},
+		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq", "dddd", "hashed"},
+		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
+		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
+	}, got)
 }

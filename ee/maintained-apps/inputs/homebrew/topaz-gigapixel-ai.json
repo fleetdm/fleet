@@ -1,0 +1,10 @@
+{
+  "name": "Topaz Gigapixel AI",
+  "unique_identifier": "com.topazlabs.TopazGigapixelAI",
+  "token": "topaz-gigapixel-ai",
+  "installer_format": "pkg",
+  "slug": "topaz-gigapixel-ai/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

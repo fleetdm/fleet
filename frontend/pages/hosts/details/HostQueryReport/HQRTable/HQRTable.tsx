@@ -1,23 +1,26 @@
-import Button from "components/buttons/Button";
-import EmptyState from "components/EmptyState";
-import Icon from "components/Icon";
-import TableContainer from "components/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
+import FileSaver from "file-saver";
 import React, { useCallback, useState } from "react";
 import { Row } from "react-table";
+
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import EmptyState from "components/EmptyState";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import FileSaver from "file-saver";
-import Spinner from "components/Spinner";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
 import {
   getPerformanceImpactDescription,
   getPerformanceImpactIndicatorTooltip,
 } from "utilities/helpers";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
+
 import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
@@ -108,21 +111,22 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="eye"
+          iconPosition="right"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
+          icon="download"
+          iconPosition="right"
         >
-          <>
-            Export results
-            <Icon name="download" />
-          </>
+          Export results
         </Button>
       </div>
     );
@@ -134,7 +138,7 @@ const HQRTable = ({
         <EmptyState
           className={`${baseClass}__report-clipped`}
           header="Report clipped"
-          info="This report has paused reporting in Fleet, and no results were saved for this host."
+          info="This report is full, so no results were saved for this host."
         />
       );
     }
@@ -173,8 +177,10 @@ const HQRTable = ({
   const renderTableInfo = useCallback(
     () => (
       <div className={`${baseClass}__query-info`}>
-        <div>
-          <h2>{queryName}</h2>
+        <div className={`${baseClass}__query-info-text`}>
+          <h2>
+            <TooltipTruncatedText value={queryName} fixedPositionStrategy />
+          </h2>
           <h3>{queryDescription}</h3>
         </div>
         <PerformanceImpact queryStats={queryStats} queryId={queryId} />
@@ -187,7 +193,7 @@ const HQRTable = ({
     return <Spinner />;
   }
   return (
-    <div className={`${baseClass} section`}>
+    <Card paddingSize="xxlarge" includeShadow className={baseClass}>
       {renderTableInfo()}
       {rows.length === 0 ? (
         renderEmptyState()
@@ -211,7 +217,7 @@ const HQRTable = ({
           getRowId={(_row, index) => String(index)}
         />
       )}
-    </div>
+    </Card>
   );
 };
 

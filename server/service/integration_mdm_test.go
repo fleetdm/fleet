@@ -2,11 +2,13 @@ package service
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
@@ -23,6 +25,7 @@ import (
 	"math/big"
 	"mime/multipart"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -36,6 +39,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/MicahParks/jwkset"
 	"github.com/davecgh/go-spew/spew"
@@ -53,10 +58,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/golang-jwt/jwt/v4"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 
 	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -81,6 +88,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
@@ -124,11 +132,13 @@ type integrationMDMTestSuite struct {
 	integrationsSchedule         *schedule.Schedule
 	cleanupsSchedule             *schedule.Schedule
 	appleMDMWorkerSchedule       *schedule.Schedule
+	appleOSUpdatesSchedule       *schedule.Schedule
 	onProfileJobDone             func() // function called when profileSchedule.Trigger() job completed
 	onAndroidProfileJobDone      func() // function called when androidProfileSchedule.Trigger() job completed
 	onIntegrationsScheduleDone   func() // function called when integrationsSchedule.Trigger() job completed
 	onCleanupScheduleDone        func() // function called when cleanupsSchedule.Trigger() job completed
 	onAppleMDMWorkerScheduleDone func() // function called when appleMDMWorkerSchedule.Trigger() job completed
+	onAppleOSUpdatesScheduleDone func() // function called when appleOSUpdatesSchedule.Trigger() job completed
 	mdmStorage                   *mysql.NanoMDMStorage
 	worker                       *worker.Worker
 	appleMDMWorker               *worker.Worker
@@ -188,6 +198,20 @@ var defaultVPPAssetList = []vpp.Asset{
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
+// requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
+// the given refetch command types, each recording the full prefixed UUID of
+// the command it tracks (the exact UUIDs are random).
+func requireTrackedRefetchCommands(t *testing.T, commands []fleet.HostMDMCommand, hostID uint, commandTypes ...string) {
+	gotTypes := make([]string, 0, len(commands))
+	for _, c := range commands {
+		assert.Equal(t, hostID, c.HostID)
+		assert.Truef(t, strings.HasPrefix(c.CommandUUID, c.CommandType),
+			"tracking row for %s must record its full prefixed command UUID, got %q", c.CommandType, c.CommandUUID)
+		gotTypes = append(gotTypes, c.CommandType)
+	}
+	assert.ElementsMatch(t, commandTypes, gotTypes)
+}
+
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
@@ -203,6 +227,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	fleetCfg := config.TestConfig()
 	fleetCfg.MDM.AppleConnectJWT = "fake-token" // skip as we test VPP auth elsewhere
+	// Custom activations are opt-in on the server (#50764); the DDM suite covers
+	// them, so this suite runs with them on.
+	fleetCfg.MDM.AllowCustomActivations = true
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(s.T(), err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -300,6 +327,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
 	var appleMDMWorkerSchedule *schedule.Schedule
+	var appleOSUpdatesSchedule *schedule.Schedule
 	cronLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		cronLog = slog.New(slog.DiscardHandler)
@@ -367,7 +395,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfilesBatched(ctx, ds, mdmCommander, keyValueStore, logger, 0)
+							err = ReconcileAppleProfilesBatched(ctx, ds, mdmCommander, keyValueStore, logger, 0, false)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -417,6 +445,23 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						}),
 					)
 					return appleMDMWorkerSchedule, nil
+				}
+			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMOSUpdatesSchedule)
+					logger := cronLog
+					appleOSUpdatesSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("apple_os_updates", func(ctx context.Context) error {
+							if s.onAppleOSUpdatesScheduleDone != nil {
+								defer s.onAppleOSUpdatesScheduleDone()
+							}
+							return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+						}),
+					)
+					return appleOSUpdatesSchedule, nil
 				}
 			},
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -485,7 +530,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
-							})
+							}, 0)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -534,6 +579,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// This is a bit of a code smell but I don't see a better way to initialize this for the tests. The
 	// initialization pattern works fine in our normal fleet server setup
 	appleMDMJob.VPPInstaller = svc
+	appleMDMJob.InHouseAppInstaller = svc
 
 	users, server := RunServerForTestsWithServiceWithDS(s.T(), ctx, s.ds, svc, &serverConfig)
 
@@ -550,6 +596,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.cleanupsSchedule = cleanupsSchedule
 	s.androidProfileSchedule = androidProfileSchedule
 	s.appleMDMWorkerSchedule = appleMDMWorkerSchedule
+	s.appleOSUpdatesSchedule = appleOSUpdatesSchedule
 	s.mdmStorage = mdmStorage
 	s.mdmCommander = mdmCommander
 	s.logger = serverLogger
@@ -899,8 +946,16 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg := s.getConfig()
 	// ensure windows mdm is always enabled for the next test
 	appCfg.MDM.WindowsEnabledAndConfigured = true
-	// ensure global disk encryption is disabled on exit
+	// ensure global disk encryption is disabled on exit. The flat toggle is
+	// virtual (recomputed as the AND of the per-platform settings on save), so
+	// the per-platform settings are what must be reset.
 	appCfg.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
+	appCfg.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(false)
+	appCfg.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(false)
+	appCfg.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+	appCfg.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(false)
 	// ensure enable release manually is false
 	appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
@@ -908,6 +963,14 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.EnabledAndConfigured = true
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
 	appCfg.MDM.AndroidEnabledAndConfigured = true
+
+	appCfg.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{} // Reset end user auth
+
+	// abm_tokens is truncated below, so the app config entries referencing them
+	// must go too, otherwise the next test's config PATCH fails validation with
+	// "token with organization name X doesn't exist"
+	appCfg.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
+
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
@@ -1033,6 +1096,10 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		return err
 	})
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM nano_seen_times")
+		return err
+	})
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_users")
 		return err
 	})
@@ -1049,9 +1116,43 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
 
+// withDEPDeviceDetails answers Apple's "Get Device Details" endpoint, which host
+// deletion consults to tell a device released from Apple Business apart from one
+// Fleet still owns. Every requested serial is reported as still assigned, which is
+// the state these suites set up; without this the lookup fails and deletes are
+// refused. Tests needing a different answer should serve /devices themselves and
+// bypass this wrapper.
+func withDEPDeviceDetails(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/devices" {
+			handler.ServeHTTP(w, r)
+			return
+		}
+
+		var req struct {
+			Devices []string `json:"devices"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Fail loudly rather than answering an unreadable request, so a client
+			// regression shows up here instead of as a puzzling downstream result.
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		devices := make(map[string]any, len(req.Devices))
+		for _, serial := range req.Devices {
+			devices[serial] = map[string]any{"serial_number": serial, "response_status": "SUCCESS"}
+		}
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(map[string]any{"devices": devices}); err != nil {
+			panic(err)
+		}
+	})
+}
+
 func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.Handler) {
 	t := s.T()
-	srv := httptest.NewServer(handler)
+	srv := httptest.NewServer(withDEPDeviceDetails(handler))
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
 	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
@@ -1409,6 +1510,83 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	assert.Equal(t, team.ID, tokensResp.Tokens[0].IOSTeam.ID)
 }
 
+func (s *integrationMDMTestSuite) TestABMTokenDefault() {
+	t := s.T()
+
+	orgA := t.Name() + "-org-a"
+	orgB := t.Name() + "-org-b"
+	s.enableABM(orgA)
+	s.enableABM(orgB)
+
+	tokensResp := listABMTokensResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+	require.Len(t, tokensResp.Tokens, 2)
+	tokA := s.getABMTokenByName(orgA, tokensResp.Tokens)
+	tokB := s.getABMTokenByName(orgB, tokensResp.Tokens)
+
+	// the first token became the default when it was the only one
+	require.True(t, tokA.IsDefault)
+	require.False(t, tokB.IsDefault)
+
+	countDefaults := func() (n int, defaultOrg string) {
+		s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
+		for _, tok := range tokensResp.Tokens {
+			if tok.IsDefault {
+				n++
+				defaultOrg = tok.OrganizationName
+			}
+		}
+		return n, defaultOrg
+	}
+	appCfgDefaults := func() map[string]bool {
+		acResp := appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		m := make(map[string]bool)
+		for _, e := range acResp.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	// setting B as default moves it off A in one call
+	var setResp setABMTokenDefaultResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": true}`), http.StatusOK, &setResp)
+	require.NotNil(t, setResp.ABMToken)
+	assert.True(t, setResp.ABMToken.IsDefault)
+	n, defaultOrg := countDefaults()
+	assert.Equal(t, 1, n)
+	assert.Equal(t, orgB, defaultOrg)
+	// GET /config mirrors it on B's entry and drops it from A's
+	cfgDefaults := appCfgDefaults()
+	assert.True(t, cfgDefaults[orgB])
+	assert.False(t, cfgDefaults[orgA])
+
+	// unsetting the default clears it everywhere
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokB.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+	n, _ = countDefaults()
+	assert.Equal(t, 0, n)
+	cfgDefaults = appCfgDefaults()
+	assert.False(t, cfgDefaults[orgA])
+	assert.False(t, cfgDefaults[orgB])
+
+	// unsetting a non-default token is a no-op
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{"default": false}`), http.StatusOK, &setResp)
+	assert.False(t, setResp.ABMToken.IsDefault)
+
+	// unknown token id
+	s.Do("PATCH", "/api/latest/fleet/ab_tokens/999999/default",
+		json.RawMessage(`{"default": true}`), http.StatusNotFound)
+
+	// omitting "default" is rejected instead of silently clearing the default
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/default", tokA.ID),
+		json.RawMessage(`{}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing required argument")
+}
+
 func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	t := s.T()
 
@@ -1617,6 +1795,8 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform
 	require.NoError(t, err)
 	require.Equal(t, dbZeroTime, fleetHost.LastEnrolledAt)
 
+	s.createDEPAssignmentForHost(t, fleetHost)
+
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serial, model)
 	mdmDevice.SerialNumber = serial
@@ -1624,6 +1804,19 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenDEPEnrollMDM(platform
 	require.NoError(t, err)
 
 	return fleetHost, mdmDevice
+}
+
+// createDEPAssignmentForHost records the host as DEP-assigned to Fleet, as the
+// DEP sync would, so it can enroll through the automatic enrollment endpoint.
+func (s *integrationMDMTestSuite) createDEPAssignmentForHost(t *testing.T, host *fleet.Host) {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `
+			INSERT INTO host_dep_assignments (host_id, hardware_serial)
+			VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE deleted_at = NULL, hardware_serial = VALUES(hardware_serial)`,
+			host.ID, host.HardwareSerial)
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
@@ -1737,15 +1930,22 @@ func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(f
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string, opts ...mdmtest.TestWindowsMDMClientOption) *mdmtest.TestWindowsMDMClient {
+	opts = append([]mdmtest.TestWindowsMDMClientOption{
+		mdmtest.TestWindowsMDMClientNotInOOBE(),
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID),
+	}, opts...)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, opts...)
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string, opts ...mdmtest.TestWindowsMDMClientOption) *mdmtest.TestWindowsMDMClient {
+	opts = append([]mdmtest.TestWindowsMDMClientOption{
+		mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID),
+	}, opts...)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, opts...)
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
@@ -1851,13 +2051,17 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	mdmDeviceA := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
+	hostA, err := s.ds.HostByIdentifier(context.Background(), mdmDeviceA.SerialNumber)
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, hostA.ID, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
+	hostB, err := s.ds.HostByIdentifier(context.Background(), mdmDeviceB.SerialNumber)
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, hostB.ID, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -2145,8 +2349,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	// 3 profiles added + 1 profile with fleetd configuration + 1 root CA config
 	require.Len(t, *hostResp.Host.MDM.Profiles, 5)
 
-	// returns success, but this is effectively a no-op because the host isn't enrolled yet.
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusNoContent)
+	// The error cases below have to run while the host is still enrolled: a
+	// failed push returns before MDM is turned off, so the host stays enrolled
+	// and each case gets a fresh attempt. Once a turn off succeeds, further
+	// requests are rejected as a conflict.
 
 	// we're going to modify this mock, make sure we restore its default
 	originalPushMock := s.pushProvider.PushFunc
@@ -2198,35 +2404,53 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() {
 	t := s.T()
 
+	// the deprecated flat toggle reads as the AND of the four per-platform
+	// settings; a legacy-only write fans out to all of them
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
-	// new config takes precedence over old config
+	// a per-platform change wins over an unchanged flat toggle sent alongside
+	// it: macOS enforcement turns on, the flat toggle still reads false (not
+	// all platforms are on) and the FileVault profile exists
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// if new config is not present, old config is applied
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// new config takes precedence over old config again
+	// changing the flat toggle and a per-platform setting to disagreeing
+	// values in one request is a conflict
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enable_disk_encryption": true, "macos_settings": {"enable_disk_encryption": false} }
+  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// changing the flat toggle fans out to every per-platform setting, winning
+	// over per-platform values it does not change
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
+	  "mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// turning the flat toggle off turns everything off and removes the profile
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enable_disk_encryption": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
@@ -2243,61 +2467,75 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	})
 	require.NoError(t, err)
 
-	checkTeamDiskEncryption := func(wantSetting bool) {
+	checkTeamDiskEncryption := func(wantFlat, wantMacOSEnable bool) {
 		var teamResp getTeamResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-		require.Equal(t, wantSetting, teamResp.Team.Config.MDM.EnableDiskEncryption)
+		require.Equal(t, wantFlat, teamResp.Team.Config.MDM.EnableDiskEncryption)
+		require.Equal(t, wantMacOSEnable, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
 	}
 
 	// after creation, disk encryption is off
-	checkTeamDiskEncryption(false)
+	checkTeamDiskEncryption(false, false)
 
-	// new config takes precedence over old config
+	// a per-platform change wins over an unchanged flat toggle sent alongside it
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	checkTeamDiskEncryption(false, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
-	// if new config is not present, old config is applied
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(true)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// new config takes precedence over old config again
+	// changing the flat toggle fans out over per-platform values it does not change
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	checkTeamDiskEncryption(false, true) // no change: same spec re-applied
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// changing the flat toggle and a per-platform setting to disagreeing
+	// values in one request is a conflict
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			EnableDiskEncryption: optjson.SetBool(true),
+			MacOSSettings:        map[string]any{"enable_disk_encryption": false},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// a legacy-only write fans out to all platforms
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			EnableDiskEncryption: optjson.SetBool(false),
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	checkTeamDiskEncryption(false, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// unrelated change doesn't affect the disk encryption setting
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"custom_settings": []interface{}{"A", "B"}},
+			MacOSSettings:        map[string]any{"custom_settings": []any{"A", "B"}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	checkTeamDiskEncryption(false, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
 
 func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
@@ -2441,7 +2679,7 @@ func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
 
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create a host
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -2481,7 +2719,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		err := s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		err := s.ds.UpdateOrDeleteHostMDMAppleProfile(context.Background(), &fleet.HostMDMAppleProfile{
 			HostUUID:      host.UUID,
 			CommandUUID:   hostCmdUUID,
 			ProfileUUID:   fileVaultProf.ProfileUUID,
@@ -2490,7 +2728,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 		})
 		require.NoError(t, err)
 		// not an error if the profile does not exist
-		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileUUID)
+		_ = s.ds.DeleteMDMAppleConfigProfile(context.Background(), fileVaultProf.ProfileUUID)
 	})
 
 	// get that host - it should
@@ -2618,7 +2856,16 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
 	count := 0
 	for _, activity := range activities.Activities {
-		if activity.Type == "read_host_disk_encryption_key" {
+		if activity.Type != "read_host_disk_encryption_key" || activity.Details == nil {
+			continue
+		}
+		// Scope to this host: the suite shares a database, so any other test that reads
+		// an encryption key would otherwise be counted here.
+		var details struct {
+			HostID uint `json:"host_id"`
+		}
+		require.NoError(t, json.Unmarshal(*activity.Details, &details))
+		if details.HostID == host.ID {
 			count++
 		}
 	}
@@ -2777,8 +3024,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionWithDisabledEncr
 	t := s.T()
 	ctx := context.Background()
 
-	// Create a macOS host enrolled via orbit
-	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	// Create a macOS host enrolled in Fleet's MDM. Fleet MDM enrollment is required
+	// to escrow a disk encryption key (see the IsHostConnectedToFleetMDM check in
+	// the darwin key ingestion).
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// Turn on disk encryption for the global team
 	acResp := appConfigResponse{}
@@ -2937,19 +3186,362 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName(),
 		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
 
-	// update the key to blank with a client error
+	// Report a client error with no key. The error is recorded and the stored key is kept, because a failure on a host
+	// that is still encrypted arrives when the admin most needs that key.
 	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "", "failed", nil)
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue) // old key is pulled from the archive
+	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 
 	detailsResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &detailsResp)
-	require.False(t, detailsResp.Host.MDM.EncryptionKeyAvailable)
+	require.True(t, detailsResp.Host.MDM.EncryptionKeyAvailable, "an error report must not take the key away")
 	require.NotNil(t, detailsResp.Host.MDM.EncryptionKeyArchived)
 	require.True(t, *detailsResp.Host.MDM.EncryptionKeyArchived)
+}
+
+// TestBitLockerPINRequiresWindowsDiskEncryption covers the fleet write paths
+// that previously persisted a PIN requirement without Windows disk encryption.
+func (s *integrationMDMTestSuite) TestBitLockerPINRequiresWindowsDiskEncryption() {
+	t := s.T()
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	team := createResp.Team
+
+	// PATCH the fleet: the PIN alone, with Windows disk encryption off
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// creating a fleet from a spec with the PIN but no Windows disk encryption
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t.Name() + "-created",
+		MDM:  fleet.TeamSpecMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// editing an existing fleet via spec, same story
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM:  fleet.TeamSpecMDM{RequireBitLockerPIN: optjson.SetBool(true)},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// the PIN together with Windows disk encryption is accepted
+	s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(true),
+			WindowsSettings:     fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)},
+		},
+	}}}, http.StatusOK)
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	assert.True(t, teamResp.Team.Config.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, teamResp.Team.Config.MDM.WindowsSettings.EnableDiskEncryption.Value)
+
+	// turning encryption off while the PIN stays required is rejected, blaming
+	// the encryption field
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				RequireBitLockerPIN: optjson.SetBool(true),
+			},
+			EnableDiskEncryption: optjson.SetBool(false),
+		},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+
+	// the disk_encryption endpoint reports the same validation failure as a 422
+	// rather than a server error
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		TeamID:          new(team.ID),
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(false)},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+}
+
+// TestBitLockerPINAliasConflict covers the deprecated windows_require_bitlocker_pin
+// key disagreeing with its canonical windows_settings home across write paths.
+func (s *integrationMDMTestSuite) TestBitLockerPINAliasConflict() {
+	t := s.T()
+	const conflictErr = "conflicts with mdm.windows_settings.require_bitlocker_pin"
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	team := createResp.Team
+
+	// global config: disagreeing values are rejected rather than silently
+	// resolved to one of them
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {
+	  "windows_require_bitlocker_pin": false,
+	  "windows_settings": {"enable_disk_encryption": true, "require_bitlocker_pin": true}
+	}}`), http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// agreeing values are accepted: a round-tripped document carries both
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {
+	  "windows_require_bitlocker_pin": true,
+	  "windows_settings": {"enable_disk_encryption": true, "require_bitlocker_pin": true}
+	}}`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, acResp.MDM.RequireBitLockerPIN.Value)
+
+	// PATCH the fleet
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				RequireBitLockerPIN: optjson.SetBool(true),
+			},
+		},
+	}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// editing a fleet from a spec
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings:     fleet.WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+		},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+
+	// creating a fleet from a spec
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: t.Name() + "-created",
+		MDM: fleet.TeamSpecMDM{
+			RequireBitLockerPIN: optjson.SetBool(false),
+			WindowsSettings:     fleet.WindowsSettings{RequireBitLockerPIN: optjson.SetBool(true)},
+		},
+	}}}, http.StatusUnprocessableEntity)
+	assert.Contains(t, extractServerErrorText(res.Body), conflictErr)
+}
+
+func (s *integrationMDMTestSuite) TestDiskEncryptionEndpointPerPlatform() {
+	t := s.T()
+
+	// a single per-platform object changes only that platform
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+	}, http.StatusNoContent)
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.False(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	// nil objects leave other platforms untouched
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		MacOSSettings: &fleet.MacOSDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.WindowsSettings.EnableDiskEncryption.Value)
+
+	// the deprecated flat toggle conflicts with a disagreeing per-platform value
+	res := s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		EnableDiskEncryption: new(true),
+		LinuxSettings:        &fleet.LinuxDiskEncryptionSettingsPayload{EnableEscrowDiskEncryptionKey: new(false)},
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with per-platform disk encryption settings")
+
+	// the flat toggle with agreeing per-platform values fans out to all four
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		EnableDiskEncryption: new(true),
+		WindowsSettings:      &fleet.WindowsDiskEncryptionSettingsPayload{EnableDiskEncryption: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	assert.True(t, acResp.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// the BitLocker PIN is settable via its canonical windows_settings home,
+	// and the response mirrors the deprecated top-level key
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		WindowsSettings: &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+	}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.WindowsSettings.RequireBitLockerPIN.Value)
+	assert.True(t, acResp.MDM.RequireBitLockerPIN.Value)
+
+	// the deprecated PIN key conflicting with its canonical home is rejected
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{
+		RequireBitLockerPIN: new(false),
+		WindowsSettings:     &fleet.WindowsDiskEncryptionSettingsPayload{RequireBitLockerPIN: new(true)},
+	}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "conflicts with windows_settings.require_bitlocker_pin")
+}
+
+// TestTeamPatchPerPlatformDiskEncryption covers the per-platform disk encryption
+// keys on PATCH /fleets/{id}. The bodies are raw JSON on purpose: the endpoint
+// silently drops keys its payload struct doesn't carry, which a typed request
+// would hide.
+func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	path := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
+
+	patch := func(body string, wantStatus int) fleet.TeamMDM {
+		var resp teamResponse
+		s.DoJSON("PATCH", path, json.RawMessage(body), wantStatus, &resp)
+		return resp.Team.Config.MDM
+	}
+
+	// the deprecated flat toggle still fans out to all four
+	mdm := patch(`{"mdm":{"enable_disk_encryption":true}}`, http.StatusOK)
+	require.True(t, mdm.EnableDiskEncryption)
+	require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// turning macOS enforcement off while keeping escrow on: the per-platform
+	// keys reach their own settings and leave the other platforms alone
+	mdm = patch(`{"mdm":{
+		"apple_settings":  {"enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true},
+		"windows_settings": {"enable_disk_encryption": true},
+		"linux_settings":  {"enable_escrow_disk_encryption_key": true}
+	}}`, http.StatusOK)
+	require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	// the flat toggle is the AND of the four, so it now reads false
+	require.False(t, mdm.EnableDiskEncryption)
+	// only macOS changed, so only macOS gets an activity
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "macos"}`, tm.ID, tm.Name), 0)
+	// escrow is still on, so the FileVault profile stays in place
+	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// the deprecated macos_settings name works the same as apple_settings
+	mdm = patch(`{"mdm":{"macos_settings":{"enable_escrow_disk_encryption_key": false}}}`, http.StatusOK)
+	require.False(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	// both halves of the macOS pair are now off, so the profile goes away
+	s.assertConfigProfilesByIdentifier(new(tm.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+
+	// both names in the same request is a conflict
+	res := s.Do("PATCH", path, json.RawMessage(`{"mdm":{
+		"macos_settings": {"enable_disk_encryption": true},
+		"apple_settings": {"enable_disk_encryption": true}
+	}}`), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `Specify only one of "macos_settings" or "apple_settings"`)
+
+	// a per-platform key omitted from the body keeps its stored value, and an
+	// explicit null does too
+	mdm = patch(`{"mdm":{"linux_settings":{"enable_escrow_disk_encryption_key": null}}}`, http.StatusOK)
+	require.True(t, mdm.LinuxSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.True(t, mdm.WindowsSettings.EnableDiskEncryption.Value)
+
+	// changing the flat toggle and a per-platform key to disagreeing values is a
+	// conflict. Windows is on here, so setting it off is a real change, as is
+	// the flat toggle going on
+	res = s.Do("PATCH", path, json.RawMessage(`{"mdm":{
+		"enable_disk_encryption": true,
+		"windows_settings": {"enable_disk_encryption": false}
+	}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "conflicts with per-platform disk encryption settings")
+
+	// the GET-modify-PATCH round trip is not a conflict: only the flat toggle
+	// changes, and the per-platform values the request carries match what is
+	// already stored, so the toggle wins and fans out
+	mdm = patch(`{"mdm":{
+		"enable_disk_encryption": true,
+		"apple_settings": {"enable_disk_encryption": false, "enable_escrow_disk_encryption_key": false},
+		"windows_settings": {"enable_disk_encryption": true},
+		"linux_settings": {"enable_escrow_disk_encryption_key": true}
+	}}`, http.StatusOK)
+	require.True(t, mdm.EnableDiskEncryption)
+	require.True(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// precedence the other way round: everything is on, so only the
+	// per-platform key changes and it wins over the carried flat toggle
+	mdm = patch(`{"mdm":{
+		"enable_disk_encryption": true,
+		"apple_settings": {"enable_disk_encryption": false}
+	}}`, http.StatusOK)
+	require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, mdm.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	require.False(t, mdm.EnableDiskEncryption)
+
+	// with Windows enforcement off, turning the PIN on is rejected
+	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": false}}}`, http.StatusOK)
+	res = s.Do("PATCH", path, json.RawMessage(`{"mdm":{"windows_settings":{"require_bitlocker_pin": true}}}`),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+
+	// the PIN alongside Windows enforcement is accepted, and turning enforcement
+	// off afterwards is rejected while the PIN is still required
+	mdm = patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true, "require_bitlocker_pin": true}}}`, http.StatusOK)
+	require.True(t, mdm.WindowsSettings.RequireBitLockerPIN.Value)
+	require.True(t, mdm.RequireBitLockerPIN)
+	res = s.Do("PATCH", path, json.RawMessage(`{"mdm":{"windows_settings":{"enable_disk_encryption": false}}}`),
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+
+	// a request that changes nothing emits no activity
+	before := s.lastActivityMatches("", "", 0)
+	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true}}}`, http.StatusOK)
+	require.Equal(t, before, s.lastActivityMatches("", "", 0))
+
+	// the GET response carries every per-platform key, so a GET-modify-PATCH
+	// round trip can see them. The macOS object comes back under its new
+	// apple_settings name only, though requests accept either name.
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	var raw struct {
+		Fleet struct {
+			MDM struct {
+				EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+				AppleSettings        *struct {
+					EnableDiskEncryption          *bool `json:"enable_disk_encryption"`
+					EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+				} `json:"apple_settings"`
+				MacOSSettings *struct {
+					EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+				} `json:"macos_settings"`
+				WindowsSettings *struct {
+					EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+					RequireBitLockerPIN  *bool `json:"require_bitlocker_pin"`
+				} `json:"windows_settings"`
+				LinuxSettings *struct {
+					EnableEscrowDiskEncryptionKey *bool `json:"enable_escrow_disk_encryption_key"`
+				} `json:"linux_settings"`
+			} `json:"mdm"`
+		} `json:"fleet"`
+	}
+	require.NoError(t, json.Unmarshal(body, &raw))
+	gotMDM := raw.Fleet.MDM
+	require.NotNil(t, gotMDM.EnableDiskEncryption)
+	require.NotNil(t, gotMDM.AppleSettings)
+	require.NotNil(t, gotMDM.AppleSettings.EnableDiskEncryption)
+	require.NotNil(t, gotMDM.AppleSettings.EnableEscrowDiskEncryptionKey)
+	require.Nil(t, gotMDM.MacOSSettings, "the response uses the apple_settings name only")
+	require.NotNil(t, gotMDM.WindowsSettings)
+	require.NotNil(t, gotMDM.WindowsSettings.EnableDiskEncryption)
+	require.NotNil(t, gotMDM.WindowsSettings.RequireBitLockerPIN)
+	require.NotNil(t, gotMDM.LinuxSettings)
+	require.NotNil(t, gotMDM.LinuxSettings.EnableEscrowDiskEncryptionKey)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
@@ -2961,8 +3553,24 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	enabledDiskActID := s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	enabledDiskActID := s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "platform": "linux"}`, 0)
+
+	// a legacy flat-toggle write emits one activity per platform
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities,
+		"order_key", "id", "order_direction", "desc", "per_page", "3")
+	require.Len(t, listActivities.Activities, 3)
+	gotPlatforms := make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		require.Equal(t, fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(), act.Type)
+		var details struct {
+			Platform string `json:"platform"`
+		}
+		require.NoError(t, json.Unmarshal(*act.Details, &details))
+		gotPlatforms = append(gotPlatforms, details.Platform)
+	}
+	require.ElementsMatch(t, []string{"macos", "windows", "linux"}, gotPlatforms)
 
 	// will have generated the macos config profile
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -2980,7 +3588,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		}`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+	s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, enabledDiskActID)
 
 	// patch with false, would reset it but this is a dry-run
@@ -2990,7 +3598,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		  }`), http.StatusOK, &acResp, "dry_run", "true")
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+	s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, enabledDiskActID)
 
 	// patch with false, resets it
@@ -3000,17 +3608,17 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		  }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "platform": "linux"}`, 0)
 
 	// will have deleted the macos config profile
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// use the MDM disk encryption endpoint to set it to true
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
-	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
+	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "platform": "linux"}`, 0)
 
 	// will have created the macos config profile
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -3023,7 +3631,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	// call update endpoint with no changes
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
 		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+	s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, enabledDiskActID)
 
 	// the macos config profile still exists
@@ -3053,13 +3661,13 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 
 	// flip and verify the value
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -3287,7 +3895,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	team = createTeamResp.Team
 
 	// no macos config profile yet
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// apply with disk encryption
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -3297,11 +3905,11 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	lastDiskActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+	lastDiskActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "linux"}`, team.ID, teamName), 0)
 
 	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// retrieving the team returns the disk encryption setting
 	var teamResp getTeamResponse
@@ -3312,7 +3920,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": 123},
+			MacOSSettings: map[string]any{"enable_disk_encryption": 123},
 		},
 	}}}
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
@@ -3324,15 +3932,15 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(team.ID), "team_name", team.Name)
 
 	// the configuration profile is still there
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// apply without disk encryption settings specified and unrelated field,
 	// should not replace existing disk encryption
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
+			MacOSSettings: map[string]any{
+				"custom_settings": []map[string]any{
 					{"path": "a"},
 				},
 			},
@@ -3343,7 +3951,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 	require.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, lastDiskActID)
 
 	// apply with false would clear the existing setting, but dry-run
@@ -3357,25 +3965,25 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, lastDiskActID)
 
 	// apply with false clears the existing setting
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+			MacOSSettings: map[string]any{"enable_disk_encryption": false, "enable_escrow_disk_encryption_key": false},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "macos"}`, team.ID, teamName), 0)
 
 	// macos config profile deleted
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// modify team's disk encryption via ModifyTeam endpoint
 	var modResp teamResponse
@@ -3385,11 +3993,11 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		},
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableDiskEncryption)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "macos"}`, team.ID, teamName), 0)
 
 	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// modify team's disk encryption and description via ModifyTeam endpoint
 	modResp = teamResponse{}
@@ -3401,20 +4009,20 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	}, http.StatusOK, &modResp)
 	require.False(t, modResp.Team.Config.MDM.EnableDiskEncryption)
 	require.Equal(t, "foobar", modResp.Team.Description)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "linux"}`, team.ID, teamName), 0)
 
 	// macos config profile deleted
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// use the MDM settings endpoint to set it to true
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
-	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(true)}, http.StatusNoContent)
+	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "linux"}`, team.ID, teamName), 0)
 
 	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
@@ -3422,12 +4030,12 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// use the MDM settings endpoint with no changes
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
-		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID)}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+		fleet.MDMAppleSettingsPayload{TeamID: new(team.ID)}, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, lastDiskActID)
 
 	// macos config profile still exists
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
@@ -3435,7 +4043,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// use the MDM settings endpoint with an unknown team id
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(9999), EnableDiskEncryption: true}, http.StatusNotFound)
+		updateDiskEncryptionRequest{TeamID: new(uint(9999)), EnableDiskEncryption: new(true)}, http.StatusNotFound)
 
 	// mdm/apple/settings works for windows as well as it's being used by
 	// clients (UI) this way
@@ -3456,16 +4064,37 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 
 	// flip and verify the value
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: false}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+		updateDiskEncryptionRequest{TeamID: new(team.ID), EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+
+	// changing a single per-platform setting via a team spec generates one
+	// activity for that platform only
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: team.Name,
+		MDM: fleet.TeamSpecMDM{
+			LinuxSettings: fleet.LinuxSettings{
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(false),
+			},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	linuxActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "linux"}`, team.ID, team.Name), 0)
+
+	// a PIN-only change counts as a windows settings change
+	s.Do("POST", "/api/latest/fleet/disk_encryption",
+		updateDiskEncryptionRequest{TeamID: new(team.ID), RequireBitLockerPIN: new(true)}, http.StatusNoContent)
+	winActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "platform": "windows"}`, team.ID, team.Name), 0)
+	require.Greater(t, winActID, linuxActID)
 }
 
 func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
@@ -3784,10 +4413,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		}, http.StatusNotFound)
 
 	// get command results returns 404, that command does not exist
-	var cmdResResp getMDMAppleCommandResultsResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
 	var getMDMCmdResp getMDMCommandResultsResponse
-	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &getMDMCmdResp, "command_uuid", uuid1)
 
 	// list commands returns empty set
 	var listCmdResp listMDMAppleCommandsResponse
@@ -3840,19 +4467,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Equal(t, "ProfileList", resp.RequestType)
 
 	// the command exists but no results yet
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
-	require.Len(t, cmdResResp.Results, 1)
-	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
-	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMCommandResult{
-		HostUUID:    mdmDevice.UUID,
-		CommandUUID: uuid2,
-		Status:      "Pending",
-		RequestType: "ProfileList",
-		Result:      []byte{},
-		Payload:     []byte(rawCmd),
-		Hostname:    "test-host",
-	}, cmdResResp.Results[0])
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
 	require.Len(t, getMDMCmdResp.Results, 1)
 	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
@@ -3877,20 +4491,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Raw:         []byte(rawCmd),
 	})
 	require.NoError(t, err)
-
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
-	require.Len(t, cmdResResp.Results, 1)
-	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
-	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMCommandResult{
-		HostUUID:    mdmDevice.UUID,
-		CommandUUID: uuid2,
-		Status:      "Acknowledged",
-		RequestType: "ProfileList",
-		Result:      []byte(rawCmd),
-		Payload:     []byte(rawCmd),
-		Hostname:    "test-host",
-	}, cmdResResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
 	require.Len(t, getMDMCmdResp.Results, 1)
@@ -4040,7 +4640,7 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	require.NoError(t, err)
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&command_status=ran", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
 
 	// per_page above the documented maximum is rejected with a clear message.
 	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1001", nil, http.StatusBadRequest)
@@ -4128,8 +4728,13 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 
 	var responseID int64
 	rawResponse := []byte("some-response")
+	var rawResponseGz bytes.Buffer
+	gzw := gzip.NewWriter(&rawResponseGz)
+	_, gzErr := gzw.Write(rawResponse)
+	require.NoError(t, gzErr)
+	require.NoError(t, gzw.Close())
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, rawResponseGz.Bytes())
 		if err != nil {
 			return err
 		}
@@ -4233,7 +4838,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 			&fleet.MDMAppleBootstrapPackage{
 				Bytes: signedPkg,
 				Name:  fmt.Sprintf("invalid_%c_name.pkg", char),
-			}, http.StatusBadRequest, "", false)
+			}, http.StatusBadRequest, "", false,
+		)
 	}
 	// unsigned
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed", false)
@@ -5875,20 +6481,16 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm2.ID, tm2.Name, tm2.ID, tm2.Name), 0)
 
-	// Try with a team that has no relevant ABM tokens
+	// Try with a team that has no relevant ABM tokens. Even with a second, unrelated
+	// token present (so there is no single obvious token to use), validation succeeds
+	// using any token.
 	teamNoABM, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name:        t.Name() + "no_abm",
 		Description: "no abm",
 	})
 	require.NoError(t, err)
-	// Adding another, unrelated token to the DB means that this team (which has no hosts and is not
-	// a default team for any token) will not have any relevant tokens and thus we don't know which
-	// token to use to hit the Apple APIs.
 	otherOrg := t.Name() + "some_other_org"
 	s.enableABM(otherOrg)
-	// mysqltest.CreateABMKeyCertIfNotExists(t, s.ds)
-	// mysqltest.CreateAndSetABMToken(t, s.ds, "nurv")
-	// err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
 	s.mockDEPResponse(otherOrg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
 		switch r.URL.Path {
@@ -5902,12 +6504,40 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		}
 	}))
 	require.NoError(t, err)
-	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+	var noABMResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &teamNoABM.ID,
 		Name:              "profile_name_missing",
 		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm")),
+	}, http.StatusOK, &noABMResp)
+
+	// With every token invalid or terms-expired, adding a setup assistant fails with
+	// an actionable message instead of a cryptic Apple error.
+	allToks, err := s.ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range allToks {
+		_, err = s.ds.SetABMTokenTermsExpiredForOrgName(ctx, tok.OrganizationName, true)
+		require.NoError(t, err)
+	}
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamNoABM.ID,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_usable_tokens")),
 	}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), "No relevant ABM tokens found. Please set this team as a default team for an ABM token.")
+	require.Contains(t, extractServerErrorText(r.Body), "All Apple Business Manager (ABM) tokens are invalid or have expired terms")
+
+	// With no ABM token at all, adding a setup assistant is rejected with a clear message.
+	allToks, err = s.ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	for _, tok := range allToks {
+		require.NoError(t, s.ds.DeleteABMToken(ctx, tok.ID))
+	}
+	r = s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamNoABM.ID,
+		Name:              "profile_name_missing",
+		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm_at_all")),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "No Apple Business Manager (ABM) token found")
 }
 
 // only asserts the profile identifier, status and operation (per host)
@@ -6083,6 +6713,24 @@ func generateMultipartRequest(t *testing.T,
 	uploadFileField, fileName string, fileContent []byte, token string,
 	extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
+	return generateMultipartRequestWithFiles(t, uploadFileField, fileName, fileContent, token, extraFields, nil)
+}
+
+// multipartFile is an additional file part for endpoints that accept more than
+// one, such as a configuration profile uploaded together with its custom DDM
+// activation.
+type multipartFile struct {
+	fileName string
+	content  []byte
+}
+
+// generateMultipartRequestWithFiles builds a multipart body with a primary file
+// part plus any number of additional file parts, keyed by form field name.
+// generateMultipartRequest delegates here so single-file callers are unchanged.
+func generateMultipartRequestWithFiles(t *testing.T,
+	uploadFileField, fileName string, fileContent []byte, token string,
+	extraFields map[string][]string, extraFiles map[string]multipartFile,
+) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
@@ -6092,6 +6740,14 @@ func generateMultipartRequest(t *testing.T,
 		ff, err := writer.CreateFormFile(uploadFileField, fileName)
 		require.NoError(t, err)
 		_, err = io.Copy(ff, bytes.NewReader(fileContent))
+		require.NoError(t, err)
+	}
+
+	// add any additional file parts
+	for field, f := range extraFiles {
+		ff, err := writer.CreateFormFile(field, f.fileName)
+		require.NoError(t, err)
+		_, err = io.Copy(ff, bytes.NewReader(f.content))
 		require.NoError(t, err)
 	}
 
@@ -6383,6 +7039,9 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile, true)
@@ -6820,6 +7479,9 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.False(t, q.Has("profile_token"))
 	require.False(t, q.Has("enrollment_reference"))
 	require.True(t, q.Has("error"))
+	// No session cookie is sent, so the session lookup fails before the
+	// SAMLResponse is ever parsed.
+	require.Equal(t, "session_expired", q.Get("reason"))
 
 	// hitting the callback with an invalid session id redirects the user to the UI
 	rawSSOResp = `<?xml version="1.0" encoding="UTF-8"?>
@@ -6835,6 +7497,323 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.False(t, q.Has("profile_token"))
 	require.False(t, q.Has("enrollment_reference"))
 	require.True(t, q.Has("error"))
+	// No session cookie was sent, so the session lookup is what failed. The UI
+	// uses this to tell the end user their sign-in timed out.
+	require.Equal(t, "session_expired", q.Get("reason"))
+
+	// With a live session, a SAMLResponse that can't be verified is a different
+	// failure. The user hasn't run out of time, so the timeout message would be
+	// wrong -- this stays generic.
+	prevCookieSecure := cookieSecure
+	t.Cleanup(func() { cookieSecure = prevCookieSecure })
+	cookieSecure = false
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	client := fleethttp.NewClient(fleethttp.WithFollowRedir(false), fleethttp.WithCookieJar(jar))
+
+	var resIni initiateSSOResponse
+	iniRes := s.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(iniRes.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/mdm/sso/callback", nil, http.StatusSeeOther, nil,
+		"SAMLResponse", base64.StdEncoding.EncodeToString([]byte(`InvalidXML`)))
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	require.True(t, q.Has("error"))
+	require.False(t, q.Has("reason"))
+}
+
+func (s *integrationMDMTestSuite) TestDeviceSSO() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	newHostWithToken := func(suffix string) (*fleet.Host, string) {
+		h, err := s.ds.NewHost(t.Context(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   new(t.Name() + "-osquery" + suffix),
+			NodeKey:         new(t.Name() + "-nodekey" + suffix),
+			UUID:            strings.ToUpper(uuid.NewString()),
+			Hostname:        fmt.Sprintf("%sfoo%s.local", t.Name(), suffix),
+			HardwareSerial:  mdmtest.RandSerialNumber(),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		token := uuid.New().String()
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(t.Context(), h.ID, token))
+		return h, token
+	}
+
+	fleetHost, deviceToken := newHostWithToken("-a")
+	otherHost, otherDeviceToken := newHostWithToken("-b")
+
+	res := s.DoRawNoAuth("POST", "/api/v1/fleet/device/"+deviceToken+"/sso", nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "is not enabled")
+
+	for _, c := range res.Cookies() {
+		require.NotEqual(t, cookieNameSSOSession, c.Name, "error response must not touch the handshake cookie")
+	}
+
+	s.setUpMDMSSO(t, false)
+	defer s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": false }
+	}`), http.StatusOK, &appConfigResponse{})
+
+	// enable fleet_desktop.sso_enabled
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": true }
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+
+	client := s.newSSOTestClient()
+	idpURL := s.InitiateDeviceSSO(client, deviceToken)
+
+	// the handshake cookie has to land in the jar, or the callback below cannot
+	// resolve the SSO session
+	serverURL, err := url.Parse(s.server.URL)
+	require.NoError(t, err)
+	var gotHandshakeCookie bool
+	for _, c := range client.Jar.Cookies(serverURL) {
+		if c.Name == cookieNameSSOSession {
+			gotHandshakeCookie = true
+		}
+	}
+	require.True(t, gotHandshakeCookie, "expected the SSO handshake cookie to be set")
+
+	forgedBody, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorFleetDesktop,
+		HostUUID:  fleetHost.UUID,
+	})
+	require.NoError(t, err)
+	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso", forgedBody, http.StatusBadRequest)
+
+	// the gate is on, so the device page is refused until the end user signs in
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusUnauthorized), true)
+
+	// complete *this* flow: sign in at the IdP and post the assertion back to the
+	// existing MDM SSO callback, on the same client that holds the handshake cookie
+	res = s.CompleteDeviceSSO(client, idpURL, "sso_user", "user123#")
+	require.Equal(t, "https://localhost:8080/device/"+deviceToken, res.Header.Get("Location"))
+
+	var gotSessionCookie *http.Cookie
+	var handshakeCookieDeleted bool
+	for _, c := range res.Cookies() {
+		switch c.Name {
+		case cookieNameDeviceSSOSession:
+			gotSessionCookie = c
+		case cookieNameSSOSession:
+			handshakeCookieDeleted = c.MaxAge < 0
+		}
+	}
+	require.NotNil(t, gotSessionCookie, "expected the device SSO session cookie to be set")
+	require.NotEmpty(t, gotSessionCookie.Value)
+	require.True(t, handshakeCookieDeleted, "expected the handshake cookie to be deleted")
+
+	// the cookie must be unreadable from JS, scoped to the whole site so the
+	// device page's API calls carry it, and live exactly as long as the session
+	require.True(t, gotSessionCookie.HttpOnly)
+	require.Equal(t, "/", gotSessionCookie.Path)
+	require.Equal(t, http.SameSiteLaxMode, gotSessionCookie.SameSite)
+	require.Equal(t, int(s.fleetCfg.Session.Duration.Seconds()), gotSessionCookie.MaxAge)
+
+	deviceSSOSession := func(sessionID string) fleet.DeviceSSOSession {
+		t.Helper()
+		raw, err := s.keyValueStore.Get(t.Context(), "device_sso_session:"+sessionID)
+		require.NoError(t, err)
+		require.NotNil(t, raw, "expected a stored device SSO session")
+		var sess fleet.DeviceSSOSession
+		require.NoError(t, json.Unmarshal([]byte(*raw), &sess))
+		return sess
+	}
+
+	// the minted session is bound to the host whose token initiated the flow,
+	// which is what stops one device's cookie from unlocking another's page
+	session := deviceSSOSession(gotSessionCookie.Value)
+	require.Equal(t, fleetHost.ID, session.HostID)
+	require.NotEqual(t, otherHost.ID, session.HostID)
+
+	// the session also records which IdP identity signed in
+	ssoUserAcct, err := s.ds.GetMDMIdPAccountByEmail(t.Context(), "sso_user@example.com")
+	require.NoError(t, err)
+	require.Equal(t, ssoUserAcct.UUID, session.IdPAccountUUID)
+
+	// a session initiated from a different host's token binds to that host
+	otherRes := s.LoginDeviceSSOUser("sso_user", "user123#", otherDeviceToken)
+	var otherSessionCookie *http.Cookie
+	for _, c := range otherRes.Cookies() {
+		if c.Name == cookieNameDeviceSSOSession {
+			otherSessionCookie = c
+		}
+	}
+	require.NotNil(t, otherSessionCookie)
+	require.NotEqual(t, gotSessionCookie.Value, otherSessionCookie.Value)
+	require.Equal(t, otherHost.ID, deviceSSOSession(otherSessionCookie.Value).HostID)
+
+	// the fleet_desktop branch never associates the IdP account with the host
+	// -- that link belongs to enrollment flows, not a Fleet Desktop sign-in.
+	var idpAssociationCount int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &idpAssociationCount,
+			`SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?)`, fleetHost.UUID, otherHost.UUID)
+	})
+	assert.Zero(t, idpAssociationCount)
+
+	// A failed callback sends the end user back to the device page with a
+	// reason, not to the admin SSO callback route, and mints nothing.
+	requireNoSessionMinted := func(res *http.Response, deviceToken, wantReason, msg string) {
+		t.Helper()
+		require.Equal(t, "https://localhost:8080/device/"+deviceToken+"?sso_error="+wantReason,
+			res.Header.Get("Location"), msg)
+		for _, c := range res.Cookies() {
+			require.NotEqualf(t, cookieNameDeviceSSOSession, c.Name, "no session cookie expected: %s", msg)
+		}
+	}
+
+	// if the host is gone by the time the IdP calls back, the callback errors
+	// out instead of minting a dangling session
+	deletedClient := s.newSSOTestClient()
+	deletedIdPURL := s.InitiateDeviceSSO(deletedClient, otherDeviceToken)
+	require.NoError(t, s.ds.DeleteHost(t.Context(), otherHost.ID))
+	requireNoSessionMinted(
+		s.CompleteDeviceSSO(deletedClient, deletedIdPURL, "sso_user", "user123#"),
+		otherDeviceToken, "server_error", "host no longer exists",
+	)
+
+	// disabling the feature between initiation and callback also stops a
+	// session from being minted -- otherwise it would outlive the change by its
+	// whole TTL
+	_, thirdToken := newHostWithToken("-c")
+	disabledClient := s.newSSOTestClient()
+	disabledIdPURL := s.InitiateDeviceSSO(disabledClient, thirdToken)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": false }
+	}`), http.StatusOK, &appConfigResponse{})
+	requireNoSessionMinted(
+		s.CompleteDeviceSSO(disabledClient, disabledIdPURL, "sso_user", "user123#"),
+		thirdToken, "sso_disabled", "feature disabled mid-flow",
+	)
+
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"fleet_desktop": { "sso_enabled": true }
+	}`), http.StatusOK, &appConfigResponse{})
+
+	_, fourthToken := newHostWithToken("-d")
+	expiredClient := s.newSSOTestClient()
+	expiredIdPURL := s.InitiateDeviceSSO(expiredClient, fourthToken)
+	s.ExpireSSOHandshake(expiredClient)
+	expiredRes := s.CompleteDeviceSSO(expiredClient, expiredIdPURL, "sso_user", "user123#")
+	require.Equal(t, "/device/sso-error?reason=session_expired", expiredRes.Header.Get("Location"))
+	for _, c := range expiredRes.Cookies() {
+		require.NotEqual(t, cookieNameDeviceSSOSession, c.Name)
+	}
+
+	_, fifthToken := newHostWithToken("-e")
+	forgedRelayClient := s.newSSOTestClient()
+	forgedRelayIdPURL := s.InitiateDeviceSSO(forgedRelayClient, fifthToken)
+	s.ExpireSSOHandshake(forgedRelayClient)
+	forgedRelayRes := s.CompleteDeviceSSOWithRelayState(forgedRelayClient, forgedRelayIdPURL,
+		"sso_user", "user123#", "https://evil.example.com")
+	require.Equal(t, "/mdm/sso/callback?error=true&reason=session_expired", forgedRelayRes.Header.Get("Location"))
+}
+
+// TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for
+// https://github.com/fleetdm/fleet/issues/47626.
+//
+// In the Orbit Setup Experience SSO flow (Linux/Windows) the device's host UUID
+// is provided in the SSO request data. Previously mdmSSOHandleCallbackAuth keyed
+// the mdm_idp_accounts row on that host UUID, so a device re-enrolling and
+// signing in with a *different* IdP email collided on the primary key. The
+// ON DUPLICATE KEY UPDATE clause did not touch the email, so the row kept the
+// old email and the immediate GetMDMIdPAccountByEmail read-back returned
+// not-found, surfacing as "retrieving new account data from IdP" and a failed
+// SSO login. The account UUID is now DB-generated (matching the Apple flow), so
+// the second login find-or-creates the account by email and succeeds.
+//
+// Note: the pre-existing TestSSO also re-enrolls a second user, but via the
+// Apple initiator with no host UUID, where the account UUID was always
+// generated — which is exactly why it never caught this bug.
+func (s *integrationMDMTestSuite) TestMDMSSOReenrollWithDifferentIdPEmail() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Configure MDM end-user authentication SSO against the test IdP.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"server_settings": { "server_url": "https://localhost:8080" },
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "mdm.test.com",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "%s"
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
+		}
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+
+	// TearDownTest clears the SSO provider settings but not
+	// macos_setup.enable_end_user_authentication, so disable end-user auth here
+	// (via t.Cleanup, so it runs even if the test fails) to avoid leaking the
+	// enabled-without-IdP state into subsequent suite tests.
+	t.Cleanup(func() {
+		var cleanupResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &cleanupResp)
+	})
+
+	// A single device (identified by a stable host UUID) enrolls, is deleted and
+	// re-enrolls under the same host UUID, signing in as two different IdP users.
+	hostUUID := uuid.NewString()
+
+	// First enrollment: sign in as sso_user (sso_user@example.com).
+	res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	loc, err := url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	require.False(t, loc.Query().Has("error"), "first setup-experience SSO login should succeed")
+
+	acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acct)
+	require.Equal(t, "sso_user@example.com", acct.Email)
+	// The account UUID must not be the host UUID — that coupling was the root
+	// cause of #47626.
+	require.NotEqual(t, hostUUID, acct.UUID)
+	firstAcctUUID := acct.UUID
+
+	// Re-enrollment: SAME host UUID, but a DIFFERENT IdP user, sso_user2
+	// (sso_user2@example.com). This is the scenario that previously failed with
+	// "retrieving new account data from IdP".
+	res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	loc, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	require.False(t, loc.Query().Has("error"),
+		"re-enrollment SSO with a different IdP email must not fail (#47626)")
+
+	// The host is now linked to the new user's account.
+	acct, err = s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acct)
+	require.Equal(t, "sso_user2@example.com", acct.Email)
+	require.NotEqual(t, firstAcctUUID, acct.UUID, "host should be re-pointed to the new account")
 }
 
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
@@ -6848,6 +7827,9 @@ func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, usernam
 func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 	ctx := context.Background()
 
 	lastSubmittedProfile := &godep.Profile{}
@@ -8267,8 +9249,10 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	t := s.T()
-	// Preparing the Discovery Request message. We are testing all versions Fleet claims to support
-	for _, requestVersion := range syncml.SupportedEnrollmentVersions {
+	// Preparing the Discovery Request message. We test the historically-supported versions plus
+	// newer ones (e.g. Windows 11 25H2 advertises "9.0") to confirm any version >= the minimum is
+	// accepted.
+	for _, requestVersion := range []string{"4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"} {
 		requestBytes := []byte(`
 		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
 		   <s:Header>
@@ -8586,7 +9570,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
+	_, _ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -8621,13 +9605,15 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
 		fmt.Sprintf(`{
 			"mdm_platform": "microsoft",
+			"host_id": %d,
 			"host_serial": "%s",
 			"installed_from_dep": false,
 			"host_display_name": "%s",
 			"enrollment_id": null,
 			"platform": "windows"
-		 }`, windowsHost.HardwareSerial, windowsHost.DisplayName()),
-		0)
+		 }`, windowsHost.ID, windowsHost.HardwareSerial, windowsHost.DisplayName()),
+		0,
+	)
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
 
@@ -8667,6 +9653,8 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	requestBytes, err := s.newSecurityTokenMsg(azureADTok, false, false)
 	require.NoError(t, err)
 
+	mdmEnrolledCountBefore := s.countActivitiesOfType(fleet.ActivityTypeMDMEnrolled{}.ActivityName())
+
 	resp := s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
@@ -8687,18 +9675,9 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.True(t, s.isXMLTagContentPresent("RequestID", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("BinarySecurityToken", resSoapMsg))
 
-	// Checking if an activity was created for the enrollment
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		`{
-			"mdm_platform": "microsoft",
-			"host_serial": "",
-			"installed_from_dep": false,
-			"host_display_name": "DESKTOP-0C89RC0",
-			"enrollment_id": null,
-			"platform": "windows"
-		 }`,
-		0)
+	// No activity yet: an Entra enrollment carries neither a host UUID nor a serial. It is deferred to the first time
+	// the enrollment is linked to a host (see the deferred-activity tests, and the enrollment is left unclaimed below).
+	require.Equal(t, mdmEnrolledCountBefore, s.countActivitiesOfType(fleet.ActivityTypeMDMEnrolled{}.ActivityName()))
 
 	expectedDeviceID := "AB157C3A18778F4FB21E2739066C1F27" // TODO: make the hard-coded deviceID in `s.newSecurityTokenMsg` configurable
 
@@ -8706,6 +9685,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	d, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(context.Background(), expectedDeviceID)
 	require.NoError(t, err)
 	require.Empty(t, d.HostUUID)
+	require.Nil(t, d.EnrolledActivityAt, "an unlinked enrollment must leave the activity claim for the linking path")
 }
 
 func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMissingAdditionalContext() {
@@ -8741,117 +9721,6 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
 }
 
-func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
-	t := s.T()
-
-	// Target Endpoint url with query params
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
-	require.NotEmpty(t, resBytes)
-
-	// Checking response content
-	resContent := string(resBytes)
-	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	// we expect the URL to be escaped
-	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
-	require.Contains(t, resContent, "performPost()")
-
-	// Getting token content
-	encodedToken := s.getRawTokenValue(resContent)
-	require.NotEmpty(t, encodedToken)
-}
-
-func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
-	t := s.T()
-
-	// Target Endpoint url with no login_hit query param
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	resContent := string(resBytes)
-	require.NoError(t, err)
-	require.NotEmpty(t, resBytes)
-	require.Contains(t, resContent, "forbidden")
-}
-
-func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
-	t := s.T()
-
-	// Test cases with invalid appru values that should bail due to exiting before auth check
-	invalidAppruCases := []struct {
-		name  string
-		appru string
-	}{
-		{
-			name:  "javascript injection",
-			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
-		},
-		{
-			name:  "javascript protocol",
-			appru: "javascript:alert(1)",
-		},
-		{
-			name:  "data URI",
-			appru: "data:text/html,<script>alert(1)</script>",
-		},
-		{
-			name:  "empty scheme",
-			appru: "://example.com",
-		},
-		{
-			name:  "plain text",
-			appru: "not-a-url",
-		},
-	}
-
-	for _, tc := range invalidAppruCases {
-		t.Run(tc.name, func(t *testing.T) {
-			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
-			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
-
-			resBytes, err := io.ReadAll(resp.Body)
-			resContent := string(resBytes)
-			require.NoError(t, err)
-			require.NotEmpty(t, resBytes)
-			require.Contains(t, resContent, "forbidden")
-
-			resp.Body.Close()
-		})
-	}
-
-	// Also verify valid URLs still work
-	validAppruCases := []struct {
-		name  string
-		appru string
-	}{
-		{
-			name:  "ms-app scheme",
-			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
-		},
-		{
-			name:  "https scheme",
-			appru: "https%3A%2F%2Fexample.com%2Fcallback",
-		},
-		{
-			name:  "http scheme",
-			appru: "http%3A%2F%2Flocalhost%2Fcallback",
-		},
-	}
-
-	for _, tc := range validAppruCases {
-		t.Run(tc.name, func(t *testing.T) {
-			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
-			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-			resp.Body.Close()
-		})
-	}
-}
-
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	t := s.T()
 
@@ -8879,6 +9748,36 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "Microsoft.AAD.BrokerPlugin")
 	require.Contains(t, resTOCcontent, "IsAccepted=true")
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
+}
+
+func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
+	t := s.T()
+
+	// The TOS page reflects redirect_uri into a window.location assignment, so a javascript:/data:/vbscript:
+	// redirect_uri must be rejected rather than rendered, otherwise it enables reflected XSS (issue #16880).
+	unsafeRedirectURIs := map[string]string{
+		"javascript": "javascript:console.log(424281957)//",
+		"data":       "data:text/html,<script>alert(1)</script>",
+		"vbscript":   "vbscript:msgbox(1)",
+	}
+
+	for name, redirectURI := range unsafeRedirectURIs {
+		t.Run(name, func(t *testing.T) {
+			resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri="+url.QueryEscape(redirectURI)+
+				"&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			resContent := string(resBytes)
+
+			// The response must be a SOAP fault rather than the rendered TOS page, and must not reflect the payload.
+			require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+			require.True(t, s.isXMLTagPresent("s:fault", resContent))
+			require.NotContains(t, resContent, redirectURI)
+			require.NotContains(t, resContent, "Agree and continue")
+			require.NotContains(t, resContent, "IsAccepted=true")
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestWindowsMDM() {
@@ -9082,13 +9981,21 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		var fullResult []byte
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &fullResult, `
-			SELECT raw_response
+			SELECT raw_response_gz
 			FROM windows_mdm_responses wmr
 			JOIN windows_mdm_command_results wmcr ON wmcr.response_id = wmr.id
 			WHERE command_uuid = ?
 			`, cmdUUID)
 		})
-		return fullResult
+		if len(fullResult) == 0 {
+			return fullResult
+		}
+		gr, err := gzip.NewReader(bytes.NewReader(fullResult))
+		require.NoError(t, err)
+		defer gr.Close()
+		out, err := io.ReadAll(gr)
+		require.NoError(t, err)
+		return out
 	}
 
 	var getMDMCmdResp getMDMCommandResultsResponse
@@ -9348,82 +10255,136 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Set up enroll secret and Entra tenant
+	// Shared setup: enroll secret, Entra tenant, and a team with no profiles or setup-experience items, so every release
+	// gate passes at the first Active checkin. The scenarios verify the state transitions (Pending -> Active -> None)
+	// without needing profile delivery.
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 	tenantID := uuid.New().String()
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
-
-	// Enroll device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending)
-	azureMail := "esp-test@example.com"
-	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
-	require.NoError(t, d.Enroll())
-
-	// First checkin: receive fleetd install commands (and possibly ESP hold
-	// commands), ack all of them.
-	cmds, err := d.StartManagementSession()
-	require.NoError(t, err)
-	msgID, err := d.GetCurrentMsgID()
-	require.NoError(t, err)
-	for _, c := range cmds {
-		if c.Verb == "Status" {
-			continue
-		}
-		d.AppendResponse(fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdStatus},
-			MsgRef:  &msgID, CmdRef: &c.Cmd.CmdID.Value,
-			Cmd: &c.Verb, Data: ptr.String("200"),
-			CmdID: fleet.CmdID{Value: uuid.NewString()},
-		})
-	}
-	_, err = d.SendResponse()
-	require.NoError(t, err)
-
-	// Create a team first, then simulate fleetd installed on that team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 
-	host := createOrbitEnrolledHost(t, "windows", "esp-h1", s.ds)
-	// Transfer host to the team via the API
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
-		TeamID:  &tm.ID,
-		HostIDs: []uint{host.ID},
-	}, http.StatusOK, &addHostsToTeamResponse{})
-
-	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
-	require.NoError(t, err)
-	require.True(t, updated)
-	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
-	require.NoError(t, err)
-
-	// No profiles added to the team -- the test verifies state transitions
-	// (Pending → Active → None) without needing profile delivery.
-
-	// First management checkin after orbit links: device transitions to Active.
-	_, err = d.StartManagementSession()
-	require.NoError(t, err)
-
-	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
-	require.NoError(t, err)
-	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
-
-	// Second checkin: all profiles delivered, device should be released.
-	cmds, err = d.StartManagementSession()
-	require.NoError(t, err)
-
-	var foundRelease bool
-	for _, c := range cmds {
-		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
-			foundRelease = true
-			break
+	// findUserRelease returns the user-scope ServerHasFinishedProvisioning Replace from a command batch, nil when absent.
+	findUserRelease := func(cmds map[string]fleet.ProtoCmdOperation) *fleet.ProtoCmdOperation {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			if c.Verb == fleet.CmdReplace && strings.Contains(uri, "./User/") && strings.Contains(uri, "ServerHasFinishedProvisioning") {
+				return &c
+			}
 		}
+		return nil
 	}
-	require.True(t, foundRelease, "should release device with ServerHasFinishedProvisioning")
+	// ackAll acks every non-Status command in the batch with 200, except the command with statusOverrideUUID
+	// which is acked with the given status. Returns the server's response to the ack message.
+	ackAll := func(t *testing.T, d *mdmtest.TestWindowsMDMClient, cmds map[string]fleet.ProtoCmdOperation, statusOverrideUUID, overrideStatus string) map[string]fleet.ProtoCmdOperation {
+		ackMsgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				continue
+			}
+			status := "200"
+			if c.Cmd.CmdID.Value == statusOverrideUUID {
+				status = overrideStatus
+			}
+			d.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &ackMsgID, CmdRef: &c.Cmd.CmdID.Value,
+				Cmd: &c.Verb, Data: &status,
+				CmdID: fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		resp, err := d.SendResponse()
+		require.NoError(t, err)
+		return resp
+	}
+	// awaiting returns the device's current awaiting_configuration state.
+	awaiting := func(t *testing.T, d *mdmtest.TestWindowsMDMClient) fleet.WindowsMDMAwaitingConfiguration {
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		return enrolledDevice.AwaitingConfiguration
+	}
+	// enrollToActive enrolls a device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending), acks the
+	// first checkin (fleetd install and ESP hold commands), simulates fleetd on the team (orbit host + host_uuid link),
+	// and advances the enrollment to Active. Returns a client ready to receive the release.
+	enrollToActive := func(t *testing.T, azureMail, hostName string) *mdmtest.TestWindowsMDMClient {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
 
-	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
-	require.NoError(t, err)
-	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration)
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		ackAll(t, d, cmds, "", "")
+
+		host := createOrbitEnrolledHost(t, "windows", hostName, s.ds)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  &tm.ID,
+			HostIDs: []uint{host.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+		updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+		require.NoError(t, err)
+		require.True(t, updated)
+		err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
+		require.NoError(t, err)
+
+		// First management checkin after orbit links: device transitions to Active.
+		_, err = d.StartManagementSession()
+		require.NoError(t, err)
+		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		return d
+	}
+
+	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
+		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
+
+		// All release gates pass: the release commands are sent, including the user-scope ServerHasFinishedProvisioning Replace.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		userRelease := findUserRelease(cmds)
+		require.NotNil(t, userRelease, "should release device with the user-scope ServerHasFinishedProvisioning")
+
+		// Sending the release must NOT complete the ESP on Fleet's side: during OOBE the device rejects
+		// user-scope writes with SyncML 405 until its user MDM context initializes.
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
+			"enrollment must stay Active until the user-scope release is acked 200")
+
+		// The device 405s the user-scope Replace (user MDM context not ready) and acks everything else 200.
+		afterNack := ackAll(t, d, cmds, userRelease.Cmd.CmdID.Value, "405")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
+			"a 405 on the user-scope release must NOT complete the ESP")
+
+		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
+		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
+		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
+		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		retry := findUserRelease(afterNack)
+		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
+
+		// The user MDM context is now up: the device accepts the retried Replace. The 200 ack completes the ESP
+		// within the same message exchange (results are recorded before the ESP handler runs).
+		ackAll(t, d, map[string]fleet.ProtoCmdOperation{retry.Cmd.CmdID.Value: *retry}, "", "")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, awaiting(t, d),
+			"the 200 ack of the user-scope release completes the ESP")
+	})
+
+	t.Run("user-scope release acked immediately", func(t *testing.T) {
+		// The zero-retry happy path: the device accepts the release on the first send.
+		d := enrollToActive(t, "esp-happy@example.com", "esp-h2")
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		require.NotNil(t, findUserRelease(cmds), "should release device with the user-scope ServerHasFinishedProvisioning")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
+			"enrollment must stay Active until the user-scope release is acked 200")
+
+		// The device acks everything 200. Completion commits within the same message exchange, and the server
+		// must not send another release attempt in its reply.
+		afterAck := ackAll(t, d, cmds, "", "")
+		assert.Nil(t, findUserRelease(afterAck), "no retry may follow a successful ack")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, awaiting(t, d),
+			"the 200 ack of the user-scope release completes the ESP")
+	})
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
@@ -9597,6 +10558,24 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
+	// windowsEnrolledDetails is the mdm_enrolled payload expected for a linked Windows host.
+	windowsEnrolledDetails := func(host *fleet.Host, installedFromDEP bool) string {
+		return fmt.Sprintf(`{
+			"mdm_platform": "microsoft",
+			"host_id": %d,
+			"host_serial": "%s",
+			"installed_from_dep": %t,
+			"host_display_name": "%s",
+			"enrollment_id": null,
+			"platform": "windows"
+		 }`, host.ID, host.HardwareSerial, installedFromDEP, host.DisplayName())
+	}
+
+	// Neither Entra enrollment has an mdm_enrolled activity yet: the WSTEP exchange carries no serial and no host UUID,
+	// so the activity waits for the enrollment to be linked to a host rather than being recorded without either.
+	mdmEnrolledName := fleet.ActivityTypeMDMEnrolled{}.ActivityName()
+	require.Zero(t, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
+
 	// start a management session, will receive the install fleetd commands
 	checkinAndAck(settingsAppDevice, true)
 
@@ -9623,9 +10602,25 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	require.NoError(t, err)
 	require.Equal(t, settingsAppDevice.DeviceID, mdmEnrollment.MDMDeviceID)
 
+	// Linking happened through osquery's direct-ingest backstop, which cannot record an activity itself, so the
+	// enrollment is still unannounced until the device's next management session.
+	require.Zero(t, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
+
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
 	checkinAndAck(settingsAppDevice, false)
+
+	// That session recorded the deferred activity, now carrying the host id and serial the Entra enrollment could not
+	// know. This host enrolled from the settings app (not in OOBE), so it is a manual enrollment.
+	// Asserted against the host's own timeline, which also proves the activity is linked to the host and not just in
+	// the global feed.
+	s.lastHostActivityMatches(settingsAppHost.ID, mdmEnrolledName, windowsEnrolledDetails(settingsAppHost, false), 0)
+	require.Equal(t, 1, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
+
+	// A further session must not record a second one. Assert the count, not just the payload: a duplicate would be
+	// byte-identical and would slip past a details-only comparison.
+	checkinAndAck(settingsAppDevice, false)
+	require.Equal(t, 1, s.countHostActivitiesOfType(settingsAppHost.ID, mdmEnrolledName))
 
 	// But the autopilot device still receives commands...
 	checkinAndAck(autopilotDevice, true)
@@ -9650,6 +10645,11 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	mdmEnrollment, err = s.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, autopilotHost.UUID)
 	require.NoError(t, err)
 	require.Equal(t, autopilotDevice.DeviceID, mdmEnrollment.MDMDeviceID)
+
+	// Same for the Autopilot device, except this one enrolled during OOBE, so it is an automatic enrollment.
+	checkinAndAck(autopilotDevice, false)
+	s.lastHostActivityMatches(autopilotHost.ID, mdmEnrolledName, windowsEnrolledDetails(autopilotHost, true), 0)
+	require.Equal(t, 1, s.countHostActivitiesOfType(autopilotHost.ID, mdmEnrolledName))
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", autopilotHost.ID), nil, http.StatusOK, &hostResp)
 
@@ -9793,6 +10793,14 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	require.NotEmpty(t, runResp.CommandUUID)
 	require.Equal(t, "windows", runResp.Platform)
 	require.Equal(t, "./SetValues", runResp.RequestType)
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), fmt.Sprintf(`{
+		"host_id": %d,
+		"host_display_name": %q,
+		"host_uuid": %q,
+		"command_uuid": %q,
+		"request_type": "./SetValues",
+		"platform": "windows"
+	}`, enrolledWindows.ID, enrolledWindows.DisplayName(), enrolledWindows.UUID, runResp.CommandUUID), 0)
 
 	// valid macOS
 	runResp = runMDMCommandResponse{}
@@ -9803,6 +10811,14 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	require.NotEmpty(t, runResp.CommandUUID)
 	require.Equal(t, "darwin", runResp.Platform)
 	require.Equal(t, "ShutDownDevice", runResp.RequestType)
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), fmt.Sprintf(`{
+		"host_id": %d,
+		"host_display_name": %q,
+		"host_uuid": %q,
+		"command_uuid": %q,
+		"request_type": "ShutDownDevice",
+		"platform": "darwin"
+	}`, enrolledMac.ID, enrolledMac.DisplayName(), enrolledMac.UUID, runResp.CommandUUID), 0)
 }
 
 func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
@@ -9894,9 +10910,14 @@ func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
 	// notification is still false
 	checkNotification(false)
 
-	// configure disk encryption for the global team
+	// configure disk encryption for the global team. NOTE: since the
+	// per-platform split, macos_settings.enable_disk_encryption is the macOS
+	// enforcement setting, no longer an alias of the flat toggle; the orbit
+	// notification gate reads the flat toggle (the AND of the per-platform
+	// settings) until the per-platform behavior split ships (#51259), so this
+	// test uses the flat toggle.
 	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "macos_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "enable_disk_encryption": true } }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// host still doesn't get the notification because we don't have disk
@@ -10055,10 +11076,12 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 		ClientError:  "fail",
 	}, http.StatusNoContent)
 
+	// The error is recorded, but the stored key and its decryptable flag are kept.
 	hdek, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	require.NoError(t, err)
-	require.Nil(t, hdek.Decryptable)
-	require.Empty(t, hdek.Base64Encrypted)
+	require.NotNil(t, hdek.Decryptable)
+	require.True(t, *hdek.Decryptable)
+	require.NotEmpty(t, hdek.Base64Encrypted)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.DiskEncryptionEnabled) // the disk encryption status of the host is not set by the orbit request
@@ -10218,11 +11241,11 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		return acResp
 	}
 
-	compareMacOSSetupValues := (func(t *testing.T, got fleet.MacOSSetup, want fleet.MacOSSetup) {
+	compareMacOSSetupValues := func(t *testing.T, got fleet.MacOSSetup, want fleet.MacOSSetup) {
 		require.Equal(t, want.BootstrapPackage.Value, got.BootstrapPackage.Value)
 		require.Equal(t, want.MacOSSetupAssistant.Value, got.MacOSSetupAssistant.Value)
 		require.Equal(t, want.EnableEndUserAuthentication, got.EnableEndUserAuthentication)
-	})
+	}
 
 	insertBootstrapPackageAndSetupAssistant := func(t *testing.T, teamID *uint) {
 		var tmID uint
@@ -10266,9 +11289,19 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			// initialize our test app config
 			ac := appConfig.Copy()
 			ac.AgentOptions = nil
+			// the flat toggle is virtual (recomputed as the AND of the
+			// per-platform settings on save), so keep the per-platform
+			// settings in sync for the direct ds.SaveAppConfig calls below
+			setACDiskEncryption := func(v bool) {
+				ac.MDM.EnableDiskEncryption = optjson.SetBool(v)
+				ac.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(v)
+				ac.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
+				ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(v)
+				ac.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(v)
+			}
 
 			// enable disk encryption
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setACDiskEncryption(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, true, true)                           // both mac and windows mdm enabled
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // enabled
@@ -10287,14 +11320,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// disabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			setACDiskEncryption(false)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true)                           // only windows mdm enabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// enabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setACDiskEncryption(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, true)                          // only windows mdm enabled
@@ -10307,14 +11340,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			require.True(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabling mdm doesn't change disk encryption
 
 			// disabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			setACDiskEncryption(false)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, false)                          // no MDM enabled
 			require.False(t, acResp.AppConfig.MDM.EnableDiskEncryption.Value) // disabled
 			require.Equal(t, "f1337", acResp.AppConfig.OrgInfo.OrgName)
 
 			// enabling disk encryption doesn't cause validation error
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+			setACDiskEncryption(true)
 			s.DoJSON("PATCH", "/api/latest/fleet/config", ac, http.StatusOK, &acResp)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			acResp = checkAppConfig(t, false, false)                         // no MDM enabled
@@ -10974,6 +12007,34 @@ func (s *integrationMDMTestSuite) runDEPSchedule() {
 	require.NoError(s.T(), err)
 }
 
+func (s *integrationMDMTestSuite) runAppleOSUpdatesSchedule() {
+	ch := make(chan bool)
+	var once sync.Once
+	s.onAppleOSUpdatesScheduleDone = func() {
+		once.Do(func() { close(ch) })
+	}
+
+	var (
+		didTrigger bool
+		err        error
+	)
+	for range 10 {
+		_, didTrigger, err = s.appleOSUpdatesSchedule.Trigger(s.T().Context())
+		s.Require().NoError(err)
+		if didTrigger {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	s.Require().True(didTrigger, "apple os updates schedule did not trigger after 1 second of retries")
+
+	select {
+	case <-ch:
+	case <-time.After(30 * time.Second):
+		s.T().Fatal("apple os updates schedule did not complete")
+	}
+}
+
 func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	ch := make(chan bool)
 	var once sync.Once
@@ -11066,24 +12127,6 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 	}
 }
 
-func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
-	// Create a regex object with the defined pattern
-	pattern := `inputToken.value\s*=\s*'([^']*)'`
-	regex := regexp.MustCompile(pattern)
-
-	// Find the submatch using the regex pattern
-	submatches := regex.FindStringSubmatch(content)
-
-	if len(submatches) >= 2 {
-		// Extract the content from the submatch
-		encodedToken := submatches[1]
-
-		return encodedToken
-	}
-
-	return ""
-}
-
 func (s *integrationMDMTestSuite) isXMLTagPresent(xmlTag string, payload string) bool {
 	regex := fmt.Sprintf("<%s.*>", xmlTag)
 	matched, err := regexp.MatchString(regex, payload)
@@ -11161,7 +12204,8 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 		reqSecTokenContextItemDeviceType = []byte(
 			`<ac:ContextItem Name="DeviceType">
 			 <ac:Value>CIMClient_Windows</ac:Value>
-			 </ac:ContextItem>`)
+			 </ac:ContextItem>`,
+		)
 	}
 
 	// JWT token by default
@@ -11237,12 +12281,18 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 				</wst:RequestSecurityToken>
 			</s:Body>
 			</s:Envelope>
-		`)
+		`,
+	)
 
 	return requestBytes, nil
 }
 
 func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
+	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
+	// reading.
+	require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 	var queryParams []string
 	if teamID != nil {
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
@@ -12083,7 +13133,8 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 			"Content-Transfer-Encoding: base64\r\n"+
 			"Content-Disposition: attachment; filename=\"smime.p7m\"\r\n"+
 			"Content-Description: S/MIME Encrypted Message\r\n"+
-			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
+			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken),
+	)
 	s.uploadABMToken([]byte(smimeMessage), http.StatusOK, "")
 
 	// verify that all the secrets are in the db
@@ -12425,13 +13476,13 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	}
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
 
 	// triggering the schedule again doesn't send any more pushes
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -12491,7 +13542,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -12512,7 +13563,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 1)
 	recordedPushes = nil
@@ -12532,7 +13583,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	assert.Nil(t, cmd)
 
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
-	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0)
+	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
 	recordedPushes = nil
@@ -12765,7 +13816,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform})
 
 	// Associating one good and one bad app
-	s.Do("POST",
+	s.Do(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
@@ -12800,7 +13852,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// Associating two apps we own
 	beforeAssociation := time.Now()
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -12850,7 +13903,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// Reverse self-service associations
 	// Associating two apps we own
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -12927,7 +13981,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	checkSetupExperienceVPP := func(t *testing.T, platform string, teamID uint, expectedAdamIDs []string) {
 		var respGetSetupExperience getSetupExperienceSoftwareResponse
-		s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		s.DoJSON(
+			"GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
 			http.StatusOK,
 			&respGetSetupExperience,
 			"platform", platform,
@@ -12937,7 +13992,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	}
 
 	// Associate with the SetupExperience flag set to true
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -12956,7 +14012,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[1].AdamID})
 
 	// Associate with the SetupExperience flag set to nil = no change
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -12975,7 +14032,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	checkSetupExperienceVPP(t, string(fleet.IOSPlatform), tmGood.ID, []string{s.appleVPPConfigSrvConfig.Assets[1].AdamID})
 
 	// Associate with the SetupExperience flag set to false
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -13204,7 +14262,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			AppStoreID:  adamIDWithAllPlatforms,
 			SelfService: true,
 			DisplayName: "AppleUpdated2",
-		})
+		},
+	)
 
 	setDisplayNames(
 		3,
@@ -13238,7 +14297,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			AppStoreID:  adamIDWithAllPlatforms,
 			SelfService: true,
 			DisplayName: "",
-		})
+		},
+	)
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
@@ -13285,6 +14345,31 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.Empty(t, listCmdResp.Results)
 }
 
+// assertHostMDMCertificates checks the certificates the host details API reports
+// against the templates the device answered CertificateList with. A refetch on
+// the device channel only ever sees the system keychain.
+func (s *integrationMDMTestSuite) assertHostMDMCertificates(t *testing.T, hostID uint, templates []*x509.Certificate) {
+	t.Helper()
+	var resp listHostCertificatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates", hostID), nil, http.StatusOK, &resp)
+	require.Len(t, resp.Certificates, len(templates))
+	bySerial := make(map[string]*fleet.HostCertificatePayload, len(resp.Certificates))
+	for _, c := range resp.Certificates {
+		bySerial[c.Serial] = c
+	}
+	for _, tmpl := range templates {
+		serial := tmpl.SerialNumber.Text(16)
+		got, ok := bySerial[serial]
+		require.True(t, ok, "no certificate reported with serial %s", serial)
+		require.Equal(t, fleet.SystemHostCertificate, got.Source)
+		require.Empty(t, got.Username)
+		require.WithinDuration(t, tmpl.NotBefore, got.NotValidBefore, time.Second)
+		require.WithinDuration(t, tmpl.NotAfter, got.NotValidAfter, time.Second)
+		require.NotNil(t, got.Subject)
+		require.Equal(t, tmpl.Subject.Organization[0], got.Subject.Organization)
+	}
+}
+
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	t := s.T()
 
@@ -13326,11 +14411,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSent)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, host.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
@@ -13377,7 +14459,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
+	s.assertHostMDMCertificates(t, host.ID, testCerts)
 
 	// Install the same app for iPadOS
 	hostIPad, mdmClientIPad := s.createAppleMobileHostThenEnrollMDM("ipados")
@@ -13429,7 +14511,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
+	s.assertHostMDMCertificates(t, hostIPad.ID, testCerts)
 
 	hostIPod, mdmClientIPod := s.createIpodHostThenEnrollMDM()
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hostIPod.ID, false, true, "https://foo.com", true, "", "", false))
@@ -13445,11 +14527,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	commands, err = s.ds.GetHostMDMCommands(context.Background(), hostIPod.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, commandsSentPerRefetch)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostIPod.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostIPod.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	// Since refetch is already queued up, doing another refetch is a no-op and will not add more MDM commands
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostIPod.ID), nil, http.StatusOK)
@@ -14700,7 +15779,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			hostDetailQueryPrefix + "software_macos": json.RawMessage(fmt.Sprintf(
 				`[{"name": "%s", "version": "%s", "type": "Application (macOS)",
 					"bundle_identifier": "%s", "source": "apps", "last_opened_at": "",
-					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier)),
+					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier,
+			)),
 		},
 		Statuses: map[string]interface{}{
 			hostDistributedQueryPrefix + "software_macos": 0,
@@ -15773,6 +16853,9 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	t := s.T()
+	// machine info blobs in this test are signed with a throwaway cert, not an
+	// Apple device identity
+	apple_mdm.SetMachineInfoVerificationForTest(t, false)
 	ctx := context.Background()
 
 	initialConfig, err := s.ds.AppConfig(ctx)
@@ -15812,7 +16895,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 
 	// manual enrollment from My Device
 	token := "token_test_manual_enroll"
-	createHostAndDeviceToken(t, s.ds, token)
+	host := createHostAndDeviceToken(t, s.ds, token)
 	var r getDeviceMDMManualEnrollProfileResponse
 	s.DoJSON("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK, &r)
 	u, err := url.Parse(r.EnrollURL)
@@ -15831,9 +16914,12 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	})
 	require.NoError(t, err)
 
+	s.createDEPAssignmentForHost(t, host)
 	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial: uuid.New().String(),
-		UDID:   uuid.New().String(),
+		Serial:                 host.HardwareSerial,
+		UDID:                   host.UUID,
+		Product:                "Mac13,1",
+		SoftwareUpdateDeviceID: "bogus-update-id",
 	})
 	require.NoError(t, err)
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
@@ -15844,6 +16930,15 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 
 	// unsigned manual enrollment profile for IT admins
 	s.downloadAndVerifyEnrollmentProfileManual(t)
+
+	// Verify that macOS enrollment inserts entry into os updates tracking
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var count int
+		err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM host_mdm_apple_os_updates WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+		return nil
+	})
 
 	// ensure the fleetd profile sends a good enroll secret too
 	s.awaitTriggerProfileSchedule(t)
@@ -15860,6 +16955,91 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	err = plist.NewDecoder(bytes.NewReader(prof.Mobileconfig)).Decode(&parsedData)
 	require.NoError(t, err)
 	require.Equal(t, enrollSecretWithInvalidChars, parsedData.PayloadContent[0].EnrollSecret)
+}
+
+func (s *integrationMDMTestSuite) TestMachineInfoSignatureEnforcement() {
+	t := s.T()
+
+	// signed with a throwaway cert, not an Apple device identity, so signature
+	// verification must fail
+	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial:    "FAKESERIAL123",
+		UDID:      "00000000-0000-0000-0000-000000000000",
+		Product:   "MacBookPro16,1",
+		OSVersion: "15.0",
+	})
+	require.NoError(t, err)
+
+	t.Run("enroll endpoint rejects unverifiable deviceinfo", func(t *testing.T) {
+		res := s.DoRawNoAuth("GET", apple_mdm.EnrollPath+"?token=unused&deviceinfo="+di, nil, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "unable to verify deviceinfo signature")
+		require.NoError(t, res.Body.Close())
+	})
+
+	t.Run("sso middleware rejects unverifiable deviceinfo header", func(t *testing.T) {
+		request, err := http.NewRequest("GET", s.server.URL+"/mdm/sso", nil)
+		require.NoError(t, err)
+		request.Header.Set("x-apple-aspen-deviceinfo", di)
+		// nolint:gosec // this client is used for testing only
+		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+		response, err := cc.Do(request)
+		require.NoError(t, err)
+		defer response.Body.Close()
+		require.Equal(t, http.StatusForbidden, response.StatusCode)
+	})
+
+	t.Run("sso middleware rejects an unparseable deviceinfo header", func(t *testing.T) {
+		request, err := http.NewRequest("GET", s.server.URL+"/mdm/sso", nil)
+		require.NoError(t, err)
+		request.Header.Set("x-apple-aspen-deviceinfo", "not-base64-or-pkcs7!!!")
+		// nolint:gosec // this client is used for testing only
+		cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
+		response, err := cc.Do(request)
+		require.NoError(t, err)
+		defer response.Body.Close()
+		require.Equal(t, http.StatusForbidden, response.StatusCode)
+	})
+
+	t.Run("account-driven enroll rejects unverifiable deviceinfo", func(t *testing.T) {
+		body, err := mdmtest.AccountDrivenUserEnrollDeviceInfoAsPKCS7(fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{
+			Product: "iPhone14,5",
+			Version: "22A3351",
+		})
+		require.NoError(t, err)
+		path := strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", "unused", 1)
+		res := s.DoRawNoAuth("POST", path, body, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "unable to verify deviceinfo signature")
+		require.NoError(t, res.Body.Close())
+	})
+
+	t.Run("audit mode logs but does not block", func(t *testing.T) {
+		apple_mdm.SetMachineInfoVerificationForTest(t, false)
+		// the request proceeds past signature verification and fails later on
+		// the unknown enrollment token instead
+		res := s.DoRawNoAuth("GET", apple_mdm.EnrollPath+"?token=unused&deviceinfo="+di, nil, http.StatusUnauthorized)
+		require.NoError(t, res.Body.Close())
+	})
+}
+
+func (s *integrationMDMTestSuite) getSignedOTAEnrollmentBody(t *testing.T, reqBody []byte) ([]byte, *x509.Certificate, *rsa.PrivateKey) {
+	t.Helper()
+
+	// Setup signed req body, but also verify we can sign it.
+	cert, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	signedData, err := pkcs7.NewSignedData(reqBody)
+	require.NoError(t, err)
+	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	signedReqBody, err := signedData.Finish()
+	require.NoError(t, err)
+
+	return signedReqBody, cert, key
 }
 
 func (s *integrationMDMTestSuite) TestOTAEnrollment() {
@@ -15890,13 +17070,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 </plist>`)
 
 	// Setup signed req body, but also verify we can sign it.
-	cert, key, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	signedData, err := pkcs7.NewSignedData(reqBody)
-	require.NoError(t, err)
-	require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
-	signedReqBody, err := signedData.Finish()
-	require.NoError(t, err)
+	signedReqBody, cert, key := s.getSignedOTAEnrollmentBody(t, reqBody)
 
 	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
@@ -15932,14 +17106,44 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 		t.Run("if invalid device signature", func(t *testing.T) {
 			dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1", t)
+			apple_mdm.SetMachineInfoVerificationForTest(t, false)
 			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusForbidden)
 			errMsg := extractServerErrorText(httpResp.Body)
 			require.Contains(t, errMsg, "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin.")
 			require.NoError(t, httpResp.Body.Close())
 		})
 
+		t.Run("if machine info signature verification fails on phase 1", func(t *testing.T) {
+			// the device-CA bypass makes the request look like OTA phase 1, but
+			// machine info verification is NOT disabled, so the throwaway
+			// signature must be rejected
+			dev_mode.SetOverride("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY", "1", t)
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", signedReqBody, http.StatusBadRequest)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "unable to verify deviceinfo signature")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
+		t.Run("if phase 2 signature is invalid", func(t *testing.T) {
+			// a genuine Fleet-signed phase-2 body with its content tampered: the
+			// signer cert still chains to Fleet, but the CMS signature no longer
+			// matches, so it must be rejected at decode.
+			raw, err := os.ReadFile("../mdm/apple/testdata/deviceinfo/ota-phase2-iphone.der")
+			require.NoError(t, err)
+			tampered := bytes.Clone(raw)
+			// flip a printable byte inside the PRODUCT string so the plist still
+			// parses but the signed messageDigest no longer matches
+			i := bytes.Index(tampered, []byte("iPhone14,5"))
+			require.Positive(t, i)
+			tampered[i] ^= 0x01
+			httpResp := s.DoRawNoAuth("POST", "/api/latest/fleet/ota_enrollment?enroll_secret=foo", tampered, http.StatusBadRequest)
+			errMsg := extractServerErrorText(httpResp.Body)
+			require.Contains(t, errMsg, "invalid request signature")
+			require.NoError(t, httpResp.Body.Close())
+		})
+
 		t.Run("if serial is missing", func(t *testing.T) {
-			signedData, err = pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			signedData, err := pkcs7.NewSignedData([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -15963,7 +17167,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpUUID(uuid.New().String()),
+				mdmtest.WithOTAIdpSession(s.mustBYODIdPSession(t, uuid.New().String())),
 			)
 			err := mdmDevice.Enroll()
 			require.Error(t, err)
@@ -16024,6 +17228,15 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			hostByIdentifierResp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			require.Nil(t, hostByIdentifierResp.Host.TeamID)
+
+			// Verify that OTA enrollment upserts the macOS entry for software_device_id.
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var count int
+				err := sqlx.GetContext(t.Context(), q, &count, `SELECT COUNT(*) FROM host_mdm_apple_os_updates WHERE host_uuid = ?`, mdmDevice.UUID)
+				require.NoError(t, err)
+				require.Equal(t, 1, count)
+				return nil
+			})
 		})
 
 		t.Run("ota enrolling an ipad", func(t *testing.T) {
@@ -16048,7 +17261,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
 		})
 
-		t.Run("ota enrollment if idp_uuid is not set does not associate host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment without an idp session does not associate host with idp account", func(t *testing.T) {
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
@@ -16066,7 +17279,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.Nil(t, account) // We do not fail but return nil for both if not found, and we do not expect an entry here.
 		})
 
-		t.Run("ota enrollment if idp_uuid is set associates host with idp account", func(t *testing.T) {
+		t.Run("ota enrollment with an idp session associates host with idp account", func(t *testing.T) {
 			idpEmail := "test@example.com"
 			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
 				Username: "test",
@@ -16075,13 +17288,14 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			require.NoError(t, err)
 			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
 			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
 
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
 				globalSecret,
 				hwModel,
-				mdmtest.WithOTAIdpUUID(idpAccount.UUID),
+				mdmtest.WithOTAIdpSession(sessionID),
 			)
 			enrollTime := time.Now().UTC().Truncate(time.Second)
 			require.NoError(t, mdmDevice.Enroll())
@@ -16090,6 +17304,52 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 
 			resp := verifySuccessfulOTAEnrollment(mdmDevice, hwModel, "darwin", enrollTime)
 			verifySuccessfulIdpAssociation(resp.Host.UUID, idpAccount.UUID)
+
+			// the session is single-use: enrolling burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
+			// a second device presenting the same session enrolls without an account
+			secondDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				globalSecret,
+				hwModel,
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			require.NoError(t, secondDevice.Enroll())
+			s.awaitRunAppleMDMWorkerSchedule()
+			resp = verifySuccessfulOTAEnrollment(secondDevice, hwModel, "darwin", enrollTime)
+			hostToIdpMap, err := s.ds.GetMDMIdPAccountsByHostUUIDs(context.Background(), []string{resp.Host.UUID})
+			require.NoError(t, err)
+			require.Nil(t, hostToIdpMap[resp.Host.UUID])
+		})
+
+		t.Run("ota enrollment with a used idp session is refused where authentication is required", func(t *testing.T) {
+			idpEmail := "used@example.com"
+			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
+				Username: "used",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.ds.GetMDMIdPAccountByEmail(context.Background(), idpEmail)
+			require.NoError(t, err)
+			sessionID := s.mustBYODIdPSession(t, idpAccount.UUID)
+			require.NoError(t, shared_mdm.ConsumeBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, sessionID))
+
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret_used_session"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+
+			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+				s.server.URL,
+				teamSecret,
+				"MacBookPro16,1",
+				mdmtest.WithOTAIdpSession(sessionID),
+			)
+			err = mdmDevice.Enroll()
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "403 Forbidden")
 		})
 	})
 }
@@ -16104,9 +17364,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
-	getSSOAccessToken := func(username, password string) string {
-		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
+	getSSOAccessToken := func(username, password, token string) string {
+		ssoResult := s.LoginAccountDrivenEnrollUser(username, password, token)
 		// check location for apple-remotemanagement-user-login://authentication-results?access-token=
 		returnedLocation, err := ssoResult.Location()
 		require.NoError(t, err)
@@ -16117,8 +17378,9 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		return accessToken
 	}
 
-	iPhoneAccessToken := getSSOAccessToken("sso_user", "user123#")
-	iPadAccessToken := getSSOAccessToken("sso_user2", "user123#")
+	iPhoneAccessToken := getSSOAccessToken("sso_user", "user123#", string(abmToken.EnrollmentURLToken))
+	iPadAccessToken := getSSOAccessToken("sso_user2", "user123#", string(abmToken.EnrollmentURLToken))
+	oldUrlIphoneAccessToken := getSSOAccessToken("sso_user2", "user123#", "")
 
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -16141,14 +17403,16 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		iPhoneAccessToken,
 	)
 	require.NoError(t, iPhoneMdmDevice.Enroll())
-	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
+	assert.Equal(t, "sso_user@example.com", iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
+	iPhoneHost, err := s.ds.HostByIdentifier(context.Background(), iPhoneMdmDevice.EnrollmentID())
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, iPhoneHost.ID, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPhoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
-	assert.Equal(t, linkedIDPAccount.Email, "sso_user@example.com")
+	assert.Equal(t, "sso_user@example.com", linkedIDPAccount.Email)
 
 	iPadHwModel := "iPad14,5"
 	iPadMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
@@ -16158,20 +17422,51 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	)
 	require.ErrorContains(t, iPadMdmDevice.Enroll(), "401 Unauthorized")
 
+	// create a team we can update the ABM token to default the iPad enrollment to
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	// TODO: Update to call DS/SVC method
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), "UPDATE abm_tokens SET byod_default_team_id = ? WHERE id = ?", team.ID, abmToken.ID)
+		return err
+	})
+
 	iPadMdmDevice = mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
 		iPadHwModel,
 		iPadAccessToken,
 	)
 	require.NoError(t, iPadMdmDevice.Enroll())
-	assert.Equal(t, iPadMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user2@example.com")
+	assert.Equal(t, "sso_user2@example.com", iPadMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
+	iPadHost, err := s.ds.HostByIdentifier(context.Background(), iPadMdmDevice.EnrollmentID())
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadHost.ID, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
 	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
+
+	oldUrlIphoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
+		s.server.URL,
+		"iPhone14,5",
+		oldUrlIphoneAccessToken,
+	)
+	require.NoError(t, oldUrlIphoneMdmDevice.Enroll())
+	assert.Equal(t, "sso_user2@example.com", oldUrlIphoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
+
+	oldUrlIphoneHost, err := s.ds.HostByIdentifier(context.Background(), oldUrlIphoneMdmDevice.EnrollmentID())
+	require.NoError(t, err)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, oldUrlIphoneHost.ID, oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.Model, oldUrlIphoneMdmDevice.EnrollmentID()), 0)
+	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), oldUrlIphoneMdmDevice.EnrollmentID())
+	require.NoError(t, err)
+	require.NotNil(t, linkedIDPAccount)
+	assert.Equal(t, "sso_user2@example.com", linkedIDPAccount.Email)
 
 	// Account driven enrollment is not yet supported for macOS devices so we expect an error in
 	// either case
@@ -16201,25 +17496,36 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	var iPhoneHostID *uint
 	var iPadHostID *uint
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 2)
+	require.Len(t, listHostsRes.Hosts, 3)
 	for _, host := range listHostsRes.Hosts {
-		if host.UUID == iPhoneMdmDevice.EnrollmentID() {
+		switch host.UUID {
+		case iPhoneMdmDevice.EnrollmentID():
 			assert.Equal(t, iPhoneHwModel, host.HardwareModel)
 			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.UUID)
 			assert.Equal(t, iPhoneMdmDevice.EnrollmentID(), host.HardwareSerial)
 			require.NotNil(t, host.MDM.EnrollmentStatus)
-			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
-			iPhoneHostID = ptr.Uint(host.ID)
-		} else if host.UUID == iPadMdmDevice.EnrollmentID() {
+			assert.Nil(t, host.TeamID)
+			id := host.ID
+			iPhoneHostID = &id
+		case iPadMdmDevice.EnrollmentID():
 			assert.Equal(t, "ipados", host.Platform)
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.UUID)
 			assert.Equal(t, iPadMdmDevice.EnrollmentID(), host.HardwareSerial)
 			assert.Equal(t, iPadHwModel, host.HardwareModel)
 			require.NotNil(t, host.MDM.EnrollmentStatus)
-			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
-			iPadHostID = ptr.Uint(host.ID)
+			assert.Equal(t, team.ID, *host.TeamID)
+			id := host.ID
+			iPadHostID = &id
+		case oldUrlIphoneMdmDevice.EnrollmentID():
+			// Primarily assert it was enrolled correctly and fallback to unassigned
+			assert.Equal(t, "ios", host.Platform)
+			assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
+			assert.True(t, *host.MDM.ConnectedToFleet)
+			assert.Nil(t, host.TeamID)
 		}
 	}
 
@@ -16230,9 +17536,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	getHostResp := getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", *iPhoneHostID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
-	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", *getHostResp.Host.MDM.EnrollmentStatus)
 	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
 	assert.Equal(t, iPhoneHwModel, getHostResp.Host.HardwareModel)
+	assert.Nil(t, getHostResp.Host.HostDetail.TeamID)
 
 	// Confirm that the host MDM endpoint contains the expected values for the iPhone
 	// using an inline struct because the definition of fleet.HostMDM makes it unusable here
@@ -16243,18 +17550,19 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 		ID               uint   `json:"id"`
 	}{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPhoneHostID), nil, http.StatusOK, &getHostMDMResponse)
-	assert.Equal(t, "On (personal)", getHostMDMResponse.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", getHostMDMResponse.EnrollmentStatus)
 	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
 
 	// Confirm that host details endpoint contains the expected values for the iPad
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", *iPadHostID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.EnrollmentStatus)
-	assert.Equal(t, "On (personal)", *getHostResp.Host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", *getHostResp.Host.MDM.EnrollmentStatus)
 	assert.True(t, *getHostResp.Host.MDM.ConnectedToFleet)
+	assert.Equal(t, team.ID, *getHostResp.Host.TeamID)
 
 	// Confirm that the host MDM endpoint contains the expected values for the iPad
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPadHostID), nil, http.StatusOK, &getHostMDMResponse)
-	assert.Equal(t, "On (personal)", getHostMDMResponse.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", getHostMDMResponse.EnrollmentStatus)
 	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
 }
 
@@ -16268,9 +17576,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	// TODO: Is there a better way to do this?
 	originalServerUrl := s.server.URL
 	s.setUpMDMSSO(t, true)
+	abmToken := s.enableABM(t.Name())
 
 	getSSOAccessToken := func(username, password string) string {
-		ssoResult := s.LoginAccountDrivenEnrollUser(username, password)
+		ssoResult := s.LoginAccountDrivenEnrollUser(username, password, string(abmToken.EnrollmentURLToken))
 		// check location for apple-remotemanagement-user-login://authentication-results?access-token=
 		returnedLocation, err := ssoResult.Location()
 		require.NoError(t, err)
@@ -16306,7 +17615,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	host := listHostsRes.Hosts[0]
 	assert.Equal(t, host.UUID, iPhoneMdmDevice.EnrollmentID())
 	require.NotNil(t, host.MDM.EnrollmentStatus)
-	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual - personal)", *host.MDM.EnrollmentStatus)
 	assert.True(t, *host.MDM.ConnectedToFleet)
 
 	// Confirm that locking or wiping the host fails with an appropriate error
@@ -16462,19 +17771,23 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	})
 	require.NoError(t, err)
 
+	// The proxy route is unauthenticated, so upstream failures must not disclose the CA URL to the caller.
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusInternalServerError, nil, "operation", "GetCACaps")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not GetCACaps from SCEP server")
+	assert.NotContains(t, string(errBody), testServer.URL)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusInternalServerError, nil, "operation", "GetCACert")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not GetCACert from SCEP server")
+	assert.NotContains(t, string(errBody), testServer.URL)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusInternalServerError, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not do PKIOperation on SCEP server")
+	assert.NotContains(t, string(errBody), testServer.URL)
 
 	// Test timeout error
 	ndesTimeoutServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -16756,19 +18069,23 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	})
 	require.NoError(t, err)
 
+	// The proxy route is unauthenticated, so upstream failures must not disclose the CA URL to the caller.
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusInternalServerError, nil, "operation", "GetCACaps")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not GetCACaps from SCEP server")
+	assert.NotContains(t, string(errBody), testServer.URL)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusInternalServerError, nil, "operation", "GetCACert")
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not GetCACert from SCEP server")
+	assert.NotContains(t, string(errBody), testServer.URL)
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+suffix, nil, http.StatusInternalServerError, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "Could not do PKIOperation on SCEP server")
+	assert.NotContains(t, string(errBody), testServer.URL)
 
 	// Test timeout error
 	ndesTimeoutServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -16976,7 +18293,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity := fleet.ActivityAddedDigiCert{}
 	caNames := make([]string, 0, 3)
@@ -17034,7 +18351,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		activity = fleet.ActivityAddedDigiCert{}
 		editActivity := fleet.ActivityEditedDigiCert{}
@@ -17075,7 +18392,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		// Check that 3 deleted activities are present
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		delActivity := fleet.ActivityDeletedDigiCert{}
 		caNames = make([]string, 0, 3)
@@ -17271,7 +18588,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		_, err := db.ExecContext(
 			context.Background(),
 			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
-			host.ID, "idp@example.com", "mdm_idp_accounts")
+			host.ID, "idp@example.com", "mdm_idp_accounts",
+		)
 
 		return err
 	})
@@ -17816,7 +19134,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity := fleet.ActivityAddedCustomSCEPProxy{}
 	caNames := make([]string, 0, 3)
@@ -17873,7 +19191,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 
 	listActivities = listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
 	activity = fleet.ActivityAddedCustomSCEPProxy{}
 	editActivity := fleet.ActivityEditedCustomSCEPProxy{}
@@ -17913,7 +19231,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 		// Check that 3 deleted activities are present
 		listActivities = listActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+			&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
 		require.True(t, len(listActivities.Activities) > 0)
 		delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
 		caNames = make([]string, 0, 3)
@@ -18712,6 +20030,20 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
 	require.NoError(t, err)
 	require.True(t, coboHostMDM.Enrolled, "host_mdm.enrolled must stay true until the device acks via Pub/Sub DELETED")
+
+	// Reset between sub-cases.
+	didCallAMAPIDelete = false
+	didCallAMAPIIssueWipe = false
+	issuedCommand = nil
+
+	// BYO host where AMAPI returns 404 (device already removed from Google) -> should succeed (204), not 500.
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, _ string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		didCallAMAPIIssueWipe = true
+		return nil, &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}
+	}
+	byoGoneHostID := createAndroidHostForTest(t, s.ds, nil, false)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", byoGoneHostID), nil, http.StatusNoContent)
+	require.True(t, didCallAMAPIIssueWipe, "expected BYO unenroll to attempt IssueCommand even when device is gone")
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
@@ -18719,6 +20051,81 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 // transitions a pending row to acknowledged. Each assertion checks that (1) the mock IssueCommand was called with the right
 // type/duration, (2) the mdm_android_commands row is persisted with the right status, and where applicable (3) host_mdm_actions
 // is updated so the API surfaces PendingAction=lock/wipe.
+// TestAndroidAMAPIErrorStatusMapping checks that an AMAPI failure surfaces the matching
+// HTTP status on every Android command endpoint, not just on unenroll. Per #52547 an AMAPI
+// 404 encoded as a 500 on lock/wipe/clear-passcode even though the mapped error reported
+// IsNotFound, so these assertions are on the response status, not on the error value.
+func (s *integrationMDMTestSuite) TestAndroidAMAPIErrorStatusMapping() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		ID:           enterpriseID,
+		EnterpriseID: "ultimate-fake",
+		SignupName:   "fake",
+		SignupToken:  "value",
+		TopicID:      "yep",
+	}))
+
+	amapiErrors := []struct {
+		name string
+		err  *googleapi.Error
+		// want is the status for lock/wipe/clear-passcode. Unenroll treats not-found as
+		// "already unenrolled" and returns 204, so it is listed separately.
+		want         int
+		wantUnenroll int
+	}{
+		{"404", &googleapi.Error{Code: http.StatusNotFound, Message: "Not Found"}, http.StatusNotFound, http.StatusNoContent},
+		{"500 entity not found", &googleapi.Error{Code: http.StatusInternalServerError, Body: "Requested entity was not found"}, http.StatusNotFound, http.StatusNoContent},
+		{"400", &googleapi.Error{Code: http.StatusBadRequest, Message: "invalid command"}, http.StatusBadRequest, http.StatusBadRequest},
+		{"409", &googleapi.Error{Code: http.StatusConflict, Message: "device state incompatible"}, http.StatusConflict, http.StatusConflict},
+		{"403 unmapped", &googleapi.Error{Code: http.StatusForbidden, Message: "no access"}, http.StatusInternalServerError, http.StatusInternalServerError},
+	}
+
+	// The mock client is shared by the whole suite and there is no SetupTest, so restore
+	// it rather than leaving every later test with a command that fails.
+	t.Cleanup(func() { s.androidAPIClient.InitCommonMocks() })
+
+	for _, ae := range amapiErrors {
+		t.Run(ae.name, func(t *testing.T) {
+			amapiErr := ae.err
+			s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, _ string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+				return nil, amapiErr
+			}
+
+			// COBO hosts: lock, wipe and clear passcode are all allowed.
+			lockHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", lockHostID), nil, ae.want)
+
+			wipeHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", wipeHostID), nil, ae.want)
+
+			passcodeHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", passcodeHostID), nil, ae.want)
+
+			// BYO hosts may be locked too, and take the same path as COBO.
+			byoLockHostID := createAndroidHostForTest(t, s.ds, nil, false)
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", byoLockHostID), nil, ae.want)
+
+			// Custom commands reach the mapping through a different service entry point
+			// (server/service/mdm.go) than the three commands above, so cover it separately.
+			customHostID := createAndroidHostForTest(t, s.ds, nil, true)
+			var customHost getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", customHostID), nil, http.StatusOK, &customHost)
+			s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+				Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+				HostUUIDs: []string{customHost.Host.UUID},
+			}, ae.want)
+
+			// BYO unenroll issues the work-profile wipe, so it goes through the same mapping.
+			unenrollHostID := createAndroidHostForTest(t, s.ds, nil, false)
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", unenrollHostID), nil, ae.wantUnenroll)
+		})
+	}
+}
+
 func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	t := s.T()
 	ctx := t.Context()
@@ -19252,7 +20659,8 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 			AppStoreID: app.AdamID,
 		}, http.StatusOK, &addAppResp)
 		var listSw listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw,
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw,
 			"team_id", fmt.Sprint(team.ID),
 			"available_for_install", "true",
 			"query", app.Name,
@@ -19290,11 +20698,15 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	attach(continuousPolicy.ID, continuousTitleID)
 	attach(transitionPolicy.ID, transitionTitleID)
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			mdmHost,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
 
@@ -19354,17 +20766,9 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 		s.runWorker()
 	}
 
-	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
-		t.Helper()
-		submitPolicyResult(policyID, false)
-		require.EventuallyWithT(t, func(t *assert.CollectT) {
-			assert.Equal(t, wantCount, countFn(), msg)
-		}, 5*time.Second, 100*time.Millisecond)
-		completeVPPInstall()
-	}
-
 	continuousCount := func() int { return countInstallsFor(continuousPolicy.ID) }
 	transitionCount := func() int { return countInstallsFor(transitionPolicy.ID) }
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
 
 	// Age a policy's verified VPP install so it sits outside the policy update interval.
 	// The continuous cooldown is keyed on verification_at.
@@ -19378,24 +20782,39 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 		})
 	}
 
-	// First failing result: pass→fail transition queues an install on both.
-	step(continuousPolicy.ID, 1, continuousCount, "first install for continuous policy")
-	step(transitionPolicy.ID, 1, transitionCount, "first install for transition policy")
+	// First fail for the continuous policy (transition still passing): the
+	// pass→fail transition queues an install. The first failures are staggered
+	// across writes because only one upcoming activity is activated at a time
+	// per host: a second install queued in the same write would only become
+	// visible after the first completes.
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(true)})
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, continuousCount(), "first install for continuous policy")
+	}, 5*time.Second, 100*time.Millisecond)
+	completeVPPInstall()
 
-	// Second failing result (fail→fail) within the interval: the continuous policy is
-	// throttled. A successful VPP install requests a host refetch that re-runs policies
-	// immediately, so without throttling this would be a tight loop. It must NOT re-queue.
-	submitPolicyResult(continuousPolicy.ID, false)
+	// Transition policy now fails for the first time (pass→fail): queues its
+	// install. The continuous policy keeps failing (fail→fail) within the
+	// interval: it is throttled. A successful VPP install requests a host
+	// refetch that re-runs policies immediately, so without throttling this
+	// would be a tight loop. It must NOT re-queue.
+	submitPolicyResults(bothFail)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, transitionCount(), "first install for transition policy")
+	}, 5*time.Second, 100*time.Millisecond)
 	require.Never(t, func() bool {
 		return continuousCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+	completeVPPInstall()
 
-	// After the interval elapses, the continuous policy re-fires.
+	// After the interval elapses, the continuous policy re-fires; the default
+	// (transition-only) policy still does not.
 	ageVPPInstall(continuousPolicy.ID)
-	step(continuousPolicy.ID, 2, continuousCount, "continuous policy must re-fire after the cooldown elapses")
-
-	// The default (transition-only) policy never re-fires on fail→fail.
-	submitPolicyResult(transitionPolicy.ID, false)
+	submitPolicyResults(bothFail)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 2, continuousCount(), "continuous policy must re-fire after the cooldown elapses")
+	}, 5*time.Second, 100*time.Millisecond)
+	completeVPPInstall()
 	require.Never(t, func() bool {
 		return transitionCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
@@ -19403,8 +20822,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	// Final: passing results never trigger an install, regardless of mode.
 	continuousBefore := continuousCount()
 	transitionBefore := transitionCount()
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)})
 	require.Never(t, func() bool {
 		return continuousCount() != continuousBefore
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")
@@ -19479,7 +20897,8 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 	}, http.StatusOK, &addAppResp)
 
 	var listSw listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw,
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw,
 		"team_id", fmt.Sprint(team.ID),
 		"available_for_install", "true",
 		"query", addedApp.Name,
@@ -20041,7 +21460,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	require.NoError(t, err)
 
 	// first a quick stats check without disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20050,7 +21469,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
 
 	// enable disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20132,7 +21551,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	require.NoError(t, err)
 
 	// ensure disk encryption is disabled
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(false)}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20163,7 +21582,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	}
 
 	// now turn disk encryption on
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
@@ -20997,7 +22416,8 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	// do some gitops checks
 	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
 	var batchAssociateResponse batchAssociateAppStoreAppsResponse
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -21005,13 +22425,16 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 			},
 		}, http.StatusOK, &batchAssociateResponse,
 	)
+	// the batch response returns the categories it uses and added
+	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, batchAssociateResponse.Categories)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
 	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
 	// test GitOps with Security and Utilities categories
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -21022,10 +22445,11 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"🔐 Security", "🛟 Support"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.ElementsMatch(t, []string{"🔐 Security", "🛠️ Utilities"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
 	// empty out categories via gitops
-	s.DoJSON("POST",
+	s.DoJSON(
+		"POST",
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
@@ -21066,7 +22490,12 @@ func (s *integrationMDMTestSuite) TestServiceDiscovery() {
 
 	res := serviceDiscoveryResponse{}
 	s.DoJSON("GET", "/mdm/apple/service_discovery", nil, http.StatusOK, &res)
-	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath)
+	require.Contains(t, res.Servers[0].BaseURL, apple_mdm.AccountDrivenEnrollPath) // nolint:staticcheck // kept for backwards compatible testing
+	require.Equal(t, "mdm-byod", res.Servers[0].Version)
+
+	// Verify /{token} path works and passes it through
+	s.DoJSON("GET", "/mdm/apple/service_discovery/fake-token", nil, http.StatusOK, &res)
+	require.Contains(t, res.Servers[0].BaseURL, strings.Replace(apple_mdm.AccountDrivenEnrollTokenPath, "{token}", "fake-token", 1))
 	require.Equal(t, "mdm-byod", res.Servers[0].Version)
 }
 
@@ -21116,20 +22545,24 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, "/enroll")) // expect to be redirect from /enroll page for BYOD
 
-	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
-	// still redirects to the SSO login if the cookie value does not match the
-	// enrollment reference query string.
+	var byodSession string
+	for _, c := range res.Cookies() {
+		if c.Name == shared_mdm.BYODIdpCookieName {
+			byodSession = c.Value
+		}
+	}
+	require.NotEmpty(t, byodSession)
+
+	// a cookie that merely matches the enrollment reference in the query string
+	// is not an authenticated session and still redirects to the SSO login.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusSeeOther,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "not_matching!")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
 	location = res.Header.Get("Location")
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, testSAMLIDPBaseURL+"/simplesaml/"))
 
-	// requesting the /enroll page again and simulating the BYOD IdP cookie being
-	// set renders the download profile page when there is a matching enrollment
-	// reference.
 	res = s.DoRawWithHeaders("GET", "/enroll", nil, http.StatusOK,
-		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=abc"}, "enroll_secret", "idp", "enrollment_reference", "abc")
+		map[string]string{"Cookie": shared_mdm.BYODIdpCookieName + "=" + byodSession}, "enroll_secret", "idp")
 	page, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(page), "How to enroll your Android device to Fleet")
@@ -21183,8 +22616,17 @@ func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
 	// The callback should redirect back to the /enroll page (not to ?error=true).
 	require.True(t, strings.HasPrefix(u.Path, "/enroll"), "expected redirect to /enroll, got: %s", location)
 	require.Empty(t, u.Query().Get("error"), "expected no error in redirect, got: %s", location)
-	require.NotEmpty(t, u.Query().Get("enrollment_reference"), "expected enrollment_reference in redirect")
+	require.Empty(t, u.Query().Get("enrollment_reference"), "expected no enrollment_reference in redirect, got: %s", location)
 	require.Equal(t, fleet.SSOInitiatorOTAEnroll, u.Query().Get("initiator"))
+	var byodCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == shared_mdm.BYODIdpCookieName {
+			byodCookie = c
+		}
+	}
+	require.NotNil(t, byodCookie, "expected BYOD IdP session cookie")
+	require.NotEmpty(t, byodCookie.Value)
+	require.Equal(t, int(shared_mdm.BYODIdPSessionTTL.Seconds()), byodCookie.MaxAge)
 }
 
 func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
@@ -21260,8 +22702,10 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		case "pushmagic" + failedMdmDeviceTokenInactive.SerialNumber:
 			return map[string]*push.Response{
 				pushObject.Token.String(): {
-					Id:  failedPushUUID,
-					Err: errors.New("device token is inactive"),
+					Id: failedPushUUID,
+					// same shape the nanopush provider returns on a 410
+					Err: fmt.Errorf("push HTTP status: 410: %w",
+						&nanopush.JSONPushError{Reason: "Unregistered", Timestamp: time.Now().UnixMilli()}),
 				},
 			}, nil
 		case "pushmagic" + failedMdmDevice.SerialNumber:
@@ -22233,11 +23677,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err := s.ds.GetHostMDMCommands(ctx, hostBYOD.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostBYOD.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostBYOD.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands := func(mdmClient *mdmtest.TestAppleMDMClient, managedOnly bool, wantAppListCount int) {
 		var installedAppListCount int
@@ -22280,11 +23721,8 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	commands, err = s.ds.GetHostMDMCommands(ctx, hostDEP.ID)
 	require.NoError(t, err)
 	require.Len(t, commands, 3)
-	assert.ElementsMatch(t, []fleet.HostMDMCommand{
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
-		{HostID: hostDEP.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
-	}, commands)
+	requireTrackedRefetchCommands(t, commands, hostDEP.ID,
+		fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix)
 
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
@@ -22353,7 +23791,7 @@ func (s *integrationMDMTestSuite) TestAndroidEnroll() {
 	require.NotNil(t, host1.MDM.EnrollmentStatus)
 	require.Equal(t, "On (automatic)", *host1.MDM.EnrollmentStatus)
 	require.NotNil(t, host2.MDM.EnrollmentStatus)
-	require.Equal(t, "On (personal)", *host2.MDM.EnrollmentStatus)
+	require.Equal(t, "On (manual - personal)", *host2.MDM.EnrollmentStatus)
 
 	// Do the same but with a team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test team", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
@@ -22365,7 +23803,7 @@ func (s *integrationMDMTestSuite) TestAndroidEnroll() {
 	require.NotNil(t, host3.MDM.EnrollmentStatus)
 	require.Equal(t, "On (automatic)", *host3.MDM.EnrollmentStatus)
 	require.NotNil(t, host4.MDM.EnrollmentStatus)
-	require.Equal(t, "On (personal)", *host4.MDM.EnrollmentStatus)
+	require.Equal(t, "On (manual - personal)", *host4.MDM.EnrollmentStatus)
 }
 
 // TestTechnicianPermissions tests the permissions listed in ../../docs/Using\ Fleet/manage-access.md
@@ -22427,6 +23865,22 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.NoError(t, err)
 	team1Host.OrbitNodeKey = ptr.String(setOrbitEnrollment(t, team1Host, s.ds))
 	globalHost := createOrbitEnrolledHost(t, "ubuntu", "3", s.ds)
+	// Hosts that only exist to be deleted by the technician users below.
+	newHostToDelete := func(suffix string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			NodeKey:  new(t.Name() + suffix),
+			UUID:     t.Name() + suffix,
+			Hostname: strings.ReplaceAll(t.Name()+suffix+".local", "/", "_"),
+			TeamID:   teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	globalHostToDelete := newHostToDelete("del-global", nil)
+	globalHostToBulkDelete := newHostToDelete("del-global-bulk", nil)
+	team1HostToDelete := newHostToDelete("del-t1", &t1.ID)
+	team1HostToBulkDelete := newHostToDelete("del-t1-bulk", &t1.ID)
+	team2HostToDelete := newHostToDelete("del-t2", &t2.ID)
 	q1, err := s.ds.NewQuery(ctx, &fleet.Query{
 		Name:    "Foo",
 		Query:   "SELECT * from time;",
@@ -22437,6 +23891,14 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	team1MacOSHost, team1MacOSMDMClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team1MacOSHost.ID}}, http.StatusOK)
+	// iOS hosts to test clearing passcodes (MDM enrollment sends the unlock token).
+	globalIOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	team1IOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team1IOSHost.ID}}, http.StatusOK)
+	team2IOSHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &t2.ID, HostIDs: []uint{team2IOSHost.ID}}, http.StatusOK)
 	// Add a configuration profile to t1.
 	mcUUID := "a" + uuid.NewString()
 	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
@@ -22693,8 +24155,15 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
 
-	// Attempt to delete hosts, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h1.ID), nil, http.StatusForbidden, &deleteHostResponse{})
+	// Attempt to delete a host, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", globalHostToDelete.ID), nil, http.StatusOK, &deleteHostResponse{})
+	_, err = s.ds.HostLite(ctx, globalHostToDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Attempt to bulk delete hosts, should allow.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{globalHostToBulkDelete.ID}}, http.StatusOK, &deleteHostsResponse{})
+	_, err = s.ds.HostLite(ctx, globalHostToBulkDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
 
 	// Attempt to transfer host from global to a team, should allow.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
@@ -22707,6 +24176,14 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		TeamID:  nil,
 		HostIDs: []uint{h1.ID},
 	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// Attempt to clear the passcode on an iOS host, should allow.
+	var cpResp fleet.ClearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", globalIOSHost.ID), nil, http.StatusOK, &cpResp)
+
+	// Attempt to lock a host, should fail. Lock, unlock and wipe share the same
+	// authorization, so lock stands in for all three.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", globalIOSHost.ID), nil, http.StatusForbidden)
 
 	// Attempt to create a global label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -23145,6 +24622,37 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.Nil(t, teamTechConfigResp.SSOSettings)
 	require.Nil(t, teamTechConfigResp.AgentOptions)
 
+	// Attempt to clear the passcode on an iOS host of its team, should allow.
+	var teamCpResp fleet.ClearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team1IOSHost.ID), nil, http.StatusOK, &teamCpResp)
+
+	// Attempt to clear the passcode on an iOS host of another team, should fail
+	// masked as not-found so other fleets' host IDs can't be probed.
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team2IOSHost.ID), nil, http.StatusNotFound)
+
+	// Attempt to delete a host of its team, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team1HostToDelete.ID), nil, http.StatusOK, &deleteHostResponse{})
+	_, err = s.ds.HostLite(ctx, team1HostToDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Attempt to delete a host of another team or with no team, should fail
+	// masked as not-found.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team2HostToDelete.ID), nil, http.StatusNotFound)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h1.ID), nil, http.StatusNotFound)
+
+	// Attempt to bulk delete hosts mixing its team and another team, should
+	// fail without deleting any host.
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{team1HostToBulkDelete.ID, team2HostToDelete.ID}}, http.StatusNotFound)
+	_, err = s.ds.HostLite(ctx, team1HostToBulkDelete.ID)
+	require.NoError(t, err)
+	_, err = s.ds.HostLite(ctx, team2HostToDelete.ID)
+	require.NoError(t, err)
+
+	// Attempt to bulk delete hosts of its team only, should allow.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{team1HostToBulkDelete.ID}}, http.StatusOK, &deleteHostsResponse{})
+	_, err = s.ds.HostLite(ctx, team1HostToBulkDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
+
 	// Attempt to create queries in global domain, should allow.
 	tcqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
@@ -23213,8 +24721,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		},
 	}, http.StatusForbidden, &ttsqr)
 
-	// Attempt to remove a query from the team's schedule, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, q1.ID), deleteTeamScheduleRequest{}, http.StatusForbidden, &deleteTeamScheduleResponse{})
+	// Attempt to remove a query from the team's schedule, should fail. q1 is a
+	// global query, so it is not in t1's schedule at all: the fleet_id in the
+	// path no longer matches the report, and the response is the same
+	// not-found a nonexistent report would get rather than a forbidden that
+	// would confirm the report exists outside this fleet.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", t1.ID, q1.ID), deleteTeamScheduleRequest{}, http.StatusNotFound, &deleteTeamScheduleResponse{})
 
 	// Attempt to add/remove a manual label from a team host, should allow.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
@@ -23524,11 +25036,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host from a team the technician does not manage to
-	// a team they do manage (no team -> t1), should fail.
+	// a team they do manage (no team -> t1), should fail. The technician can't
+	// read the "No team" host, so it's reported as not found rather than
+	// forbidden to avoid confirming its existence.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &t1.ID,
 		HostIDs: []uint{globalHost.ID},
-	}, http.StatusForbidden, &addHostsToTeamResponse{})
+	}, http.StatusNotFound, &addHostsToTeamResponse{})
 
 	// Attempt to transfer a host out of a team the technician manages to
 	// "No team" (a team they do not manage), should fail.
@@ -23569,11 +25083,54 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NoError(t, err)
 	}
 
+	// Helper that walks the two-command handshake a recovery lock operation now takes: the
+	// device acknowledges SetRecoveryLock, Fleet responds by enqueuing VerifyRecoveryLock,
+	// and only once the device acknowledges that too does the staged password become the
+	// host's active one. Returns the SetRecoveryLock command that was acknowledged.
+	ackSetThenVerify := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
+		t.Helper()
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		// The verify command is enqueued while this acknowledgment is being handled, so it
+		// may not ride back on that same response; fall back to the next check-in.
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd, "acknowledging SetRecoveryLock should enqueue VerifyRecoveryLock")
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+
+		// An acknowledgment alone isn't a pass: the verdict rides in PasswordVerified.
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+		return setCmd
+	}
+
 	// Helper to get host details and return recovery lock password status
 	getHostRecoveryLockStatus := func(hostID uint) *fleet.HostMDMRecoveryLockPassword {
 		var getHostResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &getHostResp)
 		return &getHostResp.Host.MDM.OSSettings.RecoveryLockPassword
+	}
+
+	// archivedSetCommandUUIDs returns the SetRecoveryLock commands whose passwords Fleet
+	// cannot rule out as the one the device holds, newest first. The archive is a DB-only
+	// backstop with no read path, so this reads it directly.
+	archivedSetCommandUUIDs := func(t *testing.T, hostUUID string) []string {
+		t.Helper()
+		var cmdUUIDs []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(t.Context(), q, &cmdUUIDs, `
+				SELECT COALESCE(set_command_uuid, '')
+				FROM host_recovery_key_password_archive
+				WHERE host_uuid = ? ORDER BY id DESC`, hostUUID)
+		})
+		return cmdUUIDs
 	}
 
 	// =========================================================================
@@ -23623,21 +25180,19 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status, "status should be set after cron runs")
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status, "status should be pending")
 
-		// Simulate MDM client checking in and receiving the command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-
-		// Acknowledge the command (success)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// Simulate the device acknowledging SetRecoveryLock and then the VerifyRecoveryLock
+		// that Fleet issues to confirm the device really took the password.
+		setCmd := ackSetThenVerify(t, mdmClient)
 
 		// Host should now be in verified state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "status should be verified after acknowledgment")
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, "status should be verified after the verify step")
 		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// A host that confirms what it holds rules out every earlier candidate, so the
+		// archive settles at one row: the set command that delivered the active password.
+		assert.Equal(t, []string{setCmd.CommandUUID}, archivedSetCommandUUIDs(t, host.UUID))
 
 		// Verify activity was created for setting password
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName(),
@@ -23668,17 +25223,23 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 
-		// Simulate MDM client receiving command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		// This error is transient, so it is retried rather than failed outright. The host is
+		// only marked failed once the retry budget is exhausted.
+		for attempt := 0; attempt <= maxRecoveryLockRetries; attempt++ {
+			if attempt > 0 {
+				// A retry clears the status, so the next cron tick re-enqueues the command.
+				runRecoveryLockCron(t)
+			}
+			cmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd, "attempt %d should have a command queued", attempt)
+			assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
 
-		// Simulate error response
-		_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
-		})
-		require.NoError(t, err)
+			_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
+			})
+			require.NoError(t, err)
+		}
 
 		// Host should now be in failed state
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -23703,13 +25264,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command
+		// Run cron and complete the set + verify handshake
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Get recovery lock password via API
 		var getPasswordResp getHostRecoveryLockPasswordResponse
@@ -23739,44 +25296,35 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Get the current password
 		var getPasswordResp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
 
 		// Initiate rotation
 		var rotateResp rotateRecoveryLockPasswordResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateResp)
 
-		// Host should still have a password (pending rotation)
+		// While the rotation is in flight the row is no longer 'verified', so the API
+		// withholds the password rather than hand back one that may already be stale.
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		// Password should still be the original until rotation is acknowledged
-		assert.Equal(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Nil(t, getPasswordResp.RecoveryLockPassword.Password, "password is withheld until the rotation verifies")
 
-		// MDM client receives SetRecoveryLock command for rotation
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-
-		// Acknowledge the rotation command
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// The rotation is delivered and verified the same way an initial set is
+		ackSetThenVerify(t, mdmClient)
 
 		// Password should now be different (rotated)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password, "password should be different after rotation")
+		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password, "password should be different after rotation")
 
 		// Verify activity was created for user-triggered rotation
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
@@ -23820,13 +25368,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 
-		// Now simulate the MDM client receiving and acknowledging the SetRecoveryLock command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// Now simulate the device completing the set + verify handshake
+		ackSetThenVerify(t, mdmClient)
 
 		// Host is now verified
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -23853,13 +25396,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
@@ -23878,15 +25417,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *rlpStatus.Status)
 
-		// Simulate MDM client receiving ClearRecoveryLock command
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType) // ClearRecoveryLock is also SetRecoveryLock command type
-
-		// Acknowledge clear command
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// The clear is delivered as a SetRecoveryLock with an empty new password, and is
+		// confirmed by its own VerifyRecoveryLock before the row is dropped.
+		ackSetThenVerify(t, mdmClient)
 
 		// Host should no longer have a recovery lock password record
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -23905,13 +25438,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Disable feature to trigger clear
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
@@ -24012,12 +25541,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 
-		// Acknowledge command
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// Complete the set + verify handshake
+		ackSetThenVerify(t, mdmClient)
 
 		// Verify host is verified
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -24051,16 +25576,22 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		runRecoveryLockCron(t)
 
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-
-		// Simulate specific error
+		// This error is transient, so it is retried; the message is only persisted as a
+		// terminal failure once the retry budget is spent.
 		errorMsg := "DeviceAlreadyHasPIN"
-		_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: errorMsg},
-		})
-		require.NoError(t, err)
+		for attempt := 0; attempt <= maxRecoveryLockRetries; attempt++ {
+			if attempt > 0 {
+				runRecoveryLockCron(t)
+			}
+			cmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd, "attempt %d should have a command queued", attempt)
+
+			_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: errorMsg},
+			})
+			require.NoError(t, err)
+		}
 
 		// Verify error message is captured in detail
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -24127,13 +25658,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
 		}
 
-		// Acknowledge commands for all hosts
+		// Complete the set + verify handshake for all hosts
 		for _, c := range mdmClients {
-			cmd, err := c.Idle()
-			require.NoError(t, err)
-			require.NotNil(t, cmd)
-			_, err = c.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
+			ackSetThenVerify(t, c)
 		}
 
 		// All hosts should be verified
@@ -24160,13 +25687,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// View the password
 		var getPasswordResp getHostRecoveryLockPasswordResponse
@@ -24196,19 +25719,17 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron and acknowledge command to get to verified state
+		// Run cron and complete the set + verify handshake to get to verified state
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Get the original password
 		var getPasswordResp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
 
 		// Manually set auto_rotate_at to the past to trigger auto-rotation
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -24221,21 +25742,14 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Run the cron job - should trigger auto-rotation
 		runRecoveryLockCron(t)
 
-		// Host should receive SetRecoveryLock command for rotation
-		// (rotation uses the same MDM command type as initial setup, but with a new password)
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd, "should receive rotation command")
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-
-		// Acknowledge the rotation command
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		// The rotation is delivered as a SetRecoveryLock and confirmed by its own
+		// VerifyRecoveryLock, exactly like an initial set.
+		ackSetThenVerify(t, mdmClient)
 
 		// Password should now be different (rotated)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password, "password should be different after auto-rotation")
+		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password, "password should be different after auto-rotation")
 
 		// auto_rotate_at should be set again (viewing the password schedules another rotation)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword.AutoRotateAt, "auto_rotate_at should be set after viewing rotated password")
@@ -24263,15 +25777,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 
-		// Run cron → pending, then ack → verified.
+		// Run cron → pending, then complete the set + verify handshake → verified.
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		require.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-		originalCmdUUID := cmd.CommandUUID
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		originalCmdUUID := ackSetThenVerify(t, mdmClient).CommandUUID
 
 		// Host detail API reports verified.
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -24283,7 +25791,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		var getPasswordResp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
 		require.NotEmpty(t, originalPassword)
 
 		// Simulate device re-enrollment (MDM profile was removed, device re-enrolls).
@@ -24302,16 +25812,11 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status, "cron must re-enqueue SetRecoveryLock after re-enrollment")
 		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
-		assert.True(t, rlpStatus.PasswordAvailable)
+		assert.False(t, rlpStatus.PasswordAvailable, "password should only be available when verified")
 
 		// Ack the re-enrollment's fresh command.
-		cmd, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd, "a fresh SetRecoveryLock command must be delivered after re-enrollment")
-		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
-		assert.NotEqual(t, originalCmdUUID, cmd.CommandUUID, "re-enrollment must enqueue a new command, not replay the old one")
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		freshCmd := ackSetThenVerify(t, mdmClient)
+		assert.NotEqual(t, originalCmdUUID, freshCmd.CommandUUID, "re-enrollment must enqueue a new command, not replay the old one")
 
 		// Verified again, with a different password than before the re-enrollment.
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
@@ -24320,10 +25825,224 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
 		assert.NotEmpty(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password,
+		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password,
 			"a new password must be generated after re-enrollment; the original is no longer on the device")
 
 		// Disable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: the case the archive exists for. The device acknowledged the set, so it is
+	// holding the new password, but Fleet never got a verify through — the row ends up
+	// failed with the *old* password still active. Without the archive the password now
+	// on the device would be unrecoverable.
+	// =========================================================================
+	t.Run("a password the device may hold survives a failed verify in the archive", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		// The device took the password. Every verify Fleet sends to confirm it fails
+		// transiently, until the retry budget runs out.
+		cmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		for attempt := 0; attempt <= maxRecoveryLockRetries+1; attempt++ {
+			if cmd == nil {
+				cmd, err = mdmClient.Idle()
+				require.NoError(t, err)
+			}
+			if cmd == nil {
+				break
+			}
+			require.Equal(t, "VerifyRecoveryLock", cmd.Command.RequestType)
+			cmd, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12345, ErrorDomain: "SomeTransientError", LocalizedDescription: "Temporary failure"},
+			})
+			require.NoError(t, err)
+		}
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		require.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+
+		// Fleet never confirmed it, so it never became the active password and the host
+		// detail API has nothing to offer — but the device is most likely locked with it,
+		// and the archive is the only place it still exists.
+		assert.False(t, rlpStatus.PasswordAvailable)
+		assert.Equal(t, []string{setCmd.CommandUUID}, archivedSetCommandUUIDs(t, host.UUID),
+			"a password the device acknowledged must stay recoverable after the verify fails")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: a device acknowledges VerifyRecoveryLock even when the password did not
+	// match, and reports the verdict in PasswordVerified. An acknowledgment on its own
+	// must not be read as a successful verification.
+	// =========================================================================
+	t.Run("verify acknowledged with PasswordVerified false fails the host", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+
+		// Acknowledged, but the device says the password isn't the one it holds.
+		nextCmd, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, false)
+		require.NoError(t, err)
+		assert.Nil(t, nextCmd, "a device that answered no must not be asked the same thing again")
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status,
+			"an acknowledgment carrying PasswordVerified=false must not verify the host")
+		assert.Contains(t, rlpStatus.Detail, "does not match")
+		assert.False(t, rlpStatus.PasswordAvailable)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: re-enrollment soft-deletes the row but keeps the last known password.
+	// If the device did NOT actually drop its lock, the fresh SetRecoveryLock is
+	// rejected with a password mismatch (MDMClientError 70). Rather than failing
+	// outright, Fleet verifies the password it still has on file.
+	// =========================================================================
+
+	// Drives the fallback: re-enroll a verified host, let the cron re-SET, and have the
+	// device reject that set with a password mismatch. Returns the last known password
+	// (the one stored before re-enrollment) and the VerifyRecoveryLock command Fleet
+	// issued in response.
+	mismatchAfterReenroll := func(t *testing.T, host *fleet.Host, mdmClient *mdmtest.TestAppleMDMClient) (string, *mdm.Command) {
+		t.Helper()
+
+		// Get to verified first so Fleet has a known-good password on file.
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		// Copy the value: unmarshalling the next response reuses this pointer.
+		knownPassword := *getPasswordResp.RecoveryLockPassword.Password
+		require.NotEmpty(t, knownPassword)
+
+		// Re-enrollment soft-deletes the row. The stored password survives the delete,
+		// which is what makes the fallback below possible.
+		require.NoError(t, mdmClient.Reenroll())
+
+		// The cron treats the host as fresh and enqueues a SetRecoveryLock carrying only
+		// a NewPassword — no CurrentPassword, since Fleet assumes the lock is gone.
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+
+		// The device still holds the pre-re-enrollment lock, so it rejects the set.
+		verifyCmd, err := mdmClient.Err(setCmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Existing recovery lock password not provided"},
+		})
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd, "a mismatch with a known password on file must enqueue VerifyRecoveryLock")
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+		// The verify must carry the last known password, not the fresh one the device
+		// just rejected.
+		assert.Contains(t, string(verifyCmd.Raw), knownPassword,
+			"verify must be sent with the last known password")
+
+		return knownPassword, verifyCmd
+	}
+
+	t.Run("password mismatch after re-enrollment verifies the last known password", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		knownPassword, verifyCmd := mismatchAfterReenroll(t, host, mdmClient)
+
+		// The device confirms it still has that password.
+		_, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status,
+			"a verified last known password must not leave the host failed")
+		assert.Empty(t, rlpStatus.Detail)
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// The password the admin can read must be the one the device actually has, not
+		// the fresh one it rejected.
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Equal(t, knownPassword, *getPasswordResp.RecoveryLockPassword.Password)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	t.Run("password mismatch after re-enrollment fails when the last known password does not verify", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		_, verifyCmd := mismatchAfterReenroll(t, host, mdmClient)
+
+		// The device rejects the last known password too: whatever lock it holds is one
+		// Fleet doesn't know. Nothing left to try, so this is terminal.
+		nextCmd, err := mdmClient.Err(verifyCmd.CommandUUID, []mdm.ErrorChain{
+			{ErrorCode: 70, ErrorDomain: "MDMClientError", LocalizedDescription: "Recovery lock password not set"},
+		})
+		require.NoError(t, err)
+		assert.Nil(t, nextCmd, "a terminal verify failure must not enqueue another command")
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+		assert.Contains(t, rlpStatus.Detail, "Recovery lock password not set")
+		assert.False(t, rlpStatus.PasswordAvailable)
+
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
 		}, http.StatusOK, &appConfigResponse{})
@@ -24339,11 +26058,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		// Verified before the unenroll.
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -24382,11 +26097,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
@@ -24418,11 +26129,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		runRecoveryLockCron(t)
-		cmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, cmd)
-		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
+		ackSetThenVerify(t, mdmClient)
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
@@ -24497,7 +26204,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	s.Do("PATCH", "/api/latest/fleet/setup_experience",
 		fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Assign ABM org to the team
 	var acResp appConfigResponse
@@ -24694,7 +26401,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
 			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 		// Existing host's password is still readable
 		pwdResp = getHostManagedAccountPasswordResponse{}
@@ -24779,7 +26486,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 		require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
-			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "platform": "darwin"}`, 0)
 
 		// Patching same value again should not create a new activity
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
@@ -24796,7 +26503,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 		require.False(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
-			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "platform": "darwin"}`, 0), lastActivityID)
 	})
 
 	t.Run("Rotation flow", func(t *testing.T) {
@@ -24806,7 +26513,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 			t.Helper()
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			require.NoError(t, apple_mdm.SendManagedLocalAccountRotationCommands(
-				t.Context(), s.ds, s.mdmCommander, logger, s.fleetSvc.NewActivity))
+				t.Context(), s.ds, s.mdmCommander, logger, s.fleetSvc.NewActivity,
+			))
 		}
 
 		// Re-enable managed local account on the team for this subtest.
@@ -24938,7 +26646,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Auto-rotation activity exists and is FleetInitiated.
 		var fleetActivities listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &fleetActivities,
-			"order_key", "a.id", "order_direction", "desc", "per_page", "20")
+			"order_key", "id", "order_direction", "desc", "per_page", "20")
 		rotateActivityName := fleet.ActivityTypeRotatedManagedLocalAccountPassword{}.ActivityName()
 		var sawFleetRotation bool
 		for _, a := range fleetActivities.Activities {
@@ -25052,7 +26760,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 		tm := createTeamResp.Team
 		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
-		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
+		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, tm.ID, tm.Name, tm.ID, tm.Name)
 
 		// Enable via PATCH /setup_experience
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
@@ -25082,6 +26790,40 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			expectedDetail, 0), lastActivityID)
 	})
+
+	t.Run("Setup experience team config via Update fleet endpoint", func(t *testing.T) {
+		// Create a team
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		tm := createTeamResp.Team
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, tm.ID, tm.Name, tm.ID, tm.Name)
+
+		// Enable via PATCH /teams/:id
+		var tmResp teamResponse
+		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+		}, http.StatusOK, &tmResp)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			expectedDetail, 0)
+
+		// Patching same value again should not create a new activity
+		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+		}, http.StatusOK, &tmResp)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			``, lastActivityID)
+
+		// Disable
+		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}},
+		}, http.StatusOK, &tmResp)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(), expectedDetail, 0)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesActivity() {
@@ -25094,7 +26836,8 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	setRenewCommandUUID := func(cmdUUID *string) {
 		t.Helper()
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`UPDATE nano_cert_auth_associations SET renew_command_uuid = ? WHERE id = ?`,
 				cmdUUID, host.UUID,
 			)
@@ -25107,7 +26850,8 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	insertNanoCommand := func(cmdUUID string) {
 		t.Helper()
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
+			_, err := q.ExecContext(
+				ctx,
 				`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'InstallProfile', '<?xml version="1.0"?>')`,
 				cmdUUID,
 			)
@@ -25179,4 +26923,2334 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	setRenewCommandUUID(&case4RenewCmd)
 	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case4RenewCmd, &verifying, "", s.fleetSvc.NewActivity))
 	require.Zero(t, countRenewalActivitiesForCmd(case4RenewCmd))
+}
+
+func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
+	t := s.T()
+	ctx := context.Background()
+	installAllActivityName := fleet.ActivityTypeInstalledAllSelfServiceSoftware{}.ActivityName()
+
+	installAll := func(token string, expectedStatus int, qp ...string) {
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token), nil, expectedStatus, qp...)
+	}
+	deviceInstall := func(token string, titleID uint) {
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleID), nil, http.StatusAccepted)
+	}
+	countRows := func(query string, args ...any) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, query, args...)
+		})
+		return n
+	}
+	// queued software-install titles for a host, in insertion (queue) order
+	queuedTitles := func(hostID uint) []string {
+		var titles []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &titles, `
+				SELECT st.name
+				FROM upcoming_activities ua
+				JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				JOIN software_titles st ON st.id = siua.software_title_id
+				WHERE ua.host_id = ? AND ua.activity_type = 'software_install'
+				ORDER BY ua.id`, hostID)
+		})
+		return titles
+	}
+	// create a no-team or team self-service deb installer, returning its title id
+	newInstaller := func(name string, teamID *uint, selfService bool, labels fleet.LabelIdentsWithScope, categoryIDs ...uint) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
+		require.NoError(t, err)
+		_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			StorageID:       name + "-storage",
+			Filename:        name + ".deb",
+			Title:           name,
+			Extension:       "deb",
+			Source:          "deb_packages",
+			Platform:        "linux",
+			Version:         "1.0",
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			InstallerFile:   tfr,
+			SelfService:     selfService,
+			UserID:          s.users["admin1@example.com"].ID,
+			TeamID:          teamID,
+			ValidatedLabels: &labels,
+			CategoryIDs:     categoryIDs,
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+	// complete the host's currently-activated (head) install with the given exit code
+	completeActivatedInstall := func(host *fleet.Host, exitCode int) {
+		var uid string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT execution_id FROM host_software_installs WHERE host_id = ? AND status = 'pending_install' LIMIT 1`, host.ID)
+		})
+		require.NotEmpty(t, uid, "expected an activated install to complete")
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": %d, "install_script_output": "done"}`, *host.OrbitNodeKey, uid, exitCode)),
+			http.StatusNoContent)
+	}
+
+	// VPP and in-house installs are exercised by the runs below. A stateless mock
+	// stands in for Apple's VPP API and a global VPP token is inserted. Apple MDM is
+	// already enabled by the MDM suite.
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/disassociate"):
+			_, _ = w.Write([]byte(`{"eventId":"d"}`))
+		case strings.Contains(r.URL.Path, "associate"):
+			_, _ = w.Write([]byte(`{"eventId":"evt"}`))
+		case strings.Contains(r.URL.Path, "assets"):
+			var assets []vpp.Asset
+			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
+				assets = []vpp.Asset{{AdamID: adamID, PricingParam: "STDQ", AvailableCount: 12}}
+			}
+			_ = json.NewEncoder(w).Encode(map[string][]vpp.Asset{"assets": assets})
+		default:
+			_, _ = w.Write([]byte(`{"locationName":"Fleet","countryISO2ACode":"US"}`))
+		}
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	// MDM-connect an Apple host (required for VPP candidacy and because activation
+	// of either Apple type enqueues an MDM command).
+	newMDMHost := func(platform, suffix string, teamID *uint) (*fleet.Host, string) {
+		host := createOrbitEnrolledHost(t, platform, suffix, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID})))
+		host.TeamID = teamID
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.HardwareSerial, host.Platform, host.TeamID)
+			return err
+		})
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1)`,
+				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_seen_times (id, seen_time) VALUES (?, ?)`, host.UUID, time.Now())
+			return err
+		})
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "Fleet", "", false))
+		token := suffix + "-tok"
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		return host, token
+	}
+	adamSeq := 0
+	newVPPApp := func(name string, teamID *uint, labels *fleet.LabelIdentsWithScope) uint {
+		adamSeq++
+		app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             name,
+			BundleIdentifier: "com.example." + name,
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID:        fleet.VPPAppID{AdamID: fmt.Sprint(adamSeq), Platform: fleet.MacOSPlatform},
+				SelfService:     true,
+				ValidatedLabels: labels,
+			},
+		}, teamID)
+		require.NoError(t, err)
+		return app.TitleID
+	}
+
+	t.Run("install statuses", func(t *testing.T) {
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-st", s.ds)
+		token := "ia-st-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
+				return err
+			})
+		})
+
+		// bad device token -> 401; nothing available to install -> 202 with no rows or roll-up
+		s.DoRawNoAuth("POST", "/api/latest/fleet/device/not-a-token/software/install_all", nil, http.StatusUnauthorized)
+		installAll(token, http.StatusAccepted)
+		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
+		s.lastActivityOfTypeDoesNotMatch(installAllActivityName, "", 0)
+
+		// Which self-service installs qualify (statuses, inventory, label/category/team
+		// scoping, alphabetical order) is covered in testGetSoftwareTitlesForInstallAll;
+		// here we verify the endpoint queues those installs, records the activities, and
+		// is idempotent. "installed" is a smoke check that an installed title stays out.
+		newInstaller("available", nil, true, fleet.LabelIdentsWithScope{})
+		newInstaller("also-available", nil, true, fleet.LabelIdentsWithScope{})
+		installedID := newInstaller("installed", nil, true, fleet.LabelIdentsWithScope{})
+		pendingID := newInstaller("pending", nil, true, fleet.LabelIdentsWithScope{})
+
+		// the host's queue runs one install at a time, so finish each before the next
+		deviceInstall(token, installedID)
+		completeActivatedInstall(host, 0) // -> installed, must be skipped
+		deviceInstall(token, pendingID)   // -> pending head, must be left untouched
+
+		// install_all queues only the available titles, in name order, after the
+		// already-pending title (which it leaves untouched and does not duplicate)
+		installAll(token, http.StatusAccepted)
+		require.Equal(t, []string{"pending", "also-available", "available"}, queuedTitles(host.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
+			host.ID, host.DisplayName(),
+		), 0)
+
+		// every queued install surfaces as a pending, self-service installed_software activity
+		var upcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcoming)
+		require.Len(t, upcoming.Activities, 3)
+		var actTitles []string
+		for _, act := range upcoming.Activities {
+			require.Equal(t, fleet.ActivityTypeInstalledSoftware{}.ActivityName(), act.Type)
+			var d fleet.ActivityTypeInstalledSoftware
+			require.NoError(t, json.Unmarshal(*act.Details, &d))
+			require.True(t, d.SelfService)
+			require.Equal(t, string(fleet.SoftwareInstallPending), d.Status)
+			actTitles = append(actTitles, d.SoftwareTitle)
+		}
+		require.ElementsMatch(t, []string{"pending", "also-available", "available"}, actTitles)
+
+		// idempotent: a second call adds nothing
+		installAll(token, http.StatusAccepted)
+		require.Len(t, queuedTitles(host.ID), 3)
+
+		// the same MDM-enrolled darwin host installs custom packages (chrome, zoom) and a
+		// VPP app (slack); install_all queues them intermixed, sorted by name (not grouped
+		// by type). (In-house apps are iOS/iPadOS-only and the device endpoint is desktop-
+		// only, so those installs are covered in the MDM suite, not here.)
+		macTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-statuses"})
+		require.NoError(t, err)
+		macHost, macTok := newMDMHost("darwin", "av-statuses", &macTeam.ID)
+		newMacOSInstaller := func(name string) {
+			tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
+			require.NoError(t, err)
+			_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				StorageID:       name + "-storage",
+				Filename:        name + ".pkg",
+				Title:           name,
+				Extension:       "pkg",
+				Source:          "apps",
+				Platform:        "darwin",
+				Version:         "1.0",
+				InstallScript:   "install",
+				UninstallScript: "uninstall",
+				InstallerFile:   tfr,
+				SelfService:     true,
+				UserID:          s.users["admin1@example.com"].ID,
+				TeamID:          &macTeam.ID,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+		}
+		newMacOSInstaller("chrome")          // custom package
+		newMacOSInstaller("zoom")            // custom package
+		newVPPApp("slack", &macTeam.ID, nil) // VPP app; sorts between the packages
+		installAll(macTok, http.StatusAccepted)
+
+		// the package and VPP installs queue intermixed, in name order
+		var macHostUpcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", macHost.ID), nil, http.StatusOK, &macHostUpcoming)
+		var macQueued []string
+		for _, act := range macHostUpcoming.Activities {
+			var d struct {
+				SoftwareTitle string `json:"software_title"`
+			}
+			require.NoError(t, json.Unmarshal(*act.Details, &d))
+			macQueued = append(macQueued, d.SoftwareTitle)
+		}
+		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
+	})
+
+	// With a search query on the self-service page, install_all should queue
+	// only the titles whose name matches — matching what the user sees on
+	// screen.
+	t.Run("scopes to the query parameter when provided", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-q", s.ds)
+		token := "ia-q-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		newInstaller("q-apple", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("q-banana", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("q-cherry", &team.ID, true, fleet.LabelIdentsWithScope{})
+
+		installAll(token, http.StatusAccepted, "query", "ban")
+		require.Equal(t, []string{"q-banana"}, queuedTitles(host.ID))
+
+		// blank query behaves like no query — all three queue
+		installAll(token, http.StatusAccepted, "query", "")
+		require.ElementsMatch(t, []string{"q-banana", "q-apple", "q-cherry"}, queuedTitles(host.ID))
+	})
+
+	t.Run("coexists with existing and incoming activities", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-act", s.ds)
+		token := "ia-act-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		aID := newInstaller("act-a", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("act-b", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("act-c", &team.ID, true, fleet.LabelIdentsWithScope{})
+
+		// a manual install of A is already pending before install_all runs
+		deviceInstall(token, aID)
+		require.Equal(t, []string{"act-a"}, queuedTitles(host.ID))
+
+		// install_all appends the remaining titles behind A without re-queueing A
+		installAll(token, http.StatusAccepted)
+		require.Equal(t, []string{"act-a", "act-b", "act-c"}, queuedTitles(host.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
+			host.ID, host.DisplayName(),
+		), 0)
+
+		// the queue drains in order
+		for range 3 {
+			completeActivatedInstall(host, 0)
+		}
+		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
+		require.Equal(t, 3, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
+
+		// an install request arriving after install_all coexists and drains too
+		dID := newInstaller("act-d", &team.ID, true, fleet.LabelIdentsWithScope{})
+		deviceInstall(token, dID)
+		completeActivatedInstall(host, 0)
+		require.Equal(t, 4, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
+
+		// an install request racing install_all on the same host must not corrupt the
+		// queue: exactly one activated head, every install request present
+		host2 := createOrbitEnrolledHost(t, "ubuntu", "ia-act2", s.ds)
+		token2 := "ia-act2-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host2.ID, token2)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+
+		client := s.server.Client()
+		var wg sync.WaitGroup
+		var instErr, allErr error
+		var instStatus, allStatus int
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token2, aID), nil)
+			if err != nil {
+				instErr = err
+				return
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				instErr = err
+				return
+			}
+			resp.Body.Close()
+			instStatus = resp.StatusCode
+		}()
+		go func() {
+			defer wg.Done()
+			req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token2), nil)
+			if err != nil {
+				allErr = err
+				return
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				allErr = err
+				return
+			}
+			resp.Body.Close()
+			allStatus = resp.StatusCode
+		}()
+		wg.Wait()
+		require.NoError(t, instErr)
+		require.NoError(t, allErr)
+		require.Equal(t, http.StatusAccepted, allStatus)
+		// the single install may win (202) or find the title already queued by
+		// install_all (400); either way the queue must stay consistent
+		require.Contains(t, []int{http.StatusAccepted, http.StatusBadRequest}, instStatus)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'pending_install'`, host2.ID))
+		require.GreaterOrEqual(t, len(queuedTitles(host2.ID)), 4)
+
+		// double-queue: if another endpoint queues a title behind an activated head
+		// while install_all's title list (read before that) still includes it,
+		// install_all queues a second copy. Its per-install reset only cancels
+		// ACTIVATED installs, so the not-yet-activated concurrent install survives.
+		// This reproduces that interleaving deterministically using install_all's exact
+		// insert sequence (ResetNonPolicyInstallAttempts + InsertSoftwareInstallRequest).
+		host3 := createOrbitEnrolledHost(t, "ubuntu", "ia-dq", s.ds)
+		token3 := "ia-dq-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host3.ID, token3)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host3.ID})))
+
+		headID := newInstaller("dq-head", &team.ID, true, fleet.LabelIdentsWithScope{})
+		fooID := newInstaller("dq-foo", &team.ID, true, fleet.LabelIdentsWithScope{})
+		deviceInstall(token3, headID) // activated head
+		deviceInstall(token3, fooID)  // queued behind the head, not yet activated
+
+		var fooInstallerID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &fooInstallerID, `SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`, fooID, team.ID)
+		})
+		require.NoError(t, s.ds.ResetNonPolicyInstallAttempts(ctx, host3.ID, fooInstallerID))
+		_, err = s.ds.InsertSoftwareInstallRequest(ctx, host3.ID, fooInstallerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true})
+		require.NoError(t, err)
+
+		require.Equal(t, 2, countRows(`
+			SELECT COUNT(*) FROM upcoming_activities ua
+			JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+			JOIN software_titles st ON st.id = siua.software_title_id
+			WHERE ua.host_id = ? AND st.name = 'dq-foo'`, host3.ID))
+
+		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-activities"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-activities", &vppTeam.ID)
+		newVPPApp("vpp-activities", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+	})
+
+	t.Run("category label and team scoping", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		// a no-team installer must never be queued for a team host
+		newInstaller("global-app", nil, true, fleet.LabelIdentsWithScope{})
+		t.Cleanup(func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
+				return err
+			})
+		})
+
+		// hostA exercises team + label scoping
+		hostA := createOrbitEnrolledHost(t, "ubuntu", "ia-sc-a", s.ds)
+		tokenA := "ia-sc-a-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, hostA.ID, tokenA)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostA.ID})))
+
+		lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-lbl", Query: "select 1"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostA, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
+		includeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
+		excludeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
+
+		newInstaller("team-app", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("lbl-in", &team.ID, true, includeLbl)
+		newInstaller("lbl-out", &team.ID, true, excludeLbl)
+
+		// in scope: team-app and the include-any match; the exclude-any title and the
+		// no-team installer are skipped
+		installAll(tokenA, http.StatusAccepted)
+		require.ElementsMatch(t, []string{"team-app", "lbl-in"}, queuedTitles(hostA.ID))
+
+		// hostB exercises category scoping
+		hostB := createOrbitEnrolledHost(t, "ubuntu", "ia-sc-b", s.ds)
+		tokenB := "ia-sc-b-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, hostB.ID, tokenB)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostB.ID})))
+
+		cat, err := s.ds.NewSoftwareCategory(ctx, team.ID, t.Name()+"-cat")
+		require.NoError(t, err)
+		newInstaller("cat-app", &team.ID, true, fleet.LabelIdentsWithScope{}, cat.ID)
+
+		// scoped to the category -> only its title, and the roll-up carries the category
+		installAll(tokenB, http.StatusAccepted, "category_id", fmt.Sprint(cat.ID))
+		require.Equal(t, []string{"cat-app"}, queuedTitles(hostB.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": %d, "self_service_category_name": %q, "software_titles_count": 1}`,
+			hostB.ID, hostB.DisplayName(), cat.ID, cat.Name,
+		), 0)
+
+		// nonexistent category, or a category on another fleet -> 400
+		installAll(tokenB, http.StatusBadRequest, "category_id", "9999999")
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
+		require.NoError(t, err)
+		otherCat, err := s.ds.NewSoftwareCategory(ctx, otherTeam.ID, t.Name()+"-othercat")
+		require.NoError(t, err)
+		installAll(tokenB, http.StatusBadRequest, "category_id", fmt.Sprint(otherCat.ID))
+
+		// VPP label scoping: include-any (host is a member) is queued, exclude-any is skipped
+		vppHost, vppToken := newMDMHost("darwin", "sc-vpp", &team.ID)
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, vppHost, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
+		newVPPApp("vpp-in", &team.ID, &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}})
+		newVPPApp("vpp-out", &team.ID, &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}})
+		installAll(vppToken, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+
+		require.NoError(t, s.ds.DeleteTeam(ctx, otherTeam.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+	})
+
+	t.Run("multiple hosts", func(t *testing.T) {
+		const (
+			numHosts      = 5
+			numInstallers = 5
+		)
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		for i := range numInstallers {
+			newInstaller(fmt.Sprintf("mh-%d", i), &team.ID, true, fleet.LabelIdentsWithScope{})
+		}
+		type hostToken struct {
+			host  *fleet.Host
+			token string
+		}
+		hosts := make([]hostToken, numHosts)
+		for i := range numHosts {
+			h := createOrbitEnrolledHost(t, "ubuntu", fmt.Sprintf("mh-%d", i), s.ds)
+			require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID})))
+			tok := fmt.Sprintf("mh-tok-%d", i)
+			createDeviceTokenForHost(t, s.ds, h.ID, tok)
+			hosts[i] = hostToken{h, tok}
+		}
+
+		// every host fires install_all at once (require can't run off the test goroutine)
+		client := s.server.Client()
+		statuses := make([]int, numHosts)
+		errs := make([]error, numHosts)
+		var wg sync.WaitGroup
+		for i := range hosts {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", hosts[i].token), nil)
+				if err != nil {
+					errs[i] = err
+					return
+				}
+				resp, err := client.Do(req)
+				if err != nil {
+					errs[i] = err
+					return
+				}
+				resp.Body.Close()
+				statuses[i] = resp.StatusCode
+			}(i)
+		}
+		wg.Wait()
+
+		for i := range hosts {
+			require.NoErrorf(t, errs[i], "host %d", i)
+			require.Equalf(t, http.StatusAccepted, statuses[i], "host %d", i)
+		}
+
+		// each host queued exactly its installers, with no lost or cross-host rows
+		for i := range hosts {
+			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
+		}
+
+		// re-running queues nothing new, then drain every host's queue
+		for i := range hosts {
+			installAll(hosts[i].token, http.StatusAccepted)
+			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
+		}
+		for i := range hosts {
+			for range numInstallers {
+				completeActivatedInstall(hosts[i].host, 0)
+			}
+			require.Zerof(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, hosts[i].host.ID), "host %d", i)
+			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, hosts[i].host.ID), "host %d", i)
+		}
+
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+
+		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-multihost"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-multihost", &vppTeam.ID)
+		newVPPApp("vpp-multihost", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+	})
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint, personal bool) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", personal))
+	}
+
+	// A macOS host that walks the whole pipeline: command, ack, osquery verify, drift.
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(macHost.ID, false)
+
+	// A macOS host whose name already matches the resolved template: verified
+	// directly, no command.
+	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(matchingHost.ID, false)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		return err
+	})
+
+	// An iOS host that acks the rename and later verifies through the
+	// DeviceInformation refetch path.
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(iosHost.ID, false)
+
+	// An iOS host whose device rejects the command (e.g. unsupervised).
+	iosFailHost, iosFailDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(iosFailHost.ID, false)
+
+	// A BYOD (personal enrollment) host: never enforced.
+	byodHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(byodHost.ID, true)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{macHost.ID, matchingHost.ID, iosHost.ID, iosFailHost.ID, byodHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	requireNoRow := func(hostUUID string) {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+
+	// --- endpoint validation ---
+	// (An omitted fleet_id targets "No team", covered by
+	// TestHostNameTemplateNoTeamEndToEnd; this test drives the team scope.)
+	res := s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
+	// A custom (secret) variable is allowed, but an undefined one is rejected at
+	// save time with the missing-secret error.
+	res = s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_SECRET_UNDEFINED"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing from database")
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-\x07"}, http.StatusUnprocessableEntity)
+	// fixed text alone longer than the 63-byte device-name limit is rejected up front
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: strings.Repeat("N", 64)}, http.StatusUnprocessableEntity)
+	// nothing was created or logged by the failed attempts
+	requireNoRow(macHost.UUID)
+
+	// --- set the template ---
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	activityID := s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, team.ID, team.Name, tmpl), 0)
+
+	// eligible hosts are queued; the BYOD host has no row
+	requireRowStatus(macHost.UUID, nil)
+	requireRowStatus(matchingHost.UUID, nil)
+	requireRowStatus(iosHost.UUID, nil)
+	requireRowStatus(iosFailHost.UUID, nil)
+	requireNoRow(byodHost.UUID)
+
+	// re-saving the identical template emits no duplicate activity
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template", "", activityID)
+
+	// --- cron: resolve + enqueue ---
+	runDeviceNameCron()
+
+	// the already-matching host goes straight to verified, and its device got no command
+	matchingRow := requireRowStatus(matchingHost.UUID, &fleet.MDMDeliveryVerified)
+	require.NotNil(t, matchingRow.ExpectedDeviceName)
+	require.Equal(t, "WS-"+matchingHost.HardwareSerial, *matchingRow.ExpectedDeviceName)
+	cmd, err := matchingDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// the other eligible hosts are pending on a DEVNAME- command with the resolved name
+	macRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, macRow.CommandUUID)
+	require.True(t, strings.HasPrefix(*macRow.CommandUUID, fleet.DeviceNameCommandUUIDPrefix))
+	require.NotNil(t, macRow.ExpectedDeviceName)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, *macRow.ExpectedDeviceName)
+
+	// --- mac: device receives the Settings command and acknowledges ---
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *macRow.CommandUUID, cmd.CommandUUID)
+	var settingsCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &settingsCmd))
+	require.Len(t, settingsCmd.Command.Settings, 1)
+	require.Equal(t, "DeviceName", settingsCmd.Command.Settings[0].Item)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, settingsCmd.Command.Settings[0].DeviceName)
+
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// the ack renamed the host in Fleet and moved the row to verifying
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	renamedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.ComputerName)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.Hostname)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.DisplayName())
+
+	// --- mac: osquery reports the matching name -> verified ---
+	submitSystemInfo := func(computerName string) {
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: *macHost.NodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_system_info": {
+					{
+						"computer_name":      computerName,
+						"hostname":           computerName,
+						"uuid":               macHost.UUID,
+						"hardware_serial":    macHost.HardwareSerial,
+						"hardware_model":     "MacBookPro16,1",
+						"physical_memory":    "16000000000",
+						"cpu_physical_cores": "8",
+						"cpu_logical_cores":  "8",
+					},
+				},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_system_info": 0,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	// a report that was generated before the device applied the rename (still
+	// carrying the old name) arriving right after the ack is not drift: the row
+	// stays verifying until a fresh report decides it
+	submitSystemInfo("stale-pre-rename-name")
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- mac: the end user renames the device -> drift -> failed ---
+	submitSystemInfo("Renamed by user")
+	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, driftedRow.Detail, "renamed on the device")
+
+	// --- iOS: ack then verify through the DeviceInformation refetch path ---
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+		case "CertificateList":
+			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+		case "DeviceInformation":
+			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
+		default:
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+		}
+		require.NoError(t, err)
+	}
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
+		{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
+	})
+	require.NoError(t, err)
+	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+
+	// a failed command is not re-sent by subsequent cron runs
+	runDeviceNameCron()
+	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// --- a template resolving past 63 bytes fails without sending a command ---
+	// The fixed text (50 bytes) passes save-time validation, but expanding the
+	// UUID (36 chars) pushes the resolved name over the 63-byte limit — that
+	// per-host overflow is only detectable at resolve time, by the cron.
+	longTemplate := strings.Repeat("N", 50) + "$FLEET_VAR_HOST_UUID"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: longTemplate}, http.StatusNoContent)
+	requireRowStatus(macHost.UUID, nil) // rows re-queued by the new template
+	runDeviceNameCron()
+	longRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Equal(t, "Resolved name exceeds 63 bytes.", longRow.Detail)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// re-save the resolvable template to queue rows again
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	originalPushMock := s.pushProvider.PushFunc
+	// Restore via defer so a failed assertion below can't leak the failing push
+	// mock into later tests. Nothing after this in the test pushes (the second
+	// cron run has no pending rows; Idle/Acknowledge are device-driven), so
+	// keeping the mock active until the test ends is harmless.
+	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res := make(map[string]*push.Response, len(pushes))
+		for _, p := range pushes {
+			res[p.Token.String()] = &push.Response{Id: uuid.New().String(), Err: errors.New("APNs is down")}
+		}
+		return res, nil
+	}
+	runDeviceNameCron()
+
+	// the command was persisted despite the failed push, so the row is pending
+	// on it and a later cron run does not enqueue a duplicate
+	apnsRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, apnsRow.CommandUUID)
+	runDeviceNameCron()
+	afterRetry := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, afterRetry.CommandUUID)
+	require.Equal(t, *apnsRow.CommandUUID, *afterRetry.CommandUUID)
+
+	// the device still receives that single command on its next check-in
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *apnsRow.CommandUUID, cmd.CommandUUID)
+	cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- clearing deletes all rows and never renames ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": null}`, team.ID, team.Name), 0)
+	for _, h := range []*fleet.Host{macHost, matchingHost, iosHost, iosFailHost} {
+		requireNoRow(h.UUID)
+	}
+	// the host keeps the last name it was given; clearing renames nothing
+	unchangedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, unchangedMac.ComputerName)
+
+	// --- custom (secret) variable: expanded into the resolved name ---
+	secretID, err := s.ds.CreateSecretVariable(ctx, "SITE", "HQ")
+	require.NoError(t, err)
+	const secretTmpl = "${FLEET_SECRET_SITE}-$FLEET_VAR_HOST_HARDWARE_SERIAL" //nolint:gosec // G101: name template string, not a credential
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: secretTmpl}, http.StatusNoContent)
+	// the activity records the unexpanded template (the secret placeholder is
+	// never stored expanded)
+	s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, team.ID, team.Name, secretTmpl), 0)
+
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	secretRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, secretRow.ExpectedDeviceName)
+	// the secret value ("HQ") is expanded alongside the built-in serial variable
+	require.Equal(t, "HQ-"+macHost.HardwareSerial, *secretRow.ExpectedDeviceName)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	var secretSettingsCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &secretSettingsCmd))
+	require.Len(t, secretSettingsCmd.Command.Settings, 1)
+	require.Equal(t, "HQ-"+macHost.HardwareSerial, secretSettingsCmd.Command.Settings[0].DeviceName)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- changing the secret value re-enqueues a fresh command ---
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}})
+	require.NoError(t, err)
+	// the secret change reset the enforcement row back to queued
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	changedSecretRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, changedSecretRow.ExpectedDeviceName)
+	require.Equal(t, "NYC-"+macHost.HardwareSerial, *changedSecretRow.ExpectedDeviceName)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	var changedSecretCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &changedSecretCmd))
+	require.Len(t, changedSecretCmd.Command.Settings, 1)
+	require.Equal(t, "NYC-"+macHost.HardwareSerial, changedSecretCmd.Command.Settings[0].DeviceName)
+
+	// the secret can't be deleted while a host name template references it
+	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
+	require.Error(t, err)
+	var secretUsed *fleet.SecretUsedError
+	require.ErrorAs(t, err, &secretUsed)
+	require.Equal(t, "host_name_template", secretUsed.Entity.Type)
+
+	// clearing the template releases the secret for deletion
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
+	require.NoError(t, err)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint, personal bool) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", personal))
+	}
+
+	// The host stays in "No team" (we never call AddHostsToTeam). BYOD exclusion
+	// for the No-team scope is covered deterministically by the datastore test
+	// (testHostDeviceNamesNoTeam); here we focus on the cron/ack/verify/host-detail
+	// /resend pipeline resolving the template from the global app config.
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(macHost.ID, false)
+
+	require.Nil(t, macHost.TeamID)
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	requireNoRow := func(hostUUID string) {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+
+	// --- set the No-team template (nil fleet_id) ---
+	// An invalid variable is still rejected on the No-team path.
+	res := s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: "WS-$FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
+
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: tmpl}, http.StatusNoContent)
+	// the activity carries a null fleet_id/fleet_name for No team
+	activityID := s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "name_template": %q}`, tmpl), 0)
+
+	// the global app config now carries the template
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, tmpl, ac.MDM.HostNameTemplate.Value)
+
+	// eligible No-team host queued
+	requireRowStatus(macHost.UUID, nil)
+
+	// re-saving the identical template is a no-op (no duplicate activity)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: tmpl}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template", "", activityID)
+
+	// --- cron resolves the No-team template from app config and enqueues ---
+	runDeviceNameCron()
+	macRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, macRow.CommandUUID)
+	require.True(t, strings.HasPrefix(*macRow.CommandUUID, fleet.DeviceNameCommandUUIDPrefix))
+	require.Equal(t, "WS-"+macHost.HardwareSerial, *macRow.ExpectedDeviceName)
+
+	// device receives the Settings command and acknowledges → rename + verifying
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	renamedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.ComputerName)
+
+	submitSystemInfo := func(computerName string) {
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: *macHost.NodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_system_info": {{
+					"computer_name":      computerName,
+					"hostname":           computerName,
+					"uuid":               macHost.UUID,
+					"hardware_serial":    macHost.HardwareSerial,
+					"hardware_model":     "MacBookPro16,1",
+					"physical_memory":    "16000000000",
+					"cpu_physical_cores": "8",
+					"cpu_logical_cores":  "8",
+				}},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0},
+		}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &submitDistributedQueryResultsResponse{})
+	}
+
+	// osquery reports the matching name → verified
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// end user renames the device off-template → drift → failed
+	submitSystemInfo("Renamed by user")
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+
+	// --- host detail exposes the host_name object for the No-team host ---
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
+	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+
+	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
+	requireRowStatus(macHost.UUID, nil) // reset to queued
+
+	// --- aggregate: the No-team OS-settings summary folds the rename in ---
+	// (exact bucket counts are asserted in the datastore test; here we confirm the
+	// No-team host list filter surfaces the queued host under the No-team scope.)
+	noTeam := uint(0)
+	pendingHosts, err := s.ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin},
+		fleet.HostListOptions{TeamFilter: &noTeam, OSSettingsFilter: fleet.OSSettingsPending})
+	require.NoError(t, err)
+	pendingIDs := make([]uint, 0, len(pendingHosts))
+	for _, h := range pendingHosts {
+		pendingIDs = append(pendingIDs, h.ID)
+	}
+	require.Contains(t, pendingIDs, macHost.ID)
+
+	// --- clearing deletes the row and emits a null activity (nil fleet_id) ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: ""}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template",
+		`{"fleet_id": null, "fleet_name": null, "name_template": null}`, 0)
+	requireNoRow(macHost.UUID)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateIDPVariables() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+
+	// A host mapped to an IdP user.
+	idpHost, idpDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(idpHost.ID)
+	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "jdoe@example.com",
+		GivenName:  new("Jane"),
+		FamilyName: new("Doe"),
+		Department: new("Engineering"),
+	})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, idpHost.ID, scimUserID)
+	require.NoError(t, err)
+
+	// A host with no IdP user mapped.
+	noIDPHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(noIDPHost.ID)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{idpHost.ID, noIDPHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+	deviceNameFromCmd := func(raw []byte) string {
+		var sc struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(raw, &sc))
+		require.Len(t, sc.Command.Settings, 1)
+		require.Equal(t, "DeviceName", sc.Command.Settings[0].Item)
+		return sc.Command.Settings[0].DeviceName
+	}
+
+	// --- set a template that uses an IdP variable ---
+	const tmpl = "WS-$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+
+	// --- cron: resolves the IdP value for the mapped host; fails the unmapped one ---
+	runDeviceNameCron()
+
+	idpRow := requireRowStatus(idpHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, idpRow.ExpectedDeviceName)
+	require.Equal(t, "WS-jdoe@example.com", *idpRow.ExpectedDeviceName)
+
+	// a host with no IdP user fails exactly like a profile would, with the same detail
+	noIDPRow := requireRowStatus(noIDPHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, noIDPRow.Detail, "no IdP username for this host")
+
+	// the mapped host received the DeviceName command carrying the resolved IdP value
+	cmd, err := idpDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, "WS-jdoe@example.com", deviceNameFromCmd(cmd.Raw))
+	_, err = idpDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(idpHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// A host in another team with an identity-only template, mapped to the *same*
+	// IdP user, driven to a settled (verifying) state. An IdP change must NOT
+	// re-enqueue it — its resolved name can't depend on IdP data.
+	identityTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-identity"})
+	require.NoError(t, err)
+	identityHost, identityDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(identityHost.ID)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, identityHost.ID, scimUserID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&identityTeam.ID, []uint{identityHost.ID})))
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &identityTeam.ID, HostNameTemplate: "SN-$FLEET_VAR_HOST_HARDWARE_SERIAL"}, http.StatusNoContent)
+	runDeviceNameCron()
+	requireRowStatus(identityHost.UUID, &fleet.MDMDeliveryPending)
+	icmd, err := identityDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, icmd)
+	_, err = identityDevice.Acknowledge(icmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(identityHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- changing the IdP value re-enqueues a fresh command (mirrors profile resend) ---
+	_, err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{
+		ID:         scimUserID,
+		UserName:   "jsmith@example.com",
+		GivenName:  new("Jane"),
+		FamilyName: new("Smith"),
+		Department: new("Engineering"),
+	})
+	require.NoError(t, err)
+
+	// the IdP-template host's row was reset back to queued...
+	requireRowStatus(idpHost.UUID, nil)
+	// ...but the identity-only-template host mapped to the same IdP user is untouched.
+	requireRowStatus(identityHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	runDeviceNameCron()
+	changedRow := requireRowStatus(idpHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, changedRow.ExpectedDeviceName)
+	require.Equal(t, "WS-jsmith@example.com", *changedRow.ExpectedDeviceName)
+	cmd, err = idpDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "WS-jsmith@example.com", deviceNameFromCmd(cmd.Raw))
+}
+
+// TestHostNameTemplateIDPResolution covers resolving a template that mixes
+// identity, IdP, and custom (secret) variables in one string, the
+// username-local-part variable, and the fail-hard behavior when a referenced IdP
+// field is empty for a host (matching how configuration profiles treat it).
+func (s *integrationMDMTestSuite) TestHostNameTemplateIDPResolution() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+
+	// A host whose IdP user has a username and a department.
+	fullHost, fullDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(fullHost.ID)
+	fullUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "jdoe@corp.com",
+		GivenName:  new("Jane"),
+		FamilyName: new("Doe"),
+		Department: new("Eng"),
+	})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, fullHost.ID, fullUserID)
+	require.NoError(t, err)
+
+	// A host whose IdP user has a username but no department.
+	noDeptHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(noDeptHost.ID)
+	noDeptUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "nodept@corp.com"})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, noDeptHost.ID, noDeptUserID)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{fullHost.ID, noDeptHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	deviceNameFromCmd := func(raw []byte) string {
+		var sc struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(raw, &sc))
+		require.Len(t, sc.Command.Settings, 1)
+		require.Equal(t, "DeviceName", sc.Command.Settings[0].Item)
+		return sc.Command.Settings[0].DeviceName
+	}
+
+	// A single template mixing a custom (secret) variable, an identity variable, the
+	// username-local-part IdP variable, and the department IdP variable.
+	secretID, err := s.ds.CreateSecretVariable(ctx, "SITE", "HQ")
+	require.NoError(t, err)
+	const tmpl = "${FLEET_SECRET_SITE}-${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}-$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT" //nolint:gosec // G101: name template string, not a credential
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// the fully-populated host resolves all three variable kinds: secret "HQ", the
+	// local part of the username ("jdoe"), and the department ("Eng").
+	fullRow := requireRowStatus(fullHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, fullRow.ExpectedDeviceName)
+	require.Equal(t, "HQ-jdoe-Eng", *fullRow.ExpectedDeviceName)
+	cmd, err := fullDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "HQ-jdoe-Eng", deviceNameFromCmd(cmd.Raw))
+
+	// the host whose IdP user has no department fails the same way a profile would —
+	// an empty IdP field is treated like a missing one.
+	noDeptRow := requireRowStatus(noDeptHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, noDeptRow.Detail, "no IdP department for this host")
+
+	// cleanup: clearing the template releases the secret for deletion.
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
+	require.NoError(t, err)
+}
+
+// TestHostNameTemplateSecretReenqueue covers the secret-value change trigger: it
+// re-queues teams and "No team" whose template references the changed secret,
+// leaves scopes referencing a similarly-named secret (SITE vs SITE_CODE) alone, and
+// is a no-op when a secret is re-upserted with an unchanged value.
+func (s *integrationMDMTestSuite) TestHostNameTemplateSecretReenqueue() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+	}
+
+	_, err := s.ds.CreateSecretVariable(ctx, "SITE", "HQ")
+	require.NoError(t, err)
+	_, err = s.ds.CreateSecretVariable(ctx, "SITE_CODE", "C1")
+	require.NoError(t, err)
+
+	// A team whose template uses $FLEET_SECRET_SITE.
+	siteTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-site"})
+	require.NoError(t, err)
+	siteHost, siteDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(siteHost.ID)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&siteTeam.ID, []uint{siteHost.ID})))
+
+	// A team whose template uses the similarly-named $FLEET_SECRET_SITE_CODE.
+	codeTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-code"})
+	require.NoError(t, err)
+	codeHost, codeDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(codeHost.ID)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&codeTeam.ID, []uint{codeHost.ID})))
+
+	// A "No team" host whose global template uses $FLEET_SECRET_SITE.
+	noTeamHost, noTeamDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(noTeamHost.ID)
+	require.Nil(t, noTeamHost.TeamID)
+
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &siteTeam.ID, HostNameTemplate: "${FLEET_SECRET_SITE}-x"}, http.StatusNoContent) //nolint:gosec // G101: template
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &codeTeam.ID, HostNameTemplate: "${FLEET_SECRET_SITE_CODE}-x"}, http.StatusNoContent) //nolint:gosec // G101: template
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: "${FLEET_SECRET_SITE}-y"}, http.StatusNoContent) //nolint:gosec // G101: template
+
+	// Drive all three to a settled (verifying) state.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	for _, d := range []*mdmtest.TestAppleMDMClient{siteDevice, codeDevice, noTeamDevice} {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		_, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	requireRowStatus(siteHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(codeHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(noTeamHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// Re-upserting SITE with its current value changes nothing → no re-queue.
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "HQ"}})
+	require.NoError(t, err)
+	requireRowStatus(siteHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(noTeamHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// Changing SITE re-queues the SITE team and the No-team host, but not the
+	// SITE_CODE team (the trailing word boundary prevents SITE from matching
+	// SITE_CODE).
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}})
+	require.NoError(t, err)
+	requireRowStatus(siteHost.UUID, nil)
+	requireRowStatus(noTeamHost.UUID, nil)
+	requireRowStatus(codeHost.UUID, &fleet.MDMDeliveryVerifying)
+}
+
+// TestHostNameTemplateIDPGroupChange covers the SCIM group-change re-enqueue path:
+// renaming a group re-queues hosts whose template uses the groups variable, but not
+// a host (mapped to the same user) whose template uses only the username variable.
+func (s *integrationMDMTestSuite) TestHostNameTemplateIDPGroupChange() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	deviceNameFromCmd := func(raw []byte) string {
+		var sc struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(raw, &sc))
+		require.Len(t, sc.Command.Settings, 1)
+		return sc.Command.Settings[0].DeviceName
+	}
+
+	// A user who belongs to a SCIM group. (Usernames/group names are unique per
+	// test — the integration suite shares one DB and scim_users.user_name is unique.)
+	userID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "jdoe@group.example.com"})
+	require.NoError(t, err)
+	groupID, err := s.ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "GCAdmins", ScimUsers: []uint{userID}})
+	require.NoError(t, err)
+
+	// A team whose template uses the groups variable.
+	groupTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-groups"})
+	require.NoError(t, err)
+	groupHost, groupDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(groupHost.ID)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, groupHost.ID, userID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&groupTeam.ID, []uint{groupHost.ID})))
+
+	// A team whose template uses only the username variable, with a host mapped to
+	// the *same* user.
+	userTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-user"})
+	require.NoError(t, err)
+	userHost, userDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(userHost.ID)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, userHost.ID, userID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&userTeam.ID, []uint{userHost.ID})))
+
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &groupTeam.ID, HostNameTemplate: "G-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &userTeam.ID, HostNameTemplate: "U-$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}, http.StatusNoContent)
+
+	// Drive both to a settled (verifying) state.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	groupRow := requireRowStatus(groupHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, groupRow.ExpectedDeviceName)
+	require.Equal(t, "G-GCAdmins", *groupRow.ExpectedDeviceName)
+	for _, d := range []*mdmtest.TestAppleMDMClient{groupDevice, userDevice} {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	requireRowStatus(groupHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(userHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// Renaming the group re-queues the groups-template host (its resolved name
+	// changes) but leaves the username-template host — mapped to the same user —
+	// untouched.
+	require.NoError(t, s.ds.ReplaceScimGroup(ctx, &fleet.ScimGroup{ID: groupID, DisplayName: "GCSupers", ScimUsers: []uint{userID}}))
+	requireRowStatus(groupHost.UUID, nil)
+	requireRowStatus(userHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	newRow := requireRowStatus(groupHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, newRow.ExpectedDeviceName)
+	require.Equal(t, "G-GCSupers", *newRow.ExpectedDeviceName)
+	cmd, err := groupDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "G-GCSupers", deviceNameFromCmd(cmd.Raw))
+}
+
+// TestHostNameTemplateTeamSpecSecret covers the team-spec (GitOps) apply path with a
+// template referencing a custom (secret) variable: it validates on create and edit,
+// is idempotent on re-apply, and rejects an undefined secret.
+func (s *integrationMDMTestSuite) TestHostNameTemplateTeamSpecSecret() {
+	t := s.T()
+	ctx := t.Context()
+
+	_, err := s.ds.CreateSecretVariable(ctx, "SPECSITE", "HQ")
+	require.NoError(t, err)
+
+	teamName := t.Name()
+	applySpec := func(tmpl string, wantStatus int) *http.Response {
+		return s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+			Name: teamName,
+			MDM:  fleet.TeamSpecMDM{HostNameTemplate: optjson.SetString(tmpl)},
+		}}}, wantStatus)
+	}
+
+	// Create the team via spec with a valid secret template — the team-spec path
+	// (createTeamFromSpec) validates the referenced secret and stores the template.
+	applySpec("iPad ${FLEET_SECRET_SPECSITE}", http.StatusOK) //nolint:gosec // G101: template
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, "iPad ${FLEET_SECRET_SPECSITE}", team.Config.MDM.HostNameTemplate)
+
+	// Re-applying the identical spec succeeds and is idempotent — the change-gate
+	// skips re-validation and leaves the stored template unchanged.
+	applySpec("iPad ${FLEET_SECRET_SPECSITE}", http.StatusOK) //nolint:gosec // G101: template
+	teamAfter, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, "iPad ${FLEET_SECRET_SPECSITE}", teamAfter.Config.MDM.HostNameTemplate)
+
+	// A spec referencing an undefined secret is rejected.
+	res := applySpec("iPad ${FLEET_SECRET_NOPE}", http.StatusUnprocessableEntity) //nolint:gosec // G101: template
+	require.Contains(t, extractServerErrorText(res.Body), "missing from database")
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateTransferTeamToNoTeam() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, macHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+
+	requireRowStatus := func(want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, macHost.UUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+	// drainSettingsCommand acks the pending Settings command and returns the
+	// DeviceName the server told the device to apply.
+	drainSettingsCommand := func() string {
+		cmd, err := macDevice.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		var settingsCmd struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &settingsCmd))
+		require.Len(t, settingsCmd.Command.Settings, 1)
+		_, err = macDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		return settingsCmd.Command.Settings[0].DeviceName
+	}
+
+	// --- both scopes carry a (distinct) template ---
+	const teamTmpl = "TEAM-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	const noTeamTmpl = "NOTEAM-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: teamTmpl}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: noTeamTmpl}, http.StatusNoContent)
+
+	// --- host on the fleet: its team template governs ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireRowStatus(nil) // queued by the transfer reconcile (team has a template)
+
+	runDeviceNameCron()
+	requireRowStatus(&fleet.MDMDeliveryPending)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, drainSettingsCommand())
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+	renamed, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, renamed.ComputerName)
+
+	// --- transfer into "No team": the row is re-queued (No team has a template) ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	movedHost, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Nil(t, movedHost.TeamID, "host is now in No team")
+	requireRowStatus(nil) // re-queued, not deleted (was: always deleted pre-#10)
+
+	// --- cron now resolves the host name from the global No-team template ---
+	runDeviceNameCron()
+	requireRowStatus(&fleet.MDMDeliveryPending)
+	require.Equal(t, "NOTEAM-"+macHost.HardwareSerial, drainSettingsCommand(),
+		"after transfer to No team the cron must resolve the No-team template")
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+	renamed, err = s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "NOTEAM-"+macHost.HardwareSerial, renamed.ComputerName)
+
+	requireNoRow := func() {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, macHost.UUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+
+	// --- reverse direction: No team -> fleet re-queues under the team template ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireRowStatus(nil) // re-queued on the way back to the fleet
+	runDeviceNameCron()
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, drainSettingsCommand(),
+		"back on the fleet the cron must resolve the team template again")
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+
+	// --- transfer to a template-less fleet deletes the row (stops enforcement) ---
+	emptyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-empty"})
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &emptyTeam.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireNoRow()
+	// no command is enqueued and the host keeps its last name
+	runDeviceNameCron()
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	kept, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, kept.ComputerName, "transfer must not rename")
+
+	// --- transfer into No team while No team has no template: not enforced ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: ""}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireNoRow()
+	runDeviceNameCron()
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+}
+
+// TestAndroidCustomCommandsListAndResults exercises the full API flow for Android custom commands:
+// send a command via POST /commands/run, verify it appears in GET /commands (list), deliver a
+// Pub/Sub ack, and verify GET /commands/results returns the stored result.
+func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  android.Enterprise{ID: enterpriseID, EnterpriseID: "custom-cmd-fake"},
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	const pubsubToken = "test-android-custom-cmd-pubsub-token"
+	require.NoError(t, s.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+		Name:  fleet.MDMAssetAndroidPubSubToken,
+		Value: []byte(pubsubToken),
+	}))
+
+	var (
+		issueCallsMu sync.Mutex
+		issueCounter int
+	)
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, cmd *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		issueCallsMu.Lock()
+		defer issueCallsMu.Unlock()
+		issueCounter++
+		opName := fmt.Sprintf("%s/operations/custom-op-%d", deviceName, issueCounter)
+		return &androidmanagement.Operation{Name: opName}, nil
+	}
+
+	coboHostID := createAndroidHostForTest(t, s.ds, nil, true)
+
+	// Get the host UUID for API calls.
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", coboHostID), nil, http.StatusOK, &hostResp)
+	hostUUID := hostResp.Host.UUID
+
+	// Send a custom REBOOT command via the API.
+	rebootJSON := `{"type":"REBOOT"}`
+	encoded := base64.StdEncoding.EncodeToString([]byte(rebootJSON))
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   encoded,
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusOK, &runResp)
+
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, "REBOOT", runResp.RequestType)
+	require.Equal(t, "android", runResp.Platform)
+
+	cmdUUID := runResp.CommandUUID
+
+	// Verify the command appears in GET /commands?host_identifier=<uuid>.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s", hostUUID), nil, http.StatusOK, &listResp)
+	var found bool
+	for _, cmd := range listResp.Results {
+		if cmd.CommandUUID == cmdUUID {
+			found = true
+			assert.Equal(t, "REBOOT", cmd.RequestType)
+			assert.Equal(t, hostUUID, cmd.HostUUID)
+			break
+		}
+	}
+	require.True(t, found, "expected the Android command to appear in the commands list")
+
+	// Verify command results show pending (no Pub/Sub ack yet).
+	var resultsResp getMDMCommandResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.Equal(t, "Pending", resultsResp.Results[0].Status)
+	assert.Equal(t, "REBOOT", resultsResp.Results[0].RequestType)
+
+	// Deliver a Pub/Sub COMMAND ack.
+	row, err := s.ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+
+	ackOp := androidmanagement.Operation{
+		Name: row.OperationName,
+		Done: true,
+	}
+	body, err := json.Marshal(ackOp)
+	require.NoError(t, err)
+	req := android_service.PubSubPushRequest{
+		PubSubMessage: android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+			Data:       base64.StdEncoding.EncodeToString(body),
+		},
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
+
+	// Verify command results now show acknowledged with raw_result.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.Equal(t, "Acknowledged", resultsResp.Results[0].Status)
+	assert.NotEmpty(t, resultsResp.Results[0].Result, "raw_result should be populated after Pub/Sub ack")
+
+	// Verify GetMDMCommandPlatform returns "android".
+	p, err := s.ds.GetMDMCommandPlatform(ctx, cmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "android", p)
+
+	// Verify command_status filter works for Android hosts.
+	var filteredResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", hostUUID), nil, http.StatusOK, &filteredResp)
+	require.Len(t, filteredResp.Results, 1, "command_status=ran should return the acknowledged command")
+	assert.Equal(t, cmdUUID, filteredResp.Results[0].CommandUUID)
+
+	// Filtering by pending should return no results (the command already acked).
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=pending", hostUUID), nil, http.StatusOK, &filteredResp)
+	require.Empty(t, filteredResp.Results, "command_status=pending should return no results after ack")
+
+	// Verify raw_command stores the original payload (without injected duration).
+	resultsResp = getMDMCommandResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", cmdUUID), nil, http.StatusOK, &resultsResp)
+	require.Len(t, resultsResp.Results, 1)
+	assert.JSONEq(t, rebootJSON, string(resultsResp.Results[0].Payload), "raw_command should match the original payload without injected duration")
+}
+
+// TestAndroidCustomCommandRejectedOnPersonallyOwnedHost covers the symptom reported in #53151: REBOOT on a BYOD work
+// profile used to return 200 and record a "ran REBOOT" activity because AMAPI reports the operation as done with no
+// error while the device ignores it. The command must now be refused outright, so no activity claims it ran.
+func (s *integrationMDMTestSuite) TestAndroidCustomCommandRejectedOnPersonallyOwnedHost() {
+	t := s.T()
+	ctx := t.Context()
+
+	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
+	require.NoError(t, err)
+	enterprise := android.Enterprise{ID: enterpriseID, EnterpriseID: "byod-cmd-fake"}
+	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
+		Enterprise:  enterprise,
+		SignupName:  "fake",
+		SignupToken: "value",
+		TopicID:     "yep",
+	}))
+
+	var issueCalls atomic.Int32
+	s.androidAPIClient.EnterprisesDevicesIssueCommandFunc = func(_ context.Context, deviceName string, _ *androidmanagement.Command) (*androidmanagement.Operation, error) {
+		return &androidmanagement.Operation{Name: fmt.Sprintf("%s/operations/byod-op-%d", deviceName, issueCalls.Add(1))}, nil
+	}
+
+	byodHostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byodHostID), nil, http.StatusOK, &hostResp)
+	hostUUID := hostResp.Host.UUID
+	require.True(t, hostResp.Host.MDM.IsPersonalEnrollment)
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	res := s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body),
+		"REBOOT is not supported for personally-owned Android hosts.")
+
+	// Nothing reached AMAPI, so nothing can come back acknowledged.
+	require.Zero(t, issueCalls.Load())
+
+	// No command row, so the command does not show up as pending or ran for this host.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s", hostUUID), nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Results)
+
+	// The reported symptom: no activity may claim the command ran. Asserting the newest activity is unchanged
+	// also catches an activity written before the command is issued.
+	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0))
+
+	// A command type AMAPI does support on a work profile is still issued, so the check is not over-broad.
+	var runResp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+		Command:   base64.StdEncoding.EncodeToString([]byte(`{"type":"CLEAR_APP_DATA","clearAppsDataParams":{"packageNames":["com.example.app"]}}`)),
+		HostUUIDs: []string{hostUUID},
+	}, http.StatusOK, &runResp)
+	require.NotEmpty(t, runResp.CommandUUID)
+	require.Equal(t, int32(1), issueCalls.Load())
+	s.lastActivityMatches(fleet.ActivityTypeRanCustomMDMCommand{}.ActivityName(), "", 0)
+}
+
+// fileVaultStatusHelpers returns helpers to drive the host's FileVault profile
+// status and assert the derived disk encryption status through the API.
+func (s *integrationMDMTestSuite) fileVaultStatusHelpers(ctx context.Context, host *fleet.Host) (
+	setProfileStatus func(fleet.MDMDeliveryStatus),
+	checkHost func(want fleet.DiskEncryptionStatus, wantAction *fleet.ActionRequiredState),
+	checkHostListFilter func(status fleet.DiskEncryptionStatus, wantIncluded bool),
+) {
+	t := s.T()
+
+	fileVaultProf := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	hostCmdUUID := uuid.New().String()
+	setProfileStatus = func(status fleet.MDMDeliveryStatus) {
+		require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       fileVaultProf.ProfileUUID,
+			ProfileIdentifier: fileVaultProf.Identifier,
+			HostUUID:          host.UUID,
+			CommandUUID:       hostCmdUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &status,
+			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
+		}}))
+	}
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			HostUUID:      host.UUID,
+			CommandUUID:   hostCmdUUID,
+			ProfileUUID:   fileVaultProf.ProfileUUID,
+			Status:        &fleet.MDMDeliveryVerifying,
+			OperationType: fleet.MDMOperationTypeRemove,
+		}))
+		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileUUID)
+	})
+
+	checkHost = func(want fleet.DiskEncryptionStatus, wantAction *fleet.ActionRequiredState) {
+		var getHostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+		require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+		require.Equal(t, want, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+		if wantAction == nil {
+			require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+		} else {
+			require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+			require.Equal(t, *wantAction, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+		}
+		require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+		require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+		require.Equal(t, want, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+	}
+
+	checkHostListFilter = func(status fleet.DiskEncryptionStatus, wantIncluded bool) {
+		for _, param := range []string{"os_settings_disk_encryption", "macos_settings_disk_encryption"} {
+			var listResp listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, param, string(status))
+			var found bool
+			for _, h := range listResp.Hosts {
+				if h.ID == host.ID {
+					found = true
+				}
+			}
+			require.Equal(t, wantIncluded, found, "%s=%s", param, status)
+		}
+	}
+	return setProfileStatus, checkHost, checkHostListFilter
+}
+
+func (s *integrationMDMTestSuite) submitDarwinDiskEncryptionResults(nodeKey string, encrypted bool) {
+	var rows []map[string]string
+	if encrypted {
+		rows = []map[string]string{{"1": "1"}}
+	}
+	distributedReq := SubmitDistributedQueryResultsRequest{
+		NodeKey:  nodeKey,
+		Results:  map[string][]map[string]string{"fleet_detail_query_disk_encryption_darwin": rows},
+		Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_disk_encryption_darwin": 0},
+	}
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+}
+
+func (s *integrationMDMTestSuite) submitDarwinFileVaultKey(ctx context.Context, nodeKey, recoveryKey string) {
+	t := s.T()
+	cert, err := assets.CAKeyPair(ctx, s.ds)
+	require.NoError(t, err)
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{cert.Leaf})
+	require.NoError(t, err)
+
+	distributedReq := SubmitDistributedQueryResultsRequest{
+		NodeKey: nodeKey,
+		Results: map[string][]map[string]string{
+			"fleet_detail_query_mdm_disk_encryption_key_file_darwin": {{
+				"encrypted":     "1",
+				"filevault_key": base64.StdEncoding.EncodeToString(encryptedKey),
+			}},
+		},
+		Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_mdm_disk_encryption_key_file_darwin": 0},
+	}
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+}
+
+// Escrow without enforcement: status follows the escrowed key, not the disk
+// state — action required (turn on encryption while the disk is off, rotate
+// key once it is on) → verifying → verified.
+func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false, "enable_escrow_disk_encryption_key": true } }
+	}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	require.True(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_escrow_disk_encryption_key": false } }
+		}`), http.StatusOK)
+	})
+
+	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
+	rotateKey := fleet.ActionRequiredRotateKey
+	turnOnEncryption := fleet.ActionRequiredTurnOnEncryption
+
+	setProfileStatus(fleet.MDMDeliveryPending)
+	checkHost(fleet.DiskEncryptionEnforcing, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// profile installed, nothing enforces FileVault and the disk is still off
+	setProfileStatus(fleet.MDMDeliveryVerified)
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &turnOnEncryption)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// disk encrypted by a third party, no key escrowed yet
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
+	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	checkHostListFilter(fleet.DiskEncryptionVerified, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// Escrow Buddy rotated the key and osquery reported it
+	s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "ABC-111-222")
+	checkHost(fleet.DiskEncryptionVerifying, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerifying, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// the cron decrypted the key
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()))
+	checkHost(fleet.DiskEncryptionVerified, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerified, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// undecryptable key: back to action required despite the encrypted disk
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
+	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}
+
+// Enforcement without escrow: status follows the reported disk state —
+// enforcing → verifying (unknown) → action required (log out) → verified.
+func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true, "enable_escrow_disk_encryption_key": false } }
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	require.False(t, acResp.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "enable_disk_encryption": false } }
+		}`), http.StatusOK)
+	})
+
+	setProfileStatus, checkHost, checkHostListFilter := s.fileVaultStatusHelpers(ctx, host)
+	logOut := fleet.ActionRequiredLogOut
+
+	setProfileStatus(fleet.MDMDeliveryPending)
+	checkHost(fleet.DiskEncryptionEnforcing, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// profile installed, osquery hasn't reported the disk state yet
+	setProfileStatus(fleet.MDMDeliveryVerified)
+	checkHost(fleet.DiskEncryptionVerifying, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerifying, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+
+	// FileVault is deferred until the user logs out, so the disk is still unencrypted
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
+	checkHost(fleet.DiskEncryptionActionRequired, &logOut)
+	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
+	checkHostListFilter(fleet.DiskEncryptionVerified, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, &fleet.MDMProfilesSummary{Pending: 1})
+
+	// the user logged out and FileVault turned on
+	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
+	checkHost(fleet.DiskEncryptionVerified, nil)
+	checkHostListFilter(fleet.DiskEncryptionVerified, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Verified: 1}, &fleet.MDMProfilesSummary{Verified: 1})
+
+	// a key, in any state, doesn't affect enforce-only derivation
+	s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "ABC-111-222")
+	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
+	checkHost(fleet.DiskEncryptionVerified, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+}
+
+// mustBYODIdPSession mints the session the IdP callback would have, so a test can
+// present a valid BYOD cookie without driving the SAML flow.
+func (s *integrationMDMTestSuite) mustBYODIdPSession(t *testing.T, idpAccountUUID string) string {
+	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), redis_key_value.New(s.redisPool), clock.C, idpAccountUUID)
+	require.NoError(t, err)
+	return sessionID
+}
+
+// The archived-key lookup can fall back to matching on hardware_serial, which is
+// agent-reported and carries no tenancy. That fallback is opt-in via a query
+// parameter and restricted to globally-scoped users; this exercises the public
+// endpoint so the parameter cannot silently stop reaching the service.
+func (s *integrationMDMTestSuite) TestHostEncryptionKeyArchivedSerialFallback() {
+	t := s.T()
+	ctx := context.Background()
+
+	const serial = "ARCHIVEFALLBACK1"
+	recoveryKey := "AAA-BBB-CCC"
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert}, nil)
+	require.NoError(t, err)
+	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+	require.NotNil(t, block)
+	parsed, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	encryptFor := func(key string) string {
+		enc, err := pkcs7.Encrypt([]byte(key), []*x509.Certificate{parsed})
+		require.NoError(t, err)
+		return base64.StdEncoding.EncodeToString(enc)
+	}
+
+	victimTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_victim"})
+	require.NoError(t, err)
+	claimantTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_claimant"})
+	require.NoError(t, err)
+
+	newHost := func(suffix string, teamID uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new(t.Name() + suffix),
+			UUID:            t.Name() + suffix,
+			Hostname:        t.Name() + suffix,
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			TeamID:          &teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// Every escrow of a changed key appends to the archive, and the fallback takes the
+	// newest row for the serial - so the second key here is the one it should reach.
+	victim := newHost("_victim", victimTeam.ID)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, victim, encryptFor("DDD-EEE-FFF"), "", nil)
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, victim, encryptFor(recoveryKey), "", nil)
+	require.NoError(t, err)
+
+	// Same serial, different fleet, and no key of its own: the shape a spoofed
+	// enrollment produces.
+	claimant := newHost("_claimant", claimantTeam.ID)
+
+	claimantObserver := &fleet.User{
+		Name:       "claimant observer",
+		Email:      t.Name() + "_observer@example.com",
+		GlobalRole: nil,
+		Teams:      []fleet.UserTeam{{Team: *claimantTeam, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, claimantObserver.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, claimantObserver)
+	require.NoError(t, err)
+
+	keyURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", claimant.ID)
+
+	t.Run("fleet-scoped user is denied the fallback", func(t *testing.T) {
+		s.setTokenForTest(t, claimantObserver.Email, test.GoodPassword)
+		defer func() { s.token = s.getTestAdminToken() }()
+
+		// Asking for the fallback explicitly must not reach the other fleet's key, and
+		// must be indistinguishable from the key simply not existing.
+		s.Do("GET", keyURL+"?allow_serial_lookup=true", nil, http.StatusNotFound)
+		s.Do("GET", keyURL, nil, http.StatusNotFound)
+	})
+
+	t.Run("global user only gets it when opting in", func(t *testing.T) {
+		// Omitting the parameter must keep the old, host-id-only behaviour: the
+		// parameter is optional, so this also pins that it stays optional.
+		s.Do("GET", keyURL, nil, http.StatusNotFound)
+
+		var resp getHostEncryptionKeyResponse
+		s.DoJSON("GET", keyURL+"?allow_serial_lookup=true", nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.EncryptionKey)
+		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
+	})
+}
+
+func (s *integrationMDMTestSuite) TestReenrollKeepsManuallyMappedIdPUser() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	const userName = "manual.mapped@example.com"
+	var createResp map[string]any
+	s.DoJSON("POST", "/api/latest/fleet/scim/Users", map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": userName,
+		"name":     map[string]any{"givenName": "Manual", "familyName": "Mapped"},
+		"emails":   []map[string]any{{"value": userName, "type": "work", "primary": true}},
+		"active":   true,
+	}, http.StatusCreated, &createResp)
+
+	// Manual enrollment, no end-user authentication: the host has no IdP account.
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	require.NoError(t, mdmDevice.Enroll())
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	hostID := hostResp.Host.ID
+
+	var putResp putHostDeviceMappingResponse
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hostID),
+		putHostDeviceMappingRequest{Email: userName, Source: fleet.DeviceMappingIDP}, http.StatusOK, &putResp)
+
+	checkEndUser := func() {
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.Len(t, hostResp.Host.EndUsers, 1)
+		assert.Equal(t, userName, hostResp.Host.EndUsers[0].IdpUserName)
+		assert.Equal(t, "Manual Mapped", hostResp.Host.EndUsers[0].IdpFullName)
+	}
+	checkEndUser()
+
+	// Authenticate + TokenUpdate again, as a SCEP renewal or `profiles renew -type enrollment` does.
+	require.NoError(t, mdmDevice.Reenroll())
+	checkEndUser()
+}
+
+// TestBitLockerPINHandoff drives the whole end-user PIN flow: the My device page submits a PIN, the agent is told to
+// collect it on its next config poll, collects it exactly once, reports success, and the host comes out the other side
+// with its PIN recorded, an activity written, and the notification gone.
+func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
+	t := s.T()
+	ctx := t.Context()
+
+	// The Windows enrollment row is what carries both the capability and the pending flag.
+	host, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	deviceToken := "bitlocker-pin-handoff-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceToken))
+
+	// Require a PIN, then put the host in the one state where only the end user can act: encrypted, key escrowed and
+	// decryptable, protection on, and no PIN yet.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{ "mdm": { "enable_disk_encryption": true, "windows_require_bitlocker_pin": true } }`),
+		http.StatusOK, &acResp)
+	protectionOn := fleet.BitLockerProtectionStatusOn
+	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, true, &protectionOn))
+	_, err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "test-key", "", new(true))
+	require.NoError(t, err)
+	// The volume has a TPM protector but no PIN, the only state in which Windows offers PIN setup.
+	require.NoError(t, s.ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID, true, false))
+
+	orbitConfig := func(caps string) fleet.OrbitGetConfigResponse {
+		headers := map[string]string{}
+		if caps != "" {
+			headers[fleet.CapabilitiesHeader] = caps
+		}
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, headers)
+		var resp fleet.OrbitGetConfigResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp
+	}
+	deviceHost := func() getDeviceHostResponse {
+		var resp getDeviceHostResponse
+		s.DoJSON("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK, &resp)
+		return resp
+	}
+	submitPIN := func(pin string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{"pin": pin})
+		require.NoError(t, err)
+		s.Do("POST", "/api/latest/fleet/device/"+deviceToken+"/disk_encryption_pin", json.RawMessage(body), wantStatus)
+	}
+	collectPIN := func(wantStatus int) fleet.OrbitGetDiskEncryptionPINDetailsResponse {
+		var resp fleet.OrbitGetDiskEncryptionPINDetailsResponse
+		s.DoJSON("POST", "/api/fleet/orbit/disk_encryption_pin/details",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), wantStatus, &resp)
+		return resp
+	}
+	reportOutcome := func(requestUUID string, outcome fleet.BitLockerPINRequestStatus, clientError string, wantStatus int) {
+		body, err := json.Marshal(map[string]string{
+			"orbit_node_key": *host.OrbitNodeKey, "request_uuid": requestUUID, "outcome": string(outcome), "client_error": clientError,
+		})
+		require.NoError(t, err)
+		s.Do("POST", "/api/fleet/orbit/disk_encryption_pin/result", json.RawMessage(body), wantStatus)
+	}
+
+	// An agent that has not advertised the capability is treated as unable to apply a PIN, so the page keeps the old
+	// instructions modal and a submission is refused.
+	orbitConfig("")
+	resp := deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredCreatePIN, *resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	require.False(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	submitPIN("123456", http.StatusBadRequest)
+
+	// The agent advertises that it can apply a PIN; the server persists that on the enrollment row.
+	caps := fleet.CapabilityMap{fleet.CapabilityWindowsBitLockerPIN: struct{}{}}
+	capsHeader := caps.String()
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+	require.True(t, *resp.Host.MDM.OSSettings.DiskEncryption.FleetdCanSetPIN)
+
+	// A PIN that Windows would reject is refused with a validation error before anything is stored.
+	submitPIN("12ab", http.StatusUnprocessableEntity)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// The end user submits a valid PIN, and the agent's next poll is told to collect it.
+	submitPIN("123456", http.StatusNoContent)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestPending, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// Collecting returns the PIN in the clear, exactly once.
+	pinResp := collectPIN(http.StatusOK)
+	require.Equal(t, "123456", pinResp.PIN)
+	firstRequestUUID := pinResp.RequestUUID
+
+	// An outcome that names no collected submission is refused.
+	reportOutcome("not-a-real-request", fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+
+	// A replayed collect gets nothing, and the notification is already gone.
+	collectPIN(http.StatusNotFound)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// A failure is reported back to the waiting page.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestFailed, "PIN already set", http.StatusNoContent)
+	resp = deviceHost()
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestFailed, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.Equal(t, "PIN already set", resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Error)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+
+	// The end user retries with an enhanced PIN, the agent collects it, and this time it works.
+	submitPIN(`Fl"eet 2026!`, http.StatusNoContent)
+	require.True(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+	pinResp = collectPIN(http.StatusOK)
+	require.Equal(t, `Fl"eet 2026!`, pinResp.PIN)
+	require.NotEqual(t, firstRequestUUID, pinResp.RequestUUID, "each submission gets its own id")
+
+	// A late outcome for the superseded submission must not be recorded against this one.
+	reportOutcome(firstRequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNotFound)
+	reportOutcome(pinResp.RequestUUID, fleet.BitLockerPINRequestSet, "", http.StatusNoContent)
+
+	// The PIN is recorded, so the end user's banner clears without them pressing Refetch.
+	resp = deviceHost()
+	require.Nil(t, resp.Host.MDM.OSSettings.DiskEncryption.ActionRequired)
+	require.NotNil(t, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest)
+	require.Equal(t, fleet.BitLockerPINRequestSet, resp.Host.MDM.OSSettings.DiskEncryption.PINRequest.Status)
+	require.False(t, orbitConfig(capsHeader).Notifications.BitLockerPINRequestPending)
+
+	// Success asks the host to refetch so osquery confirms the protector list, and is recorded for the admin with no
+	// actor, because the end user chose the PIN rather than Fleet applying one of its own.
+	refetched, err := s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, refetched.RefetchRequested)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeCreatedDiskEncryptionPIN{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()),
+		0,
+	)
+
+	// The PIN fields are Windows-only.
+	macHost := createOrbitEnrolledHost(t, "darwin", t.Name()+"-mac", s.ds)
+	macToken := "bitlocker-pin-handoff-mac-" + uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, macHost.ID, macToken))
+	macRes := s.DoRaw("GET", "/api/latest/fleet/device/"+macToken, nil, http.StatusOK)
+	macBody, err := io.ReadAll(macRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, macRes.Body.Close())
+	require.Contains(t, string(macBody), `"os_settings"`, "precondition: os_settings is present, so the checks below mean something")
+	require.NotContains(t, string(macBody), "fleetd_can_set_pin")
+	require.NotContains(t, string(macBody), "pin_request")
 }

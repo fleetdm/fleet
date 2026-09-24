@@ -66,6 +66,14 @@ func buildLoggingConfig(cfg config.FleetConfig) logging.Config {
 			JetStream:         cfg.Nats.JetStream,
 			Timeout:           cfg.Nats.Timeout,
 		},
+		Splunk: logging.SplunkConfig{
+			URL:                cfg.Splunk.URL,
+			Token:              cfg.Splunk.Token,
+			Index:              cfg.Splunk.Index,
+			Source:             cfg.Splunk.Source,
+			SourceType:         cfg.Splunk.SourceType,
+			InsecureSkipVerify: cfg.Splunk.InsecureSkipVerify,
+		},
 	}
 }
 

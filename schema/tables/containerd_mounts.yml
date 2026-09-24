@@ -34,6 +34,11 @@ columns:
     required: false
     description: |-
       Mount options (comma-separated).
+  - name: socket_path
+    type: text
+    required: false
+    description: |-
+      Path to the containerd socket to query (default: /run/containerd/containerd.sock).
 examples: |-
   Get all mounts for all containers:
 
@@ -51,6 +56,12 @@ examples: |-
 
   ```
   SELECT * FROM containerd_mounts WHERE type='bind';
+  ```
+  
+  Query mounts from a k3s containerd socket:
+
+  ```
+  SELECT * FROM containerd_mounts WHERE socket_path = '/run/k3s/containerd/containerd.sock';
   ```
   
 notes: |-

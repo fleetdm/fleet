@@ -1,0 +1,1 @@
+- Fleet Desktop for Linux (amd64) is now built as a pure Go static binary (`CGO_ENABLED=0`) instead of a musl/cgo build inside a Docker image. The arm64 build was already pure Go, so it is unchanged. The binary still has no libc dependency and runs on Ubuntu 20.04 and newer; the only runtime difference is that name resolution uses Go's built-in resolver rather than musl's.

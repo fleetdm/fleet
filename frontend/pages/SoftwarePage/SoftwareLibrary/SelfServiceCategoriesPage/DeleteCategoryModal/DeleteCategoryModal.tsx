@@ -1,11 +1,10 @@
-import React, { useContext, useState } from "react";
-
-import selfServiceCategoriesAPI from "services/entities/self_service_categories";
-import { NotificationContext } from "context/notification";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import selfServiceCategoriesAPI from "services/entities/self_service_categories";
 
 const baseClass = "delete-category-modal";
 
@@ -20,7 +19,6 @@ const DeleteCategoryModal = ({
   onExit,
   onSuccess,
 }: IDeleteCategoryModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onDelete = async () => {
@@ -30,7 +28,7 @@ const DeleteCategoryModal = ({
       await selfServiceCategoriesAPI.deleteCategory(category.id);
       onSuccess();
     } catch (e) {
-      renderFlash("error", "Couldn't delete self-service category.");
+      notify.error("Couldn't delete self-service category.", { response: e });
       setIsDeleting(false);
     }
   };
@@ -55,11 +53,7 @@ const DeleteCategoryModal = ({
           >
             Delete
           </Button>
-          <Button
-            variant="inverse-alert"
-            onClick={onExit}
-            disabled={isDeleting}
-          >
+          <Button variant="secondary" onClick={onExit} disabled={isDeleting}>
             Cancel
           </Button>
         </div>

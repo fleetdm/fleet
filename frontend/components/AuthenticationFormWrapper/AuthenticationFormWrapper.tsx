@@ -1,11 +1,9 @@
+import classnames from "classnames";
 import React from "react";
 
-import classnames from "classnames";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
-// @ts-ignore
-import OrgLogoIcon from "components/icons/OrgLogoIcon";
-import FleetIcon from "../../../assets/images/fleet-avatar-24x24@2x.png";
+import LogoOnlyNav from "components/top_nav/LogoOnlyNav";
 
 interface IAuthenticationFormWrapperProps {
   children: React.ReactNode;
@@ -30,25 +28,11 @@ const AuthenticationFormWrapper = ({
   return (
     <div className="app-wrap">
       <nav className="site-nav-container">
-        <div className="site-nav-content">
-          <ul className="site-nav-left">
-            <li className="site-nav-item dup-org-logo" key="dup-org-logo">
-              <div className="site-nav-item__logo-wrapper">
-                <div className="site-nav-item__logo">
-                  <OrgLogoIcon className="logo" src={FleetIcon} />
-                </div>
-              </div>
-            </li>
-          </ul>
-        </div>
+        <LogoOnlyNav />
       </nav>
       {breadcrumbs}
       <div className={classNames}>
-        <Card
-          className={`${baseClass}__card`}
-          borderRadiusSize="xxlarge"
-          paddingSize="xlarge"
-        >
+        <Card className={`${baseClass}__card`} paddingSize="xlarge">
           {(header || headerCta) && (
             <div className={`${baseClass}__header-container`}>
               {header && <CardHeader header={header} />}

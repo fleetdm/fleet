@@ -1,14 +1,14 @@
 import React from "react";
 
-import { ICommand } from "interfaces/command";
+import Pagination from "components/Pagination";
+import { ICommand, isCancelableCommand } from "interfaces/command";
 import { IGetCommandsResponse } from "services/entities/command";
 
-import Pagination from "components/Pagination";
-
-import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import CommandItem, {
+  CancelCommandHandler,
   ShowCommandDetailsHandler,
 } from "../CommandItem/CommandItem";
+import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "command-feed";
 
@@ -18,6 +18,8 @@ interface ICommandFeedProps {
   onShowDetails: ShowCommandDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
+  /** When provided, cancelable pending commands render a cancel button. */
+  onCancelCommand?: CancelCommandHandler;
 }
 
 const CommandFeed = ({
@@ -26,6 +28,7 @@ const CommandFeed = ({
   onShowDetails,
   onNextPage,
   onPreviousPage,
+  onCancelCommand,
 }: ICommandFeedProps) => {
   const { meta, results } = commands;
   if (results === null || results.length === 0) {
@@ -47,6 +50,11 @@ const CommandFeed = ({
               key={`${command.command_uuid}+${command.host_uuid}`}
               command={command}
               onShowDetails={onShowDetails}
+              onCancel={
+                onCancelCommand && isCancelableCommand(command)
+                  ? onCancelCommand
+                  : undefined
+              }
             />
           );
         })}

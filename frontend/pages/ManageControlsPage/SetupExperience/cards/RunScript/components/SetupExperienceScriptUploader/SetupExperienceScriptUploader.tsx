@@ -1,11 +1,10 @@
-import React, { useContext, useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
-import mdmAPI from "services/entities/mdm";
-
-import { NotificationContext } from "context/notification";
 import FileUploader from "components/FileUploader";
+import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "setup-experience-script-uploader";
 
@@ -22,7 +21,6 @@ const SetupExperienceScriptUploader = ({
   onUpload,
   className,
 }: ISetupExperienceScriptUploaderProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showLoading, setShowLoading] = useState(false);
 
   const classNames = classnames(baseClass, className);
@@ -39,11 +37,11 @@ const SetupExperienceScriptUploader = ({
 
     try {
       await mdmAPI.uploadSetupExperienceScript(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
       // TODO: what errors?
-      renderFlash("error", getErrorReason(e));
+      notify.error(getErrorReason(e), { response: e });
     }
 
     setShowLoading(false);

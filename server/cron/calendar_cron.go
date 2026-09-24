@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -25,6 +26,75 @@ const (
 	reloadFrequency   = 30 * time.Minute
 )
 
+// recordCalendarFailureActivity records a failed_automation_calendar_event
+// activity for the given host when err is a failure returned by the remote
+// calendar provider (internal errors are ignored).
+func recordCalendarFailureActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	host fleet.HostPolicyMembershipData,
+	err error,
+	logger *slog.Logger,
+) {
+	isRemote, statusCode, body := calendar.ClassifyRemoteError(err)
+	if !isRemote {
+		return
+	}
+	for policyIDStr := range strings.SplitSeq(host.FailingPolicyIDs, ",") {
+		policyIDStr = strings.TrimSpace(policyIDStr)
+		if policyIDStr == "" {
+			continue
+		}
+		id, parseErr := strconv.ParseUint(policyIDStr, 10, strconv.IntSize)
+		if parseErr != nil {
+			logger.WarnContext(ctx, "parse failing policy id for calendar failure activity",
+				"policy_id", policyIDStr, "err", parseErr)
+			continue
+		}
+		policyID := uint(id)
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationCalendarEvent{
+			PolicyID:      policyID,
+			HostIDList:    []uint{host.HostID},
+			StatusCode:    statusCode,
+			ErrorResponse: body,
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record calendar policy automation failure activity",
+				"policy_id", policyID, "host_id", host.HostID, "err", actErr)
+		}
+	}
+}
+
+// recordCalendarCreatedActivity records a ran_automation_calendar_event
+// activity for the given host after a maintenance-window calendar event is
+// successfully created, one per failing calendar policy the host belongs to.
+func recordCalendarCreatedActivity(
+	ctx context.Context,
+	newActivitySvc activity_api.NewActivityService,
+	host fleet.HostPolicyMembershipData,
+	logger *slog.Logger,
+) {
+	for policyIDStr := range strings.SplitSeq(host.FailingPolicyIDs, ",") {
+		policyIDStr = strings.TrimSpace(policyIDStr)
+		if policyIDStr == "" {
+			continue
+		}
+		id, parseErr := strconv.ParseUint(policyIDStr, 10, strconv.IntSize)
+		if parseErr != nil {
+			logger.WarnContext(ctx, "parse failing policy id for calendar created activity",
+				"policy_id", policyIDStr, "err", parseErr)
+			continue
+		}
+		policyID := uint(id)
+		if actErr := newActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationCalendarEvent{
+			PolicyID:   policyID,
+			HostIDList: []uint{host.HostID},
+		}); actErr != nil {
+			logger.WarnContext(ctx, "failed to record calendar policy automation created activity",
+				"policy_id", policyID, "host_id", host.HostID, "err", actErr)
+		}
+	}
+}
+
 func NewCalendarSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -32,6 +102,7 @@ func NewCalendarSchedule(
 	distributedLock fleet.Lock,
 	serverConfig config.CalendarConfig,
 	logger *slog.Logger,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronCalendar)
@@ -50,7 +121,7 @@ func NewCalendarSchedule(
 		schedule.WithJob(
 			"calendar_events",
 			func(ctx context.Context) error {
-				return cronCalendarEvents(ctx, ds, distributedLock, serverConfig, logger)
+				return cronCalendarEvents(ctx, ds, distributedLock, serverConfig, logger, newActivitySvc)
 			},
 		),
 	)
@@ -59,7 +130,7 @@ func NewCalendarSchedule(
 }
 
 func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock fleet.Lock, serverConfig config.CalendarConfig,
-	logger *slog.Logger) error {
+	logger *slog.Logger, newActivitySvc activity_api.NewActivityService) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -89,7 +160,7 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock
 	}
 	for _, team := range teams {
 		if err := cronCalendarEventsForTeam(
-			ctx, ds, distributedLock, localConfig, *team, appConfig.OrgInfo.OrgName, domain, logger,
+			ctx, ds, distributedLock, localConfig, *team, appConfig.OrgInfo.OrgName, domain, logger, newActivitySvc,
 		); err != nil {
 			logger.InfoContext(ctx, "events calendar cron", "team_id", team.ID, "err", err)
 		}
@@ -107,6 +178,7 @@ func cronCalendarEventsForTeam(
 	orgName string,
 	domain string,
 	logger *slog.Logger,
+	newActivitySvc activity_api.NewActivityService,
 ) error {
 	if team.Config.Integrations.GoogleCalendar == nil ||
 		!team.Config.Integrations.GoogleCalendar.Enable {
@@ -182,7 +254,7 @@ func cronCalendarEventsForTeam(
 
 	// Process hosts that are failing calendar policies.
 	start = time.Now()
-	processCalendarFailingHosts(ctx, ds, distributedLock, calendarConfig, orgName, failingHosts, logger)
+	processCalendarFailingHosts(ctx, ds, distributedLock, calendarConfig, orgName, failingHosts, logger, newActivitySvc)
 	logger.DebugContext(ctx, "failing_hosts", "took", time.Since(start))
 
 	// At last, we want to log the hosts that are failing and don't have an associated email.
@@ -204,6 +276,7 @@ func processCalendarFailingHosts(
 	orgName string,
 	hosts []fleet.HostPolicyMembershipData,
 	logger *slog.Logger,
+	newActivitySvc activity_api.NewActivityService,
 ) {
 	hosts = filterHostsWithSameEmail(hosts)
 
@@ -250,6 +323,7 @@ func processCalendarFailingHosts(
 				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
 				if err := userCalendar.Configure(host.Email); err != nil {
 					logger.ErrorContext(ctx, "configure user calendar", "err", err)
+					recordCalendarFailureActivity(ctx, newActivitySvc, host, err, logger)
 					continue // continue with next host
 				}
 
@@ -260,6 +334,7 @@ func processCalendarFailingHosts(
 						calendarConfig, logger,
 					); err != nil {
 						logger.InfoContext(ctx, "process failing host existing calendar event", "err", err)
+						recordCalendarFailureActivity(ctx, newActivitySvc, host, err, logger)
 						continue // continue with next host
 					}
 				case fleet.IsNotFound(err) || expiredEvent:
@@ -267,8 +342,10 @@ func processCalendarFailingHosts(
 						ctx, ds, userCalendar, orgName, host, &policyIDtoPolicy, logger,
 					); err != nil {
 						logger.InfoContext(ctx, "process failing host create calendar event", "err", err)
+						recordCalendarFailureActivity(ctx, newActivitySvc, host, err, logger)
 						continue // continue with next host
 					}
+					recordCalendarCreatedActivity(ctx, newActivitySvc, host, logger)
 				default:
 					logger.ErrorContext(ctx, "get calendar event from db", "err", err)
 					continue // continue with next host

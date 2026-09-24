@@ -1,15 +1,17 @@
 import React from "react";
+
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   IDeviceSoftwareWithUiStatus,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import Card from "components/Card";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Spinner from "components/Spinner";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import TileActionStatus from "../TileActionStatus";
 
 const baseClass = "self-service-tiles-list";
@@ -22,7 +24,7 @@ interface SelfServiceTilesProps {
   onClickInstallAction: (
     softwareId: number,
     isSoftwarePackage?: boolean
-  ) => void;
+  ) => Promise<boolean> | void;
   isEmptySearch?: boolean;
   /** Category filter produced no results; takes precedence under isEmptySearch */
   isEmptyCategory?: boolean;
