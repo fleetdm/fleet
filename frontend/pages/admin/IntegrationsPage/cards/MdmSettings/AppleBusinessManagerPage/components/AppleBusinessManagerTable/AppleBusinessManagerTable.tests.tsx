@@ -1,3 +1,6 @@
+import { render } from "@testing-library/react";
+import React from "react";
+
 import { IMdmAbToken } from "interfaces/mdm";
 
 import { generateActions } from "./AppleBusinessManagerTableConfig";
@@ -50,9 +53,8 @@ describe("AppleBusinessManagerTable generateActions", () => {
     const toggle = findToggle(actions);
     expect(toggle?.label).toBe("Remove default for sign-in");
     expect(toggle?.disabled).toBe(true);
-    expect(toggle?.tooltipContent).toBe(
-      "The only AB token is always the default for sign-in."
-    );
+    const { container } = render(<>{toggle?.tooltipContent}</>);
+    expect(container).toHaveTextContent("The only AB token is always");
   });
 
   it("disables set as default and edit fleets in GitOps mode", () => {

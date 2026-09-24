@@ -47,7 +47,13 @@ export const generateActions = (
     toggleDefaultOption = {
       ...toggleDefaultOption,
       disabled: true,
-      tooltipContent: "The only AB token is always the default for sign-in.",
+      tooltipContent: (
+        <>
+          The only AB token is always the default.
+          <br />
+          Add another to change it.
+        </>
+      ),
     };
   }
 
