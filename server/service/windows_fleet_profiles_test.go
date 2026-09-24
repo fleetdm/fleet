@@ -10,6 +10,7 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -234,4 +235,90 @@ func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.ResendHostMDMProfileFuncInvoked)
 	})
+}
+
+func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
+	// A programmatic enrollment, so the fleetd presence check answers without the datastore and only the push is exercised.
+	device := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17", HostUUID: "host-uuid", MDMEnrollUserID: "not-a-upn"}
+
+	type state struct {
+		lookups []bool // whether each host lookup required the primary
+		minted  bool
+		pushed  *fleet.MDMWindowsCommand
+	}
+	newService := func(t *testing.T, windowsSwitch bool, hostOnReplica, hostOnPrimary bool, pending []*fleet.MDMWindowsCommand) (*Service, *state) {
+		st := &state{}
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			require.Equal(t, device.HostUUID, identifier)
+			primary := ctxdb.IsPrimaryRequired(ctx)
+			st.lookups = append(st.lookups, primary)
+			if (primary && hostOnPrimary) || (!primary && hostOnReplica) {
+				return &fleet.HostLite{ID: 1}, nil
+			}
+			return nil, newNotFoundError()
+		}
+		ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+			require.Equal(t, device.ID, enrollmentID)
+			return pending, nil
+		}
+		ds.MintWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) error {
+			require.Equal(t, device.ID, enrollmentID)
+			st.minted = true
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			require.True(t, st.minted, "the secret must exist before the command that resolves it is queued")
+			require.Equal(t, []string{device.MDMDeviceID}, deviceIDs)
+			st.pushed = cmd
+			return nil
+		}
+		cfg := config.TestConfig()
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsSwitch
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		return svc.(validationMiddleware).Service.(*Service), st
+	}
+	session := func(t *testing.T, svc *Service, d *fleet.MDMWindowsEnrolledDevice) {
+		require.NoError(t, svc.processNewSessionAlert(t.Context(), "1", d, fleet.ProtoCmdOperation{}))
+	}
+
+	t.Run("a deleted host's enrollment is pushed a secret through the profile's own SyncML", func(t *testing.T) {
+		svc, st := newService(t, true, false, false, nil)
+		session(t, svc, device)
+
+		require.Equal(t, []bool{false, true}, st.lookups, "a replica miss is confirmed on the primary")
+		require.NotNil(t, st.pushed)
+		require.Equal(t, windowsEnrollSecretPolicyURI, st.pushed.TargetLocURI)
+		raw := string(st.pushed.RawCommand)
+		require.Contains(t, raw, windowsEnrollSecretADMXInstallURI)
+		require.Contains(t, raw, windowsEnrollSecretPolicyURI)
+		require.Contains(t, raw, fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret), "the secret is resolved at delivery")
+	})
+
+	for _, tc := range []struct {
+		name                         string
+		windowsSwitch                bool
+		device                       *fleet.MDMWindowsEnrolledDevice
+		hostOnReplica, hostOnPrimary bool
+		pending                      []*fleet.MDMWindowsCommand
+		wantLookups                  []bool
+	}{
+		{name: "switch off", device: device},
+		{name: "enrollment never linked to a host", windowsSwitch: true,
+			device: &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17", MDMEnrollUserID: "not-a-upn"}},
+		{name: "host exists", windowsSwitch: true, device: device, hostOnReplica: true, hostOnPrimary: true,
+			wantLookups: []bool{false}},
+		{name: "replica lags the host orbit just recreated", windowsSwitch: true, device: device, hostOnPrimary: true,
+			wantLookups: []bool{false, true}},
+		{name: "a push is already queued", windowsSwitch: true, device: device,
+			pending: []*fleet.MDMWindowsCommand{{TargetLocURI: windowsEnrollSecretPolicyURI}}, wantLookups: []bool{false, true}},
+	} {
+		t.Run("nothing is pushed: "+tc.name, func(t *testing.T) {
+			svc, st := newService(t, tc.windowsSwitch, tc.hostOnReplica, tc.hostOnPrimary, tc.pending)
+			session(t, svc, tc.device)
+			require.Equal(t, tc.wantLookups, st.lookups)
+			require.False(t, st.minted)
+			require.Nil(t, st.pushed)
+		})
+	}
 }

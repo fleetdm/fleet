@@ -1635,9 +1635,12 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 	}
 
 	if !fleetdPresent {
-		return svc.enqueueInstallFleetdCommand(ctx, enrolledDevice)
+		if err := svc.enqueueInstallFleetdCommand(ctx, enrolledDevice); err != nil {
+			return err
+		}
 	}
 
+	svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
 	return nil
 }
 

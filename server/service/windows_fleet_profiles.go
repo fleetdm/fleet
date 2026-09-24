@@ -6,9 +6,11 @@ import (
 	"encoding/xml"
 	"log/slog"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/google/uuid"
 )
 
 // Windows MDM has no CSP that writes an arbitrary registry value. The documented route is to ingest an ADMX that declares a
@@ -101,6 +103,71 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
     <Data>` + value.String() + `</Data>
   </Item>
 </Replace>`), nil
+}
+
+// pushEnrollSecretToOrphanedEnrollment gives a Windows MDM enrollment whose host was deleted a way back. Deleting a host deletes
+// its one-time enroll secrets, so the agent is left holding one the server no longer knows, and with no host there is no profile
+// to resend. The enrollment survives the delete, and its MDM session is a channel only that device holds, so Fleet mints a secret
+// for the enrollment and writes it to the registry value the enroll secret profile carries. orbit reads that value before each
+// enroll attempt, and its enrollment recreates the host, or claims the pending Autopilot host by serial.
+//
+// The push is the profile's own SyncML, so it also works on a device that never ingested the ADMX; a device that did answers the
+// Add with 418, which the session already re-issues as a Replace. Only one push is queued at a time, and minting reuses a live
+// secret, so repeated sessions deliver the same one. Failures are logged rather than returned, so the session is unaffected and
+// the next one tries again.
+func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) {
+	if !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets || enrolledDevice.HostUUID == "" {
+		return
+	}
+	logger := svc.logger.With("enrollment_id", enrolledDevice.ID, "host_uuid", enrolledDevice.HostUUID)
+
+	// This runs on every session of every linked host, so the replica answers the common case. Only a miss is confirmed on the
+	// primary: orbit recreates the host moments after a push lands, and a lagging replica would make it look deleted again,
+	// minting a secret nothing needs.
+	for _, lookupCtx := range []context.Context{ctx, ctxdb.RequirePrimary(ctx, true)} {
+		_, err := svc.ds.HostLiteByIdentifier(lookupCtx, enrolledDevice.HostUUID)
+		switch {
+		case err == nil:
+			return
+		case !fleet.IsNotFound(err):
+			logger.ErrorContext(ctx, "failed to look up the host of a windows mdm enrollment", "err", err)
+			return
+		}
+	}
+
+	pending, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to load pending windows mdm commands", "err", err)
+		return
+	}
+	for _, cmd := range pending {
+		if cmd.TargetLocURI == windowsEnrollSecretPolicyURI {
+			return
+		}
+	}
+
+	syncML, err := windowsEnrollSecretProfileSyncML()
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to build the enroll secret push", "err", err)
+		return
+	}
+	cmd, err := buildCommandFromProfileBytes(syncML, uuid.NewString())
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to build the enroll secret push", "err", err)
+		return
+	}
+	cmd.TargetLocURI = windowsEnrollSecretPolicyURI
+
+	if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
+		logger.ErrorContext(ctx, "failed to mint a one-time enroll secret for an orphaned windows mdm enrollment", "err", err)
+		return
+	}
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, cmd); err != nil {
+		logger.ErrorContext(ctx, "failed to queue the enroll secret push", "err", err)
+		return
+	}
+	logger.InfoContext(ctx, "queued a one-time enroll secret for a windows mdm enrollment whose host was deleted",
+		"command_uuid", cmd.CommandUUID)
 }
 
 // ensureFleetWindowsProfiles keeps the Fleet-managed Windows profiles in step with the server configuration, the way
