@@ -26,6 +26,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
+	ee_android "github.com/fleetdm/fleet/v4/ee/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -40,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
+	"github.com/fleetdm/fleet/v4/server/acl/notificationsacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/agentws"
@@ -74,9 +76,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
+	"github.com/fleetdm/fleet/v4/server/notifications"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -199,6 +205,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	traceRegistry := tracing.NewRegistry()
 	service.RegisterTracingTiers(traceRegistry)
 	activity_bootstrap.RegisterTracingTiers(traceRegistry)
+	notifications_bootstrap.RegisterTracingTiers(traceRegistry)
 	// Future bounded contexts: each exposes its own RegisterTracingTiers.
 
 	// Init OTEL providers (traces, metrics, logs) and the route aware sampler.
@@ -227,6 +234,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	config.Osquery.Validate(initFatal)
+
+	config.MDM.ValidateAppleCommandCleanup(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
 
@@ -350,11 +359,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
 		config.MDM.EnableCustomDiskEncryption = false
 		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
-	}
-
-	if config.Auth.UseOneTimeEnrollSecrets && !license.IsPremium() {
-		config.Auth.UseOneTimeEnrollSecrets = false
-		logger.WarnContext(cmd.Context(), "Disabling one-time enroll secrets because Fleet Premium license is not present")
 	}
 
 	apple_mdm.SetMachineInfoVerification(config.MDM.AppleMachineInfoVerify)
@@ -497,6 +501,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
+	}
+	eeAndroidSvc, err := ee_android.NewService(
+		androidSvc,
+		ds,
+		ds,
+		android_service.NewAMAPIClient(ctx, logger, config.License.Key),
+		logger,
+	)
+	if err != nil {
+		initFatal(err, "initializing ee android service")
 	}
 
 	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
@@ -693,6 +707,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
+	// Bootstrap notifications bounded context
+	notificationsSvc, notificationsRoutes := createNotificationsBoundedContext(svc, ds, dbConns, redisPool, logger)
+	// Inject the notifications bounded context into the main service
+	svc.SetNotificationsService(notificationsSvc)
+	// Register kinds here, and nowhere else.
+	patchNotificationKind := service.NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+	notificationsSvc.RegisterKind(patchNotificationKind)
+
 	// Bootstrap ACME service module
 	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}
 	acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger, acmeSigner)
@@ -754,6 +776,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		svc:                    svc,
 		carveStore:             carveStore,
 		enrollHostLimiter:      redisWrapperDS,
+		cleanupStateStore:      redisWrapperDS,
 		liveQueryStore:         liveQueryStore,
 		failingPolicySet:       failingPolicySet,
 		redisPool:              redisPool,
@@ -764,6 +787,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		softwareTitleIconStore: softwareTitleIconStore,
 		androidSvc:             androidSvc,
 		activitySvc:            activitySvc,
+		notificationsSvc:       notificationsSvc,
+		patchNotificationKind:  patchNotificationKind,
 		acmeSvc:                acmeSvc,
 		chartSvc:               chartSvc,
 		auditLogger:            auditLogger,
@@ -843,7 +868,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
 		if err != nil {
 			initFatal(err, "initializing the API handler")
 		}
@@ -964,6 +989,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			redis_key_value.New(redisPool),
 			svc.NewActivity,
 			config.Activity.FleetInitiatedReleasePerMinute > 0,
+			notificationsSvc,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
@@ -1233,7 +1259,7 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	}
 	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	chartViewer := chartacl.NewFleetViewerAdapter()
-	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, logger)
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, chartacl.ExpandPlatform, logger)
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
@@ -1284,6 +1310,31 @@ func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
 	return activitySvc, activityRoutes
+}
+
+func createNotificationsBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger) (notifications_api.Service, endpointer.HandlerRoutesFunc) {
+	notificationsACLAdapter := notificationsacl.NewFleetServiceAdapter(ds)
+	notificationsSvc, notificationsRoutesFn := notifications_bootstrap.New(
+		dbConns,
+		notificationsACLAdapter,
+		logger,
+	)
+
+	// Bans an IP after repeated device auth failures, same protection as the
+	// other /device/{token}/... endpoints registered in server/service/handler.go.
+	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
+		service.DeviceIPAllowedConsecutiveFailingRequestsCount,
+		service.DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		service.DeviceIPBanTime,
+	)
+	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
+	deviceAuthMiddleware := service.DeviceAuthMiddleware(svc, logger, notifications.NewHostContext)
+	notificationsAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return errorLimiter(deviceAuthMiddleware(next))
+	}
+
+	notificationsRoutes := notificationsRoutesFn(notificationsAuthMiddleware)
+	return notificationsSvc, notificationsRoutes
 }
 
 func printDatabaseNotInitializedError() {

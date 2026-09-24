@@ -1,0 +1,1 @@
+- Show Android BYOD enrollment instructions (QR code) instead of an irrelevant "Apple MDM is turned off" error when the Android enrollment link is opened on a Mac or iOS device with Apple MDM off and Android MDM on.

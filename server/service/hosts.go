@@ -728,7 +728,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	}
 
 	if len(ids) > 0 {
-		if err := svc.checkWriteForHostIDs(ctx, ids); err != nil {
+		if err := svc.checkDeleteForHostIDs(ctx, ids); err != nil {
 			return err
 		}
 
@@ -753,7 +753,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		return nil
 	}
 
-	err = svc.checkWriteForHostIDs(ctx, hostIDs)
+	err = svc.checkDeleteForHostIDs(ctx, hostIDs)
 	if err != nil {
 		return err
 	}
@@ -973,7 +973,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	return hostDetails, nil
 }
 
-func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
+func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error {
 	for _, id := range ids {
 		host, err := svc.ds.HostLite(ctx, id)
 		if err != nil {
@@ -981,7 +981,7 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 		}
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
+		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 			return err
 		}
 	}
@@ -1208,7 +1208,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// rather than a forbidden that would confirm the host exists on some
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
+	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 		return err
 	}
 
@@ -1663,6 +1663,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	var host *fleet.Host
+	var platform string
 	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop,
 	// so we don't handle that case
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
@@ -1682,13 +1683,29 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return err
 		}
+
+		platform = host.Platform
+	} else if deviceHost, ok := hostctx.FromContext(ctx); ok {
+		// The device-authenticated routes resolve the host during authentication and
+		// leave it here, so the platform is available without another read. It is kept
+		// out of `host` so the iOS MDM commands below stay off the device path.
+		platform = deviceHost.Platform
+	}
+
+	// Android hosts report their data through AMAPI whenever it changes, so there is
+	// nothing to refetch on demand. The Host details page hides the Refetch button for
+	// them; reject the request here too so API callers get an explanation instead of a
+	// success response that never refetches anything.
+	if fleet.IsAndroidPlatform(platform) {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.",
+		})
 	}
 
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
-	// TODO(android): add android to this list?
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
 		// Get MDM commands already sent
 		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)

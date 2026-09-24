@@ -4413,10 +4413,8 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		}, http.StatusNotFound)
 
 	// get command results returns 404, that command does not exist
-	var cmdResResp getMDMAppleCommandResultsResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
 	var getMDMCmdResp getMDMCommandResultsResponse
-	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &cmdResResp, "command_uuid", uuid1)
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &getMDMCmdResp, "command_uuid", uuid1)
 
 	// list commands returns empty set
 	var listCmdResp listMDMAppleCommandsResponse
@@ -4469,19 +4467,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Equal(t, "ProfileList", resp.RequestType)
 
 	// the command exists but no results yet
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
-	require.Len(t, cmdResResp.Results, 1)
-	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
-	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMCommandResult{
-		HostUUID:    mdmDevice.UUID,
-		CommandUUID: uuid2,
-		Status:      "Pending",
-		RequestType: "ProfileList",
-		Result:      []byte{},
-		Payload:     []byte(rawCmd),
-		Hostname:    "test-host",
-	}, cmdResResp.Results[0])
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
 	require.Len(t, getMDMCmdResp.Results, 1)
 	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
@@ -4506,20 +4491,6 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Raw:         []byte(rawCmd),
 	})
 	require.NoError(t, err)
-
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commandresults", nil, http.StatusOK, &cmdResResp, "command_uuid", uuid2)
-	require.Len(t, cmdResResp.Results, 1)
-	require.NotZero(t, cmdResResp.Results[0].UpdatedAt)
-	cmdResResp.Results[0].UpdatedAt = time.Time{}
-	require.Equal(t, &fleet.MDMCommandResult{
-		HostUUID:    mdmDevice.UUID,
-		CommandUUID: uuid2,
-		Status:      "Acknowledged",
-		RequestType: "ProfileList",
-		Result:      []byte(rawCmd),
-		Payload:     []byte(rawCmd),
-		Hostname:    "test-host",
-	}, cmdResResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", uuid2)
 	require.Len(t, getMDMCmdResp.Results, 1)
@@ -23894,6 +23865,22 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.NoError(t, err)
 	team1Host.OrbitNodeKey = ptr.String(setOrbitEnrollment(t, team1Host, s.ds))
 	globalHost := createOrbitEnrolledHost(t, "ubuntu", "3", s.ds)
+	// Hosts that only exist to be deleted by the technician users below.
+	newHostToDelete := func(suffix string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			NodeKey:  new(t.Name() + suffix),
+			UUID:     t.Name() + suffix,
+			Hostname: strings.ReplaceAll(t.Name()+suffix+".local", "/", "_"),
+			TeamID:   teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	globalHostToDelete := newHostToDelete("del-global", nil)
+	globalHostToBulkDelete := newHostToDelete("del-global-bulk", nil)
+	team1HostToDelete := newHostToDelete("del-t1", &t1.ID)
+	team1HostToBulkDelete := newHostToDelete("del-t1-bulk", &t1.ID)
+	team2HostToDelete := newHostToDelete("del-t2", &t2.ID)
 	q1, err := s.ds.NewQuery(ctx, &fleet.Query{
 		Name:    "Foo",
 		Query:   "SELECT * from time;",
@@ -24168,8 +24155,15 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
 
-	// Attempt to delete hosts, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h1.ID), nil, http.StatusForbidden, &deleteHostResponse{})
+	// Attempt to delete a host, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", globalHostToDelete.ID), nil, http.StatusOK, &deleteHostResponse{})
+	_, err = s.ds.HostLite(ctx, globalHostToDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Attempt to bulk delete hosts, should allow.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{globalHostToBulkDelete.ID}}, http.StatusOK, &deleteHostsResponse{})
+	_, err = s.ds.HostLite(ctx, globalHostToBulkDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
 
 	// Attempt to transfer host from global to a team, should allow.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
@@ -24635,6 +24629,29 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to clear the passcode on an iOS host of another team, should fail
 	// masked as not-found so other fleets' host IDs can't be probed.
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", team2IOSHost.ID), nil, http.StatusNotFound)
+
+	// Attempt to delete a host of its team, should allow.
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team1HostToDelete.ID), nil, http.StatusOK, &deleteHostResponse{})
+	_, err = s.ds.HostLite(ctx, team1HostToDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Attempt to delete a host of another team or with no team, should fail
+	// masked as not-found.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team2HostToDelete.ID), nil, http.StatusNotFound)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h1.ID), nil, http.StatusNotFound)
+
+	// Attempt to bulk delete hosts mixing its team and another team, should
+	// fail without deleting any host.
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{team1HostToBulkDelete.ID, team2HostToDelete.ID}}, http.StatusNotFound)
+	_, err = s.ds.HostLite(ctx, team1HostToBulkDelete.ID)
+	require.NoError(t, err)
+	_, err = s.ds.HostLite(ctx, team2HostToDelete.ID)
+	require.NoError(t, err)
+
+	// Attempt to bulk delete hosts of its team only, should allow.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{team1HostToBulkDelete.ID}}, http.StatusOK, &deleteHostsResponse{})
+	_, err = s.ds.HostLite(ctx, team1HostToBulkDelete.ID)
+	require.True(t, fleet.IsNotFound(err))
 
 	// Attempt to create queries in global domain, should allow.
 	tcqr := fleet.CreateQueryResponse{}

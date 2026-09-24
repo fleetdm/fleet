@@ -2478,6 +2478,45 @@ func TestLabelQueries(t *testing.T) {
 
 	mockClock.AddTime(1 * time.Second)
 
+	// Results for labels that are not dynamic labels applicable to the host
+	// (manual labels, other teams' labels, unknown IDs) must be discarded, not
+	// recorded as false: a false becomes a membership DELETE, which would let a
+	// host remove itself from a manual label.
+	gotResults = map[uint]*bool{}
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1":  {{"col1": "val1"}},
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	require.Len(t, gotResults, 1)
+	assert.True(t, *gotResults[1])
+	assert.NotContains(t, gotResults, uint(98))
+	assert.NotContains(t, gotResults, uint(99))
+
+	// When every reported label is inapplicable, nothing is recorded at all.
+	ds.RecordLabelQueryExecutionsFuncInvoked = false
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	assert.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
+
+	mockClock.AddTime(1 * time.Second)
+
 	// Record a query execution
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
@@ -6560,6 +6599,74 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
 		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
 	})
+}
+
+// A patch policy whose app is on a displayed patch notification queues no install, because that
+// notification's countdown is what installs the app.
+func TestProcessSoftwareForNewlyFailingPoliciesPatchNotification(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	var canSkipWhileAppIsOpen bool
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(_ context.Context, _ uint, _ []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{
+			ID:                      policyID,
+			InstallerID:             installerID,
+			OverridePreInstallQuery: canSkipWhileAppIsOpen,
+		}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(_ context.Context, _ uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "darwin"}, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(_ context.Context, _, _ uint) (bool, error) {
+		return true, nil
+	}
+	ds.GetHostLastInstallDataFunc = func(_ context.Context, _, _ uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	var appHasDisplayedPatchNotification bool
+	ds.DisplayedPatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
+		return appHasDisplayedPatchNotification, nil
+	}
+	var insertCalled bool
+	ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, _, _ uint, _ fleet.HostSoftwareInstallOptions) (string, error) {
+		insertCalled = true
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	failing := map[uint]*bool{policyID: new(false)}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+
+	// a notification the end user has seen lists the app, so its countdown installs it
+	canSkipWhileAppIsOpen = true
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.False(t, insertCalled, "a displayed patch notification already covers this app, so no second install should queue")
+
+	// no displayed notification lists the app, so the policy automation installs it
+	appHasDisplayedPatchNotification = false
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an app with no displayed patch notification should install")
+
+	// an install that cannot skip never opens a notification, so the check is not made
+	canSkipWhileAppIsOpen = false
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	ds.DisplayedPatchNotificationExistsForAppFuncInvoked = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an install that cannot skip should not be held back by a notification")
+	require.False(t, ds.DisplayedPatchNotificationExistsForAppFuncInvoked)
 }
 
 // TestPolicyAutomationDeferredActivation verifies that policy-automation

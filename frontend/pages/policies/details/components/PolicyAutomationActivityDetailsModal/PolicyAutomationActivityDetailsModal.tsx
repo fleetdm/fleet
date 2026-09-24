@@ -1,9 +1,25 @@
-import React from "react";
+import { AxiosError } from "axios";
+import React, { useState } from "react";
+import { useQuery } from "react-query";
 
-import { SKIPPED_PRE_INSTALL_OUTPUT } from "components/ActivityDetails/InstallDetails/constants";
+import {
+  PRE_INSTALL_QUERY_FAIL_OUTPUT,
+  SKIPPED_PRE_INSTALL_OUTPUT,
+  SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY,
+} from "components/ActivityDetails/InstallDetails/constants";
+import {
+  getCaveatMessage,
+  getAutomationNotifiedMessage,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+  EXIT_CODES_NEEDING_EUE_LINK,
+  PATCHING_END_USER_EXPERIENCE_URL,
+  retryUnless404,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
 import DataSet from "components/DataSet";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
@@ -12,17 +28,23 @@ import Textarea from "components/Textarea";
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
 import PATHS from "router/paths";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import {
   getAutomationRunDisplayName,
   getAutomationStatusIcon,
   getDetailOutputText,
+  isNotifySkip,
 } from "../PolicyAutomationsActivitiesTable/helpers";
 
 const baseClass = "policy-automation-activity-details-modal";
 
 interface IPolicyAutomationActivityDetailsModalProps {
   activity: IPolicyAutomationActivity;
+  /** The policy whose runs table opened this modal. Scopes multi-title notify
+   *  activities to the title patched by that policy. */
+  currentPolicyId: number;
   onCancel: () => void;
   /** When provided, renders a "Reset policy" action in the footer. */
   onResetPolicy?: () => void;
@@ -30,21 +52,91 @@ interface IPolicyAutomationActivityDetailsModalProps {
 
 const PolicyAutomationActivityDetailsModal = ({
   activity,
+  currentPolicyId,
   onCancel,
   onResetPolicy,
 }: IPolicyAutomationActivityDetailsModalProps): JSX.Element => {
   const { created_at, host_id, host_display_name } = activity;
-  const detailOutput = getDetailOutputText(activity);
+  const isNotify = activity.type === ActivityType.NotifiedEndUserBeforePatching;
   const isSoftwareInstall = activity.type === ActivityType.InstalledSoftware;
+  const isSkippedInstall =
+    isSoftwareInstall && !!activity.details?.skipped_install;
+  const isSkippedNotifyVariant = isSkippedInstall && isNotifySkip(activity);
+  const scriptExecutionId = activity.details?.script_execution_id;
+
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Only the notify branches need the exit code (not on the activity itself).
+  const { data: scriptResult, isError } = useQuery<
+    IScriptResultResponse,
+    AxiosError
+  >(
+    ["notify-script-result", scriptExecutionId],
+    () => scriptsAPI.getScriptResult(scriptExecutionId as string),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isNotify && !!scriptExecutionId,
+      retry: retryUnless404,
+    }
+  );
+
+  const detailOutput = getDetailOutputText(activity);
+  const statusIcon = getAutomationStatusIcon(activity);
+
+  const getExplanation = (): string | null => {
+    if (isNotify) {
+      if (activity.status === "success") {
+        return getAutomationNotifiedMessage(activity.details?.time_before);
+      }
+      return getCaveatMessage(
+        "failed",
+        scriptExecutionId,
+        scriptResult?.exit_code
+      );
+    }
+    if (isSkippedNotifyVariant) {
+      return SKIPPED_INSTALL_NOTIFY_EXPLANATION;
+    }
+    return null;
+  };
+
+  const explanation = getExplanation();
+  const showEueLink =
+    isNotify &&
+    scriptResult?.exit_code != null &&
+    EXIT_CODES_NEEDING_EUE_LINK.has(scriptResult.exit_code);
+
+  // Notify + notify-skip cases hide output behind a Details reveal.
+  const detailsLabel = (() => {
+    if (isNotify) return "Notification script output:";
+    if (isSkippedNotifyVariant) return "Pre-install query output:";
+    return null;
+  })();
+  const detailsContent = (() => {
+    if (isNotify) return scriptResult?.output || activity.output || null;
+    if (isSkippedNotifyVariant) return SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY;
+    return null;
+  })();
 
   // A code-style output block with a copy button. Renders nothing when empty.
-  const renderOutputSection = (label: string, value: string | null) =>
+  // `plainLabel` drops the bold treatment for labels inside the Details reveal.
+  const renderOutputSection = (
+    label: string,
+    value: string | null,
+    plainLabel = false
+  ) =>
     value ? (
       <Textarea
         key={label}
         variant="code"
         label={
-          <div className={`${baseClass}__details-label`}>
+          <div
+            className={
+              plainLabel
+                ? `${baseClass}__plain-label`
+                : `${baseClass}__details-label`
+            }
+          >
             <span>{label}</span>
             <CopyButton
               copyText={value}
@@ -57,6 +149,67 @@ const PolicyAutomationActivityDetailsModal = ({
         {value}
       </Textarea>
     ) : null;
+
+  const renderBody = () => {
+    if (explanation) {
+      return (
+        <>
+          <p className={`${baseClass}__explanation`}>
+            {explanation}
+            {showEueLink && (
+              <>
+                {" "}
+                <CustomLink
+                  url={PATCHING_END_USER_EXPERIENCE_URL}
+                  text="End user experience"
+                  newTab
+                />
+              </>
+            )}
+          </p>
+          {(detailsContent || isError) && detailsLabel && (
+            <>
+              <RevealButton
+                isShowing={showDetails}
+                showText="Details"
+                hideText="Details"
+                caretPosition="after"
+                onClick={() => setShowDetails((s) => !s)}
+              />
+              {showDetails &&
+                (isError ? (
+                  <DataError
+                    description="Couldn't load the notification script output."
+                    excludeIssueLink
+                  />
+                ) : (
+                  renderOutputSection(detailsLabel, detailsContent, true)
+                ))}
+            </>
+          )}
+        </>
+      );
+    }
+    if (isSoftwareInstall) {
+      let preInstallOutput = activity.pre_install_output;
+      if (isSkippedInstall) {
+        preInstallOutput = SKIPPED_PRE_INSTALL_OUTPUT;
+      } else if (activity.status === "error" && preInstallOutput === "") {
+        preInstallOutput = PRE_INSTALL_QUERY_FAIL_OUTPUT;
+      }
+      return (
+        <>
+          {renderOutputSection("Pre-install query output", preInstallOutput)}
+          {renderOutputSection("Details", activity.output)}
+          {renderOutputSection(
+            "Post-install script output",
+            activity.post_install_output
+          )}
+        </>
+      );
+    }
+    return renderOutputSection("Details", detailOutput || null);
+  };
 
   return (
     <Modal title="Details" onExit={onCancel} className={baseClass}>
@@ -84,31 +237,12 @@ const PolicyAutomationActivityDetailsModal = ({
           title="Status"
           value={
             <span className={`${baseClass}__status`}>
-              <Icon
-                name={getAutomationStatusIcon(activity).name}
-                color={getAutomationStatusIcon(activity).color}
-              />
-              {getAutomationRunDisplayName(activity)}
+              <Icon name={statusIcon.name} color={statusIcon.color} />
+              {getAutomationRunDisplayName(activity, currentPolicyId)}
             </span>
           }
         />
-        {isSoftwareInstall ? (
-          <>
-            {renderOutputSection(
-              "Pre-install query output",
-              activity.details?.skipped_install
-                ? SKIPPED_PRE_INSTALL_OUTPUT
-                : activity.pre_install_output
-            )}
-            {renderOutputSection("Details", activity.output)}
-            {renderOutputSection(
-              "Post-install script output",
-              activity.post_install_output
-            )}
-          </>
-        ) : (
-          renderOutputSection("Details", detailOutput || null)
-        )}
+        {renderBody()}
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
           {onResetPolicy && (
