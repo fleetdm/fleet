@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import Modal from "components/Modal";
+
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { IVariable } from "interfaces/variables";
-import { notify } from "components/ToastNotification";
-
-import formatErrorResponse from "utilities/format_error_response";
 import variablesAPI from "services/entities/variables";
+import formatErrorResponse from "utilities/format_error_response";
 
 interface DeleteCustomVariableModalProps {
   variable: IVariable | undefined;

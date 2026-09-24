@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.1.0",
+      "version": "5.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.1.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'gpg4win.exe');"
       },
-      "installer_url": "https://files.gpg4win.org/gpg4win-5.1.0.exe",
+      "installer_url": "https://files.gpg4win.org/gpg4win-5.1.1.exe",
       "install_script_ref": "33dd6930",
       "uninstall_script_ref": "5b342b42",
-      "sha256": "9682f2825c70dc3e7efd8a3fcb9e676ccb9674bebbf6be1a30d5837f5b420a2e",
+      "sha256": "ed19c0c89ec42fe32c52a7abd6e3da5f491752700546b9eed7ddf82fd303cddf",
       "default_categories": [
         "Security"
       ]

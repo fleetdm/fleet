@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useErrorHandler } from "react-error-boundary";
 
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import MainContent from "components/MainContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import Spinner from "components/Spinner/Spinner";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import useTeamIdParam from "hooks/useTeamIdParam";
@@ -12,22 +19,15 @@ import {
   IStoredPolicyResponse,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { DEFAULT_POLICY } from "pages/policies/constants";
+import QueryEditor from "pages/policies/edit/screens/QueryEditor";
+import PATHS from "router/paths";
 import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
 import policiesAPI from "services/entities/policies";
 import statusAPI from "services/entities/status";
-import PATHS from "router/paths";
+import teamPoliciesAPI from "services/entities/team_policies";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
-
-import SidePanelPage from "components/SidePanelPage";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import QueryEditor from "pages/policies/edit/screens/QueryEditor";
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import Spinner from "components/Spinner/Spinner";
-import CustomLink from "components/CustomLink";
-import { DEFAULT_POLICY } from "pages/policies/constants";
 
 interface IPolicyPageProps {
   router: InjectedRouter;
@@ -260,19 +260,16 @@ const PolicyPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live report. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live report. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+          variant="banner-link"
+        />
+      </InfoBanner>
     );
   };
 

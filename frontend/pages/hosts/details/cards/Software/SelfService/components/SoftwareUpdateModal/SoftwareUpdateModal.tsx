@@ -1,13 +1,13 @@
 import React from "react";
 
+import Button from "components/buttons/Button";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import IconStatusMessage from "components/IconStatusMessage";
-import ModalFooter from "components/ModalFooter";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 

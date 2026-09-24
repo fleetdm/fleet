@@ -1,24 +1,21 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
-import paths from "router/paths";
-import { AppContext } from "context/app";
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import LoginForm from "components/forms/LoginForm";
+import Spinner from "components/Spinner/Spinner";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import { ILoginUserData } from "interfaces/user";
-import local from "utilities/local";
-import authToken from "utilities/auth_token";
+import paths from "router/paths";
 import configAPI from "services/entities/config";
 import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
+import authToken from "utilities/auth_token";
 import formatErrorResponse from "utilities/format_error_response";
-
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-// @ts-ignore
-import LoginForm from "components/forms/LoginForm";
-import Spinner from "components/Spinner/Spinner";
+import local from "utilities/local";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
@@ -59,7 +56,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   } = useContext(AppContext);
   const { redirectLocation } = useContext(RoutingContext);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingEmail, setPendingEmail] = useState(false);
 
@@ -155,8 +151,10 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           setPendingEmail(true);
         }
 
-        const errorObject = formatErrorResponse(response);
-        setErrors(errorObject);
+        const { base } = formatErrorResponse(response);
+        if (base) {
+          notify.error(base, { response });
+        }
         return false;
       } finally {
         setIsSubmitting(false);
@@ -184,14 +182,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       const { url } = await sessionsAPI.initializeSSO(returnToAfterAuth);
       window.location.href = url;
     } catch (error) {
-      const err = error as AxiosError;
-      // a one-off error for sso login failure to be more readable to users
-      const ssoError = {
-        status: err.status,
-        data: { errors: [{ name: "base", reason: "Authentication failed" }] },
-      };
-      const errorObject = formatErrorResponse(ssoError);
-      setErrors(errorObject);
+      notify.error("Authentication failed", { response: error });
     }
   }, [redirectLocation]);
 
@@ -203,7 +194,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     <AuthenticationFormWrapper header="Welcome to Fleet">
       <LoginForm
         handleSubmit={onSubmit}
-        baseError={errors.base}
         ssoSettings={ssoSettings}
         handleSSOSignOn={ssoSignOn}
         isSubmitting={isSubmitting}

@@ -1,0 +1,1 @@
+- Added `--cpu-quota` flag to `fleetctl package` to set the systemd `CPUQuota` enforced on fleetd in Linux packages (deb, rpm, pkg.tar.zst). Default remains 20%.

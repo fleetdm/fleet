@@ -1,4 +1,5 @@
 import { ISetupStep } from "interfaces/setup";
+
 import {
   canAutoInitiateDeviceSSO,
   clearDeviceSSOAttempt,

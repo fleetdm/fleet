@@ -1,13 +1,12 @@
 import React, { useContext } from "react";
 
-import { dateAgo } from "utilities/date_format";
-
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -18,18 +17,23 @@ import {
   IMdmProfile,
   MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
-import { SoftwareAggregateStatus } from "interfaces/software";
+import {
+  formatSoftwareVersion,
+  SoftwareAggregateStatus,
+} from "interfaces/software";
+import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
   DEPDeviceStatus,
 } from "services/entities/hosts";
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
-
 import {
   MDM_STATUS_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -37,18 +41,13 @@ import {
   isPlatformLabelNameFromAPI,
   PolicyResponse,
 } from "utilities/constants";
+import { dateAgo } from "utilities/date_format";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { abmIssueTooltip } from "pages/DashboardPage/cards/ABMIssueHosts/ABMIssueHosts";
-
+import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
+import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
+import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
-import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
-import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
 const baseClass = "hosts-filter-block";
 
@@ -84,6 +83,8 @@ interface IHostsFilterBlockProps {
       name: string;
       display_name?: string;
       version?: string;
+      release?: string;
+      source?: string;
     } | null;
     mdmSolutionDetails: IMdmSolution | null;
     osSettingsStatus?: MdmProfileStatus;
@@ -358,7 +359,7 @@ const HostsFilterBlock = ({
     const { name, display_name, version } = softwareDetails;
     let label = getDisplayedSoftwareName(name, display_name);
     if (version) {
-      label += ` ${version}`;
+      label += ` ${formatSoftwareVersion({ ...softwareDetails, version })}`;
     }
 
     const clearParams = [
@@ -702,7 +703,8 @@ const HostsFilterBlock = ({
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
-        // (label + mdm solution) OR (label + mdm enrollment status)
+        // (label + mdm solution) OR (label + mdm enrollment status) OR
+        // (label + os settings) OR (label + disk encryption)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -726,6 +728,12 @@ const HostsFilterBlock = ({
           return (
             <>
               {renderLabelFilterPill()} {renderOsSettingsBlock()}
+            </>
+          );
+        case showSelectedLabel && !!diskEncryptionStatus:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
             </>
           );
         case showSelectedLabel:

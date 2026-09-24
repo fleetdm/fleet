@@ -1,8 +1,7 @@
 import React from "react";
 
-import { SUPPORT_LINK } from "utilities/constants";
-
 import Button from "components/buttons/Button";
+import { SUPPORT_LINK } from "utilities/constants";
 
 // @ts-ignore
 import illustration from "../../../../assets/images/404.png";

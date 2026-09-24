@@ -1,33 +1,30 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import FileProgressModal from "components/FileProgressModal";
+import InfoBanner from "components/InfoBanner";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useBlockNavigation from "hooks/useBlockNavigation";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import PATHS from "router/paths";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
-import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
-import { AppContext } from "context/app";
-import useBlockNavigation from "hooks/useBlockNavigation";
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { ILabelSummary } from "interfaces/label";
-
-import { notify } from "components/ToastNotification";
-import CustomLink from "components/CustomLink";
-import FileProgressModal from "components/FileProgressModal";
-import InfoBanner from "components/InfoBanner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-
-import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 
 import { getErrorMessage } from "./helpers";
 
@@ -36,11 +33,7 @@ const baseClass = "software-custom-package";
 /** Shared GitOps-mode banner for the custom-package flows. Rendered by this
  * page (single-package add) and by `PackageForm`'s multi-package Add modal. */
 export const GitOpsCustomPackageBanner = () => (
-  <InfoBanner
-    icon="info-outline"
-    iconColor="ui-fleet-black-50"
-    borderRadius="medium"
-  >
+  <InfoBanner icon="info-outline" iconColor="ui-fleet-black-50">
     Add custom packages in GitOps mode so Fleet can host your software. After
     adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
     doesn&apos;t delete it.{" "}
