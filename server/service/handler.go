@@ -19,6 +19,7 @@ import (
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
@@ -1429,12 +1430,14 @@ func registerSCEP(
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
-		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
-		// This value was allowed to be configured via --mdm_apple_scep_signer_allow_renewal_days but there was no real use case for
-		// customizing it and it was confusing for customers, so it has been removed and replaced with the default of 14. For discussion,
-		// see https://github.com/fleetdm/fleet/issues/38611 and https://github.com/fleetdm/fleet/issues/37880#issuecomment-3805983198
-		// Fleet has a 180-day renewal cron that is completely unrelated to this or its value
-		scep_depot.WithAllowRenewalDays(14),
+		append([]scep_depot.Option{
+			scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
+			// This value was allowed to be configured via --mdm_apple_scep_signer_allow_renewal_days but there was no real use case for
+			// customizing it and it was confusing for customers, so it has been removed and replaced with the default of 14. For discussion,
+			// see https://github.com/fleetdm/fleet/issues/38611 and https://github.com/fleetdm/fleet/issues/37880#issuecomment-3805983198
+			// Fleet has a 180-day renewal cron that is completely unrelated to this or its value
+			scep_depot.WithAllowRenewalDays(14),
+		}, DevAppleSCEPValidityOptions(logger)...)...,
 	))
 	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge}, nil)
 	if err != nil {
@@ -1482,6 +1485,23 @@ func RegisterSCEPProxy(
 	scepHandler = otel.WrapHandler(scepHandler, apple_mdm.SCEPProxyPath, *fleetConfig)
 	rootMux.Handle(apple_mdm.SCEPProxyPath, scepHandler)
 	return nil
+}
+
+// DevAppleSCEPValidityOptions returns signer options overriding the validity
+// of Apple MDM identity certificates when FLEET_DEV_MDM_APPLE_SCEP_CERT_VALIDITY
+// is set to a Go duration (e.g. "30m") in dev mode.
+func DevAppleSCEPValidityOptions(logger *slog.Logger) []scep_depot.Option {
+	v := dev_mode.Env("FLEET_DEV_MDM_APPLE_SCEP_CERT_VALIDITY")
+	if v == "" {
+		return nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		logger.ErrorContext(context.TODO(), "ignoring invalid FLEET_DEV_MDM_APPLE_SCEP_CERT_VALIDITY", "value", v, "err", err)
+		return nil
+	}
+	logger.WarnContext(context.TODO(), "overriding Apple MDM SCEP certificate validity", "validity", d)
+	return []scep_depot.Option{scep_depot.WithValidity(d)}
 }
 
 // NanoMDMLogger is a logger adapter for nanomdm.

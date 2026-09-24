@@ -635,7 +635,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	svc.SetActivityService(activitySvc)
 
 	// Bootstrap ACME service module
-	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}
+	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, append([]scepdepot.Option{
+		scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays),
+		scepdepot.WithAllowRenewalDays(14),
+	}, service.DevAppleSCEPValidityOptions(logger)...)...)}
 	acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger, acmeSigner)
 	// Inject the ACME service module into the main service
 	svc.SetACMEService(acmeSvc)
