@@ -64,6 +64,8 @@ fleetctl package --type=pkg.tar.zst \
 	--debug
 
 echo "Building docker images..."
+# BuildKit is required for running "RUN --mount".
+export DOCKER_BUILDKIT=1
 docker build -t fleetd-ubuntu-24.04 --platform=linux/amd64 -f ./ubuntu-24.04/Dockerfile .
 docker build -t fleetd-ubuntu-20.04 --platform=linux/amd64 -f ./ubuntu-20.04/Dockerfile .
 docker build -t fleetd-fedora-43 --platform=linux/amd64 -f ./fedora-43/Dockerfile .
