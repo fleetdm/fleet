@@ -1,4 +1,4 @@
-# Choose what end users see when Fleet patches apps
+# Patching end user experience
 
 When a patch policy for a Fleet-maintained app fails, Fleet can update the app for you. Each patch option gives your end users a different experience. Some options update apps quietly. One warns end users first, so they can save their work before the app closes. This guide shows what end users see on their Mac for each option, so you can pick the right one for each app.
 
