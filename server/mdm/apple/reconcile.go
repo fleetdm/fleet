@@ -844,6 +844,11 @@ func ExecuteReconcileBatch(
 	if err != nil {
 		logger.ErrorContext(ctx, "batched reconcile: ProcessAndEnqueueProfiles returned error", "err", err)
 		for _, hp := range hostProfiles {
+			// An adopted command was queued before this batch and is still queued, so
+			// the row keeps tracking it; resetting it would queue a duplicate install.
+			if _, adopted := adoptedCmds[hostCommandKey{hostUUID: hp.HostUUID, commandUUID: hp.CommandUUID}]; adopted {
+				continue
+			}
 			if hp.Status != nil && *hp.Status == fleet.MDMDeliveryPending {
 				hp.Status = nil
 				hp.CommandUUID = ""

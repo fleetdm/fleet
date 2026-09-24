@@ -2147,12 +2147,15 @@ type reconcileBatchResults struct {
 	enqueued    []string
 	cleanedUp   []*fleet.MDMAppleProfilePayload
 	upserted    []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	err         error
 }
 
 // runReconcileBatchCapturing runs ExecuteReconcileBatch against mocks and
 // records its side effects. Hosts in beingSetUp are reported as having the
-// profile-processing key set.
-func runReconcileBatchCapturing(t *testing.T, beingSetUp []string, toInstall, toRemove []*fleet.MDMAppleProfilePayload) *reconcileBatchResults {
+// profile-processing key set; overrides run after the default mocks are set.
+func runReconcileBatchCapturing(t *testing.T, beingSetUp []string, toInstall, toRemove []*fleet.MDMAppleProfilePayload,
+	overrides ...func(ds *mock.Store),
+) *reconcileBatchResults {
 	t.Helper()
 	res := &reconcileBatchResults{deletedCmds: map[string][]string{}}
 
@@ -2237,8 +2240,11 @@ func runReconcileBatchCapturing(t *testing.T, beingSetUp []string, toInstall, to
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
 
-	_, err := ExecuteReconcileBatch(t.Context(), ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, toRemove)
-	require.NoError(t, err)
+	for _, override := range overrides {
+		override(ds)
+	}
+
+	_, res.err = ExecuteReconcileBatch(t.Context(), ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, toRemove)
 	return res
 }
 
@@ -2263,6 +2269,7 @@ func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 
 	t.Run("install present: removal cancelled, no RemoveProfile sent", func(t *testing.T) {
 		res := runReconcileBatchCapturing(t, nil, []*fleet.MDMAppleProfilePayload{newInstall()}, []*fleet.MDMAppleProfilePayload{cancelOnly()})
+		require.NoError(t, res.err)
 
 		require.Contains(t, res.deletedCmds, "remove-cmd")
 		require.Equal(t, []string{hostUUID}, res.deletedCmds["remove-cmd"])
@@ -2280,6 +2287,7 @@ func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 
 	t.Run("install filtered out: removal left untouched", func(t *testing.T) {
 		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{cancelOnly()})
+		require.NoError(t, res.err)
 
 		require.Empty(t, res.deletedCmds, "nothing to supersede, so the queued command must stand")
 		require.Empty(t, res.enqueued, "a cancel-only row must never send a RemoveProfile")
@@ -2354,6 +2362,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 		res := runReconcileBatchCapturing(t, nil,
 			[]*fleet.MDMAppleProfilePayload{newInstall("aaaa")},
 			[]*fleet.MDMAppleProfilePayload{oldRow(fleet.MDMDeliveryPending)})
+		require.NoError(t, res.err)
 
 		require.NotContains(t, res.deletedCmds, queuedCmd)
 		require.Empty(t, res.enqueued)
@@ -2371,6 +2380,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 		res := runReconcileBatchCapturing(t, nil,
 			[]*fleet.MDMAppleProfilePayload{newInstall("bbbb")},
 			[]*fleet.MDMAppleProfilePayload{oldRow(fleet.MDMDeliveryPending)})
+		require.NoError(t, res.err)
 
 		require.Equal(t, []string{hostUUID}, res.deletedCmds[queuedCmd])
 		require.Equal(t, []string{"InstallProfile"}, res.enqueued)
@@ -2384,6 +2394,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 		res := runReconcileBatchCapturing(t, []string{hostUUID},
 			[]*fleet.MDMAppleProfilePayload{newInstall("aaaa")},
 			[]*fleet.MDMAppleProfilePayload{oldRow(fleet.MDMDeliveryPending)})
+		require.NoError(t, res.err)
 
 		require.Equal(t, []string{hostUUID}, res.deletedCmds[queuedCmd])
 		require.Empty(t, res.enqueued)
@@ -2391,5 +2402,38 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 		require.Len(t, res.upserted, 1)
 		require.Nil(t, res.upserted[0].Status)
 		require.Empty(t, res.upserted[0].CommandUUID)
+	})
+
+	t.Run("enqueue fails: adopted row keeps its queued command", func(t *testing.T) {
+		otherInstall := &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aOtherProfileUUID", ProfileIdentifier: "com.example.other", ProfileName: "Other",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("cccc"),
+		}
+		res := runReconcileBatchCapturing(t, nil,
+			[]*fleet.MDMAppleProfilePayload{newInstall("aaaa"), otherInstall},
+			[]*fleet.MDMAppleProfilePayload{oldRow(fleet.MDMDeliveryPending)},
+			func(ds *mock.Store) {
+				ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+					return nil, errors.New("enqueue failure")
+				}
+			})
+		require.ErrorContains(t, res.err, "enqueue failure")
+		require.NotContains(t, res.deletedCmds, queuedCmd)
+
+		// the rollback mutates the upserted rows in place, so these reflect its result
+		byProfile := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(res.upserted))
+		for _, hp := range res.upserted {
+			byProfile[hp.ProfileUUID] = hp
+		}
+		require.Len(t, byProfile, 2)
+
+		adopted := byProfile["aFleetBProfileUUID"]
+		require.Equal(t, queuedCmd, adopted.CommandUUID)
+		require.NotNil(t, adopted.Status)
+		require.Equal(t, fleet.MDMDeliveryPending, *adopted.Status)
+
+		reverted := byProfile["aOtherProfileUUID"]
+		require.Nil(t, reverted.Status)
+		require.Empty(t, reverted.CommandUUID)
 	})
 }
