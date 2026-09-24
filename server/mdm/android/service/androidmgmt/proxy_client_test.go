@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,4 +49,10 @@ func TestProxyClientEnterprisesCreateStatusError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewRetryClientDefaultDelays(t *testing.T) {
+	client, ok := NewRetryClient(&ProxyClient{}, slog.New(slog.DiscardHandler)).(*retryClient)
+	require.True(t, ok)
+	assert.Equal(t, []time.Duration{60 * time.Second, 120 * time.Second, 240 * time.Second}, client.delays)
 }

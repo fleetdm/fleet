@@ -3,7 +3,9 @@ package androidmgmt_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -97,20 +99,106 @@ func TestRetryClientStopsWhenContextDone(t *testing.T) {
 	assert.Nil(t, device)
 	require.ErrorIs(t, err, context.Canceled)
 	assert.True(t, androidmgmt.IsTooManyRequestsError(err))
+	assert.NotContains(t, err.Error(), "\n", "error is persisted in single-line fields")
 }
 
-func TestRetryClientDoesNotRetryOperationsGet(t *testing.T) {
+func TestRetryClientNotRetriedMethods(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(m *mock.Client, calls *int)
+		call  func(ctx context.Context, c androidmgmt.Client) error
+	}{
+		{
+			name: "EnterprisesDevicesOperationsGet",
+			setup: func(m *mock.Client, calls *int) {
+				m.EnterprisesDevicesOperationsGetFunc = func(context.Context, string) (*androidmanagement.Operation, error) {
+					*calls++
+					return nil, errTooManyRequests
+				}
+			},
+			call: func(ctx context.Context, c androidmgmt.Client) error {
+				_, err := c.EnterprisesDevicesOperationsGet(ctx, "enterprises/e/devices/d/operations/o")
+				return err
+			},
+		},
+		{
+			name: "EnterprisesCreate",
+			setup: func(m *mock.Client, calls *int) {
+				m.EnterprisesCreateFunc = func(context.Context, androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+					*calls++
+					return androidmgmt.EnterprisesCreateResponse{}, errTooManyRequests
+				}
+			},
+			call: func(ctx context.Context, c androidmgmt.Client) error {
+				_, err := c.EnterprisesCreate(ctx, androidmgmt.EnterprisesCreateRequest{})
+				return err
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls int
+			inner := &mock.Client{}
+			tt.setup(inner, &calls)
+			client := androidmgmt.NewRetryClientWithDelays(inner, shortRetryDelays)
+
+			err := tt.call(t.Context(), client)
+			assert.Equal(t, 1, calls)
+			assert.True(t, androidmgmt.IsTooManyRequestsError(err))
+		})
+	}
+}
+
+func TestRetryClientWithoutRetry(t *testing.T) {
 	var calls int
 	inner := &mock.Client{}
-	inner.EnterprisesDevicesOperationsGetFunc = func(context.Context, string) (*androidmanagement.Operation, error) {
+	inner.EnterprisesPoliciesPatchFunc = func(ctx context.Context, _ string, _ *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		calls++
-		return nil, errTooManyRequests
+		assert.True(t, androidmgmt.RetryDisabled(ctx))
+		if calls == 1 {
+			return nil, errTooManyRequests
+		}
+		return &androidmanagement.Policy{}, nil
 	}
 	client := androidmgmt.NewRetryClientWithDelays(inner, shortRetryDelays)
 
-	_, err := client.EnterprisesDevicesOperationsGet(t.Context(), "enterprises/e/devices/d/operations/o")
+	require.False(t, androidmgmt.RetryDisabled(t.Context()))
+	ctx := androidmgmt.WithoutRetry(t.Context())
+	_, err := client.EnterprisesPoliciesPatch(ctx, "policyName", &androidmanagement.Policy{}, androidmgmt.PoliciesPatchOpts{})
 	assert.Equal(t, 1, calls)
 	assert.True(t, androidmgmt.IsTooManyRequestsError(err))
+}
+
+// TestRetryClientProxyTooManyRequests sends the proxy's 429 response through the real ProxyClient, to check
+// that it is classified as a quota error and retried.
+func TestRetryClientProxyTooManyRequests(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		assert.Equal(t, "/v1/enterprises/e/devices/d:issueCommand", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		if calls == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":{"code":429,"message":"rate limit exceeded"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"name":"enterprises/e/devices/d/operations/o"}`))
+	}))
+	defer srv.Close()
+
+	proxy := androidmgmt.NewProxyClient(t.Context(), slog.New(slog.DiscardHandler), "license", func(name string) string {
+		if name == "FLEET_DEV_ANDROID_PROXY_ENDPOINT" {
+			return srv.URL + "/"
+		}
+		return ""
+	})
+	require.NotNil(t, proxy)
+	client := androidmgmt.NewRetryClientWithDelays(proxy, shortRetryDelays)
+
+	op, err := client.EnterprisesDevicesIssueCommand(t.Context(), "enterprises/e/devices/d", &androidmanagement.Command{Type: "LOCK"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, calls)
+	assert.Equal(t, "enterprises/e/devices/d/operations/o", op.Name)
 }
 
 // TestRetryClientRetriesEveryMethod checks that each retried method forwards its arguments and results
@@ -146,20 +234,6 @@ func TestRetryClientRetriesEveryMethod(t *testing.T) {
 			call: func(ctx context.Context, c androidmgmt.Client) error {
 				ret, err := c.SignupURLsCreate(ctx, "server", "callback")
 				assert.Equal(t, "url", ret.Url)
-				return err
-			},
-		},
-		{
-			name: "EnterprisesCreate",
-			setup: func(t *testing.T, m *mock.Client, calls *int) {
-				m.EnterprisesCreateFunc = func(_ context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
-					assert.Equal(t, "signup", req.SignupURLName)
-					return androidmgmt.EnterprisesCreateResponse{EnterpriseName: "enterprise"}, fail429Once(calls)
-				}
-			},
-			call: func(ctx context.Context, c androidmgmt.Client) error {
-				ret, err := c.EnterprisesCreate(ctx, androidmgmt.EnterprisesCreateRequest{SignupURLName: "signup"})
-				assert.Equal(t, "enterprise", ret.EnterpriseName)
 				return err
 			},
 		},

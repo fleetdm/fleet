@@ -2,8 +2,9 @@ package androidmgmt
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -26,8 +27,9 @@ type retryClient struct {
 // Compile-time check to ensure that retryClient implements Client.
 var _ Client = &retryClient{}
 
-// NewRetryClient wraps client so that every AMAPI call rejected with a 429 is retried with exponential
-// backoff, until the retries are exhausted or ctx is done. It returns nil if client is nil.
+// NewRetryClient wraps client so that AMAPI calls rejected with a 429 are retried with exponential
+// backoff, until the retries are exhausted or ctx is done. Calls made with a WithoutRetry context are not
+// retried. It returns nil if client is nil.
 func NewRetryClient(client Client, logger *slog.Logger) Client {
 	if client == nil {
 		return nil
@@ -39,11 +41,34 @@ func newRetryClient(client Client, logger *slog.Logger, delays []time.Duration) 
 	return &retryClient{next: client, logger: logger, delays: delays}
 }
 
+type withoutRetryKey struct{}
+
+// WithoutRetry returns a context under which the client returned by NewRetryClient makes a single attempt
+// and returns 429 errors immediately. Use it for background work that already retries on its next run, so
+// a quota error doesn't stall the rest of the batch or other jobs sharing the same runner.
+func WithoutRetry(ctx context.Context) context.Context {
+	return context.WithValue(ctx, withoutRetryKey{}, true)
+}
+
+// RetryDisabled reports whether ctx was returned by WithoutRetry.
+func RetryDisabled(ctx context.Context) bool {
+	disabled, _ := ctx.Value(withoutRetryKey{}).(bool)
+	return disabled
+}
+
 func withRetry[T any](ctx context.Context, r *retryClient, method string, fn func() (T, error)) (T, error) {
 	ret, err := fn()
+	if RetryDisabled(ctx) {
+		return ret, err
+	}
 	for attempt, delay := range r.delays {
 		if !IsTooManyRequestsError(err) {
 			break
+		}
+		// Jitter spreads out the retries of Fleet servers that share the proxy's quota, so they don't all
+		// land at the start of the next quota window.
+		if half := int64(delay / 2); half > 0 {
+			delay += time.Duration(rand.Int64N(half)) //nolint:gosec // jitter does not need a secure source
 		}
 		r.logger.WarnContext(ctx, "AMAPI quota exceeded, retrying", "method", method, "retry", attempt+1, "delay", delay)
 		timer := time.NewTimer(delay)
@@ -52,9 +77,12 @@ func withRetry[T any](ctx context.Context, r *retryClient, method string, fn fun
 		case <-ctx.Done():
 			timer.Stop()
 			var zero T
-			return zero, errors.Join(ctx.Err(), err)
+			return zero, fmt.Errorf("%w: %w", ctx.Err(), err)
 		}
 		ret, err = fn()
+		if err == nil {
+			r.logger.InfoContext(ctx, "AMAPI call succeeded after retry", "method", method, "retry", attempt+1)
+		}
 	}
 	return ret, err
 }
@@ -72,10 +100,11 @@ func (r *retryClient) SignupURLsCreate(ctx context.Context, serverURL, callbackU
 	})
 }
 
+// EnterprisesCreate is deliberately not retried: each attempt creates a new PubSub topic and subscription
+// before creating the enterprise, so a retried 429 would leave orphaned ones behind. It runs from the
+// admin's signup callback, so the admin can retry it.
 func (r *retryClient) EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error) {
-	return withRetry(ctx, r, "EnterprisesCreate", func() (EnterprisesCreateResponse, error) {
-		return r.next.EnterprisesCreate(ctx, req)
-	})
+	return r.next.EnterprisesCreate(ctx, req)
 }
 
 func (r *retryClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {

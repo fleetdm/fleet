@@ -28,6 +28,10 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Log
 // ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
 // If client is nil, a new AMAPI client will be created.
 func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig, batchSize int) (err error) {
+	// Hosts whose AMAPI call hits the quota are recorded as failed and picked up on a later run; waiting out
+	// the quota here would stall every other host in the batch.
+	ctx = androidmgmt.WithoutRetry(ctx)
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")

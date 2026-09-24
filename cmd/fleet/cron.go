@@ -27,6 +27,7 @@ import (
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -1657,7 +1658,8 @@ func newCleanupsAndAggregationSchedule(
 			return nil
 		}),
 		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
-			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+			// Don't hold up the other cleanup jobs waiting out an AMAPI quota error; the next run retries.
+			return androidSvc.VerifyExistingEnterpriseIfAny(androidmgmt.WithoutRetry(ctx))
 		}),
 		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
 			// Revert certificate templates stuck in 'delivering' status for too long
