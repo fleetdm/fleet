@@ -776,6 +776,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		svc:                    svc,
 		carveStore:             carveStore,
 		enrollHostLimiter:      redisWrapperDS,
+		cleanupStateStore:      redisWrapperDS,
 		liveQueryStore:         liveQueryStore,
 		failingPolicySet:       failingPolicySet,
 		redisPool:              redisPool,

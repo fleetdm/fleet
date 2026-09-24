@@ -2953,9 +2953,12 @@ type Datastore interface {
 
 	// CleanupNanoCommands runs the Apple MDM command cleanup sweeps: it deletes
 	// inactive queue rows (and their results) older than the short retention
-	// window, then the nano_commands rows that no longer have any reference,
-	// within the per-run deletion caps.
-	CleanupNanoCommands(ctx context.Context, opts MDMAppleCommandCleanupOptions) (MDMAppleCommandCleanupStats, error)
+	// window, then completed command pairs older than their class's window,
+	// then the nano_commands rows that no longer have any reference, within
+	// the per-run deletion caps. state carries the retention scans' cursors
+	// between runs (nil starts every scan from the oldest rows); the returned
+	// state is what the caller should persist.
+	CleanupNanoCommands(ctx context.Context, opts MDMAppleCommandCleanupOptions, state *MDMAppleCommandCleanupState) (*MDMAppleCommandCleanupState, MDMAppleCommandCleanupStats, error)
 
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot

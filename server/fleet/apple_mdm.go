@@ -76,6 +76,9 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
+// Statuses a device will not answer again; NotNow is still outstanding and gets re-served.
+var MDMAppleTerminalStatuses = []string{MDMAppleStatusAcknowledged, MDMAppleStatusError, MDMAppleStatusCommandFormatError}
+
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
@@ -2087,9 +2090,13 @@ type MDMAppleCommandCleanupStateStore interface {
 // MDMAppleCommandCleanupOptions carries the server config knobs into one run of
 // the Apple MDM command cleanup.
 type MDMAppleCommandCleanupOptions struct {
-	// ShortRetention is how long inactive queue rows are kept; zero skips
-	// the inactive purge.
+	// ShortRetention is how long inactive queue rows and completed commands
+	// in AppleMDMShortRetentionClasses are kept; zero skips the inactive
+	// purge and moves the short classes to the standard window.
 	ShortRetention time.Duration
+	// StandardRetention is how long other completed commands in
+	// AppleMDMStandardRetentionRequestTypes are kept; zero skips that sweep.
+	StandardRetention time.Duration
 	// MaxRowDeletions caps queue/result pairs deleted per run; zero deletes
 	// none.
 	MaxRowDeletions int
@@ -2102,6 +2109,8 @@ type MDMAppleCommandCleanupOptions struct {
 // log line.
 type MDMAppleCommandCleanupStats struct {
 	InactivePairsDeleted int
+	ShortPairsDeleted    int
+	StandardPairsDeleted int
 	CommandsDeleted      int
 	// RowBudgetExhausted is set when a pair sweep stopped early, on
 	// MaxRowDeletions or its per-run scan cap, with candidates left, so the

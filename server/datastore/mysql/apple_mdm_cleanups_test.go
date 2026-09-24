@@ -24,6 +24,13 @@ func TestAppleMDMCleanups(t *testing.T) {
 		{"PinnedWindowDoesNotStarve", testNanoCleanupPinnedWindowDoesNotStarve},
 		{"QueueFirstAtomicity", testNanoCleanupQueueFirstAtomicity},
 		{"MopKeepsReferencedCommand", testNanoCleanupMopKeepsReferencedCommand},
+		{"ShortRetentionTier", testNanoCleanupShortRetentionTier},
+		{"StandardRetentionTier", testNanoCleanupStandardRetentionTier},
+		{"ShortTierOffFallsBackToStandard", testNanoCleanupShortTierOffFallsBackToStandard},
+		{"RetentionCursorResumesAndWraps", testNanoCleanupRetentionCursorResumesAndWraps},
+		{"RowBudgetStopsLaterSweeps", testNanoCleanupRowBudgetStopsLaterSweeps},
+		{"ScanCapDoesNotStopLaterSweeps", testNanoCleanupScanCapDoesNotStopLaterSweeps},
+		{"RetentionKeepsFannedCommand", testNanoCleanupRetentionKeepsFannedCommand},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -38,6 +45,7 @@ func TestAppleMDMCleanups(t *testing.T) {
 type nanoCleanupFixture struct {
 	t         *testing.T
 	ds        *Datastore
+	hostID    uint
 	deviceID  string
 	userID    string
 	commander *apple_mdm.MDMAppleCommander
@@ -51,13 +59,37 @@ func newNanoCleanupFixture(t *testing.T, ds *Datastore) *nanoCleanupFixture {
 	require.NoError(t, err)
 	require.NotNil(t, userEnrollment)
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	return &nanoCleanupFixture{t: t, ds: ds, deviceID: host.UUID, userID: userEnrollment.ID, commander: commander}
+	return &nanoCleanupFixture{t: t, ds: ds, hostID: host.ID, deviceID: host.UUID, userID: userEnrollment.ID, commander: commander}
 }
 
 func (f *nanoCleanupFixture) enqueue(reqType string, enrollmentIDs ...string) string {
-	cmdUUID := uuid.NewString()
+	return f.enqueueUUID(reqType, uuid.NewString(), enrollmentIDs...)
+}
+
+func (f *nanoCleanupFixture) enqueueUUID(reqType, cmdUUID string, enrollmentIDs ...string) string {
 	require.NoError(f.t, f.commander.EnqueueCommand(f.t.Context(), enrollmentIDs, createRawAppleCmd(reqType, cmdUUID)))
 	return cmdUUID
+}
+
+// completed enqueues a command on the device channel and records a terminal
+// result ago in the past, the shape the retention sweeps look for.
+func (f *nanoCleanupFixture) completed(reqType, cmdUUID, status string, ago time.Duration) string {
+	f.enqueueUUID(reqType, cmdUUID, f.deviceID)
+	f.report(f.deviceID, cmdUUID, status)
+	f.ageResult(f.deviceID, cmdUUID, ago)
+	return cmdUUID
+}
+
+func (f *nanoCleanupFixture) ageResult(enrollmentID, cmdUUID string, ago time.Duration) {
+	_, err := f.ds.writer(f.t.Context()).ExecContext(f.t.Context(),
+		`UPDATE nano_command_results SET updated_at = NOW(6) - INTERVAL ? SECOND WHERE id = ? AND command_uuid = ?`,
+		int(ago.Seconds()), enrollmentID, cmdUUID)
+	require.NoError(f.t, err)
+}
+
+func (f *nanoCleanupFixture) exec(query string, args ...any) {
+	_, err := f.ds.writer(f.t.Context()).ExecContext(f.t.Context(), query, args...)
+	require.NoError(f.t, err)
 }
 
 func (f *nanoCleanupFixture) report(enrollmentID, cmdUUID, status string) {
@@ -109,7 +141,11 @@ const (
 )
 
 func nanoCleanupOpts(short time.Duration, rows, cmds int) fleet.MDMAppleCommandCleanupOptions {
-	return fleet.MDMAppleCommandCleanupOptions{ShortRetention: short, MaxRowDeletions: rows, MaxCmdDeletions: cmds}
+	return nanoCleanupTiers(short, 30*nanoCleanupDay, rows, cmds)
+}
+
+func nanoCleanupTiers(short, standard time.Duration, rows, cmds int) fleet.MDMAppleCommandCleanupOptions {
+	return fleet.MDMAppleCommandCleanupOptions{ShortRetention: short, StandardRetention: standard, MaxRowDeletions: rows, MaxCmdDeletions: cmds}
 }
 
 func testNanoCleanupInactivePurge(t *testing.T, ds *Datastore) {
@@ -151,7 +187,7 @@ func testNanoCleanupInactivePurge(t *testing.T, ds *Datastore) {
 		VALUES (?, 'enc', 'verified', 'install', ?)`, f.deviceID, recovery)
 	require.NoError(t, err)
 
-	stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{InactivePairsDeleted: 3, CommandsDeleted: 2}, stats)
 
@@ -169,7 +205,7 @@ func testNanoCleanupInactivePurge(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, f.commandRows(fanned), "command still referenced by the user pair")
 
 	// a second run finds nothing left to do
-	stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
 }
@@ -193,26 +229,26 @@ func testNanoCleanupDisabledAndBudgets(t *testing.T, ds *Datastore) {
 	remaining := func() int { return f.count("nano_enrollment_queue", "active = 0") }
 
 	// short retention 0 disables the purge
-	stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(0, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(0, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
 	require.Equal(t, 5, remaining())
 
 	// a zero row budget deletes nothing
-	stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, 0, nanoCleanupDefaults))
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, 0, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
 	require.Equal(t, 5, remaining())
 
 	// a row budget of 3 deletes exactly 3 pairs and reports the backlog
-	stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, 3, nanoCleanupDefaults))
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, 3, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{InactivePairsDeleted: 3, CommandsDeleted: 3, RowBudgetExhausted: true}, stats)
 	require.Equal(t, 2, remaining())
 	require.Equal(t, 2, f.count("nano_commands", "command_uuid IN (?, ?, ?, ?, ?)", dead[0], dead[1], dead[2], dead[3], dead[4]))
 
 	// a command budget of 1 leaves one orphaned command behind
-	stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, 1))
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, 1), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{InactivePairsDeleted: 2, CommandsDeleted: 1, CmdBudgetExhausted: true}, stats)
 	require.Zero(t, remaining())
@@ -231,14 +267,14 @@ func testNanoCleanupQueueFirstAtomicity(t *testing.T, ds *Datastore) {
 	// a result-less queue row would be re-served to the device
 	nanoCleanupAfterQueueDeleteHook = func() error { return errors.New("boom") }
 	t.Cleanup(func() { nanoCleanupAfterQueueDeleteHook = nil })
-	_, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, _, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.ErrorContains(t, err, "boom")
 	require.Equal(t, 1, f.queueRows(dead))
 	require.Equal(t, 1, f.resultRows(dead))
 	require.Equal(t, 1, f.commandRows(dead))
 
 	nanoCleanupAfterQueueDeleteHook = nil
-	stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{InactivePairsDeleted: 1, CommandsDeleted: 1}, stats)
 	require.Zero(t, f.queueRows(dead))
@@ -259,7 +295,7 @@ func testNanoCleanupMopKeepsReferencedCommand(t *testing.T, ds *Datastore) {
 		f.deviceID, "abc123", renew)
 	require.NoError(t, err)
 
-	stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
 	require.Equal(t, 1, f.queueRows(renew))
@@ -306,11 +342,274 @@ func testNanoCleanupPinnedWindowDoesNotStarve(t *testing.T, ds *Datastore) {
 	eligible := f.enqueue("DeviceInformation", f.deviceID)
 	f.deactivate(f.deviceID, eligible, 2*nanoCleanupDay, 2*nanoCleanupDay)
 
-	stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults))
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(nanoCleanupDay, nanoCleanupDefaults, nanoCleanupDefaults), nil)
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{InactivePairsDeleted: 1, CommandsDeleted: 1}, stats)
 	require.Zero(t, f.queueRows(eligible), "reached past the pinned window in one run")
 	for _, p := range pinned {
 		require.Equal(t, 1, f.queueRows(p), p)
 	}
+}
+
+func testNanoCleanupShortRetentionTier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// every short class, completed two days ago, in each terminal status
+	gone := []string{
+		f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day),
+		f.completed("InstalledApplicationList", fleet.RefetchAppsCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusError, 2*day),
+		f.completed("CertificateList", fleet.RefetchCertsCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusCommandFormatError, 2*day),
+		f.completed("Settings", fleet.DeviceNameCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day),
+		f.completed("DeclarativeManagement", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day),
+	}
+	kept := []string{
+		// too young
+		f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, time.Hour),
+		// NotNow is not an answer
+		f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusNotNow, 2*day),
+		// no prefix: a manually run inventory command belongs to the standard window
+		f.completed("DeviceInformation", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day),
+		// a Settings command that isn't a rename is not in any class
+		f.completed("Settings", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day),
+	}
+	// a VPP verification whose install is still unverified is pinned
+	verify := fleet.VerifySoftwareInstallVPPPrefix + uuid.NewString()
+	f.completed("InstalledApplicationList", verify, fleet.MDMAppleStatusAcknowledged, 2*day)
+	f.exec(`INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('adam-1', 'darwin', 'App', '1.0')`)
+	f.exec(`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, verification_command_uuid) VALUES (?, 'adam-1', 'darwin', ?, ?)`,
+		f.hostID, uuid.NewString(), verify)
+
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 5, CommandsDeleted: 5}, stats)
+	for _, c := range gone {
+		require.Zero(t, f.queueRows(c), c)
+		require.Zero(t, f.resultRows(c), c)
+		require.Zero(t, f.commandRows(c), c)
+	}
+	for _, c := range kept {
+		require.Equal(t, 1, f.queueRows(c), c)
+		require.Equal(t, 1, f.resultRows(c), c)
+	}
+	require.Equal(t, 1, f.queueRows(verify), "unverified install pins its verification command")
+
+	// once verified, the same pair goes
+	f.exec(`UPDATE host_vpp_software_installs SET verification_at = NOW() WHERE verification_command_uuid = ?`, verify)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1}, stats)
+	require.Zero(t, f.queueRows(verify))
+}
+
+func testNanoCleanupStandardRetentionTier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// manually run inventory commands age out at 30 days in every terminal status
+	manual := f.completed("DeviceInformation", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day)
+	manualErr := f.completed("InstalledApplicationList", uuid.NewString(), fleet.MDMAppleStatusError, 31*day)
+	manualFormatErr := f.completed("CertificateList", uuid.NewString(), fleet.MDMAppleStatusCommandFormatError, 31*day)
+	manualYoung := f.completed("DeviceInformation", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 29*day)
+	// a type on no list is never swept
+	never := f.completed("ShutDownDevice", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 400*day)
+	// the host's current profile command is pinned until superseded
+	profile := f.completed("InstallProfile", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day)
+	f.exec(`INSERT INTO host_mdm_apple_profiles (host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+		VALUES (?, 'prof-1', 'com.example.one', ?, UNHEX(MD5('a')), 'install', 'verified')`, f.deviceID, profile)
+	// recovery lock and managed account commands are pinned while pending
+	recovery := f.completed(fleet.SetRecoveryLockCmdName, uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day)
+	f.exec(`INSERT INTO host_recovery_key_passwords (host_uuid, encrypted_password, status, operation_type, pending_set_command_uuid)
+		VALUES (?, 'enc', 'pending', 'install', ?)`, f.deviceID, recovery)
+	admin := f.completed(fleet.SetAutoAdminPasswordCmdName, uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day)
+	f.exec(`INSERT INTO host_managed_local_account_passwords (host_uuid, encrypted_password, command_uuid, status, pending_command_uuid)
+		VALUES (?, 'enc', 'other', 'verified', ?)`, f.deviceID, admin)
+
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 3, CommandsDeleted: 3}, stats)
+	for _, c := range []string{manual, manualErr, manualFormatErr} {
+		require.Zero(t, f.queueRows(c), c)
+	}
+	for _, c := range []string{manualYoung, never, profile, recovery, admin} {
+		require.Equal(t, 1, f.queueRows(c), c)
+	}
+
+	// superseded profile and rotated admin password sweep; a promoted recovery
+	// lock command is still the host's current one and stays
+	f.exec(`UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE command_uuid = ?`, uuid.NewString(), profile)
+	f.exec(`UPDATE host_recovery_key_passwords SET pending_set_command_uuid = NULL, set_command_uuid = ? WHERE pending_set_command_uuid = ?`, recovery, recovery)
+	f.exec(`UPDATE host_managed_local_account_passwords SET pending_command_uuid = NULL WHERE pending_command_uuid = ?`, admin)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 2, CommandsDeleted: 2}, stats)
+	for _, c := range []string{profile, admin} {
+		require.Zero(t, f.queueRows(c), c)
+	}
+	require.Equal(t, 1, f.queueRows(recovery), "current recovery lock command is pinned")
+	require.Equal(t, 1, f.queueRows(never))
+
+	// once a newer command holds the recovery lock, the old one sweeps
+	f.exec(`UPDATE host_recovery_key_passwords SET set_command_uuid = ? WHERE set_command_uuid = ?`, uuid.NewString(), recovery)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 1, CommandsDeleted: 1}, stats)
+	require.Zero(t, f.queueRows(recovery))
+
+	// standard retention 0 disables the sweep entirely
+	old := f.completed("DeviceInformation", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 400*day)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupTiers(day, 0, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
+	require.Equal(t, 1, f.queueRows(old))
+}
+
+func testNanoCleanupShortTierOffFallsBackToStandard(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// with the short tier off, its classes age out with the standard window
+	// instead of being kept forever, including the types not on the standard list
+	old := []string{
+		f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day),
+		f.completed("Settings", fleet.DeviceNameCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day),
+		f.completed("DeclarativeManagement", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 31*day),
+	}
+	young := f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day)
+
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupTiers(0, 30*day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 3, CommandsDeleted: 3}, stats)
+	for _, c := range old {
+		require.Zero(t, f.queueRows(c), c)
+	}
+	require.Equal(t, 1, f.queueRows(young), "still inside the standard window")
+}
+
+func testNanoCleanupRetentionCursorResumesAndWraps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// one scan of two rows per run, so the pinned rows in front take a whole run
+	origBatch, origScans := nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun
+	nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = 2, 1
+	t.Cleanup(func() { nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = origBatch, origScans })
+
+	// three pinned current-profile commands sort first (older), one eligible behind
+	for i := range 3 {
+		c := f.completed("InstallProfile", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 40*day-time.Duration(i)*time.Hour)
+		f.exec(`INSERT INTO host_mdm_apple_profiles (host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+			VALUES (?, ?, ?, ?, UNHEX(MD5(?)), 'install', 'verified')`, f.deviceID, "prof-"+c[:8], "com.example."+c[:8], c, c)
+	}
+	eligible := f.completed("DeviceInformation", uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 35*day)
+	opts := nanoCleanupTiers(0, 30*day, nanoCleanupDefaults, nanoCleanupDefaults)
+	const key = "standard:" + fleet.MDMAppleStatusAcknowledged
+
+	// run 1 scans the first two pinned rows and stops on the scan cap: nothing
+	// deleted, but the backlog is reported so the cron warns
+	state, stats, err := ds.CleanupNanoCommands(ctx, opts, nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{RowBudgetExhausted: true}, stats)
+	require.Contains(t, state.Retention, key, "a full page leaves a cursor to resume from")
+	require.Equal(t, 1, f.queueRows(eligible))
+
+	// run 2 resumes past them and reaches the eligible row; its page was full
+	// too, so more may remain
+	state, stats, err = ds.CleanupNanoCommands(ctx, opts, state)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{StandardPairsDeleted: 1, CommandsDeleted: 1, RowBudgetExhausted: true}, stats)
+	require.Zero(t, f.queueRows(eligible))
+	require.Contains(t, state.Retention, key)
+
+	// run 3 finds the end of the range and laps: the cursor is cleared
+	state, stats, err = ds.CleanupNanoCommands(ctx, opts, state)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
+	require.NotContains(t, state.Retention, key, "reaching the end resets the scan to the oldest rows")
+
+	// a restarted run with no state does not restart from the wrong place either
+	state, _, err = ds.CleanupNanoCommands(ctx, opts, &fleet.MDMAppleCommandCleanupState{})
+	require.NoError(t, err)
+	require.NotNil(t, state.Retention)
+}
+
+func testNanoCleanupRowBudgetStopsLaterSweeps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// two dead pairs for the inactive purge and one eligible completed refetch
+	for range 2 {
+		c := f.enqueue("DeviceInformation", f.deviceID)
+		f.deactivate(f.deviceID, c, 2*day, 2*day)
+	}
+	refetch := f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day)
+
+	// a budget of 2 is spent by the purge; the retention sweep does not run
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, 2, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{InactivePairsDeleted: 2, CommandsDeleted: 2, RowBudgetExhausted: true}, stats)
+	require.Equal(t, 1, f.queueRows(refetch), "later sweeps wait for the next run")
+
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, 2, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1}, stats)
+	require.Zero(t, f.queueRows(refetch))
+}
+
+func testNanoCleanupRetentionKeepsFannedCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// one command to both channels: the device answered long ago, the user
+	// channel never did. Only the answered pair goes and the command stays
+	// for the pending one; once that answers and ages, the command follows.
+	fanned := f.enqueueUUID("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), f.deviceID, f.userID)
+	f.report(f.deviceID, fanned, fleet.MDMAppleStatusAcknowledged)
+	f.ageResult(f.deviceID, fanned, 2*day)
+
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1}, stats)
+	require.Zero(t, f.count("nano_enrollment_queue", "id = ? AND command_uuid = ?", f.deviceID, fanned))
+	require.Equal(t, 1, f.count("nano_enrollment_queue", "id = ? AND command_uuid = ?", f.userID, fanned))
+	require.Equal(t, 1, f.commandRows(fanned), "still referenced by the pending user pair")
+
+	f.report(f.userID, fanned, fleet.MDMAppleStatusAcknowledged)
+	f.ageResult(f.userID, fanned, 2*day)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1}, stats)
+	require.Zero(t, f.queueRows(fanned))
+	require.Zero(t, f.commandRows(fanned))
+}
+
+func testNanoCleanupScanCapDoesNotStopLaterSweeps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// the purge gets one scan of two rows, both pinned: it stops on its scan
+	// cap without spending any budget
+	origBatch, origScans := nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun
+	nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = 2, 1
+	t.Cleanup(func() { nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = origBatch, origScans })
+	for range 2 {
+		c := f.enqueue("InstallProfile", f.deviceID)
+		f.deactivate(f.deviceID, c, 2*day, 2*day)
+		f.exec(`INSERT INTO host_mdm_apple_profiles (host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+			VALUES (?, ?, ?, ?, UNHEX(MD5(?)), 'install', 'verified')`, f.deviceID, "prof-"+c[:8], "com.example."+c[:8], c, c)
+	}
+	// a completed refetch the short tier should still reach this run
+	refetch := f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day)
+
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1, RowBudgetExhausted: true}, stats)
+	require.Zero(t, f.queueRows(refetch), "the retention sweep ran despite the purge stopping on its scan cap")
 }
