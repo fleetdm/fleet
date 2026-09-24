@@ -2716,7 +2716,10 @@ func (svc *Service) ingestDistributedQuery(
 	// running campaign server-wide, including other fleets' campaigns. Marking
 	// the host complete before publishing makes the check free: the same Redis
 	// commands report whether the host was still a target. The cost is that an
-	// undelivered result below must re-target the host so it retries.
+	// undelivered result below must re-target the host so it retries, and that a
+	// crash between here and the publish loses this host's rows for the campaign
+	// where before it would have re-run the query. Live results are ephemeral,
+	// so that trade is accepted.
 	campaignName := strconv.Itoa(campaignID)
 	targeted, err := svc.liveQueryStore.QueryCompletedByHost(campaignName, host.ID)
 	if err != nil {
@@ -2748,7 +2751,7 @@ func (svc *Service) ingestDistributedQuery(
 		var pse pubsub.Error
 		ok := errors.As(err, &pse)
 		if !ok || !pse.NoSubscriber() {
-			svc.restoreQueryTarget(ctx, campaignName, host.ID)
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError("writing results: " + err.Error())
 		}
 
@@ -2775,13 +2778,16 @@ func (svc *Service) ingestDistributedQuery(
 			// This expected error can happen if:
 			//	A. A device checked in and sent results back in between steps (1) and (2).
 			// 	B. The client stopped listening in (2) and devices continue to send results back.
-			svc.restoreQueryTarget(ctx, campaignName, host.ID)
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError(fmt.Sprintf("campaignID=%d waiting for listener", campaignID))
 		}
 
 		if campaign.Status != fleet.QueryComplete {
 			campaign.Status = fleet.QueryComplete
 			if err := svc.ds.SaveDistributedQueryCampaign(ctx, campaign); err != nil {
+				// The campaign is still live for every other host, so this one must
+				// keep its target and retry.
+				svc.restoreQueryTarget(ctx, campaignID, host.ID)
 				return newOsqueryError("closing orphaned campaign: " + err.Error())
 			}
 		}
@@ -2796,9 +2802,9 @@ func (svc *Service) ingestDistributedQuery(
 	return nil
 }
 
-func (svc *Service) restoreQueryTarget(ctx context.Context, campaignName string, hostID uint) {
-	if err := svc.liveQueryStore.RestoreQueryTargetForHost(campaignName, hostID); err != nil {
-		svc.logger.WarnContext(ctx, "restoring live query target after undelivered result", "campaignID", campaignName, "hostID", hostID, "err", err)
+func (svc *Service) restoreQueryTarget(ctx context.Context, campaignID int, hostID uint) {
+	if err := svc.liveQueryStore.RestoreQueryTargetForHost(strconv.Itoa(campaignID), hostID); err != nil {
+		svc.logger.WarnContext(ctx, "restoring live query target after undelivered result", "campaignID", campaignID, "hostID", hostID, "err", err)
 	}
 }
 

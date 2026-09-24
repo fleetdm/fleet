@@ -3592,9 +3592,12 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 	host := fleet.Host{ID: 1}
 
 	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	// The campaign stays live when closing it fails, so the host must be re-targeted.
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
+	lq.AssertExpectations(t)
 }
 
 func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
@@ -3750,6 +3753,37 @@ func TestIngestDistributedQueryNotTargetingHost(t *testing.T) {
 	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{{"col": "forged"}}, "", nil)
 	require.NoError(t, err)
 	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
+	lq.AssertExpectations(t)
+}
+
+type failingResultStore struct {
+	fleet.QueryResultStore
+}
+
+func (failingResultStore) WriteResult(fleet.DistributedQueryResult) error {
+	return errors.New("publish failed")
+}
+
+// A publish failure other than "no subscriber" must re-target the host: it was
+// already marked complete, so without the restore it would never retry.
+func TestIngestDistributedQueryWriteErrorRestoresTarget(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    failingResultStore{},
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
+
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "writing results")
 	lq.AssertExpectations(t)
 }
 
