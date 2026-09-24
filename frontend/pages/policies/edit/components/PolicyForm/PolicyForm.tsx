@@ -487,6 +487,12 @@ const PolicyForm = ({
       }
     };
 
+    // The core PATCH lands before the automations PATCH, and the backend
+    // validates hidden against the stored conditional access value, so a
+    // disable has to travel with the core update or hidden is rejected.
+    const disablesConditionalAccess =
+      automations?.policyUpdate?.conditional_access_enabled === false;
+
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
       const payload: IPolicyFormData = {
@@ -497,6 +503,9 @@ const PolicyForm = ({
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
+        if (disablesConditionalAccess) {
+          payload.conditional_access_enabled = false;
+        }
       }
       await onUpdate(payload);
       persistAutomations();
@@ -541,10 +550,7 @@ const PolicyForm = ({
         Object.assign(payload, getLabelsPayload());
         payload.critical = lastEditedQueryCritical;
         payload.hidden = lastEditedQueryHidden;
-        // The core PATCH lands before the automations PATCH, and the backend
-        // validates hidden against the stored conditional access value, so a
-        // disable has to travel with the core update or hidden is rejected.
-        if (automations?.policyUpdate?.conditional_access_enabled === false) {
+        if (disablesConditionalAccess) {
           payload.conditional_access_enabled = false;
         }
       }
