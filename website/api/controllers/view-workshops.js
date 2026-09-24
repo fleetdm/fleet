@@ -77,6 +77,7 @@ module.exports = {
       eventsToGetDetailsFor = _.filter(eventsToGetDetailsFor, (event)=>{
         return !_.contains(idsOfEventsToExclude, event.id);
       });
+
       await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
         // Determine if this event is a GitOps workshop or an Apple administrator workshop.
         let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' : undefined;
