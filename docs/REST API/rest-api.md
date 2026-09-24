@@ -4915,6 +4915,15 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
 
+> Note: `mdm.enrollment_status` is one of the following:
+> - `"On (automatic)"`: enrolled via Apple's automatic enrollment (ADE), Windows Autopilot, or as a fully managed Android device.
+> - `"On (manual)"`: enrolled with a manual enrollment profile as a company-owned device.
+> - `"On (personal)"`: enrolled with a Managed Apple Account (Account-driven User Enrollment) or an Android work profile as a personal (BYOD) device.
+> - `"On (manual - personal)"`: enrolled with a manual enrollment profile as a personal (BYOD) device.
+> - `"Pending"`: in Apple Business (AB) or Windows Autopilot, but not yet enrolled to Fleet.
+> - `"Off"`: not enrolled.
+> - `null`: Fleet has no MDM information for this host.
+
 > Note: `mdm.is_personal_enrollment` reports whether the last MDM enrollment Fleet recorded for the host was personal (BYOD). Unlike `mdm.enrollment_status`, it is not cleared when the host unenrolls, so it stays `true` for an unenrolled Android or Apple mobile host. On macOS and Windows, MDM state is re-reported by the agent, which resets the field once the enrollment profile is gone.
 
 > Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
@@ -6331,8 +6340,9 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
     "enrolled_manual_hosts_count": 10,
     "enrolled_automated_hosts_count": 200,
     "enrolled_personal_hosts_count": 30,
+    "enrolled_manual_personal_hosts_count": 5,
     "unenrolled_hosts_count": 0,
-    "hosts_count": 240
+    "hosts_count": 245
   },
   "mobile_device_management_solution": [
     {
@@ -6472,6 +6482,8 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
     "mobile_device_management_enrollment_status": {
       "enrolled_manual_hosts_count": 124,
       "enrolled_automated_hosts_count": 124,
+      "enrolled_personal_hosts_count": 30,
+      "enrolled_manual_personal_hosts_count": 5,
       "unenrolled_hosts_count": 112
     },
     "mobile_device_management_solution": [
