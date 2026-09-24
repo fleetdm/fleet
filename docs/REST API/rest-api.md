@@ -8202,14 +8202,14 @@ results (i.e., only profiles that are associated with "Unassigned" are listed).
 
 #### Parameters
 
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| fleet_id                   | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.              |
-| page                      | integer | query | Page number of the results to fetch.                                     |
-| per_page                  | integer | query | Results per page.                                                        |
-| order_key                 | string  | query | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |
-| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| Name                      | Type    | In     | Description                                                               |
+| ------------------------- | ------  | -----  | ------------------------------------------------------------------------- |
+| fleet_id                  | string  | query  | _Available in Fleet Premium_. The fleet id to filter profiles.              |
+| page                      | integer | query  | Page number of the results to fetch.                                     |
+| per_page                  | integer | query  | Results per page.                                                        |
+| order_key                 | string  | query  | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |
+| order_direction           | string  | query  | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after                     | string  | query  | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -8247,6 +8247,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
       "team_id": 0,
       "name": "Example Windows profile",
+      "payload_display_name": "Windows profile",
       "platform": "windows",
       "description": "Configures firewall rules",
       "created_at": "2023-04-31T00:00:00Z",
@@ -8300,6 +8301,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
   "team_id": 0,
   "name": "Example profile",
+  "payload_display_name": "Windows profile",
   "description": "Configures passcode settings",
   "platform": "darwin",
   "identifier": "com.example.profile",
