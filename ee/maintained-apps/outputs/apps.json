@@ -9326,6 +9326,13 @@
       "description": "VoiceInk is a voice to text app."
     },
     {
+      "name": "Vorssaint",
+      "slug": "vorssaint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vorssaint.utils",
+      "description": "Vorssaint is a menu bar toolkit with keep-awake, system monitor and volume mixer."
+    },
+    {
       "name": "VPN Tracker 365",
       "slug": "vpn-tracker-365/darwin",
       "platform": "darwin",
