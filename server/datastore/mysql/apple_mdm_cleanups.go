@@ -80,20 +80,20 @@ func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppl
 	budget := opts.MaxRowDeletions
 	var touched []string
 	if opts.ShortRetention > 0 && budget > 0 {
-		deleted, uuids, exhausted, err := ds.purgeInactiveNanoCommands(ctx, opts.ShortRetention, budget)
+		deleted, cmdUUIDs, exhausted, err := ds.purgeInactiveNanoCommands(ctx, opts.ShortRetention, budget)
 		if err != nil {
 			return state, stats, err
 		}
 		stats.InactivePairsDeleted = deleted
 		stats.RowBudgetExhausted = exhausted
 		budget -= deleted
-		touched = append(touched, uuids...)
+		touched = append(touched, cmdUUIDs...)
 	}
 
 	shortClasses := fleet.AppleMDMShortRetentionClasses
 	if opts.ShortRetention > 0 {
 		if budget > 0 && !stats.RowBudgetExhausted {
-			deleted, uuids, exhausted, err := ds.sweepCompletedNanoCommands(ctx, state, "short", opts.ShortRetention, budget,
+			deleted, cmdUUIDs, exhausted, err := ds.sweepCompletedNanoCommands(ctx, state, "short", opts.ShortRetention, budget,
 				func(rt, uuid string) bool { return matchesAppleMDMRetentionClass(shortClasses, rt, uuid) })
 			if err != nil {
 				return state, stats, err
@@ -101,7 +101,7 @@ func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppl
 			stats.ShortPairsDeleted = deleted
 			stats.RowBudgetExhausted = exhausted
 			budget -= deleted
-			touched = append(touched, uuids...)
+			touched = append(touched, cmdUUIDs...)
 		}
 	} else {
 		// with the short tier off, its classes are not kept forever: they
@@ -109,7 +109,7 @@ func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppl
 		shortClasses = nil
 	}
 	if opts.StandardRetention > 0 && budget > 0 && !stats.RowBudgetExhausted {
-		deleted, uuids, exhausted, err := ds.sweepCompletedNanoCommands(ctx, state, "standard", opts.StandardRetention, budget,
+		deleted, cmdUUIDs, exhausted, err := ds.sweepCompletedNanoCommands(ctx, state, "standard", opts.StandardRetention, budget,
 			func(rt, uuid string) bool {
 				return slices.Contains(fleet.AppleMDMStandardRetentionRequestTypes, rt) ||
 					(shortClasses == nil && matchesAppleMDMRetentionClass(fleet.AppleMDMShortRetentionClasses, rt, uuid))
@@ -119,7 +119,7 @@ func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppl
 		}
 		stats.StandardPairsDeleted = deleted
 		stats.RowBudgetExhausted = exhausted
-		touched = append(touched, uuids...)
+		touched = append(touched, cmdUUIDs...)
 	}
 
 	if opts.MaxCmdDeletions > 0 && len(touched) > 0 {
@@ -254,13 +254,13 @@ func (ds *Datastore) sweepCompletedNanoCommands(ctx context.Context, state *flee
 // classifyNanoCandidates keeps the candidates whose command is accepted by
 // inClass and not referenced by any feature.
 func (ds *Datastore) classifyNanoCandidates(ctx context.Context, candidates []nanoResultCandidate, inClass func(requestType, uuid string) bool) ([]nanoQueuePair, error) {
-	uuids := make([]string, 0, len(candidates))
+	cmdUUIDs := make([]string, 0, len(candidates))
 	for _, c := range candidates {
-		uuids = append(uuids, c.CommandUUID)
+		cmdUUIDs = append(cmdUUIDs, c.CommandUUID)
 	}
-	uuids = uniqueStrings(uuids)
+	cmdUUIDs = uniqueStrings(cmdUUIDs)
 
-	stmt, args, err := sqlx.In(`SELECT command_uuid, request_type FROM nano_commands WHERE command_uuid IN (?)`, uuids)
+	stmt, args, err := sqlx.In(`SELECT command_uuid, request_type FROM nano_commands WHERE command_uuid IN (?)`, cmdUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build nano commands request type query")
 	}
