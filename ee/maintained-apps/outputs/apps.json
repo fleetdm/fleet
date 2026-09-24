@@ -3460,6 +3460,13 @@
       "description": "f.lux is a screen colour temperature controller."
     },
     {
+      "name": "Flycut",
+      "slug": "flycut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.generalarcade.flycut",
+      "description": "Flycut is a clipboard manager for developers."
+    },
+    {
       "name": "Focusrite Control 2",
       "slug": "focusrite-control-2/darwin",
       "platform": "darwin",
@@ -9317,6 +9324,13 @@
       "platform": "darwin",
       "unique_identifier": "com.prakashjoshipax.VoiceInk",
       "description": "VoiceInk is a voice to text app."
+    },
+    {
+      "name": "Vorssaint",
+      "slug": "vorssaint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vorssaint.utils",
+      "description": "Vorssaint is a menu bar toolkit with keep-awake, system monitor and volume mixer."
     },
     {
       "name": "VPN Tracker 365",

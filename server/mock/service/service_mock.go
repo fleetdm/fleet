@@ -417,6 +417,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetNotificationsServiceFunc func(notificationsSvc fleet.NotificationsWriteService)
+
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
 type SetConfigETagStoreFunc func(store fleet.ConfigETagStore)
@@ -634,8 +636,6 @@ type SkipAuthFunc func(ctx context.Context)
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
-
-type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
 type ListMDMAppleCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error)
 
@@ -1624,6 +1624,9 @@ type Service struct {
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
 
+	SetNotificationsServiceFunc        SetNotificationsServiceFunc
+	SetNotificationsServiceFuncInvoked bool
+
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
 
@@ -1950,9 +1953,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
-	GetMDMAppleCommandResultsFuncInvoked bool
 
 	ListMDMAppleCommandsFunc        ListMDMAppleCommandsFunc
 	ListMDMAppleCommandsFuncInvoked bool
@@ -3931,6 +3931,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
 }
 
+func (s *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	s.mu.Lock()
+	s.SetNotificationsServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetNotificationsServiceFunc(notificationsSvc)
+}
+
 func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	s.mu.Lock()
 	s.SetActivityServiceFuncInvoked = true
@@ -4692,13 +4699,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	s.mu.Lock()
-	s.GetMDMAppleCommandResultsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
 }
 
 func (s *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
