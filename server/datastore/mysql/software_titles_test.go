@@ -3048,8 +3048,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.NotNil(t, listedByName.AutoUpdateEndTime)
 	require.Equal(t, endTime, *listedByName.AutoUpdateEndTime)
 
-	// Add valid, disabled auto-update schedule for the other VPP app.
-	// The schedule should be ignored since it's disabled, but it should still be created.
+	// Save a disabled auto-update schedule for the other VPP app, the window is not stored for a disabled schedule so the app should not be listed.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(false),
 		AutoUpdateStartTime: ptr.String(startTime),
@@ -3057,20 +3056,15 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Verify that both schedules exist for the iPadOS titles.
+	// List the iPadOS schedules, only the enabled app should be returned.
 	schedules, err := ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps")
 	require.NoError(t, err)
-	require.Len(t, schedules, 2)
+	require.Len(t, schedules, 1)
 	require.Equal(t, titleID, schedules[0].TitleID)
 	require.Equal(t, team1.ID, schedules[0].TeamID)
 	require.True(t, *schedules[0].AutoUpdateEnabled)
 	require.Equal(t, startTime, *schedules[0].AutoUpdateStartTime)
 	require.Equal(t, endTime, *schedules[0].AutoUpdateEndTime)
-	require.Equal(t, title2ID, schedules[1].TitleID)
-	require.Equal(t, team1.ID, schedules[1].TeamID)
-	require.False(t, *schedules[1].AutoUpdateEnabled)
-	require.Equal(t, "", *schedules[1].AutoUpdateStartTime)
-	require.Equal(t, "", *schedules[1].AutoUpdateEndTime)
 
 	// Filter by enabled only.
 	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
@@ -3080,13 +3074,12 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Len(t, schedules, 1)
 	require.Equal(t, titleID, schedules[0].TitleID)
 
-	// Fiter by disabled only.
+	// Filter by disabled only, the disabled app with no window should not be returned.
 	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
 		Enabled: ptr.Bool(false),
 	})
 	require.NoError(t, err)
-	require.Len(t, schedules, 1)
-	require.Equal(t, title2ID, schedules[0].TitleID)
+	require.Empty(t, schedules)
 
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{

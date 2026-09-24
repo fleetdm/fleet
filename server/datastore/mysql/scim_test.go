@@ -3187,13 +3187,18 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?, 'android')`, appID)
 		return err
 	})
+	var appTeamID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES (?, 'android', 0)`, appID)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, instance_name) VALUES (?, 'android', 0, 'Default version')`, appID)
+		if err != nil {
+			return err
+		}
+		appTeamID, err = res.LastInsertId()
 		return err
 	})
 
 	config := []byte(`{"managedConfiguration":{"user":"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
-	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, appID, config)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), config) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 
 	// Assign a SCIM user to the host.

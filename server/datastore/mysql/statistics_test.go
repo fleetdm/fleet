@@ -947,7 +947,7 @@ func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
 		if _, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES ('12345', 'darwin', 'Numbers')`); err != nil {
 			return err
 		}
-		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES ('12345', 'darwin', 0)`)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, instance_name) VALUES ('12345', 'darwin', 0, 'Default version')`)
 		if err != nil {
 			return err
 		}
