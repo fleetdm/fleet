@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260922170154, Down_20260922170154)
+	MigrationClient.AddMigration(Up_20260924145104, Down_20260924145104)
 }
 
 // An automatic retry of a certificate install carries the failure message that caused it through
@@ -20,7 +20,7 @@ func init() {
 //
 // A NULL detail is left alone. NULL is what tells a manual resend apart from an automatic retry
 // (see fleet.HostCertificateTemplate.IsRetrying), so it must not be turned into an empty string.
-func Up_20260922170154(tx *sql.Tx) error {
+func Up_20260924145104(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		UPDATE host_certificate_templates
 		SET detail = '', updated_at = updated_at
@@ -32,6 +32,6 @@ func Up_20260922170154(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260922170154(tx *sql.Tx) error {
+func Down_20260924145104(tx *sql.Tx) error {
 	return nil
 }
