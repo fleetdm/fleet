@@ -2110,9 +2110,9 @@ questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 This section contains explanations of the latest external security audits performed on Fleet software.
 
 
-### June 2026 penetration testing of Fleet
+### June 2026 penetration testing of Fleet 4.86.0
 
-In June 2026, [Aikido Security](https://www.aikido.dev/) performed a white box penetration test of the Fleet application. This was Fleet's first agentic penetration test: a large swarm of AI agents with access to Fleet's source code attacked a dedicated test environment running the latest Fleet release over a 24-hour period. Testing covered authentication, authorization, input handling, business logic, and API behavior. Over the following weeks, we re-ran targeted agent tests to validate each fix.
+In June 2026, [Aikido Security](https://www.aikido.dev/) performed a white box penetration test of the Fleet application. This was Fleet's first agentic penetration test: a large swarm of AI agents with access to Fleet's source code attacked a dedicated test environment running Fleet 4.86.0 over a 24-hour period. Testing covered authentication, authorization, input handling, business logic, and API behavior. Over the following weeks, we re-ran targeted agent tests to validate each fix.
 
 Because a swarm of agents covers far more surface area in parallel than a single human tester, the assessment surfaced more findings than previous black box penetration tests.
 
