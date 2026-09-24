@@ -3068,8 +3068,6 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  // Regression: #53685 — the install details modal fetches from premium-only
-  // endpoints, so Fleet Free shouldn't surface the "Show details" affordance.
   describe.each([
     ActivityType.InstalledSoftware,
     ActivityType.UninstalledSoftware,

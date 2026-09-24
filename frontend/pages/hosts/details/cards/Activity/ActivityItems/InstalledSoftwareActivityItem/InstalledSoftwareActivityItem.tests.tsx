@@ -79,9 +79,6 @@ describe("InstalledSoftwareActivityItem", () => {
     expect(screen.queryByText("Some Admin")).not.toBeInTheDocument();
   });
 
-  // Regression: #53685 — the parent feed passes hideShowDetails on Fleet Free
-  // for install activities since the install details modal fetches from a
-  // premium-only endpoint.
   it("hides the Show details button when hideShowDetails is true", () => {
     render(
       <InstalledSoftwareActivityItem

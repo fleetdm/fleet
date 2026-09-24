@@ -57,9 +57,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.HostEnrollmentRejected,
 ]);
 
-// The install/uninstall detail modals fetch data from premium-only endpoints
-// that return 402 on Fleet Free, so gate the "Show details" affordance out on
-// Free rather than let the modal open into a paywall.
+// Detail modals for these types hit premium-only endpoints.
 const PREMIUM_ONLY_DETAIL_ACTIVITIES = new Set([
   ActivityType.InstalledSoftware,
   ActivityType.UninstalledSoftware,
