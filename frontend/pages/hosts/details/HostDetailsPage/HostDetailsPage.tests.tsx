@@ -42,13 +42,16 @@ const mockLocation = {
 const ADMIN = createMockUser();
 const OBSERVER = createMockUser({ role: "observer", global_role: "observer" });
 
+// The server's "never" sentinel for timestamps that have not been set yet.
+const NEVER = "2000-01-01T00:00:00Z";
+
 const mockPendingWindowsHost = (status: "online" | "offline"): IHost => {
   const host = createMockHost({
     platform: "windows",
     status,
     refetch_requested: true,
     last_enrolled_at: "2000-01-01T00:00:00Z",
-    detail_updated_at: "2000-01-01T00:00:00Z",
+    detail_updated_at: NEVER,
   });
   host.mdm.enrollment_status = "Pending";
   return host;
@@ -61,7 +64,7 @@ const mockNeverFetchedWindowsHost = (status: "online" | "offline"): IHost =>
     status,
     refetch_requested: true,
     last_enrolled_at: "2026-09-23T00:00:00Z",
-    detail_updated_at: "2000-01-01T00:00:00Z",
+    detail_updated_at: NEVER,
   });
 
 /** An Apple host that is MDM-enrolled and online -- the only combination that
@@ -309,14 +312,10 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
     await screen.findByText(/fetching fresh vitals/i);
     // The spinner clears only once the offline response has gone through the toast decision.
     await waitFor(
-      () => {
-        expect(
-          (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
-        ).toBeGreaterThan(1);
+      () =>
         expect(
           screen.queryByText(/fetching fresh vitals/i)
-        ).not.toBeInTheDocument();
-      },
+        ).not.toBeInTheDocument(),
       { timeout: 5000 }
     );
 

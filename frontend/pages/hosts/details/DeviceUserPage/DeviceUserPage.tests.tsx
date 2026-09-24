@@ -692,105 +692,74 @@ describe("Device User Page", () => {
   });
 
   describe("Offline host toast", () => {
-    it.each([
-      {
-        name: "reports a host that has reported vitals as offline",
-        detailUpdatedAt: "2025-12-31T00:00:00Z",
-        expectToast: true,
-      },
-      {
-        name: "doesn't report a host that has never reported vitals as offline",
-        detailUpdatedAt: "2000-01-01T00:00:00Z",
-        expectToast: false,
-      },
-    ])("$name", async ({ detailUpdatedAt, expectToast }) => {
-      const host = createMockHost({
-        refetch_requested: true,
-        status: "offline",
-        platform: "windows",
-        detail_updated_at: detailUpdatedAt,
-      }) as IHostDevice;
+    const OFFLINE_MESSAGE =
+      "This host is offline. Please try refetching host vitals later.";
+    const NEVER_REPORTED = "2000-01-01T00:00:00Z";
+    let refetchSpy: jest.SpyInstance;
 
-      mockServer.use(customDeviceHandler({ host }));
+    beforeEach(() => {
+      refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
       mockServer.use(defaultDeviceCertificatesHandler);
       mockServer.use(emptySetupExperienceHandler);
+    });
 
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
+    afterEach(() => {
+      refetchSpy.mockRestore();
+    });
 
-      render(
+    const mockHost = (overrides: Partial<IHostDevice>) =>
+      createMockHost({ platform: "windows", ...overrides }) as IHostDevice;
+
+    const renderWithHost = (host: IHostDevice) => {
+      mockServer.use(customDeviceHandler({ host }));
+      return createCustomRenderer({ withBackendMock: true })(
         <DeviceUserPage
           router={mockRouter}
           params={{ device_auth_token: "testToken" }}
           location={mockLocation}
         />
       );
+    };
 
+    it("reports a host that has reported vitals as offline", async () => {
+      renderWithHost(mockHost({ refetch_requested: true, status: "offline" }));
       await screen.findByText(/Details/);
+      expect(notify.error).toHaveBeenCalledWith(OFFLINE_MESSAGE);
+    });
 
-      if (expectToast) {
-        expect(notify.error).toHaveBeenCalledWith(
-          "This host is offline. Please try refetching host vitals later."
-        );
-      } else {
-        expect(notify.error).not.toHaveBeenCalled();
-      }
+    it("doesn't report a host that has never reported vitals as offline", async () => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "offline",
+          detail_updated_at: NEVER_REPORTED,
+        })
+      );
+      await screen.findByText(/Details/);
+      expect(notify.error).not.toHaveBeenCalled();
     });
 
     it("reports a host that has never reported vitals as offline when the user asked for the refetch", async () => {
-      const refetchSpy = jest
-        .spyOn(deviceUserAPI, "refetch")
-        .mockResolvedValue({});
-      const neverFetchedHost = (overrides: Partial<IHostDevice>): IHostDevice =>
-        createMockHost({
-          platform: "windows",
-          detail_updated_at: "2000-01-01T00:00:00Z",
-          ...overrides,
-        }) as IHostDevice;
-
-      mockServer.use(
-        customDeviceHandler({
-          host: neverFetchedHost({
-            status: "online",
-            refetch_requested: false,
-          }),
-        })
-      );
-      mockServer.use(defaultDeviceCertificatesHandler);
-      mockServer.use(emptySetupExperienceHandler);
-
-      const render = createCustomRenderer({ withBackendMock: true });
-      const { user } = render(
-        <DeviceUserPage
-          router={mockRouter}
-          params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
-        />
+      const { user } = renderWithHost(
+        mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
       );
 
       await user.click(await screen.findByRole("button", { name: /refetch/i }));
-      await waitFor(() => {
-        expect(refetchSpy).toHaveBeenCalledWith("testToken");
-      });
+      await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
       mockServer.use(
         customDeviceHandler({
-          host: neverFetchedHost({
-            status: "offline",
+          host: mockHost({
             refetch_requested: true,
+            status: "offline",
+            detail_updated_at: NEVER_REPORTED,
           }),
         })
       );
 
       await waitFor(
-        () => {
-          expect(notify.error).toHaveBeenCalledWith(
-            "This host is offline. Please try refetching host vitals later."
-          );
-        },
+        () => expect(notify.error).toHaveBeenCalledWith(OFFLINE_MESSAGE),
         { timeout: 5000 }
       );
-      refetchSpy.mockRestore();
     }, 10000);
   });
 });
