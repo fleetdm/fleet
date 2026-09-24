@@ -141,7 +141,7 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
 To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
-To automatically patch the app when this policy fails and **app is not open**, additionally set `patch_when_closed` to `true`. With this option, Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run. Also, the `continuous_automations_enabled` is automatically set to `true`. 
+To automatically patch the app when this policy fails and **app is not open**, additionally set `patch_when_closed` to `true`. With this option, Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run. Also, the `continuous_automations_enabled` setting is automatically set to `true`. 
 
 Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
