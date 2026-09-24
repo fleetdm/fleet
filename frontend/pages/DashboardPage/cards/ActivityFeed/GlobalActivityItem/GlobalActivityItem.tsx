@@ -27,7 +27,10 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+import {
+  formatMdmCommandNameForActivityItem,
+  PREMIUM_ONLY_DETAIL_ACTIVITIES,
+} from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -55,13 +58,6 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.FailedEnrollmentProfileRenewal,
   ActivityType.NotifiedEndUserBeforePatching,
   ActivityType.HostEnrollmentRejected,
-]);
-
-// Detail modals for these types hit premium-only endpoints.
-const PREMIUM_ONLY_DETAIL_ACTIVITIES = new Set([
-  ActivityType.InstalledSoftware,
-  ActivityType.UninstalledSoftware,
-  ActivityType.InstalledAppStoreApp,
 ]);
 
 const getProfilesPlatformDisplayName = (

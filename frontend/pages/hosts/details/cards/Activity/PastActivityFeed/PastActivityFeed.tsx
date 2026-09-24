@@ -6,11 +6,9 @@ import Pagination from "components/Pagination";
 import { AppContext } from "context/app";
 import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
+import { PREMIUM_ONLY_DETAIL_ACTIVITIES } from "utilities/activityHelpers";
 
-import {
-  pastActivityComponentMap,
-  PREMIUM_ONLY_DETAIL_ACTIVITIES,
-} from "../ActivityConfig";
+import { pastActivityComponentMap } from "../ActivityConfig";
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "past-activity-feed";

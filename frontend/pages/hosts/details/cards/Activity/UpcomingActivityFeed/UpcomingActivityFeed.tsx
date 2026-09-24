@@ -6,11 +6,9 @@ import Pagination from "components/Pagination";
 import { AppContext } from "context/app";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
+import { PREMIUM_ONLY_DETAIL_ACTIVITIES } from "utilities/activityHelpers";
 
-import {
-  PREMIUM_ONLY_DETAIL_ACTIVITIES,
-  upcomingActivityComponentMap,
-} from "../ActivityConfig";
+import { upcomingActivityComponentMap } from "../ActivityConfig";
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "upcoming-activity-feed";
