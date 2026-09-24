@@ -299,14 +299,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				PlatformLike: hostInfo.PlatformLike,
 			}
 			platform := h.FleetPlatform()
-			// The platform is client-supplied and must not exempt a host from end user
-			// authentication: a macOS host that completed it during MDM enrollment is
-			// recognized by its IdP account association above, not by claiming to be macOS.
-			//
-			// Enforcement is based solely on server policy. The client-supplied
-			// X-Fleet-Capabilities header is an informational hint and must not
-			// gate this decision.
-			//
 			// The AllowOrbitEndUserAuthBypass escape hatch lets clients that do not
 			// advertise the end-user auth capability enroll anyway — pre-EUA agents,
 			// installers built with `fleetctl package --bypass-end-user-auth`, and macOS
@@ -2404,7 +2396,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		// report the same result again and emit a second activity.
 		if isAppOpenSkip && hsi.NotifyBeforePatching {
 			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
-				svc.logger.ErrorContext(ctx,
+				svc.logger.ErrorContext(
+					ctx,
 					"failed to create patch notification for end user",
 					"host_id", host.ID,
 					"install_uuid", result.InstallUUID,
