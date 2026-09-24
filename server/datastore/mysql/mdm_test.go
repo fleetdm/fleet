@@ -2001,6 +2001,14 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "android desc", gotAndroid.Description)
 
+	appleListed, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, appleListed, 1)
+	require.Equal(t, "apple desc", appleListed[0].Description)
+	byIdent, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, nil, apple.Identifier)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", byIdent.Description)
+
 	listed, _, err := ds.ListMDMConfigProfiles(ctx, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, listed, 4)

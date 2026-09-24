@@ -716,7 +716,7 @@ type BatchModifyMDMConfigProfilePayload struct {
 // a team or no-team.
 type MDMProfileBatchPayload struct {
 	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
+	Description string `json:"-"`
 	Contents    []byte `json:"contents,omitempty"`
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
