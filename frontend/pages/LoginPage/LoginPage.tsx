@@ -1,10 +1,8 @@
-import { AxiosError } from "axios";
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-// @ts-ignore
 import LoginForm from "components/forms/LoginForm";
 import Spinner from "components/Spinner/Spinner";
 import { notify } from "components/ToastNotification";
@@ -58,7 +56,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   } = useContext(AppContext);
   const { redirectLocation } = useContext(RoutingContext);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingEmail, setPendingEmail] = useState(false);
 
@@ -154,8 +151,10 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           setPendingEmail(true);
         }
 
-        const errorObject = formatErrorResponse(response);
-        setErrors(errorObject);
+        const { base } = formatErrorResponse(response);
+        if (base) {
+          notify.error(base, { response });
+        }
         return false;
       } finally {
         setIsSubmitting(false);
@@ -183,14 +182,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       const { url } = await sessionsAPI.initializeSSO(returnToAfterAuth);
       window.location.href = url;
     } catch (error) {
-      const err = error as AxiosError;
-      // a one-off error for sso login failure to be more readable to users
-      const ssoError = {
-        status: err.status,
-        data: { errors: [{ name: "base", reason: "Authentication failed" }] },
-      };
-      const errorObject = formatErrorResponse(ssoError);
-      setErrors(errorObject);
+      notify.error("Authentication failed", { response: error });
     }
   }, [redirectLocation]);
 
@@ -202,7 +194,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     <AuthenticationFormWrapper header="Welcome to Fleet">
       <LoginForm
         handleSubmit={onSubmit}
-        baseError={errors.base}
         ssoSettings={ssoSettings}
         handleSSOSignOn={ssoSignOn}
         isSubmitting={isSubmitting}
