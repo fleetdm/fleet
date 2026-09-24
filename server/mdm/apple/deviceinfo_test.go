@@ -286,8 +286,8 @@ func TestDeviceinfoVerificationLimits(t *testing.T) {
 	})
 
 	t.Run("oversized deviceinfo is rejected before parsing", func(t *testing.T) {
-		// one byte over shares the limit's base64 length, so the check must be
-		// on the decoded payload
+		// one byte over shares the limit's base64 length and is caught after
+		// decoding; far over is caught before decoding
 		for _, size := range []int{maxDeviceinfoSize + 1, 4 * maxDeviceinfoSize} {
 			b64 := base64.StdEncoding.EncodeToString(make([]byte, size))
 			_, _, err := ParseDeviceinfo(b64)

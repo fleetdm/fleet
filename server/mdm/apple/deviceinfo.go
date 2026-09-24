@@ -407,6 +407,12 @@ func verifyChainToDeviceCA(leaf *x509.Certificate, bag []*x509.Certificate, devi
 // *fleet.MDMAppleMachineInfo along with the containing PKCS7 payload, which callers on
 // Apple-signed enrollment lanes must pass to VerifyMachineInfoSignature.
 func ParseDeviceinfo(b64 string) (*fleet.MDMAppleMachineInfo, *pkcs7.PKCS7, error) {
+	// Rejects oversized input without decoding it. Padding lets up to two bytes
+	// over the limit share its encoded length, so the decoded length is checked
+	// too.
+	if len(b64) > base64.StdEncoding.EncodedLen(maxDeviceinfoSize) {
+		return nil, nil, fmt.Errorf("deviceinfo exceeds %d bytes", maxDeviceinfoSize)
+	}
 	buf, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		if strings.Contains(err.Error(), "illegal base64 data") {
