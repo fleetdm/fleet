@@ -1,7 +1,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import {
+  PRE_INSTALL_QUERY_FAIL_OUTPUT,
+  SKIPPED_INSTALL_DETAILS,
+} from "components/ActivityDetails/InstallDetails/constants";
+import { SKIPPED_INSTALL_NOTIFY_EXPLANATION } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
 import policiesAPI from "services/entities/policies";
@@ -319,6 +323,41 @@ describe("getDetailOutputText", () => {
       getDetailOutputText(
         mockActivity({
           status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DETAILS);
+  });
+
+  it("explains a notify-before-patching skip with the notification sentence", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
+  });
+
+  it("treats a skip recorded before patch_when_closed existed as patch-when-closed", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
           details: {
             policy_id: 123,
             software_title: "1Password",
@@ -327,6 +366,55 @@ describe("getDetailOutputText", () => {
         })
       )
     ).toBe(SKIPPED_INSTALL_DETAILS);
+  });
+
+  it("reports the query-fail copy for an install stopped by its pre-install query", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: { policy_id: 123, software_title: "1Password" },
+        })
+      )
+    ).toBe(PRE_INSTALL_QUERY_FAIL_OUTPUT);
+  });
+
+  it("returns empty text when no pre-install query was configured", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: null,
+          details: { policy_id: 123, software_title: "1Password" },
+        })
+      )
+    ).toBe("");
+  });
+
+  it("returns empty text for a successful install even though its pre-install output is empty", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "success",
+          pre_install_output: "",
+          details: { policy_id: 123, software_title: "1Password" },
+        })
+      )
+    ).toBe("");
+  });
+
+  it("does not report the query-fail copy for a non-install activity even with an empty pre-install output", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.RanScript,
+          status: "error",
+          pre_install_output: "",
+          details: { policy_id: 123, script_name: "remediate.sh" },
+        })
+      )
+    ).toBe("");
   });
 });
 

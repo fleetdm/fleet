@@ -155,6 +155,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
             policy_id: 123,
             software_title: "1Password",
             skipped_install: true,
+            patch_when_closed: true,
           },
           output: null,
           pre_install_output: "",
@@ -167,9 +168,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
     // Shown inline, the same way a failing row shows its output sections.
     expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Query didn't return result or failed/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/The app was open/)).toBeInTheDocument();
   });
 
   it("omits the details box when there is no output or error", () => {
@@ -347,13 +346,13 @@ describe("PolicyAutomationActivityDetailsModal", () => {
           policy_id: 123,
           software_title: "1Password",
           skipped_install: true,
+          patch_when_closed: false,
         },
         host_id: 42,
         host_display_name: "Rachael's MacBook Pro",
         status: "error",
         output: null,
-        pre_install_output:
-          "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
+        pre_install_output: "",
         post_install_output: null,
       };
 
@@ -391,13 +390,13 @@ describe("PolicyAutomationActivityDetailsModal", () => {
           policy_id: 123,
           software_title: "1Password",
           skipped_install: true,
+          patch_when_closed: true,
         },
         host_id: 42,
         host_display_name: "Rachael's MacBook Pro",
         status: "error",
         output: null,
-        pre_install_output:
-          "Query didn't return result or failed\nThe app was open.",
+        pre_install_output: "",
         post_install_output: null,
       };
 
@@ -414,6 +413,41 @@ describe("PolicyAutomationActivityDetailsModal", () => {
       ).not.toBeInTheDocument();
       // Old rendering exposes pre_install_output directly (no reveal).
       expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Fleet notifies the end user/)
+      ).not.toBeInTheDocument();
     });
+  });
+
+  it("shows the query-fail copy for an install stopped by its own pre-install query", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
+        activity={{ ...failedSoftwareActivity, pre_install_output: "" }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(screen.getByText(/Install stopped/)).toBeInTheDocument();
+  });
+
+  it("omits the pre-install query output section for a successful install even though its output is empty", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
+        activity={{
+          ...failedSoftwareActivity,
+          status: "success",
+          pre_install_output: "",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.queryByText("Pre-install query output")
+    ).not.toBeInTheDocument();
   });
 });
