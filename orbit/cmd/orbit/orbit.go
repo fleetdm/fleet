@@ -1283,8 +1283,11 @@ func orbitAction(c *cli.Context) error {
 	if serverIsReachable {
 		expired, _ := trw.HasExpired()
 		if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+			// Not fatal: a stale orbit node key (e.g. host deleted while offline) returns 401 here,
+			// and exiting would restart orbit before the re-enroll grace period elapses. The
+			// periodic rotation below retries once orbit re-enrolls.
 			if err := trw.Rotate(); err != nil {
-				return fmt.Errorf("rotating token: %w", err)
+				log.Error().Err(err).Msg("rotating token on startup")
 			}
 		}
 	}
