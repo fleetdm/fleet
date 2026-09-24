@@ -5855,8 +5855,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleRotateFileVaultKeyResult(r *m
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load CA assets to decrypt rotated disk encryption key")
 		}
-		if plain, err := mdm_types.DecryptBase64CMSWithCerts(newKey, caKey, certs); err != nil || len(plain) == 0 {
+		plain, err := mdm_types.DecryptBase64CMSWithCerts(newKey, caKey, certs)
+		if err != nil || len(plain) == 0 {
 			return svc.failDiskEncryptionKeyRotation(ctx, host, cmdResult.CommandUUID, undecryptableReply)
+		}
+
+		// osquery can report the rotated FileVaultPRK.dat before the acknowledgement
+		// arrives. That copy is already stored, archived, and announced, so keep it
+		// rather than storing the reply's envelope of the same key a second time.
+		stored, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "get stored disk encryption key")
+		}
+		if stored != nil && stored.Base64Encrypted != "" && stored.Base64Encrypted != newKey {
+			if storedPlain, err := mdm_types.DecryptBase64CMSWithCerts(stored.Base64Encrypted, caKey, certs); err == nil && bytes.Equal(storedPlain, plain) {
+				if stored.Decryptable == nil || !*stored.Decryptable {
+					if err := svc.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()); err != nil {
+						return ctxerr.Wrap(ctx, err, "mark stored disk encryption key decryptable")
+					}
+				}
+				return ctxerr.Wrap(ctx, svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdResult.CommandUUID),
+					"clear disk encryption key rotation")
+			}
 		}
 
 		// Stored as decryptable since it was just decrypted; otherwise the key

@@ -28980,6 +28980,30 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusUnprocessableEntity)
 	})
 
+	t.Run("osquery reports the new key before the acknowledgement", func(t *testing.T) {
+		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
+		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
+		cmd := nextRotateCommand(t, mdmClient)
+		require.NotNil(t, cmd)
+
+		s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "NEW-333-444")
+		reported := storedKey(host.ID)
+		require.Nil(t, reported.Decryptable)
+		archived := archiveRows(host.ID)
+		escrowed := hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+
+		_, err := mdmClient.AcknowledgeRotateFileVaultKey(cmd.CommandUUID, encrypt("NEW-333-444"))
+		require.NoError(t, err)
+
+		acked := storedKey(host.ID)
+		require.Equal(t, reported.Base64Encrypted, acked.Base64Encrypted, "the reported copy is kept")
+		require.Equal(t, new(true), acked.Decryptable)
+		require.Nil(t, acked.RotationCommandUUID)
+		require.Equal(t, archived, archiveRows(host.ID))
+		require.Equal(t, escrowed, hostActivities(host.ID, fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName()))
+		require.Equal(t, "NEW-333-444", getKey(host.ID).EncryptionKey.DecryptedValue)
+	})
+
 	t.Run("host returns an error", func(t *testing.T) {
 		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
