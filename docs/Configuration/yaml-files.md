@@ -1477,7 +1477,7 @@ org_settings:
 
 ##### windows_eula
 
-You can set a custom end user license agreement (EULA) file for your end users on Windows. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
+You can set a custom end user license agreement (EULA) file for your end users on Windows.
 
 - `windows_eula` is the path to the markdown file.
 
