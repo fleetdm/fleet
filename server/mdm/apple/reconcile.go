@@ -68,6 +68,11 @@ func channelKey(p *fleet.MDMAppleProfilePayload) profileChannelKey {
 	return profileChannelKey{hostUUID: p.HostUUID, identifier: p.ProfileIdentifier, scope: p.Scope}
 }
 
+type hostCommandKey struct {
+	hostUUID    string
+	commandUUID string
+}
+
 // ComputeReconcileDeltas evaluates desired profile state for each host in
 // the input set using the SHARED dispatcher, then diffs against current
 // host_mdm_apple_profiles rows to produce install and remove sets.
@@ -474,6 +479,10 @@ func ExecuteReconcileBatch(
 	throttledHostsByProfile := make(map[string][]string)
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	supersededCmdToEnrollmentIDs := make(map[string][]string)
+	// Commands an install took over from the same-identifier profile it
+	// replaces. The replaced row is cleaned up below, but its command must stay
+	// queued: the install row now tracks it.
+	adoptedCmds := make(map[hostCommandKey]struct{})
 
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
@@ -495,6 +504,9 @@ func ExecuteReconcileBatch(
 				}
 				hostProfiles = append(hostProfiles, hp)
 				hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hp
+				if pp.CommandUUID != "" {
+					adoptedCmds[hostCommandKey{hostUUID: p.HostUUID, commandUUID: pp.CommandUUID}] = struct{}{}
+				}
 				continue
 			}
 		}
@@ -720,6 +732,8 @@ func ExecuteReconcileBatch(
 					continue
 				}
 				for _, hp := range hps {
+					// The row no longer tracks the command, so let the cleanup cancel it.
+					delete(adoptedCmds, hostCommandKey{hostUUID: hp.HostUUID, commandUUID: hp.CommandUUID})
 					hp.Status = nil
 					hp.CommandUUID = ""
 					hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
@@ -749,6 +763,9 @@ func ExecuteReconcileBatch(
 
 	commandUUIDToHostIDsCleanupMap := make(map[string][]string)
 	for _, hp := range hostProfilesToCleanup {
+		if _, adopted := adoptedCmds[hostCommandKey{hostUUID: hp.HostUUID, commandUUID: hp.CommandUUID}]; adopted {
+			continue
+		}
 		if hp.CommandUUID != "" {
 			if hp.Scope == fleet.PayloadScopeUser {
 				// use the correct enrollment ID for user-scoped profiles.
