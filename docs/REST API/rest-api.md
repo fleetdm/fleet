@@ -7197,7 +7197,8 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-        "async": true
+        "async": true,
+        "patch_notification": false
       }
     },
     {
@@ -7214,7 +7215,8 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-        "async": false
+        "async": false,
+        "patch_notification": false
       }
     }
   ],
