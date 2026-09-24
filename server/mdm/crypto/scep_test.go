@@ -2,9 +2,11 @@ package mdmcrypto
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -151,4 +153,97 @@ func generateClientCertificate(t *testing.T, rootCert *x509.Certificate, rootKey
 	require.NoError(t, err)
 
 	return clientCertPEM, clientCert
+}
+
+func TestVerifyIgnoreExpiry(t *testing.T) {
+	now := time.Now()
+	caValidFrom, caValidTo := now.Add(-48*time.Hour), now.Add(10*365*24*time.Hour)
+	rootPEM, rootCert, rootKey := generateRSACA(t, caValidFrom, caValidTo)
+	_, otherRootCert, otherRootKey := generateRSACA(t, caValidFrom, caValidTo)
+
+	ds := new(mock.Store)
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: rootPEM},
+		}, nil
+	}
+
+	strict := NewSCEPVerifier(ds)
+	lenient := NewSCEPVerifier(ds, WithIgnoreExpiry())
+
+	// SCEP enrollments use RSA 2048 device keys, ACME enrollments use EC P-384.
+	leafKeys := map[string]func(t *testing.T) crypto.Signer{
+		"rsa":  func(t *testing.T) crypto.Signer { return generateRSAKey(t) },
+		"p384": func(t *testing.T) crypto.Signer { return generateP384Key(t) },
+	}
+	for name, newKey := range leafKeys {
+		t.Run(name, func(t *testing.T) {
+			issue := func(caCert *x509.Certificate, caKey crypto.Signer, notBefore, notAfter time.Time) *x509.Certificate {
+				return generateClientCertWithValidity(t, caCert, caKey, newKey(t).Public(), notBefore, notAfter)
+			}
+			valid := issue(rootCert, rootKey, now.Add(-time.Hour), now.Add(24*time.Hour))
+			expired := issue(rootCert, rootKey, now.Add(-24*time.Hour), now.Add(-time.Hour))
+			notYetValid := issue(rootCert, rootKey, now.Add(time.Hour), now.Add(24*time.Hour))
+			expiredFromOtherCA := issue(otherRootCert, otherRootKey, now.Add(-24*time.Hour), now.Add(-time.Hour))
+
+			require.NoError(t, strict.Verify(t.Context(), valid))
+			require.NoError(t, lenient.Verify(t.Context(), valid))
+
+			require.ErrorContains(t, strict.Verify(t.Context(), expired), "certificate has expired or is not yet valid")
+			require.NoError(t, lenient.Verify(t.Context(), expired))
+
+			require.ErrorContains(t, lenient.Verify(t.Context(), notYetValid), "certificate has expired or is not yet valid")
+			require.ErrorContains(t, lenient.Verify(t.Context(), expiredFromOtherCA), "certificate signed by unknown authority")
+		})
+	}
+}
+
+func generateRSAKey(t *testing.T) *rsa.PrivateKey {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	return key
+}
+
+func generateP384Key(t *testing.T) *ecdsa.PrivateKey {
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+	return key
+}
+
+func generateRSACA(t *testing.T, notBefore, notAfter time.Time) ([]byte, *x509.Certificate, *rsa.PrivateKey) {
+	key := generateRSAKey(t)
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{Organization: []string{"Test Root CA"}},
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), cert, key
+}
+
+func generateClientCertWithValidity(t *testing.T, caCert *x509.Certificate, caKey crypto.Signer, pub crypto.PublicKey,
+	notBefore, notAfter time.Time,
+) *x509.Certificate {
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{Organization: []string{"Test Client"}},
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, caCert, pub, caKey)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return cert
 }
