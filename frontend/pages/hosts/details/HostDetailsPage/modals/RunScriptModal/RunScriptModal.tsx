@@ -153,17 +153,16 @@ const RunScriptModal = ({
   const compatibleScriptTypes = getCompatibleScriptTypes(hostPlatform);
 
   const renderEmptyStateInfo = () => {
-    const addScriptInfo = canAddScript ? (
+    const addScriptLink = canAddScript ? (
       <>
         <CustomLink url={addScriptUrl} text="Add a script" />.
       </>
-    ) : (
-      "Ask your admin to add a script for this host."
-    );
-    if (!compatibleScriptTypes) return addScriptInfo;
+    ) : undefined;
+    if (!compatibleScriptTypes) return addScriptLink;
     return (
       <>
-        This host can only run {compatibleScriptTypes} scripts. {addScriptInfo}
+        This host can only run {compatibleScriptTypes} scripts.
+        {addScriptLink && <> {addScriptLink}</>}
       </>
     );
   };

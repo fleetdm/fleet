@@ -108,7 +108,7 @@ describe("RunScriptModal", () => {
       expect(link.getAttribute("href")).not.toContain("fleet_id");
     });
 
-    it("hides the link and shows guidance text for a global technician", () => {
+    it("hides the link and guidance text for a global technician", () => {
       const technicianUser = createMockUser({ global_role: "technician" });
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -125,8 +125,8 @@ describe("RunScriptModal", () => {
 
       expect(screen.getByText("No scripts available")).toBeInTheDocument();
       expect(
-        screen.getByText("Ask your admin to add a script for this host.")
-      ).toBeInTheDocument();
+        screen.queryByText(/Ask your admin to add a script/i)
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("link", { name: /Add a script/i })
       ).not.toBeInTheDocument();
@@ -174,8 +174,8 @@ describe("RunScriptModal", () => {
       render(<RunScriptModal {...baseProps} currentUser={technicianUser} />);
 
       expect(
-        screen.getByText("Ask your admin to add a script for this host.")
-      ).toBeInTheDocument();
+        screen.queryByText(/Ask your admin to add a script/i)
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("link", { name: /Add a script/i })
       ).not.toBeInTheDocument();
@@ -241,8 +241,8 @@ describe("RunScriptModal", () => {
         )
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/Ask your admin to add a script for this host/i)
-      ).toBeInTheDocument();
+        screen.queryByText(/Ask your admin to add a script/i)
+      ).not.toBeInTheDocument();
     });
   });
 
