@@ -2246,18 +2246,16 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	// Find app configs that use any of the affected variables.
 	const findAffectedApps = `
 	SELECT DISTINCT
-		aac.application_id,
+		vat.adam_id AS application_id,
 		vat.id AS app_team_id
 	FROM
 		mdm_configuration_profile_variables mcpv
-		JOIN android_app_configurations aac
-			ON mcpv.android_app_configuration_id = aac.id
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 		JOIN vpp_apps_teams vat
-			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
+			ON mcpv.vpp_app_team_id = vat.id
 		JOIN hosts h
-			ON aac.global_or_team_id = COALESCE(h.team_id, 0)
+			ON vat.global_or_team_id = COALESCE(h.team_id, 0)
 	WHERE
 		fv.name IN (?) AND
 		h.id IN (?)

@@ -125,8 +125,8 @@ func TestUp_20260924191956(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, app.Configuration)
 	require.False(t, app.UpdateScheduleEnabled)
-	require.Equal(t, "", app.StartTime)
-	require.Equal(t, "", app.EndTime)
+	require.Empty(t, app.StartTime)
+	require.Empty(t, app.EndTime)
 
 	// read the iOS and iPadOS rows of one app with only an iPadOS configuration, only the iPadOS row should get it
 	app = appStoreAppRow{}
@@ -145,20 +145,20 @@ func TestUp_20260924191956(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, app.Configuration)
 	require.False(t, app.UpdateScheduleEnabled)
-	require.Equal(t, "", app.StartTime)
-	require.Equal(t, "", app.EndTime)
+	require.Empty(t, app.StartTime)
+	require.Empty(t, app.EndTime)
 
 	// read the Android apps, the configuration from the same fleet should be copied as JSON text
 	app = appStoreAppRow{}
 	err = db.Get(&app, selectAppStoreApp, androidInTeamA)
 	require.NoError(t, err)
 	require.NotNil(t, app.Configuration)
-	require.Equal(t, `{"managedConfiguration": {"key": "team-a"}}`, *app.Configuration)
+	require.JSONEq(t, `{"managedConfiguration": {"key": "team-a"}}`, *app.Configuration)
 	app = appStoreAppRow{}
 	err = db.Get(&app, selectAppStoreApp, androidInNoTeam)
 	require.NoError(t, err)
 	require.NotNil(t, app.Configuration)
-	require.Equal(t, `{"managedConfiguration": {"key": "no-team"}}`, *app.Configuration)
+	require.JSONEq(t, `{"managedConfiguration": {"key": "no-team"}}`, *app.Configuration)
 	app = appStoreAppRow{}
 	err = db.Get(&app, selectAppStoreApp, androidOtherFleet)
 	require.NoError(t, err)

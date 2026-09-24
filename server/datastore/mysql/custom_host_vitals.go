@@ -215,11 +215,12 @@ func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtConte
 		{
 			desc: "get android app configuration contents",
 			stmt: `SELECT 'android_app_config' AS entity,
-				COALESCE(NULLIF(va.name, ''), aac.application_id) AS name,
-				COALESCE(t.name, 'Unassigned') AS team_name, aac.configuration AS contents
-				FROM android_app_configurations aac
-				LEFT JOIN vpp_apps va ON va.adam_id = aac.application_id AND va.platform = 'android'
-				LEFT JOIN teams t ON t.id = aac.team_id;`,
+				COALESCE(NULLIF(va.name, ''), vat.adam_id) AS name,
+				COALESCE(t.name, 'Unassigned') AS team_name, vat.configuration AS contents
+				FROM vpp_apps_teams vat
+				LEFT JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = 'android'
+				LEFT JOIN teams t ON t.id = vat.team_id
+				WHERE vat.platform = 'android' AND vat.configuration IS NOT NULL;`,
 		},
 		// Software installer and setup-experience scripts exceed secret-variable
 		// delete-protection (which doesn't scan them), so a vital can't be deleted
@@ -520,13 +521,9 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 
 	varName := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)
 
-	const selectStmt = `SELECT aac.application_id, aac.configuration, vat.id AS app_team_id
-		FROM android_app_configurations aac
-		JOIN vpp_apps_teams vat
-			ON vat.adam_id = aac.application_id
-			AND vat.global_or_team_id = aac.global_or_team_id
-			AND vat.platform = 'android'
-		WHERE aac.global_or_team_id = ? AND INSTR(aac.configuration, ?) > 0`
+	const selectStmt = `SELECT adam_id AS application_id, configuration, id AS app_team_id
+		FROM vpp_apps_teams
+		WHERE global_or_team_id = ? AND platform = 'android' AND INSTR(configuration, ?) > 0`
 
 	var candidates []struct {
 		ApplicationID string `db:"application_id"`

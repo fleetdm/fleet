@@ -35,14 +35,15 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
 		inHouseAppsTeamsGlobalOrTeamIDFilter  string
-		autoUpdatesJoin                       string
 		autoUpdatesSelect                     string
 		autoUpdatesGroupBy                    string
 	)
 
 	if teamID != nil {
-		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_window_start, sus.end_time as auto_update_window_end, `
-		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
+		autoUpdatesSelect = `
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) as auto_update_enabled,
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) as auto_update_window_start,
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end, `
 		autoUpdatesGroupBy = "auto_update_enabled, auto_update_window_start, auto_update_window_end, "
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
@@ -78,7 +79,6 @@ SELECT
 	%s
 	vap.icon_url AS icon_url
 FROM software_titles st
-%s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
@@ -95,7 +95,7 @@ GROUP BY
 	hosts_count,
 	%s
 	vap.icon_url
-	`, autoUpdatesSelect, autoUpdatesJoin, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
+	`, autoUpdatesSelect, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
@@ -761,9 +761,9 @@ SELECT
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
 		,iha.install_during_setup as in_house_app_install_during_setup
-		,sus.enabled as auto_update_enabled
-		,sus.start_time as auto_update_window_start
-		,sus.end_time as auto_update_window_end
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) as auto_update_enabled
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) as auto_update_window_start
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -775,7 +775,6 @@ FROM software_titles st
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = {{teamID .}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
@@ -1082,9 +1081,9 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			iha.storage_id AS in_house_app_storage_id,
 			iha.self_service AS in_house_app_self_service,
 			iha.install_during_setup AS in_house_app_install_during_setup,
-			sus.enabled AS auto_update_enabled,
-			sus.start_time AS auto_update_window_start,
-			sus.end_time AS auto_update_window_end`
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) AS auto_update_enabled,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) AS auto_update_window_start,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) AS auto_update_window_end`
 	}
 
 	outerSQL += fmt.Sprintf(`
@@ -1105,8 +1104,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-			AND vat.global_or_team_id = %[1]d
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %[1]d`, teamID)
+			AND vat.global_or_team_id = %[1]d`, teamID)
 	}
 
 	outerSQL += `
@@ -1486,15 +1484,15 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 	}
 
 	stmt := `
-INSERT INTO software_update_schedules
-	(title_id, team_id, enabled, start_time, end_time)
-VALUES (?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-	enabled = VALUES(enabled),
-	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
-	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
+UPDATE vpp_apps_teams vat
+JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+SET
+	vat.update_schedule_enabled = ?,
+	vat.start_time = IF(? = '', vat.start_time, ?),
+	vat.end_time = IF(? = '', vat.end_time, ?)
+WHERE va.title_id = ? AND vat.global_or_team_id = ?
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AutoUpdateEnabled, startTime, startTime, endTime, endTime, titleID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
@@ -1504,14 +1502,15 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	sus.team_id,
-	sus.title_id,
-	sus.enabled AS auto_update_enabled,
-	sus.start_time AS auto_update_window_start,
-	sus.end_time AS auto_update_window_end
-FROM software_update_schedules sus
-JOIN software_titles st ON st.id = sus.title_id
-WHERE sus.team_id = ? AND st.source = ?
+	vat.global_or_team_id AS team_id,
+	va.title_id,
+	vat.update_schedule_enabled AS auto_update_enabled,
+	vat.start_time AS auto_update_window_start,
+	vat.end_time AS auto_update_window_end
+FROM vpp_apps_teams vat
+JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+JOIN software_titles st ON st.id = va.title_id
+WHERE vat.global_or_team_id = ? AND st.source = ? AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')
 `
 
 	args := []any{teamID, source}
@@ -1519,7 +1518,7 @@ WHERE sus.team_id = ? AND st.source = ?
 	if len(optionalFilter) > 0 {
 		filter := optionalFilter[0]
 		if filter.Enabled != nil {
-			stmt += " AND enabled = ?"
+			stmt += " AND vat.update_schedule_enabled = ?"
 			args = append(args, *filter.Enabled)
 		}
 	}

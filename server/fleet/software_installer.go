@@ -968,7 +968,7 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 
 	// SoftwareAutoUpdateConfig carries VPP auto-update fields (enabled + window).
-	// Populated post-pagination from software_update_schedules keyed on the host's
+	// Populated post-pagination from vpp_apps_teams keyed on the host's
 	// team + title ID. Nil for hosts with no team (matches list-titles semantics).
 	SoftwareAutoUpdateConfig
 }
@@ -1473,6 +1473,8 @@ type HostSoftwareInstallOptions struct {
 	// release cron activates it within the configured per-minute budget. Set
 	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
 	DeferActivation bool
+	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
+	VPPAppTeamID uint
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

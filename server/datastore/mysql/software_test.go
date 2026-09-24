@@ -6908,8 +6908,8 @@ func testListHostSoftwareVPPSelfServiceTeamFilter(t *testing.T, ds *Datastore) {
 	// Also add the same app globally with self_service=false
 	// This simulates the bug scenario where multiple vpp_apps_teams entries exist
 	_, err = ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, self_service)
-		VALUES (?, ?, 0, 0)
+		INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, self_service, instance_name)
+		VALUES (?, ?, 0, 0, 'Default version')
 		ON DUPLICATE KEY UPDATE self_service = 0
 	`, vppApp.AdamID, vppApp.Platform)
 	require.NoError(t, err)

@@ -68,6 +68,7 @@ func TestVPP(t *testing.T) {
 		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
 		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
 		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
+		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
 	}
 
 	for _, c := range cases {
@@ -2607,7 +2608,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	config1 := json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1":1}}`)
-	expectedConfig1 := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1": 1}}`)
+	expectedConfig1 := []byte(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1":1}}`)
 
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("name 1")},
@@ -3643,6 +3644,8 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
 	setupTestVPPApp(t, ds, adamID, fleet.IPadOSPlatform)
 	teamID := setupTestTeam(t, ds)
+	iosAppTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IOSPlatform, teamID)
+	ipadAppTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IPadOSPlatform, teamID)
 
 	// NotFound on empty table.
 	_, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
@@ -3658,8 +3661,8 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	// Insert: same adam_id, separate config per platform.
 	iosCfg := []byte(testIOSPlist)
 	ipadCfg := []byte(`<dict><key>p</key><string>ipados</string></dict>`)
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, iosCfg))
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IPadOSPlatform, teamID, adamID, ipadCfg))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), iosAppTeamID, iosCfg))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), ipadAppTeamID, ipadCfg))
 
 	// Get: per-platform isolation, byte-for-byte round-trip including newlines.
 	gotIOS, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
@@ -3676,9 +3679,12 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.Equal(t, iosCfg, bulk[adamID])
 
 	// Cross-team isolation: same (adamID, platform) on a different team is independent.
-	otherTeamID := teamID + 1
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Other Team"})
+	require.NoError(t, err)
+	otherTeamID := otherTeam.ID
+	otherTeamAppTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IOSPlatform, otherTeamID)
 	otherTeamCfg := []byte(`<dict><key>team</key><string>other</string></dict>`)
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, otherTeamID, adamID, otherTeamCfg))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), otherTeamAppTeamID, otherTeamCfg))
 	gotOther, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, otherTeamID)
 	require.NoError(t, err)
 	require.Equal(t, otherTeamCfg, gotOther)
@@ -3693,7 +3699,7 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 
 	// Update: upsert overwrites.
 	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, updated))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), iosAppTeamID, updated))
 	gotIOS, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
 	require.NoError(t, err)
 	require.Equal(t, updated, gotIOS)
@@ -3713,8 +3719,7 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 }
 
 // testVPPAppConfigDeletedOnTeamDelete asserts DeleteTeam clears
-// vpp_app_configurations rows for the team (no FK to teams, parent vpp_apps
-// outlives the team, so the cleanup goes through teamRefs).
+// the team's app store app configurations.
 func testVPPAppConfigDeletedOnTeamDelete(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
 	const adamID = "vppcfg-team-delete"
@@ -3723,21 +3728,21 @@ func testVPPAppConfigDeletedOnTeamDelete(t *testing.T, ds *Datastore) {
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp-cfg-team-delete"})
 	require.NoError(t, err)
+	appTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IOSPlatform, team.ID)
 
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx),
-		fleet.IOSPlatform, team.ID, adamID, []byte(`<dict/>`)))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, []byte(`<dict/>`)))
 
 	var beforeCount int
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &beforeCount,
-		`SELECT COUNT(*) FROM vpp_app_configurations WHERE team_id = ?`, team.ID))
+		`SELECT COUNT(*) FROM vpp_apps_teams WHERE global_or_team_id = ? AND configuration IS NOT NULL`, team.ID))
 	require.Equal(t, 1, beforeCount)
 
 	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
 
 	var afterCount int
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &afterCount,
-		`SELECT COUNT(*) FROM vpp_app_configurations WHERE team_id = ?`, team.ID))
-	require.Zero(t, afterCount, "vpp_app_configurations rows orphaned after DeleteTeam")
+		`SELECT COUNT(*) FROM vpp_apps_teams WHERE global_or_team_id = ? AND configuration IS NOT NULL`, team.ID))
+	require.Zero(t, afterCount, "app store app configurations orphaned after DeleteTeam")
 }
 
 // testVPPInstallEnqueuesConfigurationDict exercises the fan-in point that
@@ -3777,13 +3782,13 @@ func testVPPInstallEnqueuesConfigurationDict(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: adamID,
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	insertedApp, err := ds.InsertVPPAppWithTeam(ctx, vpp, nil)
 	require.NoError(t, err)
 
 	// Configuration that exercises both static plist content and a
 	// $FLEET_VAR_HOST_UUID substitution. global_or_team_id = 0 for "no team".
 	const cfg = `<dict><key>S</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, 0, adamID, []byte(cfg)))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), insertedApp.AppTeamID, []byte(cfg)))
 
 	const cmdUUID = "iosmac-cmd-1"
 	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "evt-1", fleet.HostSoftwareInstallOptions{}))
@@ -3827,13 +3832,13 @@ func testVPPInstallOmitsConfigurationOnMacOS(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: adamID,
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	insertedApp, err := ds.InsertVPPAppWithTeam(ctx, vpp, nil)
 	require.NoError(t, err)
 
 	// Seed a config row so we actually exercise the macOS guard, not just the
 	// trivial "no config → no dict" case.
 	const cfg = `<dict><key>S</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
-	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.MacOSPlatform, 0, adamID, []byte(cfg)))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), insertedApp.AppTeamID, []byte(cfg)))
 
 	const cmdUUID = "macos-cmd-1"
 	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "evt-mac", fleet.HostSoftwareInstallOptions{}))
@@ -3921,9 +3926,10 @@ func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	test.CreateInsertGlobalVPPToken(t, ds)
 	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
 	teamID := setupTestTeam(t, ds)
+	appTeamID := setupTestAppInFleet(t, ds, adamID, fleet.IOSPlatform, teamID)
 
 	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
-	require.NoError(t, ds.updateVPPAppConfigurationTx(testCtx(), ds.writer(testCtx()), fleet.IOSPlatform, teamID, adamID, stored))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, stored))
 
 	cases := []struct {
 		desc      string
@@ -4354,4 +4360,72 @@ func testRetryVPPInstallMovesSetupExperienceStep(t *testing.T, ds *Datastore) {
 			`SELECT nano_command_uuid FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID)
 	})
 	require.Equal(t, newCmdUUID, resolvedStepCmdUUID)
+}
+
+func testVPPInstallLinksAppStoreAppInstance(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp-instance-link-team"})
+	require.NoError(t, err)
+
+	const adamID = "77778888"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	noTeamApp, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	teamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "InstanceApp",
+		AdamID:           adamID,
+		Platform:         fleet.IOSPlatform,
+		BundleIdentifier: adamID,
+	}, &team.ID)
+	require.NoError(t, err)
+
+	noTeamHost, err := ds.NewHost(ctx, &fleet.Host{Hostname: "no-team-host", UUID: "vpp-instance-link-no-team", Platform: string(fleet.IOSPlatform), HardwareSerial: "SERIAL-1"})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, noTeamHost, false)
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{Hostname: "team-host", UUID: "vpp-instance-link-team", Platform: string(fleet.IOSPlatform), HardwareSerial: "SERIAL-2", TeamID: &team.ID})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, teamHost, false)
+
+	const selectQueuedAppTeamID = `SELECT vaua.vpp_app_team_id FROM vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id WHERE ua.execution_id = ?`
+	const selectInstallAppTeamID = `SELECT vpp_app_team_id FROM host_vpp_software_installs WHERE command_uuid = ?`
+
+	// install the app on the host in no team, the queued and started install should link to the no team instance
+	err = ds.InsertHostVPPSoftwareInstall(ctx, noTeamHost.ID, noTeamApp.VPPAppID, "no-team-cmd", "evt-1", fleet.HostSoftwareInstallOptions{VPPAppTeamID: noTeamApp.AppTeamID})
+	require.NoError(t, err)
+	var linkedAppTeamID *uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &linkedAppTeamID, selectQueuedAppTeamID, "no-team-cmd")
+	})
+	require.NotNil(t, linkedAppTeamID)
+	require.Equal(t, noTeamApp.AppTeamID, *linkedAppTeamID)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &linkedAppTeamID, selectInstallAppTeamID, "no-team-cmd")
+	})
+	require.NotNil(t, linkedAppTeamID)
+	require.Equal(t, noTeamApp.AppTeamID, *linkedAppTeamID)
+
+	// install the app on the host in the team, the queued and started install should link to the team instance
+	err = ds.InsertHostVPPSoftwareInstall(ctx, teamHost.ID, teamApp.VPPAppID, "team-cmd", "evt-2", fleet.HostSoftwareInstallOptions{VPPAppTeamID: teamApp.AppTeamID})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &linkedAppTeamID, selectQueuedAppTeamID, "team-cmd")
+	})
+	require.NotNil(t, linkedAppTeamID)
+	require.Equal(t, teamApp.AppTeamID, *linkedAppTeamID)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &linkedAppTeamID, selectInstallAppTeamID, "team-cmd")
+	})
+	require.NotNil(t, linkedAppTeamID)
+	require.Equal(t, teamApp.AppTeamID, *linkedAppTeamID)
+
+	// record a failed install on the host in the team, the install should link to the team instance
+	_, _, err = ds.RecordFailedVPPAppInstall(ctx, teamHost.ID, teamApp.VPPAppID, "team-failed-cmd", "failed", fleet.HostSoftwareInstallOptions{VPPAppTeamID: teamApp.AppTeamID})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &linkedAppTeamID, selectInstallAppTeamID, "team-failed-cmd")
+	})
+	require.NotNil(t, linkedAppTeamID)
+	require.Equal(t, teamApp.AppTeamID, *linkedAppTeamID)
 }

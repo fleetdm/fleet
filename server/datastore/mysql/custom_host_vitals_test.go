@@ -436,17 +436,22 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 
 	t.Run("android app configurations", func(t *testing.T) {
 		const appID = "org.mozilla.firefox"
+		var appTeamID int64
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			if _, err := q.ExecContext(ctx,
 				`INSERT INTO vpp_apps (adam_id, platform, name) VALUES (?, 'android', 'Firefox')`, appID); err != nil {
 				return err
 			}
-			_, err := q.ExecContext(ctx,
-				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES (?, 'android', ?, ?)`,
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name) VALUES (?, 'android', ?, ?, 'Default version')`,
 				appID, foobarTeam.ID, foobarTeam.ID)
+			if err != nil {
+				return err
+			}
+			appTeamID, err = res.LastInsertId()
 			return err
 		})
-		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), foobarTeam.ID, appID,
+		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
 			[]byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, token))))
 
 		_, err = ds.DeleteCustomHostVital(ctx, id)
@@ -779,7 +784,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 				return err
 			}
 			res, err := q.ExecContext(ctx,
-				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES (?, 'android', ?, ?)`,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, instance_name) VALUES (?, 'android', ?, ?, 'Default version')`,
 				appID, ptr.UintOrNilIfZero(teamID), teamID)
 			if err != nil {
 				return err
@@ -801,12 +806,12 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	configWith := func(tok string) []byte {
 		return []byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, tok))
 	}
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, vitalAppID, configWith(token)))
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, otherAppID, configWith(otherToken)))
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), otherTeam.ID, otherTeamAppID, configWith(token)))
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, lookalikeAppID, configWith(lookalikeToken)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[vitalAppID], configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[otherAppID], configWith(otherToken)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[otherTeamAppID], configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[lookalikeAppID], configWith(lookalikeToken)))
 	// A bare mention with no '$' isn't a variable reference, but INSTR matches it.
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, noSigilAppID,
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[noSigilAppID],
 		[]byte(fmt.Sprintf(`{"managedConfiguration":{"note":"see %s%d in the runbook"}}`, fleet.CustomHostVitalPrefix, vitalID))))
 
 	type appConfigResendJob struct {
@@ -888,7 +893,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	// A second app referencing the same vital gets its own resend, so both
 	// apps' policies are re-pushed off one value change.
 	addApp(secondVitalAppID, 0)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, secondVitalAppID, configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[secondVitalAppID], configWith(token)))
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Sales"))
 	jobs = drainJobs()
 	require.Len(t, jobs, 2)

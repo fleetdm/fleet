@@ -2045,6 +2045,8 @@ func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, hos
 }
 
 func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	opts.VPPAppTeamID = vppApp.AppTeamID
+
 	// Pre-flight: resolve the managed app configuration's Fleet variables for
 	// this host BEFORE anything irreversible (reserving a VPP license, enqueuing
 	// the command). iOS/iPadOS only — macOS VPP installs drop the configuration.

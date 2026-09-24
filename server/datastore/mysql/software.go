@@ -7427,9 +7427,10 @@ func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 	}
 
 	stmt, args, err := sqlx.In(`
-		SELECT title_id, enabled, start_time, end_time
-		FROM software_update_schedules
-		WHERE team_id = ? AND title_id IN (?)`,
+		SELECT va.title_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+		FROM vpp_apps_teams vat
+		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+		WHERE vat.global_or_team_id = ? AND va.title_id IN (?) AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')`,
 		teamID, titleIDs,
 	)
 	if err != nil {

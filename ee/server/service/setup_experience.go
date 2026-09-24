@@ -359,7 +359,8 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			vppApp := &fleet.VPPApp{
 				TitleID: *sw.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
+					VPPAppID:  *vppAppID,
+					AppTeamID: ptr.ValOrZero(sw.VPPAppTeamID),
 				},
 			}
 
