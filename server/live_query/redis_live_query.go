@@ -406,9 +406,8 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, e
 	// This avoids relying on a possibly-stale cache to pick the model, where a
 	// wrong guess would leave the host still receiving the query.
 	//
-	// Both commands also report whether the host was still a target, which is
-	// what authorizes its result: the host controls the campaign ID it reports
-	// for, so without this any enrolled host could inject rows into any campaign.
+	// Both commands also return whether the host was still a target; the caller
+	// uses that to reject results from hosts the campaign never targeted.
 	removed, err := redigo.Int(conn.Do("SREM", reverseHostKey(hostID), name))
 	if err != nil {
 		return false, fmt.Errorf("srem reverse host key: %w", err)
@@ -421,8 +420,8 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, e
 	// then we don't want to call SETBIT because it will create a new
 	// key (that won't expire and linger "forever").
 	//
-	// The SQL key is deleted on stop and doubles as the "still active" check,
-	// which the per-host set cannot provide: its entries outlive StopQuery.
+	// EXISTS on the SQL key is the "still active" check: StopQuery deletes it,
+	// but leaves per-host set entries behind.
 	const setBitScript = `
 	local active = redis.call('EXISTS', KEYS[2])
 	local prev = 0
@@ -454,8 +453,8 @@ func (r *redisLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) err
 
 	targetKey, _ := generateKeys(name)
 
-	// A broadcast query has a bitfield, so set the bit back. Without one the
-	// query is small-target (or already stopped, in which case the per-host
+	// A broadcast (large) query has a bitfield, so set the bit back. Without one
+	// the query is small-target (or already stopped, in which case the per-host
 	// entry is just another stale one), so re-add the per-host membership.
 	const restoreBitScript = `
 	if redis.call('EXISTS', KEYS[1]) == 1 then
@@ -471,6 +470,8 @@ func (r *redisLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) err
 		return nil
 	}
 
+	// No bitfield: this is a small-target (reverse index) query, whose targets
+	// live in each host's own set rather than under the campaign.
 	hostKey := reverseHostKey(hostID)
 	if _, err := conn.Do("SADD", hostKey, name); err != nil {
 		return fmt.Errorf("sadd reverse host key: %w", err)
