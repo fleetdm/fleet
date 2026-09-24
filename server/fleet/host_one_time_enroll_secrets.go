@@ -58,6 +58,14 @@ func (s *HostOneTimeEnrollSecret) IsMDMEnrollmentBound() bool {
 	return s.MDMWindowsEnrollmentID != nil
 }
 
+// WindowsEnrollmentID returns the Windows MDM enrollment the secret was minted for, or nil when there is none.
+func (s *HostOneTimeEnrollSecret) WindowsEnrollmentID() *uint {
+	if s == nil {
+		return nil
+	}
+	return s.MDMWindowsEnrollmentID
+}
+
 // matchesCapturedIdentifiers compares only the identifiers both sides actually have. An enrollment-bound secret is minted before
 // the device has reported most of them: the hardware UUID is never known at that point, and the serial only if a DevDetail
 // response already landed. The agent is equally partial in the other direction. An empty value on either side means "nothing to

@@ -130,42 +130,25 @@ func isFleetdConfigProfile(profileUUID, profileName string) bool {
 	return strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) && profileName == mdm.FleetdConfigProfileName
 }
 
-// deliversOneTimeEnrollSecret reports whether resending this profile mints a new enrollment credential for the host: the fleetd
-// configuration profile on Apple, the enroll secret profile on Windows. Both names are reserved, so users cannot upload a
-// profile that impersonates one, which is what makes the name a reliable discriminator.
-//
-// Each platform is judged by its own switch, because they roll out independently. A profile whose platform is switched off
-// carries no secret to protect, and the ordinary resend rules apply to it.
-//
-// This is deliberately broader than isFleetdConfigProfile, which stays Apple-only because it also guards the resend-from-
-// verifying carve-out. That carve-out exists because an Apple profile is verified by osquery and can sit in verifying forever
-// when osquery is the broken part. A Windows profile reaches verified on the SyncML ack, so it never needs it.
-func deliversOneTimeEnrollSecret(auth config.AuthConfig, profileUUID, profileName string) bool {
-	switch {
-	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
-		return auth.UseOneTimeEnrollSecrets && profileName == mdm.FleetdConfigProfileName
-	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
-		return auth.MDMWindowsOneTimeEnrollSecrets && profileName == mdm.FleetWindowsEnrollSecretProfileName
-	}
-	return false
-}
-
-// rejectSharedSecretForWindowsMDMHosts reports whether a shared enroll secret must be refused for a Windows host enrolled in Fleet
-// MDM. It also requires Windows MDM to be on: with it off, the Fleetd enroll secret profile cannot be resent, so a host refused a
-// shared secret would have no way back. The datastore applies it only when no one-time secret was presented.
-func rejectSharedSecretForWindowsMDMHosts(auth config.AuthConfig, appConfig *fleet.AppConfig) bool {
-	return auth.MDMWindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
-}
-
 // isWindowsEnrollSecretProfile reports whether the profile is the Fleet-managed Fleetd enroll secret profile, whatever the switch.
 func isWindowsEnrollSecretProfile(profileUUID, profileName string) bool {
 	return strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) && profileName == mdm.FleetWindowsEnrollSecretProfileName
 }
 
-// errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while
-// auth.mdm_windows_one_time_enroll_secrets is off. The reconciler deletes the profile then, but a resend could still find it in the
-// window before that, or after a delete that failed. It has to be refused here: the datastore mints on the profile's name because
-// it cannot see the switch, so letting the resend through would hand out a credential for a feature that is disabled.
+// deliversOneTimeEnrollSecret reports whether resending this profile mints a new enrollment credential for the host: the fleetd
+// configuration profile on Apple, the enroll secret profile on Windows. Both names are reserved, so users cannot upload a
+// profile that impersonates one, which is what makes the name a reliable discriminator.
+func deliversOneTimeEnrollSecret(auth config.AuthConfig, profileUUID, profileName string) bool {
+	return (auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)) ||
+		(auth.MDMWindowsOneTimeEnrollSecrets && isWindowsEnrollSecretProfile(profileUUID, profileName))
+}
+
+// rejectSharedSecretForWindowsMDMHosts reports whether a shared enroll secret must be refused for a Windows host enrolled in Fleet MDM.
+func rejectSharedSecretForWindowsMDMHosts(auth config.AuthConfig, appConfig *fleet.AppConfig) bool {
+	return auth.MDMWindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
+}
+
+// errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while auth.mdm_windows_one_time_enroll_secrets is off.
 func errWindowsEnrollSecretProfileOff() error {
 	return fleet.NewInvalidArgumentError("HostMDMProfile",
 		"Couldn’t resend. The "+mdm.FleetWindowsEnrollSecretProfileName+
@@ -173,12 +156,7 @@ func errWindowsEnrollSecretProfileOff() error {
 }
 
 // expandWindowsHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in a SyncML document about to be delivered to the
-// given Windows MDM enrollment. A document without any is returned untouched, without a datastore call.
-//
-// It never mints. The enroll secret expands to whatever live secret an earlier decision minted for this enrollment, and to an
-// empty string when there is none, which is what a host already running fleetd gets and reads as nothing waiting. See
-// MintWindowsMDMOneTimeEnrollSecret for where minting happens. The other host-secret types are Apple-only, so anything else is a
-// programming error rather than something to expand to an empty string.
+// given Windows MDM enrollment. A document without any is returned untouched.
 func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error) {
 	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
 	if len(hostSecrets) == 0 {
@@ -190,8 +168,9 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 		if secretType != fleet.HostSecretEnrollSecret {
 			return "", ctxerr.Errorf(ctx, "host secret type %s is not supported on Windows", secretType)
 		}
-		// The primary: the fleetd install is minted for and delivered in the same management request, so a replica even slightly
-		// behind would resolve to nothing and ship an installer without a secret.
+		// The primary: the fleetd install and the push to a deleted host's enrollment are minted and delivered in the same
+		// management session, so a replica even slightly behind would resolve to nothing. A resend is minted well before its
+		// delivery, but the command does not say which case it is, and only documents carrying the placeholder get this far.
 		secret, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctxdb.RequirePrimary(ctx, true), enrollmentID)
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
@@ -217,28 +196,8 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 	}), nil
 }
 
-// oneTimeWindowsEnrollmentID returns the Windows MDM enrollment a presented one-time enroll secret was minted for, or nil when
-// there is none: a shared secret is not a one-time secret at all, and an Apple one-time secret binds to a host instead.
-func oneTimeWindowsEnrollmentID(oneTime *fleet.HostOneTimeEnrollSecret) *uint {
-	if oneTime == nil {
-		return nil
-	}
-	return oneTime.MDMWindowsEnrollmentID
-}
-
 // linkWindowsEnrollmentFromOneTimeSecret links the enrolling host to the Windows MDM enrollment its one-time enroll secret was
-// minted for.
-//
-// This is the stronger half of the linkage story. The paths it displaces infer the enrollment from a hardware serial that the
-// device asserted about itself and that nothing corroborates, which is why they need the conflicting-hardware guard. A one-time
-// secret is server-minted and was delivered only over that enrollment's own MDM channel, so presenting it identifies the
-// enrollment rather than suggesting it.
-//
-// The conflicting-hardware guard is kept anyway. It answers a different question than the secret does: the secret proves which
-// enrollment it came from, not that the host row it is landing on belongs to the same physical machine.
-//
-// Failures here are logged, not returned. Linkage is post-enrollment bookkeeping, and refusing the enrollment over it would
-// leave a host that cannot run fleetd at all rather than one that is merely unlinked.
+// minted for. Failures here are logged, not returned. Linkage is post-enrollment bookkeeping, and enroll checks happen earlier.
 func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, host *fleet.Host, enrollmentID uint) {
 	// The primary: this runs during enrollment, moments after the rows involved were written, and a replica could miss them.
 	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctxdb.RequirePrimary(ctx, true), enrollmentID)
