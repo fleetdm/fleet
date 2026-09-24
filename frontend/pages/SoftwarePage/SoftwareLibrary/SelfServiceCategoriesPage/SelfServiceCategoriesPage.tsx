@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
+import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
@@ -170,9 +171,13 @@ const SelfServiceCategoriesPage = ({
   const renderBody = () => {
     if (!isPremiumTier) {
       return (
-        <div className={`${baseClass}__premium-card`}>
+        <Card
+          color="grey"
+          paddingSize="xxlarge"
+          className={`${baseClass}__premium-card`}
+        >
           <PremiumFeatureMessage />
-        </div>
+        </Card>
       );
     }
 
