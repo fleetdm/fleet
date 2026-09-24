@@ -796,6 +796,46 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		_, err = ds.GetHostOneTimeEnrollSecret(ctx, live.Secret)
 		require.NoError(t, err, "the live secret must survive the sweep")
 	})
+	t.Run("a first-install secret cannot take over a host another enrollment claims", func(t *testing.T) {
+		// The attacker's device is legitimately enrolled in MDM, so it is handed a first-install secret over its own channel,
+		// but its orbit presents the victim's identifiers. Nothing binds that secret to a host.
+		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		insertWindowsEnrollment(t, ds, "hw-claim-victim", victim.UUID)
+		attacker := insertWindowsEnrollment(t, ds, "hw-claim-attacker", "")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, attacker.ID))
+		row := liveWindowsSecret(t, ds, attacker.ID)
+		require.Nil(t, row.HostID)
+		before, err := ds.Host(ctx, victim.ID)
+		require.NoError(t, err)
+
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(victim, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(victim, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+
+		after, err := ds.Host(ctx, victim.ID)
+		require.NoError(t, err)
+		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey, "the refused enrollment must not rotate the victim's node key")
+		require.Equal(t, before.NodeKey, after.NodeKey)
+		require.Nil(t, liveWindowsSecret(t, ds, attacker.ID).ConsumedAt, "a refused attempt must not spend the secret")
+	})
+
+	t.Run("the secret's own enrollment is not a competing claim", func(t *testing.T) {
+		// A deleted host's device, recovered through the push: its enrollment is still linked to the old UUID, and the secret
+		// minted for that enrollment recreates the host.
+		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := insertWindowsEnrollment(t, ds, "hw-claim-own", h.UUID)
+		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveWindowsSecret(t, ds, device.ID)
+		require.Nil(t, row.HostID)
+
+		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		require.Equal(t, h.UUID, recreated.UUID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+	})
 }
 
 func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {

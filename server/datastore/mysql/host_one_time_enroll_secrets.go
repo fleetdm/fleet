@@ -476,6 +476,24 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 		}
 	}
 
+	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
+	// must not land on a host that another Windows MDM enrollment already claims: that is a different machine presenting this
+	// host's identifiers, and landing would rotate the real host's node key.
+	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
+		var claimed bool
+		if err := sqlx.GetContext(ctx, tx, &claimed, `
+			SELECT EXISTS (
+				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
+			)`, matchedHostID, *s.MDMWindowsEnrollmentID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
+		}
+		if claimed {
+			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
+				"one-time enroll secret landing on a host claimed by another windows mdm enrollment")
+		}
+	}
+
 	if s.UsedAt(plane) != nil || s.OutsideWindow {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
 	}
