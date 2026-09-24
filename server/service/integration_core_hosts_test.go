@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -2254,4 +2255,22 @@ func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	require.False(t, hostResp.Host.RefetchRequested)
+}
+
+func (s *integrationTestSuite) TestChartsLinuxPlatformFilter() {
+	t := s.T()
+	s.createHosts(t, "ubuntu", "rhel", "debian", "linux", "darwin")
+
+	var resp chart_api.Response
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "linux")
+	assert.Equal(t, 4, resp.TotalHosts)
+	assert.Equal(t, []string{"linux"}, resp.Filters.Platforms)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "ubuntu")
+	assert.Equal(t, 1, resp.TotalHosts)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "darwin")
+	assert.Equal(t, 1, resp.TotalHosts)
 }

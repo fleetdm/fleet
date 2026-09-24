@@ -1669,6 +1669,19 @@ type MDMWindowsCommand struct {
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
+// MDMWindowsCommandHistoryCleanupCounts reports what one retention sweep of the
+// Windows MDM command history tables deleted.
+type MDMWindowsCommandHistoryCleanupCounts struct {
+	Responses int64
+	Results   int64
+	Commands  int64
+}
+
+// Total returns the number of rows deleted across all three tables.
+func (c MDMWindowsCommandHistoryCleanupCounts) Total() int64 {
+	return c.Responses + c.Results + c.Commands
+}
+
 // GetEncodedBinarySecurityToken returns the base64 form of a input payload
 func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload string) (string, error) {
 	var pld WindowsMDMAccessTokenPayload
