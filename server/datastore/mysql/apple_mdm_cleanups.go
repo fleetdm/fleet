@@ -74,7 +74,7 @@ func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppl
 			return state, stats, err
 		}
 		stats.InactivePairsDeleted = deleted
-		stats.RowBudgetExhausted = stats.RowBudgetExhausted || exhausted
+		stats.RowBudgetExhausted = exhausted
 		budget -= deleted
 		touched = append(touched, cmdUUIDs...)
 	}
@@ -133,9 +133,6 @@ func matchesAppleMDMRetentionClass(classes []fleet.AppleMDMCommandRetentionClass
 	return false
 }
 
-// Statuses a device will not answer again; NotNow is still outstanding and gets re-served.
-var nanoTerminalStatuses = []string{fleet.MDMAppleStatusAcknowledged, fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError}
-
 // A scanned result row with its keyset cursor columns.
 type nanoResultCandidate struct {
 	nanoQueuePair
@@ -161,7 +158,7 @@ func (ds *Datastore) sweepCompletedNanoCommands(ctx context.Context, state *flee
 	var deleted int
 	var touched []string
 	var capped bool
-	for _, status := range nanoTerminalStatuses {
+	for _, status := range fleet.MDMAppleTerminalStatuses {
 		key := tier + ":" + status
 		// an unset key is the zero cursor, which sorts below every row
 		cursor := state.Retention[key]

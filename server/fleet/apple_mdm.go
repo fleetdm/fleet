@@ -76,6 +76,9 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
+// Statuses a device will not answer again; NotNow is still outstanding and gets re-served.
+var MDMAppleTerminalStatuses = []string{MDMAppleStatusAcknowledged, MDMAppleStatusError, MDMAppleStatusCommandFormatError}
+
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
