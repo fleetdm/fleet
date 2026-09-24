@@ -1519,7 +1519,15 @@ func registerMDM(
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
-	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
+	var verifierOpts []mdmcrypto.SCEPVerifierOption
+	mdmSignatureVerifier := cryptoutil.VerifyMdmSignature
+	if fleetConfig.MDM.AppleSCEPVerifyIgnoreExpiry {
+		logger.InfoContext(context.TODO(),
+			"accepting expired macOS SCEP certificates as mdm.apple_scep_verify_ignore_expiry is set to true")
+		verifierOpts = append(verifierOpts, mdmcrypto.WithIgnoreExpiry())
+		mdmSignatureVerifier = cryptoutil.VerifyMdmSignatureIgnoringExpiry
+	}
+	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage, verifierOpts...)
 	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
@@ -1547,7 +1555,7 @@ func registerMDM(
 	} else {
 		mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	}
-	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
+	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.MdmSignatureVerifierFunc(mdmSignatureVerifier),
 		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
 	// Bound the request body before any middleware reads it.
 	mdmHandler = http.MaxBytesHandler(mdmHandler, fleet.MaxAppleMDMRequestBodySize)
