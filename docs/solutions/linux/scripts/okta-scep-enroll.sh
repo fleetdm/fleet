@@ -1,4 +1,7 @@
 #!/bin/bash
+# NOTE: This doesn't work yet. Marking Linux hosts as managed in Okta is still in
+# the works. Learn why: https://fleetdm.com/guides/deploy-okta-fastpass-for-linux
+#
 # Enroll this host's Okta device certificate over SCEP and install it.
 #
 # Uses scepclient from micromdm/scep (Ubuntu/Debian package "scep").
