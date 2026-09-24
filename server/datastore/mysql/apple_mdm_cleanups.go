@@ -70,13 +70,13 @@ func (ds *Datastore) CleanupNanoCommands(ctx context.Context, opts fleet.MDMAppl
 	rowBudget := opts.MaxRowDeletions
 	var touched []string
 	if opts.ShortRetention > 0 && rowBudget > 0 {
-		deleted, uuids, exhausted, err := ds.purgeInactiveNanoCommands(ctx, opts.ShortRetention, rowBudget)
+		deleted, cmdUUIDs, exhausted, err := ds.purgeInactiveNanoCommands(ctx, opts.ShortRetention, rowBudget)
 		if err != nil {
 			return stats, err
 		}
 		stats.InactivePairsDeleted = deleted
 		stats.RowBudgetExhausted = exhausted
-		touched = append(touched, uuids...)
+		touched = append(touched, cmdUUIDs...)
 	}
 
 	if opts.MaxCmdDeletions > 0 && len(touched) > 0 {
@@ -141,11 +141,11 @@ func (ds *Datastore) purgeInactiveNanoCommands(ctx context.Context, retention ti
 		cursor = candidates[len(candidates)-1]
 		pageFull := len(candidates) == limit
 
-		uuids := make([]string, 0, len(candidates))
+		cmdUUIDs := make([]string, 0, len(candidates))
 		for _, c := range candidates {
-			uuids = append(uuids, c.CommandUUID)
+			cmdUUIDs = append(cmdUUIDs, c.CommandUUID)
 		}
-		safe, err := ds.unreferencedNanoCommands(ctx, uniqueStrings(uuids))
+		safe, err := ds.unreferencedNanoCommands(ctx, uniqueStrings(cmdUUIDs))
 		if err != nil {
 			return deleted, touched, false, err
 		}
@@ -182,10 +182,10 @@ func (ds *Datastore) purgeInactiveNanoCommands(ctx context.Context, retention ti
 	return deleted, touched, true, nil
 }
 
-// unreferencedNanoCommands returns the subset of uuids that no feature still
+// unreferencedNanoCommands returns the subset of cmdUUIDs that no feature still
 // references, as a set.
-func (ds *Datastore) unreferencedNanoCommands(ctx context.Context, uuids []string) (map[string]struct{}, error) {
-	stmt, args, err := sqlx.In(`SELECT c.command_uuid FROM nano_commands c WHERE c.command_uuid IN (?) AND `+nanoCommandUnreferencedFilter, uuids)
+func (ds *Datastore) unreferencedNanoCommands(ctx context.Context, cmdUUIDs []string) (map[string]struct{}, error) {
+	stmt, args, err := sqlx.In(`SELECT c.command_uuid FROM nano_commands c WHERE c.command_uuid IN (?) AND `+nanoCommandUnreferencedFilter, cmdUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build unreferenced nano commands query")
 	}
@@ -233,13 +233,13 @@ func (ds *Datastore) deleteNanoQueuePairs(ctx context.Context, pairs []nanoQueue
 	return int(deleted), nil
 }
 
-// mopNanoCommands deletes, among uuids, the nano_commands rows that no queue
+// mopNanoCommands deletes, among cmdUUIDs, the nano_commands rows that no queue
 // row, result row, bootstrap package or certificate renewal still references,
 // up to budget. Those four are the tables a delete would cascade into or
 // FK-fail on, so they are rechecked inside the DELETE itself; the soft
 // references were checked by the pair guard moments earlier, and a finished
 // command does not acquire new ones.
-func (ds *Datastore) mopNanoCommands(ctx context.Context, uuids []string, budget int) (int, bool, error) {
+func (ds *Datastore) mopNanoCommands(ctx context.Context, cmdUUIDs []string, budget int) (int, bool, error) {
 	const stmt = `
 		DELETE FROM nano_commands
 		WHERE command_uuid IN (?)
@@ -250,12 +250,12 @@ func (ds *Datastore) mopNanoCommands(ctx context.Context, uuids []string, budget
 		LIMIT ?`
 
 	var deleted int
-	for start := 0; start < len(uuids); start += nanoCleanupScanBatchSize {
+	for start := 0; start < len(cmdUUIDs); start += nanoCleanupScanBatchSize {
 		remaining := budget - deleted
 		if remaining <= 0 {
 			return deleted, true, nil
 		}
-		chunk := uuids[start:min(start+nanoCleanupScanBatchSize, len(uuids))]
+		chunk := cmdUUIDs[start:min(start+nanoCleanupScanBatchSize, len(cmdUUIDs))]
 		q, args, err := sqlx.In(stmt, chunk, remaining)
 		if err != nil {
 			return deleted, false, ctxerr.Wrap(ctx, err, "build nano commands mop query")
