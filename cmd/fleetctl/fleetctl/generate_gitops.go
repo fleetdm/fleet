@@ -1620,9 +1620,9 @@ func (cmd *GenerateGitopsCommand) generateSetupExperience(
 	bootstrapPackage *fleet.MDMAppleBootstrapPackage,
 	setupScript *fleet.Script,
 	enrollmentProfile *fleet.MDMAppleSetupAssistant,
-) (map[string]interface{}, error) {
-	msT := reflect.TypeOf(fleet.MacOSSetup{})
-	setupExperience := map[string]interface{}{}
+) (map[string]any, error) {
+	msT := reflect.TypeFor[fleet.MacOSSetup]()
+	setupExperience := map[string]any{}
 
 	// macOS setup toggles.
 	if teamMdm != nil {

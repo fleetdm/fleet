@@ -2005,7 +2005,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
 	// The bootstrap package has no URL to export, so we emit a TODO for the URL.
-	setupExperience := controlsRaw["setup_experience"].(map[string]interface{})
+	setupExperience := controlsRaw["setup_experience"].(map[string]any)
 	require.Contains(t, setupExperience["macos_bootstrap_package"], "TODO")
 
 	// Generate controls for a team with a setup experience script.
@@ -2013,7 +2013,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
 	// The script contents are written to a file and referenced by path.
-	setupExperience = controlsRaw["setup_experience"].(map[string]interface{})
+	setupExperience = controlsRaw["setup_experience"].(map[string]any)
 	require.Equal(t, "../lib/some_team/setup-experience/setup-script.sh", setupExperience["macos_script"])
 	require.Equal(t, "pop goes the weasel!", cmd.FilesToWrite["lib/some_team/setup-experience/setup-script.sh"])
 
@@ -2022,7 +2022,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
 	// The enrollment profile JSON is written to a file and referenced by path.
-	setupExperience = controlsRaw["setup_experience"].(map[string]interface{})
+	setupExperience = controlsRaw["setup_experience"].(map[string]any)
 	require.Equal(t, "../lib/some_team/setup-experience/setup-assistant.json", setupExperience["apple_setup_assistant"])
 	require.Contains(t, cmd.FilesToWrite["lib/some_team/setup-experience/setup-assistant.json"], "Fleet Setup Assistant")
 }
@@ -2931,7 +2931,7 @@ func TestGenerateLabels(t *testing.T) {
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
-	setupExperience, ok := controlsRaw["setup_experience"].(map[string]interface{})
+	setupExperience, ok := controlsRaw["setup_experience"].(map[string]any)
 	require.True(t, ok, "Expected setup_experience section to be a map")
 	require.NotEmpty(t, setupExperience, "Expected setup_experience section to be non-empty")
 }
