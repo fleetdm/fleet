@@ -134,7 +134,7 @@ const loadPage = async ({
   return { fetchMock };
 };
 
-const clickEnroll = () => {
+const clickEnroll = async () => {
   const enrollLink = doc.querySelector<HTMLAnchorElement>(".enroll-link");
   expect(enrollLink).not.toBeNull();
   const event = new dom.window.MouseEvent("click", {
@@ -146,6 +146,10 @@ const clickEnroll = () => {
   // is what starts enrollment, and cancelling it would leave the user on the
   // next-steps page having never enrolled, with every other assertion green.
   expect(event.defaultPrevented).toBe(false);
+  // Nothing may navigate within the click itself -- doing so gets the
+  // enrollment tab blocked as a pop-up on Chrome for Android.
+  expect(navigations).toEqual([]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
   return enrollLink;
 };
 
@@ -184,7 +188,7 @@ describe("enroll-ota.html — /enroll, Android", () => {
     await loadPage();
     expect(navigations).toEqual([]);
 
-    const enrollLink = clickEnroll();
+    const enrollLink = await clickEnroll();
 
     expect(navigations).toEqual([
       "assign /enroll/next-steps?enroll_secret=test-secret",
@@ -197,7 +201,7 @@ describe("enroll-ota.html — /enroll, Android", () => {
   it("carries the enroll secret through, escaped, and honours a URL prefix", async () => {
     await loadPage({ search: "?enroll_secret=a%2Bb%20c", urlPrefix: "/fleet" });
 
-    clickEnroll();
+    await clickEnroll();
 
     expect(navigations).toEqual([
       "assign /fleet/enroll/next-steps?enroll_secret=a%2Bb%20c",
@@ -229,7 +233,7 @@ describe("enroll-ota.html — /enroll, Android", () => {
     expect(doc.querySelector(".error-title")?.textContent).toBe(
       "Couldn't get Android enrollment token."
     );
-    clickEnroll();
+    await clickEnroll();
     expect(navigations).toEqual([]);
   });
 });

@@ -887,7 +887,15 @@
         });
 
         enrollLink.addEventListener("click", () => {
-          navigateTo.assign(buildEnrollPath("/enroll/next-steps"));
+          // Yielded to the next task rather than navigating straight away.
+          // Starting this tab's navigation inside the click leaves Chrome on
+          // Android treating the link's own target="_blank" tab as a pop-up
+          // from a page that is leaving: it blocks it, and the user lands on
+          // next-steps having never enrolled. One task is enough for the link
+          // activation to finish; it is not a wait for enrollment to happen.
+          setTimeout(() => {
+            navigateTo.assign(buildEnrollPath("/enroll/next-steps"));
+          }, 0);
         });
       };
 
