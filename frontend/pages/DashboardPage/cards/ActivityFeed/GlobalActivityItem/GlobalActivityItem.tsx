@@ -27,7 +27,10 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+import {
+  formatMdmCommandNameForActivityItem,
+  PREMIUM_ONLY_DETAIL_ACTIVITIES,
+} from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -3052,7 +3055,9 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
+  const hasDetails =
+    ACTIVITIES_WITH_DETAILS.has(activity.type) &&
+    (isPremiumTier || !PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type));
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = (
