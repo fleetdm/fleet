@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { AppContext } from "context/app";
 import SettingsSection from "pages/admin/components/SettingsSection";
@@ -47,9 +46,10 @@ const AndroidZeroTouchSection = ({
           <Button
             onClick={navigateToSetup}
             variant="subdued"
-            className={`${baseClass}__setup-button`}
+            icon="chevron-right"
+            iconPosition="right"
           >
-            Setup <Icon name="chevron-right" />
+            Setup
           </Button>
         }
       >

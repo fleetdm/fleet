@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
 
@@ -13,20 +14,38 @@ import PATHS from "router/paths";
 import mdmAndroidAPI, {
   IGetZeroTouchConfigurationResponse,
 } from "services/entities/mdm_android";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 const baseClass = "android-zero-touch-page";
 
 const AndroidZeroTouchPage = () => {
-  const { isPremiumTier } = useContext(AppContext);
+  const {
+    currentUser,
+    isPremiumTier,
+    isAndroidMdmEnabledAndConfigured,
+  } = useContext(AppContext);
+
+  // `isPremiumTier` is undefined until the config request resolves, and the
+  // route renders as soon as `currentUser` is set. Without this the paywall
+  // flashes on Premium and the premium-only request fires on Free.
+  const isTierKnown = isPremiumTier !== undefined;
 
   const { data: zeroTouchConfig, isLoading, isError } = useQuery<
     IGetZeroTouchConfigurationResponse,
-    Error
+    AxiosError
   >(
-    ["android-zero-touch-configuration"],
+    // Scoped to the user: the query client is module-scoped and survives SPA
+    // logout, and the DPC extras embed a reusable enrollment token.
+    ["android-zero-touch-configuration", currentUser?.id],
     () => mdmAndroidAPI.getZeroTouchConfiguration(),
-    { refetchOnWindowFocus: false, enabled: isPremiumTier }
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled:
+        !!isPremiumTier && !!isAndroidMdmEnabledAndConfigured && !!currentUser,
+    }
   );
+
+  const hasConfig = !isError && !!zeroTouchConfig;
 
   const renderCodeBlock = () => {
     if (isLoading) {
@@ -39,7 +58,7 @@ const AndroidZeroTouchPage = () => {
       );
     }
 
-    if (isError || !zeroTouchConfig) {
+    if (!hasConfig) {
       return <DataError />;
     }
 
@@ -51,20 +70,33 @@ const AndroidZeroTouchPage = () => {
   };
 
   const renderContent = () => {
+    if (!isTierKnown) {
+      return <Spinner />;
+    }
+
     if (!isPremiumTier) {
       return <PremiumFeatureMessage />;
     }
 
+    if (!isAndroidMdmEnabledAndConfigured) {
+      return (
+        <p className={`${baseClass}__prerequisite`}>
+          To enable end users to enroll to Fleet via Android zero-touch, first
+          turn on Android MDM.
+        </p>
+      );
+    }
+
     return (
       <>
-        <div className={`${baseClass}__description`}>
+        <p className={`${baseClass}__description`}>
           To connect Fleet to Android zero-touch, go to the{" "}
           <CustomLink
             url="https://fleetdm.com/learn-more-about/android-zero-touch-portal"
             text="Android zero-touch portal"
             newTab
           />
-        </div>
+        </p>
         <p className={`${baseClass}__enrollment-info`}>
           Android hosts will automatically enroll to the <b>Unassigned</b>{" "}
           fleet. Changing fleets is coming soon.
@@ -72,7 +104,7 @@ const AndroidZeroTouchPage = () => {
         <div className={`${baseClass}__dpc-extras`}>
           <div className={`${baseClass}__dpc-extras-header`}>
             <span className={`${baseClass}__dpc-extras-label`}>DPC extras</span>
-            {zeroTouchConfig && (
+            {hasConfig && (
               <CopyButton
                 copyText={zeroTouchConfig.dpc_extras}
                 variant="secondary"
@@ -81,7 +113,7 @@ const AndroidZeroTouchPage = () => {
           </div>
           {renderCodeBlock()}
         </div>
-        {!isLoading && !isError && zeroTouchConfig && (
+        {hasConfig && (
           <p className={`${baseClass}__instructions`}>
             Select <b>Add configuration</b>, pick <b>Android Device Policy</b>{" "}
             as your <b>EMM DPC</b>, and paste this JSON into <b>DPC extras</b>.

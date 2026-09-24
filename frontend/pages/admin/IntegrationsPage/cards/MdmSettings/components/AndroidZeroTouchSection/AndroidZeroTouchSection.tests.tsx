@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import React from "react";
 
+import PATHS from "router/paths";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AndroidZeroTouchSection from "./AndroidZeroTouchSection";
@@ -53,6 +54,26 @@ describe("AndroidZeroTouchSection", () => {
     expect(
       screen.getByText(/automatically enroll company-owned/i)
     ).toBeVisible();
-    expect(screen.getByText("Setup")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Setup" })).toBeVisible();
+  });
+
+  test("navigates to the setup page when Setup is clicked", async () => {
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      context: {
+        app: { isAndroidMdmEnabledAndConfigured: true },
+      },
+      withBackendMock: true,
+    });
+
+    const { user } = render(
+      <AndroidZeroTouchSection router={router} isPremiumTier />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Setup" }));
+
+    expect(router.push).toHaveBeenCalledWith(
+      PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID_ZERO_TOUCH
+    );
   });
 });
