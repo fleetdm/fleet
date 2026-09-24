@@ -19,35 +19,6 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-export const getReadableLogDestination = (logDestination: LogDestination) => {
-  switch (logDestination) {
-    case "filesystem":
-      return "Filesystem";
-    case "firehose":
-      return "Amazon Kinesis Data Firehose";
-    case "kinesis":
-      return "Amazon Kinesis Data Streams";
-    case "lambda":
-      return "AWS Lambda";
-    case "pubsub":
-      return "Google Cloud Pub/Sub";
-    case "kafka":
-      return "Apache Kafka";
-    case "nats":
-      return "NATS";
-    case "splunk":
-      return "Splunk";
-    case "stdout":
-      return "Standard output (stdout)";
-    case "webhook":
-      return "Webhook";
-    case "":
-      return "Not configured";
-    default:
-      return logDestination;
-  }
-};
-
 const LogDestinationIndicator = ({
   logDestination,
   webhookDestination,
@@ -60,6 +31,34 @@ const LogDestinationIndicator = ({
     `log-destination-indicator--${classTag}`,
     `log-destination--${classTag}`
   );
+  const readableLogDestination = () => {
+    switch (logDestination) {
+      case "filesystem":
+        return "Filesystem";
+      case "firehose":
+        return "Amazon Kinesis Data Firehose";
+      case "kinesis":
+        return "Amazon Kinesis Data Streams";
+      case "lambda":
+        return "AWS Lambda";
+      case "pubsub":
+        return "Google Cloud Pub/Sub";
+      case "kafka":
+        return "Apache Kafka";
+      case "nats":
+        return "NATS";
+      case "splunk":
+        return "Splunk";
+      case "stdout":
+        return "Standard output (stdout)";
+      case "webhook":
+        return "Webhook";
+      case "":
+        return "Not configured";
+      default:
+        return logDestination;
+    }
+  };
 
   const tooltipText = () => {
     switch (logDestination) {
@@ -143,10 +142,10 @@ const LogDestinationIndicator = ({
   };
 
   return excludeTooltip ? (
-    <>{getReadableLogDestination(logDestination)}</>
+    <>{readableLogDestination()}</>
   ) : (
     <TooltipWrapper tipContent={tooltipText()} className={statusClassName}>
-      {getReadableLogDestination(logDestination)}
+      {readableLogDestination()}
     </TooltipWrapper>
   );
 };

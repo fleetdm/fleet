@@ -14,9 +14,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError/DataError";
 import InfoBanner from "components/InfoBanner";
-import LogDestinationIndicator, {
-  getReadableLogDestination,
-} from "components/LogDestinationIndicator/LogDestinationIndicator";
+import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import PageDescription from "components/PageDescription";
@@ -35,7 +33,11 @@ import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/com
 import PATHS from "router/paths";
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
-import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  FREQUENCY_DROPDOWN_OPTIONS,
+  SUPPORT_LINK,
+} from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 import {
   isGlobalObserver,
@@ -303,7 +305,9 @@ const QueryDetailsPage = ({
     (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
   const renderHeader = () => {
-    const logDestination = config?.logging.result.plugin || "";
+    const intervalLabel = FREQUENCY_DROPDOWN_OPTIONS.find(
+      (option) => option.value && option.value === storedQuery?.interval
+    )?.label;
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
       if (hostId)
@@ -409,12 +413,15 @@ const QueryDetailsPage = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Report automations let you send data to your log
-                      destination
-                      {logDestination &&
-                        ` (${getReadableLogDestination(logDestination)})`}{" "}
-                      on a schedule. When automations are <strong>on</strong>,
-                      data is sent according to a report&apos;s interval.
+                      Automations let you send data to your log destination (
+                      <LogDestinationIndicator
+                        logDestination={config?.logging.result.plugin || ""}
+                        excludeTooltip
+                      />
+                      ) on a schedule
+                      {intervalLabel &&
+                        ` (${String(intervalLabel).toLowerCase()})`}
+                      .
                     </>
                   }
                 >
@@ -429,7 +436,7 @@ const QueryDetailsPage = ({
                 <div className={`${baseClass}__log-destination`}>
                   <strong>Log destination:</strong>{" "}
                   <LogDestinationIndicator
-                    logDestination={logDestination}
+                    logDestination={config?.logging.result.plugin || ""}
                     filesystemDestination={
                       config?.logging.result.config?.result_log_file
                     }
