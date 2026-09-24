@@ -105,6 +105,7 @@ describe("RotationFailedDetailsModal", () => {
       screen.getByText(/failed to rotate the disk encryption key for/i)
     ).toBeVisible();
     expect(screen.getByText("Test Mac")).toBeVisible();
-    expect(screen.getByText(/\(3 days ago\)/)).toBeVisible();
+    expect(screen.getByText(/\(3 days ago\)\./)).toBeVisible();
+    expect(screen.getByText(/Ask the end user to log out/)).toBeVisible();
   });
 });

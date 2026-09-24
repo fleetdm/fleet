@@ -51,7 +51,9 @@ const RotationFailedDetailsModal = ({
           message={
             <span>
               Fleet failed to rotate the {subject} {preposition} {formattedHost}
-              .{createdAt && ` (${dateAgo(createdAt)})`}
+              {createdAt && ` (${dateAgo(createdAt)})`}.
+              {subject === "disk encryption key" &&
+                " Ask the end user to log out of their device or restart it. They'll see instructions on their My device page."}
             </span>
           }
         />

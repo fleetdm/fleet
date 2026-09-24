@@ -20,7 +20,7 @@ const baseClass = "disk-encryption-key-modal";
 export const ROTATION_PENDING_TOOLTIP =
   "The key will rotate once the host acknowledges the request.";
 export const ESCROW_OFF_TOOLTIP =
-  "Disk encryption key escrow is not turned on for this host's fleet.";
+  "Escrow is not turned on for this host's fleet.";
 
 interface IDiskEncryptionKeyModal {
   platform: HostPlatform;
