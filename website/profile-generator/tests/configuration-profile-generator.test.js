@@ -37,6 +37,7 @@ const LOG_ALL_GENERATIONS = process.env.LOG_ALL_GENERATIONS;
 // does: a case that fails one run in three is a case that fails.  Overridable, since iterating on a
 // single case does not need three of everything, and each repeat is a real model call.
 const REPEATS = Number(process.env.REPEATS || 3);
+assert(Number.isSafeInteger(REPEATS) && REPEATS > 0 && REPEATS < 11, 'REPEATS must be a positive integer between 1 and 10');
 
 // A profile the admin has to wait half a minute for is a broken feature even when the XML is
 // perfect, so latency is an assertion rather than a note.  Checked after the content assertions, so
