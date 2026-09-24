@@ -1,6 +1,8 @@
 import { Meta, StoryObj } from "@storybook/react";
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+
 import PageDescription from ".";
 
 const meta: Meta<typeof PageDescription> = {
@@ -46,8 +48,8 @@ export const RichContent: Story = {
   args: {
     content: (
       <>
-        Supports <b>rich</b> content, including{" "}
-        <a href="https://fleetdm.com">links</a>.
+        Supports <strong>rich</strong> content, including{" "}
+        <CustomLink url="https://fleetdm.com" text="links" newTab />.
       </>
     ),
   },

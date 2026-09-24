@@ -23,7 +23,7 @@ const meta: Meta<typeof ActivityItem> = {
     }),
     children: (
       <>
-        <b>Rachel Perkins</b> edited agent options.
+        <strong>Rachel Perkins</strong> edited agent options.
       </>
     ),
     onShowDetails: noop,
@@ -46,7 +46,7 @@ export const HideCancel: Story = {
 };
 
 export const DisabledCancel: Story = {
-  args: { disableCancel: false, hideCancel: false },
+  args: { disableCancel: true, hideCancel: false },
 };
 
 export const Solo: Story = {
@@ -66,7 +66,7 @@ export const FleetInitiated: Story = {
     }),
     children: (
       <>
-        <b>Fleet</b> ran a script on <b>rachels-macbook</b>.
+        <strong>Fleet</strong> ran a script on <strong>rachels-macbook</strong>.
       </>
     ),
     hideCancel: true,
@@ -83,7 +83,7 @@ export const ApiOnly: Story = {
     }),
     children: (
       <>
-        <b>GitOps</b> edited a report.
+        <strong>GitOps</strong> edited a report.
       </>
     ),
     hideCancel: true,

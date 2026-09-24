@@ -1,6 +1,5 @@
 import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
-import React from "react";
 
 import SearchField from "./SearchField";
 
