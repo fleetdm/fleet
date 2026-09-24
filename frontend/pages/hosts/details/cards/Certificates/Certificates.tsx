@@ -83,11 +83,7 @@ const CertificatesCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <CardHeader header="Certificates" />
       {renderContent()}
     </Card>

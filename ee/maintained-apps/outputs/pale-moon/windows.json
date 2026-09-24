@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "35.0.0",
+      "version": "35.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Pale Moon' AND publisher = 'Moonchild Productions';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Pale Moon' AND publisher = 'Moonchild Productions' AND version_compare(version, '35.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Pale Moon' AND publisher = 'Moonchild Productions' AND version_compare(version, '35.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'palemoon.exe');"
       },
-      "installer_url": "https://rm-eu.palemoon.org/release/palemoon-35.0.0.win64.installer.exe",
+      "installer_url": "https://rm-eu.palemoon.org/release/palemoon-35.0.1.win64.installer.exe",
       "install_script_ref": "f9371692",
       "uninstall_script_ref": "eef8e905",
-      "sha256": "c2b6b2d013d28ef05d4a4fe6aeed9940a0ea52444e040c30a06ca526bbc04f0a",
+      "sha256": "ea349ec3cce206ed036c4efad1f362a1ab23b6b431103616256c5b8006fb9152",
       "default_categories": [
         "Browsers"
       ]

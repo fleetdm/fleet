@@ -51,6 +51,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -96,108 +97,6 @@ var fleetVarsSupportedInDDMDeclarations = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarHostUUID,
 	fleet.FleetVarHostPlatform,
-}
-
-type getMDMAppleCommandResultsRequest struct {
-	CommandUUID string `query:"command_uuid,optional"`
-}
-
-type getMDMAppleCommandResultsResponse struct {
-	Results []*fleet.MDMCommandResult `json:"results,omitempty"`
-	Err     error                     `json:"error,omitempty"`
-}
-
-func (r getMDMAppleCommandResultsResponse) Error() error { return r.Err }
-
-func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getMDMAppleCommandResultsRequest)
-	results, err := svc.GetMDMAppleCommandResults(ctx, req.CommandUUID)
-	if err != nil {
-		return getMDMAppleCommandResultsResponse{
-			Err: err,
-		}, nil
-	}
-
-	return getMDMAppleCommandResultsResponse{
-		Results: results,
-	}, nil
-}
-
-func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	// first, authorize that the user has the right to list hosts
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
-	}
-
-	// check that command exists first, to return 404 on invalid commands
-	// (the command may exist but have no results yet).
-	if _, err := svc.ds.GetMDMAppleCommandRequestType(ctx, commandUUID); err != nil {
-		return nil, err
-	}
-
-	// next, we need to read the command results before we know what hosts (and
-	// therefore what teams) we're dealing with.
-	results, err := svc.ds.GetMDMAppleCommandResults(ctx, commandUUID, "")
-	if err != nil {
-		return nil, err
-	}
-
-	// now we can load the hosts (lite) corresponding to those command results,
-	// and do the final authorization check with the proper team(s). Include observers,
-	// as they are able to view command results for their teams' hosts.
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
-	hostUUIDs := make([]string, len(results))
-	for i, res := range results {
-		hostUUIDs[i] = res.HostUUID
-	}
-	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, hostUUIDs)
-	if err != nil {
-		return nil, err
-	}
-	if len(hosts) == 0 {
-		// do not return 404 here, as it's possible for a command to not have
-		// results yet
-		return nil, nil
-	}
-
-	// collect the team IDs and verify that the user has access to view commands
-	// on all affected teams. Index the hosts by uuid for easly lookup as
-	// afterwards we'll want to store the hostname on the returned results.
-	hostsByUUID := make(map[string]*fleet.Host, len(hosts))
-	teamIDs := make(map[uint]bool)
-	for _, h := range hosts {
-		var id uint
-		if h.TeamID != nil {
-			id = *h.TeamID
-		}
-		teamIDs[id] = true
-		hostsByUUID[h.UUID] = h
-	}
-
-	var commandAuthz fleet.MDMCommandAuthz
-	for tmID := range teamIDs {
-		commandAuthz.TeamID = &tmID
-		if tmID == 0 {
-			commandAuthz.TeamID = nil
-		}
-
-		if err := svc.authz.Authorize(ctx, commandAuthz, fleet.ActionRead); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
-		}
-	}
-
-	// add the hostnames to the results
-	for _, res := range results {
-		if h := hostsByUUID[res.HostUUID]; h != nil {
-			res.Hostname = hostsByUUID[res.HostUUID].Hostname
-		}
-	}
-	return results, nil
 }
 
 type listMDMAppleCommandsRequest struct {
@@ -4961,7 +4860,9 @@ type MDMAppleCheckinAndCommandService struct {
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
 	keyValueStore   fleet.AdvancedKeyValueStore
 	newActivityFn   mdmlifecycle.NewActivityFunc
-	isPremium       bool
+	// notificationsSvc is only needed to fail a wiped host's end user notifications.
+	notificationsSvc fleet.NotificationsWriteService
+	isPremium        bool
 	// deferFleetInitiatedActivation mirrors
 	// activity.fleet_initiated_release_per_minute > 0: fleet-initiated
 	// activities (scheduled app updates) are enqueued without inline
@@ -4978,18 +4879,20 @@ func NewMDMAppleCheckinAndCommandService(
 	keyValueStore fleet.AdvancedKeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
 	deferFleetInitiatedActivation bool,
+	notificationsSvc fleet.NotificationsWriteService,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
 	return &MDMAppleCheckinAndCommandService{
-		ds:              ds,
-		commander:       commander,
-		logger:          logger,
-		mdmLifecycle:    mdmLifecycle,
-		vppInstaller:    vppInstaller,
-		isPremium:       isPremium,
-		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
-		keyValueStore:   keyValueStore,
-		newActivityFn:   newActivityFn,
+		ds:               ds,
+		commander:        commander,
+		logger:           logger,
+		mdmLifecycle:     mdmLifecycle,
+		vppInstaller:     vppInstaller,
+		isPremium:        isPremium,
+		commandHandlers:  map[string][]fleet.MDMCommandResultsHandler{},
+		keyValueStore:    keyValueStore,
+		newActivityFn:    newActivityFn,
+		notificationsSvc: notificationsSvc,
 
 		deferFleetInitiatedActivation: deferFleetInitiatedActivation,
 	}
@@ -5209,6 +5112,13 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 			if err := svc.ds.MDMAppleResetOnReenrollment(r.Context, r.ID, appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment); err != nil {
 				return ctxerr.Wrap(r.Context, err, "resetting enrollment on re-enrollment", "host_uuid", r.ID)
+			}
+
+			// fail the notifications too, the reset above cancels every upcoming activity including any notify script
+			err = svc.notificationsSvc.FailNotificationsForHost(r.Context, info.HostID, notifications_api.EndUserNotificationReasonCanceled)
+			if err != nil {
+				svc.logger.ErrorContext(r.Context, "failed to fail end user notifications on re-enrollment",
+					"host_uuid", r.ID, "err", err)
 			}
 		}
 
@@ -5591,8 +5501,9 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				if err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "EraseDevice: get host by identifier")
 				}
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(r.Context, host.ID); err != nil {
-					return nil, ctxerr.Wrap(r.Context, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(r.Context, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return nil, err
 				}
 			}
 			return nil, nil

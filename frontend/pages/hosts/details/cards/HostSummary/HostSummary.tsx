@@ -157,11 +157,7 @@ const HostSummary = ({
     summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
+    <Card paddingSize="xlarge" className={classNames}>
       {renderStatus()}
       {showTeam && renderHostTeam()}
       {showIssues && renderIssues()}

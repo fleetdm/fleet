@@ -76,6 +76,9 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
+// Statuses a device will not answer again; NotNow is still outstanding and gets re-served.
+var MDMAppleTerminalStatuses = []string{MDMAppleStatusAcknowledged, MDMAppleStatusError, MDMAppleStatusCommandFormatError}
+
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
@@ -248,6 +251,12 @@ type MDMAppleConfigProfile struct {
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
+
+	// SelfService indicates the profile is a self-service profile, meaning it can be managed by the end user or the IT admin,
+	// but will not be automatically installed unless opted in to.
+	SelfService bool `db:"self_service" json:"self_service"`
+	// Hidden can be used as an indicator in UI's to hide certain profiles from being displayed.
+	Hidden bool `db:"hidden" json:"hidden"`
 }
 
 // MDMProfilesUpdates flags updates that were done during batch processing of profiles.
@@ -520,9 +529,12 @@ type AppleProfileForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (p *AppleProfileForReconcile) GetTeamID() uint                          { return p.TeamID }
-func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode  { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetTeamID() uint { return p.TeamID }
+
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode { return p.IncludeMode }
+
 func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
+
 func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
 
 // HasBrokenLabel reports whether any include or exclude label on the
@@ -573,8 +585,10 @@ type AppleDeclarationForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (d *AppleDeclarationForReconcile) GetTeamID() uint                         { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetTeamID() uint { return d.TeamID }
+
 func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
+
 func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
 	return d.IncludeLabels
 }
@@ -1063,7 +1077,8 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	if len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen {
 		return NewInvalidArgumentError("Identifier", fmt.Sprintf(
-			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen,
+		))
 	}
 
 	return err
@@ -1147,7 +1162,8 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 		invalid.Append("Identifier", "The custom activation must include an Identifier.")
 	case len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen:
 		invalid.Append("Identifier", fmt.Sprintf(
-			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen,
+		))
 	}
 
 	switch configs := r.Payload.StandardConfigurations; {
@@ -1158,7 +1174,8 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 	case configs[0] != configurationIdentifier:
 		invalid.Append("StandardConfigurations", fmt.Sprintf(
 			"The custom activation must reference the identifier of the configuration profile used to upload it. Expected %q, got %q.",
-			configurationIdentifier, configs[0]))
+			configurationIdentifier, configs[0],
+		))
 	}
 
 	if invalid.HasErrors() {
@@ -2024,6 +2041,84 @@ type ComputedAppleSoftwareUpdateHost struct {
 type MDMAppleAPNsSweepState struct {
 	Cursor    string `json:"cursor"`
 	BatchSize int    `json:"batch_size"`
+}
+
+// MDMAppleCommandCleanupCursor is a keyset position in a nano_command_results
+// scan ordered by (updated_at, id, command_uuid): the order the
+// (status, updated_at) index yields once InnoDB appends the primary key.
+type MDMAppleCommandCleanupCursor struct {
+	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	CommandUUID string    `json:"command_uuid"`
+}
+
+// MDMAppleCommandOrphanCursor is a keyset position in a nano_commands scan
+// ordered by (created_at, command_uuid).
+type MDMAppleCommandOrphanCursor struct {
+	CreatedAt   time.Time `json:"created_at"`
+	CommandUUID string    `json:"command_uuid"`
+}
+
+// MDMAppleCommandCleanupState is the Apple MDM command cleanup cron's persisted
+// position between runs. Each retention scan keeps its own cursor so rows
+// pinned at the front of one scan (never-swept types, guarded references)
+// cannot starve the eligible rows behind them; a scan that reaches rows
+// younger than its window resets its cursor and laps again. A nil state means
+// every scan starts from the oldest rows.
+type MDMAppleCommandCleanupState struct {
+	// Retention is keyed by "<tier>:<status>", e.g. "short:Acknowledged". It
+	// may be nil after a round trip through storage; a missing key means that
+	// scan starts from the oldest rows.
+	Retention map[string]MDMAppleCommandCleanupCursor `json:"retention"`
+	Orphan    MDMAppleCommandOrphanCursor             `json:"orphan"`
+}
+
+// MDMAppleCommandCleanupStateStore persists the Apple MDM command cleanup
+// cron's cursors between runs. Only the Redis-backed datastore implements it;
+// like EnrollHostLimiter it is handed to the cron on its own rather than
+// through Datastore, so deployments without it simply pass nil and every run
+// starts from the oldest rows.
+type MDMAppleCommandCleanupStateStore interface {
+	// GetMDMAppleCommandCleanupState returns the stored cursors, or nil when
+	// none are stored.
+	GetMDMAppleCommandCleanupState(ctx context.Context) (*MDMAppleCommandCleanupState, error)
+	// SetMDMAppleCommandCleanupState stores the cursors. A nil state resets
+	// them.
+	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
+}
+
+// MDMAppleCommandCleanupOptions carries the server config knobs into one run of
+// the Apple MDM command cleanup.
+type MDMAppleCommandCleanupOptions struct {
+	// ShortRetention is how long inactive queue rows and completed commands
+	// in AppleMDMShortRetentionClasses are kept; zero skips the inactive
+	// purge and moves the short classes to the standard window.
+	ShortRetention time.Duration
+	// StandardRetention is how long other completed commands in
+	// AppleMDMStandardRetentionRequestTypes are kept; zero skips that sweep.
+	StandardRetention time.Duration
+	// MaxRowDeletions caps queue/result pairs deleted per run; zero deletes
+	// none.
+	MaxRowDeletions int
+	// MaxCmdDeletions caps nano_commands rows deleted per run; zero deletes
+	// none.
+	MaxCmdDeletions int
+}
+
+// MDMAppleCommandCleanupStats reports what one cleanup run did, for the cron's
+// log line.
+type MDMAppleCommandCleanupStats struct {
+	InactivePairsDeleted int
+	ShortPairsDeleted    int
+	StandardPairsDeleted int
+	CommandsDeleted      int
+	// RowBudgetExhausted is set when a pair sweep stopped early, on
+	// MaxRowDeletions or its per-run scan cap, with candidates left, so the
+	// backlog carries over to the next run.
+	RowBudgetExhausted bool
+	// CmdBudgetExhausted is set when the command mop stopped on
+	// MaxCmdDeletions with candidates left.
+	CmdBudgetExhausted bool
 }
 
 // The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.

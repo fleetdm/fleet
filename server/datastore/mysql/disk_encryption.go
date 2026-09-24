@@ -346,7 +346,7 @@ WHERE host_id = ?`, hostID)
 	return &key, nil
 }
 
-func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
 	// TODO: Are we sure that host id is the right way to find the archived key? Are we concerned
 	// about cases where host with the same hardware serial has been deleted and recreated? If we
 	// learn that this is a real world concern, we should consider using the hardware serial as the primary
@@ -365,7 +365,7 @@ LIMIT 1`
 
 	var key fleet.HostArchivedDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`), host.ID)
-	if err == sql.ErrNoRows && host.HardwareSerial != "" {
+	if err == sql.ErrNoRows && host.HardwareSerial != "" && allowArchivedSerialLookup {
 		// If we didn't find a key by host ID, try to find it by hardware serial.
 		ds.logger.DebugContext(ctx, "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)
 		err = sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE hardware_serial = ?`), host.HardwareSerial)
