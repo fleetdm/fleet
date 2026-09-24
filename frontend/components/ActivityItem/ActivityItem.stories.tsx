@@ -17,9 +17,11 @@ const meta: Meta<typeof ActivityItem> = {
     disableCancel: { control: "boolean" },
   },
   args: {
+    // Fixed timestamps keep the rendered relative text and absolute tooltip
+    // stable across loads (and across snapshot/visual-regression runs).
     activity: createMockActivity({
       actor_full_name: "Rachel Perkins",
-      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+      created_at: "2026-01-15T10:30:00.000Z",
     }),
     children: (
       <>
@@ -62,7 +64,7 @@ export const FleetInitiated: Story = {
       actor_email: undefined,
       fleet_initiated: true,
       type: ActivityType.RanScript,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+      created_at: "2026-01-15T07:30:00.000Z",
     }),
     children: (
       <>

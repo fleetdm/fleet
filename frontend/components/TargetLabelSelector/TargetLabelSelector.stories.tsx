@@ -106,17 +106,20 @@ const Interactive = ({
   );
 };
 
+// Each render takes `args` so Storybook control changes reach the preview;
+// story-specific props come after the spread so they take precedence.
 export const AllHosts: Story = {
-  render: () => <Interactive initialTargetType="All hosts" />,
+  render: (args) => <Interactive {...args} initialTargetType="All hosts" />,
 };
 
 export const CustomEmpty: Story = {
-  render: () => <Interactive />,
+  render: (args) => <Interactive {...args} />,
 };
 
 export const WithPreselectedLabels: Story = {
-  render: () => (
+  render: (args) => (
     <Interactive
+      {...args}
       initialInclude={{ "Engineering laptops": true }}
       initialExclude={{ Contractors: true }}
     />
@@ -125,24 +128,25 @@ export const WithPreselectedLabels: Story = {
 
 export const IncludeModeAll: Story = {
   name: "Include mode = All (labels_include_all)",
-  render: () => <Interactive initialIncludeMode="all" />,
+  render: (args) => <Interactive {...args} initialIncludeMode="all" />,
 };
 
 export const Loading: Story = {
-  render: () => <Interactive isLoadingLabels />,
+  render: (args) => <Interactive {...args} isLoadingLabels />,
 };
 
 export const Error: Story = {
-  render: () => <Interactive isErrorLabels />,
+  render: (args) => <Interactive {...args} isErrorLabels />,
 };
 
 export const NoLabelsEmptyState: Story = {
-  render: () => <Interactive labels={[]} />,
+  render: (args) => <Interactive {...args} labels={[]} />,
 };
 
 export const Disabled: Story = {
-  render: () => (
+  render: (args) => (
     <Interactive
+      {...args}
       disableOptions
       initialInclude={{ "Engineering laptops": true }}
     />

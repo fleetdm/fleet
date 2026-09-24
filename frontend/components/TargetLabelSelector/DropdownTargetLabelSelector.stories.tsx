@@ -50,7 +50,12 @@ const Interactive = ({
   );
 
   return (
+    // Spread `rest` first so state-backed selection callbacks below can't be
+    // clobbered by Storybook args (e.g. auto-generated action handlers).
     <DropdownTargetLabelSelector
+      {...rest}
+      customTargetOptions={customTargetOptions}
+      labels={labels}
       selectedTargetType={targetType}
       onSelectTargetType={setTargetType}
       selectedCustomTarget={customTarget}
@@ -59,9 +64,6 @@ const Interactive = ({
       onSelectLabel={({ name, value }) =>
         setSelectedLabels((prev) => ({ ...prev, [name]: value }))
       }
-      customTargetOptions={customTargetOptions}
-      labels={labels}
-      {...rest}
     />
   );
 };
