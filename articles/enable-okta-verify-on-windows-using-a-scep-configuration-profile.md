@@ -20,7 +20,7 @@ Collect from your Okta tenant:
 * **SCEP Challenge**: Your static SCEP challenge (plain text, avoid special characters)
 * **CA Thumbprint**: The SHA-256 thumbprint of your Okta CA certificate
 
-> **Note:** Use a static SCEP challenge, which is the best practice on Windows. Dynamic SCEP challenges are also supported, but Okta's dynamic SCEP challenges sometimes include `_`, which Windows doesn't accept, so enrollment fails on some hosts. Windows only accepts letters, numbers, spaces, and `' ( ) + , - . / : = ?` in a SCEP challenge. Fleet resends failed profiles, but that doesn't guarantee success. Automatically requesting a new challenge from Okta when this happens is tracked in [fleetdm/fleet#53882](https://github.com/fleetdm/fleet/issues/53882).
+> **Note:** Use a static SCEP challenge, which is the best practice on Windows. Dynamic SCEP challenges are also supported, but Okta's dynamic SCEP challenges sometimes include `_`, which Windows doesn't accept, so enrollment fails on some hosts. Windows only accepts letters, numbers, spaces, and `' ( ) + , - . / : = ?` in a SCEP challenge. Fleet resends failed profiles, but that doesn't guarantee success. Automatically requesting a new challenge from Okta when this happens is [coming soon](https://github.com/fleetdm/fleet/issues/49552).
 >
 > To use a dynamic SCEP challenge, connect Okta to Fleet as a certificate authority (see [Steps 1 and 2 of the Okta section](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#okta)). Then, in the profile, replace `$FLEET_SECRET_OKTA_SCEP_URL` with `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` with `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the SubjectName OU.
 
