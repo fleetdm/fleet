@@ -2111,8 +2111,7 @@ type MDMAppleCommandCleanupStats struct {
 	InactivePairsDeleted int
 	ShortPairsDeleted    int
 	StandardPairsDeleted int
-	// CommandsDeleted counts nano_commands rows removed right after their
-	// pairs; OrphanCommandsDeleted those found by the background walk.
+	// CommandsDeleted: nano_commands rows removed right after their pairs; OrphanCommandsDeleted: found by the background walk.
 	CommandsDeleted       int
 	OrphanCommandsDeleted int
 	// RowBudgetExhausted is set when a pair sweep stopped early, on

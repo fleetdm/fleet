@@ -450,9 +450,7 @@ const nanoOrphanCommandMinAge = 24 * time.Hour
 // mopOrphanedNanoCommands walks nano_commands oldest-first from state.Orphan deleting unreferenced rows; the cursor
 // laps on a short page and stays before the page on a budget hit so skipped rows are retried.
 func (ds *Datastore) mopOrphanedNanoCommands(ctx context.Context, state *fleet.MDMAppleCommandCleanupState, budget int) (int, bool, error) {
-	// rides idx_nano_commands_created_at plus the appended primary key; the
-	// keyset is nested ORs rather than a row constructor so MySQL seeks to
-	// the cursor instead of filtering from the start of the range
+	// keyset over idx_nano_commands_created_at + PK as nested ORs so MySQL seeks to the cursor
 	const scanStmt = `
 		SELECT command_uuid, created_at
 		FROM nano_commands
