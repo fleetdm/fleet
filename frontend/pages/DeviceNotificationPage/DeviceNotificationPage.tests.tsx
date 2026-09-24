@@ -228,7 +228,7 @@ describe("DeviceNotificationPage", () => {
     });
   });
 
-  it("a 5 minute reminder left open refetches at install_at and every minute after, and shows its queued installs as Updating...", async () => {
+  it("a 5 minute reminder left open refetches at install_at and every 30 seconds after, and shows its queued installs as Updating...", async () => {
     jest.useFakeTimers();
     const {
       handler,
@@ -256,13 +256,13 @@ describe("DeviceNotificationPage", () => {
     });
     expect(screen.queryByText("Updating...")).not.toBeInTheDocument();
 
-    // skip refetching the reminder toast for the rest of the minute after install_at
-    jest.advanceTimersByTime(59000);
+    // skip refetching the reminder toast for the 30 seconds after install_at
+    jest.advanceTimersByTime(29000);
     await waitFor(() => {
       expect(state.requestCount).toBe(2);
     });
 
-    // refetch the reminder toast a minute after install_at and show the queued installs as Updating...
+    // refetch the reminder toast 30 seconds after install_at and show the queued installs as Updating...
     jest.advanceTimersByTime(1000);
     expect((await screen.findAllByText("Updating...")).length).toBe(3);
     expect(state.requestCount).toBe(3);

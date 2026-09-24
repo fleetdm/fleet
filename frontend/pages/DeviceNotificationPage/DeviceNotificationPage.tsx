@@ -131,7 +131,7 @@ const DeviceNotificationPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       // Poll every 5 seconds while an install is pending.
-      // Refetch the 5 minute reminder at install_at and then every minute, because the cron that queues its installs runs once a minute.
+      // Refetch the 5 minute reminder at install_at and then every 30 seconds, so the installs the cron queues within a minute of it show as pending before they finish.
       // Keep polling in the background because the toast window is rarely the focused one.
       refetchInterval: (view) => {
         if (view?.items.some(isNotificationItemInstalling)) {
@@ -151,7 +151,7 @@ const DeviceNotificationPage = ({
         const msUntilInstallAt =
           new Date(view.install_at).getTime() - Date.now();
         if (msUntilInstallAt <= 0) {
-          return 60000;
+          return 30000;
         }
         return msUntilInstallAt;
       },
