@@ -21,6 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 )
@@ -39,6 +41,7 @@ type cronSchedulesDeps struct {
 	svc                    fleet.Service
 	carveStore             fleet.CarveStore
 	enrollHostLimiter      fleet.EnrollHostLimiter
+	cleanupStateStore      fleet.MDMAppleCommandCleanupStateStore
 	liveQueryStore         fleet.LiveQueryStore
 	failingPolicySet       fleet.FailingPolicySet
 	redisPool              fleet.RedisPool
@@ -49,6 +52,8 @@ type cronSchedulesDeps struct {
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
 	androidSvc             android.Service
 	activitySvc            activity_api.Service
+	notificationsSvc       notifications_api.Service
+	patchNotificationKind  service.PatchNotificationKind
 	acmeSvc                acme_api.Service
 	chartSvc               chart_api.Service
 	auditLogger            fleet.JSONLogger
@@ -138,7 +143,7 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 
 	deps.register("failed to register cleanups_then_aggregations schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupsAndAggregationSchedule(
-			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.acmeSvc, deps.chartSvc,
+			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
 		)
 	})
 
@@ -390,6 +395,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register cleanup expired ADUE challenges schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupExpiredADUEChallengesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
+	deps.register("failed to register end user notifications schedule", func() (fleet.CronSchedule, error) {
+		return newEndUserNotificationsSchedule(ctx, deps.instanceID, deps.ds, deps.notificationsSvc, deps.patchNotificationKind, deps.logger)
 	})
 
 	if deps.config.Activity.EnableAuditLog {

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -2225,4 +2226,51 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
+}
+func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
+	t := s.T()
+
+	hostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	// Nothing ever clears refetch_requested for an Android host, so a request that
+	// will never be acted on must not set it.
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+
+	// The device-authenticated route is rejected too. GET /hosts/:id/device_url no
+	// longer mints a token for Android (#48439), but one issued by an earlier version
+	// still reaches this route.
+	const androidDeviceToken = "android-refetch-device-token" //nolint:gosec // G101 false positive, test fixture value
+	createDeviceTokenForHost(t, s.ds, hostID, androidDeviceToken)
+
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", androidDeviceToken), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+}
+
+func (s *integrationTestSuite) TestChartsLinuxPlatformFilter() {
+	t := s.T()
+	s.createHosts(t, "ubuntu", "rhel", "debian", "linux", "darwin")
+
+	var resp chart_api.Response
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "linux")
+	assert.Equal(t, 4, resp.TotalHosts)
+	assert.Equal(t, []string{"linux"}, resp.Filters.Platforms)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "ubuntu")
+	assert.Equal(t, 1, resp.TotalHosts)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "darwin")
+	assert.Equal(t, 1, resp.TotalHosts)
 }

@@ -2052,6 +2052,40 @@ func TestHostAuth(t *testing.T) {
 		})
 	}
 
+	// Technicians can delete hosts but have no other write access, so they
+	// don't fit the read/write matrix above.
+	technicianCases := []struct {
+		name                   string
+		user                   *fleet.User
+		shouldFailTeamDelete   bool
+		shouldFailGlobalDelete bool
+	}{
+		{"global technician", test.UserTechnician, false, false},
+		{"team technician, belongs to team", test.UserTeamTechnicianTeam1, false, true},
+		{"team technician, DOES NOT belong to team", test.UserTeamTechnicianTeam2, true, true},
+	}
+	for _, tt := range technicianCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+
+			err := svc.DeleteHost(ctx, 1)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamDelete, isTeamOnlyRole, err)
+
+			err = svc.DeleteHost(ctx, 2)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalDelete, isTeamOnlyRole, err)
+
+			err = svc.DeleteHosts(ctx, []uint{1}, nil)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamDelete, isTeamOnlyRole, err)
+
+			err = svc.DeleteHosts(ctx, []uint{2}, nil)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalDelete, isTeamOnlyRole, err)
+
+			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
+			checkAuthErr(t, true, err)
+		})
+	}
+
 	// List, GetHostSummary work for all
 }
 
@@ -3861,6 +3895,38 @@ func TestRefetchHost(t *testing.T) {
 	require.NoError(t, svc.RefetchHost(test.UserContext(ctx, test.UserMaintainer), host.ID))
 	assert.True(t, ds.HostLiteFuncInvoked)
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
+}
+
+func TestRefetchHostAndroidNotSupported(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := &fleet.Host{ID: 3, Platform: "android"}
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, id uint, value bool) error {
+		return nil
+	}
+
+	err := svc.RefetchHost(test.UserContext(ctx, test.UserAdmin), host.ID)
+	require.Error(t, err)
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre)
+	require.ErrorContains(t, err, "Refetch is not supported for Android hosts")
+
+	// A device token can be minted for an Android host, so the device-authenticated
+	// route reaches RefetchHost with no host loaded and the platform has to come from
+	// the request context.
+	err = svc.RefetchHost(test.HostContext(ctx, host), host.ID)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &bre)
+	require.ErrorContains(t, err, "Refetch is not supported for Android hosts")
+
+	// the refetch flag must not be set for a host that can't be refetched
+	assert.True(t, ds.HostLiteFuncInvoked)
+	assert.False(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
 func TestRefetchHostUserInTeams(t *testing.T) {
