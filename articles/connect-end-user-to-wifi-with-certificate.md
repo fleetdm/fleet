@@ -565,40 +565,9 @@ This custom script will create a certificate signing request (CSR) and make a re
 1. Create an API-only user with the global maintainer role. Learn how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
 3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
-4. In your text editor, copy the script below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
+4. Download the [`request-hydrant-certificate.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-hydrant-certificate.sh) example script and plug in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
-Example script:
-
-```shell
-#!/bin/bash
-set -e
-
-# Load the end user information, IdP token and IdP client ID.
-. /opt/company/userinfo
-
-URL="<IdP-introspection-URL>"
-
-# Generate the password-protected private key
-openssl genpkey -algorithm RSA -out /opt/company/CustomerUserNetworkAccess.key -pkeyopt rsa_keygen_bits:2048 -aes256 -pass pass:${PASSWORD}
-
-# Generate CSR signed with that private key. The CN can be changed and DNS attribute omitted if your Hydrant configuration allows it.
-openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out CustomerUserNetworkAccess.csr -subj /CN=CustomerUserNetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:${PASSWORD}
-
-# Escape CSR for request
-CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
-
-curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydrant-CA-ID>/request_certificate' \
-  -X 'POST' \
-  -H 'accept: application/json, text/plain, */*' \
-  -H 'authorization: Bearer '"$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN" \
-  -H 'content-type: application/json' \
-  --data-raw "${REQUEST}" -o response.json
-
-jq -r .certificate response.json > /opt/company/certificate.pem
-```
-
-By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
@@ -613,7 +582,7 @@ CLIENT_ID="<OAuth-IdP-client-ID>"
 
 Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e. if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com")
 
-5. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script above as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
+5. In Fleet, head to **Software**, select **Add software > Custom package**, and upload your edited script as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
 6. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically during enrollment.
 
 ### Step 4: Renew or restore the certificate automatically
@@ -912,40 +881,9 @@ The script will create a certificate signing request (CSR) and make a request to
 1. Create an API-only user with the global maintainer role. Learn how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script. Optionally, you can use HTTP signatures instead of an API token. [Learn more](#http-signatures).
 3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your EST CA. You'll use this `id` in your script.
-4. In your text editor, copy the script below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
+4. Download the [`request-est-certificate.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-est-certificate.sh) example script and plug in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
-Example script:
-
-```shell
-#!/bin/bash
-set -e
-
-# Load the end user information, IdP token and IdP client ID.
-. /opt/company/userinfo
-
-URL="<IdP-introspection-URL>"
-
-# Generate the password-protected private key
-openssl genpkey -algorithm RSA -out /opt/company/CustomerUserNetworkAccess.key -pkeyopt rsa_keygen_bits:2048 -aes256 -pass pass:${PASSWORD}
-
-# Generate CSR signed with that private key. The CN can be changed and DNS attribute omitted if your EST configuration allows it.
-openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out CustomerUserNetworkAccess.csr -subj /CN=CustomerUserNetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:${PASSWORD}
-
-# Escape CSR for request
-CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
-
-curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-CA-ID>/request_certificate' \
-  -X 'POST' \
-  -H 'accept: application/json, text/plain, */*' \
-  -H 'authorization: Bearer '"$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN" \
-  -H 'content-type: application/json' \
-  --data-raw "${REQUEST}" -o response.json
-
-jq -r .certificate response.json > /opt/company/certificate.pem
-```
-
-By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
@@ -960,7 +898,7 @@ CLIENT_ID="<OAuth-IdP-client-ID>"
 
 Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e., if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com").
 
-5. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script above as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
+5. In Fleet, head to **Software**, select **Add software > Custom package**, and upload your edited script as a `.sh` file (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
 6. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically during enrollment.
 
 ### Step 4: Renew or restore the certificate automatically
@@ -1024,25 +962,7 @@ This is only supported on Linux hosts with TPM (Trusted Platform Module) hardwar
 
 This method also requires a means of signing the HTTP request using the TPM key. Fleet has provided a reference implementation written in Go in the Fleet repository under [/orbit/cmd/fetch_cert/](https://github.com/fleetdm/fleet/blob/main/orbit/cmd/fetch_cert/main.go). 
 
-This example script assumes the reference implementation has been distributed to the machine requesting the certificate:
-
-```shell
-#!/bin/bash
-set -e
-
-# Load the end user information, IdP token and IdP client ID.
-. /opt/company/userinfo
-
-URL="<IdP-introspection-URL>"
-
-# Generate the password-protected private key
-openssl genpkey -algorithm RSA -out /opt/company/CustomerUserNetworkAccess.key -pkeyopt rsa_keygen_bits:2048 -aes256 -pass pass:${PASSWORD}
-
-# Generate CSR signed with that private key. The CN can be changed and DNS attribute omitted if your EST configuration allows it.
-openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out CustomerUserNetworkAccess.csr -subj /CN=CustomerUserNetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:${PASSWORD}
-
-fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetworkAccess.csr -out /opt/company/certificate.pem
-```
+The [`request-est-certificate-http-signatures.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-est-certificate-http-signatures.sh) example script assumes the reference implementation has been distributed to the machine requesting the certificate.
 
 ### Assumptions and limitations
 
