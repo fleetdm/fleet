@@ -6,24 +6,36 @@ import IconStatusMessage from "components/IconStatusMessage";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Textarea from "components/Textarea";
+import { dateAgo } from "utilities/date_format";
 
 const baseClass = "rotation-failed-details-modal";
 
+export type RotationFailedSubject =
+  | "managed local account password"
+  | "disk encryption key";
+
 interface IRotationFailedDetailsModalProps {
-  /** The reason the host reported when it could not set the new password. */
+  /** The reason Fleet recorded for the failure. */
   detail: string;
   hostDisplayName: string;
+  /** @default "managed local account password" */
+  subject?: RotationFailedSubject;
+  /** When set, the failure's relative time follows the sentence. */
+  createdAt?: string;
   onCancel: () => void;
 }
 
 const RotationFailedDetailsModal = ({
   detail,
   hostDisplayName,
+  subject = "managed local account password",
+  createdAt,
   onCancel,
 }: IRotationFailedDetailsModalProps) => {
   const [showDetails, setShowDetails] = useState(false);
 
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
+  const preposition = subject === "disk encryption key" ? "for" : "on";
 
   return (
     <Modal
@@ -38,8 +50,8 @@ const RotationFailedDetailsModal = ({
           iconName="error"
           message={
             <span>
-              Fleet failed to rotate the managed local account password on{" "}
-              {formattedHost}.
+              Fleet failed to rotate the {subject} {preposition} {formattedHost}
+              .{createdAt && ` (${dateAgo(createdAt)})`}
             </span>
           }
         />

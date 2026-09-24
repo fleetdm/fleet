@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
 import { IHostCertificate } from "interfaces/certificates";
-import { IHost, HostStatus } from "interfaces/host";
+import { IHost, HostStatus, IHostEncrpytionKeyResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
@@ -684,9 +684,14 @@ export default {
     return sendRequest("GET", fullPath);
   },
 
-  getEncryptionKey: (id: number) => {
+  getEncryptionKey: (id: number): Promise<IHostEncrpytionKeyResponse> => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  rotateDiskEncryptionKey: (id: number): Promise<void> => {
+    const { HOST_ENCRYPTION_KEY_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_ENCRYPTION_KEY_ROTATE(id));
   },
 
   getRecoveryLockPassword: (id: number) => {

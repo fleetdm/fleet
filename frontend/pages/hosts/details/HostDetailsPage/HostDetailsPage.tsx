@@ -31,6 +31,9 @@ import {
   IVppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import RotationFailedDetailsModal, {
+  RotationFailedSubject,
+} from "components/ActivityDetails/RotationFailedDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
@@ -175,7 +178,6 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import LockModal from "./modals/LockModal";
 import ManagedAccountModal from "./modals/ManagedAccountModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
-import RotationFailedDetailsModal from "./modals/RotationFailedDetailsModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -361,6 +363,8 @@ const HostDetailsPage = ({
   const [rotationFailedDetails, setRotationFailedDetails] = useState<{
     detail: string;
     hostDisplayName: string;
+    subject?: RotationFailedSubject;
+    createdAt?: string;
   } | null>(null);
 
   // React Router reuses this component when only host_id changes.
@@ -1062,6 +1066,15 @@ const HostDetailsPage = ({
             detail: details?.detail || "",
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case ActivityType.FailedToRotateDiskEncryptionKey:
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            subject: "disk encryption key",
+            createdAt: created_at,
           });
           break;
         case ActivityType.FailedEnrollmentProfileRenewal:
@@ -2102,6 +2115,12 @@ const HostDetailsPage = ({
             <DiskEncryptionKeyModal
               platform={host.platform}
               hostId={host.id}
+              canRotateKey={
+                isPremiumTier &&
+                isAdminOrMaintainer &&
+                host.mdm.encryption_key_available
+              }
+              isEscrowEnabled={fleetDiskEncryptionSettings.macOSEscrowEnabled}
               onCancel={() => setShowDiskEncryptionModal(false)}
             />
           )}
@@ -2121,6 +2140,8 @@ const HostDetailsPage = ({
             <RotationFailedDetailsModal
               detail={rotationFailedDetails.detail}
               hostDisplayName={rotationFailedDetails.hostDisplayName}
+              subject={rotationFailedDetails.subject}
+              createdAt={rotationFailedDetails.createdAt}
               onCancel={() => setRotationFailedDetails(null)}
             />
           )}
