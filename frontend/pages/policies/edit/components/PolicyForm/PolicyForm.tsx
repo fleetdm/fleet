@@ -496,6 +496,7 @@ const PolicyForm = ({
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
+        payload.hidden = lastEditedQueryHidden;
       }
       await onUpdate(payload);
       persistAutomations();
@@ -836,10 +837,7 @@ const PolicyForm = ({
             isPremiumTier &&
             !isPatchPolicy &&
             renderCriticalPolicy()}
-          {isEditMode &&
-            isPremiumTier &&
-            !isPatchPolicy &&
-            renderHiddenPolicy()}
+          {isEditMode && isPremiumTier && renderHiddenPolicy()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}

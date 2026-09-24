@@ -9396,8 +9396,10 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	p3, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Type:                 fleet.PolicyTypePatch,
 		PatchSoftwareTitleID: &titleID,
+		Hidden:               true,
 	})
 	require.NoError(t, err)
+	require.True(t, p3.Hidden)
 	require.Equal(t, "macOS - Maintained1 up to date", p3.Name)
 	require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", p3.Description)
 	require.Equal(t, "Install the latest version from self-service.", *p3.Resolution)

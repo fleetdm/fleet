@@ -926,6 +926,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryBody: patchPolicy.query,
             lastEditedQueryResolution: patchPolicy.resolution,
             lastEditedQueryCritical: patchPolicy.critical,
+            lastEditedQueryHidden: true,
             lastEditedQueryPlatform: patchPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
             lastEditedQueryLabelsIncludeAll: [],
@@ -1156,6 +1157,16 @@ describe("PolicyForm - component", () => {
         ).toBeChecked();
       });
 
+      it("offers Hide from end user for patch policies", async () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+
+        const hiddenCheckbox = await screen.findByRole("checkbox", {
+          name: "hidden-policy",
+        });
+        expect(hiddenCheckbox).toBeChecked();
+        expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "false");
+      });
+
       it("submits only editable fields on save", async () => {
         const onUpdate = jest.fn();
         renderPatchPolicy(
@@ -1171,6 +1182,7 @@ describe("PolicyForm - component", () => {
         expect(payload).toHaveProperty("description");
         expect(payload).toHaveProperty("resolution");
         expect(payload).toHaveProperty("critical");
+        expect(payload).toHaveProperty("hidden", true);
         expect(payload).not.toHaveProperty("query");
         expect(payload).not.toHaveProperty("platform");
         expect(payload).not.toHaveProperty("labels_include_any");

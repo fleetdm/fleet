@@ -1527,9 +1527,16 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
 		Type:                 new("patch"),
 		PatchSoftwareTitleID: &dummyTitleID,
+		Hidden:               true,
 	}, http.StatusOK, &patchPolicy)
 	require.NotNil(t, patchPolicy.Policy.PatchSoftware)
 	require.Equal(t, fleet.PolicyTypePatch, patchPolicy.Policy.Type)
+	// Patch policies can be hidden from end users like any other policy.
+	require.True(t, patchPolicy.Policy.Hidden)
+	unhiddenPatch := fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID),
+		json.RawMessage(`{"hidden": false}`), http.StatusOK, &unhiddenPatch)
+	require.False(t, unhiddenPatch.Policy.Hidden)
 
 	// List all policies (no filter) - should return all 3
 	listResp := fleet.ListTeamPoliciesResponse{}
