@@ -3562,6 +3562,35 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
+	lq.AssertNotCalled(t, "RestoreQueryTargetForHost", testify_mock.Anything, testify_mock.Anything)
+}
+
+// A failed stop may leave the campaign live in Redis, so the host is re-targeted.
+func TestIngestDistributedQueryOrphanedCampaignLoadStopError(t *testing.T) {
+	ds := new(mock.Store)
+	rs := pubsub.NewInmemQueryResults()
+	lq := live_query_mock.New(t)
+	svc := &Service{
+		ds:             ds,
+		resultStore:    rs,
+		liveQueryStore: lq,
+		logger:         slog.New(slog.DiscardHandler),
+		clock:          clock.NewMockClock(),
+	}
+
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
+		return nil, errors.New("missing campaign")
+	}
+	lq.On("StopQuery", "42").Return(errors.New("redis down"))
+
+	host := fleet.Host{ID: 1}
+	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
+
+	err := svc.ingestDistributedQuery(t.Context(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stop orphaned campaign after load failure")
+	lq.AssertExpectations(t)
 }
 
 func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
@@ -3673,9 +3702,11 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	host := fleet.Host{ID: 1}
 
 	lq.On("QueryCompletedByHost", "42", host.ID).Return(true, nil)
+	lq.On("RestoreQueryTargetForHost", "42", host.ID).Return(nil)
 	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
+	lq.AssertExpectations(t)
 }
 
 func TestIngestDistributedQueryOrphanedStop(t *testing.T) {

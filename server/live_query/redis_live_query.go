@@ -431,6 +431,14 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, e
 	return {active, prev}`
 	res, err := redigo.Ints(conn.Do("EVAL", setBitScript, 2, targetKey, sqlKey, hostID, 0))
 	if err != nil {
+		// The SREM above already ran. For a small-target query it removed the
+		// host's only record of being targeted, and the caller will not publish
+		// after this error, so put it back or the host never retries.
+		if removed == 1 {
+			if rerr := r.RestoreQueryTargetForHost(name, hostID); rerr != nil {
+				r.logger.Warn("re-targeting host after failed completion", "campaign", name, "hostID", hostID, "err", rerr)
+			}
+		}
 		return false, fmt.Errorf("setbit query key: %w", err)
 	}
 	if len(res) != 2 {

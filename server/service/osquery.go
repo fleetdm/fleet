@@ -2767,6 +2767,9 @@ func (svc *Service) ingestDistributedQuery(
 		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
+				// The campaign may still be live in Redis, so this host must keep
+				// its target and retry.
+				svc.restoreQueryTarget(ctx, campaignID, host.ID)
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
 			}
 			return newOsqueryError("loading orphaned campaign: " + err.Error())
@@ -2799,6 +2802,7 @@ func (svc *Service) ingestDistributedQuery(
 		}
 
 		if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
+			svc.restoreQueryTarget(ctx, campaignID, host.ID)
 			return newOsqueryError("stopping orphaned campaign: " + err.Error())
 		}
 

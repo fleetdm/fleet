@@ -1,12 +1,15 @@
 package live_query
 
 import (
+	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
@@ -388,6 +391,76 @@ func TestQueryCompletedByHostAfterStopQuery(t *testing.T) {
 			exists, err := redigo.Int(conn.Do("EXISTS", queryKeyPrefix+"{large}"))
 			require.NoError(t, err)
 			require.Zero(t, exists)
+		})
+	}
+}
+
+// scriptedPool hands out connections whose Do is answered by a function, so a
+// failure in the middle of a multi-command sequence can be simulated.
+type scriptedPool struct {
+	do    func(cmd string, args ...any) (any, error)
+	calls []string
+}
+
+func (p *scriptedPool) Get() redigo.Conn                 { return &scriptedConn{pool: p} }
+func (*scriptedPool) Close() error                       { return nil }
+func (*scriptedPool) Stats() map[string]redigo.PoolStats { return nil }
+func (*scriptedPool) Mode() fleet.RedisMode              { return fleet.RedisStandalone }
+
+type scriptedConn struct{ pool *scriptedPool }
+
+func (*scriptedConn) Close() error { return nil }
+func (*scriptedConn) Err() error   { return nil }
+func (c *scriptedConn) Do(cmd string, args ...any) (any, error) {
+	c.pool.calls = append(c.pool.calls, cmd)
+	return c.pool.do(cmd, args...)
+}
+func (*scriptedConn) Send(string, ...any) error { return nil }
+func (*scriptedConn) Flush() error              { return nil }
+func (*scriptedConn) Receive() (any, error)     { return nil, nil }
+
+// When the completion script fails after SREM already removed the host's
+// membership, the membership is put back; when nothing was removed, it is not.
+func TestQueryCompletedByHostRestoresAfterScriptFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		removed     int64
+		wantRestore bool
+	}{
+		{"targeted small-campaign host", 1, true},
+		{"untargeted host", 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pool := &scriptedPool{}
+			pool.do = func(cmd string, args ...any) (any, error) {
+				switch {
+				case cmd == "SREM":
+					return tc.removed, nil
+				case cmd == "EVAL" && strings.Contains(args[0].(string), "return {active, prev}"):
+					return nil, errors.New("connection reset")
+				case cmd == "EVAL": // restore script: no bitfield
+					return int64(0), nil
+				default:
+					return int64(1), nil
+				}
+			}
+			store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), 0, 0)
+
+			targeted, err := store.QueryCompletedByHost("7", 42)
+			require.ErrorContains(t, err, "connection reset")
+			require.False(t, targeted)
+
+			sadds := 0
+			for _, c := range pool.calls {
+				if c == "SADD" {
+					sadds++
+				}
+			}
+			if tc.wantRestore {
+				require.Equal(t, 1, sadds, "membership re-added: %v", pool.calls)
+			} else {
+				require.Zero(t, sadds, "nothing to re-add: %v", pool.calls)
+			}
 		})
 	}
 }
