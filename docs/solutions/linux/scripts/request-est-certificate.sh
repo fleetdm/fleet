@@ -1,4 +1,5 @@
 #!/bin/bash
+# Example script used in this guide: https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#any-est-enrollment-over-secure-transport-ca
 set -e
 
 # Load the end user information, IdP token and IdP client ID.
