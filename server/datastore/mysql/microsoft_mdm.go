@@ -235,10 +235,7 @@ func (ds *Datastore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx conte
 	return cleared > 0, nil
 }
 
-// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
-// returns the device information.
-// MDMWindowsGetEnrolledDeviceByID returns the enrollment with the given row id. It exists for the one-time enroll secret path,
-// which resolves the enrollment a secret was minted for rather than guessing it from a device-asserted serial.
+// MDMWindowsGetEnrolledDeviceByID returns the enrollment with the given row id.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error) {
 	stmt := `SELECT
 		id,
@@ -265,9 +262,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enroll
 		FROM mdm_windows_enrollments WHERE id = ?`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
-	// The writer, for the same reason GetHostOneTimeEnrollSecret uses it: this runs during enrollment, moments after the
-	// rows involved were written, and a replica read could miss them.
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &winMDMDevice, stmt, enrollmentID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, enrollmentID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithID(enrollmentID))
 		}

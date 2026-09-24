@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -713,15 +714,6 @@ func stubFleetWindowsProfileEnsure(ds *mock.Store) {
 	}
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
-	}
-}
-
-// stubWindowsHostSecretExpansion mirrors the real expander for a document carrying no $FLEET_HOST_SECRET_ placeholder, which
-// returns it untouched. Every test that reaches getPendingMDMCmds needs this: the mock calls a nil func otherwise and the panic
-// takes the whole package run down with it, not just the one test.
-func stubWindowsHostSecretExpansion(ds *mock.Store) {
-	ds.ExpandWindowsMDMHostSecretsFunc = func(ctx context.Context, document string, enrollmentID uint) (string, error) {
-		return document, nil
 	}
 }
 
@@ -2484,7 +2476,6 @@ func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 func TestRekeyWindowsDevice(t *testing.T) {
 	ds := new(mock.Store)
 	stubFleetWindowsProfileEnsure(ds)
-	stubWindowsHostSecretExpansion(ds)
 	kv := new(mock.KVStore)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
 		KeyValueStore: kv,
@@ -3794,25 +3785,64 @@ func TestWindowsMDMCommandHostSecretPlaceholders(t *testing.T) {
 	t.Run("one command that fails expansion does not hold back the rest", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+			// An Apple-only host secret, which Windows expansion refuses.
 			return []*fleet.MDMWindowsCommand{
 				{CommandUUID: "bad", RawCommand: []byte(
-					`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`)},
+					`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` +
+						fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Replace>`)},
 				{CommandUUID: "good", RawCommand: []byte(
 					`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
 			}, nil
 		}
 		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
-		ds.ExpandWindowsMDMHostSecretsFunc = func(ctx context.Context, document string, enrollmentID uint) (string, error) {
-			if strings.Contains(document, "<CmdID>bad</CmdID>") {
-				return "", errors.New("host secret type X is not supported on Windows")
-			}
-			return document, nil
-		}
 		svc, _ := newTestService(t, ds, nil, nil)
 
 		cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
 		require.NoError(t, err, "a failed expansion must not fail the whole management session")
 		require.Len(t, cmds, 1)
 		require.Equal(t, "good", cmds[0].CmdID.Value)
+	})
+
+	t.Run("expansion resolves the live secret for the enrollment, escaped", func(t *testing.T) {
+		placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+		doc := `<Data>FLEET_SECRET="` + placeholder + `"</Data>`
+		for _, tc := range []struct{ live, want string }{
+			// The tokens never need escaping, but a value that did would not break the SyncML.
+			{live: "a&b", want: `<Data>FLEET_SECRET="a&amp;b"</Data>`},
+			// Nothing minted: the host gets an empty value, which fleetd reads as nothing waiting.
+			{live: "", want: `<Data>FLEET_SECRET=""</Data>`},
+		} {
+			ds := new(mock.Store)
+			ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+				require.EqualValues(t, 7, enrollmentID)
+				require.True(t, ctxdb.IsPrimaryRequired(ctx), "the secret may have been minted moments ago")
+				return tc.live, nil
+			}
+			svc, _ := newTestService(t, ds, nil, nil)
+			got, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(), doc, 7)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		}
+	})
+
+	t.Run("a document without host secrets never reaches the datastore", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, _ := newTestService(t, ds, nil, nil)
+		doc := `<Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`
+		got, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(), doc, 7)
+		require.NoError(t, err)
+		require.Equal(t, doc, got)
+		require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
+	})
+
+	t.Run("a failed lookup is an error, not an empty secret", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+			return "", errors.New("db down")
+		}
+		svc, _ := newTestService(t, ds, nil, nil)
+		_, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(),
+			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret), 7)
+		require.ErrorContains(t, err, "db down")
 	})
 }

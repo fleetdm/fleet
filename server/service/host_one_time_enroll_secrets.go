@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -169,6 +172,51 @@ func errWindowsEnrollSecretProfileOff() error {
 			" profile is only used when one-time enroll secrets are enabled for Windows.").WithStatus(http.StatusConflict)
 }
 
+// expandWindowsHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in a SyncML document about to be delivered to the
+// given Windows MDM enrollment. A document without any is returned untouched, without a datastore call.
+//
+// It never mints. The enroll secret expands to whatever live secret an earlier decision minted for this enrollment, and to an
+// empty string when there is none, which is what a host already running fleetd gets and reads as nothing waiting. See
+// MintWindowsMDMOneTimeEnrollSecret for where minting happens. The other host-secret types are Apple-only, so anything else is a
+// programming error rather than something to expand to an empty string.
+func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error) {
+	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
+	if len(hostSecrets) == 0 {
+		return document, nil
+	}
+
+	secretValues := make(map[string]string, len(hostSecrets))
+	for _, secretType := range hostSecrets {
+		if secretType != fleet.HostSecretEnrollSecret {
+			return "", ctxerr.Errorf(ctx, "host secret type %s is not supported on Windows", secretType)
+		}
+		// The primary: the fleetd install is minted for and delivered in the same management request, so a replica even slightly
+		// behind would resolve to nothing and ship an installer without a secret.
+		secret, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctxdb.RequirePrimary(ctx, true), enrollmentID)
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
+		}
+		secretValues[secretType] = secret
+	}
+
+	// Windows profiles and commands are always XML, so the substituted value is XML-escaped. The tokens are URL-safe base64 and
+	// so never actually need it, but the escaping is what keeps that an implementation detail.
+	return fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
+		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
+			return "", false
+		}
+		val, ok := secretValues[strings.TrimPrefix(s, fleet.HostSecretPrefix)]
+		if !ok {
+			return "", false
+		}
+		var b strings.Builder
+		if err := xml.EscapeText(&b, []byte(val)); err != nil {
+			return "", false
+		}
+		return b.String(), true
+	}), nil
+}
+
 // oneTimeWindowsEnrollmentID returns the Windows MDM enrollment a presented one-time enroll secret was minted for, or nil when
 // there is none: a shared secret is not a one-time secret at all, and an Apple one-time secret binds to a host instead.
 func oneTimeWindowsEnrollmentID(oneTime *fleet.HostOneTimeEnrollSecret) *uint {
@@ -192,7 +240,8 @@ func oneTimeWindowsEnrollmentID(oneTime *fleet.HostOneTimeEnrollSecret) *uint {
 // Failures here are logged, not returned. Linkage is post-enrollment bookkeeping, and refusing the enrollment over it would
 // leave a host that cannot run fleetd at all rather than one that is merely unlinked.
 func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, host *fleet.Host, enrollmentID uint) {
-	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctx, enrollmentID)
+	// The primary: this runs during enrollment, moments after the rows involved were written, and a replica could miss them.
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctxdb.RequirePrimary(ctx, true), enrollmentID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to load windows mdm enrollment for one-time enroll secret linkage",
 			"err", err, "host_uuid", host.UUID, "enrollment_id", enrollmentID)

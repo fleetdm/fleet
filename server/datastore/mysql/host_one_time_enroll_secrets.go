@@ -45,9 +45,6 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // window, so a late osquery enrollment is not orphaned) and secrets whose host
 // no longer exists. Unconsumed secrets whose host records still exist are never
 // removed here: a host holds at most one and it stays valid until used.
-//
-// Windows secrets need no sweep of their own: consuming one records its host,
-// and deleting the enrollment cascades to its secrets.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
 	windowSeconds := int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow / time.Second)
@@ -379,12 +376,9 @@ func windowsEnrollmentBoundHostsDB(
 	return bound, nil
 }
 
-// liveWindowsMDMOneTimeEnrollSecret returns the unconsumed secret minted for the enrollment, or "" when there is none, which is
-// the normal state for a host that already runs fleetd. It reads the primary. The fleetd install is minted for and delivered in
-// the same management request, so a replica even slightly behind would resolve to nothing and ship an installer without a secret.
-func (ds *Datastore) liveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
+func (ds *Datastore) GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
 	var secrets []string
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &secrets, `
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &secrets, `
 		SELECT secret FROM host_one_time_enroll_secrets
 		WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL
 		ORDER BY id DESC LIMIT 1`, enrollmentID); err != nil {

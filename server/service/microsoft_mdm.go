@@ -2116,7 +2116,7 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, which is what keeps the
 		// credential out of windows_mdm_commands.raw_command and therefore out of the command-results API, where
 		// raw_command is returned verbatim as the payload. Resolution never mints; see MintWindowsMDMOneTimeEnrollSecret.
-		rawCommandWithSecret, err = svc.ds.ExpandWindowsMDMHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
+		rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
 		if err != nil {
 			// Skipped rather than failing the session, like a command that does not parse: one bad command must not hold
 			// back every other command pending for the device. It stays queued and is tried again next session.

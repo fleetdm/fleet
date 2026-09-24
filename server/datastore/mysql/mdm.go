@@ -2312,8 +2312,7 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 		// The row now has status NULL, which the summary reports as pending, so refresh the per-host Windows profile status rollup in the
 		// same transaction.
 		if table == "host_mdm_windows_profiles" {
-			// An administrator resending the Fleetd enroll secret profile is how a host whose secret was spent gets another, so
-			// this is one of the two places a Windows one-time enroll secret is minted. See MintWindowsMDMOneTimeEnrollSecret.
+			// An administrator resending the Fleetd enroll secret profile is how a host whose secret was spent gets another.
 			if rows > 0 {
 				if err := ds.mintWindowsEnrollSecretOnResendDB(ctx, tx, hostUUID, profUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for resent windows profile")

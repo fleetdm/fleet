@@ -29,7 +29,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"ResetTurnOffAndDelete", testOneTimeEnrollSecretResetAndDelete},
 		{"Cleanup", testOneTimeEnrollSecretCleanup},
 		{"WindowsMint", testOneTimeEnrollSecretWindowsMint},
-		{"WindowsExpand", testOneTimeEnrollSecretWindowsExpand},
+		{"WindowsLiveSecret", testOneTimeEnrollSecretWindowsLiveSecret},
 		{"WindowsResendMints", testOneTimeEnrollSecretWindowsResendMints},
 		{"WindowsHostBinding", testOneTimeEnrollSecretWindowsHostBinding},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
@@ -605,7 +605,7 @@ func linkWindowsEnrollment(t *testing.T, ds *Datastore, device *fleet.MDMWindows
 // liveWindowsSecret returns the enrollment's live one-time enroll secret, failing the test if there is none.
 func liveWindowsSecret(t *testing.T, ds *Datastore, enrollmentID uint) *fleet.HostOneTimeEnrollSecret {
 	t.Helper()
-	secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(t.Context(), enrollmentID)
+	secret, err := ds.GetLiveWindowsMDMOneTimeEnrollSecret(t.Context(), enrollmentID)
 	require.NoError(t, err)
 	require.NotEmpty(t, secret)
 	row, err := ds.GetHostOneTimeEnrollSecret(t.Context(), secret)
@@ -668,45 +668,29 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	require.True(t, fleet.IsNotFound(err), "the secret must go with its enrollment")
 }
 
-func testOneTimeEnrollSecretWindowsExpand(t *testing.T, ds *Datastore) {
+func testOneTimeEnrollSecretWindowsLiveSecret(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	device := insertWindowsEnrollment(t, ds, "hw-expand", "")
+	device := insertWindowsEnrollment(t, ds, "hw-live", "")
 
-	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
-	doc := `<Exec><CommandLine>/quiet FLEET_SECRET="` + placeholder + `"</CommandLine></Exec>`
-	emptied := `<Exec><CommandLine>/quiet FLEET_SECRET=""</CommandLine></Exec>`
-
-	// The case this change exists for: a host that needs no secret, typically one already running fleetd, gets an empty value
-	// that fleetd treats as nothing waiting, and delivery must not mint one on its behalf.
-	expanded, err := ds.ExpandWindowsMDMHostSecrets(ctx, doc, device.ID)
+	// A host that needs no secret, typically one already running fleetd, has none, and looking must not mint one.
+	secret, err := ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
 	require.NoError(t, err)
-	require.Equal(t, emptied, expanded)
-	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, device.ID), "delivery must never mint")
+	require.Empty(t, secret)
+	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, device.ID), "looking up must never mint")
 
-	// Once a decision has minted, delivery resolves to that secret, and keeps resolving to it until it is used.
+	// Once a decision has minted, the lookup returns that secret until it is used.
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 	live := liveWindowsSecret(t, ds, device.ID)
-	want := `<Exec><CommandLine>/quiet FLEET_SECRET="` + live.Secret + `"</CommandLine></Exec>`
-	for range 2 {
-		expanded, err = ds.ExpandWindowsMDMHostSecrets(ctx, doc, device.ID)
-		require.NoError(t, err)
-		require.Equal(t, want, expanded)
-	}
+	require.Equal(t, live.Secret, liveWindowsSecret(t, ds, device.ID).Secret)
 	require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, device.ID))
 
-	// A consumed secret is not handed out again: redelivering the profile afterwards, on a team transfer say, writes nothing.
+	// A consumed secret is not handed out again, so redelivering the profile afterwards, on a team transfer say, writes nothing.
 	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
 	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(live.ID))...)
 	require.NoError(t, err)
-	expanded, err = ds.ExpandWindowsMDMHostSecrets(ctx, doc, device.ID)
+	secret, err = ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
 	require.NoError(t, err)
-	require.Equal(t, emptied, expanded)
-
-	// A document with no host secrets is returned untouched.
-	plain := `<Exec><CommandLine>/quiet</CommandLine></Exec>`
-	out, err := ds.ExpandWindowsMDMHostSecrets(ctx, plain, device.ID)
-	require.NoError(t, err)
-	require.Equal(t, plain, out)
+	require.Empty(t, secret)
 }
 
 func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {

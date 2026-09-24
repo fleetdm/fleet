@@ -2062,7 +2062,7 @@ type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document st
 
 type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollmentID string) (string, error)
 
-type ExpandWindowsMDMHostSecretsFunc func(ctx context.Context, document string, enrollmentID uint) (string, error)
+type GetLiveWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) (string, error)
 
 type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
 
@@ -5542,8 +5542,8 @@ type DataStore struct {
 	ExpandHostSecretsFunc        ExpandHostSecretsFunc
 	ExpandHostSecretsFuncInvoked bool
 
-	ExpandWindowsMDMHostSecretsFunc        ExpandWindowsMDMHostSecretsFunc
-	ExpandWindowsMDMHostSecretsFuncInvoked bool
+	GetLiveWindowsMDMOneTimeEnrollSecretFunc        GetLiveWindowsMDMOneTimeEnrollSecretFunc
+	GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked bool
 
 	MintWindowsMDMOneTimeEnrollSecretFunc        MintWindowsMDMOneTimeEnrollSecretFunc
 	MintWindowsMDMOneTimeEnrollSecretFuncInvoked bool
@@ -13311,11 +13311,11 @@ func (s *DataStore) ExpandHostSecrets(ctx context.Context, document string, enro
 	return s.ExpandHostSecretsFunc(ctx, document, enrollmentID)
 }
 
-func (s *DataStore) ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error) {
+func (s *DataStore) GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
 	s.mu.Lock()
-	s.ExpandWindowsMDMHostSecretsFuncInvoked = true
+	s.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked = true
 	s.mu.Unlock()
-	return s.ExpandWindowsMDMHostSecretsFunc(ctx, document, enrollmentID)
+	return s.GetLiveWindowsMDMOneTimeEnrollSecretFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error {

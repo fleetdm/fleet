@@ -610,56 +610,6 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 	return expanded, nil
 }
 
-// ExpandWindowsMDMHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in a SyncML document about to be delivered to
-// the given Windows MDM enrollment. It is the Windows counterpart of ExpandHostSecrets and exists as its own method because the
-// two identify their subject differently: Apple has a host UUID, Windows has an enrollment row whose host may not exist yet.
-//
-// Unlike the Apple side it never mints. The enroll secret expands to whatever live secret an earlier decision minted for this
-// enrollment, and to an empty string when there is none, which is what a host already running fleetd gets. fleetd treats an empty
-// value as nothing waiting. See MintWindowsMDMOneTimeEnrollSecret for where minting happens and why.
-//
-// Only the enroll secret is supported. The other host-secret types are Apple-only (recovery lock, MDM unlock token, Platform
-// SSO), so anything else is a programming error rather than something to expand to an empty string.
-func (ds *Datastore) ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error) {
-	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
-	if len(hostSecrets) == 0 {
-		return document, nil
-	}
-
-	secretValues := make(map[string]string, len(hostSecrets))
-	for _, secretType := range hostSecrets {
-		switch secretType {
-		case fleet.HostSecretEnrollSecret:
-			secret, err := ds.liveWindowsMDMOneTimeEnrollSecret(ctx, enrollmentID)
-			if err != nil {
-				return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
-			}
-			secretValues[secretType] = secret
-		default:
-			return "", ctxerr.Errorf(ctx, "host secret type %s is not supported on Windows", secretType)
-		}
-	}
-
-	// Windows profiles and commands are always XML, so the substituted value is XML-escaped. The tokens are URL-safe
-	// base64 and so never actually need it, but the escaping is what keeps that an implementation detail.
-	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
-		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
-			return "", false
-		}
-		val, ok := secretValues[strings.TrimPrefix(s, fleet.HostSecretPrefix)]
-		if !ok {
-			return "", false
-		}
-		var b strings.Builder
-		if err := xml.EscapeText(&b, []byte(val)); err != nil {
-			return "", false
-		}
-		return b.String(), true
-	})
-
-	return expanded, nil
-}
-
 // mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
 // registration token bound to hostUUID, using the PSSO signing key asset. The
 // token is not stored: it is minted fresh for the requesting host each time the

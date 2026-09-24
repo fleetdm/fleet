@@ -3781,10 +3781,10 @@ type Datastore interface {
 	// like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 
-	// ExpandWindowsMDMHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in a SyncML document being delivered to
-	// the given Windows MDM enrollment. Windows identifies its subject by enrollment rather than by host UUID, because the
-	// host may not exist yet when the secret is minted.
-	ExpandWindowsMDMHostSecrets(ctx context.Context, document string, enrollmentID uint) (string, error)
+	// GetLiveWindowsMDMOneTimeEnrollSecret returns the unconsumed one-time enroll secret minted for the Windows MDM enrollment,
+	// or "" when there is none, which is the normal state for a host that already runs fleetd. Windows identifies its subject by
+	// enrollment rather than by host UUID, because the host may not exist yet when the secret is minted.
+	GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error)
 
 	// MintWindowsMDMOneTimeEnrollSecret makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an
 	// unconsumed one. Called when Fleet is about to install fleetd on the device. Returns a NotFound error for an unknown enrollment.

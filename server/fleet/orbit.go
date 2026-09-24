@@ -159,8 +159,7 @@ type DatastoreEnrollOrbitConfig struct {
 	// RejectSharedSecretForMDMHosts refuses a shared enroll secret that would
 	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
 	RejectSharedSecretForMDMHosts bool
-	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that
-	// would claim a Windows host enrolled in Fleet MDM.
+	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that would claim a Windows host enrolled in Fleet MDM.
 	RejectSharedSecretForWindowsMDMHosts bool
 
 	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
