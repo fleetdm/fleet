@@ -1,10 +1,10 @@
-import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import ManageSoftwareAutomationsModal from "./ManageSoftwareAutomationsModal";
 

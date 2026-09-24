@@ -3,35 +3,33 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import useGitOpsMode from "hooks/useGitOpsMode";
-
-import { SoftwareCategory } from "interfaces/software";
-import { ILabelSummary } from "interfaces/label";
-
-import { getPathWithQueryParams } from "utilities/url";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
-import paths from "router/paths";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
+import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import RevealButton from "components/buttons/RevealButton";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
-import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import TooltipWrapper from "components/TooltipWrapper";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabelSummary } from "interfaces/label";
+import { SoftwareCategory } from "interfaces/software";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import {
+  EndUserExperience,
   PatchOption,
   SoftwareDeploySelector,
 } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
 } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { generateFormValidation } from "./helpers";
 
@@ -66,6 +64,7 @@ export interface IFleetMaintainedAppFormData {
   forceInstall: boolean;
   patch: boolean;
   patchOption: PatchOption;
+  endUserExperience: EndUserExperience;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
@@ -91,6 +90,7 @@ interface IFleetAppDetailsFormProps {
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
   softwareTitleId?: number;
+  platform?: string;
 }
 
 const FleetAppDetailsForm = ({
@@ -102,12 +102,14 @@ const FleetAppDetailsForm = ({
   onCancel,
   onSubmit,
   softwareTitleId,
+  platform,
 }: IFleetAppDetailsFormProps) => {
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
     forceInstall: false,
     patch: false,
     patchOption: "closed",
+    endUserExperience: "immediate",
     preInstallQuery: "",
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
@@ -208,6 +210,8 @@ const FleetAppDetailsForm = ({
             forceInstall={formData.forceInstall}
             patch={formData.patch}
             patchOption={formData.patchOption}
+            platform={platform}
+            endUserExperience={formData.endUserExperience}
             onToggleForceInstall={(forceInstall) =>
               setFormData((prevData) => ({ ...prevData, forceInstall }))
             }
@@ -216,6 +220,9 @@ const FleetAppDetailsForm = ({
             }
             onSelectPatchOption={(patchOption) =>
               setFormData((prevData) => ({ ...prevData, patchOption }))
+            }
+            onSelectEndUserExperience={(endUserExperience) =>
+              setFormData((prevData) => ({ ...prevData, endUserExperience }))
             }
             disabled={disableChildren}
           />
@@ -290,8 +297,11 @@ const FleetAppDetailsForm = ({
             onChangeUninstallScript={onChangeUninstallScript}
             gitopsCompatible
             gitOpsModeEnabled={gitOpsModeEnabled}
-            patchWhenClosed={
-              formData.patch && formData.patchOption === "closed"
+            preInstallQueryLocked={
+              formData.patch &&
+              (formData.patchOption === "closed" ||
+                (formData.patchOption === "force" &&
+                  formData.endUserExperience === "notify"))
             }
           />
         )}

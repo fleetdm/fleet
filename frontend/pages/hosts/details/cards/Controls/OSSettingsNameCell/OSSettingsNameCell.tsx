@@ -1,10 +1,9 @@
 import React from "react";
 
-import { ProfileScope } from "interfaces/mdm";
-
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import Icon from "components/Icon";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ProfileScope } from "interfaces/mdm";
 
 const baseClass = "os-settings-name-cell";
 

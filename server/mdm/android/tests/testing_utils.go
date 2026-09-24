@@ -98,6 +98,18 @@ func (ds *AndroidDSWithMock) UpdateTeamIDOnAndroidDevices(ctx context.Context, h
 	return ds.Datastore.UpdateTeamIDOnAndroidDevices(ctx, hostUUIDs, teamID)
 }
 
+func (ds *AndroidDSWithMock) GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
+	return ds.Datastore.GetZeroTouchEnrollmentToken(ctx, teamID)
+}
+
+func (ds *AndroidDSWithMock) CreateZeroTouchEnrollmentToken(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	return ds.Datastore.CreateZeroTouchEnrollmentToken(ctx, token)
+}
+
+func (ds *AndroidDSWithMock) DeleteZeroTouchEnrollmentTokens(ctx context.Context) error {
+	return ds.Datastore.DeleteZeroTouchEnrollmentTokens(ctx)
+}
+
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
 func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	return nil

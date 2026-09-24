@@ -1,10 +1,9 @@
 import React, { useMemo } from "react";
 
-import { IMdmSolution } from "interfaces/mdm";
-
+import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
-import Button from "components/buttons/Button";
+import { IMdmSolution } from "interfaces/mdm";
 
 import {
   generateSolutionsDataSet,

@@ -108,7 +108,8 @@ func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetPolicyRequest struct {
-	PolicyID uint `url:"policy_id"`
+	PolicyID uint  `url:"policy_id"`
+	HostID   *uint `query:"host_id,optional"`
 }
 
 type ResetPolicyResponse struct {
@@ -193,6 +194,7 @@ type TeamPolicyRequest struct {
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
+	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
 }
 
 type TeamPolicyResponse struct {

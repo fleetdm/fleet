@@ -1,5 +1,5 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
 import { createMockFleetMaintainedAppDetails } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";
@@ -53,6 +53,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
         patch_software_title_id: 99,
         software_title_id: 99,
         patch_when_closed: true,
+        notify_before_patching: false,
         continuous_automations_enabled: true,
       });
     });

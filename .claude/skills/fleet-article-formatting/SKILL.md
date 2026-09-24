@@ -19,7 +19,7 @@ Fleet publishes several content types under `articles/`. This skill governs the 
 |---|---|---|---|
 | **Article** | Thought-leadership, how-to, and comparison pieces in the house format (title → dek → key takeaways → CTA → body → closing) | `articles`, `comparison` | **this skill** (+ `content-style` for prose) |
 | **Guide** | Step-by-step operational how-to | `guides` | `fleet-guide-formatting` |
-| **Case study** | Customer story; requires summary/quote meta tags | `case study` | its own template (build-enforced) |
+| **Case study** | Customer story; requires summary/quote meta tags | `case study` | `fleet-case-study-formatting` |
 | **Announcement** | Product/news announcement | `announcements` | `content-style` |
 | Release notes, podcasts, webinars, whitepapers, reports | Other content types | `releases`, `podcasts`, `webinar`, `whitepaper`, `report`, … | out of scope here |
 

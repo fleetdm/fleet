@@ -1,4 +1,7 @@
 import React, { useEffect } from "react";
+// Mirrors frontend/index.jsx: react-select v1 base CSS must load before
+// index.scss so Fleet's `.Select-*` overrides (e.g. dark-mode label color) win.
+import "react-select/dist/react-select.css";
 import "../frontend/index.scss";
 import "./preview.scss";
 

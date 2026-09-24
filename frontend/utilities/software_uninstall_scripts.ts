@@ -1,13 +1,13 @@
-import { getExtensionFromFileName } from "./file/fileUtils";
-
-// @ts-ignore
-import uninstallPkg from "../../pkg/file/scripts/uninstall_pkg.sh";
-// @ts-ignore
-import uninstallMsi from "../../pkg/file/scripts/uninstall_msi_with_upgrade_code.ps1";
 // @ts-ignore
 import uninstallDeb from "../../pkg/file/scripts/uninstall_deb.sh";
 // @ts-ignore
+import uninstallMsi from "../../pkg/file/scripts/uninstall_msi_with_upgrade_code.ps1";
+// @ts-ignore
+import uninstallPkg from "../../pkg/file/scripts/uninstall_pkg.sh";
+// @ts-ignore
 import uninstallRPM from "../../pkg/file/scripts/uninstall_rpm.sh";
+
+import { getExtensionFromFileName } from "./file/fileUtils";
 
 /*
  * getUninstallScript returns a string with a script to uninstall the
