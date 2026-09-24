@@ -440,6 +440,25 @@ func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
 	return enrollmentIDs, nil
 }
 
+// rejectSharedSecretForMDMLinkedWindowsUUID refuses a shared enroll secret that would insert a host with the UUID of a Windows
+// MDM enrollment Fleet has linked, typically one whose host was deleted. The real device recovers through the one-time secret
+// Fleet pushes to its enrollment.
+func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtContext, hardwareUUID string) error {
+	if hardwareUUID == "" {
+		return nil
+	}
+	var linked bool
+	if err := sqlx.GetContext(ctx, tx, &linked,
+		`SELECT EXISTS (SELECT 1 FROM mdm_windows_enrollments WHERE host_uuid = ?)`, hardwareUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "check windows mdm enrollment linked to enrolling uuid")
+	}
+	if linked {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
+			"shared enroll secret presented for the uuid of a windows mdm enrollment")
+	}
+	return nil
+}
+
 // consumeHostOneTimeEnrollSecret records the use of a one-time enroll secret
 // by one enrollment plane, inside the enrollment transaction so the node key
 // rotation and the consumption commit or roll back together. matchedHostID is
@@ -548,8 +567,8 @@ func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtCo
 // rejectSharedSecretForMDMManagedWindowsHost refuses a shared enroll secret for a matched Windows host that is enrolled in Fleet MDM,
 // so that another machine cannot take the host over by presenting its identifiers. Such a host gets a one-time secret through the
 // Fleetd enroll secret profile, which an admin resends when fleetd has to enroll again. An enrollment row linked to the host is the
-// signal: an unenroll alert or a re-enrollment of the device deletes it. As on Apple, only a matched row is checked, so a deleted
-// host can still come back with a shared secret.
+// signal: an unenroll alert or a re-enrollment of the device deletes it. A host that would be inserted instead is checked by
+// rejectSharedSecretForMDMLinkedWindowsUUID.
 func rejectSharedSecretForMDMManagedWindowsHost(ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string) error {
 	if platform != "windows" {
 		return nil

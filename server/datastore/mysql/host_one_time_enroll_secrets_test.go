@@ -416,15 +416,36 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	})
 
-	t.Run("a deleted Fleet MDM Windows host is recreated with a shared secret", func(t *testing.T) {
+	t.Run("a deleted Fleet MDM Windows host cannot be recreated with a shared secret", func(t *testing.T) {
+		// The enrollment survives the delete and is linked by UUID, so a new host with that UUID would inherit it. The presented
+		// platform is not trusted, so claiming another one does not help.
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		insertWindowsEnrollment(t, ds, "hw-"+h.UUID, h.UUID)
+		device := insertWindowsEnrollment(t, ds, "hw-"+h.UUID, h.UUID)
 		require.NoError(t, ds.DeleteHost(ctx, h.ID))
 
-		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		asMac := *h
+		asMac.Platform = "darwin"
+		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(&asMac, nil, rejectWindows)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		_, err = ds.HostLiteByIdentifier(ctx, h.UUID)
+		require.True(t, fleet.IsNotFound(err), "no host may be created for the refused enrollments")
+
+		// The way back is the one-time secret Fleet pushes to the enrollment.
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveWindowsSecret(t, ds, device.ID)
+		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
-		require.NotEqual(t, h.ID, recreated.ID)
 		require.Equal(t, h.UUID, recreated.UUID)
+	})
+
+	t.Run("a new Windows host no enrollment claims enrolls with a shared secret", func(t *testing.T) {
+		fresh := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), HardwareSerial: "SERIAL-FRESH", Platform: "windows"}
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(fresh, nil, rejectWindows)...)
+		require.NoError(t, err)
 	})
 
 	t.Run("hosts outside Fleet MDM are unaffected", func(t *testing.T) {
