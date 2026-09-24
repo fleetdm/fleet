@@ -2325,16 +2325,16 @@ type Datastore interface {
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
 
 	// MDMGetEULAMetadata returns metadata information about the EULA
-	// filed stored in the database.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMGetEULABytes returns the bytes of the EULA file stored in
-	// the database. A token is required since this file is publicly
+	// file stored in the database for the given platform.
+	MDMGetEULAMetadata(ctx context.Context, platform string) (*MDMEULA, error)
+	// MDMGetEULABytes returns the bytes of the platform's EULA file stored in
+	// the database. A token is required since the macOS file is publicly
 	// accessible by anyone with the token.
-	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
-	// MDMInsertEULA inserts a new EULA in the database
+	MDMGetEULABytes(ctx context.Context, platform, token string) (*MDMEULA, error)
+	// MDMInsertEULA inserts a new EULA in the database for eula.Platform.
 	MDMInsertEULA(ctx context.Context, eula *MDMEULA) error
-	// MDMDeleteEULA deletes the EULA file from the database
-	MDMDeleteEULA(ctx context.Context, token string) error
+	// MDMDeleteEULA deletes the platform's EULA file from the database.
+	MDMDeleteEULA(ctx context.Context, platform, token string) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)

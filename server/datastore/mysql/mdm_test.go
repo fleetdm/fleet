@@ -3487,11 +3487,14 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 func testMDMEULA(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	const darwin, windows = fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows
+
 	eula := &fleet.MDMEULA{
-		Token:  uuid.New().String(),
-		Name:   "eula.pdf",
-		Bytes:  []byte("contents"),
-		Sha256: []byte("test-sha256"),
+		Token:    uuid.New().String(),
+		Name:     "eula.pdf",
+		Bytes:    []byte("contents"),
+		Sha256:   []byte("test-sha256"),
+		Platform: darwin,
 	}
 
 	err := ds.MDMInsertEULA(ctx, eula)
@@ -3500,31 +3503,73 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 	var ae fleet.AlreadyExistsError
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.ErrorAs(t, err, &ae)
+	// The unique key is on platform, so that is what the conflict names.
+	require.ErrorContains(t, err, darwin)
 
-	gotEULA, err := ds.MDMGetEULAMetadata(ctx)
+	gotEULA, err := ds.MDMGetEULAMetadata(ctx, darwin)
 	require.NoError(t, err)
 	require.NotEmpty(t, gotEULA.CreatedAt)
 	require.Equal(t, eula.Token, gotEULA.Token)
 	require.Equal(t, eula.Name, gotEULA.Name)
+	require.Equal(t, darwin, gotEULA.Platform)
 
-	gotEULABytes, err := ds.MDMGetEULABytes(ctx, eula.Token)
+	gotEULABytes, err := ds.MDMGetEULABytes(ctx, darwin, eula.Token)
 	require.NoError(t, err)
 	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
 	require.Equal(t, eula.Name, gotEULABytes.Name)
 
-	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	err = ds.MDMDeleteEULA(ctx, darwin, eula.Token)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
-	_, err = ds.MDMGetEULAMetadata(ctx)
+	_, err = ds.MDMGetEULAMetadata(ctx, darwin)
 	require.ErrorAs(t, err, &nfe)
-	_, err = ds.MDMGetEULABytes(ctx, eula.Token)
+	_, err = ds.MDMGetEULABytes(ctx, darwin, eula.Token)
 	require.ErrorAs(t, err, &nfe)
-	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	err = ds.MDMDeleteEULA(ctx, darwin, eula.Token)
 	require.ErrorAs(t, err, &nfe)
 
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
+
+	t.Run("platform is required", func(t *testing.T) {
+		err := ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Token: uuid.New().String(), Name: "none.pdf", Bytes: []byte("x")})
+		require.ErrorContains(t, err, "platform is required")
+	})
+
+	t.Run("one agreement per platform, isolated by platform", func(t *testing.T) {
+		terms := &fleet.MDMEULA{
+			Token:    uuid.New().String(),
+			Name:     "terms.md",
+			Bytes:    []byte("# Terms"),
+			Sha256:   []byte("windows-sha256"),
+			Platform: windows,
+		}
+		require.NoError(t, ds.MDMInsertEULA(ctx, terms))
+
+		gotDarwin, err := ds.MDMGetEULAMetadata(ctx, darwin)
+		require.NoError(t, err)
+		require.Equal(t, eula.Token, gotDarwin.Token)
+		gotWindows, err := ds.MDMGetEULAMetadata(ctx, windows)
+		require.NoError(t, err)
+		require.Equal(t, terms.Token, gotWindows.Token)
+		require.Equal(t, windows, gotWindows.Platform)
+
+		// A token only reaches the file of the platform asked for.
+		_, err = ds.MDMGetEULABytes(ctx, windows, eula.Token)
+		require.ErrorAs(t, err, &nfe)
+		_, err = ds.MDMGetEULABytes(ctx, darwin, terms.Token)
+		require.ErrorAs(t, err, &nfe)
+		err = ds.MDMDeleteEULA(ctx, windows, eula.Token)
+		require.ErrorAs(t, err, &nfe)
+
+		// Deleting one platform's agreement leaves the other in place.
+		require.NoError(t, ds.MDMDeleteEULA(ctx, windows, terms.Token))
+		_, err = ds.MDMGetEULAMetadata(ctx, windows)
+		require.ErrorAs(t, err, &nfe)
+		_, err = ds.MDMGetEULAMetadata(ctx, darwin)
+		require.NoError(t, err)
+	})
 }
 
 func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {

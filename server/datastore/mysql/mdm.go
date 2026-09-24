@@ -2201,12 +2201,10 @@ func batchSetProfileLabelAssociationsDB(
 	return updatedDB, nil
 }
 
-func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
-	// Currently, there can only be one EULA in the database, and we're
-	// hardcoding it's id to be 1 in order to enforce this restriction.
-	stmt := "SELECT name, created_at, token, sha256 FROM eulas WHERE id = 1"
+func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform string) (*fleet.MDMEULA, error) {
+	stmt := "SELECT name, created_at, token, sha256, platform FROM eulas WHERE platform = ?"
 	var eula fleet.MDMEULA
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, platform); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
 		}
@@ -2215,10 +2213,12 @@ func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, er
 	return &eula, nil
 }
 
-func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
+func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform, token string) (*fleet.MDMEULA, error) {
+	// Matching the platform too keeps one platform's endpoints from reaching
+	// the other platform's file with a token.
+	stmt := "SELECT name, bytes, platform FROM eulas WHERE token = ? AND platform = ?"
 	var eula fleet.MDMEULA
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token, platform); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
 		}
@@ -2228,17 +2228,20 @@ func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.
 }
 
 func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
-	// We're intentionally hardcoding the id to be 1 because we only want to
-	// allow one EULA.
+	if eula.Platform == "" {
+		return ctxerr.New(ctx, "insert EULA: platform is required")
+	}
+
+	// The unique key on platform allows one EULA per platform.
 	stmt := `
-          INSERT INTO eulas (id, name, bytes, token, sha256)
-	  VALUES (1, ?, ?, ?, ?)
+          INSERT INTO eulas (name, bytes, token, sha256, platform)
+	  VALUES (?, ?, ?, ?, ?)
 	`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token, eula.Sha256)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token, eula.Sha256, eula.Platform)
 	if err != nil {
 		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Token))
+			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Platform))
 		}
 		return ctxerr.Wrap(ctx, err, "create EULA")
 	}
@@ -2246,9 +2249,9 @@ func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) err
 	return nil
 }
 
-func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
-	stmt := "DELETE FROM eulas WHERE token = ?"
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token)
+func (ds *Datastore) MDMDeleteEULA(ctx context.Context, platform, token string) error {
+	stmt := "DELETE FROM eulas WHERE token = ? AND platform = ?"
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token, platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete EULA")
 	}
