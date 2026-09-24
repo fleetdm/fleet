@@ -191,6 +191,40 @@ func TestLoadDeliveredEnrollSecret(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("without a keystore the enroll secret file becomes the store, created if missing", func(t *testing.T) {
+		secretPath := filepath.Join(t.TempDir(), "secret.txt")
+		cleared := false
+		var set string
+
+		loaded, err := loadDeliveredEnrollSecret(
+			func() (string, error) { return "delivered", nil },
+			func() error { cleared = true; return nil },
+			secretPath, &fakeKeystore{supported: true}, true,
+			func(secret string) error { set = secret; return nil },
+		)
+		require.NoError(t, err)
+		require.True(t, loaded)
+		require.Equal(t, "delivered", set)
+		// Left in the registry, the delivered copy would win every start and enroll attempt, even once spent.
+		require.True(t, cleared)
+		got, err := os.ReadFile(secretPath)
+		require.NoError(t, err)
+		require.Equal(t, "delivered", string(got), "the next start must read it from the file")
+	})
+
+	t.Run("without a keystore or an enroll secret path the delivered copy stays the store", func(t *testing.T) {
+		cleared := false
+		loaded, err := loadDeliveredEnrollSecret(
+			func() (string, error) { return "delivered", nil },
+			func() error { cleared = true; return nil },
+			"", &fakeKeystore{supported: false}, false,
+			func(string) error { return nil },
+		)
+		require.NoError(t, err)
+		require.True(t, loaded)
+		require.False(t, cleared, "with no path configured, no file would be read back on the next start")
+	})
 }
 
 func TestThrottledMDMSync(t *testing.T) {

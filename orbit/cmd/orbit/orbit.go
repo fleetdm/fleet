@@ -416,6 +416,9 @@ func loadDeliveredEnrollSecret(
 	}
 
 	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
+	if !ks.Supported() || disableKeystore {
+		return true, moveDeliveredEnrollSecretToFile(secret, clearDelivered, enrollSecretPath, setSecret)
+	}
 	if err := loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
 		if err := clearDelivered(); err != nil {
 			// Not fatal: the secret is already in the keystore, so orbit can enroll.
@@ -455,6 +458,42 @@ func throttledMDMSync(interval time.Duration, enrolledInMDM func() bool, trigger
 			}
 		}()
 	}
+}
+
+// moveDeliveredEnrollSecretToFile is loadDeliveredEnrollSecret without a keystore. The enroll secret file is then where the secret
+// lives across restarts, so the delivered value moves there and the delivered copy is cleared.
+func moveDeliveredEnrollSecretToFile(secret string, clearDelivered func() error, enrollSecretPath string, setSecret func(string) error) error {
+	if err := setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret: %w", err)
+	}
+	if enrollSecretPath == "" {
+		return nil
+	}
+	if err := writeRestrictedFile(enrollSecretPath, secret); err != nil {
+		// Not fatal: the secret is active, and the delivered copy is kept so the next start still has it.
+		log.Warn().Err(err).Msg("failed to move the MDM-delivered enroll secret into the enroll secret file")
+		return nil
+	}
+	if err := clearDelivered(); err != nil {
+		log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+	}
+	return nil
+}
+
+// writeRestrictedFile restricts the file before writing to it, so the contents are never on disk with inherited permissions.
+func writeRestrictedFile(path, contents string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constant.DefaultFileMode)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+	if err := platform.ChmodRestrictFile(path); err != nil {
+		return fmt.Errorf("restrict: %w", err)
+	}
+	if _, err := f.WriteString(contents); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	return f.Close()
 }
 
 // tryReadEnrollSecretFromKeystore loads the enroll secret from the keystore via
