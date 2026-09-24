@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
 
@@ -53,7 +54,7 @@ func (svc *Service) recordEnrollmentRejected(ctx context.Context, reason string,
 	svc.logger.WarnContext(ctx, "enrollment rejected",
 		"reason", reason,
 		"enrollment_plane", attempt.plane,
-		"host_id", hostID,
+		"host_id", ptr.ValOrZero(hostID), // zero when no host was matched
 		"platform", attempt.platform,
 		"hardware_uuid", attempt.hardwareUUID,
 		"hardware_serial", attempt.hardwareSerial,
