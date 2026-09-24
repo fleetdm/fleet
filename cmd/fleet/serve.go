@@ -776,6 +776,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		svc:                    svc,
 		carveStore:             carveStore,
 		enrollHostLimiter:      redisWrapperDS,
+		cleanupStateStore:      redisWrapperDS,
 		liveQueryStore:         liveQueryStore,
 		failingPolicySet:       failingPolicySet,
 		redisPool:              redisPool,
@@ -1251,7 +1252,7 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	}
 	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	chartViewer := chartacl.NewFleetViewerAdapter()
-	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, logger)
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, chartacl.ExpandPlatform, logger)
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
