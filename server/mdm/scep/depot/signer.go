@@ -15,6 +15,7 @@ type Signer struct {
 	caPass           string
 	allowRenewalDays int
 	validityDays     int
+	validity         time.Duration
 	serverAttrs      bool
 	signatureAlgo    x509.SignatureAlgorithm
 }
@@ -66,6 +67,14 @@ func WithValidityDays(v int) Option {
 	}
 }
 
+// WithValidity sets the validity period new certs will use, taking
+// precedence over WithValidityDays.
+func WithValidity(d time.Duration) Option {
+	return func(s *Signer) {
+		s.validity = d
+	}
+}
+
 func WithSeverAttrs() Option {
 	return func(s *Signer) {
 		s.serverAttrs = true
@@ -92,12 +101,17 @@ func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, e
 		signatureAlgo = s.signatureAlgo
 	}
 
+	notAfter := time.Now().AddDate(0, 0, s.validityDays).UTC()
+	if s.validity > 0 {
+		notAfter = time.Now().Add(s.validity).UTC()
+	}
+
 	// create cert template
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
 		Subject:      csr.Subject,
 		NotBefore:    time.Now().Add(time.Second * -600).UTC(),
-		NotAfter:     time.Now().AddDate(0, 0, s.validityDays).UTC(),
+		NotAfter:     notAfter,
 		SubjectKeyId: id,
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{
