@@ -2084,6 +2084,34 @@ type MDMAppleCommandCleanupStateStore interface {
 	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
 }
 
+// MDMAppleCommandCleanupOptions carries the server config knobs into one run of
+// the Apple MDM command cleanup.
+type MDMAppleCommandCleanupOptions struct {
+	// ShortRetention is how long inactive queue rows are kept; zero skips
+	// the inactive purge.
+	ShortRetention time.Duration
+	// MaxRowDeletions caps queue/result pairs deleted per run; zero deletes
+	// none.
+	MaxRowDeletions int
+	// MaxCmdDeletions caps nano_commands rows deleted per run; zero deletes
+	// none.
+	MaxCmdDeletions int
+}
+
+// MDMAppleCommandCleanupStats reports what one cleanup run did, for the cron's
+// log line.
+type MDMAppleCommandCleanupStats struct {
+	InactivePairsDeleted int
+	CommandsDeleted      int
+	// RowBudgetExhausted is set when a pair sweep stopped early, on
+	// MaxRowDeletions or its per-run scan cap, with candidates left, so the
+	// backlog carries over to the next run.
+	RowBudgetExhausted bool
+	// CmdBudgetExhausted is set when the command mop stopped on
+	// MaxCmdDeletions with candidates left.
+	CmdBudgetExhausted bool
+}
+
 // The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.
 //
 // [1] https://developer.apple.com/documentation/devicemanagement/get-token#Discussion
