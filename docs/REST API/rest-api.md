@@ -9482,9 +9482,10 @@ Get information about the EULA file that was uploaded to Fleet. If no EULA previ
 
 ```json
 {
-  "name": "terms.html",
+  "name": "terms.md",
   "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
-  "created_at": "2023-04-20T13:02:05Z"
+  "created_at": "2023-04-20T13:02:05Z",
+  "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3"
 }
 ```
 > In the response above: `token` is the value you can use to download the terms and conditions.
@@ -9536,7 +9537,7 @@ Download a Windows EULA file.
 
 ```http
 Status: 200
-Content-Type: text/html
+Content-Type: text/markdown
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
