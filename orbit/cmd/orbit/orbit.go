@@ -550,13 +550,15 @@ func orbitAction(c *cli.Context) error {
 	disableKeystore := c.Bool("disable-keystore")
 	enrollSecretPath := c.String("enroll-secret-path")
 
+	// Checked before anything below sets enroll-secret, so it judges only what the caller passed.
+	if enrollSecretPath != "" && c.String("enroll-secret") != "" {
+		return errors.New("enroll-secret and enroll-secret-path may not be specified together")
+	}
+
 	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
 	loadedMDMSecret := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
 
 	if enrollSecretPath != "" && !loadedMDMSecret {
-		if c.String("enroll-secret") != "" {
-			return errors.New("enroll-secret and enroll-secret-path may not be specified together")
-		}
 		if err := readEnrollSecretFromFile(enrollSecretPath, realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
 			return err
 		}
