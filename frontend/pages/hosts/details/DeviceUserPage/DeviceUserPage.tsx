@@ -1000,7 +1000,7 @@ const DeviceUserPage = ({
                 <TabPanel>
                   <PoliciesCard
                     policies={displayedPolicies}
-                    isLoading={isLoadingDupDetails || isDupDetailsPreviousData}
+                    isLoading={isDupDetailsPreviousData}
                     deviceUser
                     showHiddenPolicies={showHiddenPolicies}
                     onToggleShowHiddenPolicies={() =>
