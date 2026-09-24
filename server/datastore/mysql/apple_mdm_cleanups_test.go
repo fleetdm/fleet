@@ -31,6 +31,8 @@ func TestAppleMDMCleanups(t *testing.T) {
 		{"RowBudgetStopsLaterSweeps", testNanoCleanupRowBudgetStopsLaterSweeps},
 		{"ScanCapDoesNotStopLaterSweeps", testNanoCleanupScanCapDoesNotStopLaterSweeps},
 		{"RetentionKeepsFannedCommand", testNanoCleanupRetentionKeepsFannedCommand},
+		{"OrphanMop", testNanoCleanupOrphanMop},
+		{"OrphanMopCursorAndBudget", testNanoCleanupOrphanMopCursorAndBudget},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -85,6 +87,15 @@ func (f *nanoCleanupFixture) ageResult(enrollmentID, cmdUUID string, ago time.Du
 		`UPDATE nano_command_results SET updated_at = NOW(6) - INTERVAL ? SECOND WHERE id = ? AND command_uuid = ?`,
 		int(ago.Seconds()), enrollmentID, cmdUUID)
 	require.NoError(f.t, err)
+}
+
+// orphan enqueues a command, removes its queue rows the way nano's own paths
+// do, and backdates the command row to createdAgo.
+func (f *nanoCleanupFixture) orphan(reqType string, createdAgo time.Duration) string {
+	c := f.enqueue(reqType, f.deviceID)
+	f.exec(`DELETE FROM nano_enrollment_queue WHERE command_uuid = ?`, c)
+	f.exec(`UPDATE nano_commands SET created_at = NOW(6) - INTERVAL ? SECOND WHERE command_uuid = ?`, int(createdAgo.Seconds()), c)
+	return c
 }
 
 func (f *nanoCleanupFixture) exec(query string, args ...any) {
@@ -309,7 +320,7 @@ func testNanoCleanupMopKeepsReferencedCommand(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM nano_enrollment_queue WHERE command_uuid = ?`, orphan)
 	require.NoError(t, err)
 
-	deleted, exhausted, err := ds.mopNanoCommands(ctx, []string{renew, orphan}, nanoCleanupDefaults)
+	deleted, exhausted, err := ds.mopNanoCommands(ctx, []string{renew, orphan}, nanoCleanupDefaults, nanoCommandMopFilter)
 	require.NoError(t, err)
 	require.Equal(t, 1, deleted)
 	require.False(t, exhausted)
@@ -612,4 +623,104 @@ func testNanoCleanupScanCapDoesNotStopLaterSweeps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1, RowBudgetExhausted: true}, stats)
 	require.Zero(t, f.queueRows(refetch), "the retention sweep ran despite the purge stopping on its scan cap")
+}
+
+func testNanoCleanupOrphanMop(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// old and unreferenced: goes
+	gone := f.orphan("DeviceInformation", 2*day)
+	// too young to be sure its enqueue finished
+	young := f.orphan("DeviceInformation", time.Hour)
+	// still queued for the device
+	live := f.enqueue("DeviceInformation", f.deviceID)
+	f.exec(`UPDATE nano_commands SET created_at = NOW(6) - INTERVAL ? SECOND WHERE command_uuid = ?`, int((2 * day).Seconds()), live)
+	// soft references the pair guard never sees: a device rename and a lock
+	rename := f.orphan("Settings", 2*day)
+	f.exec(`INSERT INTO host_mdm_apple_device_names (host_uuid, status, command_uuid, expected_device_name) VALUES (?, 'pending', ?, 'mac')`, f.deviceID, rename)
+	lock := f.orphan("DeviceLock", 2*day)
+	f.exec(`INSERT INTO host_mdm_actions (host_id, lock_ref) VALUES (?, ?)`, f.hostID, lock)
+	// the soft references the pair guard knows about pin the walk too
+	profile := f.orphan("InstallProfile", 2*day)
+	f.exec(`INSERT INTO host_mdm_apple_profiles (host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+		VALUES (?, 'prof-1', 'com.example.one', ?, UNHEX(MD5('a')), 'install', 'verified')`, f.deviceID, profile)
+	install := f.orphan("InstallApplication", 2*day)
+	f.exec(`INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('adam-1', 'darwin', 'App', '1.0')`)
+	f.exec(`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid) VALUES (?, 'adam-1', 'darwin', ?)`, f.hostID, install)
+	// real FKs: pinned, and no FK error either
+	renew := f.orphan("InstallProfile", 2*day)
+	f.exec(`INSERT INTO nano_cert_auth_associations (id, sha256, renew_command_uuid) VALUES (?, 'abc123', ?)`, f.deviceID, renew)
+	bootstrap := f.orphan("InstallEnterpriseApplication", 2*day)
+	f.exec(`INSERT INTO host_mdm_apple_bootstrap_packages (host_uuid, command_uuid) VALUES (?, ?)`, f.deviceID, bootstrap)
+
+	state, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{OrphanCommandsDeleted: 1}, stats)
+	require.Zero(t, f.commandRows(gone))
+	for _, c := range []string{young, live, rename, lock, profile, install, renew, bootstrap} {
+		require.Equal(t, 1, f.commandRows(c), c)
+	}
+	require.Equal(t, fleet.MDMAppleCommandOrphanCursor{}, state.Orphan, "a short page laps the walk")
+
+	// a zero command budget skips the walk entirely
+	stale := f.orphan("DeviceInformation", 2*day)
+	_, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, 0), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{}, stats)
+	require.Equal(t, 1, f.commandRows(stale))
+}
+
+func testNanoCleanupOrphanMopCursorAndBudget(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	origBatch, origScans := nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun
+	nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = 2, 1
+	t.Cleanup(func() { nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = origBatch, origScans })
+
+	// three referenced commands sort first (oldest), three orphans behind them
+	for i := range 3 {
+		c := f.orphan("DeviceLock", 40*day-time.Duration(i)*time.Hour)
+		f.exec(`INSERT INTO host_mdm_actions (host_id, lock_ref) VALUES (?, ?)`, uint(1000+i), c)
+	}
+	var orphans []string
+	for i := range 3 {
+		orphans = append(orphans, f.orphan("DeviceInformation", 30*day-time.Duration(i)*time.Hour))
+	}
+	countOrphans := func() int {
+		return f.count("nano_commands", "command_uuid IN (?, ?, ?)", orphans[0], orphans[1], orphans[2])
+	}
+	opts := nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults)
+
+	// run 1: one page of two referenced rows, nothing deleted, cursor stored
+	state, stats, err := ds.CleanupNanoCommands(ctx, opts, nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{CmdBudgetExhausted: true}, stats)
+	require.NotEqual(t, fleet.MDMAppleCommandOrphanCursor{}, state.Orphan)
+	require.Equal(t, 3, countOrphans())
+
+	// run 2 resumes: third referenced row plus the first orphan
+	state, stats, err = ds.CleanupNanoCommands(ctx, opts, state)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{OrphanCommandsDeleted: 1, CmdBudgetExhausted: true}, stats)
+	require.Equal(t, 2, countOrphans())
+
+	// run 3 with a budget of 1: the page holds two orphans, only one may go,
+	// and the cursor stays before the page so the other is retried
+	before := state.Orphan
+	state, stats, err = ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, 1), state)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{OrphanCommandsDeleted: 1, CmdBudgetExhausted: true}, stats)
+	require.Equal(t, before, state.Orphan, "budget hit keeps the cursor before the page")
+	require.Equal(t, 1, countOrphans())
+
+	// run 4 finishes the range and laps
+	state, stats, err = ds.CleanupNanoCommands(ctx, opts, state)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{OrphanCommandsDeleted: 1}, stats)
+	require.Zero(t, countOrphans())
+	require.Equal(t, fleet.MDMAppleCommandOrphanCursor{}, state.Orphan)
 }
