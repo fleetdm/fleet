@@ -206,7 +206,7 @@ If you change an app's patch settings while a host's timer is running, the host'
 - [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop)
 
 
-<meta name="articleTitle" value="Choose what end users see when Fleet patches apps">
+<meta name="articleTitle" value="Patching end user experience">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
