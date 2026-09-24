@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"log/slog"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -14,14 +13,10 @@ import (
 )
 
 // Windows MDM has no CSP that writes an arbitrary registry value. The documented route is to ingest an ADMX that declares a
-// policy pointing at the key you want, then set that policy. The restriction on ingested policies is a denylist of Microsoft's
-// own trees (System, Software\Microsoft, Software\Policies\Microsoft), so SOFTWARE\FleetDM\Orbit is a legal target, and a
-// <text> element produces a REG_SZ. Requires Windows 10 1709 or later, device scope, and not Home.
-//
-// The value this writes, HKLM\SOFTWARE\FleetDM\Orbit\EnrollSecret, is what orbit reads on every start and clears once the
-// secret is in its keystore. That is what makes this profile the recovery path: an administrator resending it delivers a fresh
-// secret to a host whose previous one was spent, without reinstalling the MSI (whose fixed product GUID would refuse to run
-// again anyway).
+// policy pointing at the key you want, then set that policy. The value this writes, HKLM\SOFTWARE\FleetDM\Orbit\EnrollSecret, is
+// what orbit reads on every start and clears once the secret is in its keystore. That is what makes this profile the recovery
+// path: an administrator resending it delivers a fresh secret to a host whose previous one was spent, without reinstalling the
+// MSI (whose fixed product GUID would refuse to run again anyway).
 //
 //nolint:gosec // G101 false positive, a policy definition, not a credential
 const windowsEnrollSecretADMX = `<policyDefinitions revision="1.0" schemaVersion="1.0">
@@ -56,14 +51,6 @@ const (
 )
 
 // windowsEnrollSecretProfileSyncML builds the Fleet-managed profile that carries a one-time enroll secret to the registry.
-//
-// The Add and the Replace are separate top-level elements rather than one Atomic, because the ADMX has to be ingested before
-// the policy it declares can be set, and Fleet delivers a profile's elements in document order within a single SyncML body. A
-// re-sent Add on a device that already ingested it answers 418, which Fleet already converts to a Replace in the same session.
-//
-// The secret itself is never in here: the profile stores the $FLEET_HOST_SECRET_ENROLL_SECRET placeholder, resolved per
-// enrollment at delivery to the live secret an earlier decision minted, or to an empty value for a host that needs none. So the
-// profile goes to every Windows MDM host in the team, but only a host being set up or recovered receives a secret.
 func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 	var admx bytes.Buffer
 	if err := xml.EscapeText(&admx, []byte(windowsEnrollSecretADMX)); err != nil {
@@ -109,31 +96,10 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 // its one-time enroll secrets, so the agent is left holding one the server no longer knows, and with no host there is no profile
 // to resend. The enrollment survives the delete, and its MDM session is a channel only that device holds, so Fleet mints a secret
 // for the enrollment and writes it to the registry value the enroll secret profile carries. orbit reads that value before each
-// enroll attempt, and its enrollment recreates the host, or claims the pending Autopilot host by serial.
-//
-// The push is the profile's own SyncML, so it also works on a device that never ingested the ADMX; a device that did answers the
-// Add with 418, which the session already re-issues as a Replace. Only one push is queued at a time, and minting reuses a live
-// secret, so repeated sessions deliver the same one. Failures are logged rather than returned, so the session is unaffected and
-// the next one tries again.
+// enroll attempt, and its enrollment recreates the host, or claims the pending Autopilot host by serial. Failures are logged
+// rather than returned, so the session is unaffected and the next one tries again.
 func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) {
-	if !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets || enrolledDevice.HostUUID == "" {
-		return
-	}
 	logger := svc.logger.With("enrollment_id", enrolledDevice.ID, "host_uuid", enrolledDevice.HostUUID)
-
-	// This runs on every session of every linked host, so the replica answers the common case. Only a miss is confirmed on the
-	// primary: orbit recreates the host moments after a push lands, and a lagging replica would make it look deleted again,
-	// minting a secret nothing needs.
-	for _, lookupCtx := range []context.Context{ctx, ctxdb.RequirePrimary(ctx, true)} {
-		_, err := svc.ds.HostLiteByIdentifier(lookupCtx, enrolledDevice.HostUUID)
-		switch {
-		case err == nil:
-			return
-		case !fleet.IsNotFound(err):
-			logger.ErrorContext(ctx, "failed to look up the host of a windows mdm enrollment", "err", err)
-			return
-		}
-	}
 
 	pending, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {

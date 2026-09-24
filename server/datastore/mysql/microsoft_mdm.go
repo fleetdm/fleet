@@ -86,7 +86,10 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enrolled_activity_at,
 		created_at,
 		updated_at,
-		host_uuid
+		host_uuid,
+		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row.
+		(SELECT h.id FROM hosts h WHERE h.uuid = mdm_windows_enrollments.host_uuid AND mdm_windows_enrollments.host_uuid != ''
+			ORDER BY h.id LIMIT 1) AS linked_host_id
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice

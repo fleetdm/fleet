@@ -713,6 +713,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		other := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		// Lowercase on purpose: the enrollment and the hosts row need not agree on case.
 		device := insertWindowsEnrollment(t, ds, "hw-bind-linked", strings.ToLower(victim.UUID))
+		require.Equal(t, victim.ID, *device.LinkedHostID, "the session's enrollment load finds the linked host")
 
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		row := liveWindowsSecret(t, ds, device.ID)
@@ -739,6 +740,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		// keeps the same secret, and it must not stay unbound through that.
 		host := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		device := insertWindowsEnrollment(t, ds, "hw-bind-reuse", "")
+		require.Nil(t, device.LinkedHostID)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		before := liveWindowsSecret(t, ds, device.ID)
 
@@ -763,6 +765,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		lowest := newWindowsHost(sharedAgain, "instance-a-"+sharedAgain[:8])
 		_ = newWindowsHost(sharedAgain, "instance-b-"+sharedAgain[:8])
 		deviceAgain := insertWindowsEnrollment(t, ds, "hw-bind-dup-again", sharedAgain)
+		require.Equal(t, lowest.ID, *deviceAgain.LinkedHostID, "hosts sharing a UUID must not multiply the enrollment row")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, deviceAgain.ID))
 		require.Equal(t, lowest.ID, *liveWindowsSecret(t, ds, deviceAgain.ID).HostID, "with no identifier match, the lowest id")
 	})
@@ -825,6 +828,9 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		device := insertWindowsEnrollment(t, ds, "hw-claim-own", h.UUID)
 		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+		reloaded, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.Nil(t, reloaded.LinkedHostID, "the deleted host leaves its enrollment linked by UUID, with no host behind it")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		row := liveWindowsSecret(t, ds, device.ID)
 		require.Nil(t, row.HostID)

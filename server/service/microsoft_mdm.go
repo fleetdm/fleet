@@ -1640,7 +1640,9 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		}
 	}
 
-	svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
+	if svc.config.Auth.MDMWindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
+		svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
+	}
 	return nil
 }
 
