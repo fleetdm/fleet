@@ -426,6 +426,41 @@ describe("Device User Page", () => {
     });
   });
 
+  describe("issues count", () => {
+    it("counts only unhidden failing policies", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.issues = {
+        total_issues_count: 3,
+        critical_vulnerabilities_count: 0,
+        failing_policies_count: 3,
+        failing_unhidden_policies_count: 1,
+      };
+      mockServer.use(customDeviceHandler({ host }));
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS("testToken"),
+          }}
+        />
+      );
+
+      const issuesTitle = await screen.findByText("Issues");
+      expect(issuesTitle.nextElementSibling).toHaveTextContent(/^1$/);
+
+      await user.hover(screen.getByText("1"));
+      expect(
+        await screen.findByText("Failing policies (1)")
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("hidden policies toggle", () => {
     it("requests hidden policies only after the toggle is switched on", async () => {
       const requestedUrls: string[] = [];

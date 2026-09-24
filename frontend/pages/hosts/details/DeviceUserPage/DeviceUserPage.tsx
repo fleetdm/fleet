@@ -90,6 +90,7 @@ import {
   isIPad,
   isRecentlyEnrolled,
   isMismatchedSSOUserError,
+  toEndUserIssues,
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
@@ -466,6 +467,10 @@ const DeviceUserPage = ({
   );
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
+
+  const deviceSummaryData = host?.issues
+    ? { ...summaryData, issues: toEndUserIssues(host.issues) }
+    : summaryData;
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
@@ -926,7 +931,7 @@ const DeviceUserPage = ({
               <TabPanel className={`${baseClass}__details-panel`}>
                 <HostSummaryCard
                   className={fullWidthCardClass}
-                  summaryData={summaryData}
+                  summaryData={deviceSummaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                 />

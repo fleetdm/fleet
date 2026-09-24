@@ -1,6 +1,7 @@
 import { AxiosError } from "axios";
 
 import { getErrorReason } from "interfaces/errors";
+import { IHostIssues } from "interfaces/host";
 import { ISetupStep } from "interfaces/setup";
 import { SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
 
@@ -139,3 +140,17 @@ export const clearDeviceSSOAttempt = (deviceAuthToken: string): boolean => {
 export const isMismatchedSSOUserError = (error: AxiosError | null): boolean =>
   error?.status === 400 &&
   getErrorReason(error) === "mismatched SSO user for this device";
+
+/** End users never see hidden policies, so their issue counts exclude hidden failures */
+export const toEndUserIssues = (issues: IHostIssues): IHostIssues => {
+  if (issues.failing_unhidden_policies_count === undefined) {
+    return issues;
+  }
+  const hiddenFailing =
+    issues.failing_policies_count - issues.failing_unhidden_policies_count;
+  return {
+    ...issues,
+    failing_policies_count: issues.failing_unhidden_policies_count,
+    total_issues_count: issues.total_issues_count - hiddenFailing,
+  };
+};
