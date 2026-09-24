@@ -137,6 +137,21 @@ type authenticatedAttribute struct {
 	Value asn1.RawValue `asn1:"set"`
 }
 
+// These bound the work done on deviceinfo, which is verified before any
+// enrollment token or authentication is checked. Genuine Apple payloads are a
+// few KB and carry a leaf plus at most a couple of intermediates.
+const (
+	// maxDeviceinfoSize caps the decoded payload, matching the limit the
+	// enroll request body already applies.
+	maxDeviceinfoSize = 10 * 1024
+	// maxDeviceinfoCerts caps the certificate bag; the chain walk is quadratic
+	// in its size.
+	maxDeviceinfoCerts = 10
+	// maxChainSignatureChecks caps signature verifications across the whole
+	// chain walk, mirroring the budget crypto/x509 applies to Verify.
+	maxChainSignatureChecks = 100
+)
+
 func verifyAppleSignedPKCS7(p7 *pkcs7.PKCS7, deviceCAs []*x509.Certificate) error {
 	if p7 == nil {
 		return errors.New("no pkcs7 payload")
@@ -148,6 +163,10 @@ func verifyAppleSignedPKCS7(p7 *pkcs7.PKCS7, deviceCAs []*x509.Certificate) erro
 		return fmt.Errorf("expected exactly one signer, got %d", len(p7.Signers))
 	}
 	signer := p7.Signers[0]
+
+	if len(p7.Certificates) > maxDeviceinfoCerts {
+		return fmt.Errorf("too many certificates in payload: %d (max %d)", len(p7.Certificates), maxDeviceinfoCerts)
+	}
 
 	var signerCert *x509.Certificate
 	for _, cert := range p7.Certificates {
@@ -314,6 +333,8 @@ func signatureAlgorithmForOIDs(encryptionOID, digestOID asn1.ObjectIdentifier) (
 	return 0, fmt.Errorf("unsupported signature algorithm: %s with digest %s", encryptionOID, digestOID)
 }
 
+var errChainSignatureBudget = fmt.Errorf("certificate chain exceeds %d signature checks", maxChainSignatureChecks)
+
 // verifyChainToDeviceCA walks the certificate chain from the leaf and requires
 // that some certificate in the path was issued by one of the pinned Apple
 // device-identity CAs. Only signatures are verified: validity windows are
@@ -327,10 +348,21 @@ func signatureAlgorithmForOIDs(encryptionOID, digestOID asn1.ObjectIdentifier) (
 // rejected.
 func verifyChainToDeviceCA(leaf *x509.Certificate, bag []*x509.Certificate, deviceCAs []*x509.Certificate) error {
 	cert := leaf
+	checks := 0
+	checkSignature := func(issuer, subject *x509.Certificate) error {
+		checks++
+		if checks > maxChainSignatureChecks {
+			return errChainSignatureBudget
+		}
+		return issuer.CheckSignature(subject.SignatureAlgorithm, subject.RawTBSCertificate, subject.Signature)
+	}
 	for range len(bag) + 1 {
 		for _, ca := range deviceCAs {
 			if bytes.Equal(cert.RawIssuer, ca.RawSubject) {
-				if err := ca.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
+				if err := checkSignature(ca, cert); err != nil {
+					if errors.Is(err, errChainSignatureBudget) {
+						return err
+					}
 					return fmt.Errorf("verifying signature of %q against pinned Apple device CA %q: %w",
 						cert.Subject.CommonName, ca.Subject.CommonName, err)
 				}
@@ -348,7 +380,10 @@ func verifyChainToDeviceCA(leaf *x509.Certificate, bag []*x509.Certificate, devi
 				lastErr = fmt.Errorf("issuer %q of %q is not a CA certificate", candidate.Subject.CommonName, cert.Subject.CommonName)
 				continue
 			}
-			if err := candidate.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
+			if err := checkSignature(candidate, cert); err != nil {
+				if errors.Is(err, errChainSignatureBudget) {
+					return err
+				}
 				lastErr = fmt.Errorf("verifying signature of %q against %q: %w",
 					cert.Subject.CommonName, candidate.Subject.CommonName, err)
 				continue
@@ -381,6 +416,9 @@ func ParseDeviceinfo(b64 string) (*fleet.MDMAppleMachineInfo, *pkcs7.PKCS7, erro
 		if err != nil {
 			return nil, nil, fmt.Errorf("could not decode base64: %w", err)
 		}
+	}
+	if len(buf) > maxDeviceinfoSize {
+		return nil, nil, fmt.Errorf("deviceinfo exceeds %d bytes", maxDeviceinfoSize)
 	}
 
 	return ParseMachineInfoFromPKCS7(buf)
