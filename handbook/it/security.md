@@ -2116,7 +2116,7 @@ In June 2026, [Aikido Security](https://www.aikido.dev/) performed a white box p
 
 Because a swarm of agents covers far more surface area in parallel than a single human tester, the assessment surfaced more findings than previous black box penetration tests.
 
-The assessment identified 157 findings across high, medium, and low severities, and no critical severity findings. Findings were concentrated in these categories:
+The assessment identified findings across high, medium, and low severities, and no critical severity findings. Findings were concentrated in these categories:
 
 - Authorization and access controls
 - Authentication and device enrollment
