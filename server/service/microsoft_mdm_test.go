@@ -706,14 +706,8 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 // stubFleetWindowsProfileEnsure stubs the datastore calls made by ensureFleetWindowsProfiles, which ReconcileWindowsProfiles
 // now runs before the reconcile pass. These tests exercise the pass, not the ensure step; they just must not panic on the calls.
 func stubFleetWindowsProfileEnsure(ds *mock.Store) {
-	ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+	ds.ListMDMWindowsConfigProfilesByNameFunc = func(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
 		return nil, nil
-	}
-	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-		return nil
-	}
-	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, name string) error {
-		return nil
 	}
 }
 

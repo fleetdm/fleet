@@ -2510,6 +2510,16 @@ func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys
 	return rows, nil
 }
 
+func (ds *Datastore) ListMDMWindowsConfigProfilesByName(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
+	var profiles []*fleet.MDMWindowsConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles,
+		`SELECT profile_uuid, NULLIF(team_id, 0) AS team_id, name FROM mdm_windows_configuration_profiles WHERE name = ?`,
+		name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list windows configuration profiles by name")
+	}
+	return profiles, nil
+}
+
 func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {
 	var globalOrTeamID uint
 	if teamID != nil {

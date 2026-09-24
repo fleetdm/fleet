@@ -854,6 +854,11 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	secretProfileUUID := secretProfile.ProfileUUID
+	byName, err := ds.ListMDMWindowsConfigProfilesByName(ctx, fleetmdm.FleetWindowsEnrollSecretProfileName)
+	require.NoError(t, err)
+	require.Len(t, byName, 1)
+	require.Equal(t, secretProfileUUID, byName[0].ProfileUUID)
+	require.Nil(t, byName[0].TeamID, "no team is stored as 0 and reported as nil")
 
 	otherProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name: "Custom settings", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Custom</LocURI></Target></Item></Replace>`),

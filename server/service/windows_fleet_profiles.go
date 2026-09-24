@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
 
@@ -142,29 +143,48 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 // One profile per team, plus "no team", because a Windows configuration profile is scoped by team and every Windows MDM host
 // needs the carrier. The contents are identical everywhere: the secret is resolved per enrollment at delivery, not per team.
 func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, useOneTimeEnrollSecrets bool) error {
-	teamIDs, err := windowsProfileTeamTargets(ctx, ds)
+	// This runs on every reconcile, so one read decides what, if anything, needs writing.
+	existing, err := ds.ListMDMWindowsConfigProfilesByName(ctx, mdm.FleetWindowsEnrollSecretProfileName)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "listing windows enroll secret profiles")
 	}
 
 	if !useOneTimeEnrollSecrets {
-		// Turning the feature off has to take the carrier with it. The profile's existence is what an administrator resend mints
-		// against, so removing it is what actually stops minting; leaving it would keep handing out secrets that enrollment,
-		// with both switches off, no longer accepts.
-		for _, teamID := range teamIDs {
-			if err := ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsEnrollSecretProfileName); err != nil &&
-				!fleet.IsNotFound(err) {
+		// Turning the feature off has to take the profile with it.
+		for _, profile := range existing {
+			if err := ds.DeleteMDMWindowsConfigProfile(ctx, profile.ProfileUUID); err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(ctx, err, "deleting windows enroll secret profile")
 			}
 		}
 		return nil
 	}
 
+	// Only missing profiles are written, never an existing one. Rewriting would change its checksum and redeliver it to every host
+	// in the team, a fleet-wide wave of commands on an upgrade for a profile that almost always carries an empty value. A future
+	// content change that has to reach existing hosts should be a deliberate step.
+	present := make(map[uint]bool, len(existing))
+	for _, profile := range existing {
+		present[ptr.ValOrZero(profile.TeamID)] = true
+	}
+
 	syncML, err := windowsEnrollSecretProfileSyncML()
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building windows enroll secret profile")
 	}
+
+	teams, err := ds.TeamsSummary(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing teams for windows enroll secret profiles")
+	}
+	teamIDs := []*uint{nil}
+	for _, team := range teams {
+		teamIDs = append(teamIDs, &team.ID)
+	}
+	written := 0
 	for _, teamID := range teamIDs {
+		if present[ptr.ValOrZero(teamID)] {
+			continue
+		}
 		if err := ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 			TeamID: teamID,
 			Name:   mdm.FleetWindowsEnrollSecretProfileName,
@@ -172,30 +192,10 @@ func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger 
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting windows enroll secret profile")
 		}
+		written++
 	}
-	logger.DebugContext(ctx, "ensured windows enroll secret profiles", "teams", len(teamIDs))
+	if written > 0 {
+		logger.DebugContext(ctx, "wrote windows enroll secret profiles", "teams", written)
+	}
 	return nil
-}
-
-// windowsProfileTeamTargets returns every team a Fleet-managed Windows profile belongs to, with nil for "no team".
-//
-// AggregateEnrollSecretPerTeam is the enumeration Apple's equivalent uses. It returns a row per team whether or not the team has
-// a shared secret, but omits "no team" when that has none, so "no team" is added when missing.
-func windowsProfileTeamTargets(ctx context.Context, ds fleet.Datastore) ([]*uint, error) {
-	secrets, err := ds.AggregateEnrollSecretPerTeam(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets aggregates")
-	}
-	targets := make([]*uint, 0, len(secrets)+1)
-	hasNoTeam := false
-	for _, es := range secrets {
-		if es.TeamID == nil {
-			hasNoTeam = true
-		}
-		targets = append(targets, es.TeamID)
-	}
-	if !hasNoTeam {
-		targets = append(targets, nil)
-	}
-	return targets, nil
 }

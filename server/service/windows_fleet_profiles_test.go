@@ -59,57 +59,69 @@ func TestEnsureFleetWindowsProfiles(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	teamID := uint(3)
 
-	newDS := func() *mock.Store {
+	newDS := func(existing ...*fleet.MDMWindowsConfigProfile) *mock.Store {
 		ds := new(mock.Store)
-		// A team with no shared secret still gets a row; "no team" is omitted when it has none, which is why the target
-		// list adds it back.
-		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{{TeamID: &teamID}}, nil
+		ds.ListMDMWindowsConfigProfilesByNameFunc = func(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
+			require.Equal(t, mdm.FleetWindowsEnrollSecretProfileName, name)
+			return existing, nil
+		}
+		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+			return []*fleet.TeamSummary{{ID: teamID}}, nil
 		}
 		return ds
+	}
+	upserted := func(ds *mock.Store) *[]*uint {
+		var teams []*uint
+		ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+			require.Equal(t, mdm.FleetWindowsEnrollSecretProfileName, cp.Name)
+			require.Contains(t, string(cp.SyncML), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
+			teams = append(teams, cp.TeamID)
+			return nil
+		}
+		return &teams
 	}
 
 	t.Run("enabled: one profile per team and no team", func(t *testing.T) {
 		ds := newDS()
-		var gotTeams []*uint
-		var gotName string
-		var gotSyncML []byte
-		ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-			gotTeams = append(gotTeams, cp.TeamID)
-			gotName = cp.Name
-			gotSyncML = cp.SyncML
-			return nil
-		}
-
+		teams := upserted(ds)
 		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
-		require.Equal(t, []*uint{&teamID, nil}, gotTeams)
-		require.Equal(t, mdm.FleetWindowsEnrollSecretProfileName, gotName)
-		require.Contains(t, string(gotSyncML), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
-		require.False(t, ds.DeleteMDMWindowsConfigProfileByTeamAndNameFuncInvoked)
+		require.Equal(t, []*uint{nil, &teamID}, *teams)
+		require.False(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("enabled: only missing profiles are written, an existing one is never rewritten", func(t *testing.T) {
+		// No team already has one, so only the team's is written. Rewriting no team's would redeliver it to every host in it.
+		ds := newDS(&fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"})
+		teams := upserted(ds)
+		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
+		require.Equal(t, []*uint{&teamID}, *teams)
+
+		ds = newDS(&fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"}, &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-team", TeamID: &teamID})
+		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
+		require.False(t, ds.SetOrUpdateMDMWindowsConfigProfileFuncInvoked)
 	})
 
 	t.Run("disabled: the carrier is removed", func(t *testing.T) {
-		ds := newDS()
-		var deletedTeams []*uint
-		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, tid *uint, name string) error {
-			require.Equal(t, mdm.FleetWindowsEnrollSecretProfileName, name)
-			deletedTeams = append(deletedTeams, tid)
+		ds := newDS(&fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"}, &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-team", TeamID: &teamID})
+		var deleted []string
+		ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
+			deleted = append(deleted, profileUUID)
 			return nil
 		}
 
 		// Leaving it behind would leave an administrator resend able to mint secrets that, with the switch off, enrollment
 		// no longer accepts.
 		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, false))
-		require.Equal(t, []*uint{&teamID, nil}, deletedTeams)
+		require.Equal(t, []string{"w-none", "w-team"}, deleted)
 		require.False(t, ds.SetOrUpdateMDMWindowsConfigProfileFuncInvoked)
+		require.False(t, ds.TeamsSummaryFuncInvoked, "removal needs only the profiles that exist")
 	})
 
-	t.Run("disabled: an absent profile is not an error", func(t *testing.T) {
+	t.Run("disabled: nothing to remove costs one read", func(t *testing.T) {
 		ds := newDS()
-		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, tid *uint, name string) error {
-			return newNotFoundError()
-		}
 		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, false))
+		require.False(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+		require.False(t, ds.TeamsSummaryFuncInvoked)
 	})
 }
 
