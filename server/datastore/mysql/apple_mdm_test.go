@@ -59,6 +59,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
+		{"TestDeleteMDMAppleConfigProfileCleansUpOptIns", testDeleteMDMAppleConfigProfileCleansUpOptIns},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
@@ -1109,6 +1110,27 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{hosts[1].UUID, userEnrollmentIDs[1]}, ids)
+}
+
+func testDeleteMDMAppleConfigProfileCleansUpOptIns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
+
+	// Simulate an opt-in for the profile
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "INSERT INTO host_mdm_profile_opt_ins (profile_uuid, host_uuid) VALUES (?, ?), (?, ?)", initialCP.ProfileUUID, "dummy-host-uuid", uuid.NewString(), "dummy-host-uuid")
+		return err
+	})
+
+	err := ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+
+	// The opt-in should also be deleted
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM host_mdm_profile_opt_ins")
+	})
+	require.Equal(t, 1, count, "it should only touch the profile uuid linked row")
 }
 
 func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
@@ -5938,6 +5960,13 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Pending)
 	require.EqualValues(t, 1, sum.Installed)
 
+	// Add a opt in profile record
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+		VALUES (?, ?)
+	`, host.UUID, "profile-uuid")
+	require.NoError(t, err)
+
 	// reset the enrollment
 	err = ds.MDMResetEnrollment(ctx, host.UUID, false)
 	require.NoError(t, err)
@@ -5965,6 +5994,11 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, details.HardwareAttested)
+
+	var optInCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &optInCount,
+		`SELECT COUNT(*) FROM host_mdm_profile_opt_ins WHERE host_uuid = ?`, host.UUID))
+	require.Zero(t, optInCount)
 }
 
 func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
