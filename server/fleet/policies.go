@@ -84,6 +84,8 @@ type PolicyPayload struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -143,6 +145,8 @@ type NewTeamPolicyPayload struct {
 	ContinuousAutomationsEnabled bool
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
 }
 
 var (
@@ -163,6 +167,9 @@ var (
 	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
+	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\" or \"notify_before_patching\" can be set to true")
+	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -184,6 +191,12 @@ func (p PolicyPayload) Verify() error {
 	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchWhenClosed && p.NotifyBeforePatching {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
@@ -424,12 +437,17 @@ type ModifyPolicyPayload struct {
 	Type string `json:"-"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
 	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching != nil && *p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
 	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
@@ -535,6 +553,8 @@ type PolicyData struct {
 
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 
 	UpdateCreateTimestamps
 }
@@ -635,6 +655,7 @@ type PolicySoftwareInstallerData struct {
 	ID                           uint `db:"id"`
 	InstallerID                  uint `db:"software_installer_id"`
 	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+	OverridePreInstallQuery      bool `db:"override_pre_install_query"`
 }
 
 type PolicyVPPData struct {
@@ -802,6 +823,8 @@ type PolicySpec struct {
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed bool `json:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -874,6 +897,12 @@ func (p PolicySpec) Verify() error {
 	}
 	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
 		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchWhenClosed && p.NotifyBeforePatching {
+		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()
 }

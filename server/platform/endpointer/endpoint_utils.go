@@ -1068,9 +1068,14 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler
 	}
 
 	limit := e.requestBodySizeLimit
+	if limit == 0 {
+		// fallback to the default max request body size ONLY if a custom value is not provided.
+		limit = platform_http.MaxRequestBodySize
+	}
+
 	if limit != -1 {
-		// Use the maximum of instance defaults and any override (if configured)
-		limit = max(limit, platform_http.MaxRequestBodySize, platform_http.EndpointRequestSizeOverrides[path])
+		// Let endpoint specific overrides expand, but always use the set max in handler.go if set.
+		limit = max(limit, platform_http.EndpointRequestSizeOverrides[path])
 	}
 	h := newServer(endp, e.MakeDecoderFn(v, limit), e.EncodeFn, e.Opts)
 	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can

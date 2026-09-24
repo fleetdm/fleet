@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260922124402, Down_20260922124402)
+	MigrationClient.AddMigration(Up_20260923202245, Down_20260923202245)
 }
 
-func Up_20260922124402(tx *sql.Tx) error {
+func Up_20260923202245(tx *sql.Tx) error {
 	if columnExists(tx, "policies", "hidden") {
 		return nil
 	}
@@ -23,6 +23,6 @@ func Up_20260922124402(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260922124402(tx *sql.Tx) error {
+func Down_20260923202245(tx *sql.Tx) error {
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260922124402(t *testing.T) {
+func TestUp_20260923202245(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	existingID := execNoErrLastID(t, db,
@@ -26,7 +26,7 @@ func TestUp_20260922124402(t *testing.T) {
 	require.True(t, hidden)
 }
 
-func TestUp_20260922124402_PartiallyApplied(t *testing.T) {
+func TestUp_20260923202245_PartiallyApplied(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// The column already exists but the migration was never recorded; the retry must be a no-op.
