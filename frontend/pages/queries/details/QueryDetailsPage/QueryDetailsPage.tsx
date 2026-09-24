@@ -14,7 +14,9 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError/DataError";
 import InfoBanner from "components/InfoBanner";
-import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
+import LogDestinationIndicator, {
+  getReadableLogDestination,
+} from "components/LogDestinationIndicator/LogDestinationIndicator";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import PageDescription from "components/PageDescription";
@@ -301,6 +303,7 @@ const QueryDetailsPage = ({
     (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
   const renderHeader = () => {
+    const logDestination = config?.logging.result.plugin || "";
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
       if (hostId)
@@ -407,9 +410,11 @@ const QueryDetailsPage = ({
                   tipContent={
                     <>
                       Report automations let you send data to your log
-                      destination on a schedule. When automations are{" "}
-                      <strong>on</strong>, data is sent according to a
-                      report&apos;s interval.
+                      destination
+                      {logDestination &&
+                        ` (${getReadableLogDestination(logDestination)})`}{" "}
+                      on a schedule. When automations are <strong>on</strong>,
+                      data is sent according to a report&apos;s interval.
                     </>
                   }
                 >
@@ -420,16 +425,20 @@ const QueryDetailsPage = ({
                   interval={storedQuery?.interval || 0}
                 />
               </div>
-              <div className={`${baseClass}__log-destination`}>
-                <strong>Log destination:</strong>{" "}
-                <LogDestinationIndicator
-                  logDestination={config?.logging.result.plugin || ""}
-                  filesystemDestination={
-                    config?.logging.result.config?.result_log_file
-                  }
-                  webhookDestination={config?.logging.result.config?.result_url}
-                />
-              </div>
+              {storedQuery?.automations_enabled && (
+                <div className={`${baseClass}__log-destination`}>
+                  <strong>Log destination:</strong>{" "}
+                  <LogDestinationIndicator
+                    logDestination={logDestination}
+                    filesystemDestination={
+                      config?.logging.result.config?.result_log_file
+                    }
+                    webhookDestination={
+                      config?.logging.result.config?.result_url
+                    }
+                  />
+                </div>
+              )}
             </div>
           </>
         )}
