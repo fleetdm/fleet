@@ -65,6 +65,7 @@ fleetctl package --type=pkg.tar.zst \
 
 echo "Building docker images..."
 docker build -t fleetd-ubuntu-24.04 --platform=linux/amd64 -f ./ubuntu-24.04/Dockerfile .
+docker build -t fleetd-ubuntu-20.04 --platform=linux/amd64 -f ./ubuntu-20.04/Dockerfile .
 docker build -t fleetd-fedora-43 --platform=linux/amd64 -f ./fedora-43/Dockerfile .
 docker build -t fleetd-debian-13.4 --platform=linux/amd64 -f ./debian-13.4/Dockerfile .
 docker build -t fleetd-cachyos --platform=linux/amd64 -f ./cachyos/Dockerfile .
