@@ -2110,6 +2110,27 @@ questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 This section contains explanations of the latest external security audits performed on Fleet software.
 
 
+### June 2026 penetration testing of Fleet
+
+In June 2026, [Aikido Security](https://www.aikido.dev/) performed a white box penetration test of the Fleet application. This was Fleet's first agentic penetration test: instead of a human tester working within a fixed engagement window, autonomous AI agents with access to Fleet's source code continuously attacked a dedicated test environment. Testing covered authentication, authorization, input handling, business logic, and API behavior.
+
+Because agentic testing covers more surface area with more persistence than a time-boxed human engagement, it surfaced far more findings than previous black box penetration tests. Finding counts aren't comparable to previous years.
+
+The assessment identified 157 findings across high, medium, and low severities, and no critical severity findings. Findings were concentrated in these categories:
+
+- Authorization and access controls
+- Authentication and device enrollment
+- MDM protocol handling
+- Information disclosure in API responses and error messages
+- Input validation and hardening opportunities
+
+Fleet triaged every finding. Each one was fixed in a subsequent Fleet release, accepted with documented rationale, or determined to be a false positive. All findings are resolved.
+
+Unlike previous penetration tests, we aren't publishing a detailed findings table. Because of the scale and scope of agentic testing, publishing every finding would give attackers a map of where to look. Customers and prospects can request the full report under NDA at [fleetdm.com/trust](https://fleetdm.com/trust).
+
+You can find the remediation report here: [2026-06-05-fleet-penetration-test-remediation.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2026-06-05-fleet-penetration-test-remediation.pdf).
+
+
 ### July 2025 penetration testing of Fleet 4.70.1
 
 In July 2025, [BHIS](https://www.blackhillsinfosec.com/) performed an application penetration assessment of the application from Fleet. 
