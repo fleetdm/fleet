@@ -3666,6 +3666,10 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	ctx context.Context,
 	filters fleet.VulnSoftwareFilter,
 ) ([]fleet.Software, error) {
+	if err := filters.Validate(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing software for vulnerability detection")
+	}
+
 	var result []fleet.Software
 	var sqlstmt string
 	var args []interface{}
@@ -3704,9 +3708,11 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		args = append(args, "%"+filters.Name+"%")
 	}
 
-	if filters.Source != "" {
-		conditions = append(conditions, "s.source = ?")
-		args = append(args, filters.Source)
+	if len(filters.Sources) > 0 {
+		conditions = append(conditions, fmt.Sprintf("s.source IN (%s)", strings.TrimSuffix(strings.Repeat("?,", len(filters.Sources)), ",")))
+		for _, src := range filters.Sources {
+			args = append(args, src)
+		}
 	}
 
 	if filters.KernelsOnly {
@@ -3731,7 +3737,15 @@ const softwareVulnDetectionBatchSize = 10000
 func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 	ctx context.Context,
 	osVer fleet.OSVersion,
+	sources []string,
 ) ([]fleet.Software, error) {
+	if len(sources) == 0 {
+		return nil, ctxerr.New(ctx, "no software sources given")
+	}
+	if err := fleet.ValidateSoftwareSources(sources); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing software for OS version")
+	}
+
 	var softwareIDs []uint
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareIDs, `
 		SELECT DISTINCT hs.software_id
@@ -3747,6 +3761,8 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 		return nil, nil
 	}
 
+	sourcePlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(sources)), ",")
+
 	var result []fleet.Software
 	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
@@ -3754,11 +3770,14 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 			SELECT s.id, s.name, s.version, s.release, s.arch, COALESCE(cpe.cpe, '') AS generated_cpe
 			FROM software s
 			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
-			WHERE s.id IN (%s)
-		`, placeholders)
-		args := make([]any, len(batch))
-		for i, id := range batch {
-			args[i] = id
+			WHERE s.id IN (%s) AND s.source IN (%s)
+		`, placeholders, sourcePlaceholders)
+		args := make([]any, 0, len(batch)+len(sources))
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		for _, src := range sources {
+			args = append(args, src)
 		}
 		var batchResult []fleet.Software
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
@@ -3849,6 +3868,7 @@ type hostSoftware struct {
 	BundleIdentifier          *string    `db:"bundle_identifier"`
 	TitleBundleIdentifier     *string    `db:"title_bundle_identifier"`
 	Version                   *string    `db:"version"`
+	SoftwareRelease           *string    `db:"software_release"`
 	SoftwareID                *uint      `db:"software_id"`
 	SoftwareSource            *string    `db:"software_source"`
 	SoftwareExtensionFor      *string    `db:"software_extension_for"`
@@ -3874,6 +3894,7 @@ type hostSoftware struct {
 	SoftwareSourceList        *string `db:"software_source_list"`
 	SoftwareExtensionForList  *string `db:"software_extension_for_list"`
 	VersionList               *string `db:"version_list"`
+	SoftwareReleaseList       *string `db:"software_release_list"`
 	BundleIdentifierList      *string `db:"bundle_identifier_list"`
 	VPPAppSelfServiceList     *string `db:"vpp_app_self_service_list"`
 	VPPAppAdamIDList          *string `db:"vpp_app_adam_id_list"`
@@ -3897,6 +3918,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.source AS software_source,
 			software.extension_for AS software_extension_for,
 			software.version AS version,
+			software.release AS software_release,
 			software.bundle_identifier AS bundle_identifier,
 			software_titles.upgrade_code AS upgrade_code
 		FROM
@@ -3919,11 +3941,11 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 }
 
 func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
-	// skipped_install marks a patch-when-closed skip (the app was open): the row is stored as
-	// failed_install with an empty pre_install_query_output. We read the snapshotted
-	// hsi.patch_when_closed instead of joining policies, so a later policy toggle or delete
-	// (policy_id → NULL via ON DELETE SET NULL) can't retroactively reclassify this row.
-	// Upcoming installs are never skipped, so the union side is a literal 0.
+	// skipped_install marks an app-open skip (patch when closed or notify before patching): the
+	// row is stored as failed_install with an empty pre_install_query_output. We read the
+	// snapshotted hsi.override_pre_install_query instead of joining policies, so a later policy
+	// toggle or delete (policy_id → NULL via ON DELETE SET NULL) can't retroactively reclassify
+	// this row. Upcoming installs are never skipped, so the union side is a literal 0.
 	softwareInstallsStmt := `
         WITH upcoming_software_install AS (
             SELECT last_install_install_uuid, last_install_installed_at, installer_id, status, skipped_install FROM (
@@ -3957,7 +3979,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     IF(
                         hsi.status = 'failed_install'
                         AND hsi.pre_install_query_output = ''
-                        AND hsi.patch_when_closed = 1,
+                        AND hsi.override_pre_install_query = 1,
                         1, 0
                     ) AS skipped_install,
                     ROW_NUMBER() OVER (
@@ -4984,6 +5006,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 		softwareTitleRecord.SoftwareSourceList = ptr.String("")
 		softwareTitleRecord.SoftwareExtensionForList = ptr.String("")
 		softwareTitleRecord.VersionList = ptr.String("")
+		softwareTitleRecord.SoftwareReleaseList = new("")
 		softwareTitleRecord.BundleIdentifierList = ptr.String("")
 		seperator = ""
 	}
@@ -5004,6 +5027,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 			*softwareTitleRecord.SoftwareExtensionForList += seperator + *hostInstalledSoftware.SoftwareExtensionFor
 		}
 		*softwareTitleRecord.VersionList += seperator + *hostInstalledSoftware.Version
+		*softwareTitleRecord.SoftwareReleaseList += seperator + *hostInstalledSoftware.SoftwareRelease
 		*softwareTitleRecord.BundleIdentifierList += seperator + *hostInstalledSoftware.BundleIdentifier
 	}
 }
@@ -5289,6 +5313,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
 		softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
 		softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
+		softwareReleaseList := strings.Split(*softwareTitleRecord.SoftwareReleaseList, ",")
 		softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
 
 		for index, softwareIdStr := range softwareIDList {
@@ -5301,6 +5326,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 					version.Version = softwareVersionList[index]
 					version.BundleIdentifier = softwareBundleIdentifierList[index]
 					version.Source = softwareSourceList[index]
+					version.Release = softwareReleaseList[index]
 					version.LastOpenedAt = software.LastOpenedAt
 					version.SoftwareID = softwareId
 					version.SoftwareTitleID = softwareTitleRecord.ID
@@ -7125,6 +7151,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
 					GROUP_CONCAT(software.upgrade_code) AS software_upgrade_code_list,
 					GROUP_CONCAT(software.version) AS version_list,
+					GROUP_CONCAT(software.release) AS software_release_list,
 					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,
@@ -7173,6 +7200,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_extension_for_list,
 					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
+					NULL AS software_release_list,
 					NULL AS bundle_identifier_list,
 					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
 					GROUP_CONCAT(vpp_apps.latest_version) AS vpp_app_version_list,
@@ -7217,6 +7245,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS software_extension_for_list,
 					NULL AS software_upgrade_code_list,
 					NULL AS version_list,
+					NULL AS software_release_list,
 					NULL AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
 					NULL AS vpp_app_version_list,

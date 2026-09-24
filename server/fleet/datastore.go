@@ -519,6 +519,11 @@ type Datastore interface {
 	// results and responses rows cascade. Returns the number deleted, which
 	// on error is the count deleted before the failure.
 	CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error)
+	// CleanupMDMWindowsCommandHistory deletes Windows MDM responses, command
+	// results and commands recorded before olderThan and not updated since,
+	// except queued commands and the wipe behind a host's wipe_ref. Counts are
+	// what was deleted before any failure.
+	CleanupMDMWindowsCommandHistory(ctx context.Context, olderThan time.Time) (MDMWindowsCommandHistoryCleanupCounts, error)
 	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
 	// deleted and edited profiles) once no host still has the prior version installed.
 	CleanupWindowsMDMProfilePriorContent(ctx context.Context) error
@@ -820,14 +825,53 @@ type Datastore interface {
 	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Patch notifications
+
+	// PatchNotificationExistsForApp reports whether a patch notification on this
+	// host still has this app to install.
+	PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+	// DisplayedPatchNotificationExistsForApp reports whether this app is on a patch
+	// notification the end user has seen that has not queued its install yet.
+	DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+	// NewPatchNotification adds the patch_notifications row for a notification
+	// the notifications context has already created.
+	NewPatchNotification(ctx context.Context, notificationUUID string) error
+	// AddPatchNotificationApp adds an app, ignoring one already listed.
+	AddPatchNotificationApp(ctx context.Context, notificationUUID string, app PatchNotificationApp) error
+	// SetPatchNotificationAppsQueued records that this notification put the apps on
+	// the host's queue, so a later attempt doesn't queue them again.
+	SetPatchNotificationAppsQueued(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// ListPatchNotificationApps returns a notification's apps, with names and icons
+	// for the host's fleet.
+	ListPatchNotificationApps(ctx context.Context, notificationUUID string) ([]PatchNotificationAppDetail, error)
+	// ListPatchNotificationAppInstallStatuses returns the status of the install each
+	// app got after it joined the notification, keyed by software title id. An app
+	// with no entry has no finished install to report.
+	ListPatchNotificationAppInstallStatuses(ctx context.Context, notificationUUID string) (map[uint]SoftwareInstallerStatus, error)
+	// ListPatchNotificationAppsForNotifications returns the apps of several
+	// notifications at once, keyed by notification uuid, without the names and
+	// icons the toast is displayed with.
+	ListPatchNotificationAppsForNotifications(ctx context.Context, notificationUUIDs []string) (map[string][]PatchNotificationAppDetail, error)
+	// DeletePatchNotificationApps drops apps from a notification, so the reminder
+	// stops naming an app the end user already updated.
+	DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// SetPatchNotificationInstallAt moves when the patch is forced out to installAt,
+	// never earlier, and returns the deadline in effect.
+	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
+	// ListPatchNotificationsDue returns the notifications still being delivered
+	// whose install_at is at or before the cutoff and that the caller can act on:
+	// past install_at, or displayed and waiting on their reminder.
+	ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]PatchNotificationDue, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
 	// ListSoftwareForVulnDetectionByOSVersion returns all distinct software installed on hosts
-	// matching the given OS version.
-	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion) ([]Software, error)
+	// matching the given OS version, restricted to the given software sources.
+	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion, sources []string) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	// ListSoftwareVulnerabilitiesBySoftwareIDs returns vulnerabilities for the given software IDs
 	// filtered by source. Queries software_cve directly without joining through host_software.
@@ -2907,6 +2951,15 @@ type Datastore interface {
 	// A nil state resets it (pass complete).
 	SetMDMAppleAPNsSweepState(ctx context.Context, state *MDMAppleAPNsSweepState) error
 
+	// CleanupNanoCommands runs the Apple MDM command cleanup sweeps: it deletes
+	// inactive queue rows (and their results) older than the short retention
+	// window, then completed command pairs older than their class's window,
+	// then the nano_commands rows that no longer have any reference, within
+	// the per-run deletion caps. state carries the retention scans' cursors
+	// between runs (nil starts every scan from the oldest rows); the returned
+	// state is what the caller should persist.
+	CleanupNanoCommands(ctx context.Context, opts MDMAppleCommandCleanupOptions, state *MDMAppleCommandCleanupState) (*MDMAppleCommandCleanupState, MDMAppleCommandCleanupStats, error)
+
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
 	// of the bounded host window, every Apple declaration with its label
@@ -3004,6 +3057,11 @@ type Datastore interface {
 	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
 	// scripts after MDM events).
 	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// BatchNewInternalHostScriptExecutionRequests queues the same script as an
+	// internal run on each of the given hosts, and returns the execution ID it
+	// queued for each one. For server-driven sweeps that would otherwise do a
+	// round trip per host.
+	BatchNewInternalHostScriptExecutionRequests(ctx context.Context, hostIDs []uint, contents string) (map[uint]string, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
 	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload, attemptNumber *int) (hsr *HostScriptResult, action string, err error)
@@ -3186,6 +3244,13 @@ type Datastore interface {
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
 	GetHostLastInstallData(ctx context.Context, hostID, installerID uint) (*HostLastInstallData, error)
+	// ListLastTitleInstallDataForHosts is GetHostLastInstallData for many hosts and software
+	// titles at once, grouped by title so an install that went through an installer
+	// since replaced still counts. Same precedence: an upcoming install wins over a past one.
+	ListLastTitleInstallDataForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) (map[HostSoftwareTitleKey][]*HostLastInstallData, error)
+	// ListSoftwareTitleVersionsForHosts reports what the given hosts have installed
+	// for the given software titles.
+	ListSoftwareTitleVersionsForHosts(ctx context.Context, hostIDs []uint, softwareTitleIDs []uint) ([]HostSoftwareTitleVersion, error)
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)

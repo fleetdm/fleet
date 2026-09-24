@@ -2004,9 +2004,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		// Force clear results for labels that do not apply to the host anymore.
+		// Discard results for labels that do not apply to the host: manual labels,
+		// labels of another team or platform, or unknown IDs. Agent-reported
+		// results must never change manual membership, and the result must be
+		// dropped rather than recorded as false: a false becomes a DELETE, which
+		// is how a host could remove itself from a manual label.
 		//
-		// There could be a timing bug where:
+		// This also covers a timing bug where:
 		// 1. Host receives a "team label" query to run (distributed/read).
 		// 2. Host is transferred to another team (all its label/policy membership are cleared).
 		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
@@ -2017,13 +2021,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		for labelID := range labelResults {
 			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
-				svc.logger.DebugContext(ctx, "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
-				labelResults[labelID] = ptr.Bool(false)
+				svc.logger.InfoContext(ctx, "discarding result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				delete(labelResults, labelID)
 			}
 		}
 
-		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-			logging.WithErr(ctx, err)
+		if len(labelResults) > 0 {
+			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
@@ -3030,6 +3036,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			continue
 		}
 
+		// Skip an app  that's already on a patch notification the end user has seen, the notification's deadline is what
+		// installs it. If we queue a skippable install here, its skip can report after the notification is acted and its
+		// force installs are queued, and create a second notification.
+		var appHasDisplayedPatchNotification bool
+		if failingPolicyWithInstaller.OverridePreInstallQuery {
+			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check whether a displayed patch notification lists this app")
+			}
+		}
+		if appHasDisplayedPatchNotification {
+			logger.DebugContext(ctx, "skipping policy automation install, the app is on a patch notification the end user has seen")
+			continue
+		}
+
 		// Throttle continuous policy automation re-installs: if this policy fired only
 		// because continuous_automations_enabled is set (not a pass→fail transition)
 		// and we already queued a successful install within the policy update interval,
@@ -3073,9 +3094,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService:     false,
-				PolicyID:        &policyID,
-				DeferActivation: svc.deferFleetInitiatedActivation(),
+				SelfService:             false,
+				PolicyID:                &policyID,
+				OverridePreInstallQuery: failingPolicyWithInstaller.OverridePreInstallQuery,
+				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {

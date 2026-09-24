@@ -1,0 +1,1 @@
+- Fixed Windows automatic enrollment through Microsoft Entra ID during the out-of-box experience (OOBE) stalling at the Terms of Use step. Fleet now accepts the `ms-aadj-redir://auth/mdm` redirect URI that Windows sends in that flow, while still rejecting script-executing schemes.

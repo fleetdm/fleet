@@ -620,6 +620,7 @@ var hostRefs = []string{
 	// pointing at an id that no longer exists.
 	"host_autopilot_devices",
 	"host_one_time_enroll_secrets",
+	"notifications_end_user",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1487,6 +1488,7 @@ func (ds *Datastore) applyHostFilters(
 	mdmRecoveryLockStatusJoin := ""
 	mdmDeviceNameStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
+	mdmWindowsProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
@@ -1497,6 +1499,7 @@ func (ds *Datastore) applyHostFilters(
 
 	if opt.OSSettingsFilter.IsValid() {
 		mdmAndroidProfilesStatusJoin = sqlJoinMDMAndroidProfilesStatus()
+		mdmWindowsProfilesStatusJoin = sqlJoinMDMWindowsProfilesStatus()
 	}
 
 	// Join on the batch_activity_host_results and host_script_results tables if the
@@ -1553,6 +1556,7 @@ func (ds *Datastore) applyHostFilters(
 	%s
 	%s
 	%s
+	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
@@ -1570,6 +1574,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmRecoveryLockStatusJoin,
 		mdmDeviceNameStatusJoin,
 		mdmAndroidProfilesStatusJoin,
+		mdmWindowsProfilesStatusJoin,
 		batchScriptExecutionJoin,
 		hostMDMSeenJoin,
 
@@ -1606,10 +1611,7 @@ func (ds *Datastore) applyHostFilters(
 	}
 	sqlStmt, whereParams = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, whereParams, diskEncryptionConfig)
 	if opt.OSSettingsFilter.IsValid() {
-		sqlStmt, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, sqlStmt, opt, whereParams, diskEncryptionConfig)
-		if err != nil {
-			return "", nil, err
-		}
+		sqlStmt, whereParams = ds.filterHostsByOSSettingsStatus(ctx, sqlStmt, opt, whereParams, diskEncryptionConfig)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		sqlStmt, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(ctx, sqlStmt, opt, whereParams, diskEncryptionConfig)
 	}
@@ -1879,9 +1881,9 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + whereStatus, append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any, error) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any) {
 	if !opt.OSSettingsFilter.IsValid() {
-		return sql, params, nil
+		return sql, params
 	}
 
 	// TODO: Look into ways we can convert some of the LEFT JOINs in the main list hosts query
@@ -1935,14 +1937,9 @@ AND (
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
 	paramsWindows := []any{}
-	// profilesStatus does one aggregation pass over host_mdm_windows_profiles
-	// per host (correlated on h.uuid) instead of the previous four correlated
-	// EXISTS (with nested NOT EXISTS). See windowsHostProfileStatusSubquery.
-	profilesStatus, profilesStatusArgs, err := windowsHostProfileStatusSubquery("profiles_")
-	if err != nil {
-		return "", nil, err
-	}
-	paramsWindows = append(paramsWindows, profilesStatusArgs...)
+	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status rollup, which is
+	// much faster than recomputing it here for a large host list.
+	profilesStatus := `COALESCE(hmwps.status, '')`
 
 	bitlockerStatus := `''`
 	if diskEncryptionConfig.WindowsEnabled {
@@ -1972,16 +1969,16 @@ AND (
 
 	whereWindows += fmt.Sprintf(` AND (
     CASE (%s)
-    WHEN 'profiles_failed' THEN
+    WHEN 'failed' THEN
         'failed'
-    WHEN 'profiles_pending' THEN (
+    WHEN 'pending' THEN (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
         ELSE
             'pending'
         END)
-    WHEN 'profiles_verifying' THEN (
+    WHEN 'verifying' THEN (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
@@ -1992,7 +1989,7 @@ AND (
         ELSE
             'verifying'
         END)
-	WHEN 'profiles_verified' THEN (
+	WHEN 'verified' THEN (
         CASE (%s)
         WHEN 'bitlocker_failed' THEN
             'failed'
@@ -2015,7 +2012,7 @@ AND (
 	params = append(params, paramsAndroid...)
 	params = append(params, paramsLinux...)
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereAndroid, whereLinux), params, nil
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereAndroid, whereLinux), params
 }
 
 func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any) {

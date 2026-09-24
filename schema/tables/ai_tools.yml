@@ -13,7 +13,7 @@ examples: |-
   SELECT type, count(*) FROM ai_tools GROUP BY type;
   ```
 
-  List outbound AI/MCP connections to see where data is going.
+  List outbound AI/MCP connections that are open right now.
 
   ```
   SELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';
@@ -51,6 +51,7 @@ examples: |-
 notes: |-
   - One table covers seven kinds of AI tool, discriminated by `type`. Each column lists the types that populate it; a column that doesn't apply to a row's `type` is an empty string.
   - The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\Users\*`), not just the daemon account's. Running as root provides full visibility across all users.
+  - Process and socket data is a point-in-time snapshot taken when the query runs, so a tool that starts and exits between queries leaves no `sockets` row.
   - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 columns:
   - name: type

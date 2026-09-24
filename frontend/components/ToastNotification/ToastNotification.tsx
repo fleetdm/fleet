@@ -19,6 +19,11 @@ const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 // Max number of visible toasts at the same time.
 const VISIBLE_TOASTS = 10;
 
+// Sonner sets `--width` inline on the toaster (default 356px), overriding
+// any class rule. Pass via `style` to win the cascade; the card's min-width
+// inherits from this via `var(--width)`.
+const TOAST_WIDTH = 500;
+
 export interface IToastNotificationProps {
   className?: string;
 }
@@ -54,6 +59,7 @@ const ToastNotification = ({
       className={classes}
       position="bottom-center"
       visibleToasts={VISIBLE_TOASTS}
+      style={{ "--width": `${TOAST_WIDTH}px` } as React.CSSProperties}
     />
   );
 };
