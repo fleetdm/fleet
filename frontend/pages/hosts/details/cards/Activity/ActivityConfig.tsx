@@ -65,7 +65,20 @@ export interface IHostActivityItemComponentPropsWithShowDetails
   extends IHostActivityItemComponentProps {
   onShowDetails: ShowActivityDetailsHandler;
   onCancel?: () => void;
+  /** Set this to `true` to hide the "Show details" button. Used to gate premium-only
+   * detail modals (e.g. install details) on Fleet Free.
+   * @default false
+   */
+  hideShowDetails?: boolean;
 }
+
+/** Activity types whose detail modals fetch premium-only data. The parent
+ * feeds pass `hideShowDetails` for these when the instance is on Fleet Free. */
+export const PREMIUM_ONLY_DETAIL_ACTIVITIES: ReadonlySet<string> = new Set([
+  ActivityType.InstalledSoftware,
+  ActivityType.UninstalledSoftware,
+  ActivityType.InstalledAppStoreApp,
+]);
 
 export const pastActivityComponentMap: Record<
   IHostPastActivityType,

@@ -57,6 +57,15 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.HostEnrollmentRejected,
 ]);
 
+// The install/uninstall detail modals fetch data from premium-only endpoints
+// that return 402 on Fleet Free, so gate the "Show details" affordance out on
+// Free rather than let the modal open into a paywall.
+const PREMIUM_ONLY_DETAIL_ACTIVITIES = new Set([
+  ActivityType.InstalledSoftware,
+  ActivityType.UninstalledSoftware,
+  ActivityType.InstalledAppStoreApp,
+]);
+
 const getProfilesPlatformDisplayName = (
   platform: "apple" | "windows" | "android"
 ) => {
@@ -3052,7 +3061,9 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
+  const hasDetails =
+    ACTIVITIES_WITH_DETAILS.has(activity.type) &&
+    (isPremiumTier || !PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type));
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = (

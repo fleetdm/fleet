@@ -7,7 +7,10 @@ import { AppContext } from "context/app";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
-import { upcomingActivityComponentMap } from "../ActivityConfig";
+import {
+  PREMIUM_ONLY_DETAIL_ACTIVITIES,
+  upcomingActivityComponentMap,
+} from "../ActivityConfig";
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 
 const baseClass = "upcoming-activity-feed";
@@ -63,6 +66,8 @@ const UpcomingActivityFeed = ({
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
+          const hideShowDetails =
+            !isPremiumTier && PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type);
           return (
             <ActivityItemComponent
               key={activity.uuid}
@@ -70,6 +75,7 @@ const UpcomingActivityFeed = ({
               activity={activity}
               onShowDetails={onShowDetails}
               hideCancel={!canCancelActivities}
+              hideShowDetails={hideShowDetails}
               onCancel={() => onCancel(activity)}
             />
           );
