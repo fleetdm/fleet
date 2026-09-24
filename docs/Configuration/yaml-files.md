@@ -481,9 +481,9 @@ controls:
         self_service: false
         hidden: true
       - path: ../lib/macos/profiles/my-declaration.json
+          name: Passcode Settings
+          description: Enforces passcode requirements for macOS hosts
       - paths: ../lib/macos/profiles/ddm.json
-        name: Passcode Settings
-        description: Enforces passcode requirements for macOS hosts
         labels_include_any:
           - Engineering
         activation: ../lib/macos/activations/activation.json
@@ -493,10 +493,11 @@ controls:
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
-        name: Windows Firewall
-        description: Configures firewall rules
         labels_include_any:
           - Engineering
+      - path:  ../lib/windows/profiles/win-firewall.xml
+          name: Windows Firewall
+          description: Configures firewall rules
     enable_disk_encryption: true # Available in Fleet Premium
     require_bitlocker_pin: true # Available in Fleet Premium
   linux_settings:
