@@ -1,4 +1,4 @@
-FROM debian:13.4@sha256:e2d08da6f42ef4b09b165d55528a12727aeed8240dc9edf888e3ec07e10ef9da
+FROM ubuntu:20.04@sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
 
 COPY run-fleetd.sh /
 RUN chmod +x /run-fleetd.sh
