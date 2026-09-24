@@ -4,7 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/stretchr/testify/require"
@@ -188,4 +191,36 @@ func TestLoadDeliveredEnrollSecret(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestThrottledMDMSync(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var syncs atomic.Int32
+		enrolled := false
+		syncMDM := throttledMDMSync(5*time.Minute,
+			func() bool { return enrolled },
+			func() error { syncs.Add(1); return nil },
+		)
+		trigger := func() {
+			syncMDM()
+			synctest.Wait()
+		}
+
+		// No Fleet MDM enrollment means no channel to sync, and the check must not use up the interval.
+		trigger()
+		require.Zero(t, syncs.Load())
+
+		enrolled = true
+		trigger()
+		require.EqualValues(t, 1, syncs.Load())
+
+		// A burst, such as rejected enroll retries, triggers a single sync.
+		time.Sleep(time.Minute)
+		trigger()
+		require.EqualValues(t, 1, syncs.Load())
+
+		time.Sleep(5 * time.Minute)
+		trigger()
+		require.EqualValues(t, 2, syncs.Load())
+	})
 }

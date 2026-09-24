@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
@@ -64,6 +63,33 @@ func loadMDMDeliveredEnrollSecret(
 		profiles.GetEnrollSecret, profiles.ClearEnrollSecret, enrollSecretPath, ks, disableKeystore, setSecret)
 }
 
+// mdmSyncInterval bounds how often orbit asks the device to check in with MDM while it waits on an enroll secret.
+const mdmSyncInterval = 5 * time.Minute
+
+// newMDMSync returns the throttled MDM check-in for one wait: the startup wait, or the orbit client's rejected-enroll hook.
+func newMDMSync() func() {
+	return throttledMDMSync(mdmSyncInterval, update.HasActiveFleetMDMEnrollment, update.TriggerWindowsMDMSync)
+}
+
+// mdmEnrollSecretRefresher returns the orbit client's pre-enroll hook. It loads a secret Fleet MDM delivered since startup, if one
+// is waiting, and returns it; empty means nothing new, and the client keeps the secret it has.
+//
+// This is what recovers a host whose one-time secret was already used. The keystore still holds that secret, so orbit starts with
+// it; only re-checking the registry at enroll time finds the one an administrator resent.
+func mdmEnrollSecretRefresher(enrollSecretPath string, disableKeystore bool) func() string {
+	return func() string {
+		var delivered string
+		setDelivered := func(secret string) error {
+			delivered = secret
+			return nil
+		}
+		if _, err := loadMDMDeliveredEnrollSecret(enrollSecretPath, realKeystore{}, disableKeystore, setDelivered); err != nil {
+			log.Error().Err(err).Msg("failed to load an MDM-delivered enroll secret before enrolling")
+		}
+		return delivered
+	}
+}
+
 // waitForMDMDeliveredEnrollSecret blocks until Fleet MDM delivers an enroll secret, mdmSecretWaitTimeout elapses, or the service
 // manager asks orbit to stop. An administrator resending the profile that carries the secret is what normally ends the wait.
 func waitForMDMDeliveredEnrollSecret(
@@ -86,8 +112,7 @@ func waitForMDMDeliveredEnrollSecret(
 	waitCtx, cancelWait := context.WithTimeout(baseCtx, mdmSecretWaitTimeout)
 	defer cancelWait()
 
-	// Guards the sync trigger below.
-	var syncInFlight sync.Mutex
+	syncMDM := newMDMSync()
 
 	for started := time.Now(); ; {
 		select {
@@ -128,14 +153,7 @@ func waitForMDMDeliveredEnrollSecret(
 		}
 
 		// Nothing is waiting, so ask the device to check in with MDM server now.
-		if syncInFlight.TryLock() {
-			go func() {
-				defer syncInFlight.Unlock()
-				if err := update.TriggerWindowsMDMSync(); err != nil {
-					log.Debug().Err(err).Msg("failed to trigger an MDM sync while waiting for an enroll secret")
-				}
-			}()
-		}
+		syncMDM()
 
 		if watch == nil {
 			// Registration failed, so fall back to sleeping rather than spinning on a broken watch.

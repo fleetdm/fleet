@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	fleetclient "github.com/fleetdm/fleet/v4/client"
@@ -427,6 +428,33 @@ func loadDeliveredEnrollSecret(
 		return false, err
 	}
 	return true, nil
+}
+
+// throttledMDMSync returns a function that asks the device to check in with its MDM server, at most once per interval and in the
+// background. orbit calls it whenever it is waiting on an enroll secret only Fleet MDM can deliver: with no secret at all, and after
+// the server rejects the one it has. In both cases the server cannot ask the device to check in, so without this a resent profile
+// waits for the device's own MDM poll, which can be hours away.
+func throttledMDMSync(interval time.Duration, enrolledInMDM func() bool, triggerSync func() error) func() {
+	var (
+		mu   sync.Mutex
+		last time.Time
+	)
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if !last.IsZero() && time.Since(last) < interval {
+			return
+		}
+		if !enrolledInMDM() {
+			return
+		}
+		last = time.Now()
+		go func() {
+			if err := triggerSync(); err != nil {
+				log.Debug().Err(err).Msg("failed to trigger an MDM sync while waiting for an enroll secret")
+			}
+		}()
+	}
 }
 
 // tryReadEnrollSecretFromKeystore loads the enroll secret from the keystore via
@@ -1297,6 +1325,11 @@ func orbitAction(c *cli.Context) error {
 	if hasEUAToken {
 		orbitClient.SetEUAToken(euaToken)
 	}
+
+	// Both run only on enroll attempts. They are how a running orbit that has to re-enroll picks up a secret Fleet MDM delivered
+	// after startup.
+	orbitClient.SetEnrollSecretRefresher(mdmEnrollSecretRefresher(enrollSecretPath, disableKeystore))
+	orbitClient.SetOnEnrollRejected(newMDMSync())
 
 	// If the server can't be reached, we want to fail quickly on any blocking network calls
 	// so that desktop can be launched as soon as possible.
