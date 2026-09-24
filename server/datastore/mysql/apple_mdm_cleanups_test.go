@@ -29,6 +29,7 @@ func TestAppleMDMCleanups(t *testing.T) {
 		{"ShortTierOffFallsBackToStandard", testNanoCleanupShortTierOffFallsBackToStandard},
 		{"RetentionCursorResumesAndWraps", testNanoCleanupRetentionCursorResumesAndWraps},
 		{"RowBudgetStopsLaterSweeps", testNanoCleanupRowBudgetStopsLaterSweeps},
+		{"ScanCapDoesNotStopLaterSweeps", testNanoCleanupScanCapDoesNotStopLaterSweeps},
 		{"RetentionKeepsFannedCommand", testNanoCleanupRetentionKeepsFannedCommand},
 	}
 	for _, c := range cases {
@@ -586,4 +587,29 @@ func testNanoCleanupRetentionKeepsFannedCommand(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1}, stats)
 	require.Zero(t, f.queueRows(fanned))
 	require.Zero(t, f.commandRows(fanned))
+}
+
+func testNanoCleanupScanCapDoesNotStopLaterSweeps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	f := newNanoCleanupFixture(t, ds)
+	day := nanoCleanupDay
+
+	// the purge gets one scan of two rows, both pinned: it stops on its scan
+	// cap without spending any budget
+	origBatch, origScans := nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun
+	nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = 2, 1
+	t.Cleanup(func() { nanoCleanupScanBatchSize, nanoCleanupMaxScansPerRun = origBatch, origScans })
+	for range 2 {
+		c := f.enqueue("InstallProfile", f.deviceID)
+		f.deactivate(f.deviceID, c, 2*day, 2*day)
+		f.exec(`INSERT INTO host_mdm_apple_profiles (host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+			VALUES (?, ?, ?, ?, UNHEX(MD5(?)), 'install', 'verified')`, f.deviceID, "prof-"+c[:8], "com.example."+c[:8], c, c)
+	}
+	// a completed refetch the short tier should still reach this run
+	refetch := f.completed("DeviceInformation", fleet.RefetchDeviceCommandUUIDPrefix+uuid.NewString(), fleet.MDMAppleStatusAcknowledged, 2*day)
+
+	_, stats, err := ds.CleanupNanoCommands(ctx, nanoCleanupOpts(day, nanoCleanupDefaults, nanoCleanupDefaults), nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMAppleCommandCleanupStats{ShortPairsDeleted: 1, CommandsDeleted: 1, RowBudgetExhausted: true}, stats)
+	require.Zero(t, f.queueRows(refetch), "the retention sweep ran despite the purge stopping on its scan cap")
 }

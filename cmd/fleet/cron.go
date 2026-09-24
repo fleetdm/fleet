@@ -2285,17 +2285,9 @@ func apnsPusherJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm
 	return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
 }
 
-// appleCommandCleanupMaxRunTime caps one Apple MDM command cleanup run. The
-// per-run deletion caps bound rows, not time: on a cold, contended database
-// the candidate scans alone could hold the hourly schedule for its whole
-// interval. Cutting a run short loses nothing, each batch is its own
-// transaction and the rest is picked up next tick.
+// Caps a run so slow scans can't hold the hourly schedule; each batch is its own transaction and the rest waits for the next tick.
 const appleCommandCleanupMaxRunTime = 10 * time.Minute
 
-// cleanupAppleMDMCommandsJob runs one tick of the Apple MDM command cleanup.
-// stateStore is nil when there is nowhere to keep the sweeps' cursors between
-// runs; every run then starts from the oldest rows, which is slower, never
-// wrong.
 func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateStore fleet.MDMAppleCommandCleanupStateStore, cfg config.MDMConfig, logger *slog.Logger) error {
 	ctx, cancel := context.WithTimeout(ctx, appleCommandCleanupMaxRunTime)
 	defer cancel()
@@ -2308,14 +2300,11 @@ func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateSt
 		return nil
 	}
 
-	var state *fleet.MDMAppleCommandCleanupState
-	if stateStore != nil {
-		var err error
-		if state, err = stateStore.GetMDMAppleCommandCleanupState(ctx); err != nil {
-			// a lost cursor only costs a restart from the oldest rows
-			logger.WarnContext(ctx, "failed to read apple mdm command cleanup state; scans restart from the oldest rows", "err", err)
-			state = nil
-		}
+	state, err := stateStore.GetMDMAppleCommandCleanupState(ctx)
+	if err != nil {
+		// a lost cursor only costs a restart from the oldest rows
+		logger.WarnContext(ctx, "failed to read apple mdm command cleanup state; scans restart from the oldest rows", "err", err)
+		state = nil
 	}
 	logger.InfoContext(ctx, "apple mdm command cleanup starting", "cursors", state)
 
@@ -2328,10 +2317,8 @@ func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateSt
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup apple mdm commands")
 	}
-	if stateStore != nil {
-		if err := stateStore.SetMDMAppleCommandCleanupState(ctx, state); err != nil {
-			return ctxerr.Wrap(ctx, err, "save apple mdm command cleanup state")
-		}
+	if err := stateStore.SetMDMAppleCommandCleanupState(ctx, state); err != nil {
+		return ctxerr.Wrap(ctx, err, "save apple mdm command cleanup state")
 	}
 	logger.InfoContext(ctx, "cleaned up apple mdm commands",
 		"inactive_pairs_deleted", stats.InactivePairsDeleted,
