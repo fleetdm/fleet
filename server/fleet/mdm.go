@@ -1282,7 +1282,7 @@ var AppleMDMStandardRetentionRequestTypes = []string{
 	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
 	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
 	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
-	"UserList",
+	"UserList", RotateFileVaultKeyCmdName,
 }
 
 // AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows

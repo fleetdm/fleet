@@ -12,7 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 )
@@ -723,6 +725,123 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for rotate recovery lock password")
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Same access as other MDM commands, masked as not-found so host IDs outside
+	// the caller's visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate disk encryption key")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
+		return err
+	}
+
+	if host.FleetPlatform() != "darwin" {
+		return &fleet.BadRequestError{Message: "Disk encryption key rotation is only supported on macOS hosts."}
+	}
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return err
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return &fleet.BadRequestError{Message: "Host must be enrolled in Fleet MDM to rotate the disk encryption key."}
+	}
+
+	// Escrow is the only required setting: FileVault may be turned on outside
+	// Fleet, and the escrow payload is what makes the rotated key reach Fleet.
+	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get disk encryption config")
+	}
+	if !diskEncryption.MacOSEscrowEnabled {
+		return fleet.NewUserMessageError(errors.New("Disk encryption key escrow is not turned on for this host's fleet."), http.StatusUnprocessableEntity)
+	}
+
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	switch {
+	case fleet.IsNotFound(err):
+		return fleet.NewUserMessageError(errors.New("Host does not have a disk encryption key to rotate."), http.StatusUnprocessableEntity)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get host disk encryption key")
+	}
+	if key.Base64Encrypted == "" {
+		return fleet.NewUserMessageError(errors.New("Host does not have a disk encryption key to rotate."), http.StatusUnprocessableEntity)
+	}
+
+	alreadyInProgressErr := &fleet.ConflictError{Message: "Disk encryption key rotation is already in progress for this host."}
+	if key.RotationCommandUUID != nil {
+		pending, err := svc.ds.IsAppleMDMCommandPending(ctx, host.UUID, *key.RotationCommandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check pending disk encryption key rotation command")
+		}
+		if pending {
+			return alreadyInProgressErr
+		}
+		// The command is gone or finished without its result clearing the marker.
+		if err := svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, *key.RotationCommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear stale disk encryption key rotation")
+		}
+	}
+
+	// The current key is the command's unlock credential. decryptable reflects
+	// the verification cron's last run, and the CA assets may have changed since,
+	// so decrypt now rather than enqueue a command that fails at delivery.
+	notDecryptableErr := fleet.NewUserMessageError(errors.New("Couldn't rotate disk encryption key. The current key is not decryptable."), http.StatusUnprocessableEntity)
+	if key.Decryptable == nil || !*key.Decryptable {
+		return notDecryptableErr
+	}
+	certs, caKey, err := assets.CACertsAndKeyForDecryption(ctx, svc.ds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load CA assets to decrypt disk encryption key")
+	}
+	if plain, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, certs); err != nil || len(plain) == 0 {
+		return notDecryptableErr
+	}
+	caCert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load CA certificate for rotation reply")
+	}
+
+	cmdUUID := uuid.NewString()
+	recorded, err := svc.ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "record pending disk encryption key rotation")
+	}
+	if !recorded {
+		return alreadyInProgressErr
+	}
+
+	if err := svc.mdmAppleCommander.RotateFileVaultKey(ctx, host.UUID, cmdUUID, caCert.Raw); err != nil {
+		// A push failure leaves the command enqueued for the next check-in, so the
+		// rotation is still pending.
+		if _, pushFailed := errors.AsType[*apple_mdm.NotificationFailedError](err); !pushFailed {
+			if clearErr := svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID); clearErr != nil {
+				svc.logger.ErrorContext(ctx, "clear disk encryption key rotation after enqueue failure", "host_id", host.ID, "err", clearErr)
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue RotateFileVaultKey command")
+	}
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeRotatedDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for rotate disk encryption key")
 		}
 	}
 

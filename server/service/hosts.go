@@ -4131,6 +4131,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted current host disk encryption key", "host_id", host.ID)
 			key.Decryptable = ptr.Bool(true)
 			key.DecryptedValue = decrypted
+			key.RotationPending = key.RotationCommandUUID != nil
 
 			return key, nil // Return the decrypted key immediately if successful.
 		}
@@ -4898,6 +4899,36 @@ func rotateRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fl
 }
 
 func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Rotate Host Disk Encryption Key
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateDiskEncryptionKeyRequest struct {
+	HostID uint `url:"id"`
+}
+
+type rotateDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateDiskEncryptionKeyResponse) Error() error { return r.Err }
+
+func rotateDiskEncryptionKeyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateDiskEncryptionKeyRequest)
+	if err := svc.RotateDiskEncryptionKey(ctx, req.HostID); err != nil {
+		return rotateDiskEncryptionKeyResponse{Err: err}, nil
+	}
+	return rotateDiskEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
