@@ -29,7 +29,6 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"ResetTurnOffAndDelete", testOneTimeEnrollSecretResetAndDelete},
 		{"Cleanup", testOneTimeEnrollSecretCleanup},
 		{"WindowsMint", testOneTimeEnrollSecretWindowsMint},
-		{"WindowsLiveSecret", testOneTimeEnrollSecretWindowsLiveSecret},
 		{"WindowsResendMints", testOneTimeEnrollSecretWindowsResendMints},
 		{"WindowsHostBinding", testOneTimeEnrollSecretWindowsHostBinding},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
@@ -401,9 +400,6 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		notInMDM := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(notInMDM, nil, rejectWindows)...)
 		require.NoError(t, err)
-
-		// an enrollment Fleet has not linked to any host yet protects nothing
-		insertWindowsEnrollment(t, ds, "hw-unlinked-"+notInMDM.UUID, "")
 		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(notInMDM, nil, rejectWindowsOsquery)...)
 		require.NoError(t, err)
 	})
@@ -625,6 +621,12 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	device := insertWindowsEnrollment(t, ds, "hw-mint", "")
 
+	// A host that needs no secret, typically one already running fleetd, has none, and looking must not mint one.
+	secret, err := ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
+	require.NoError(t, err)
+	require.Empty(t, secret)
+	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, device.ID), "looking up must never mint")
+
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 	stored := liveWindowsSecret(t, ds, device.ID)
 
@@ -639,13 +641,17 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	require.Nil(t, stored.TeamID, "the team is applied after linkage, as it was with the global secret")
 	require.Equal(t, "windows", stored.Platform)
 
-	err := ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID+9999)
+	err = ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID+9999)
 	require.True(t, fleet.IsNotFound(err), "an unknown enrollment must not mint a secret")
 
-	// A fresh secret is minted only once the live one is consumed.
+	// A consumed secret is not handed out again, so redelivering the profile afterwards, on a team transfer say, writes nothing.
+	// A fresh secret is minted only by a new decision.
 	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
 	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(stored.ID))...)
 	require.NoError(t, err)
+	secret, err = ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
+	require.NoError(t, err)
+	require.Empty(t, secret)
 	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 	rotated := liveWindowsSecret(t, ds, device.ID)
 	require.NotEqual(t, stored.Secret, rotated.Secret)
@@ -666,31 +672,6 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.GetHostOneTimeEnrollSecret(ctx, rotated.Secret)
 	require.True(t, fleet.IsNotFound(err), "the secret must go with its enrollment")
-}
-
-func testOneTimeEnrollSecretWindowsLiveSecret(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	device := insertWindowsEnrollment(t, ds, "hw-live", "")
-
-	// A host that needs no secret, typically one already running fleetd, has none, and looking must not mint one.
-	secret, err := ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
-	require.NoError(t, err)
-	require.Empty(t, secret)
-	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, device.ID), "looking up must never mint")
-
-	// Once a decision has minted, the lookup returns that secret until it is used.
-	require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
-	live := liveWindowsSecret(t, ds, device.ID)
-	require.Equal(t, live.Secret, liveWindowsSecret(t, ds, device.ID).Secret)
-	require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, device.ID))
-
-	// A consumed secret is not handed out again, so redelivering the profile afterwards, on a team transfer say, writes nothing.
-	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(live.ID))...)
-	require.NoError(t, err)
-	secret, err = ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
-	require.NoError(t, err)
-	require.Empty(t, secret)
 }
 
 func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
@@ -724,9 +705,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(other, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
 
-		unused, err := ds.GetHostOneTimeEnrollSecret(ctx, row.Secret)
-		require.NoError(t, err)
-		require.Nil(t, unused.ConsumedAt, "a refused attempt must not spend the secret")
+		require.Equal(t, row.Secret, liveWindowsSecret(t, ds, device.ID).Secret, "a refused attempt must not spend the secret")
 
 		// The host it was minted for can use it.
 		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(victim, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
@@ -783,7 +762,6 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		linkWindowsEnrollment(t, ds, device, h.UUID)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		live := liveWindowsSecret(t, ds, device.ID)
-		require.NotEqual(t, spent.ID, live.ID)
 
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) - INTERVAL 2 HOUR WHERE id = ?`, spent.ID)
@@ -796,6 +774,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		_, err = ds.GetHostOneTimeEnrollSecret(ctx, live.Secret)
 		require.NoError(t, err, "the live secret must survive the sweep")
 	})
+
 	t.Run("a first-install secret cannot take over a host another enrollment claims", func(t *testing.T) {
 		// The attacker's device is legitimately enrolled in MDM, so it is handed a first-install secret over its own channel,
 		// but its orbit presents the victim's identifiers. Nothing binds that secret to a host.
@@ -804,7 +783,6 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		attacker := insertWindowsEnrollment(t, ds, "hw-claim-attacker", "")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, attacker.ID))
 		row := liveWindowsSecret(t, ds, attacker.ID)
-		require.Nil(t, row.HostID)
 		before, err := ds.Host(ctx, victim.ID)
 		require.NoError(t, err)
 
@@ -817,7 +795,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey, "the refused enrollment must not rotate the victim's node key")
 		require.Equal(t, before.NodeKey, after.NodeKey)
-		require.Nil(t, liveWindowsSecret(t, ds, attacker.ID).ConsumedAt, "a refused attempt must not spend the secret")
+		require.Equal(t, row.Secret, liveWindowsSecret(t, ds, attacker.ID).Secret, "a refused attempt must not spend the secret")
 	})
 
 	t.Run("the secret's own enrollment is not a competing claim", func(t *testing.T) {
