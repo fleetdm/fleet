@@ -20,9 +20,7 @@ var testACSURL, _ = url.Parse("https://localhost:8080/api/v1/kolide/sso/callback
 
 // The following variables are test samples from a Salesforce IdP response and metadata.
 var (
-	testSalesforceMetadata = func() *saml.EntityDescriptor {
-		var metadata saml.EntityDescriptor
-		if err := xml.Unmarshal([]byte(`
+	testSalesforceMetadataXML = `
 <?xml version="1.0" encoding="UTF-8"?>
   <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://kolide-dev-ed.my.salesforce.com" validUntil="2027-04-29T19:22:40.750Z" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
       <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
@@ -38,7 +36,10 @@ var (
          <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://kolide-dev-ed.my.salesforce.com/idp/endpoint/HttpRedirect"/>
       </md:IDPSSODescriptor>
    </md:EntityDescriptor>
-`), &metadata); err != nil {
+`
+	testSalesforceMetadata = func() *saml.EntityDescriptor {
+		var metadata saml.EntityDescriptor
+		if err := xml.Unmarshal([]byte(testSalesforceMetadataXML), &metadata); err != nil {
 			panic(err)
 		}
 		return &metadata

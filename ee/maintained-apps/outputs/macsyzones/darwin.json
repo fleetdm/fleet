@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.4",
+      "version": "3.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macsyzones.MacsyZones';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macsyzones.MacsyZones' AND version_compare(bundle_short_version, '3.0.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macsyzones.MacsyZones' AND version_compare(bundle_short_version, '3.1.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macsyzones.MacsyZones' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/rohanrhu/MacsyZones/releases/download/v3.0.4/MacsyZones.zip",
+      "installer_url": "https://github.com/rohanrhu/MacsyZones/releases/download/v3.1.1/MacsyZones.zip",
       "install_script_ref": "43d700bc",
       "uninstall_script_ref": "44126cf2",
-      "sha256": "a303a484f3f9f7b5da36031ed7dce13dc630d301dce1aa850f2e3372014f6c7a",
+      "sha256": "6db860035ba72aaa7ea5eab0e37350687f3a69a243b4c87829168edb30281665",
       "default_categories": [
         "Utilities"
       ]

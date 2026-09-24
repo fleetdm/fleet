@@ -84,5 +84,5 @@ Interested to learn more? [Read Faire’s article](https://craft.faire.com/using
 
 <meta name="summaryChallenge" value="Faire’s previous MDM slowed them down. It lacked timely support for new OS controls, its APIs made config-as-code workflows hard to automate, and support responses were too slow to keep up with their needs.">
 <meta name="summarySolution" value="Fleet replaced their previous MDM for managing Macs and iPads, and supports the GitOps workflows they use to manage their infrastructure.">
-<meta name="summaryKeyResults" value="Enforced CIS Level 1 benchmarks to keep laptops secure; Migrated 1,000 Macs and iPads to Fleet without disruption; Moved device management workflows into GitOps; Received proactive support from Fleet">
+<meta name="summaryKeyResults" value="25% decrease in IT ticket volume; Enforced CIS Level 1 benchmarks to keep laptops secure; Migrated 1,000 Macs and iPads to Fleet without disruption; Moved device management workflows into GitOps; Received proactive support from Fleet">
 

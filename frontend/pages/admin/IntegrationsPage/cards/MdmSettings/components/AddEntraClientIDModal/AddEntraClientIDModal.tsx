@@ -1,13 +1,12 @@
 import React, { useState, useContext } from "react";
 
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-
-import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
 
 import { IAddClientIdFormValidation, validateFormData } from "./helpers";
 

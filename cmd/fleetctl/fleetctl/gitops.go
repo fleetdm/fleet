@@ -155,6 +155,9 @@ func gitopsCommand() *cli.Command {
 				filename string
 			}
 			var missingVPPTeamsWithApps []missingVPPTeamWithApps
+			// Fleets (name to ID, 0 for "No team") that configure a setup assistant in
+			// this run, for the post-run ABM coverage advisory.
+			setupAssistantFleets := make(map[string]uint)
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
@@ -655,6 +658,20 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 
+				// Registration with Apple silently no-ops for a fleet with no ABM token
+				// association, leaving its setup assistant inert; remember which fleets
+				// configure one so the post-run advisory can warn about them. DoGitOps
+				// populated config.TeamID for team files (0 stands for "No team"). In
+				// dry-run new teams get no ID, but the advisory doesn't run then anyway.
+				if ms := config.Controls.MacOSSetup; ms != nil && ms.MacOSSetupAssistant.Value != "" {
+					switch {
+					case config.TeamName == nil || config.IsNoTeam():
+						setupAssistantFleets[fleet.TeamNameNoTeam] = 0
+					case config.TeamID != nil:
+						setupAssistantFleets[norm.NFC.String(*config.TeamName)] = *config.TeamID
+					}
+				}
+
 				// Schedule CA deletions as a post-op after all team configs have been processed.
 				if isGlobalConfig && !flDryRun {
 					allPostOps = append(allPostOps, func() error {
@@ -714,6 +731,12 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
+			}
+
+			// Setup assistants were applied and token assignments are final; warn about
+			// any fleet whose assistant won't take effect (no ABM token association).
+			if !flDryRun && len(setupAssistantFleets) > 0 {
+				warnSetupAssistantsWithoutABMTokens(fleetClient, setupAssistantFleets, logf)
 			}
 
 			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
@@ -1306,6 +1329,57 @@ func vppConfigWithoutMissingFleets(vppSettings []any, missingTeams []string) []a
 		interim = append(interim, cp)
 	}
 	return interim
+}
+
+// setupAssistantABMChecker is the subset of the API client used by
+// warnSetupAssistantsWithoutABMTokens, split out for testing.
+type setupAssistantABMChecker interface {
+	ListABMTokens() ([]*fleet.ABMToken, error)
+	CountHosts(query string) (int, error)
+}
+
+// warnSetupAssistantsWithoutABMTokens prints an advisory for each fleet that has a
+// setup assistant configured but no ABM token association: registration with Apple
+// silently no-ops for those fleets, so the assistant stays inert until the fleet
+// becomes a default fleet for a token or receives an ABM host. Best-effort — it
+// must never fail the run, and it runs after the deferred token assignments so the
+// server-side state it reads is final.
+func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, fleets map[string]uint, logf func(format string, a ...any)) {
+	tokens, err := fleetClient.ListABMTokens()
+	if err != nil {
+		logf("[!] skipping setup assistant ABM coverage check: %s\n", err)
+		return
+	}
+	// A token with no default set for a platform reports "No team" for it, which
+	// matches the server treating such tokens as associated with "No team".
+	covered := make(map[string]struct{}, len(tokens)*4)
+	for _, tok := range tokens {
+		for _, tm := range []fleet.ABMTokenTeam{tok.MacOSTeam, tok.IOSTeam, tok.IPadOSTeam, tok.BYODTeam} {
+			covered[norm.NFC.String(tm.Name)] = struct{}{}
+		}
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(fleets)) {
+		if _, ok := covered[name]; ok {
+			continue
+		}
+		teamID := fleets[name] // 0 filters for "No team" hosts
+
+		// ABM-enrolled or ABM-pending hosts in the fleet also associate it with a
+		// token. On lookup errors stay silent rather than risk a false warning.
+		hasABMHost := false
+		for _, status := range []fleet.MDMEnrollStatus{fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusAutomatic} {
+			count, err := fleetClient.CountHosts(fmt.Sprintf("team_id=%d&mdm_enrollment_status=%s", teamID, status))
+			if err != nil || count > 0 {
+				hasABMHost = true
+				break
+			}
+		}
+		if hasABMHost {
+			continue
+		}
+		logf("[!] fleet %s: setup assistant saved, but it won't take effect until this fleet is a default fleet for an Apple Business Manager (ABM) token or has an ABM-enrolled host\n", name)
+	}
 }
 
 // knownTeamNamesForTokenAssignment returns the set of team names that count as

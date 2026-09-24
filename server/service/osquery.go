@@ -50,6 +50,25 @@ func newOsqueryError(msg string) *OsqueryError {
 	return NewOsqueryError(msg, false)
 }
 
+// recordErrorDetail keeps error detail on the request log line and off the
+// response, since the enroll endpoints are unauthenticated. Callers must not
+// return an error implementing ErrWithInternal, or the line gets two "internal"
+// attrs.
+func recordErrorDetail(ctx context.Context, err error) {
+	logging.WithExtras(ctx, "internal", err.Error())
+}
+
+// enrollError is recordErrorDetail for sites that return a plain error. A
+// cancellation is wrapped rather than replaced so the transport still answers
+// 499 when the client went away.
+func enrollError(ctx context.Context, err error, msg string) error {
+	if errors.Is(err, context.Canceled) {
+		return ctxerr.Wrap(ctx, err, msg)
+	}
+	recordErrorDetail(ctx, err)
+	return ctxerr.New(ctx, msg)
+}
+
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -132,14 +151,57 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	logging.WithLevel(logging.WithExtras(ctx, "hostIdentifier", hostIdentifier), slog.LevelInfo)
 
-	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
-	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("enroll failed: " + err.Error())
+	// the device's uuid and serial from the system_info table and platform from
+	// os_version, provided with the osquery enrollment
+	var hardwareUUID, hardwareSerial, hostPlatform string
+	if r, ok := hostDetails["system_info"]; ok {
+		hardwareUUID = r["uuid"]
+		hardwareSerial = r["hardware_serial"]
+	}
+	if r, ok := hostDetails["os_version"]; ok {
+		hostPlatform = r["platform"]
+	}
+	attempt := enrollmentAttempt{
+		plane:          fleet.EnrollmentPlaneOsquery,
+		platform:       hostPlatform,
+		hardwareUUID:   hardwareUUID,
+		hardwareSerial: hardwareSerial,
+	}
+
+	var (
+		enrollTeamID *uint
+		secretOpts   []fleet.DatastoreEnrollOsqueryOption
+	)
+	var oneTime *fleet.HostOneTimeEnrollSecret
+	if svc.config.Auth.UseOneTimeEnrollSecrets {
+		var err error
+		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
+		if err != nil {
+			recordErrorDetail(ctx, err)
+			return "", newOsqueryErrorWithInvalidNode("enroll failed")
+		}
+	}
+	if oneTime != nil {
+		if !oneTime.MatchesHost(hostPlatform, hardwareUUID, hardwareSerial) {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, oneTime.HostID, attempt)
+			return "", newOsqueryErrorWithInvalidNode("enroll failed")
+		}
+		enrollTeamID = oneTime.TeamID
+		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryOneTimeEnrollSecret(oneTime.ID))
+	} else {
+		secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+		if err != nil {
+			recordErrorDetail(ctx, err)
+			return "", newOsqueryErrorWithInvalidNode("enroll failed")
+		}
+		enrollTeamID = secret.TeamID
+		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForMDMHosts(svc.config.Auth.UseOneTimeEnrollSecrets))
 	}
 
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
 	if err != nil && !fleet.IsNotFound(err) {
-		return "", fleet.OrbitError{Message: fmt.Sprintf("loading certificate: %s", err.Error())}
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("loading certificate")
 	}
 
 	// If an identity certificate exists for this host, make sure the request had an HTTP message signature with the matching certificate.
@@ -157,13 +219,15 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	nodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("generate node key failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("generate node key failed")
 	}
 
 	hostIdentifier = getHostIdentifier(ctx, svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("can enroll host check failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("can enroll host check failed")
 	}
 	if !canEnroll {
 		deviceCount := "unknown"
@@ -173,36 +237,46 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode(fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount))
 	}
 
-	// the the device's uuid and serial from the system_info table provided with
-	// the osquery enrollment
-	var hardwareUUID, hardwareSerial string
-	if r, ok := hostDetails["system_info"]; ok {
-		hardwareUUID = r["uuid"]
-		hardwareSerial = r["hardware_serial"]
-	}
-
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("app config load failed")
 	}
 
-	host, err := svc.ds.EnrollOsquery(ctx,
+	var hostCreated bool
+	enrollOpts := append([]fleet.DatastoreEnrollOsqueryOption{
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
 		fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
 		fleet.WithEnrollOsqueryHardwareSerial(hardwareSerial),
 		fleet.WithEnrollOsqueryNodeKey(nodeKey),
-		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
+		fleet.WithEnrollOsqueryTeamID(enrollTeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
-	)
+		fleet.WithEnrollOsqueryCreated(&hostCreated),
+	}, secretOpts...)
+	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
+		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
+			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
+			return "", newOsqueryErrorWithInvalidNode("enroll failed")
+		}
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("save enroll failed")
+	}
+
+	// Raise the report cap for the new host right away so its first results are not rejected
+	// while the cached host count waits for the cleanup cron to refresh it.
+	if hostCreated && svc.liveQueryStore != nil {
+		if err := svc.liveQueryStore.IncrQueryReportsHostCount(1); err != nil {
+			svc.logger.DebugContext(ctx, "incr query reports host count in redis", "err", err, "host_id", host.ID)
+		}
 	}
 
 	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
-		return "", newOsqueryErrorWithInvalidNode("host features load failed: " + err.Error())
+		recordErrorDetail(ctx, err)
+		return "", newOsqueryErrorWithInvalidNode("host features load failed")
 	}
 
 	// Save enrollment details if provided
@@ -219,21 +293,21 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
+			return "", enrollError(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
 		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
+			return "", enrollError(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
 		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
+			return "", enrollError(ctx, err, "Ingesting system_info")
 		}
 		save = true
 	}
@@ -243,7 +317,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 			go svc.serialUpdateHost(ctx, host)
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
+				return "", enrollError(ctx, err, "save host in enroll agent")
 			}
 		}
 	}
@@ -278,12 +352,14 @@ func getHostIdentifier(ctx context.Context, logger *slog.Logger, identifierOptio
 	case "instance":
 		r, ok := details["osquery_info"]
 		if !ok { //nolint:gocritic // ignore ifElseChain
-			logger.InfoContext(ctx, "could not get host identifier",
+			logger.InfoContext(
+				ctx, "could not get host identifier",
 				"reason", "missing osquery_info",
 				"identifier", "instance",
 			)
 		} else if r["instance_id"] == "" {
-			logger.InfoContext(ctx, "could not get host identifier",
+			logger.InfoContext(
+				ctx, "could not get host identifier",
 				"reason", "missing instance_id in osquery_info",
 				"identifier", "instance",
 			)
@@ -294,12 +370,14 @@ func getHostIdentifier(ctx context.Context, logger *slog.Logger, identifierOptio
 	case "uuid":
 		r, ok := details["osquery_info"]
 		if !ok { //nolint:gocritic // ignore ifElseChain
-			logger.InfoContext(ctx, "could not get host identifier",
+			logger.InfoContext(
+				ctx, "could not get host identifier",
 				"reason", "missing osquery_info",
 				"identifier", "uuid",
 			)
 		} else if r["uuid"] == "" {
-			logger.InfoContext(ctx, "could not get host identifier",
+			logger.InfoContext(
+				ctx, "could not get host identifier",
 				"reason", "missing instance_id in osquery_info",
 				"identifier", "uuid",
 			)
@@ -310,12 +388,14 @@ func getHostIdentifier(ctx context.Context, logger *slog.Logger, identifierOptio
 	case "hostname":
 		r, ok := details["system_info"]
 		if !ok { //nolint:gocritic // ignore ifElseChain
-			logger.InfoContext(ctx, "could not get host identifier",
+			logger.InfoContext(
+				ctx, "could not get host identifier",
 				"reason", "missing system_info",
 				"identifier", "hostname",
 			)
 		} else if r["hostname"] == "" {
-			logger.InfoContext(ctx, "could not get host identifier",
+			logger.InfoContext(
+				ctx, "could not get host identifier",
 				"reason", "missing instance_id in system_info",
 				"identifier", "hostname",
 			)
@@ -1390,7 +1470,8 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 
 	conditionalAccessConfigured, conditionalAccessEnabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, host.TeamID)
 	if err != nil {
-		svc.logger.ErrorContext(ctx, "load conditional access configured and enabled, skipping ingestion",
+		svc.logger.ErrorContext(
+			ctx, "load conditional access configured and enabled, skipping ingestion",
 			"host_id", host.ID,
 			"err", err,
 		)
@@ -1923,9 +2004,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
-		// Force clear results for labels that do not apply to the host anymore.
+		// Discard results for labels that do not apply to the host: manual labels,
+		// labels of another team or platform, or unknown IDs. Agent-reported
+		// results must never change manual membership, and the result must be
+		// dropped rather than recorded as false: a false becomes a DELETE, which
+		// is how a host could remove itself from a manual label.
 		//
-		// There could be a timing bug where:
+		// This also covers a timing bug where:
 		// 1. Host receives a "team label" query to run (distributed/read).
 		// 2. Host is transferred to another team (all its label/policy membership are cleared).
 		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
@@ -1936,13 +2021,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		for labelID := range labelResults {
 			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
-				svc.logger.DebugContext(ctx, "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
-				labelResults[labelID] = ptr.Bool(false)
+				svc.logger.InfoContext(ctx, "discarding result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				delete(labelResults, labelID)
 			}
 		}
 
-		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-			logging.WithErr(ctx, err)
+		if len(labelResults) > 0 {
+			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 	}
 
@@ -1950,7 +2037,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	// makes RecordPolicyQueryExecutions treat every stored policy_membership row for the host as stale.
 	if len(policyResults) > 0 {
 		failing, passing, notExecuted := summarizePolicyResults(policyResults)
-		svc.logger.DebugContext(ctx, "received policy results",
+		svc.logger.DebugContext(
+			ctx, "received policy results",
 			"host_id", host.ID,
 			"host_platform", host.Platform,
 			"team_id", ptr.ValOrZero(host.TeamID),
@@ -1986,7 +2074,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		// The automations below act on transitions, not on the raw results, so this is the line to
 		// check first when one of them doesn't fire for a policy that is reporting a failure.
-		svc.logger.DebugContext(ctx, "computed policy transitions",
+		svc.logger.DebugContext(
+			ctx, "computed policy transitions",
 			"host_id", host.ID,
 			"new_failing", newFailing,
 			"new_passing", newPassing,
@@ -2136,7 +2225,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 				HostDisplayName: host.DisplayName(),
 			},
 		); err != nil {
-			svc.logger.ErrorContext(ctx, "record fleet disk encryption key escrowed activity",
+			svc.logger.ErrorContext(
+				ctx, "record fleet disk encryption key escrowed activity",
 				"err", err,
 			)
 		}
@@ -2447,7 +2537,8 @@ func preProcessSoftwareExtraResults(
 	failed := status != fleet.StatusOK
 	if failed {
 		// extra query executed but with errors, so we return without changing anything.
-		logger.ErrorContext(ctx, "extra query executed with errors",
+		logger.ErrorContext(
+			ctx, "extra query executed with errors",
 			"query", softwareExtraQuery,
 			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
@@ -2938,9 +3029,25 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			*hostLastInstall.Status == fleet.SoftwareInstallPending {
 			// There's a pending install for this host and installer,
 			// thus we do not queue another install request.
-			logger.DebugContext(ctx, "found pending install request for this host and installer",
+			logger.DebugContext(
+				ctx, "found pending install request for this host and installer",
 				"pending_execution_id", hostLastInstall.ExecutionID,
 			)
+			continue
+		}
+
+		// Skip an app  that's already on a patch notification the end user has seen, the notification's deadline is what
+		// installs it. If we queue a skippable install here, its skip can report after the notification is acted and its
+		// force installs are queued, and create a second notification.
+		var appHasDisplayedPatchNotification bool
+		if failingPolicyWithInstaller.OverridePreInstallQuery {
+			appHasDisplayedPatchNotification, err = svc.ds.DisplayedPatchNotificationExistsForApp(ctx, hostID, softwareInstallerTitleID_)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check whether a displayed patch notification lists this app")
+			}
+		}
+		if appHasDisplayedPatchNotification {
+			logger.DebugContext(ctx, "skipping policy automation install, the app is on a patch notification the end user has seen")
 			continue
 		}
 
@@ -2956,7 +3063,8 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			hostLastInstall != nil && hostLastInstall.Status != nil &&
 			*hostLastInstall.Status == fleet.SoftwareInstalled &&
 			svc.continuousAutomationOnCooldown(hostLastInstall.UpdatedAt) {
-			logger.InfoContext(ctx, "skipping continuous policy automation install; within policy update interval cooldown",
+			logger.InfoContext(
+				ctx, "skipping continuous policy automation install; within policy update interval cooldown",
 				"last_install_execution_id", hostLastInstall.ExecutionID,
 				"last_install_at", hostLastInstall.UpdatedAt,
 			)
@@ -2986,18 +3094,21 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			ctx, hostID,
 			installerMetadata.InstallerID,
 			fleet.HostSoftwareInstallOptions{
-				SelfService:     false,
-				PolicyID:        &policyID,
-				DeferActivation: svc.deferFleetInitiatedActivation(),
+				SelfService:             false,
+				PolicyID:                &policyID,
+				OverridePreInstallQuery: failingPolicyWithInstaller.OverridePreInstallQuery,
+				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err,
+			return ctxerr.Wrapf(
+				ctx, err,
 				"insert software install request: host_id=%d, software_installer_id=%d",
 				hostID, installerMetadata.InstallerID,
 			)
 		}
-		logger.DebugContext(ctx, "install request sent",
+		logger.DebugContext(
+			ctx, "install request sent",
 			"install_uuid", installUUID,
 		)
 	}
@@ -3054,7 +3165,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 		if fleet.PlatformFromHost(hostPlatform) != string(policyWithVPP.Platform) {
-			svc.logger.DebugContext(ctx, "app platform does not match host platform",
+			svc.logger.DebugContext(
+				ctx, "app platform does not match host platform",
 				"host_id", hostID,
 				"policy_id", policyWithVPP.ID,
 				"vpp_adam_id", policyWithVPP.AdamID,
@@ -3117,7 +3229,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
 		if err != nil {
-			logger.ErrorContext(ctx, "failed to get VPP metadata",
+			logger.ErrorContext(
+				ctx, "failed to get VPP metadata",
 				"err", err,
 			)
 			continue
@@ -3166,7 +3279,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			DeferActivation: svc.deferFleetInitiatedActivation(),
 		})
 		if err != nil {
-			logger.ErrorContext(ctx, "failed to get install VPP app",
+			logger.ErrorContext(
+				ctx, "failed to get install VPP app",
 				"err", err,
 			)
 			continue
@@ -3216,7 +3330,8 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with associated profile")
 	}
-	svc.logger.DebugContext(ctx, "looked up profiles to resend for newly failing policies",
+	svc.logger.DebugContext(
+		ctx, "looked up profiles to resend for newly failing policies",
 		"host_id", host.ID,
 		"team_id", policyTeamID,
 		"newly_failing", newlyFailingPolicyIDs,
@@ -3231,7 +3346,8 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 		onError := func(innerErr error, rejected bool) {
 			reported = true
 			if rejected {
-				svc.logger.DebugContext(ctx, "skipping resend of MDM profile for host",
+				svc.logger.DebugContext(
+					ctx, "skipping resend of MDM profile for host",
 					"host_id", host.ID,
 					"host_platform", host.Platform,
 					"policy_id", profile.PolicyID,
@@ -3240,14 +3356,16 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 				)
 				return
 			}
-			svc.logger.ErrorContext(ctx, "failed to resend MDM profile for host",
+			svc.logger.ErrorContext(
+				ctx, "failed to resend MDM profile for host",
 				"host_id", host.ID,
 				"policy_id", profile.PolicyID,
 				"profile_uuid", profile.ProfileUUID,
 				"err", innerErr,
 			)
 		}
-		svc.logger.DebugContext(ctx, "attempting resend of MDM profile for newly failing policy",
+		svc.logger.DebugContext(
+			ctx, "attempting resend of MDM profile for newly failing policy",
 			"host_id", host.ID,
 			"host_uuid", host.UUID,
 			"policy_id", profile.PolicyID,
@@ -3262,7 +3380,8 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 		if !reported {
 			// Nothing went to onError, so the profile is queued for the profile schedule to pick up
 			// and the activity is recorded.
-			svc.logger.DebugContext(ctx, "queued MDM profile for resend",
+			svc.logger.DebugContext(
+				ctx, "queued MDM profile for resend",
 				"host_id", host.ID,
 				"policy_id", profile.PolicyID,
 				"profile_uuid", profile.ProfileUUID,
@@ -3421,13 +3540,15 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 
 		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err,
+			return ctxerr.Wrapf(
+				ctx, err,
 				"insert script run request; host_id=%d, script_id=%d",
 				hostID, scriptMetadata.ID,
 			)
 		}
 
-		logger.DebugContext(ctx, "script run request sent",
+		logger.DebugContext(
+			ctx, "script run request sent",
 			"execution_id", scriptResult.ExecutionID,
 		)
 	}
@@ -3622,7 +3743,8 @@ func (svc *Service) setHostConditionalAccess(
 		osName = "windows"
 	}
 
-	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
+	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(
+		ctx,
 		integration.TenantID,
 		integration.ProxyServerSecret,
 
@@ -3663,7 +3785,8 @@ func (svc *Service) setHostConditionalAccess(
 				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 			}
 			logger.DebugContext(ctx, "get compliance status message wait")
-			messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+			messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(
+				ctx,
 				integration.TenantID, integration.ProxyServerSecret, response.MessageID,
 			)
 			if err != nil {
@@ -3672,7 +3795,8 @@ func (svc *Service) setHostConditionalAccess(
 				continue
 			}
 			if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
-				logger.DebugContext(ctx, "set device compliance status completed",
+				logger.DebugContext(
+					ctx, "set device compliance status completed",
 					"took", time.Since(startTime),
 				)
 				break
@@ -3681,7 +3805,8 @@ func (svc *Service) setHostConditionalAccess(
 			if messageStatus.Detail != nil {
 				detail = *messageStatus.Detail
 			}
-			logger.InfoContext(ctx, "get message status, retrying",
+			logger.InfoContext(
+				ctx, "get message status, retrying",
 				"status", messageStatus.Status,
 				"detail", detail,
 			)
@@ -4054,7 +4179,10 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// so that the logs are not lost and osquery retries on its next log interval.
 	//
 
-	var queryReportsDisabled bool
+	var (
+		queryReportsDisabled bool
+		maxQueryReportRows   int
+	)
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "getting app config", "err", err)
@@ -4064,6 +4192,9 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		queryReportsDisabled = true
 	} else {
 		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
+		if !queryReportsDisabled {
+			maxQueryReportRows = svc.queryReportCap(ctx, appConfig.ServerSettings)
+		}
 	}
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
@@ -4076,7 +4207,6 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	svc.dropResultsNotScheduledForHost(ctx, unmarshaledResults, queriesDBData)
 
 	if !queryReportsDisabled {
-		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
 		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
@@ -4218,7 +4348,8 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
-	// Batch fetch query result counts from Redis for all queries
+	// Batch fetch query result counts from Redis for all queries, reading any that Redis
+	// doesn't have from the database and seeding them so later requests hit the cache.
 	var queryResultCounts map[uint]int
 	if svc.liveQueryStore != nil {
 		queryIDs := make([]uint, 0, len(queriesDBData))
@@ -4231,10 +4362,34 @@ func (svc *Service) saveResultLogsToQueryReports(
 			svc.logger.ErrorContext(ctx, "get result counts for queries", "err", err)
 			return
 		}
+		var missing []uint
+		for _, id := range queryIDs {
+			if _, ok := queryResultCounts[id]; !ok {
+				missing = append(missing, id)
+			}
+		}
+		if len(missing) > 0 {
+			fromDB, err := svc.ds.ResultCountsForQueries(ctx, missing)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "count results for queries missing from redis", "err", err)
+				return
+			}
+			seed := make(map[uint]int, len(missing))
+			for _, id := range missing {
+				seed[id] = fromDB[id]
+				queryResultCounts[id] = fromDB[id]
+			}
+			if err := svc.liveQueryStore.SetQueryResultsCountsIfAbsent(seed); err != nil {
+				svc.logger.DebugContext(ctx, "seed query results counts in redis", "err", err)
+			}
+		}
 	}
 
-	// Track rows added per query for batched Redis increment
+	// Track rows added, rejections and newly admitted hosts per query for batched Redis
+	// updates after the loop.
 	rowsAddedByQuery := make(map[uint]int)
+	clippedTTLByQuery := make(map[uint]time.Duration)
+	var admittedQueryIDs []uint
 
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
@@ -4258,22 +4413,23 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// Check Redis counter for approximate count (fast, distributed check).
-		if queryResultCounts != nil {
-			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
-				continue
-			}
-		}
+		// Approximate count from Redis; the datastore decides whether replacing
+		// this host's rows fits under the cap, so a full report keeps updating
+		// for hosts already in it.
+		currentCount := queryResultCounts[dbQuery.ID]
 
-		var rowsAdded int
-		var err error
-		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+		res, err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows, currentCount)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
-
-		// Track rows added for batched Redis increment
-		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+		switch {
+		case res.Rejected:
+			clippedTTLByQuery[dbQuery.ID] = queryReportClippedTTL(dbQuery)
+		case res.NewHost:
+			admittedQueryIDs = append(admittedQueryIDs, dbQuery.ID)
+		}
+		rowsAddedByQuery[dbQuery.ID] += res.RowsAdded
 	}
 
 	// Batch increment Redis counters after all successful inserts
@@ -4281,6 +4437,22 @@ func (svc *Service) saveResultLogsToQueryReports(
 		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
 			// Log but don't fail - the inserts succeeded, counter is just a heuristic
 			svc.logger.DebugContext(ctx, "incr query results counts in redis", "err", err)
+		}
+	}
+
+	// Flag reports that rejected this host's results: the stored row count alone can't tell,
+	// since a rejected write leaves it below the cap.
+	if svc.liveQueryStore != nil && len(clippedTTLByQuery) > 0 {
+		if err := svc.liveQueryStore.MarkQueryReportsClipped(clippedTTLByQuery); err != nil {
+			svc.logger.DebugContext(ctx, "mark query reports clipped in redis", "err", err)
+		}
+	}
+
+	// A report that admitted a host it didn't cover yet has room again (more hosts, a higher
+	// cap, or shrunken results), so it is no longer clipped until the next rejection.
+	if svc.liveQueryStore != nil && len(admittedQueryIDs) > 0 {
+		if err := svc.liveQueryStore.ClearQueryReportsClipped(admittedQueryIDs); err != nil {
+			svc.logger.DebugContext(ctx, "clear query reports clipped in redis", "err", err)
 		}
 	}
 }
@@ -4411,14 +4583,20 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows, currentCount int) (fleet.QueryReportWriteResult, error) {
 	fetchTime := time.Now()
 
-	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
+	snapshot := result.Snapshot
+	if size := snapshotSize(snapshot); size > maxQueryReportSnapshotBytes {
+		svc.logger.DebugContext(ctx, "query report result too large, storing only fetch time", "query_id", queryID, "host_id", hostID, "size", size)
+		snapshot = nil
+	}
+
+	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(snapshot))
 
 	// If the snapshot is empty, we still want to save a row with a null value
 	// to capture LastFetched.
-	if len(result.Snapshot) == 0 {
+	if len(snapshot) == 0 {
 		rows = append(rows, &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
@@ -4427,7 +4605,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		})
 	}
 
-	for _, snapshotItem := range result.Snapshot {
+	for _, snapshotItem := range snapshot {
 		row := &fleet.ScheduledQueryResultRow{
 			QueryID:     queryID,
 			HostID:      hostID,
@@ -4437,16 +4615,37 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	var rowsAdded int
-	var err error
-	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
-		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	res, err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows, currentCount)
+	if err != nil {
+		return fleet.QueryReportWriteResult{}, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	// If we only inserted an error row, don't count it against the limit.
-	if len(result.Snapshot) == 0 {
-		rowsAdded--
+	return res, nil
+}
+
+// minQueryReportClippedTTL is the shortest time a clipped marker lives. Rejections recur every
+// report interval while a report is clipped, so the marker lives twice the interval and the
+// floor only covers reports with short or unset intervals.
+const minQueryReportClippedTTL = time.Hour
+
+func queryReportClippedTTL(query *fleet.Query) time.Duration {
+	if ttl := 2 * time.Duration(query.Interval) * time.Second; ttl > minQueryReportClippedTTL { //nolint:gosec // dismiss G115
+		return ttl
 	}
-	return rowsAdded, nil
+	return minQueryReportClippedTTL
+}
+
+// maxQueryReportSnapshotBytes bounds the serialized size of one host's result
+// for one report, since the row cap alone doesn't bound storage.
+const maxQueryReportSnapshotBytes = 512 << 10 // 512 KiB
+
+func snapshotSize(snapshot []*json.RawMessage) int {
+	size := 0
+	for _, item := range snapshot {
+		if item != nil {
+			size += len(*item)
+		}
+	}
+	return size
 }
 
 // getMostRecentResults returns only the most recent result per query.

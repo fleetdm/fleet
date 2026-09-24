@@ -1,11 +1,11 @@
-import React from "react";
-
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockLabel } from "__mocks__/labelsMock";
+import createMockUser from "__mocks__/userMock";
 import { createCustomRenderer } from "test/test-utils";
+
 import LabelsTable from "./LabelsTable";
 
 describe("LabelsTable", () => {

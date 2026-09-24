@@ -3,13 +3,14 @@ package svctest
 import (
 	"context"
 	"crypto/x509"
-	"github.com/WatchBeam/clock"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/WatchBeam/clock"
 
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -34,6 +36,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -136,6 +139,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			&common_mysql.DBConnections{},
 			nil,
 			nil,
+			chartacl.ExpandPlatform,
 			logger,
 		)
 		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
@@ -182,7 +186,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		if mdmStorage != nil && scepStorage != nil {
 			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
 			checkInAndCommand := service.NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
-				cfg.Activity.FleetInitiatedReleasePerMinute > 0)
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0, &fleet_mock.MockNotificationsService{})
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, service.NewSetRecoveryLockResultsHandler(ds, logger, commander))
@@ -196,6 +200,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				checkInAndCommand,
 				service.NewMDMAppleDDMService(ds, logger),
 				commander,
+				service.NewMDMAppleGetTokenService(ds, logger),
 				"https://test-url.com",
 				cfg,
 				svc,
@@ -249,7 +254,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
-	apiHandler := service.MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	apiHandler, err := service.MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	require.NoError(t, err)
 	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
 	// that gorilla/mux can't introspect, so surface their routes to the validator
 	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.

@@ -142,6 +142,23 @@ func TestValidateAgentOptions(t *testing.T) {
 		{"setting a valid os-specific flag", `{"command_line_flags":{
 			"users_service_delay": 123
 		}}`, true, ``},
+		{"unsupported command-line flag host_identifier", `{"command_line_flags":{
+			"host_identifier": "instance"
+		}}`, true, `The --host_identifier flag isn't supported`},
+		{"unsupported command-line flag database_path", `{"command_line_flags":{
+			"database_path": "/tmp/osquery.db"
+		}}`, true, `The --database_path flag isn't supported`},
+		{"extensions_autoload flag without extensions", `{"command_line_flags":{
+			"extensions_autoload": "/etc/osquery/extensions.load"
+		}}`, true, ``},
+		{"extensions_autoload flag with empty extensions", `{
+			"command_line_flags": {"extensions_autoload": "/etc/osquery/extensions.load"},
+			"extensions": {}
+		}`, true, ``},
+		{"extensions_autoload flag with extensions", `{
+			"command_line_flags": {"extensions_autoload": "/etc/osquery/extensions.load"},
+			"extensions": {"hello_world": {"channel": "stable", "platform": "macos"}}
+		}`, true, `The --extensions_autoload flag can't be used together with the extensions option`},
 		{"setting a valid os-specific option", `{"config":{
 			"options": {
 				"users_service_delay": 123

@@ -422,22 +422,6 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "Valid XML with reserved name",
-			profile: MDMWindowsConfigProfile{
-				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
-			},
-			wantErr: `Profile name "Windows OS Updates" is not allowed`,
-		},
-		{
-			name: "Valid XML with Windows Update LocURI",
-			profile: MDMWindowsConfigProfile{
-				Name:   "FleetieUpdater",
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/something</LocURI></Target></Replace>`),
-			},
-			wantErr: "",
-		},
-		{
 			name: "XML with top level comment",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -1001,7 +985,62 @@ func TestValidateUserProvided(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.profile.ValidateUserProvided(tt.allowCustomDiskEncryption)
+			prof := tt.profile
+			// These cases exercise SyncML validation, so any non-empty name will do.
+			// Naming rules are covered by TestValidateUserProvidedProfileName.
+			prof.Name = "Test profile"
+			err := prof.ValidateUserProvided(tt.allowCustomDiskEncryption)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateUserProvidedProfileName(t *testing.T) {
+	syncML := []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`)
+
+	tests := []struct {
+		name        string
+		profileName string
+		wantErr     string
+	}{
+		{
+			name:        "empty name is rejected (#52125)",
+			profileName: "",
+			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "whitespace-only name is rejected (#52125)",
+			profileName: "   ",
+			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "tab and newline name is rejected (#52125)",
+			profileName: "\t\n",
+			wantErr:     "Profile name can't be empty.",
+		},
+		{
+			name:        "reserved name is rejected",
+			profileName: mdm.FleetWindowsOSUpdatesProfileName,
+			wantErr:     `Profile name "Windows OS Updates" is not allowed.`,
+		},
+		{
+			name:        "name with surrounding whitespace is allowed",
+			profileName: "  Firewall  ",
+		},
+		{
+			name:        "name is allowed",
+			profileName: "Firewall",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prof := MDMWindowsConfigProfile{Name: tt.profileName, SyncML: syncML}
+			err := prof.ValidateUserProvided(false)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {

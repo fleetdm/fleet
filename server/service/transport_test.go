@@ -354,6 +354,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?mdm_id=foo",
 			errorMessage: "Invalid mdm_id",
 		},
+		"status accepts enrolled": {
+			url:             "/foo?status=enrolled",
+			hostListOptions: fleet.HostListOptions{StatusFilter: fleet.StatusEnrolled},
+		},
 		"error in mdm_enrollment_status (invalid option)": {
 			url:          "/foo?mdm_enrollment_status=foo",
 			errorMessage: "Invalid mdm_enrollment_status",

@@ -1,11 +1,11 @@
 import { http, HttpResponse } from "msw";
 
-import { baseUrl } from "test/test-utils";
 import {
   ICreateSelfServiceCategoryFormData,
   IEditSelfServiceCategoryFormData,
   ISelfServiceCategory,
 } from "interfaces/self_service_category";
+import { baseUrl } from "test/test-utils";
 
 const DEFAULT_TIMESTAMP = "2026-05-28T00:00:00Z";
 

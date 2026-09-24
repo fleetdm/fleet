@@ -1,7 +1,16 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
+import { IApiError } from "interfaces/errors";
 import {
   IJiraIntegration,
   IZendeskIntegration,
@@ -9,23 +18,12 @@ import {
   IIntegrationTableData,
   IGlobalIntegrations,
 } from "interfaces/integration";
-import { IApiError } from "interfaces/errors";
-
-import configAPI from "services/entities/config";
-
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import TableContainer from "components/TableContainer";
-import TableDataError from "components/DataError";
-import Spinner from "components/Spinner";
-import { notify } from "components/ToastNotification";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
+import configAPI from "services/entities/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import AddTicketDestinationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
-
 import {
   generateTableHeaders,
   combineDataSets,
@@ -121,7 +119,7 @@ const TicketDestinations = (): JSX.Element => {
       };
 
       setTestingConnection(true);
-      configAPI
+      return configAPI
         .update({ integrations: destination() })
         .then(() => {
           notify.success(

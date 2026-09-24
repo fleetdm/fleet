@@ -1,11 +1,38 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
+import mockServer from "test/mock-server";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import PolicyAutomationActivityDetailsModal from "./PolicyAutomationActivityDetailsModal";
+
+const stubScriptResult = (
+  overrides: { exit_code?: number; output?: string } = {}
+) =>
+  mockServer.use(
+    http.get(baseUrl("/scripts/results/:executionId"), () =>
+      HttpResponse.json({
+        hostname: "Rachael's MacBook Pro",
+        host_id: 42,
+        execution_id: "exec-1",
+        script_contents: "#!/bin/bash\nnotify ...",
+        script_id: null,
+        exit_code: overrides.exit_code ?? 0,
+        output: overrides.output ?? "",
+        message: "",
+        runtime: 1,
+        host_timeout: false,
+        created_at: "2026-01-01T00:00:00Z",
+      })
+    )
+  );
+
+// The notify branch's useQuery needs a QueryClientProvider.
+const render = createCustomRenderer({ withBackendMock: true });
 
 const failedSoftwareActivity: IPolicyAutomationActivity = {
   id: 1,
@@ -25,6 +52,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("renders the host, status, and details", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={failedSoftwareActivity}
         onCancel={jest.fn()}
       />
@@ -44,6 +72,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
     const onResetPolicy = jest.fn();
     const { rerender } = render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={failedSoftwareActivity}
         onCancel={jest.fn()}
       />
@@ -54,6 +83,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
     rerender(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={failedSoftwareActivity}
         onCancel={jest.fn()}
         onResetPolicy={onResetPolicy}
@@ -68,6 +98,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("renders separate pre-install, install, and post-install output sections for software installs", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           pre_install_output: "pre-install query returned no rows",
@@ -94,6 +125,7 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("omits an install output section that is empty", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           pre_install_output: "pre-install query failed",
@@ -116,12 +148,14 @@ describe("PolicyAutomationActivityDetailsModal", () => {
   it("explains a patch-when-closed skip instead of showing empty output sections", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           details: {
             policy_id: 123,
             software_title: "1Password",
             skipped_install: true,
+            patch_when_closed: true,
           },
           output: null,
           pre_install_output: "",
@@ -134,14 +168,13 @@ describe("PolicyAutomationActivityDetailsModal", () => {
 
     // Shown inline, the same way a failing row shows its output sections.
     expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Query didn't return result or failed/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/The app was open/)).toBeInTheDocument();
   });
 
   it("omits the details box when there is no output or error", () => {
     render(
       <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
         activity={{
           ...failedSoftwareActivity,
           type: ActivityType.RanAutomationWebhook,
@@ -156,5 +189,265 @@ describe("PolicyAutomationActivityDetailsModal", () => {
     expect(screen.getByText("Webhook queued")).toBeInTheDocument();
     // No details box (and therefore no copy button) when there's nothing to show.
     expect(screen.queryByTestId("copy-icon")).toBeNull();
+  });
+
+  describe("notify activities", () => {
+    const notifyActivity: IPolicyAutomationActivity = {
+      id: 2,
+      created_at: "2026-06-12T15:04:05Z",
+      type: ActivityType.NotifiedEndUserBeforePatching,
+      fleet_initiated: true,
+      details: {
+        policy_id: 123,
+        software_title: "1Password",
+        time_before: 3600,
+        script_execution_id: "exec-1",
+      },
+      host_id: 42,
+      host_display_name: "Rachael's MacBook Pro",
+      status: "success",
+      output: null,
+      pre_install_output: null,
+      post_install_output: null,
+    };
+
+    it("shows the offline caveat explanation on success and hides the script output behind Details", async () => {
+      stubScriptResult({ exit_code: 0, output: "Notification displayed." });
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={notifyActivity}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        await screen.findByText(
+          /End user was notified\. Patch will be forced in 1 hour\./
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Notification script output:")
+      ).not.toBeInTheDocument();
+
+      // Reveal button appears once the async script fetch resolves.
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Details/ })
+      );
+      expect(
+        screen.getByText("Notification script output:")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Notification displayed.")).toBeInTheDocument();
+    });
+
+    it("swaps in the 5-minute copy on the reminder", async () => {
+      stubScriptResult({ exit_code: 0 });
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={{
+            ...notifyActivity,
+            details: { ...notifyActivity.details, time_before: 300 },
+          }}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        await screen.findByText(/Patch will be forced in 5 minutes\./)
+      ).toBeInTheDocument();
+    });
+
+    it("appends the End user experience link for exit codes 100 and 101", async () => {
+      stubScriptResult({ exit_code: 100 });
+      const { unmount } = render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={{ ...notifyActivity, status: "error" }}
+          onCancel={jest.fn()}
+        />
+      );
+
+      const link = (await screen.findByRole("link", {
+        name: /End user experience/i,
+      })) as HTMLAnchorElement;
+      expect(link.href).toBe(
+        "https://fleetdm.com/learn-more-about/patching-end-user-experience"
+      );
+      expect(link.target).toBe("_blank");
+      unmount();
+
+      // Non-Fleet-Desktop failures don't get the link.
+      stubScriptResult({ exit_code: 41 });
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={{ ...notifyActivity, status: "error" }}
+          onCancel={jest.fn()}
+        />
+      );
+      await screen.findByText(/screen was locked/i);
+      expect(
+        screen.queryByRole("link", { name: /End user experience/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the exit-code failure sentence on a notify failure", async () => {
+      stubScriptResult({
+        exit_code: 41,
+        output: "The screen is locked.",
+      });
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={{ ...notifyActivity, status: "error" }}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        await screen.findByText(/The screen was locked/)
+      ).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+      expect(screen.getByText("The screen is locked.")).toBeInTheDocument();
+    });
+
+    it("shows an error under Details when the script result can't be loaded", async () => {
+      mockServer.use(
+        http.get(baseUrl("/scripts/results/:executionId"), () =>
+          HttpResponse.json({ message: "Not Found" }, { status: 404 })
+        )
+      );
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={notifyActivity}
+          onCancel={jest.fn()}
+        />
+      );
+
+      await userEvent.click(
+        await screen.findByRole("button", { name: /Details/ })
+      );
+      expect(
+        screen.getByText(/Couldn't load the notification script output/)
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("skipped install (notify variant)", () => {
+    it("shows the notify explanation and reveals the pre-install output under Details", async () => {
+      const skipActivity: IPolicyAutomationActivity = {
+        id: 3,
+        created_at: "2026-06-12T15:04:05Z",
+        type: ActivityType.InstalledSoftware,
+        fleet_initiated: true,
+        details: {
+          policy_id: 123,
+          software_title: "1Password",
+          skipped_install: true,
+          patch_when_closed: false,
+        },
+        host_id: 42,
+        host_display_name: "Rachael's MacBook Pro",
+        status: "error",
+        output: null,
+        pre_install_output: "",
+        post_install_output: null,
+      };
+
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={skipActivity}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(
+          /The app was open\. The end user will be notified before the patch is forced\./
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Pre-install query output:")
+      ).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      expect(
+        screen.getByText(/Fleet notifies the end user 1 hour/)
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the patch_when_closed skip on the old rendering (no notify explanation)", () => {
+      const patchWhenClosedSkip: IPolicyAutomationActivity = {
+        id: 4,
+        created_at: "2026-06-12T15:04:05Z",
+        type: ActivityType.InstalledSoftware,
+        fleet_initiated: true,
+        details: {
+          policy_id: 123,
+          software_title: "1Password",
+          skipped_install: true,
+          patch_when_closed: true,
+        },
+        host_id: 42,
+        host_display_name: "Rachael's MacBook Pro",
+        status: "error",
+        output: null,
+        pre_install_output: "",
+        post_install_output: null,
+      };
+
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={patchWhenClosedSkip}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByText(/The end user will be notified/)
+      ).not.toBeInTheDocument();
+      // Old rendering exposes pre_install_output directly (no reveal).
+      expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Fleet notifies the end user/)
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows the query-fail copy for an install stopped by its own pre-install query", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
+        activity={{ ...failedSoftwareActivity, pre_install_output: "" }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Pre-install query output")).toBeInTheDocument();
+    expect(screen.getByText(/Install stopped/)).toBeInTheDocument();
+  });
+
+  it("omits the pre-install query output section for a successful install even though its output is empty", () => {
+    render(
+      <PolicyAutomationActivityDetailsModal
+        currentPolicyId={123}
+        activity={{
+          ...failedSoftwareActivity,
+          status: "success",
+          pre_install_output: "",
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.queryByText("Pre-install query output")
+    ).not.toBeInTheDocument();
   });
 });

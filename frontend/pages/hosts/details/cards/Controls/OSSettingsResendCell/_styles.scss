@@ -28,3 +28,11 @@
     }
   }
 }
+
+// `tr:hover .row-hover-button { opacity: 1 }` (TableContainer/_styles.scss)
+// otherwise outweighs the disabled button's own `opacity: 0.5`, so hovering
+// the row to reveal the disabled Resend button also cancels its dimming —
+// exactly when its tooltip becomes visible.
+tr:hover .os-settings-resend-cell .row-hover-button.button--disabled {
+  opacity: 0.5;
+}

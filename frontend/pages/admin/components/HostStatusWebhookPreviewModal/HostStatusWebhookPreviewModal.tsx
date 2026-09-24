@@ -1,9 +1,8 @@
 import React from "react";
 
-import { syntaxHighlight } from "utilities/helpers";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "host-status-webhook-preview-modal";
 
