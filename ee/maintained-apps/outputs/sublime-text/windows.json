@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.0.421300",
+      "version": "4.0.0.421500",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd' AND version_compare(version, '4.0.0.421300') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd' AND version_compare(version, '4.0.0.421500') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sublime_text.exe');"
       },
-      "installer_url": "https://download.sublimetext.com/sublime_text_build_4213_x64_setup.exe",
+      "installer_url": "https://download.sublimetext.com/sublime_text_build_4215_x64_setup.exe",
       "install_script_ref": "ab680647",
       "uninstall_script_ref": "03f70392",
-      "sha256": "86202139d45974df77a9cc86aec1a6507a38797999221f4784cfce26d67390fc",
+      "sha256": "bafea3ffc2d151fbbf7269868d7eaaa20d7b884254ad5512c1548b6bebfa7cde",
       "default_categories": [
         "Developer tools"
       ]
