@@ -2636,6 +2636,8 @@ Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
 
 Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
 
+> Fleet doesn't validate `splunk_url` or `splunk_token` at startup. If either is wrong, errors appear in the Fleet server logs when Fleet tries to send logs to Splunk.
+
 ### splunk_url
 
 This flag only has effect if one of the following is true:
