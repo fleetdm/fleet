@@ -859,6 +859,55 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 	}
 }
 
+func TestHostDetailsAppleEnrollmentAllowedFlags(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+
+	for _, tc := range []struct {
+		status        string
+		personal      bool
+		wantPopulated bool
+	}{
+		{status: fleet.MDMEnrollmentStatusPersonal, personal: true, wantPopulated: true},
+		{status: fleet.MDMEnrollmentStatusManualPersonal, personal: true, wantPopulated: true},
+		{status: fleet.MDMEnrollmentStatusManual, personal: false, wantPopulated: true},
+		{status: fleet.MDMEnrollmentStatusAutomatic, personal: false, wantPopulated: false},
+	} {
+		t.Run(tc.status, func(t *testing.T) {
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return &fleet.HostMDMApplePermissions{
+					HostUUID:             hostUUID,
+					IsPersonalEnrollment: tc.personal,
+					AccessRights:         apple_mdm.AppleEnrollmentAccessRights(tc.personal),
+				}, nil
+			}
+			host := &fleet.Host{
+				ID:       3,
+				Platform: "ios",
+				UUID:     "abc123",
+				MDM:      fleet.MDMHostData{EnrollmentStatus: new(tc.status)},
+			}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, fleet.HostDetailOptions{ExcludeSoftware: true})
+			require.NoError(t, err)
+
+			if !tc.wantPopulated {
+				require.Nil(t, hostDetail.MDM.WipeAllowed)
+				require.Nil(t, hostDetail.MDM.LockAllowed)
+				require.Nil(t, hostDetail.MDM.ClearPasscodeAllowed)
+				return
+			}
+			require.NotNil(t, hostDetail.MDM.WipeAllowed)
+			require.NotNil(t, hostDetail.MDM.LockAllowed)
+			require.NotNil(t, hostDetail.MDM.ClearPasscodeAllowed)
+			require.Equal(t, !tc.personal, *hostDetail.MDM.WipeAllowed)
+			require.Equal(t, !tc.personal, *hostDetail.MDM.LockAllowed)
+			require.Equal(t, !tc.personal, *hostDetail.MDM.ClearPasscodeAllowed)
+		})
+	}
+}
+
 // TestHostDetailsSuppressesAndroidPhoneNumberForBYOD checks that a
 // personally-owned Android host never surfaces a phone number or a hardware
 // radio identifier, whatever ended up stored: ingestion gates on the
