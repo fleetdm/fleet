@@ -6,6 +6,9 @@
 ### [Anatomy](./anatomy.md)
 
 
+### [Software inventory reference](./software-inventory-reference.md)
+
+
 ### [Tutorials and guides](./tutorials-and-guides)
 
 
