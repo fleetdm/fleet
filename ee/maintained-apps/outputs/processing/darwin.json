@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5.6",
+      "version": "4.5.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.processing.four';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.processing.four' AND version_compare(bundle_short_version, '4.5.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.processing.four' AND version_compare(bundle_short_version, '4.5.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.processing.four' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/processing/processing4/releases/download/processing-1434-4.5.6/processing-4.5.6-macos-aarch64.dmg",
+      "installer_url": "https://github.com/processing/processing4/releases/download/processing-1435-4.5.7/processing-4.5.7-macos-aarch64.dmg",
       "install_script_ref": "0d200982",
       "uninstall_script_ref": "b69978e7",
-      "sha256": "f543a70d06fa43ea4f57955368734296c49960b71b24b2220da18d14806ed3fa",
+      "sha256": "27fb4bb8d5fb785c02cc6987649e215b224d49a3ad9ae7dbedc3a8ccf981cae9",
       "default_categories": [
         "Productivity"
       ]

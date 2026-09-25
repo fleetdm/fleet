@@ -29254,3 +29254,133 @@ func (s *integrationMDMTestSuite) TestBitLockerPINHandoff() {
 	require.NotContains(t, string(macBody), "fleetd_can_set_pin")
 	require.NotContains(t, string(macBody), "pin_request")
 }
+
+func (s *integrationMDMTestSuite) TestAppleMDMCommandCleanup() {
+	t := s.T()
+	ctx := t.Context()
+
+	origPush := s.pushProvider.PushFunc
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
+	s.pushProvider.PushFunc = mockSuccessfulPush
+
+	// a Mac receives a profile it must keep; an iPhone receives a refetch it
+	// should shed (refetches are MDM commands only on iOS/iPadOS)
+	macHost, mac := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// the profile schedule assigns, the Apple MDM worker sends; the
+	// processing key is the per-host lock between the two
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+macHost.UUID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	iphoneHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            strings.ToUpper(uuid.NewString()),
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour),
+	})
+	require.NoError(t, err)
+	iphone := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "iPhone14,6")
+	iphone.UUID = iphoneHost.UUID
+	iphone.SerialNumber = iphoneHost.HardwareSerial
+	require.NoError(t, iphone.Enroll())
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity))
+
+	// both devices answer everything they are served
+	var profileCmds []string
+	cmd, err := mac.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.Command.RequestType == "InstallProfile" {
+			profileCmds = append(profileCmds, cmd.CommandUUID)
+		}
+		cmd, err = mac.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotEmpty(t, profileCmds)
+
+	var refetchCmds []string
+	cmd, err = iphone.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if strings.HasPrefix(cmd.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) {
+			refetchCmds = append(refetchCmds, cmd.CommandUUID)
+		}
+		switch cmd.Command.RequestType {
+		case "DeviceInformation":
+			cmd, err = iphone.AcknowledgeDeviceInformation(iphone.UUID, cmd.CommandUUID, "cleanup-iphone", "iPhone 14", "UTC")
+		case "InstalledApplicationList":
+			cmd, err = iphone.AcknowledgeInstalledApplicationList(iphone.UUID, cmd.CommandUUID, nil)
+		case "CertificateList":
+			cmd, err = iphone.AcknowledgeCertificateList(iphone.UUID, cmd.CommandUUID, nil)
+		default:
+			cmd, err = iphone.Acknowledge(cmd.CommandUUID)
+		}
+		require.NoError(t, err)
+	}
+	require.NotEmpty(t, refetchCmds)
+
+	// every answer is now older than both windows; only the reference guard
+	// stands between the profile commands and deletion
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_command_results SET updated_at = NOW(6) - INTERVAL 31 DAY WHERE id IN (?, ?)`, macHost.UUID, iphoneHost.UUID)
+		return err
+	})
+
+	_, stats, err := s.ds.CleanupNanoCommands(ctx, fleet.MDMAppleCommandCleanupOptions{
+		ShortRetention:    24 * time.Hour,
+		StandardRetention: 30 * 24 * time.Hour,
+		MaxRowDeletions:   1000,
+		MaxCmdDeletions:   1000,
+	}, nil)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, stats.ShortPairsDeleted, len(refetchCmds))
+
+	countRows := func(table, cmdUUID string) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM `+table+` WHERE command_uuid = ?`, cmdUUID)
+		})
+		return n
+	}
+	for _, c := range refetchCmds {
+		require.Zero(t, countRows("nano_enrollment_queue", c), c)
+		require.Zero(t, countRows("nano_command_results", c), c)
+		require.Zero(t, countRows("nano_commands", c), c)
+	}
+	for _, c := range profileCmds {
+		require.Equal(t, 1, countRows("nano_enrollment_queue", c), c)
+		require.Equal(t, 1, countRows("nano_command_results", c), c)
+		require.Equal(t, 1, countRows("host_mdm_apple_profiles", c), "still the host's current profile command")
+	}
+
+	// the UI listing shows the profile commands and none of the refetches
+	var listResp listMDMAppleCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listResp)
+	listed := map[string]struct{}{}
+	for _, c := range listResp.Results {
+		listed[c.CommandUUID] = struct{}{}
+	}
+	for _, c := range profileCmds {
+		require.Contains(t, listed, c)
+	}
+	for _, c := range refetchCmds {
+		require.NotContains(t, listed, c)
+	}
+
+	// the devices' next check-ins are served nothing: no command was re-queued
+	cmd, err = mac.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	cmd, err = iphone.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+}

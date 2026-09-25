@@ -102,7 +102,9 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, notificationUUID); err != nil {
+	// Read the primary, orbit's script fetch writes the payload about a second before the device fetches this view,
+	// and a stale replica copy would show the end user a different notice than the outcome records.
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID})
 		}
@@ -369,6 +371,20 @@ WHERE uuid = ?
 		api.EndUserNotificationExpired, api.EndUserNotificationFailed, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetEndUserNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET payload = ?
+WHERE uuid = ? AND status = ?
+`
+
+	_, err := ds.primary.ExecContext(ctx, updateStmt, payload, notificationUUID, api.EndUserNotificationDispatched)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification payload")
 	}
 	return nil
 }

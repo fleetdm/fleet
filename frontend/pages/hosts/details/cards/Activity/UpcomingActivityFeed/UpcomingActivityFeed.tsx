@@ -6,6 +6,7 @@ import Pagination from "components/Pagination";
 import { AppContext } from "context/app";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
+import { PREMIUM_ONLY_DETAIL_ACTIVITIES } from "utilities/activityHelpers";
 
 import { upcomingActivityComponentMap } from "../ActivityConfig";
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
@@ -63,6 +64,8 @@ const UpcomingActivityFeed = ({
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
+          const hideShowDetails =
+            !isPremiumTier && PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type);
           return (
             <ActivityItemComponent
               key={activity.uuid}
@@ -70,6 +73,7 @@ const UpcomingActivityFeed = ({
               activity={activity}
               onShowDetails={onShowDetails}
               hideCancel={!canCancelActivities}
+              hideShowDetails={hideShowDetails}
               onCancel={() => onCancel(activity)}
             />
           );

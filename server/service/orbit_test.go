@@ -1501,6 +1501,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+		require.True(t, act.PatchWhenClosed, "a skip must record which patch option its install ran under")
 
 		// The host software list must surface the skip so the UI can render "Patch
 		// skipped" instead of "Failed" for the row (issue #52297).
@@ -1587,6 +1588,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		act, ok := installedActivities[installUUID]
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
+		require.False(t, act.PatchWhenClosed, "a notify before patching skip records patch_when_closed false")
 
 		// The two patch options are told apart by the pre-install output the details modal shows.
 		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
@@ -2744,7 +2746,12 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 			return false, nil
 		}
 		ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-			return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "ubuntu"}, nil
+			// Echo the requested platform so post-enrollment platform-scoped logic runs as it would in production.
+			var cfg fleet.DatastoreEnrollOrbitConfig
+			for _, opt := range opts {
+				opt(&cfg)
+			}
+			return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: cfg.HostInfo.Platform}, nil
 		}
 		ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 			return nil
@@ -2814,6 +2821,66 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
 		require.False(t, ds.EnrollOrbitFuncInvoked, "the flag bypass must not fire when an EUA token is present")
+	})
+
+	// The platform is client-supplied, so a request claiming to be macOS must be
+	// gated exactly like Linux and Windows. A genuine macOS host that completed
+	// end user auth during MDM enrollment is recognized by its IdP account, not
+	// by its platform.
+	darwinHost := hostInfo
+	darwinHost.Platform = "darwin"
+	darwinHost.PlatformLike = ""
+
+	t.Run("flag disabled blocks client-claimed darwin without capability", func(t *testing.T) {
+		// macOS fleetd never advertises end_user_auth, so a real Mac and a spoofed one look the same here.
+		ds, svc, ctx := newSvc(t, false)
+		_, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+		require.False(t, ds.EnrollOrbitFuncInvoked, "claiming darwin must not exempt a first-time enrollment from EUA")
+	})
+
+	t.Run("flag disabled blocks client-claimed darwin with capability", func(t *testing.T) {
+		ds, svc, ctx := newSvc(t, false)
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+		req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
+		_, err := svc.EnrollOrbit(capabilities.NewContext(ctx, req), darwinHost, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+		require.False(t, ds.EnrollOrbitFuncInvoked)
+	})
+
+	t.Run("flag disabled allows darwin with IdP account", func(t *testing.T) {
+		// An ADE-enrolled Mac has a host_mdm_idp_accounts row written during MDM enrollment.
+		ds, svc, ctx := newSvc(t, false)
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{UUID: "idp-acct-1", Email: "user@example.com"}, nil
+		}
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
+		require.False(t, ds.HostPreviouslyOrbitEnrolledFuncInvoked)
+	})
+
+	t.Run("flag disabled allows previously enrolled darwin", func(t *testing.T) {
+		ds, svc, ctx := newSvc(t, false)
+		ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+			return true, nil
+		}
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
+	})
+
+	t.Run("flag enabled allows darwin without capability", func(t *testing.T) {
+		// Default behavior for a Mac that enrolls fleetd before MDM is unchanged.
+		ds, svc, ctx := newSvc(t, true)
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), darwinHost, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
 	})
 }
 

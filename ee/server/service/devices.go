@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,10 +23,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list policies for host")
+	}
+	if !includeHidden {
+		policies = slices.DeleteFunc(policies, func(p *fleet.HostPolicy) bool { return p.Hidden })
 	}
 	// return the device-safe representation of the policies, which excludes
 	// the policy author's identity and the raw SQL query.
@@ -172,11 +176,12 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 	sum.SelfService = &hasSelfService
 
-	r, err := svc.ds.FailingPoliciesCount(ctx, host)
+	total, unhidden, err := svc.ds.FailingPoliciesCount(ctx, host)
 	if err != nil {
 		return sum, ctxerr.Wrap(ctx, err, "retrieving failing policies")
 	}
-	sum.FailingPolicies = &r
+	sum.FailingPolicies = &total
+	sum.FailingUnhiddenPolicies = &unhidden
 
 	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {

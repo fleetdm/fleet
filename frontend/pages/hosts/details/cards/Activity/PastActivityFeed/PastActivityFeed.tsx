@@ -6,6 +6,7 @@ import Pagination from "components/Pagination";
 import { AppContext } from "context/app";
 import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
+import { PREMIUM_ONLY_DETAIL_ACTIVITIES } from "utilities/activityHelpers";
 
 import { pastActivityComponentMap } from "../ActivityConfig";
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
@@ -66,12 +67,15 @@ const PastActivityFeed = ({
             );
             return null;
           }
+          const hideShowDetails =
+            !isPremiumTier && PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type);
           return (
             <ActivityItemComponent
               key={activity.id}
               tab="past"
               activity={activity}
               hideCancel
+              hideShowDetails={hideShowDetails}
               onShowDetails={onShowDetails}
             />
           );

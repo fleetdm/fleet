@@ -148,8 +148,9 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 /////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceHostRequest struct {
-	Token           string `url:"token"`
-	ExcludeSoftware bool   `query:"exclude_software,optional"`
+	Token                 string `url:"token"`
+	ExcludeSoftware       bool   `query:"exclude_software,optional"`
+	IncludeHiddenPolicies bool   `query:"include_hidden_policies,optional" premium:"true"`
 }
 
 func (r *getDeviceHostRequest) deviceAuthToken() string {
@@ -192,9 +193,10 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	// must still load the full host details, as it returns more information
 	opts := fleet.HostDetailOptions{
-		IncludeCVEScores: false,
-		IncludePolicies:  false,
-		ExcludeSoftware:  req.ExcludeSoftware,
+		IncludeCVEScores:      false,
+		IncludePolicies:       false,
+		ExcludeSoftware:       req.ExcludeSoftware,
+		ExcludeHiddenPolicies: !req.IncludeHiddenPolicies,
 	}
 	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
@@ -483,7 +485,8 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 ////////////////////////////////////////////////////////////////////////////////
 
 type listDevicePoliciesRequest struct {
-	Token string `url:"token"`
+	Token                 string `url:"token"`
+	IncludeHiddenPolicies bool   `query:"include_hidden_policies,optional" premium:"true"`
 }
 
 func (r *listDevicePoliciesRequest) deviceAuthToken() string {
@@ -498,13 +501,14 @@ type listDevicePoliciesResponse struct {
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
 
 func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listDevicePoliciesRequest)
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
-	data, err := svc.ListDevicePolicies(ctx, host)
+	data, err := svc.ListDevicePolicies(ctx, host, req.IncludeHiddenPolicies)
 	if err != nil {
 		return listDevicePoliciesResponse{Err: err}, nil
 	}
@@ -512,7 +516,7 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 	return listDevicePoliciesResponse{Policies: data}, nil
 }
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

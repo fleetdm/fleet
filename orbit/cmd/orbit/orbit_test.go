@@ -18,6 +18,8 @@ type fakeKeystore struct {
 	getErr    error
 	addErr    error
 	updateErr error
+	// corruptOnWrite accepts a write but reports a different value afterwards
+	corruptOnWrite bool
 
 	getCalls    int
 	addCalls    int
@@ -40,7 +42,7 @@ func (f *fakeKeystore) AddSecret(secret string) error {
 	if f.addErr != nil {
 		return f.addErr
 	}
-	f.secret = secret
+	f.store(secret)
 	return nil
 }
 
@@ -49,8 +51,15 @@ func (f *fakeKeystore) UpdateSecret(secret string) error {
 	if f.updateErr != nil {
 		return f.updateErr
 	}
-	f.secret = secret
+	f.store(secret)
 	return nil
+}
+
+func (f *fakeKeystore) store(secret string) {
+	if f.corruptOnWrite {
+		secret = "corrupted"
+	}
+	f.secret = secret
 }
 
 func TestReadEnrollSecretFromFile(t *testing.T) {

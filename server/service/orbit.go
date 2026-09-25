@@ -294,68 +294,62 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			return "", fleet.OrbitError{Message: "failed to get IdP account"}
 		}
 		if idpAccount == nil {
-			// Get the host platform.
 			h := fleet.Host{
 				Platform:     hostInfo.Platform,
 				PlatformLike: hostInfo.PlatformLike,
 			}
 			platform := h.FleetPlatform()
-			// Orbit enrollment is only gated by end user auth for Linux and Windows hosts.
-			// For macOS hosts the MDM enrollment process handles end user auth.
-			if platform == "linux" || platform == "windows" {
-				// Enforcement is based solely on server policy. The client-supplied
-				// X-Fleet-Capabilities header is an informational hint and must not
-				// gate this decision.
-				//
-				// The AllowOrbitEndUserAuthBypass escape hatch lets clients that do not
-				// advertise the end-user auth capability enroll anyway — either pre-EUA
-				// agents, or installers built with `fleetctl package --bypass-end-user-auth`.
-				// It defaults to true; set it to false to strictly enforce end user auth.
-				mp, capsOK := capabilities.FromContext(ctx)
-				clientSupportsEUA := capsOK && mp.Has(fleet.CapabilityEndUserAuth)
-				switch {
-				case platform == "windows" && euaToken != "":
-					// A Windows host already authenticated during MDM enrollment and the
-					// EUA token was passed by the MSI installer.
-					_, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
-					if err != nil {
-						return "", err
-					}
-					euaDeviceID = deviceID
-					euaIdpAcctUUID = idpAcctUUID
-					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
-				case svc.config.MDM.AllowOrbitEndUserAuthBypass && !clientSupportsEUA:
-					svc.logger.WarnContext(ctx, "allowing enrollment without end-user authentication: end-user auth bypass is enabled and the client does not support end-user auth",
-						"host_uuid", hostInfo.HardwareUUID)
-					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
-				default:
-					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
-					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
-					// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
-					previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
-					if err != nil {
-						recordErrorDetail(ctx, err)
-						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment"}
-					}
-					if !previouslyEnrolled {
-						// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-						// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
-						var teamID any
-						if enrollTeamID != nil {
-							teamID = *enrollTeamID
-						}
-						svc.logger.WarnContext(
-							ctx, "blocking enrollment: end-user authentication required but not completed",
-							"host_uuid", hostInfo.HardwareUUID,
-							"hardware_serial", hostInfo.HardwareSerial,
-							"platform", platform,
-							"team_id", teamID,
-						)
-						return "", fleet.NewOrbitIDPAuthRequiredError()
-					}
-					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
-						"host_uuid", hostInfo.HardwareUUID)
+			// The AllowOrbitEndUserAuthBypass escape hatch lets clients that do not
+			// advertise the end-user auth capability enroll anyway — pre-EUA agents,
+			// installers built with `fleetctl package --bypass-end-user-auth`, and macOS
+			// fleetd (which never advertises it because MDM enrollment normally handles
+			// end user auth on macOS). It defaults to true; set it to false to strictly
+			// enforce end user auth on every platform.
+			mp, capsOK := capabilities.FromContext(ctx)
+			clientSupportsEUA := capsOK && mp.Has(fleet.CapabilityEndUserAuth)
+			switch {
+			case platform == "windows" && euaToken != "":
+				// A Windows host already authenticated during MDM enrollment and the
+				// EUA token was passed by the MSI installer.
+				_, deviceID, idpAcctUUID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
+				if err != nil {
+					return "", err
 				}
+				euaDeviceID = deviceID
+				euaIdpAcctUUID = idpAcctUUID
+				// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
+			case svc.config.MDM.AllowOrbitEndUserAuthBypass && !clientSupportsEUA:
+				svc.logger.WarnContext(ctx, "allowing enrollment without end-user authentication: end-user auth bypass is enabled and the client does not support end-user auth",
+					"host_uuid", hostInfo.HardwareUUID,
+					"platform", platform)
+				// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
+			default:
+				// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
+				// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
+				// prompt for end user authentication again. See https://github.com/fleetdm/fleet/issues/46300.
+				previouslyEnrolled, err := svc.ds.HostPreviouslyOrbitEnrolled(ctx, hostInfo, appConfig.MDM.EnabledAndConfigured)
+				if err != nil {
+					recordErrorDetail(ctx, err)
+					return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment"}
+				}
+				if !previouslyEnrolled {
+					// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+					// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
+					var teamID any
+					if enrollTeamID != nil {
+						teamID = *enrollTeamID
+					}
+					svc.logger.WarnContext(
+						ctx, "blocking enrollment: end-user authentication required but not completed",
+						"host_uuid", hostInfo.HardwareUUID,
+						"hardware_serial", hostInfo.HardwareSerial,
+						"platform", platform,
+						"team_id", teamID,
+					)
+					return "", fleet.NewOrbitIDPAuthRequiredError()
+				}
+				svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",
+					"host_uuid", hostInfo.HardwareUUID)
 			}
 		}
 	}
@@ -1366,7 +1360,18 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		var failureMessage string
 		// a notification's script is Fleet's own, and carries only its URL variable
 		if isNotificationScript(script) {
-			expanded, failureMessage = svc.expandNotificationURL(ctx, host, script)
+			var notificationUUID string
+			notificationUUID, err = svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", script.ExecutionID, "err", err)
+				failureMessage = "Fleet couldn't find the notification this script belongs to."
+			}
+			if failureMessage == "" {
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+			}
+			if failureMessage == "" {
+				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
+			}
 		} else {
 			expanded, failureMessage, err = svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
 			if err != nil {
@@ -2397,6 +2402,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				PolicyName:          policyName,
 				FromSetupExperience: fromSetupExperience,
 				SkippedInstall:      isAppOpenSkip,
+				PatchWhenClosed:     hsi.PatchWhenClosed,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
@@ -2407,7 +2413,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		// report the same result again and emit a second activity.
 		if isAppOpenSkip && hsi.NotifyBeforePatching {
 			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
-				svc.logger.ErrorContext(ctx,
+				svc.logger.ErrorContext(
+					ctx,
 					"failed to create patch notification for end user",
 					"host_id", host.ID,
 					"install_uuid", result.InstallUUID,

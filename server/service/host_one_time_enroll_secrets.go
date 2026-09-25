@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
 
@@ -58,14 +57,16 @@ func (svc *Service) lookupOneTimeEnrollSecret(ctx context.Context, secret string
 // host_enrollment_rejected activity, at most once per host and reason within
 // enrollmentRejectedActivityTTL. It never fails the caller.
 func (svc *Service) recordEnrollmentRejected(ctx context.Context, reason string, hostID *uint, attempt enrollmentAttempt) {
-	svc.logger.WarnContext(ctx, "enrollment rejected",
-		"reason", reason,
-		"enrollment_plane", attempt.plane,
-		"host_id", ptr.ValOrZero(hostID), // zero when no host was matched
+	logArgs := []any{"reason", reason, "enrollment_plane", attempt.plane}
+	if hostID != nil {
+		logArgs = append(logArgs, "host_id", *hostID)
+	}
+	logArgs = append(logArgs,
 		"platform", attempt.platform,
 		"hardware_uuid", attempt.hardwareUUID,
 		"hardware_serial", attempt.hardwareSerial,
 	)
+	svc.logger.WarnContext(ctx, "enrollment rejected", logArgs...)
 
 	// Get then Set is not atomic, so two servers can race into a duplicate
 	// activity; that is acceptable for a rate limit. The key is reserved only

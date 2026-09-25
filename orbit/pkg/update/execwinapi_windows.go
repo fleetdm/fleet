@@ -242,6 +242,14 @@ func TriggerWindowsMDMSync() error {
 	return nil
 }
 
+// HasActiveFleetMDMEnrollment reports whether this host currently has an active Fleet Windows MDM enrollment. It answers "could
+// Fleet deliver configuration to me?", which is what callers need before asking for something Fleet can only send over the MDM
+// channel.
+func HasActiveFleetMDMEnrollment() bool {
+	_, err := fleetMDMEnrollmentGUID()
+	return err == nil
+}
+
 // fleetMDMEnrollmentGUID returns the enrollment GUID of the active Fleet Windows MDM enrollment by scanning
 // HKLM\SOFTWARE\Microsoft\Enrollments for the subkey whose ProviderID is Fleet's and whose EnrollmentState is active (see
 // isActiveFleetEnrollment). The subkey name is the enrollment GUID that deviceenroller's /o argument expects.

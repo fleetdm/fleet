@@ -817,6 +817,26 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
+	// Windows enrollments outlive the host so the device can relink. Touching
+	// updated_at starts the stale-enrollment retention window at deletion;
+	// otherwise an idle enrollment would be reaped within the hour. Empty
+	// UUIDs are skipped so never-linked enrollments keep their own clock.
+	linkedUUIDs := make([]string, 0, len(hostUUIDs))
+	for _, u := range hostUUIDs {
+		if u != "" {
+			linkedUUIDs = append(linkedUUIDs, u)
+		}
+	}
+	if len(linkedUUIDs) > 0 {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, linkedUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", linkedUUIDs)
+		}
+	}
+
 	// perform the soft-deletion of host-referencing tables
 	for table, col := range additionalHostRefsSoftDelete {
 		stmt, args, err := sqlx.In(fmt.Sprintf("UPDATE `%s` SET `%s` = NOW() WHERE host_id IN (?)", table, col), hostIDs)
@@ -2261,6 +2281,19 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
 		}
 
+		// This path bypasses deleteHosts, so it needs the same enrollment touch.
+		if len(ids) > 0 {
+			stmt, args, err := sqlx.In(`
+				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+				WHERE host_uuid IN (SELECT uuid FROM hosts WHERE id IN (?) AND uuid <> '')`, ids)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building touch statement for incoming hosts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
+			}
+		}
+
 		cleanupHosts := `
 		DELETE FROM hosts
 		WHERE hostname = '' AND osquery_version = '' AND hardware_serial = ''
@@ -2540,7 +2573,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		Platform:       hostInfo.Platform,
 		PlatformLike:   hostInfo.PlatformLike,
 	}
+	// Logged only after commit because a rejected enrollment rolls back and overwrites nothing.
+	var overwrittenHostID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		overwrittenHostID = 0
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
@@ -2559,11 +2595,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				// This means a orbit host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if orbit's node key file was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(
-					ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
-					"identifier", hostInfo.HardwareUUID,
-					"host_id", enrolledHostInfo.ID,
-				)
+				overwrittenHostID = enrolledHostInfo.ID
 			}
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
 			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
@@ -2734,6 +2766,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	if err != nil {
 		return nil, err
 	}
+	if overwrittenHostID != 0 {
+		ds.logger.WarnContext(
+			ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+			"identifier", hostInfo.HardwareUUID,
+			"host_id", overwrittenHostID,
+		)
+	}
 
 	return &host, nil
 }
@@ -2783,7 +2822,10 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 	}
 
 	var host fleet.Host
+	// Logged only after commit because a rejected enrollment rolls back and overwrites nothing.
+	var overwrittenHostID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		overwrittenHostID = 0
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
@@ -2850,11 +2892,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				// This means a osquery host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if osquery.db was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(
-					ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
-					"identifier", hardwareUUID,
-					"host_id", enrolledHostInfo.ID,
-				)
+				overwrittenHostID = enrolledHostInfo.ID
 			}
 
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
@@ -3000,6 +3038,13 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 	})
 	if err != nil {
 		return nil, err
+	}
+	if overwrittenHostID != 0 {
+		ds.logger.WarnContext(
+			ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+			"identifier", hardwareUUID,
+			"host_id", overwrittenHostID,
+		)
 	}
 	return &host, nil
 }
@@ -4020,27 +4065,29 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (total uint, unhidden uint, err error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
 
 	query := `
-		SELECT SUM(1 - pm.passes) AS n_failed
+		SELECT
+			COALESCE(SUM(1 - pm.passes), 0) AS total,
+			COALESCE(SUM((1 - pm.passes) * (1 - p.hidden)), 0) AS unhidden
 		FROM policy_membership pm
-		WHERE pm.host_id = ? AND pm.passes IS NOT null
-		GROUP BY host_id
+		JOIN policies p ON p.id = pm.policy_id
+		WHERE pm.host_id = ? AND pm.passes IS NOT NULL
 	`
 
-	var r uint
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &r, query, host.ID); err != nil {
-		if err == sql.ErrNoRows {
-			return 0, nil
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get failing policies count")
+	var r struct {
+		Total    uint `db:"total"`
+		Unhidden uint `db:"unhidden"`
 	}
-	return r, nil
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &r, query, host.ID); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "get failing policies count")
+	}
+	return r.Total, r.Unhidden, nil
 }
 
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -4048,7 +4095,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.type,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.hidden, p.type,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE
