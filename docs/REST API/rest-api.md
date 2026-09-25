@@ -9225,6 +9225,8 @@ Retrieves an unsigned manual enrollment profile for macOS hosts. Install this pr
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
+The manual enrollment profile uses Fleet's static SCEP challenge. If [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) is set to `false`, this endpoint returns an error.
+
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
 ##### Example
