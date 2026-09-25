@@ -464,6 +464,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /search': {
+    action: 'view-search',
+    locals: {
+      pageTitleForMeta: 'Search',
+      pageDescriptionForMeta: 'Search Fleet\'s documentation, handbook, guides, and articles.',
+    }
+  },
+
   'GET /integrations': {
     action: 'view-integrations',
     locals: {
