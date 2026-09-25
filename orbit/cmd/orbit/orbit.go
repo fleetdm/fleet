@@ -493,7 +493,7 @@ func writeRestrictedFile(path, contents string) error {
 	if _, err := f.WriteString(contents); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
-	return f.Close()
+	return nil
 }
 
 // tryReadEnrollSecretFromKeystore loads the enroll secret from the keystore via
