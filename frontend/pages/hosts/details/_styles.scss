@@ -49,23 +49,42 @@
     .display-name-container {
       display: flex;
       align-items: baseline; // Align text to bottom
+      // Wrap so "Last fetched..." drops below the h1 when the refetch button
+      // expands to "Fetching fresh vitals...this may take a moment" and
+      // squeezes the row. Without wrap, flex crushes the timestamp into a
+      // one-word-per-line column.
+      flex-wrap: wrap;
+      column-gap: $pad-medium;
+      row-gap: $pad-xsmall;
+
+      // The h1 is wrapped in TooltipWrapper's <span> (display: inline-flex)
+      // > <div class="__element"> > <h1>. Both the outer span and the inner
+      // __element div sit in flex contexts, so both need min-width: 0 for
+      // the h1's overflow:hidden + text-overflow:ellipsis to truncate
+      // instead of the whole thing overflowing into the actions cluster.
+      > * {
+        min-width: 0;
+      }
+
+      .component__tooltip-wrapper__element {
+        min-width: 0;
+        overflow: hidden;
+      }
+    }
+
+    // Needed for .display-name-container to shrink below its content so
+    // the h1 truncates instead of overflowing into the actions cluster.
+    .title__inner {
+      flex: 1 1 0;
+      min-width: 0;
     }
 
     .display-name {
       font-size: $large;
-      @include ellipse-text(300px);
-
-      @media (min-width: $break-md) {
-        @include ellipse-text(500px);
-      }
-
-      @media (min-width: $break-lg) {
-        @include ellipse-text(800px);
-      }
-
-      @media (min-width: $break-xxl) {
-        @include ellipse-text(1000px);
-      }
+      // No fixed max-width: let flex shrink and truncate only when the row
+      // (h1 + fetched-at + actions cluster) actually runs out of room.
+      @include ellipse-text;
+      min-width: 0;
     }
   }
 
