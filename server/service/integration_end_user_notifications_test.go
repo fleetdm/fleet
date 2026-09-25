@@ -320,6 +320,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotEmpty(t, resp.Items[0].Name)
 		require.NotNil(t, resp.Items[0].IconURL, "the fixture gave this title an icon")
 		require.Contains(t, *resp.Items[0].IconURL, token, "the icon URL carries the device token")
+		require.Nil(t, resp.InstallAt, "install_at is set when the notification is displayed")
 	})
 
 	t.Run("GET renders the plural form for more than one app", func(t *testing.T) {
@@ -919,6 +920,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			{ID: "dismiss", Label: "Hide"},
 			{ID: "update_now", Label: "Update now"},
 		}, view.Actions, "the reminder swaps Remind for Hide")
+		require.NotNil(t, view.InstallAt)
+		require.WithinDuration(t, *shortened, *view.InstallAt, time.Second)
 
 		// a late reminder moves install_at out rather than losing part of its 5 minutes
 		postScriptResult(host, *delayedAndDispatched.ExecutionID, 0)
