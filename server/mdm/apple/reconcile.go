@@ -397,6 +397,12 @@ func ComputeDeclarationDeltas(
 // Pass redisKeyValue == nil to skip the "host being set up" Redis check —
 // the per-host enrollment path passes nil since by construction the host
 // IS being set up and we explicitly want to install the profiles right now.
+//
+// caInstallBudget is the number of CA-variable profile installs still allowed; it is
+// decremented as they are scheduled, and nil disables CA throttling entirely. It is a pointer
+// rather than a plain limit because the batched cron drains several windows per tick and must
+// share one budget across all of them — a per-call limit would multiply the issuance rate
+// against the customer's CA by the number of windows drained.
 func ExecuteReconcileBatch(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -404,7 +410,7 @@ func ExecuteReconcileBatch(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	appConfig *fleet.AppConfig,
-	certProfilesLimit int,
+	caInstallBudget *int,
 	toInstall, toRemove []*fleet.MDMAppleProfilePayload,
 ) ([]string, error) {
 	userEnrollmentMap := make(map[string]string)
@@ -452,7 +458,7 @@ func ExecuteReconcileBatch(
 
 	var caProfileUUIDs map[string]struct{}
 	var prefetchedContents map[string]mobileconfig.Mobileconfig
-	if certProfilesLimit > 0 {
+	if caInstallBudget != nil {
 		uniqueUUIDs := make(map[string]struct{}, len(toInstall))
 		for _, p := range toInstall {
 			uniqueUUIDs[p.ProfileUUID] = struct{}{}
@@ -475,7 +481,12 @@ func ExecuteReconcileBatch(
 		}
 	}
 
-	var caInstallCount int
+	// Captured for the throttle log below: the budget left when this batch started, which for a
+	// drained tick is what remained after earlier windows, not the configured limit.
+	var caBudgetAtEntry int
+	if caInstallBudget != nil {
+		caBudgetAtEntry = *caInstallBudget
+	}
 	throttledHostsByProfile := make(map[string][]string)
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	supersededCmdToEnrollmentIDs := make(map[string][]string)
@@ -534,8 +545,8 @@ func ExecuteReconcileBatch(
 
 		recentlyEnrolled := p.DeviceEnrolledAt != nil && time.Since(*p.DeviceEnrolledAt) < 1*time.Hour
 		_, isCA := caProfileUUIDs[p.ProfileUUID]
-		isThrottledCA := certProfilesLimit > 0 && isCA && !recentlyEnrolled
-		if isThrottledCA && caInstallCount >= certProfilesLimit {
+		isThrottledCA := caInstallBudget != nil && isCA && !recentlyEnrolled
+		if isThrottledCA && *caInstallBudget <= 0 {
 			throttledHostsByProfile[p.ProfileUUID] = append(throttledHostsByProfile[p.ProfileUUID], p.HostUUID)
 			continue
 		}
@@ -594,7 +605,7 @@ func ExecuteReconcileBatch(
 		}
 
 		if isThrottledCA {
-			caInstallCount++
+			*caInstallBudget--
 		}
 
 		hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -620,7 +631,7 @@ func ExecuteReconcileBatch(
 			logger.InfoContext(ctx, "throttled CA certificate profile installation",
 				"profile.uuid", profileUUID,
 				"mdm.target.host.uuids", hostUUIDs[i:end],
-				"mdm.certificate.profiles.limit", certProfilesLimit,
+				"mdm.certificate.profiles.limit", caBudgetAtEntry,
 				"batch", fmt.Sprintf("%d-%d/%d", i+1, end, len(hostUUIDs)),
 			)
 		}
@@ -1021,9 +1032,16 @@ func ReconcileProfilesForEnrollingHost(
 		return nil, nil
 	}
 
+	// This path reconciles a single host, so it gets a budget of its own rather than sharing
+	// the cron's per-tick one. 0 means unlimited, which is a nil budget.
+	var caInstallBudget *int
+	if certProfilesLimit > 0 {
+		caInstallBudget = new(certProfilesLimit)
+	}
+
 	return ExecuteReconcileBatch(
 		ctx, ds, commander, nil, logger,
-		appConfig, certProfilesLimit, toInstall, toRemove,
+		appConfig, caInstallBudget, toInstall, toRemove,
 	)
 }
 

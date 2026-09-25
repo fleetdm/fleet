@@ -1241,7 +1241,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			failedCount++
 			require.Empty(t, payload)
 		}
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, baseProfilesToRemove)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, baseProfilesToRemove)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -1287,7 +1287,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, baseProfilesToRemove)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, baseProfilesToRemove)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -1359,7 +1359,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, baseProfilesToRemove)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, baseProfilesToRemove)
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -1515,7 +1515,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			contents1 = originalContents1
 			expectedContents1 = originalExpectedContents1
 		})
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, nil)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, nil)
 		require.NoError(t, err)
 		assert.Equal(t, 2, upsertCount)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -1540,7 +1540,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
 			return nil, errors.New("GetHostEmailsFuncError")
 		}
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, nil)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, nil)
 		require.ErrorContains(t, err, "GetHostEmailsFuncError")
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
@@ -1598,7 +1598,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
 
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, nil)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, nil)
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 5, failedCount, "number of profiles with bad content")
@@ -1685,7 +1685,7 @@ func TestMDMAppleExecuteReconcileBatchDedupesEnrollmentIDs(t *testing.T) {
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
 
-	succeeded, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, nil)
+	succeeded, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, toInstall, nil)
 	require.NoError(t, err)
 	require.Len(t, succeeded, 1)
 
@@ -1825,7 +1825,7 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 	t.Run("limit=0 sends all profiles", func(t *testing.T) {
 		upsertedProfiles = nil
 		bulkUpsertCallCount = 0
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, profilesToInstall, nil)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, profilesToInstall, nil)
 		require.NoError(t, err)
 
 		// All 10 host-profile pairs should be upserted (5 CA + 5 non-CA)
@@ -1844,7 +1844,7 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 	t.Run("limit=2 throttles CA profiles only", func(t *testing.T) {
 		upsertedProfiles = nil
 		bulkUpsertCallCount = 0
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 2, profilesToInstall, nil)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, new(2), profilesToInstall, nil)
 		require.NoError(t, err)
 
 		// Should have 2 CA + 5 non-CA = 7 host-profile pairs upserted
@@ -1858,6 +1858,42 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 		}
 		assert.Equal(t, 2, caCount, "only 2 CA host-profile pairs should be sent when limit=2")
 		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should still be sent")
+	})
+
+	t.Run("one budget shared across calls throttles across the whole tick", func(t *testing.T) {
+		// The batched cron drains several windows per tick, calling this function once per window. The budget is shared so
+		// mdm.certificate_profiles_limit stays the per-tick rate its config description promises; a per-call limit would
+		// multiply CA issuance against the customer's CA by the number of windows drained.
+		caBudget := new(3)
+
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, caBudget, profilesToInstall, nil)
+		require.NoError(t, err)
+		firstCA := 0
+		for _, p := range upsertedProfiles {
+			if p.ProfileUUID == caProfileUUID {
+				firstCA++
+			}
+		}
+		assert.Equal(t, 3, firstCA, "the first window spends the whole budget")
+		assert.Equal(t, 0, *caBudget, "the budget is decremented in place")
+
+		upsertedProfiles = nil
+		bulkUpsertCallCount = 0
+		_, err = ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, caBudget, profilesToInstall, nil)
+		require.NoError(t, err)
+		secondCA, secondNonCA := 0, 0
+		for _, p := range upsertedProfiles {
+			switch p.ProfileUUID {
+			case caProfileUUID:
+				secondCA++
+			case nonCAProfileUUID:
+				secondNonCA++
+			}
+		}
+		assert.Equal(t, 0, secondCA, "the exhausted budget must throttle the next window, not reset for it")
+		assert.Equal(t, 5, secondNonCA, "non-CA profiles are never throttled")
 	})
 
 	t.Run("recently enrolled hosts bypass throttle", func(t *testing.T) {
@@ -1879,7 +1915,7 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 			)
 		}
 
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 2, recentProfilesToInstall, nil)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, new(2), recentProfilesToInstall, nil)
 		require.NoError(t, err)
 
 		var caCount, nonCACount int
@@ -1910,7 +1946,7 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 			)
 		}
 
-		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 2, nil, profilesToRemove)
+		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, new(2), nil, profilesToRemove)
 		require.NoError(t, err)
 
 		var removeCount int
@@ -2044,7 +2080,7 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 
 	upsertedProfiles = nil
 	bulkUpsertCallCount = 0
-	_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, profilesToInstall, nil)
+	_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, profilesToInstall, nil)
 	require.NoError(t, err)
 
 	// Only the non setup host should have profiles with a pending status and command UUID;
@@ -2067,7 +2103,7 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 
 	upsertedProfiles = nil
 	bulkUpsertCallCount = 0
-	_, err = ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, profilesToInstall, nil)
+	_, err = ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, profilesToInstall, nil)
 	require.NoError(t, err)
 
 	pendingHosts = nil
@@ -2244,7 +2280,7 @@ func runReconcileBatchCapturing(t *testing.T, beingSetUp []string, toInstall, to
 		override(ds)
 	}
 
-	_, res.err = ExecuteReconcileBatch(t.Context(), ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, toRemove)
+	_, res.err = ExecuteReconcileBatch(t.Context(), ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, toInstall, toRemove)
 	return res
 }
 

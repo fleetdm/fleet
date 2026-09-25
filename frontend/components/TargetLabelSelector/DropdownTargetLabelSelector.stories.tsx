@@ -50,7 +50,12 @@ const Interactive = ({
   );
 
   return (
+    // Spread `rest` first so state-backed selection callbacks below can't be
+    // clobbered by Storybook args (e.g. auto-generated action handlers).
     <DropdownTargetLabelSelector
+      {...rest}
+      customTargetOptions={customTargetOptions}
+      labels={labels}
       selectedTargetType={targetType}
       onSelectTargetType={setTargetType}
       selectedCustomTarget={customTarget}
@@ -59,9 +64,6 @@ const Interactive = ({
       onSelectLabel={({ name, value }) =>
         setSelectedLabels((prev) => ({ ...prev, [name]: value }))
       }
-      customTargetOptions={customTargetOptions}
-      labels={labels}
-      {...rest}
     />
   );
 };
@@ -87,27 +89,34 @@ export default meta;
 type Story = StoryObj<typeof DropdownTargetLabelSelector>;
 
 export const AllHosts: Story = {
-  render: () => <Interactive initialTargetType="All hosts" />,
+  render: (args) => <Interactive {...args} initialTargetType="All hosts" />,
 };
 
 export const ReportCustom: Story = {
   name: "Report (premium): Include any, Include all",
-  render: () => <Interactive customTargetOptions={REPORT_OPTIONS} />,
+  render: (args) => (
+    <Interactive {...args} customTargetOptions={REPORT_OPTIONS} />
+  ),
 };
 
 export const PolicyCustom: Story = {
   name: "Policy (premium): Include any, Include all, Exclude any",
-  render: () => <Interactive customTargetOptions={POLICY_OPTIONS} />,
+  render: (args) => (
+    <Interactive {...args} customTargetOptions={POLICY_OPTIONS} />
+  ),
 };
 
 export const ReportCustomFree: Story = {
   name: "Report (Free): Include any only",
-  render: () => <Interactive customTargetOptions={REPORT_OPTIONS_FREE} />,
+  render: (args) => (
+    <Interactive {...args} customTargetOptions={REPORT_OPTIONS_FREE} />
+  ),
 };
 
 export const WithPreselectedLabels: Story = {
-  render: () => (
+  render: (args) => (
     <Interactive
+      {...args}
       initialSelectedLabels={{
         "Engineering laptops": true,
         "Executive team": true,
@@ -118,19 +127,23 @@ export const WithPreselectedLabels: Story = {
 
 export const OverrideDropdownHelpText: Story = {
   name: "Override dropdown help text",
-  render: () => (
-    <Interactive dropdownHelpText="Custom help text overrides the per-option copy." />
+  render: (args) => (
+    <Interactive
+      {...args}
+      dropdownHelpText="Custom help text overrides the per-option copy."
+    />
   ),
 };
 
 export const SuppressTitle: Story = {
   name: "Suppress title (embedded in modal)",
-  render: () => <Interactive suppressTitle />,
+  render: (args) => <Interactive {...args} suppressTitle />,
 };
 
 export const WithSubtitle: Story = {
-  render: () => (
+  render: (args) => (
     <Interactive
+      {...args}
       title="Target"
       subTitle="Report runs on hosts matching these labels."
     />
@@ -138,20 +151,21 @@ export const WithSubtitle: Story = {
 };
 
 export const Loading: Story = {
-  render: () => <Interactive isLoadingLabels />,
+  render: (args) => <Interactive {...args} isLoadingLabels />,
 };
 
 export const Error: Story = {
-  render: () => <Interactive isErrorLabels />,
+  render: (args) => <Interactive {...args} isErrorLabels />,
 };
 
 export const NoLabels: Story = {
-  render: () => <Interactive labels={[]} />,
+  render: (args) => <Interactive {...args} labels={[]} />,
 };
 
 export const Disabled: Story = {
-  render: () => (
+  render: (args) => (
     <Interactive
+      {...args}
       disableOptions
       initialSelectedLabels={{ "Engineering laptops": true }}
     />
