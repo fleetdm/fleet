@@ -436,7 +436,7 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, e
 		// after this error, so put it back or the host never retries.
 		if removed == 1 {
 			if rerr := r.RestoreQueryTargetForHost(name, hostID); rerr != nil {
-				r.logger.Warn("re-targeting host after failed completion", "campaign", name, "hostID", hostID, "err", rerr)
+				r.logger.WarnContext(context.TODO(), "re-targeting host after failed completion", "campaign", name, "hostID", hostID, "err", rerr)
 			}
 		}
 		return false, fmt.Errorf("setbit query key: %w", err)
