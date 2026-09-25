@@ -817,6 +817,26 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
+	// Windows enrollments outlive the host so the device can relink. Touching
+	// updated_at starts the stale-enrollment retention window at deletion;
+	// otherwise an idle enrollment would be reaped within the hour. Empty
+	// UUIDs are skipped so never-linked enrollments keep their own clock.
+	linkedUUIDs := make([]string, 0, len(hostUUIDs))
+	for _, u := range hostUUIDs {
+		if u != "" {
+			linkedUUIDs = append(linkedUUIDs, u)
+		}
+	}
+	if len(linkedUUIDs) > 0 {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, linkedUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building touch statement for windows mdm enrollments")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "touching windows mdm enrollments for host uuids %v", linkedUUIDs)
+		}
+	}
+
 	// perform the soft-deletion of host-referencing tables
 	for table, col := range additionalHostRefsSoftDelete {
 		stmt, args, err := sqlx.In(fmt.Sprintf("UPDATE `%s` SET `%s` = NOW() WHERE host_id IN (?)", table, col), hostIDs)
@@ -2259,6 +2279,18 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		)
 		if _, err := tx.ExecContext(ctx, cleanupHostDisplayName, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup host_display_names")
+		}
+
+		// This path bypasses deleteHosts, so it needs the same enrollment touch.
+		touchEnrollments := `
+		UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+		WHERE host_uuid IN (
+			SELECT uuid FROM hosts
+			WHERE uuid <> '' AND hostname = '' AND osquery_version = '' AND hardware_serial = ''
+			AND created_at < (? - INTERVAL 5 MINUTE)
+		)`
+		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
 		}
 
 		cleanupHosts := `
