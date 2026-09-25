@@ -42,6 +42,7 @@
     },
     "websocket-driver": "0.7.5",
     "body-parser": "1.20.6",
+    "qs": "6.16.0",
     "postcss": "8.5.23"
   },
   "scripts": {
