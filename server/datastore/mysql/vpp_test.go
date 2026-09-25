@@ -3889,7 +3889,7 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 		// Device-channel enrollment (primary row type "Device") ...
 		nanoEnroll(t, ds, host, false)
 		// ... but flagged personal in host_mdm, like a manual BYOD profile.
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile))
 
 		commandXML := enqueueAndReadCommand(t, host, "byod-manual-cmd")
 		require.Contains(t, commandXML, "<key>ChangeManagementState</key>",
@@ -3907,7 +3907,7 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 		// Account-Driven User Enrollment: the primary enrollment row (id = host
 		// UUID) is type "User Enrollment (Device)".
 		nanoEnrollUserDevice(t, ds, host)
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile))
 
 		commandXML := enqueueAndReadCommand(t, host, "adue-cmd")
 		require.NotContains(t, commandXML, "<key>ChangeManagementState</key>",

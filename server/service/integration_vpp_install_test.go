@@ -3067,7 +3067,7 @@ func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDe
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host, device := s.createAppleMobileHostThenEnrollMDM("ipados")
-			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", false))
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", fleet.PersonalEnrollmentTypeNone))
 			s.awaitRunAppleMDMWorkerSchedule()
 			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
 			s.Do("POST", "/api/latest/fleet/hosts/transfer",

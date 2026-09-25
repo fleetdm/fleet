@@ -35,7 +35,7 @@ func enrollWindowsHostInMDMForTest(t *testing.T, ds fleet.Datastore, host *fleet
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
-		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 
 	dev, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, dev.MDMDeviceID)
 	require.NoError(t, err)

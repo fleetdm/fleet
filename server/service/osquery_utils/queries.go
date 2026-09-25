@@ -3062,11 +3062,11 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
 	// reports that ServerURL here, so we read the flag back the same way we read
 	// the enroll reference above. Without this, the detail-query ingest would
-	// overwrite the is_personal_enrollment set by the Apple Authenticate flow.
+	// overwrite the personal enrollment type set by the Apple Authenticate flow.
 	// Must be read before RawQuery is cleared below.
-	var isPersonalEnrollment bool
-	if mdmSolutionName == fleet.WellKnownMDMFleet {
-		isPersonalEnrollment = serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1"
+	personalType := fleet.PersonalEnrollmentTypeNone
+	if mdmSolutionName == fleet.WellKnownMDMFleet && serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1" {
+		personalType = fleet.PersonalEnrollmentTypeManualProfile
 	}
 
 	// strip any query parameters from the URL
@@ -3080,7 +3080,7 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 		installedFromDep,
 		mdmSolutionName,
 		fleetEnrollRef,
-		isPersonalEnrollment,
+		personalType,
 	)
 }
 
@@ -3109,7 +3109,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// no mdm information in the registry
-		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
+		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	}
 	if len(rows) > 1 {
 		logger.WarnContext(ctx, fmt.Sprintf("mdm expected single result got %d",
@@ -3175,7 +3175,7 @@ func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *flee
 		automatic,
 		mdmSolutionName,
 		"",
-		false, // isPersonalEnrollment is always false for Windows hosts
+		fleet.PersonalEnrollmentTypeNone,
 	)
 }
 

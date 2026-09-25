@@ -103,7 +103,7 @@ func windowsHostProfilesByName(t *testing.T, ds fleet.Datastore, hostUUID string
 func linkWindowsHostToMDMEnrollment(t *testing.T, ds fleet.Datastore, fleetServerURL string, host *fleet.Host, d *mdmtest.TestWindowsMDMClient) {
 	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), host.UUID, d.DeviceID)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 }
 
 // windowsProfileRetries returns the host's retry count for one profile, which must stay at zero for a profile the
