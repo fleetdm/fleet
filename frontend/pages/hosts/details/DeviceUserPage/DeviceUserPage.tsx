@@ -334,6 +334,9 @@ const DeviceUserPage = ({
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
+          // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+          const shouldNotify =
+            hasReportedVitals(responseHost) || isUserRequestedRefetch;
 
           // Only set timer if not already running
           if (!refetchStartTime) {
@@ -356,7 +359,7 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              if (hasReportedVitals(responseHost)) {
+              if (shouldNotify) {
                 notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
@@ -379,7 +382,7 @@ const DeviceUserPage = ({
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                if (hasReportedVitals(responseHost) || isUserRequestedRefetch) {
+                if (shouldNotify) {
                   notify.error(
                     `This host is offline. Please try refetching host vitals later.`
                   );
@@ -391,7 +394,7 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              if (!isIOSOrIPadOS) {
+              if (!isIOSOrIPadOS && shouldNotify) {
                 notify.error(
                   "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
                 );

@@ -524,6 +524,9 @@ const HostDetailsPage = ({
 
           // If Android, don't run timers/polling logic
           if (!isAndroid(returnedHost.platform)) {
+            // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+            const shouldNotify =
+              hasReportedVitals(returnedHost) || isUserRequestedRefetch;
             // Compute how long since timer started (if set)
             const totalElapsedTime = refetchStartTime
               ? Date.now() - refetchStartTime
@@ -552,7 +555,7 @@ const HostDetailsPage = ({
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
-                if (hasReportedVitals(returnedHost) || isUserRequestedRefetch) {
+                if (shouldNotify) {
                   notify.error(
                     `This host is offline. Please try refetching host vitals later.`
                   );
@@ -561,9 +564,11 @@ const HostDetailsPage = ({
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              notify.error(
-                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
-              );
+              if (shouldNotify) {
+                notify.error(
+                  `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+                );
+              }
               resetHostRefetchStates();
             }
           }

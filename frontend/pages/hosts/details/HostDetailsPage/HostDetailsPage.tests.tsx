@@ -295,32 +295,56 @@ describe("HostDetailsPage - pending hosts", () => {
 });
 
 describe("HostDetailsPage - hosts that haven't reported vitals", () => {
+  const realNow = Date.now;
+  let elapsedMs = 0;
+  let dateNowSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    elapsedMs = 0;
+    dateNowSpy = jest
+      .spyOn(Date, "now")
+      .mockImplementation(() => realNow() + elapsedMs);
+  });
+
   afterEach(() => {
+    dateNowSpy.mockRestore();
     jest.resetAllMocks();
   });
 
-  it("doesn't report the host offline when it drops out of the online window", async () => {
-    stubQueries(mockNeverFetchedWindowsHost("online"));
-    (hostAPI.loadHostDetails as jest.Mock)
-      .mockResolvedValueOnce({ host: mockNeverFetchedWindowsHost("online") })
-      .mockResolvedValue({ host: mockNeverFetchedWindowsHost("offline") });
+  it.each([
+    {
+      name: "drops out of the online window",
+      laterStatus: "offline",
+      pollMs: 0,
+    },
+    { name: "outlasts the poll window", laterStatus: "online", pollMs: 61000 },
+  ] as const)(
+    "doesn't show a refetch error when the host $name",
+    async ({ laterStatus, pollMs }) => {
+      stubQueries(mockNeverFetchedWindowsHost("online"));
+      (hostAPI.loadHostDetails as jest.Mock)
+        .mockResolvedValueOnce({ host: mockNeverFetchedWindowsHost("online") })
+        .mockResolvedValue({ host: mockNeverFetchedWindowsHost(laterStatus) });
 
-    renderHostDetails({
-      currentUser: ADMIN,
-      isGlobalAdmin: true,
-    });
-    await screen.findByText(/fetching fresh vitals/i);
-    // The spinner clears only once the offline response has gone through the toast decision.
-    await waitFor(
-      () =>
-        expect(
-          screen.queryByText(/fetching fresh vitals/i)
-        ).not.toBeInTheDocument(),
-      { timeout: 5000 }
-    );
+      renderHostDetails({
+        currentUser: ADMIN,
+        isGlobalAdmin: true,
+      });
+      await screen.findByText(/fetching fresh vitals/i);
+      elapsedMs = pollMs;
+      // The spinner clears only once the next response has gone through the toast decision.
+      await waitFor(
+        () =>
+          expect(
+            screen.queryByText(/fetching fresh vitals/i)
+          ).not.toBeInTheDocument(),
+        { timeout: 5000 }
+      );
 
-    expect(notify.error).not.toHaveBeenCalled();
-  }, 15000);
+      expect(notify.error).not.toHaveBeenCalled();
+    },
+    15000
+  );
 });
 
 describe("HostDetailsPage - Show MDM commands toggle", () => {
