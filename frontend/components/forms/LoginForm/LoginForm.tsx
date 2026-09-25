@@ -1,14 +1,13 @@
 import classnames from "classnames";
-import { size } from "lodash";
-import React, { FormEvent, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import validateEmail from "components/forms/validators/valid_email";
 import validatePresence from "components/forms/validators/validate_presence";
 import TooltipWrapper from "components/TooltipWrapper";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import { ILoginUserData } from "interfaces/user";
 import paths from "router/paths";
@@ -16,7 +15,6 @@ import paths from "router/paths";
 const baseClass = "login-form";
 
 interface ILoginFormProps {
-  baseError?: string;
   handleSubmit: (formData: ILoginUserData) => Promise<false | void>;
   isSubmitting: boolean;
   pendingEmail: boolean;
@@ -24,10 +22,25 @@ interface ILoginFormProps {
   handleSSOSignOn?: () => void;
 }
 
+const validate = ({ email, password }: ILoginUserData): IFormErrors => {
+  const errors: IFormErrors = {};
+
+  if (!validatePresence(email)) {
+    errors.email = "Enter your email";
+  } else if (!validateEmail(email)) {
+    errors.email = "Enter a valid email";
+  }
+
+  if (!validatePresence(password)) {
+    errors.password = "Enter your password";
+  }
+
+  return errors;
+};
+
 const LoginForm = ({
-  baseError,
   handleSubmit,
-  isSubmitting,
+  isSubmitting: isRequestPending,
   pendingEmail,
   ssoSettings,
   handleSSOSignOn,
@@ -40,47 +53,26 @@ const LoginForm = ({
 
   const loginFormClass = classnames(baseClass);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState<ILoginUserData>({
-    email: "",
-    password: "",
+  const {
+    formData,
+    setField,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit: onSubmit,
+    isSubmitting,
+  } = useFormValidation<ILoginUserData>({
+    initialFormData: { email: "", password: "" },
+    validate,
+    isSubmitting: isRequestPending,
+    skipTrim: ["password"],
   });
+
   const [showPendingEmail, setShowPendingEmail] = useState(pendingEmail);
 
   useEffect(() => {
     setShowPendingEmail(pendingEmail);
   }, [pendingEmail]);
-
-  const validate = () => {
-    const { password, email } = formData;
-
-    const validationErrors: { [key: string]: string } = {};
-
-    if (!validatePresence(email)) {
-      validationErrors.email = "Email field must be completed";
-    } else if (!validateEmail(email)) {
-      validationErrors.email = "Email must be a valid email address";
-    }
-
-    if (!validatePresence(password)) {
-      validationErrors.password = "Password field must be completed";
-    }
-
-    setErrors(validationErrors);
-    const valid = !size(validationErrors);
-
-    return valid;
-  };
-
-  const onFormSubmit = (evt: FormEvent): Promise<false | void> | boolean => {
-    evt.preventDefault();
-    const valid = validate();
-
-    if (valid) {
-      return handleSubmit(formData);
-    }
-    return false;
-  };
 
   const renderSingleSignOnButton = () => {
     const button = (
@@ -117,16 +109,6 @@ const LoginForm = ({
     );
   };
 
-  const onInputChange = (formField: string): ((value: string) => void) => {
-    return (value: string) => {
-      setErrors({});
-      setFormData({
-        ...formData,
-        [formField]: value,
-      });
-    };
-  };
-
   if (showPendingEmail) {
     return (
       <div className="two-factor-check-email">
@@ -150,27 +132,38 @@ const LoginForm = ({
   }
 
   return (
-    <form onSubmit={onFormSubmit} className={loginFormClass} noValidate>
-      {baseError && <div className="form__base-error">{baseError}</div>}
+    <form
+      onSubmit={onSubmit(handleSubmit)}
+      className={loginFormClass}
+      noValidate
+    >
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
-          error={errors.email}
+          error={getError("email")}
           autofocus
+          name="email"
           type="email"
           label="Email"
           placeholder="Email"
           value={formData.email}
-          onChange={onInputChange("email")}
+          onChange={(value) => setField("email", value)}
+          onFocus={() => clearFieldError("email")}
+          onBlur={() => validateField("email")}
           ignore1Password={false}
+          disabled={isSubmitting}
         />
         <InputFieldWithIcon
-          error={errors.password}
+          error={getError("password")}
+          name="password"
           label="Password"
           placeholder="Password"
           type="password"
           value={formData.password}
-          onChange={onInputChange("password")}
+          onChange={(value) => setField("password", value)}
+          onFocus={() => clearFieldError("password")}
+          onBlur={() => validateField("password")}
           ignore1Password={false}
+          disabled={isSubmitting}
         />
       </div>
       {/* Actions displayed using CSS column-reverse to preserve tab order */}
@@ -179,6 +172,7 @@ const LoginForm = ({
           <Button
             className={`${baseClass}__login-btn`}
             isLoading={isSubmitting}
+            disabled={isSubmitting}
             type="submit"
             tabIndex={0}
           >

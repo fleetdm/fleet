@@ -19,36 +19,114 @@ To deploy certificates on a self-hosted Fleet instance, you'll need to configure
 
 ## Okta
 
-The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
+The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA).
 
-We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
+The steps below are for generating a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
 
-### Step 1: Get Okta credentials
+### Step 1: Create the Okta CA and collect configuration details
 
 1. In Okta, head to **Security > Device integrations** and on the **Endpoint management** tab, select **Add platform**.
-2. Select **Desktop (Windows and macOS only)** and then select **Next**.
+2. Select **Desktop (Windows and macOS only)** then select **Next**.
 3. On the **Add device management platform** page, select the following options:
-- **Use Okta as Certificate Authority**.
-- **Dynamic SCEP URL** and verify that **Generic** is selected.
+   - **Use Okta as Certificate Authority**.
+   - **Dynamic SCEP URL** and verify that **Generic** is selected.
 4. Select **Generate**.
-5. Copy the **Password** because you'll need it later and then select **Save**.
-  
+5. Copy the **Password** to a secure location (e.g., 1Password or some other secure secrets vault) then select **Save**.
+6. Copy the **URLs** and the **Username** as well. (You will be pasting these values into the Fleet CA configuration.)
+
 ### Step 2: Connect Fleet to Okta's CA
 
 1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
-2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. Okta uses NDES under the hood.
-3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
-4. Select **Add CA**. Your Okta CA should appear in the list in Fleet.
+2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. (Okta uses NDES under the hood.)
+3. Enter the **SCEP URL**, **Admin URL** (The Okta label for **Admin URL** is **Challenge URL**), **Username**, and **Password** into the labeled fields. (The Username should have been generated in Okta during Step 1.)
+4. Select **Add CA**: the Okta CA named **"NDES"** will appear in a table in the Fleet UI. (Values can be edited by clicking the pencil icon if needed.)
 
 ### Step 3: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`. These variables are named `NDES` because Okta uses NDES under the hood and Fleet uses the same `NDES` variables for both.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload:
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+- For the `Challenge` key / value, use `$FLEET_VAR_NDES_SCEP_CHALLENGE` (See: Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables)).
+- Key usage determines the certificate type:
+  - Per [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/scep/payloadcontent-data.dictionary), this value **can** be set to:
+    - 1 (signature), 4 (encryption), but **not** 5 (signature & encryption).
+    - For this use case, the value should be set to 1.
+- Key size determines the length of the encryption key:
+  - Possible values:
+    - 1024 (default), 2048, 4096
+- For the `CN` key / value, what's added depends on what the certificate will be used for.
+  - Using variables means that the certificates can be unique per host (see example below and Apple's [Use payload variables](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation).
+- For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
+- For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 
-3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
+#### Example configuration profile
 
-When the profile is delivered to your hosts, Fleet replaces the variables. If something fails, errors appear on each host's **Host details > OS settings**.
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadContent</key>
+            <dict>
+                <key>AllowAllAppsAccess</key>
+                <true/>
+                <key>Challenge</key>
+                <string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>
+                <key>Key Usage</key>
+                <integer>1</integer>
+                <key>Keysize</key>
+                <integer>2048</integer>
+                <key>Subject</key>
+                <array>
+                    <array>
+                        <array>
+                            <string>CN</string>
+                            <string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME %HardwareUUID%</string>
+                        </array>
+                    </array>
+                    <array>
+                        <array>
+                            <string>OU</string>
+                            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+                        </array>
+                    </array>
+                </array>
+                <key>URL</key>
+                <string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string>
+            </dict>
+            <key>PayloadDisplayName</key>
+            <string>SCEP</string>
+            <key>PayloadIdentifier</key>
+            <string>com.apple.security.scep.ZZZZZZZZ-CEF2-43D9-XXXX-42FC2FE9CF3D</string>
+            <key>PayloadType</key>
+            <string>com.apple.security.scep</string>
+            <key>PayloadUUID</key>
+            <string>ZZZZZZZZ-CEF2-43D9-XXXX-42FC2FE9CF3D</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Okta CA SCEP (Dynamic)</string>
+    <key>PayloadIdentifier</key>
+    <string>com.okta.device.access.dynamic.YYYYYYYY-A4FD-4B06-BBBB-556CCE0914C5</string>
+    <key>PayloadRemovalDisallowed</key>
+    <true/>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>YYYYYYYY-A4FD-4B06-BBBB-556CCE0914C5</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>
+```
+
+2. In Fleet, go to **Controls > OS settings > Configuration profiles** to upload the .mobileconfig file you've created.
+3. Verify the profile. When it is delivered to your hosts, Fleet replaces the variables with the specified values. If something fails, errors appear on each host's **Host details > OS settings** page.
+4. A valid Configuration Profile will deploy certificates from the Okta CA to your hosts in the System keychain. On macOS, use Spotlight to search for "Keychain Access" to check.
 
 ## DigiCert
 
@@ -881,7 +959,6 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
 
 > For additional data on the device itself, open the Fleet Android app, and select **App version** 8 times. The first time a toast will appear saying, "Fleet Agent version copied", but after the eighth time it's selected, a debug information screen will appear. Here you can see information about the certificates and their states, the last error, and logs. To view logs, select the menu icon near the copy icon in the upper right. On the Logs screen, select "Info" in the upper right to change the log level that's displayed.
 
-
 ## Any EST (Enrollment over Secure Transport) CA
 
 The following steps show how to deploy certificates from any certificate authority (CA) that supports the [EST protocol](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport).
@@ -1000,6 +1077,53 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 
 ## Advanced
 
+### Managing CA configurations with GitOps
+
+NOTE: the following instructions are based on the example of configuring the [Okta CA for deploying SCEP certificates](#Okta). All CA integration options can be managed with GitOps. Below are the top-level keys for each integration type. (The attributes / values for each integration type will vary):
+
+```
+  certificate_authorities:
+    custom_est_proxy:
+    custom_scep_proxy:
+    digicert:
+    hydrant:
+    ndes_scep_proxy:
+    smallstep:
+```
+
+1. To configure for GitOps, in `git` or your repository management solution (e.g., GitHub), add a new repository secret. This will allow you to securely add the password or any other secret required for the integration into your YAML configuration as a variable string. 
+
+In GitHub, open your Fleet GitOps repository, go to **Settings > Secrets and variables > Actions**, then click the "New repository secret" button.
+
+2. Populate the "Name" field with your variable name (e.g., `FLEET_OKTA_CA_NDES_PASSWORD` - make sure to **NOT** include the $ character) and populate the "Secret" field with the Okta CA password created in Step 1 of the Okta CA setup above.
+
+3. Add something like the following to the `default.yml` file in your Fleet GitOps repo under `org_settings` (For each integration type key / values will vary):
+
+```
+org_settings:
+  certificate_authorities:
+    ndes_scep_proxy:
+      url: https://your-okta-org.okta.com/scep
+      admin_url: https://your-okta-org.okta.com/scep/challenge
+      username: your-username
+      password: "$FLEET_OKTA_CA_NDES_PASSWORD"
+```
+
+4. Add a reference like the following (e.g., `FLEET_OKTA_CA_NDES_PASSWORD`) for the new repository secret in the `workflow.yml` file:
+
+```
+        # In addition, specify or add secrets for all the environment variables that are mentioned in the global/team YAML files.
+        env:
+          FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
+          FLEET_GLOBAL_ENROLL_SECRET: ${{ secrets.FLEET_GLOBAL_ENROLL_SECRET }}
+          FLEET_OKTA_CA_NDES_PASSWORD: ${{ secrets.FLEET_OKTA_CA_NDES_PASSWORD }}
+          FLEET_URL: ${{ secrets.FLEET_URL }}
+          FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET }}
+          FLEET_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_ENROLL_SECRET }}
+```
+
+5. Merge the committed changes via your standard commit workflow.
+
 ### User-scoped certificates
 
 You can deploy a user-scoped certificate on macOS and Windows hosts using a user-scoped configuration profile.
@@ -1091,7 +1215,6 @@ SCEP proxy:
   - This Fleet-managed passcode is valid for 60 minutes. Fleet automatically resends the SCEP profile
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
   - The static challenge configured for the SCEP server remains in the SCEP profile.
-
 
 ### Verifying Windows SCEP certificates
 

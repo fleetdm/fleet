@@ -102,13 +102,6 @@
   moreInfoUrl:  https://fleetdm.com/handbook/product-design#confirm-and-celebrate
   dri: "noahtalerman"
 -
-  task: "📝 Understanding our competitor(s)"
-  startedOn: "2026-01-26" 
-  frequency: "Weekly" 
-  description: "For each user story in the current release cycle, find a solution using our competitor(s) tools. Discuss how this solution affects how we're thinking about the Fleet solution. For each story, do we just want to be as good as our competitor(s)? Better?"
-  moreInfoUrl:
-  dri: "noahtalerman"
--
   task: "Review reference docs for upcoming release"
   startedOn: "2025-10-20"
   frequency: "Triweekly"

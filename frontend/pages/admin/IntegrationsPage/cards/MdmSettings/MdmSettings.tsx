@@ -11,6 +11,7 @@ import mdmAppleAPI, {
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
+import AndroidZeroTouchSection from "./components/AndroidZeroTouchSection";
 import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
 import EulaSection from "./components/EulaSection";
@@ -118,6 +119,10 @@ const MdmSettings = ({
       />
       {!isLoading && !hasError && hasAllData && (
         <>
+          <AndroidZeroTouchSection
+            router={router}
+            isPremiumTier={isPremiumTier}
+          />
           <AppleBusinessManagerSection
             router={router}
             isPremiumTier={isPremiumTier}

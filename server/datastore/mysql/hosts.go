@@ -620,6 +620,7 @@ var hostRefs = []string{
 	// pointing at an id that no longer exists.
 	"host_autopilot_devices",
 	"host_one_time_enroll_secrets",
+	"notifications_end_user",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
