@@ -12,9 +12,9 @@ func init() {
 	MigrationClient.AddMigration(Up_20260925155809, Down_20260925155809)
 }
 
-// Up_20260925155809 gives enrollments orphaned before host deletion started
-// touching updated_at a fresh retention window, so the first stale-enrollment
-// cleanup after upgrade does not reap devices whose host was deleted recently.
+// Up_20260925155809 gives every Windows MDM enrollment a fresh retention
+// window when the stale-enrollment cleanup first ships, so its first run
+// after upgrade does not reap devices whose host was deleted recently.
 func Up_20260925155809(tx *sql.Tx) error {
 	touch := incrementalMigrationStep(
 		func(tx *sql.Tx) (uint64, error) {
@@ -22,24 +22,24 @@ func Up_20260925155809(tx *sql.Tx) error {
 			err := tx.QueryRow(`SELECT COUNT(*) FROM mdm_windows_enrollments`).Scan(&total)
 			return total, err
 		},
-		touchOrphanedWindowsMDMEnrollments,
+		touchWindowsMDMEnrollments,
 	)
 	if err := touch(tx); err != nil {
-		return fmt.Errorf("touching orphaned windows mdm enrollments: %w", err)
+		return fmt.Errorf("touching windows mdm enrollments: %w", err)
 	}
 	return nil
 }
 
-// touchOrphanedWindowsMDMEnrollmentsBatchSize is a var so tests can force
-// several batches.
-var touchOrphanedWindowsMDMEnrollmentsBatchSize = 5000
+// touchWindowsMDMEnrollmentsBatchSize is a var so tests can force several
+// batches.
+var touchWindowsMDMEnrollmentsBatchSize = 5000
 
-// touchOrphanedWindowsMDMEnrollments walks the table in id-keyed batches so
-// each UPDATE is bounded, the way Fleet migrations on host-scaled tables do.
-func touchOrphanedWindowsMDMEnrollments(tx *sql.Tx, increment incrementCountFn) error {
+// touchWindowsMDMEnrollments walks the table in id-keyed batches so each
+// UPDATE is bounded, the way Fleet migrations on host-scaled tables do.
+func touchWindowsMDMEnrollments(tx *sql.Tx, increment incrementCountFn) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
-	batchSize := touchOrphanedWindowsMDMEnrollmentsBatchSize
+	batchSize := touchWindowsMDMEnrollmentsBatchSize
 	var lastID uint64
 	for {
 		var ids []uint64
@@ -54,11 +54,8 @@ func touchOrphanedWindowsMDMEnrollments(tx *sql.Tx, increment incrementCountFn) 
 
 		batchLast := ids[len(ids)-1]
 		if _, err := txx.Exec(`
-			UPDATE mdm_windows_enrollments e
-			SET e.updated_at = CURRENT_TIMESTAMP
-			WHERE e.id > ? AND e.id <= ?
-			  AND e.host_uuid <> ''
-			  AND NOT EXISTS (SELECT 1 FROM hosts h WHERE h.uuid = e.host_uuid)`,
+			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+			WHERE id > ? AND id <= ?`,
 			lastID, batchLast); err != nil {
 			return fmt.Errorf("touching batch after id %d: %w", lastID, err)
 		}
