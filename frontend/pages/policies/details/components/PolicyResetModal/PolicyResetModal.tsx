@@ -33,8 +33,7 @@ const PolicyResetModal = ({
   // The modal opens in two modes. From the table's "Reset policy" button it's a
   // generic, policy-wide reset: no host name and no automations list. From a
   // specific automation run (the activity details modal) it's host-scoped: show
-  // the host name and the automations that will re-run for that host. Scope
-  // comes from `host`, not its name, since the display name can be empty.
+  // the host name and the automations that will re-run for that host.
   const isHostScoped = !!host;
   let target: React.ReactNode = "all hosts";
   if (host) {
