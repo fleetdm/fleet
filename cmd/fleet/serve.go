@@ -984,6 +984,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			svc.NewActivity,
 			config.Activity.FleetInitiatedReleasePerMinute > 0,
 			notificationsSvc,
+			config.MDM.AppleCommandCleanupShortRetention,
 		)
 
 		mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))

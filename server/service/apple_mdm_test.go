@@ -4425,7 +4425,7 @@ func TestHandleRefetchCertsResultsChannelScoping(t *testing.T) {
 				return nil
 			}
 			var cleanupEnrollmentID string
-			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 				cleanupEnrollmentID = enrollmentID
 				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, commandUUIDPrefix)
 				require.Equal(t, commandUUID, currentCommandUUID)
@@ -7318,7 +7318,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, lostModeCommandUUID, commandUUID)
 		return nil
 	}
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		require.Equal(t, hostUUID, enrollmentID)
 		require.Equal(t, fleet.RefetchDeviceCommandUUIDPrefix, commandUUIDPrefix)
 		require.Equal(t, commandUUID, currentCommandUUID)
@@ -7463,7 +7463,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 		return nil
 	}
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -7733,7 +7733,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 			ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 				return nil
 			}
-			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 				return nil
 			}
 			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -7823,7 +7823,7 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 		}, nil
 	}
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -8046,7 +8046,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 		return nil
 	}
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -8129,7 +8129,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
 		return nil
 	}
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -8204,7 +8204,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 		return nil
 	}
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -8478,7 +8478,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *t
 		return nil
 	}
 	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error { return nil }
-	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
 	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
@@ -11375,4 +11375,9 @@ func TestSendAPNSPing(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []string{"HOST-UUID"}, got)
 	})
+}
+
+func TestRefetchCleanupRetentionOrDefault(t *testing.T) {
+	require.Equal(t, 30*24*time.Hour, refetchCleanupRetentionOrDefault(0), "disabled short tier keeps the previous 30-day reach")
+	require.Equal(t, 6*time.Hour, refetchCleanupRetentionOrDefault(6*time.Hour))
 }

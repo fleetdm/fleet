@@ -90,6 +90,7 @@ import {
   isIPad,
   isRecentlyEnrolled,
   isMismatchedSSOUserError,
+  toEndUserIssues,
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
@@ -175,6 +176,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showHiddenPolicies, setShowHiddenPolicies] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -298,17 +300,20 @@ const DeviceUserPage = ({
     data: dupDetails,
     dataUpdatedAt: dupDetailsUpdatedAt,
     isLoading: isLoadingDupDetails,
+    isPreviousData: isDupDetailsPreviousData,
     error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
-    ["host", deviceAuthToken],
+    ["host", deviceAuthToken, showHiddenPolicies],
     () =>
       deviceUserAPI.loadHostDetails({
         token: deviceAuthToken,
         exclude_software: true,
+        include_hidden_policies: showHiddenPolicies,
       }),
     {
       enabled: !!deviceAuthToken,
+      keepPreviousData: true,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -462,6 +467,10 @@ const DeviceUserPage = ({
   );
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
+
+  const deviceSummaryData = host?.issues
+    ? { ...summaryData, issues: toEndUserIssues(host.issues) }
+    : summaryData;
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
@@ -686,7 +695,15 @@ const DeviceUserPage = ({
   );
 
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    // While the toggle's refetch is in flight the cached list is for the other
+    // toggle state, so blank the card instead of showing the wrong rows.
+    const displayedPolicies = isDupDetailsPreviousData
+      ? []
+      : host?.policies || [];
+    // Counted from the list the tab shows, so it follows the hidden-policies toggle.
+    const failingPoliciesCount = displayedPolicies.filter(
+      (p) => p.response === "fail"
+    ).length;
 
     const failedControlsCount = countFailedControls(controls);
 
@@ -914,7 +931,7 @@ const DeviceUserPage = ({
               <TabPanel className={`${baseClass}__details-panel`}>
                 <HostSummaryCard
                   className={fullWidthCardClass}
-                  summaryData={summaryData}
+                  summaryData={deviceSummaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                 />
@@ -982,9 +999,13 @@ const DeviceUserPage = ({
               {isPremiumTier && (
                 <TabPanel>
                   <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingDupDetails}
+                    policies={displayedPolicies}
+                    isLoading={isDupDetailsPreviousData}
                     deviceUser
+                    showHiddenPolicies={showHiddenPolicies}
+                    onToggleShowHiddenPolicies={() =>
+                      setShowHiddenPolicies((current) => !current)
+                    }
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}

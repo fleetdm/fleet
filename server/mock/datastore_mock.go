@@ -328,7 +328,7 @@ type GetDeviceAuthTokenIfFreshFunc func(ctx context.Context, hostID uint, tokenT
 
 type HostIDByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (uint, error)
 
-type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (uint, error)
+type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (total uint, unhidden uint, err error)
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
@@ -372,9 +372,7 @@ type CleanupWindowsMDMProfilePriorContentFunc func(ctx context.Context) error
 
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
-type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
-
-type CleanupOrphanedNanoRefetchCommandsFunc func(ctx context.Context) error
+type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, olderThan time.Duration) error
 
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
@@ -1646,7 +1644,7 @@ type BulkGetHostLabelMembershipsFunc func(ctx context.Context, hostIDs []uint, l
 
 type BulkGetHostMDMAppleProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error)
 
-type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error)
+type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, optInsByHost map[string]map[string]struct{}, pageFull bool, err error)
 
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -2482,6 +2480,10 @@ type ClearABMTokenDefaultFunc func(ctx context.Context) error
 
 type SetABMTokenServerUUIDFunc func(ctx context.Context, tokenID uint, serverUUID string) error
 
+type ApplyHostMDMProfileOptInChangesFunc func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error
+
+type BulkGetHostMDMProfileOptInsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -3007,9 +3009,6 @@ type DataStore struct {
 
 	CleanupStaleNanoRefetchCommandsFunc        CleanupStaleNanoRefetchCommandsFunc
 	CleanupStaleNanoRefetchCommandsFuncInvoked bool
-
-	CleanupOrphanedNanoRefetchCommandsFunc        CleanupOrphanedNanoRefetchCommandsFunc
-	CleanupOrphanedNanoRefetchCommandsFuncInvoked bool
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
@@ -6170,6 +6169,12 @@ type DataStore struct {
 	SetABMTokenServerUUIDFunc        SetABMTokenServerUUIDFunc
 	SetABMTokenServerUUIDFuncInvoked bool
 
+	ApplyHostMDMProfileOptInChangesFunc        ApplyHostMDMProfileOptInChangesFunc
+	ApplyHostMDMProfileOptInChangesFuncInvoked bool
+
+	BulkGetHostMDMProfileOptInsFunc        BulkGetHostMDMProfileOptInsFunc
+	BulkGetHostMDMProfileOptInsFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -7237,7 +7242,7 @@ func (s *DataStore) HostIDByDeviceAuthToken(ctx context.Context, authToken strin
 	return s.HostIDByDeviceAuthTokenFunc(ctx, authToken)
 }
 
-func (s *DataStore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
+func (s *DataStore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (total uint, unhidden uint, err error) {
 	s.mu.Lock()
 	s.FailingPoliciesCountFuncInvoked = true
 	s.mu.Unlock()
@@ -7391,18 +7396,11 @@ func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, pl
 	return s.CleanupAllHostMDMProfilesForPlatformFunc(ctx, platform)
 }
 
-func (s *DataStore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+func (s *DataStore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, olderThan time.Duration) error {
 	s.mu.Lock()
 	s.CleanupStaleNanoRefetchCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupStaleNanoRefetchCommandsFunc(ctx, enrollmentID, commandUUIDPrefix, currentCommandUUID)
-}
-
-func (s *DataStore) CleanupOrphanedNanoRefetchCommands(ctx context.Context) error {
-	s.mu.Lock()
-	s.CleanupOrphanedNanoRefetchCommandsFuncInvoked = true
-	s.mu.Unlock()
-	return s.CleanupOrphanedNanoRefetchCommandsFunc(ctx)
+	return s.CleanupStaleNanoRefetchCommandsFunc(ctx, enrollmentID, commandUUIDPrefix, currentCommandUUID, olderThan)
 }
 
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -11850,7 +11848,7 @@ func (s *DataStore) BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, host
 	return s.BulkGetHostMDMAppleProfilesByUUIDsFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error) {
+func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, optInsByHost map[string]map[string]struct{}, pageFull bool, err error) {
 	s.mu.Lock()
 	s.GetAppleProfileReconcileSnapshotFuncInvoked = true
 	s.mu.Unlock()
@@ -14774,4 +14772,18 @@ func (s *DataStore) SetABMTokenServerUUID(ctx context.Context, tokenID uint, ser
 	s.SetABMTokenServerUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetABMTokenServerUUIDFunc(ctx, tokenID, serverUUID)
+}
+
+func (s *DataStore) ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {
+	s.mu.Lock()
+	s.ApplyHostMDMProfileOptInChangesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyHostMDMProfileOptInChangesFunc(ctx, changes)
+}
+
+func (s *DataStore) BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error) {
+	s.mu.Lock()
+	s.BulkGetHostMDMProfileOptInsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetHostMDMProfileOptInsFunc(ctx, hostUUIDs)
 }

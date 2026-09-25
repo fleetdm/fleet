@@ -77,7 +77,12 @@ func ComputeReconcileDeltas(
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
 	profilesByTeam map[uint][]*fleet.AppleProfileForReconcile,
 	profilesWithBrokenLabels map[string]struct{},
-) (toInstall, toRemove []*fleet.MDMAppleProfilePayload) {
+	optInsByHost map[string]map[string]struct{},
+) (toInstall, toRemove []*fleet.MDMAppleProfilePayload, optInChanges *fleet.MDMProfileOptInChanges) {
+	optInChanges = &fleet.MDMProfileOptInChanges{
+		Add:   make([]fleet.HostProfileUUID, 0),
+		Purge: make([]fleet.HostProfileUUID, 0),
+	}
 	for _, host := range hosts {
 		teamProfiles := profilesByTeam[host.EffectiveTeamID()]
 		desired := make(map[string]*fleet.AppleProfileForReconcile, len(teamProfiles))
@@ -92,15 +97,59 @@ func ComputeReconcileDeltas(
 
 		installingChannels := make(map[profileChannelKey]struct{})
 
+		optIns := optInsByHost[host.UUID]
+		unknownMembershipOptIns := make(map[string]struct{})
 		for _, p := range teamProfiles {
-			onHost := false
-			if c, ok := currentByProfile[p.ProfileUUID]; ok {
-				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			c, present := currentByProfile[p.ProfileUUID]
+			onHost := present && c.OperationType == fleet.MDMOperationTypeInstall // nolint:nilaway // the present check is what gates on existence therefore c can not be nil.
+
+			adoptedFromOtherTeam := false
+			if p.SelfService {
+				// Self-service is macOS-only: never install or adopt it elsewhere. Any stray
+				// opt-in is purged below since the profile is never desired.
+				if !fleet.IsMacOSPlatform(host.Platform) {
+					continue
+				}
+				if _, optedIn := optIns[p.ProfileUUID]; !optedIn {
+					// the user did not manually opt-in to the profile, but it might be adopted from an installed profile from another team
+					adoptedFromOtherTeam = adoptableFromAlreadyInstalled(current, p)
+					if !adoptedFromOtherTeam {
+						continue
+					}
+				}
 			}
-			if !EntityAppliesToHost(p, host, labelsForHost, onHost) {
+
+			if !EntityAppliesToHost(p, host, labelsForHost, onHost || adoptedFromOtherTeam) {
+				// Opted in but held back only by unknown dynamic label membership: keep the opt-in.
+				if p.SelfService {
+					if _, optedIn := optIns[p.ProfileUUID]; optedIn && EntityAppliesToHost(p, host, labelsForHost, true) {
+						unknownMembershipOptIns[p.ProfileUUID] = struct{}{}
+					}
+				}
 				continue
 			}
 			desired[p.ProfileUUID] = p
+			if adoptedFromOtherTeam {
+				optInChanges.Add = append(optInChanges.Add, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: p.ProfileUUID})
+			}
+		}
+
+		// Purge any opt-in that is not in the desired set (might have lost it due to label scoping changes) and is not broken
+		for profUUID := range optIns {
+			if prof, ok := desired[profUUID]; ok {
+				// check if the profile is no longer self-service, then purge
+				if !prof.SelfService {
+					optInChanges.Purge = append(optInChanges.Purge, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: profUUID})
+				}
+				continue
+			}
+			if IsBrokenProfile(profUUID, profilesWithBrokenLabels) {
+				continue
+			}
+			if _, unknown := unknownMembershipOptIns[profUUID]; unknown {
+				continue
+			}
+			optInChanges.Purge = append(optInChanges.Purge, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: profUUID})
 		}
 
 		for profUUID, p := range desired {
@@ -189,7 +238,7 @@ func ComputeReconcileDeltas(
 			})
 		}
 	}
-	return toInstall, toRemove
+	return toInstall, toRemove, optInChanges
 }
 
 // IsBrokenProfile returns true if any label assignment on the profile
@@ -213,6 +262,24 @@ func scopeOrDefaultDDM(s fleet.PayloadScope) fleet.PayloadScope {
 		return fleet.PayloadScopeSystem
 	}
 	return s
+}
+
+// adoptableFromAlreadyInstalled reports whether the host carries an identical same-identifier
+// profile under a different profile UUID (a team transfer), in which case the
+// self-service profile is adopted instead of the old one being removed.
+func adoptableFromAlreadyInstalled(current []*fleet.MDMAppleProfilePayload, p *fleet.AppleProfileForReconcile) bool {
+	for _, r := range current {
+		if r.ProfileUUID == p.ProfileUUID ||
+			r.OperationType != fleet.MDMOperationTypeInstall ||
+			r.Status == nil || *r.Status == fleet.MDMDeliveryFailed ||
+			r.ProfileIdentifier != p.ProfileIdentifier ||
+			r.Scope != p.Scope ||
+			!bytes.Equal(r.Checksum, p.Checksum) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // ComputeDeclarationDeltas is the DDM equivalent of ComputeReconcileDeltas.
@@ -392,6 +459,12 @@ func ComputeDeclarationDeltas(
 // Pass redisKeyValue == nil to skip the "host being set up" Redis check —
 // the per-host enrollment path passes nil since by construction the host
 // IS being set up and we explicitly want to install the profiles right now.
+//
+// caInstallBudget is the number of CA-variable profile installs still allowed; it is
+// decremented as they are scheduled, and nil disables CA throttling entirely. It is a pointer
+// rather than a plain limit because the batched cron drains several windows per tick and must
+// share one budget across all of them — a per-call limit would multiply the issuance rate
+// against the customer's CA by the number of windows drained.
 func ExecuteReconcileBatch(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -399,7 +472,7 @@ func ExecuteReconcileBatch(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	appConfig *fleet.AppConfig,
-	certProfilesLimit int,
+	caInstallBudget *int,
 	toInstall, toRemove []*fleet.MDMAppleProfilePayload,
 ) ([]string, error) {
 	userEnrollmentMap := make(map[string]string)
@@ -447,7 +520,7 @@ func ExecuteReconcileBatch(
 
 	var caProfileUUIDs map[string]struct{}
 	var prefetchedContents map[string]mobileconfig.Mobileconfig
-	if certProfilesLimit > 0 {
+	if caInstallBudget != nil {
 		uniqueUUIDs := make(map[string]struct{}, len(toInstall))
 		for _, p := range toInstall {
 			uniqueUUIDs[p.ProfileUUID] = struct{}{}
@@ -470,7 +543,12 @@ func ExecuteReconcileBatch(
 		}
 	}
 
-	var caInstallCount int
+	// Captured for the throttle log below: the budget left when this batch started, which for a
+	// drained tick is what remained after earlier windows, not the configured limit.
+	var caBudgetAtEntry int
+	if caInstallBudget != nil {
+		caBudgetAtEntry = *caInstallBudget
+	}
 	throttledHostsByProfile := make(map[string][]string)
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 	supersededCmdToEnrollmentIDs := make(map[string][]string)
@@ -522,8 +600,8 @@ func ExecuteReconcileBatch(
 
 		recentlyEnrolled := p.DeviceEnrolledAt != nil && time.Since(*p.DeviceEnrolledAt) < 1*time.Hour
 		_, isCA := caProfileUUIDs[p.ProfileUUID]
-		isThrottledCA := certProfilesLimit > 0 && isCA && !recentlyEnrolled
-		if isThrottledCA && caInstallCount >= certProfilesLimit {
+		isThrottledCA := caInstallBudget != nil && isCA && !recentlyEnrolled
+		if isThrottledCA && *caInstallBudget <= 0 {
 			throttledHostsByProfile[p.ProfileUUID] = append(throttledHostsByProfile[p.ProfileUUID], p.HostUUID)
 			continue
 		}
@@ -582,7 +660,7 @@ func ExecuteReconcileBatch(
 		}
 
 		if isThrottledCA {
-			caInstallCount++
+			*caInstallBudget--
 		}
 
 		hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -605,10 +683,11 @@ func ExecuteReconcileBatch(
 	for profileUUID, hostUUIDs := range throttledHostsByProfile {
 		for i := 0; i < len(hostUUIDs); i += throttleLogBatchSize {
 			end := min(i+throttleLogBatchSize, len(hostUUIDs))
-			logger.InfoContext(ctx, "throttled CA certificate profile installation",
+			logger.InfoContext(
+				ctx, "throttled CA certificate profile installation",
 				"profile.uuid", profileUUID,
 				"mdm.target.host.uuids", hostUUIDs[i:end],
-				"mdm.certificate.profiles.limit", certProfilesLimit,
+				"mdm.certificate.profiles.limit", caBudgetAtEntry,
 				"batch", fmt.Sprintf("%d-%d/%d", i+1, end, len(hostUUIDs)),
 			)
 		}
@@ -987,21 +1066,39 @@ func ReconcileProfilesForEnrollingHost(
 		return nil, ctxerr.Wrap(ctx, err, "bulk get host mdm apple profiles")
 	}
 
-	toInstall, toRemove := ComputeReconcileDeltas(
-		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
+	optIns, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm profile opt-ins")
+	}
+
+	toInstall, toRemove, optInChanges := ComputeReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel, optIns,
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 	// Defer user-scoped profile delivery to the cron — see function comment.
 	toInstall = fleet.FilterOutUserScopedProfiles(toInstall)
 
+	if len(optInChanges.Add) > 0 || len(optInChanges.Purge) > 0 {
+		if err := ds.ApplyHostMDMProfileOptInChanges(ctx, optInChanges); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "applying host mdm profile opt-in changes")
+		}
+	}
+
 	if len(toInstall) == 0 && len(toRemove) == 0 {
 		return nil, nil
 	}
 
+	// This path reconciles a single host, so it gets a budget of its own rather than sharing
+	// the cron's per-tick one. 0 means unlimited, which is a nil budget.
+	var caInstallBudget *int
+	if certProfilesLimit > 0 {
+		caInstallBudget = new(certProfilesLimit)
+	}
+
 	return ExecuteReconcileBatch(
 		ctx, ds, commander, nil, logger,
-		appConfig, certProfilesLimit, toInstall, toRemove,
+		appConfig, caInstallBudget, toInstall, toRemove,
 	)
 }
 
@@ -1058,8 +1155,16 @@ func PendingProfilesForHost(
 		return nil, nil, err
 	}
 
-	toInstall, toRemove = ComputeReconcileDeltas(
+	optIns, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// While this can technically return optInChanges we refrain from updating here, and delegate it to the
+	// cron reconciler, or the initial one-time ReconcileProfilesForEnrollingHost
+	toInstall, toRemove, _ = ComputeReconcileDeltas(
 		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
+		optIns,
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
