@@ -34,7 +34,6 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 48px;
   }
   [purpose='hero-image'] {
     flex: 1 1 0;
@@ -967,7 +966,7 @@
     [purpose='hero-text'] {
       h1 {
         // Scales with the half-width column so the longest ticker option fits on one line.
-        font-size: ~'min(40px, calc((100vw - 144px) / 25))';
+        font-size: ~'min(40px, calc((100vw - 96px) / 25))';
       }
     }
     [purpose='hero-quote'] {
@@ -1057,6 +1056,7 @@
       max-width: 100%;
       padding: 48px 32px;
       flex-direction: column;
+      gap: 48px;
     }
     [purpose='hero-text'] {
       max-width: 100%;
