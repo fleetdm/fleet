@@ -80,7 +80,8 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		otherInstall *fleet.HostLastInstallData
 		// NotificationAwaitingDisplay: this host has a notification the end user
 		// has not seen yet
-		awaiting bool
+		awaiting            bool
+		awaitingRemindsNext bool
 		// the skipped install carries no software title, so there is no app to name
 		noTitle bool
 		// NewPatchNotification: the patch_notifications row can't be written
@@ -100,6 +101,13 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			awaiting:    true,
 			wantCreated: false,
 			wantAppOn:   awaitingUUID,
+		},
+		{
+			name:                "the app gets its own notification when the one awaiting display is the 5 minute reminder",
+			awaiting:            true,
+			awaitingRemindsNext: true,
+			wantCreated:         true,
+			wantAppOn:           createdUUID,
 		},
 		{
 			name:      "an app already listed on a pending or dispatched notification is not listed twice",
@@ -163,6 +171,12 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 					return nil, nil
 				}
 				return &notifications_api.EndUserNotification{UUID: awaitingUUID, Payload: patchNotificationFirstNoticePayload}, nil
+			}
+			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+				if !c.awaitingRemindsNext {
+					return nil, nil
+				}
+				return &fleet.PatchNotification{InstallAt: new(time.Now().UTC().Add(2 * time.Minute))}, nil
 			}
 			notificationsSvc.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
 				require.Equal(t, hostID, notification.HostID)
@@ -376,7 +390,6 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
-
 			// the end user pressed Update now on this notification
 			view, err := kind.updateNow(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID, Status: c.status,
@@ -482,7 +495,6 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 		return "device-token", nil
 	}
-
 	notification := &notifications_api.EndUserNotification{
 		UUID: "notification-uuid", HostID: hostID,
 		Status:  notifications_api.EndUserNotificationDispatched,
@@ -610,7 +622,6 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
-
 			view, err := kind.Render(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID,
 				Status:  c.notificationStatus,
@@ -643,6 +654,28 @@ func TestPatchNotificationRenderWithNoApps(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, view)
 	require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, notificationSvc.failedReason)
+}
+
+func TestShouldNotificationBeReminder(t *testing.T) {
+	now := time.Now().UTC()
+
+	cases := []struct {
+		name      string
+		installAt *time.Time
+		want      bool
+	}{
+		{"a notification with no install_at is not the reminder", nil, false},
+		{"a notification with install_at more than 5 minutes ahead is not the reminder", new(now.Add(6 * time.Minute)), false},
+		{"a notification with install_at within 5 minutes is the reminder", new(now.Add(4 * time.Minute)), true},
+		{"a notification past install_at is not the reminder", new(now.Add(-time.Minute)), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, now)
+			require.Equal(t, c.want, got)
+		})
+	}
 }
 
 // What the activity OnOutcome records: which apps and policies it names, which
@@ -837,6 +870,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		alreadyActed bool
 		// the notification is already acted, which an earlier pass stopping part way through leaves behind
 		statusActed bool
+		hostOffline bool
 
 		wantReminder bool
 		wantInstalls []uint
@@ -942,11 +976,21 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		{
 			// if an earlier pass set the status to acted and then stopped before queueing, the apps
 			// are still unhandled. ActOnNotification returns false against that status, and
-			// isStatusActed is what lets this pass carry on and queue them.
+			// the acted status read with the notification is what lets this pass carry on and queue them.
 			name:              "an acted notification with an app still unhandled has its installs queued",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
 			reminder:          true,
+			statusActed:       true,
+			alreadyActed:      true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
+		},
+		{
+			name:              "a notification acted on from the 1 hour notice with an app still unhandled has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
 			statusActed:       true,
 			alreadyActed:      true,
 			installedVersions: behind,
@@ -961,6 +1005,28 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			installedVersions: behind,
 			alreadyActed:      true,
 			wantActed:         true,
+		},
+		{
+			name:              "a deadline reached on an offline host sends the notification again instead of installing",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			hostOffline:       true,
+			wantReminder:      true,
+		},
+		{
+			// the installs are partly queued already, so the rest go out even with the host offline
+			name:              "an acted notification with an app still unhandled on an offline host has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			statusActed:       true,
+			alreadyActed:      true,
+			hostOffline:       true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
 			// an offline host and a reminder still on its way both leave displayed_at null, and
@@ -1003,6 +1069,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 					Payload:          payload,
 					DisplayedAt:      displayed,
 					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
+					HostOnline:       !c.hostOffline,
 				}}, nil
 			}
 
@@ -1111,7 +1178,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
-			require.JSONEq(t, string(patchNotificationReminderPayload), string(notificationSvc.delayPayload))
+			if c.hostOffline {
+				require.JSONEq(t, string(patchNotificationFirstNoticePayload), string(notificationSvc.delayPayload),
+					"a reminder toast still open switches to the 1 hour copy")
+				return
+			}
+			require.Nil(t, notificationSvc.delayPayload, "the notice is set when orbit fetches the script")
 		})
 	}
 }
