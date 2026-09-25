@@ -490,6 +490,11 @@ module.exports.custom = {
   // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
+  // Website search (Google Programmable Search Engine + Custom Search JSON API)
+  // If either of these is missing, fleetdm.com/search falls back to redirecting to a scoped Google search.
+  // googleSearchApiKey: '…',
+  // googleSearchEngineId: '…',
+
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',
   // customerWorkspaceOneOauthId: '…',

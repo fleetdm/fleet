@@ -1,0 +1,135 @@
+#search {
+
+  [purpose='page-container'] {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 60px;
+    padding-bottom: 120px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  [purpose='page-content'] {
+    max-width: 720px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 42px;
+    margin-bottom: 24px;
+  }
+
+  [purpose='search-page-form'] {
+    margin-bottom: 40px;
+    [purpose='searchbar'] {
+      input {
+        width: 100%;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        border: none;
+        &:focus {
+          outline: none;
+        }
+        &::placeholder {
+          font-size: 16px;
+          line-height: 24px;
+          color: @core-fleet-black-50;
+        }
+      }
+      .input-group {
+        width: 100%;
+        border-radius: 6px;
+        border: 1px solid @core-fleet-black-25;
+        background: #FFF;
+        align-items: center;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-vibrant-green;
+      }
+      .form-control {
+        border-radius: 6px;
+        height: 36px;
+        margin: 0;
+        padding: 0;
+        font-size: 16px;
+        &:focus {
+          border: none;
+          box-shadow: none;
+        }
+      }
+      [purpose='searchbar-submit'] {
+        .searchbar-submit-btn();
+        &:focus {
+          outline: 2px solid @core-fleet-black;
+        }
+      }
+    }
+  }
+
+  [purpose='results-count'] {
+    font-size: 14px;
+    line-height: 21px;
+    color: @core-fleet-black-50;
+    margin-bottom: 24px;
+  }
+
+  [purpose='search-result'] {
+    margin-bottom: 32px;
+    [purpose='result-path'] {
+      font-size: 13px;
+      line-height: 20px;
+      color: @core-fleet-black-50;
+      margin-bottom: 2px;
+      overflow-wrap: anywhere;
+    }
+    [purpose='result-title'] {
+      display: inline-block;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 27px;
+      color: @core-fleet-black;
+      margin-bottom: 4px;
+      &:hover {
+        color: @core-vibrant-green;
+        text-decoration: none;
+      }
+    }
+    [purpose='result-snippet'] {
+      font-size: 15px;
+      line-height: 24px;
+      color: @core-fleet-black-75;
+      margin-bottom: 0;
+    }
+  }
+
+  [purpose='search-message'] {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  [purpose='pagination'] {
+    display: flex;
+    gap: 24px;
+    margin-top: 8px;
+    [purpose='pagination-link'] {
+      font-size: 16px;
+      font-weight: 700;
+      color: @core-fleet-black;
+      &:hover {
+        color: @core-vibrant-green;
+        text-decoration: none;
+      }
+    }
+  }
+
+  @media (max-width: 767px) {
+    [purpose='page-container'] {
+      padding-top: 40px;
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+
+}

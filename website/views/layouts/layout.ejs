@@ -1159,7 +1159,7 @@
       });
     </script>
     <script>
-      // Sends search queries to a scoped Google search.
+      // Sends search queries to the website's search results page.
       document.addEventListener('submit', function(event) {
         var form = event.target.closest('form[purpose="google-search"]');
         if (!form) { return; }
@@ -1167,7 +1167,7 @@
         var input = form.querySelector('input');
         var searchQuery = (input ? input.value : '').trim();
         if (!searchQuery) { return; }
-        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery), '_blank', 'noopener');
+        window.location = '/search?q=' + encodeURIComponent(searchQuery);
       });
     </script>
     <% if (sails.config.environment === 'production') { %>
@@ -1186,6 +1186,8 @@
       window.addEventListener('load', function() {
         setTimeout(function() {// Note: we're using setTimeout here to run this code after other load event handlers have run.
           try {
+            // Keep the query string on the search results page so searches can be reloaded and shared.
+            if (window.location.pathname === '/search') { return; }
             if (window.location.search) {
               history.replaceState(window.history.state, document.title, window.location.pathname + window.location.hash);
             }
