@@ -793,6 +793,8 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 				require.Equal(t, deadline, *activity.InstallAt)
 			}
 			require.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
+			require.NotNil(t, activity.ExitCode)
+			require.Equal(t, c.outcome.ExitCode, *activity.ExitCode)
 
 			require.Equal(t, c.wantTitles, activity.SoftwareTitles)
 			require.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)

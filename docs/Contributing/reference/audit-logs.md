@@ -1751,6 +1751,7 @@ This activity contains the following fields:
 - "time_before": Either 1 hour or 5 minutes before patch is forced.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
 - "script_execution_id": Execution ID of the script run that displayed the notification to the end user.
+- "exit_code": Exit code of the notification script. `0` on success; non-zero encodes the failure reason (e.g. `41` for a locked screen).
 
 #### Example
 
@@ -1764,7 +1765,8 @@ This activity contains the following fields:
   "policy_ids": [1337, 1338],
   "time_before": 3600,
   "install_at": "2026-08-06T14:00:00Z",
-  "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be"
+  "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be",
+  "exit_code": 0
 }
 ```
 
