@@ -1,16 +1,18 @@
 import React from "react";
 
 import ActionsDropdown from "components/ActionsDropdown";
-import CustomLink from "components/CustomLink";
+import ApiEndpointCountTag from "components/ApiEndpointCountTag";
+import ApiUserTag from "components/ApiUserTag";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ITeam } from "interfaces/team";
 import { IUser, UserRole } from "interfaces/user";
 import permissions from "utilities/permissions";
 import stringUtils from "utilities/strings";
+
+const baseClass = "team-users";
 
 interface IHeaderProps {
   column: {
@@ -31,6 +33,15 @@ interface ICellProps extends IRowProps {
   };
 }
 
+interface IPermissionsCellProps {
+  cell: {
+    value: string;
+  };
+  row: {
+    original: ITeamUsersTableData;
+  };
+}
+
 interface IActionsDropdownProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
@@ -41,8 +52,10 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
+  id?: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
+    | ((props: IPermissionsCellProps) => JSX.Element)
     | ((props: IActionsDropdownProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
@@ -56,28 +69,46 @@ export interface ITeamUsersTableData {
   teams: ITeam[];
   actions: IDropdownOption[];
   id: number;
+  api_only?: boolean;
+  apiEndpointCount: number;
 }
 
-export const renderApiUserIndicator = () => {
-  return (
-    <Tag
-      tooltip={
-        <>
-          This user was created using fleetctl and
-          <br /> only has API access.{" "}
-          <CustomLink
-            text="Learn more"
-            newTab
-            url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
-            variant="tooltip-link"
-          />
-        </>
-      }
-      size="xsmall"
-    >
-      API
-    </Tag>
-  );
+const renderRole = (cellProps: IPermissionsCellProps) => {
+  if (cellProps.cell.value === "GitOps") {
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            The GitOps role is only available on the command-line
+            <br />
+            when creating an API-only user. This user has no
+            <br />
+            access to the UI.
+          </>
+        }
+      >
+        GitOps
+      </TooltipWrapper>
+    );
+  }
+  if (cellProps.cell.value === "Observer+") {
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            Users with the Observer+ role have access to all of
+            <br />
+            the same functions as an Observer, with the added
+            <br />
+            ability to run any live report against all hosts.
+          </>
+        }
+      >
+        {cellProps.cell.value}
+      </TooltipWrapper>
+    );
+  }
+  return <TextCell value={cellProps.cell.value} className="permissions-text" />;
 };
 
 // NOTE: cellProps come from react-table
@@ -102,52 +133,28 @@ const generateColumnConfigs = (
         return (
           <TooltipTruncatedTextCell
             value={cellProps.cell.value}
-            suffix={apiOnlyUser && renderApiUserIndicator()}
+            suffix={apiOnlyUser && <ApiUserTag />}
           />
         );
       },
     },
     {
-      title: "Role",
-      Header: "Role",
+      title: "Permissions",
+      Header: "Permissions",
       disableSortBy: true,
       accessor: "role",
-      Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === "GitOps") {
-          return (
-            <TooltipWrapper
-              tipContent={
-                <>
-                  The GitOps role is only available on the command-line
-                  <br />
-                  when creating an API-only user. This user has no
-                  <br />
-                  access to the UI.
-                </>
-              }
-            >
-              GitOps
-            </TooltipWrapper>
-          );
-        }
-        if (cellProps.cell.value === "Observer+") {
-          return (
-            <TooltipWrapper
-              tipContent={
-                <>
-                  Users with the Observer+ role have access to all of
-                  <br />
-                  the same functions as an Observer, with the added
-                  <br />
-                  ability to run any live report against all hosts.
-                </>
-              }
-            >
-              {cellProps.cell.value}
-            </TooltipWrapper>
-          );
-        }
-        return <TextCell value={cellProps.cell.value} />;
+      id: "permissions",
+      Cell: (cellProps: IPermissionsCellProps) => {
+        const { apiEndpointCount } = cellProps.row.original;
+
+        return (
+          <div className={`${baseClass}__permissions-content`}>
+            {renderRole(cellProps)}
+            {apiEndpointCount > 0 && (
+              <ApiEndpointCountTag count={apiEndpointCount} />
+            )}
+          </div>
+        );
       },
     },
     {
@@ -244,6 +251,7 @@ const enhanceUsersData = (
       actions: generateActionDropdownOptions(),
       id: user.id,
       api_only: user.api_only,
+      apiEndpointCount: user.api_endpoints?.length ?? 0,
     };
   });
 };
