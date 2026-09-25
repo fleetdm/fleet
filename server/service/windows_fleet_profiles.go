@@ -146,7 +146,8 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 // ensureFleetProfiles does for Apple. Today that is only the enroll secret profile.
 //
 // One profile per team, plus "no team", because a Windows configuration profile is scoped by team and every Windows MDM host
-// needs the carrier. The contents are identical everywhere: the secret is resolved per enrollment at delivery, not per team.
+// needs the enroll secret profile. The contents are identical everywhere: the secret is resolved per enrollment at delivery,
+// not per team.
 func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, useOneTimeEnrollSecrets bool) error {
 	// This runs on every reconcile, so one read decides what, if anything, needs writing.
 	existing, err := ds.ListMDMWindowsConfigProfilesByName(ctx, mdm.FleetWindowsEnrollSecretProfileName)

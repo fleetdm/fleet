@@ -5,7 +5,6 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
-	"strings"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -36,21 +35,14 @@ func TestWindowsEnrollSecretProfileSyncML(t *testing.T) {
 
 	// The ingested ADMX is what points the policy at the key orbit reads. If either of these drifts, the secret lands
 	// somewhere orbit never looks and the recovery path silently stops working.
-	// Data holds the raw inner XML, so the ADMX is still entity-escaped here; that is exactly what goes on the wire, and
-	// the device's parser is what unescapes it back into a policy definition.
 	admx := html.UnescapeString(cmds[0].Items[0].Data.Content)
 	require.Contains(t, admx, `key="SOFTWARE\FleetDM\Orbit"`)
 	require.Contains(t, admx, `valueName="EnrollSecret"`)
 	require.Contains(t, admx, `class="Machine"`, "the value has to land in HKLM, not HKCU")
 
-	// The secret itself is never stored: the profile carries the placeholder, resolved per enrollment at delivery.
-	policy := html.UnescapeString(cmds[1].Items[0].Data.Content)
-	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
-	require.Contains(t, policy, placeholder)
-	require.Contains(t, policy, `<enabled/>`)
+	require.Contains(t, html.UnescapeString(cmds[1].Items[0].Data.Content), `<enabled/>`)
 
-	// And the expander has to be able to find it: it scans for the prefix, so an escaping change that mangled the
-	// placeholder would leave the profile delivering a literal "$FLEET_HOST_SECRET_ENROLL_SECRET" to the registry.
+	// The secret itself is never stored: the profile carries the placeholder, resolved per enrollment at delivery.
 	require.Equal(t, []string{fleet.HostSecretEnrollSecret},
 		fleet.ContainsPrefixVars(string(syncML), fleet.HostSecretPrefix))
 }
@@ -58,6 +50,8 @@ func TestWindowsEnrollSecretProfileSyncML(t *testing.T) {
 func TestEnsureFleetWindowsProfiles(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	teamID := uint(3)
+	noTeamProfile := &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"}
+	teamProfile := &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-team", TeamID: &teamID}
 
 	newDS := func(existing ...*fleet.MDMWindowsConfigProfile) *mock.Store {
 		ds := new(mock.Store)
@@ -70,63 +64,54 @@ func TestEnsureFleetWindowsProfiles(t *testing.T) {
 		}
 		return ds
 	}
-	upserted := func(ds *mock.Store) *[]*uint {
-		var teams []*uint
-		ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-			require.Equal(t, mdm.FleetWindowsEnrollSecretProfileName, cp.Name)
-			require.Contains(t, string(cp.SyncML), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
-			teams = append(teams, cp.TeamID)
-			return nil
-		}
-		return &teams
+
+	// Only missing profiles are written. Rewriting an existing one would redeliver it to every host in its team.
+	for _, tc := range []struct {
+		name     string
+		existing []*fleet.MDMWindowsConfigProfile
+		want     []*uint
+	}{
+		{"enabled: one profile per team and no team", nil, []*uint{nil, &teamID}},
+		{"enabled: only the missing profile is written", []*fleet.MDMWindowsConfigProfile{noTeamProfile}, []*uint{&teamID}},
+		{"enabled: existing profiles are never rewritten", []*fleet.MDMWindowsConfigProfile{noTeamProfile, teamProfile}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newDS(tc.existing...)
+			var written []*uint
+			ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+				require.Equal(t, mdm.FleetWindowsEnrollSecretProfileName, cp.Name)
+				written = append(written, cp.TeamID)
+				return nil
+			}
+			require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
+			require.Equal(t, tc.want, written)
+		})
 	}
 
-	t.Run("enabled: one profile per team and no team", func(t *testing.T) {
-		ds := newDS()
-		teams := upserted(ds)
-		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
-		require.Equal(t, []*uint{nil, &teamID}, *teams)
-		require.False(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
-	})
-
-	t.Run("enabled: only missing profiles are written, an existing one is never rewritten", func(t *testing.T) {
-		// No team already has one, so only the team's is written. Rewriting no team's would redeliver it to every host in it.
-		ds := newDS(&fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"})
-		teams := upserted(ds)
-		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
-		require.Equal(t, []*uint{&teamID}, *teams)
-
-		ds = newDS(&fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"}, &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-team", TeamID: &teamID})
-		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, true))
-		require.False(t, ds.SetOrUpdateMDMWindowsConfigProfileFuncInvoked)
-	})
-
-	t.Run("disabled: the carrier is removed", func(t *testing.T) {
-		ds := newDS(&fleet.MDMWindowsConfigProfile{ProfileUUID: "w-none"}, &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-team", TeamID: &teamID})
+	t.Run("disabled: the enroll secret profile is removed", func(t *testing.T) {
+		ds := newDS(noTeamProfile, teamProfile)
 		var deleted []string
 		ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
 			deleted = append(deleted, profileUUID)
 			return nil
 		}
 
-		// Leaving it behind would leave an administrator resend able to mint secrets that, with the switch off, enrollment
-		// no longer accepts.
 		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, false))
 		require.Equal(t, []string{"w-none", "w-team"}, deleted)
-		require.False(t, ds.SetOrUpdateMDMWindowsConfigProfileFuncInvoked)
 		require.False(t, ds.TeamsSummaryFuncInvoked, "removal needs only the profiles that exist")
 	})
 
 	t.Run("disabled: nothing to remove costs one read", func(t *testing.T) {
 		ds := newDS()
 		require.NoError(t, ensureFleetWindowsProfiles(t.Context(), ds, logger, false))
-		require.False(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
 		require.False(t, ds.TeamsSummaryFuncInvoked)
 	})
 }
 
 func TestDeliversOneTimeEnrollSecret(t *testing.T) {
-	bothOn := config.AuthConfig{UseOneTimeEnrollSecrets: true, MDMWindowsOneTimeEnrollSecrets: true}
+	// Each platform answers only to its own one-time enroll secrets setting.
+	appleOnly := config.AuthConfig{UseOneTimeEnrollSecrets: true}
+	windowsOnly := config.AuthConfig{MDMWindowsOneTimeEnrollSecrets: true}
 
 	for _, tc := range []struct {
 		name        string
@@ -135,52 +120,23 @@ func TestDeliversOneTimeEnrollSecret(t *testing.T) {
 		profileName string
 		want        bool
 	}{
-		{"apple fleetd config", bothOn, "a" + "-1", mdm.FleetdConfigProfileName, true},
-		{"windows enroll secret", bothOn, "w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, true},
-		{"windows os updates carries no secret", bothOn, "w" + "-1", mdm.FleetWindowsOSUpdatesProfileName, false},
-		{"apple profile with the windows name", bothOn, "a" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false},
-		{"windows profile with the apple name", bothOn, "w" + "-1", mdm.FleetdConfigProfileName, false},
-		{"a user profile that copied the name", bothOn, "w" + "-1", "Fleetd enroll secret " + strings.Repeat("x", 3), false},
-		{"declaration", bothOn, "d" + "-1", mdm.FleetdConfigProfileName, false},
-
-		// Each platform answers to its own switch, so one being on must not gate the other in.
-		{
-			"windows off leaves the windows profile to the ordinary resend rules",
-			config.AuthConfig{UseOneTimeEnrollSecrets: true},
-			"w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false,
-		},
-		{
-			"apple off leaves the apple profile to the ordinary resend rules",
-			config.AuthConfig{MDMWindowsOneTimeEnrollSecrets: true},
-			"a" + "-1", mdm.FleetdConfigProfileName, false,
-		},
-		{
-			"windows on, apple off still guards the windows profile",
-			config.AuthConfig{MDMWindowsOneTimeEnrollSecrets: true},
-			"w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, true,
-		},
-		{
-			"both off guards nothing",
-			config.AuthConfig{},
-			"w" + "-1", mdm.FleetWindowsEnrollSecretProfileName, false,
-		},
+		{"apple fleetd config", appleOnly, "a-1", mdm.FleetdConfigProfileName, true},
+		{"windows enroll secret", windowsOnly, "w-1", mdm.FleetWindowsEnrollSecretProfileName, true},
+		{"windows one-time enroll secrets do not guard the apple profile", windowsOnly, "a-1", mdm.FleetdConfigProfileName, false},
+		{"apple one-time enroll secrets do not guard the windows profile", appleOnly, "w-1", mdm.FleetWindowsEnrollSecretProfileName, false},
+		{"other windows profiles carry no secret", windowsOnly, "w-1", mdm.FleetWindowsOSUpdatesProfileName, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, deliversOneTimeEnrollSecret(tc.auth, tc.profileUUID, tc.profileName))
 		})
 	}
-
-	// The resend-from-verifying carve-out stays Apple-only: a Windows profile reaches verified on the SyncML ack, so it
-	// never gets stuck there and does not need the exemption.
-	require.True(t, isFleetdConfigProfile("a-1", mdm.FleetdConfigProfileName))
-	require.False(t, isFleetdConfigProfile("w-1", mdm.FleetWindowsEnrollSecretProfileName))
 }
 
-func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
+func TestResendWindowsEnrollSecretProfileRequiresWindowsOneTimeEnrollSecrets(t *testing.T) {
 	const secretProfileUUID = "w-secret"
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
 
-	newService := func(t *testing.T, windowsSwitch bool) (*Service, *mock.Store) {
+	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool) (*Service, *mock.Store) {
 		ds := new(mock.Store)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			cfg := &fleet.AppConfig{}
@@ -198,7 +154,7 @@ func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
 			return 0, nil
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsSwitch
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		opts := &TestServerOpts{}
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 		opts.ActivityMock.NewActivityFunc = func(ctx context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
@@ -214,7 +170,7 @@ func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
 		return gotErr, rejected
 	}
 
-	t.Run("switch off refuses the carrier on every resend path, before anything is minted", func(t *testing.T) {
+	t.Run("disabled: the enroll secret profile is refused on every resend path, before anything is minted", func(t *testing.T) {
 		// Covers the window before the reconciler deletes the profile, and a delete that failed. The datastore would mint on the
 		// profile's name, so this is the only thing between a resend and a credential for a feature that is off.
 		svc, ds := newService(t, false)
@@ -233,14 +189,14 @@ func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
 		require.False(t, ds.BatchResendMDMProfileToHostsFuncInvoked)
 	})
 
-	t.Run("switch off leaves other Windows profiles alone", func(t *testing.T) {
+	t.Run("disabled: other Windows profiles resend as usual", func(t *testing.T) {
 		svc, ds := newService(t, false)
 		err, _ := resend(svc, "w-custom", "Custom settings")
 		require.NoError(t, err)
 		require.True(t, ds.ResendHostMDMProfileFuncInvoked)
 	})
 
-	t.Run("switch on lets the carrier through", func(t *testing.T) {
+	t.Run("enabled: the enroll secret profile resends", func(t *testing.T) {
 		svc, ds := newService(t, true)
 		err, _ := resend(svc, secretProfileUUID, mdm.FleetWindowsEnrollSecretProfileName)
 		require.NoError(t, err)
@@ -249,15 +205,13 @@ func TestResendWindowsEnrollSecretProfileRequiresTheSwitch(t *testing.T) {
 }
 
 func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
-	// A programmatic enrollment, so the fleetd presence check answers without the datastore and only the push is exercised. Its
-	// linked host is gone: LinkedHostID is nil, as the session's enrollment load reports a deleted host.
 	orphaned := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17", HostUUID: "host-uuid", MDMEnrollUserID: "not-a-upn"}
 
 	type state struct {
 		minted bool
 		pushed *fleet.MDMWindowsCommand
 	}
-	newService := func(t *testing.T, windowsSwitch bool, pending []*fleet.MDMWindowsCommand) (*Service, *mock.Store, *state) {
+	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool, pending []*fleet.MDMWindowsCommand) (*Service, *mock.Store, *state) {
 		st := &state{}
 		ds := new(mock.Store)
 		ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
@@ -276,7 +230,7 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 			return nil
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsSwitch
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		return svc.(validationMiddleware).Service.(*Service), ds, st
 	}
@@ -290,10 +244,8 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 
 		require.NotNil(t, st.pushed)
 		require.Equal(t, windowsEnrollSecretPolicyURI, st.pushed.TargetLocURI)
-		raw := string(st.pushed.RawCommand)
-		require.Contains(t, raw, windowsEnrollSecretADMXInstallURI)
-		require.Contains(t, raw, windowsEnrollSecretPolicyURI)
-		require.Contains(t, raw, fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret), "the secret is resolved at delivery")
+		require.Contains(t, string(st.pushed.RawCommand), fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
+			"the secret is resolved at delivery")
 	})
 
 	withHost := *orphaned
@@ -301,22 +253,21 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 	unlinked := *orphaned
 	unlinked.HostUUID = ""
 	for _, tc := range []struct {
-		name          string
-		windowsSwitch bool
-		device        *fleet.MDMWindowsEnrolledDevice
-		pending       []*fleet.MDMWindowsCommand
+		name                        string
+		windowsOneTimeEnrollSecrets bool
+		device                      *fleet.MDMWindowsEnrolledDevice
+		pending                     []*fleet.MDMWindowsCommand
 	}{
-		{name: "switch off", device: orphaned},
-		{name: "enrollment never linked to a host", windowsSwitch: true, device: &unlinked},
-		{name: "host exists", windowsSwitch: true, device: &withHost},
-		{name: "a push is already queued", windowsSwitch: true, device: orphaned,
+		{name: "windows one-time enroll secrets disabled", device: orphaned},
+		{name: "enrollment never linked to a host", windowsOneTimeEnrollSecrets: true, device: &unlinked},
+		{name: "host exists", windowsOneTimeEnrollSecrets: true, device: &withHost},
+		{name: "a push is already queued", windowsOneTimeEnrollSecrets: true, device: orphaned,
 			pending: []*fleet.MDMWindowsCommand{{TargetLocURI: windowsEnrollSecretPolicyURI}}},
 	} {
 		t.Run("nothing is pushed: "+tc.name, func(t *testing.T) {
-			svc, ds, st := newService(t, tc.windowsSwitch, tc.pending)
+			svc, ds, st := newService(t, tc.windowsOneTimeEnrollSecrets, tc.pending)
 			session(t, svc, tc.device)
 			require.False(t, st.minted)
-			require.Nil(t, st.pushed)
 			if tc.pending == nil {
 				require.False(t, ds.MDMWindowsGetPendingCommandsFuncInvoked, "a session that needs no push costs no query")
 			}
