@@ -1,22 +1,14 @@
 # Patching end user experience
 
-When a patch policy for a Fleet-maintained app fails, Fleet can update the app for you. Each patch option gives your end users a different experience. Some options update apps quietly. One warns end users first, so they can save their work before the app closes. This guide shows what end users see on their Mac for each option, so you can pick the right one for each app.
+![Notify end user before update](../website/assets/images/articles/patching-end-user-experience-cover-img.png)
 
-Notify before patching is available on macOS only. Notifications for Windows are coming soon, targeted for Q1 2027. Until then, **Force patch** on Windows patches immediately.
+When a patch policy for a Fleet-maintained app fails, Fleet can update the app for you. Each patch option gives your end users a different experience. 
 
 <!-- TODO: embed explainer video. Replace VIDEO_ID with the YouTube video ID and uncomment the block below.
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>
 </div>
 -->
-
-
-## Requirements
-
-- Fleet Premium
-- A [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) with a [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet)
-- For **Notify before patching**: macOS hosts with Fleet Desktop 1.5.0 or later. Fleet Desktop is available as a Fleet-maintained app.
-
 
 ## Choose a patch option
 
@@ -29,12 +21,14 @@ For an app you've already added, open the app's details page and select **Action
 
 Here's what the end user sees with each option:
 
-| Option | What the end user sees |
+| Option | End user experience |
 |:-------|:-----------------------|
-| **Patch when app is closed** (default) | Nothing. The patch installs only when the app isn't running. |
-| **Force patch** > **Patch immediately** | Nothing. The patch installs as soon as the policy fails. |
-| **Force patch** > **Notify before patching** | If the app is running, a notification that the app will close and update in 1 hour. If the app isn't running, nothing. |
-| **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from self-service when they choose. |
+| **Patch when app is closed** (default) | The app is patched silently only when the app isn't running. |
+| **Force patch** > **Patch immediately** | The patch installs as soon as the policy fails. It can interupt the end user without notice. |
+| **Force patch** > **Notify before patching** | If the app is running, end user sees a notification that the app will close and update in 1 hour. If the app isn't running it's patched silently. |
+| **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from self-service when they choose. End user only see |
+
+> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
 
 This chart shows what happens after a patch policy fails:
 
@@ -47,33 +41,29 @@ This is the default option. End users don't see anything.
 
 When the patch policy fails, Fleet checks whether the app is running:
 
-- If the app isn't running, Fleet installs the patch.
-- If the app is running, Fleet skips the install and tries again on the next policy run.
+- If the app isn't running, Fleet will patch the app silently.
+- If the app is running, Fleet skips the patch and tries again on the next policy run.
 
 You'll see the skipped install in the host's activity feed.
-
-> **Note:** Fleet uses a read-only pre-install query to check whether the app is closed. **Patch when app is closed** overrides any pre-install query you set under **Advanced options**.
-
 
 ## Force patch: patch immediately
 
 End users aren't notified. Fleet installs the patch as soon as the policy fails. Fleet doesn't check whether the app is running first.
 
-Choose this option when a patch can't wait.
-
+Choose this option when a patch can't wait (e.g. you found a critical vulnerability that must be patched ASAP).
 
 ## Force patch: notify before patching
 
-_Available on macOS_
+> Notify before patching is available on macOS only. Notifications for Windows are coming soon (Q1 2027).
 
-This option gives end users 1 hour to save their work before Fleet closes and updates the app. To turn it on, select **Force patch**, then select **Notify before patching** in the **End user experience** dropdown.
+This option gives end users 1 hour to save their work before Fleet closes and patch the app.
 
 When the patch policy fails, Fleet checks whether the app is running:
 
 - If the app isn't running, Fleet installs the patch. The end user isn't notified, since there's nothing to interrupt.
 - If the app is running, Fleet skips the install and Fleet Desktop shows a notification.
 
-The notification is titled "Save your work" and says "These apps will close and update in 1 hour." It shows your organization's logo from **Settings > Organization settings > Organization info**.
+The notification shows your organization's logo from **Settings > Organization settings > Organization info**.
 
 The end user has two choices:
 
@@ -84,12 +74,7 @@ If the notification is still open when the hour is up, the updates start and eac
 
 The 1-hour timer starts only after the notification appears on screen. If the notification can't be shown, nothing installs. See [When notifications aren't shown](#when-notifications-arent-shown).
 
-The notification has no title bar, no close button, and doesn't close with Esc. Only its buttons, or Cmd+Shift+X, close it.
-
-This timeline shows what happens after the notification appears:
-
-![Timeline: at 0 minutes the Save your work notification appears and the 1-hour timer starts. Remind me 5 minutes before leads to a 5-minute reminder at 55 minutes. Hide leads to the apps closing and updating at 60 minutes. Update now, in either notification, updates all listed apps right away.](../website/assets/images/articles/patching-end-user-experience-notify-timeline-1200x583@2x.png)
-
+Breakglass command to close notification is **Cmd+Shift+X**, close it.
 
 ### Multiple apps
 
@@ -108,8 +93,6 @@ Fleet only starts the 1-hour timer after the end user sees the notification. Her
 - **The screen is locked, another notification is already showing, or the notification couldn't load.** Nothing is shown and nothing installs. Fleet tries again on the next policy run.
 - **No one is logged in.** Nothing installs. The notification appears after the end user logs in.
 - **Fleet Desktop is missing or older than 1.5.0.** There's no notification and Fleet skips the patch. You'll see a "failed to notify" activity telling you to deploy Fleet Desktop.
-
-![What happens when a notification can't be shown: host offline, Fleet skips the patch and notifies again when it's back online. Screen locked, another notification showing, or the notification couldn't load, nothing installs and Fleet tries again on the next policy run. No one logged in, nothing installs until the end user logs in. Fleet Desktop missing or older than 1.5.0, Fleet skips the patch and IT sees a failed to notify activity.](../website/assets/images/articles/patching-end-user-experience-notifications-not-shown-1200x701@2x.png)
 
 
 ### Installs that never show a notification
@@ -150,14 +133,6 @@ Open a failed activity to see why Fleet couldn't notify the end user:
 | Another notification was showing | Another notification was displayed. Fleet will try again on the next policy run. |
 
 If you change an app's patch settings while a host's timer is running, the host's activity feed shows the change. For example, if you switch to **End user initiated (manual)**, the app won't install when the timer runs out.
-
-
-## Further reading
-
-- [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
-- [How to use policies for patch management in Fleet](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet)
-- [Self-service](https://fleetdm.com/guides/software-self-service)
-- [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop)
 
 
 <meta name="articleTitle" value="Patching end user experience">
