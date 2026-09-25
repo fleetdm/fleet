@@ -12281,10 +12281,10 @@ func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	}
 
 	// Helper to insert a nano_command_results entry.
-	insertNCR := func(id, cmdUUID, status string) {
+	insertNCR := func(id, cmdUUID, status string, updatedAt time.Time) {
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`,
-			id, cmdUUID, status)
+			`INSERT INTO nano_command_results (id, command_uuid, status, result, updated_at) VALUES (?, ?, ?, '<?xml', ?)`,
+			id, cmdUUID, status, updatedAt)
 		require.NoError(t, err)
 	}
 
@@ -12296,12 +12296,12 @@ func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	cmdUUID := "REFETCH-APPS-old-acknowledged"
 	insertNanoCmd(cmdUUID, "InstalledApplicationList", oldTime)
 	insertNEQ(enrollmentID, cmdUUID, oldTime)
-	insertNCR(enrollmentID, cmdUUID, "Acknowledged")
+	insertNCR(enrollmentID, cmdUUID, "Acknowledged", oldTime)
 
 	// Create an old REFETCH-APPS- command that has Error status (should also be cleaned up).
 	insertNanoCmd("REFETCH-APPS-old-error", "InstalledApplicationList", oldTime)
 	insertNEQ(enrollmentID, "REFETCH-APPS-old-error", oldTime)
-	insertNCR(enrollmentID, "REFETCH-APPS-old-error", "Error")
+	insertNCR(enrollmentID, "REFETCH-APPS-old-error", "Error", oldTime)
 
 	// Create an old REFETCH-APPS- command with no result (should NOT be cleaned up).
 	insertNanoCmd("REFETCH-APPS-old-noresult", "InstalledApplicationList", oldTime)
@@ -12310,18 +12310,18 @@ func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	// Create a recent REFETCH-APPS- command (should NOT be cleaned up).
 	insertNanoCmd("REFETCH-APPS-recent", "InstalledApplicationList", recentTime)
 	insertNEQ(enrollmentID, "REFETCH-APPS-recent", recentTime)
-	insertNCR(enrollmentID, "REFETCH-APPS-recent", "Acknowledged")
+	insertNCR(enrollmentID, "REFETCH-APPS-recent", "Acknowledged", recentTime)
 
 	// Create old REFETCH-DEVICE- commands (different prefix, should NOT be affected by APPS cleanup).
 	insertNanoCmd("REFETCH-DEVICE-old-0", "DeviceInformation", oldTime)
 	insertNEQ(enrollmentID, "REFETCH-DEVICE-old-0", oldTime)
-	insertNCR(enrollmentID, "REFETCH-DEVICE-old-0", "Acknowledged")
+	insertNCR(enrollmentID, "REFETCH-DEVICE-old-0", "Acknowledged", oldTime)
 
 	// The "current" command that triggered the cleanup.
 	currentCmdUUID := "REFETCH-APPS-current"
 	insertNanoCmd(currentCmdUUID, "InstalledApplicationList", now)
 	insertNEQ(enrollmentID, currentCmdUUID, now)
-	insertNCR(enrollmentID, currentCmdUUID, "Acknowledged")
+	insertNCR(enrollmentID, currentCmdUUID, "Acknowledged", now)
 
 	// Run cleanup for REFETCH-APPS- prefix, scoped to this enrollment.
 	err = ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchAppsCommandUUIDPrefix, currentCmdUUID, 30*24*time.Hour)
@@ -12359,13 +12359,28 @@ func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, neqCount, "different prefix should not be affected")
 
-	// A shorter window reaches the day-old command too.
+	// An old command answered just now: the queue slip is old but the result is fresh, so it is kept.
+	insertNanoCmd("REFETCH-APPS-old-late", "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-old-late", oldTime)
+	insertNCR(enrollmentID, "REFETCH-APPS-old-late", "Acknowledged", now)
+	err = ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchAppsCommandUUIDPrefix, currentCmdUUID, 30*24*time.Hour)
+	require.NoError(t, err)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &ncrCount,
+		`SELECT COUNT(*) FROM nano_command_results WHERE command_uuid = 'REFETCH-APPS-old-late'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, ncrCount, "a fresh result on an old command is kept")
+
+	// A shorter window reaches the day-old command too, but still not the fresh late answer.
 	err = ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchAppsCommandUUIDPrefix, currentCmdUUID, 12*time.Hour)
 	require.NoError(t, err)
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
 		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = 'REFETCH-APPS-recent'`)
 	require.NoError(t, err)
 	assert.Equal(t, 0, neqCount, "the window is the configured one, not a fixed 30 days")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = 'REFETCH-APPS-old-late'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "a fresh result on an old command is kept")
 }
 
 func testGetABMTokenByUniqueToken(t *testing.T, ds *Datastore) {
