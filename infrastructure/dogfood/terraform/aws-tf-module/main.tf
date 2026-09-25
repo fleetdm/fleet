@@ -213,6 +213,8 @@ module "main" {
     engine         = "redis"
     engine_version = "7.1"
     family         = "redis7"
+    # Reference-architecture size for <=5k hosts
+    instance_type = "cache.t4g.small"
     log_delivery_configuration = [{
       destination      = "dogfood-redis-logs"
       destination_type = "cloudwatch-logs"
