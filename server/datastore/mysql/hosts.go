@@ -2282,16 +2282,15 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		}
 
 		// This path bypasses deleteHosts, so it needs the same enrollment touch.
-		if len(ids) > 0 {
-			stmt, args, err := sqlx.In(`
-				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
-				WHERE host_uuid IN (SELECT uuid FROM hosts WHERE id IN (?) AND uuid <> '')`, ids)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building touch statement for incoming hosts")
-			}
-			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
-			}
+		// selectIDs is embedded rather than expanding ids into placeholders,
+		// which a large backlog could push past MySQL's placeholder limit.
+		touchEnrollments := fmt.Sprintf(`
+			UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP
+			WHERE host_uuid IN (SELECT uuid FROM hosts WHERE uuid <> '' AND id IN (%s))`,
+			selectIDs,
+		)
+		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
+			return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
 		}
 
 		cleanupHosts := `
