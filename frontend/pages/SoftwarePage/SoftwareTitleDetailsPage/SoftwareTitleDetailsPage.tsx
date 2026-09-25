@@ -1,7 +1,7 @@
 /** software/titles/:id */
 
 import { AxiosError } from "axios";
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
@@ -142,6 +142,18 @@ const SoftwareTitleDetailsPage = ({
   // Page-owned so both the Actions menu and the Library accordion badge open
   // the same Versions modal.
   const [showVersionsModal, setShowVersionsModal] = useState(false);
+
+  // Command palette lets the user switch fleets while a modal is open. The
+  // Library section unmounts on nil teamIdForApi, but page-owned modal state
+  // would remount the modal when the user returned to a specific fleet.
+  useEffect(() => {
+    setShowLibraryEditModal(false);
+    setShowDeleteModal(false);
+    setShowAddPackageModal(false);
+    setShowVersionsModal(false);
+    setSelectedPackagePolicies(null);
+    setSelectedInstallerId(null);
+  }, [teamIdForApi]);
 
   const {
     data: softwareTitle,
@@ -583,7 +595,13 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
-    if (!showLibraryEditModal || !installerResult) return null;
+    if (
+      !showLibraryEditModal ||
+      !installerResult ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
     const { meta } = installerResult;
     // On a multi-package title, the row callback set `selectedInstallerId`;
     // resolve it to the actual package so the modal edits the right one.

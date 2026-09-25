@@ -1,6 +1,6 @@
 /** software/titles/:id > First section */
 
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import Card from "components/Card";
@@ -92,6 +92,19 @@ const SoftwareSummaryCard = ({
   // come from whichever team the backend picks on nil teamID — hide them
   // under "All fleets" rather than mislabel one team's state as an aggregate.
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+
+  // Command palette lets the user switch fleets while a modal is open. The
+  // modal unmounts because `softwareInstallerOnTeam` flips false on scope
+  // change, but its `show*Modal` state persists and would remount the modal
+  // on the next specific-fleet scope. Reset on team change so it can't.
+  useEffect(() => {
+    setShowEditIconModal(false);
+    setShowEditSoftwareModal(false);
+    setShowDeployModal(false);
+    setShowEditConfigurationModal(false);
+    setShowEditAutoUpdateConfigModal(false);
+    setShowPoliciesModal(false);
+  }, [teamId]);
 
   const softwareDisplayName = getDisplayedSoftwareName(
     softwareTitle.name,
