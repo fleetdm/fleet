@@ -2,7 +2,7 @@
 # It uses a fleet instance also built and executed from source.
 #
 # It tests that orbit osquery agents enroll successfully to Fleet.
-name: Test Fleetctl Package, Orbit & Fleet
+name: Test fleetctl package, orbit, and fleet
 
 on:
   push:
