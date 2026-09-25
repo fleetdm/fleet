@@ -229,7 +229,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 	// happens. Those lines say what it did, not what it would do.
 	// "glob pattern ... matched no ... files" warnings are expected for configs with
 	// empty directories, like the pristine `fleetctl new` scaffold.
-	pattern := fmt.Sprintf("\\[([+\\-!])] (would've (%s)|downloading|downloaded|skipped|glob pattern)", strings.Join(allowedVerbs, "|"))
+	pattern := fmt.Sprintf("\\[([+\\-!])] (would've (%s)|downloading|downloaded|skipped|glob pattern .* matched no)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
 		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
@@ -258,12 +258,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 		"added",
 		"created",
 		"set",
-		"applying",    // this is used when doing groups operations before the operation starts, e.g. "Applying 10 policies"
-		"deleting",    // ditto
-		"downloading",  // software packages report each download as it starts
-		"downloaded",   // ditto, as it finishes
-		"skipped",      // ditto, for a package already in storage
-		"glob pattern", // "matched no ... files" warnings, expected for configs with empty directories
+		"applying",                   // this is used when doing groups operations before the operation starts, e.g. "Applying 10 policies"
+		"deleting",                   // ditto
+		"downloading",                // software packages report each download as it starts
+		"downloaded",                 // ditto, as it finishes
+		"skipped",                    // ditto, for a package already in storage
+		"glob pattern .* matched no", // "matched no ... files" warnings, expected for configs with empty directories
 	}
 	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
