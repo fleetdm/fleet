@@ -5959,7 +5959,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Pending)
 	require.EqualValues(t, 1, sum.Installed)
 
-	// Add a opt in profile record
+	// Add an opt in profile record
 	_, err = ds.writer(ctx).Exec(`
 		INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
 		VALUES (?, ?)
