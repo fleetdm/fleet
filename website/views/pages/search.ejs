@@ -1,6 +1,9 @@
 <div id="search" v-cloak>
   <div purpose="page-container" class="container-fluid">
-    <div purpose="page-content">
+    <% /* Note: v-pre keeps Vue from compiling this server-rendered content when parasails
+    mounts on #search — otherwise a query or result containing {{…}} would be evaluated
+    as a Vue expression. */ %>
+    <div purpose="page-content" v-pre>
       <h1>Search fleetdm.com</h1>
       <form purpose="search-page-form" action="/search" method="GET">
         <div purpose="searchbar" class="d-flex">

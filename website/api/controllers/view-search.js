@@ -78,19 +78,32 @@ module.exports = {
           if(!doc || !doc.link) {
             continue;
           }
+          // Only link to results with well-formed http(s) URLs.
+          let displayPath;
+          try {
+            let parsedUrl = new URL(doc.link);
+            if(!['http:', 'https:'].includes(parsedUrl.protocol)) {
+              continue;
+            }
+            displayPath = parsedUrl.hostname + decodeURIComponent(parsedUrl.pathname).replace(/\/$/, '');
+          } catch(unusedErr) {
+            continue;
+          }
           let snippet = '';
           if(_.isArray(doc.snippets) && doc.snippets[0] && doc.snippets[0].snippetStatus === 'SUCCESS') {
             // Snippets come back as HTML with <b> highlights; display them as plain text.
-            snippet = _.unescape(doc.snippets[0].snippet.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+            // (Stripping repeats until stable so malformed nested tags can't survive a single pass.)
+            let strippedSnippet = doc.snippets[0].snippet;
+            let beforeStripping;
+            do {
+              beforeStripping = strippedSnippet;
+              strippedSnippet = strippedSnippet.replace(/<[^>]*>?/g, '');
+            } while(strippedSnippet !== beforeStripping);
+            snippet = _.unescape(strippedSnippet).replace(/\s+/g, ' ').trim();
           } else if(_.isObject(doc.pagemap) && _.isArray(doc.pagemap.metatags) && doc.pagemap.metatags[0]) {
             // Basic website search doesn't generate snippets, so fall back to the page's meta description.
             snippet = doc.pagemap.metatags[0]['og:description'] || doc.pagemap.metatags[0]['description'] || '';
           }
-          let displayPath = doc.link;
-          try {
-            let parsedUrl = new URL(doc.link);
-            displayPath = parsedUrl.hostname + decodeURIComponent(parsedUrl.pathname).replace(/\/$/, '');
-          } catch(unusedErr) { /* If the URL can't be parsed, display it as-is. */ }
           searchResults.push({
             url: doc.link,
             title: doc.title || displayPath,
