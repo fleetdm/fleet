@@ -204,6 +204,7 @@ func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, 
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to load windows mdm enrollment for one-time enroll secret linkage",
 			"err", err, "host_uuid", host.UUID, "enrollment_id", enrollmentID)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 
@@ -212,6 +213,7 @@ func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, 
 	case err != nil:
 		svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment during one-time secret linkage",
 			"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
 		return
 	case conflicted:
 		svc.logger.WarnContext(ctx, "refusing to link windows mdm enrollment to a host already claimed by other hardware",
@@ -223,6 +225,7 @@ func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, 
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment from one-time enroll secret",
 			"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 	if linked {

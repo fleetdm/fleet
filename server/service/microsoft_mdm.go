@@ -2122,7 +2122,9 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		if err != nil {
 			// Skipped rather than failing the session, like a command that does not parse: one bad command must not hold
 			// back every other command pending for the device. It stays queued and is tried again next session.
-			logging.WithErr(ctx, ctxerr.Wrapf(ctx, err, "expanding host secrets for Windows pending command %s", pendingCmd.CommandUUID))
+			err = ctxerr.Wrapf(ctx, err, "expanding host secrets for Windows pending command %s", pendingCmd.CommandUUID)
+			logging.WithErr(ctx, err)
+			ctxerr.Handle(ctx, err)
 			continue
 		}
 		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
@@ -4027,6 +4029,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// one, and that should not stop the reconcile pass that delivers everything else.
 	if err := ensureFleetWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets); err != nil {
 		logger.ErrorContext(ctx, "unable to ensure Fleet-managed Windows profiles are in place", "details", err)
+		ctxerr.Handle(ctx, err)
 	}
 
 	// Read the cursor; on error, treat as start-of-pass and continue. A stale or missing cursor is harmless because the in-memory

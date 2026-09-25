@@ -105,6 +105,7 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 	pending, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to load pending windows mdm commands", "err", err)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 	for _, cmd := range pending {
@@ -116,21 +117,25 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 	syncML, err := windowsEnrollSecretProfileSyncML()
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to build the enroll secret push", "err", err)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 	cmd, err := buildCommandFromProfileBytes(syncML, uuid.NewString())
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to build the enroll secret push", "err", err)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 	cmd.TargetLocURI = windowsEnrollSecretPolicyURI
 
 	if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
 		logger.ErrorContext(ctx, "failed to mint a one-time enroll secret for an orphaned windows mdm enrollment", "err", err)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, cmd); err != nil {
 		logger.ErrorContext(ctx, "failed to queue the enroll secret push", "err", err)
+		ctxerr.Handle(ctx, err)
 		return
 	}
 	logger.InfoContext(ctx, "queued a one-time enroll secret for a windows mdm enrollment whose host was deleted",
