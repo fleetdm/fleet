@@ -1132,9 +1132,10 @@ type MDMConfig struct {
 	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
 	// not complete end user authentication is allowed to enroll into a team that
 	// requires it. Defaults to true so that agents predating end user
-	// authentication (and installers built with `fleetctl package
-	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
-	// end user authentication for all Orbit enrollments.
+	// authentication, installers built with `fleetctl package
+	// --bypass-end-user-auth`, and macOS hosts enrolling fleetd before MDM can
+	// still enroll. Set to false to strictly enforce end user authentication for
+	// all Orbit enrollments on every platform.
 	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
