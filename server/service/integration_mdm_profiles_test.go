@@ -11027,3 +11027,104 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0),
 		"no activity should be recorded for a profile the host can't receive")
 }
+
+func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninstall() {
+	t := s.T()
+	ctx := t.Context()
+	kv := redis_key_value.New(s.redisPool)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "SS1", Contents: mobileconfigForTest("SS1", "ISS1")},
+	}}, http.StatusNoContent)
+	t.Cleanup(func() {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{}, http.StatusNoContent)
+	})
+	regularUUID := s.assertConfigProfilesByIdentifier(nil, "I1", true).ProfileUUID
+	ssUUID := s.assertConfigProfilesByIdentifier(nil, "ISS1", true).ProfileUUID
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET self_service = 1 WHERE profile_uuid = ?`, ssUUID)
+		return err
+	})
+
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	token := "self_service_profile_token"
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, token))
+
+	reconcileAndAck := func() {
+		require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	hostProfile := func(ident string) *fleet.HostMDMAppleProfile {
+		profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profs {
+			if p.Identifier == ident {
+				return &p
+			}
+		}
+		return nil
+	}
+	activity := func(selfService bool) string {
+		return fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "self_service": %t, "profile_name": "SS1"}`,
+			host.ID, host.DisplayName(), selfService)
+	}
+	adminPath := func(profUUID, action string) string {
+		return fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/%s", host.ID, profUUID, action)
+	}
+	devicePath := func(profUUID, action string) string {
+		return fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/%s", token, profUUID, action)
+	}
+
+	// Without an opt-in, only the regular profile is delivered.
+	reconcileAndAck()
+	require.NotNil(t, hostProfile("I1"))
+	require.Nil(t, hostProfile("ISS1"))
+
+	// Invalid targets are rejected.
+	s.Do("POST", adminPath(regularUUID, "install"), nil, http.StatusBadRequest)
+	s.Do("POST", adminPath(uuid.NewString(), "install"), nil, http.StatusBadRequest)
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusNotFound)
+	linuxHost := createOrbitEnrolledHost(t, "linux", "self_service_linux", s.ds)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/install", linuxHost.ID, ssUUID), nil, http.StatusBadRequest)
+
+	// Admin opts the host in; the reconciler then installs the profile.
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(false), 0)
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusConflict)
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusConflict)
+
+	reconcileAndAck()
+	p := hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+
+	// End user opts out from the device endpoint; the reconciler removes it.
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeUninstalledOptInConfigurationProfile{}.ActivityName(), activity(true), 0)
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusNotFound)
+
+	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+	p = hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
+	reconcileAndAck()
+	require.Nil(t, hostProfile("ISS1"))
+	require.NotNil(t, hostProfile("I1"))
+
+	// End user opts back in from the device endpoint.
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(true), 0)
+	reconcileAndAck()
+	p = hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+}

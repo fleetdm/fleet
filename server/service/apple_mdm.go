@@ -4847,6 +4847,86 @@ func (svc *Service) handleSendAPNSPing(ctx context.Context, host *fleet.Host) er
 	return nil
 }
 
+type installSelfServiceConfigurationProfileRequest struct {
+	HostID      uint   `url:"id"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+type installSelfServiceConfigurationProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r installSelfServiceConfigurationProfileResponse) Status() int {
+	return http.StatusAccepted
+}
+
+func (r installSelfServiceConfigurationProfileResponse) Error() error { return r.Err }
+
+func installSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*installSelfServiceConfigurationProfileRequest)
+	err := svc.InstallSelfServiceConfigurationProfile(ctx, req.HostID, req.ProfileUUID)
+	if err != nil {
+		return installSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+	return installSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}
+
+func (svc *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+type uninstallSelfServiceConfigurationProfileRequest struct {
+	HostID      uint   `url:"id"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+type uninstallSelfServiceConfigurationProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r uninstallSelfServiceConfigurationProfileResponse) Status() int {
+	return http.StatusAccepted
+}
+
+func (r uninstallSelfServiceConfigurationProfileResponse) Error() error { return r.Err }
+
+func uninstallSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*uninstallSelfServiceConfigurationProfileRequest)
+	err := svc.UninstallSelfServiceConfigurationProfile(ctx, req.HostID, req.ProfileUUID)
+	if err != nil {
+		return uninstallSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+	return uninstallSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}
+
+func (svc *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
