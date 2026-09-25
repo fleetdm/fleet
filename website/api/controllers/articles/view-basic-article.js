@@ -77,7 +77,7 @@ module.exports = {
       'podcasts': 'Podcasts',
       'report': 'Reports',
       'newsletters': 'Newsletters',
-      'articles': 'Blog',
+      'articles': 'Articles',
       'industry-news': 'Industry news',
     };
     let categoryFriendlyName = categoryFriendlyNamesByCategorySlug[articleCategorySlug];

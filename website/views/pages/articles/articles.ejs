@@ -11,7 +11,7 @@
               <a purpose="changelog-button" href="https://github.com/fleetdm/fleet/releases" target="_blank" no-icon><img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png"/>View changelog</a>
             </div>
             <form purpose="google-search" id="docs-nav-search-form">
-              <div purpose="searchbar" class="d-flex" v-if="['articles', 'announcements', 'guides', 'releases'].includes(category)">
+              <div purpose="searchbar" class="d-flex" v-if="['blog', 'articles', 'announcements', 'guides', 'releases'].includes(category)">
                 <div class="input-group d-flex flex-nowrap">
                   <div class="input-group-prepend">
                     <span class="input-group-text border-0 bg-transparent pr-0" >
@@ -32,6 +32,7 @@
     <div purpose="sidebar-and-articles">
       <div purpose="sidebar">
         <div purpose="nav-links">
+          <a href="/articles">Articles</a>
           <a href="/announcements">Roadmap</a>
           <a href="/releases">Releases</a>
           <a href="/guides">Guides</a>
@@ -40,7 +41,7 @@
           <a href="/newsletters">Newsletters</a>
           <a href="/industry-news">Industry news</a>
           <a href="/whitepapers">Whitepapers</a>
-          <a href="/articles">All</a>
+          <a href="/blog">All</a>
         </div>
       </div>
       <div purpose="article-rows">

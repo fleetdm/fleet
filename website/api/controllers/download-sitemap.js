@@ -53,7 +53,8 @@ module.exports = {
       '/support',
       '/integrations',
       '/logos',// « brand usage guidelines
-      '/articles',// « overview page (individual article pages are dynamic)
+      '/blog',// « overview page (individual article pages are dynamic)
+      '/articles',// « article category page
       '/releases',// « article category page
       '/success-stories',// « article category page
       '/securing',// « article category page

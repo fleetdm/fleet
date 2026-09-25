@@ -33,10 +33,10 @@ module.exports = {
     }
     let articles = [];
     let category = this.req.path.split('/')[1];
-    if (category === 'articles') {
-      // If the category is `/articles` we'll show everything but guides, webinars and whitepaper articles.
+    if (category === 'blog') {
+      // If the user navigates to `/blog` we'll show every article, in every category.
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides') && !_.startsWith(page.url, '/whitepapers') && !_.startsWith(page.url,  '/webinars')) {
+        if(_.startsWith(page.htmlId, 'articles')) {
           return page;
         }
       });
@@ -93,8 +93,12 @@ module.exports = {
         pageTitleForMeta = 'Podcasts';
         pageDescriptionForMeta = 'Listen to the Future of Device Management podcast.';
         break;
-      case 'articles':
+      case 'blog':
         pageTitleForMeta = 'Blog';
+        pageDescriptionForMeta = 'Browse everything published by Fleet: articles, guides, releases, case studies, webinars, and more.';
+        break;
+      case 'articles':
+        pageTitleForMeta = 'Articles';
         pageDescriptionForMeta = 'Read the latest articles from the Fleet team and community.';
         break;
       case 'whitepapers':

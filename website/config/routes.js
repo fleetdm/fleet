@@ -129,6 +129,14 @@ module.exports.routes = {
   },
 
 
+  'GET /blog': {
+    skipAssets: false,
+    action: 'articles/view-articles',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+    }
+  },
+
   'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -1246,7 +1254,6 @@ module.exports.routes = {
   'GET /handbook/security/github': '/handbook/security#git-hub-security',
   'GET /slack': '/support',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
-  'GET /blog': '/articles',
   'GET /brand': '/logos',
   'GET /get-started': '/try-fleet',
   'GET /g': (req, res) => { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/?meet-fleet' + originalQueryStringWithAmp); },

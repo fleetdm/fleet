@@ -62,8 +62,12 @@ parasails.registerPage('articles', {
         this.articleCategory = 'Industry news';
         this.categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
         break;
-      case 'articles':
+      case 'blog':
         this.articleCategory = 'Blog';
+        this.categoryDescription = 'Browse everything published by Fleet: articles, guides, releases, case studies, webinars, and more.';
+        break;
+      case 'articles':
+        this.articleCategory = 'Articles';
         this.categoryDescription = 'Read the latest articles from the Fleet team and community.';
         break;
     }

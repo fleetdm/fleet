@@ -57,7 +57,7 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
             - `guides` - Non-reference documentation and how-to guides. Articles in this category are available at [fleetdm.com/guides](/guides)
             - `podcasts` - Episodes of Fleet's podcast. Articles in this category are available at [fleetdm.com/podcasts](/podcasts)
             - `comparison` - Articles that present a comparison between Fleet and a competing product. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
-            - `articles` - A catch-all category for articles and blog posts that do not fit into other categories. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
+            - `articles` - A catch-all category for articles and blog posts that do not fit into other categories. Articles in this category are available at [fleetdm.com/articles](/articles)
             - `whitepaper` - Articles that offer a downloadable PDF that is gated behind the user filling out a form. Articles in this category are available at [fleetdm.com/whitepapers](/whitepapers)
             - `webinar` - Articles that offer a recording of a webinar hosted by Fleet that is gated behind the user filling out a form.
     - `publishedOn`:  An ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.

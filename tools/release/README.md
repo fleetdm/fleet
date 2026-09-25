@@ -80,7 +80,7 @@ Update all Fleet version references in our [fleetdm/terraform](https://github.co
 
 Merge any pull requests associated with this release milestone, which include reference documentation, feature guides, and a release announcement article. 
 
-Wait for the release article to appear on the [Fleet articles page](https://fleetdm.com/articles).
+Wait for the release article to appear on the [Fleet releases page](https://fleetdm.com/releases).
 
 
 **8. Post to LinkedIn company page**
