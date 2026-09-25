@@ -381,7 +381,7 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Versions");
     });
 
-    it("hides the Actions dropdown on 'All fleets' for a VPP title (#54081)", () => {
+    it("hides the Actions dropdown on 'All fleets' for a VPP title", () => {
       // `teamId` is undefined when viewing "All fleets" — none of the per-fleet
       // Actions items can act (no team scope), and leaving the dropdown open
       // stashes `show*Modal` state that pops the modal on team change.
@@ -839,7 +839,7 @@ describe("Software Summary Card", () => {
       expect(screen.getByText("Schedule auto updates")).toBeInTheDocument();
     });
 
-    it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets' (#54081)", () => {
+    it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets'", () => {
       // Every pill derives from `app_store_app` / `software_package`, which
       // the backend fills from an arbitrary team on nil teamID; we hide the
       // row rather than mislabel one team's data as an "All fleets" fact.
