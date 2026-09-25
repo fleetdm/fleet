@@ -59,10 +59,10 @@ func TestMigrationStatus(t *testing.T) {
 
 	// Databases built from main before a renumbering still carry the old
 	// versions; they must not be reported as unknown, which stops dev servers.
-	_, err = ds.writer(context.Background()).Exec(`INSERT INTO ` + tables.MigrationClient.TableName +
+	_, err = ds.writer(t.Context()).Exec(`INSERT INTO ` + tables.MigrationClient.TableName +
 		` (version_id, is_applied) VALUES (20260923183241, 1), (20260923202245, 1)`)
 	require.NoError(t, err)
-	status, err = ds.MigrationStatus(context.Background())
+	status, err = ds.MigrationStatus(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, fleet.AllMigrationsCompleted, status.StatusCode)
 }
