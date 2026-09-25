@@ -1,0 +1,1 @@
+* Updated host name templates to be automatically re-applied when a macOS, iOS, or iPadOS host is renamed on the device, instead of the host being marked as failed until a manual resend.

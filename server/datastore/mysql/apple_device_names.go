@@ -243,43 +243,49 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 // clock (updated_at vs NOW()), so there's no cross-machine skew to pad for.
 const deviceNameVerifyGracePeriod = 60 * time.Second
 
-func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error {
+func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) (bool, error) {
 	// Only rows already awaiting or past verification are reconciled against the
-	// device-reported name: a match confirms the rename (verified), a mismatch
-	// records drift (failed). Rows in any other state and hosts with no row are
-	// left untouched.
+	// device-reported name. The two statements have disjoint predicates, so they
+	// need no transaction; they're split so the re-queue's affected-row count
+	// tells the caller whether drift was found.
 	//
-	// A mismatch on a row acknowledged within the last deviceNameVerifyGracePeriod
-	// is left untouched (false drift; failed rows only recover via an explicit
-	// resend). Rows already verified reached that state through a fresh
-	// post-rename report, so a mismatch there is genuine drift regardless of age.
-	// When the CASEs resolve to the current values, MySQL skips the row write,
-	// preserving updated_at (the grace anchor).
-	const stmt = `
+	// When nothing changes, MySQL skips the row write, preserving updated_at (the
+	// grace anchor below).
+	const verifyStmt = `
 		UPDATE host_mdm_apple_device_names
-		SET
-			status = CASE
-				WHEN expected_device_name = ? THEN ?
-				WHEN status = ? AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND) THEN status
-				ELSE ? END,
-			detail = CASE
-				WHEN expected_device_name = ? THEN ''
-				WHEN status = ? AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND) THEN detail
-				ELSE ? END
+		SET status = ?, detail = ''
 		WHERE host_uuid = ?
-			AND status IN (?, ?)`
+			AND status IN (?, ?)
+			AND expected_device_name = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, verifyStmt,
+		fleet.MDMDeliveryVerified, hostUUID,
+		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified,
+		reportedName,
+	); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "verify host device name from report")
+	}
 
-	const driftDetail = "Host was renamed on the device and no longer matches the fleet's naming template."
-	graceSeconds := int(deviceNameVerifyGracePeriod.Seconds())
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		reportedName, fleet.MDMDeliveryVerified, fleet.MDMDeliveryVerifying, graceSeconds, fleet.MDMDeliveryFailed,
-		reportedName, fleet.MDMDeliveryVerifying, graceSeconds, driftDetail,
+	// A mismatch is drift: re-queue the row exactly like ResendHostDeviceName so
+	// the cron re-enforces the template. A mismatch on a row acknowledged within
+	// the last deviceNameVerifyGracePeriod is skipped as a stale pre-rename report.
+	const requeueStmt = `
+		UPDATE host_mdm_apple_device_names
+		SET status = NULL, command_uuid = NULL
+		WHERE host_uuid = ?
+			AND status IN (?, ?)
+			AND NOT (expected_device_name <=> ?)
+			AND NOT (status = ? AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND))`
+	res, err := ds.writer(ctx).ExecContext(ctx, requeueStmt,
 		hostUUID,
 		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host device name status from report")
+		reportedName,
+		fleet.MDMDeliveryVerifying, int(deviceNameVerifyGracePeriod.Seconds()),
+	)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "re-queue drifted host device name from report")
 	}
-	return nil
+	rows, _ := res.RowsAffected()
+	return rows > 0, nil
 }
 
 func (ds *Datastore) GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {

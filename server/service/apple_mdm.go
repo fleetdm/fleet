@@ -6911,14 +6911,17 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 
 	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
 		// Reconcile the host-name enforcement row (if any) against the name the
-		// device reported: confirms a rename (verifying → verified) or records
-		// drift (verified → failed). No-op for hosts without a row. A failure here
+		// device reported: confirms a rename (verifying → verified) or re-queues
+		// enforcement on drift. No-op for hosts without a row. A failure here
 		// is logged rather than returned: the refetch results are already
 		// persisted, this is a non-critical verify transition the next refetch
 		// will redo, and aborting would fail the whole MDM check-in. Mirrors the
 		// macOS osquery hook (server/service/osquery.go).
-		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName); err != nil {
+		drifted, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName)
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "update host device name status from refetch", "host_uuid", host.UUID, "err", err)
+		} else if drifted {
+			svc.logger.InfoContext(ctx, "host renamed off its name template, re-enforcing", "host_uuid", host.UUID, "reported_name", deviceName)
 		}
 	}
 

@@ -69,6 +69,12 @@ func getDeviceNameRow(t *testing.T, ds *Datastore, hostUUID string) *fleet.HostD
 	return enforcement
 }
 
+func reportDeviceName(t *testing.T, ds *Datastore, hostUUID, name string) bool {
+	drifted, err := ds.UpdateHostDeviceNameStatusFromReport(t.Context(), hostUUID, name)
+	require.NoError(t, err)
+	return drifted
+}
+
 func testHostDeviceNamesEligibility(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -259,37 +265,44 @@ func testHostDeviceNamesVerify(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd"), "WS-1", ""))
 
 	// A NULL/pending row is left untouched by verification.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-1"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-1"))
 	require.Equal(t, fleet.MDMDeliveryPending, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Move to verifying, then a matching report verifies it.
 	err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd", true, "")
 	require.NoError(t, err)
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-1"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-1"))
 	require.Equal(t, fleet.MDMDeliveryVerified, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Re-verifying an already-verified, still-matching row is a no-op: status
 	// stays verified and the row is not rewritten (updated_at unchanged).
 	verifiedAt := getDeviceNameRow(t, ds, host.UUID).UpdatedAt
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-1"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-1"))
 	afterReverify := getDeviceNameRow(t, ds, host.UUID)
 	require.Equal(t, fleet.MDMDeliveryVerified, *afterReverify.Status)
 	require.True(t, afterReverify.UpdatedAt.Equal(verifiedAt), "re-verifying a matching row must not rewrite it")
 
-	// A later mismatching report is drift: verified -> failed with a detail.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "renamed-by-user"))
+	// A later mismatching report is drift: the row is re-queued for the cron,
+	// with the stale command cleared so its late result can't match.
+	require.True(t, reportDeviceName(t, ds, host.UUID, "renamed-by-user"))
 	row := getDeviceNameRow(t, ds, host.UUID)
-	require.Equal(t, fleet.MDMDeliveryFailed, *row.Status)
-	require.NotEmpty(t, row.Detail)
+	require.Nil(t, row.Status)
+	require.Nil(t, row.CommandUUID)
+	pending, err := ds.ListHostsPendingDeviceNameCommand(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, host.UUID, pending[0].HostUUID)
 
-	// A failed row is left untouched even by a later matching report: only
-	// verifying/verified rows are reconciled, so recovery requires an explicit
-	// resend rather than silent self-healing.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-1"))
+	// A failed row (e.g. the device rejected the command) is not reconciled:
+	// only a manual resend retries it, since an automatic retry would just fail
+	// again.
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryFailed, nil, "WS-1", "rejected"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "renamed-by-user"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-1"))
 	require.Equal(t, fleet.MDMDeliveryFailed, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// A host with no row is a no-op (no error).
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, "missing-uuid", "anything"))
+	require.False(t, reportDeviceName(t, ds, "missing-uuid", "anything"))
 }
 
 func testHostDeviceNamesResend(t *testing.T, ds *Datastore) {
@@ -887,8 +900,8 @@ func testHostDeviceNamesResolveResult(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.MDMDeliveryVerified, *row.Status)
 	require.NotNil(t, row.ExpectedDeviceName)
 	require.Equal(t, "WS-1", *row.ExpectedDeviceName)
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "renamed-on-device"))
-	require.Equal(t, fleet.MDMDeliveryFailed, *getDeviceNameRow(t, ds, host.UUID).Status)
+	require.True(t, reportDeviceName(t, ds, host.UUID, "renamed-on-device"))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Recording a resolve result clears any previously sent command UUID, so a
 	// stale result for that command can't overwrite the outcome.
@@ -918,21 +931,21 @@ func testHostDeviceNamesVerifyGracePeriod(t *testing.T, ds *Datastore) {
 	// A mismatching report arriving shortly after the acknowledgment is a report
 	// that was generated before the device applied the rename, not drift: the row
 	// stays verifying and waits for a fresh report.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "stale-pre-rename-name"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "stale-pre-rename-name"))
 	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// A matching report is trusted at any time.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-1"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-1"))
 	require.Equal(t, fleet.MDMDeliveryVerified, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// A mismatch on a verified row is genuine drift, grace period or not: the
 	// verified state was reached by a fresh post-rename report, so a later
 	// mismatch means the device was renamed off-template.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "renamed-by-user"))
-	require.Equal(t, fleet.MDMDeliveryFailed, *getDeviceNameRow(t, ds, host.UUID).Status)
+	require.True(t, reportDeviceName(t, ds, host.UUID, "renamed-by-user"))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// Once the grace period has elapsed, a mismatch on a still-verifying row is
-	// no longer explainable as an in-flight stale report and fails the row.
+	// no longer explainable as an in-flight stale report and re-queues the row.
 	require.NoError(t, ds.ResendHostDeviceName(ctx, host.UUID))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-cmd-2"), "WS-1", ""))
 	err = ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-cmd-2", true, "")
@@ -940,17 +953,15 @@ func testHostDeviceNamesVerifyGracePeriod(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`UPDATE host_mdm_apple_device_names SET updated_at = DATE_SUB(NOW(6), INTERVAL 1 HOUR) WHERE host_uuid = ?`, host.UUID)
 	require.NoError(t, err)
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "still-the-old-name"))
-	row := getDeviceNameRow(t, ds, host.UUID)
-	require.Equal(t, fleet.MDMDeliveryFailed, *row.Status)
-	require.NotEmpty(t, row.Detail)
+	require.True(t, reportDeviceName(t, ds, host.UUID, "still-the-old-name"))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 }
 
 // testHostDeviceNamesFullLifecycle walks a single host through the entire
 // enforcement state machine in the order the real actors drive it: admin saves a
 // template (bulk upsert), the cron picks up the queued row and sends a command,
-// the MDM result handler acks it, name ingestion verifies it, the device drifts,
-// the admin resends, and finally a second command supersedes an in-flight one so
+// the MDM result handler acks it, name ingestion verifies it, the device drifts
+// and is re-queued automatically, and finally a second command supersedes an in-flight one so
 // the stale ack is dropped.
 func testHostDeviceNamesFullLifecycle(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -978,23 +989,18 @@ func testHostDeviceNamesFullLifecycle(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, host.UUID).Status)
 
 	// 4. Name ingestion reports the matching name -> verified.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-SERIAL1"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-SERIAL1"))
 	require.Equal(t, fleet.MDMDeliveryVerified, *getDeviceNameRow(t, ds, host.UUID).Status)
 
-	// 5. The device drifts (renamed on-device) -> failed with a detail.
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "renamed-on-device"))
-	failed := getDeviceNameRow(t, ds, host.UUID)
-	require.Equal(t, fleet.MDMDeliveryFailed, *failed.Status)
-	require.NotEmpty(t, failed.Detail)
-
-	// 6. Admin clicks Resend -> back to queued, and the cron sees it again.
-	require.NoError(t, ds.ResendHostDeviceName(ctx, host.UUID))
+	// 5. The device drifts (renamed on-device) -> re-queued, and the cron sees
+	// it again without a manual resend.
+	require.True(t, reportDeviceName(t, ds, host.UUID, "renamed-on-device"))
 	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 	pending, err = ds.ListHostsPendingDeviceNameCommand(ctx, 10)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 
-	// 7. A second command supersedes an in-flight one: the cron sends command 2
+	// 6. A second command supersedes an in-flight one: the cron sends command 2
 	// while command 1 is still outstanding, then command 1's stale ack arrives.
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-2a"), "WS-SERIAL1", ""))
 	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryPending, new("DEVNAME-2b"), "WS-SERIAL1", ""))
@@ -1007,6 +1013,6 @@ func testHostDeviceNamesFullLifecycle(t *testing.T, ds *Datastore) {
 
 	// The newest command's ack is applied and renames the host.
 	require.NoError(t, ds.UpdateHostDeviceNameStatusFromCommand(ctx, "DEVNAME-2b", true, ""))
-	require.NoError(t, ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, "WS-SERIAL1"))
+	require.False(t, reportDeviceName(t, ds, host.UUID, "WS-SERIAL1"))
 	require.Equal(t, fleet.MDMDeliveryVerified, *getDeviceNameRow(t, ds, host.UUID).Status)
 }

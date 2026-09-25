@@ -7324,10 +7324,10 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, commandUUID, currentCommandUUID)
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
 		require.Equal(t, hostUUID, incomingHostUUID)
 		require.Equal(t, "Work iPad", reportedName)
-		return nil
+		return false, nil
 	}
 	var vitalsCalls int
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
@@ -7466,8 +7466,8 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+		return false, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		require.Equal(t, hostUUID, incomingHostUUID)
@@ -7736,8 +7736,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 				return nil
 			}
-			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-				return nil
+			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+				return false, nil
 			}
 			ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 				return nil
@@ -7826,8 +7826,8 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+		return false, nil
 	}
 
 	var updatedHost *fleet.Host
@@ -8049,8 +8049,8 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+		return false, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return nil
@@ -8132,8 +8132,8 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+		return false, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return nil
@@ -8207,8 +8207,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitals(t *testing.T) {
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+		return false, nil
 	}
 
 	allFieldsRaw := []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -8481,8 +8481,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDeviceVitalsWriteFailure(t *t
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string, _ time.Duration) error {
 		return nil
 	}
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
-		return nil
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) (bool, error) {
+		return false, nil
 	}
 	ds.SetOrUpdateHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, incomingHostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
 		return errors.New("boom: vitals write failed")

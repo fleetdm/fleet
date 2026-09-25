@@ -1264,7 +1264,7 @@ type SetHostDeviceNameStatusFunc func(ctx context.Context, hostUUID string, stat
 
 type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
 
-type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) error
+type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) (bool, error)
 
 type GetHostDeviceNameEnforcementFunc func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error)
 
@@ -10518,7 +10518,7 @@ func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, c
 	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail)
 }
 
-func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) error {
+func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) (bool, error) {
 	s.mu.Lock()
 	s.UpdateHostDeviceNameStatusFromReportFuncInvoked = true
 	s.mu.Unlock()
