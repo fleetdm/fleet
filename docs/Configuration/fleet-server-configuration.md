@@ -3896,6 +3896,10 @@ Specifies the original enrollment profile from the previous MDM, used by Fleet f
 
 The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
 
+In the profile's SCEP payload, set `Challenge` to `$FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE`. Fleet replaces it with a one-time challenge for each host when it sends the renewal. This variable is only supported in this profile, not in configuration profiles.
+
+Profiles set up before Fleet 4.94.0 that contain Fleet's static SCEP challenge instead keep working. Fleet logs an error at startup if the profile contains neither the variable nor the static challenge.
+
 - Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
 - Note: If you are experiencing systems failing SCEP renewal, please contact [Fleet support](https://fleetdm.com/support).
 
