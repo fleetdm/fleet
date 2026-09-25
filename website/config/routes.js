@@ -1444,6 +1444,7 @@ module.exports.routes = {
   'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device',
   'GET /learn-more-about/policy-automation-resend-configuration-profile': '/guides/policy-automation-resend-configuration-profile',
   'GET /learn-more-about/device-attestation': '/guides/what-is-device-attestation',
+  'GET /learn-more-about/default-ab-token': '/guides/apple-mdm-setup#restrict-apple-account-sign-in-managed-apple-accounts',
 
   // Sitemap
   // =============================================================================================================

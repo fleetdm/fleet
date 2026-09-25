@@ -1252,7 +1252,11 @@ Requests a certificate from a certificate authority (CA). Currently, this endpoi
 
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
-As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
+As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature). A request authenticated this way must name the end user Fleet has recorded for that host. Hosts with no recorded end user are rejected. Turn this off with `integrations.certificates_disable_host_end_user_binding`.
+
+**Available in Fleet Premium.** IdP credentials are only accepted for an introspection endpoint listed in `integrations.certificates_idp_introspection_urls`. While that list is empty, requests that include IdP credentials are rejected. Once it has entries, every request must include IdP credentials. See [Update configuration](#update-configuration). To restore the behavior of earlier Fleet versions while you migrate, set the [`server.allow_request_certificate_any_idp`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-request-certificate-any-idp) server setting.
+
+When IdP verification or host end user binding runs, the CSR must contain exactly one email address and exactly one user principal name (UPN). The email must match the username returned by the IdP, and the UPN must be that email or its complete local part (for `bob@example.com`, either `bob@example.com` or `bob`), compared case-insensitively. A CSR with a different UPN, an empty UPN, or more than one email or UPN is rejected.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
@@ -1262,9 +1266,9 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 | -------- | ------- | ---- | ------------------------------------------- |
 | id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
-| idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
-| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-| idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Must exactly match an entry in `integrations.certificates_idp_introspection_urls`. Required if `idp_token` or `idp_client_id` is specified, or if that list has entries. |
+| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` or `idp_client_id` is specified, or if `integrations.certificates_idp_introspection_urls` has entries. |
+| idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` or `idp_token` is specified, or if `integrations.certificates_idp_introspection_urls` has entries. When `integrations.certificates_idp_client_ids` has entries, must exactly match one of them. |
 | return_pem_certificate | boolean | body | If `true`, the issued certificate is returned as a PEM-encoded `CERTIFICATE` block instead of the default PEM-encoded PKCS7 envelope. Defaults to `false`. |
 
 #### Example
@@ -1796,6 +1800,7 @@ None.
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
+    "only_allow_apple_business_enrollment": false,
     "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2019,7 +2024,10 @@ None.
       }
     ],
     "jira": [],
-    "zendesk": []
+    "zendesk": [],
+    "certificates_idp_introspection_urls": [],
+    "certificates_idp_client_ids": [],
+    "certificates_disable_host_end_user_binding": false
   },
   "logging": {
     "debug": false,
@@ -2192,6 +2200,7 @@ Modifies the Fleet's configuration with the supplied information.
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
+    "only_allow_apple_business_enrollment": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2384,7 +2393,10 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ],
-    "zendesk": []
+    "zendesk": [],
+    "certificates_idp_introspection_urls": ["https://company.okta.com/oauth2/v1/introspect"],
+    "certificates_idp_client_ids": ["0oa1b2c3d4e5f6g7h8i9"],
+    "certificates_disable_host_end_user_binding": false
   },
   "logging": {
       "debug": false,
@@ -2449,7 +2461,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
 | discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
-| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
+| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
@@ -2875,7 +2887,9 @@ When updating conditional access config, all `conditional_access` fields must ei
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
-| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
+| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
+| only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -2893,7 +2907,9 @@ When updating conditional access config, all `conditional_access` fields must ei
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
 
-> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, macOS Apple Silicon hosts will not be able to enroll.
+> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
+
+> Note: If `only_allow_apple_business_enrollment` is enabled, the [Get manual enrollment profile](#get-manual-enrollment-profile) and [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) endpoints return an error.
 
 <br/>
 
@@ -3059,6 +3075,7 @@ _Available in Fleet Premium._
     "windows_enabled_and_configured": false,
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
+    "only_allow_apple_business_enrollment": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -3528,7 +3545,9 @@ the `software` table.
 
 > `populate_software` returns a lot of data per host when set, and drastically more data when set to `true` on Fleet Premium. If you need vulnerability details for a large number of hosts, consider setting `populate_software` to `without_vulnerability_details` and pulling vulnerability details from the [Get vulnerability](#get-vulnerability) endpoint, as this returns details once per vulnerability rather than once per vulnerability per host.
 
-> Searching with `query` and setting `device_mapping=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
+> `populate_end_users` runs several extra database queries for each host in the response. Note that `other_emails` is built from the same data as the `device_mapping` parameter, so there's no need to request both.
+
+> Searching with `query` and setting `device_mapping=true` or `populate_end_users=true` are each expensive, and combining them is more so. If you're using these, the best practice is to reduce the number of results returned using `per_page=50`, to prevent overloading the Fleet server.
 
 > `group_tag` is the Windows Autopilot group tag, and is only returned for hosts synced from a tenant's Autopilot registry. See [Connect Fleet to Microsoft Graph](https://fleetdm.com/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph).
 
@@ -3570,6 +3589,7 @@ the `software` table.
 | populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes above on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
+| populate_end_users     | boolean | query | If `true`, the response will include end user data for each host, including identity provider (IdP) details and other emails. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
 | include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
@@ -3601,7 +3621,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true&include_device_status=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_end_users=true&populate_labels=true&include_device_status=true`
 
 ##### Request query parameters
 
@@ -3670,6 +3690,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "gigs_disk_space_available": 174.98,
       "percent_disk_space_available": 71,
       "gigs_total_disk_space": 246,
+      "disk_encryption_enabled": true,
       "additional": {},
       "pack_stats": [
         {
@@ -3774,6 +3795,25 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
           "shell": "/sbin/nologin"
         }
       ],
+      "end_users": [
+        {
+          "idp_info_updated_at": "2025-03-20T02:02:17Z",
+          "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+          "idp_username": "anna@acme.com",
+          "idp_full_name": "Anna Chao",
+          "idp_department": "Product",
+          "idp_groups": [
+            "Product",
+            "Designers"
+          ],
+          "other_emails": [
+            {
+              "email": "anna@example.com",
+              "source": "google_chrome_profiles"
+            }
+          ]
+        }
+      ],
       "labels": [
         {
           "created_at": "2021-08-19T02:02:17Z",
@@ -3815,6 +3855,8 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 ```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
 Response payload with the `mdm_id` filter provided:
 
@@ -3907,6 +3949,8 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 ### Get hosts summary
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
+
+For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
 
 `GET /api/v1/fleet/host_summary`
 
@@ -4284,6 +4328,16 @@ Returns the information of the specified host.
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-2"]
+      },
+      {
+        "id": 323,
+        "name": "gopls",
+        "version": "v0.21.1",
+        "source": "go_binaries",
+        "release": "go1.26.1",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/Users/alice/go/bin/gopls"]
       }
     ],
     "mdm": {
@@ -4317,7 +4371,8 @@ Returns the information of the specified host.
       "os_settings": {
         "disk_encryption": {
           "status": "verified",
-          "detail": ""
+          "detail": "",
+          "action_required": null
         },
         "host_name": {
           "status": "verified",
@@ -4872,13 +4927,19 @@ Returns the information of the specified host.
 
 `mdm.os_settings.host_name` reports the host name template enforcement status for a macOS, iOS, or iPadOS host. Its `status` is one of `pending`, `verifying`, `verified`, or `failed`, and `detail` carries the error message when the status is `failed`. The object is omitted entirely for hosts that aren't enforced (no template set on the host's fleet or on "Unassigned", non-MDM hosts, and personal (BYOD) enrollments).
 
+`mdm.os_settings.disk_encryption.action_required` names what the **end user** can do about a disk encryption problem, and is only present when there is something they can do. On Windows it is `create_pin` when BitLocker policy requires a startup PIN the end user hasn't set, and `restart` when Fleet is waiting for a pending restart before turning protection back on. On macOS it is `log_out` or `rotate_key`. It's absent when `status` is `action_required` for a reason the end user can't fix, such as a TPM that isn't ready or a policy that forbids the key protector Fleet needs.
+
 `mdm.bootstrap_token_escrowed` indicates whether Fleet has escrowed a [bootstrap token](https://support.apple.com/guide/deployment/use-secure-and-bootstrap-tokens-dep24dbdcf9e/web) for the macOS host. The bootstrap token authorizes certain MDM operations, such as remote wipe and installing OS updates, without requiring a user with a secure token to be logged in. This field is only present for macOS hosts.
 
 Entries in `mdm.profiles` that represent an Android certificate carry a `certificate_template_id`, plus `retrying`, `retry_count`, and `max_retries`. When a host reports a failed certificate install, Fleet automatically re-delivers the certificate up to `max_retries` times, which puts it back into an in-progress `status` while `detail` still holds the reported error. `retrying` is `true` for the duration of that window, and `retry_count` is how many retries have been used. A manual resend also sets `retry_count`, so only `retrying` identifies an automatic retry. These four fields are omitted for every other kind of profile, and the retry fields are also omitted when `operation_type` is `remove`, since removals are never retried.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+`release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
+
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
@@ -5127,7 +5188,8 @@ If `hostname` is specified when there is more than one host with the same hostna
       "os_settings": {
         "disk_encryption": {
           "status": null,
-          "detail": ""
+          "detail": "",
+          "action_required": null
         }
       },
       "profiles": [
@@ -5623,9 +5685,13 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
+
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+`release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
 > Note:
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
@@ -5650,6 +5716,11 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
+On a Windows host whose fleet requires a BitLocker startup PIN, `mdm.os_settings.disk_encryption` carries two extra fields, and only on this endpoint:
+
+- `fleetd_can_set_pin`: whether the host's fleetd is new enough to be handed a PIN. When it's `false`, the end user has to create the PIN through Windows' **Manage BitLocker** instead.
+- `pin_request`: the end user's most recent BitLocker PIN submission, as `{"status": "pending" | "delivered" | "set" | "failed", "error": ""}`. `error` carries the agent's reason when the status is `failed`. The field is absent when there's no submission.
+
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS/iPadOS, this is the host's hardware UUID.
 
 For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `team_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `device_count` are stripped.
@@ -5661,16 +5732,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
+| include_hidden_policies | boolean | query | _Available in Fleet Premium_. If `true`, the response's `policies` list will include policies marked `hidden`. Hidden policies are omitted by default.     |
 
 ##### Example
 
@@ -5744,13 +5806,19 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "org_logo_url": "https://example.com/logo.png",
     "org_logo_url_light_background": "https://example.com/logo-light.png",
     "conditional_access_bypassed": false,
+    "issues": {
+      "failing_policies_count": 2,
+      "failing_unhidden_policies_count": 1, // Available in Fleet Premium
+      "total_issues_count": 2
+    },
     "license": {
       "tier": "free",
       "expiration": "2031-01-01T00:00:00Z"
     },
     "global_config": {
       "mdm": {
-        "enabled_and_configured": false
+        "enabled_and_configured": false,
+        "only_allow_apple_business_enrollment": false
       }
     },
     "batteries": [
@@ -5854,7 +5922,13 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
       "os_settings": {
         "disk_encryption": {
           "status": "verified",
-          "detail": ""
+          "detail": "",
+          "action_required": null,
+          "fleetd_can_set_pin": true,
+          "pin_request": {
+            "status": "set",
+            "error": ""
+          }
         }
       },
       "profiles": [
@@ -5874,6 +5948,10 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+`release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
+
+`issues.failing_policies_count` counts all failing policies, including those marked `hidden`. `issues.failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden.
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
 
@@ -6221,6 +6299,8 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 }
 ```
 
+> Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
+
 ### Get host's device page URL
 
 Retrieves the end user url for the host's **My device** page.
@@ -6507,7 +6587,11 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
+Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
+
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
+`skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
 #### Example
 
@@ -6519,8 +6603,29 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 
 ```json
 {
-  "count": 1,
+  "count": 2,
   "software": [
+    {
+      "id": 1042,
+      "name": "gopls",
+      "icon_url": null,
+      "source": "go_binaries",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "v0.21.1",
+          "release": "go1.26.1",
+          "vulnerabilities": ["CVE-2026-56860"],
+          "installed_paths": [
+            "/Users/alice/go/bin/gopls"
+          ]
+        }
+      ],
+      "display_name": "",
+      "software_package": null,
+      "app_store_app": null
+    },
     {
       "id": 936,
       "name": "Google Chrome",
@@ -6600,7 +6705,11 @@ On Windows hosts, `last_opened_at` is supported for software from the `programs`
 
 Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
 
+Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
+
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
+`skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
 #### Example
 
@@ -6612,8 +6721,29 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
 
 ```json
 {
-  "count": 1,
+  "count": 2,
   "software": [
+    {
+      "id": 1042,
+      "name": "gopls",
+      "icon_url": null,
+      "source": "go_binaries",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "v0.21.1",
+          "release": "go1.26.1",
+          "vulnerabilities": ["CVE-2026-56860"],
+          "installed_paths": [
+            "/Users/alice/go/bin/gopls"
+          ]
+        }
+      ],
+      "display_name": "",
+      "software_package": null,
+      "app_store_app": null
+    },
     {
       "id": 936,
       "name": "Google Chrome",
@@ -6734,6 +6864,7 @@ The host will only return a key if its disk encryption status is "Verified." Get
 | Name | Type    | In   | Description                                                        |
 | ---- | ------- | ---- | ------------------------------------------------------------------ |
 | id   | integer | path | **Required** The id of the host to get the disk encryption key for. |
+| allow_serial_lookup | boolean | query | Tells Fleet whether or not to fallback to serial lookup for archived encryption keys. Requires global user permission to use.
 
 
 #### Example
@@ -7446,7 +7577,9 @@ Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its
 
 _Available in Fleet Premium_
 
-Rotates the managed local account password for a host.
+Rotates the managed local account password for a macOS or Windows host.
+
+On macOS, Fleet generates the new password and sends it to the host in an MDM command. On Windows, Fleet asks fleetd to generate a new password, set it, and send it back, so the rotation completes on the host's next check-in.
 
 `POST /api/v1/fleet/hosts/:id/managed_account_password/rotate`
 
@@ -7468,7 +7601,7 @@ Rotates the managed local account password for a host.
 
 Retrieves the managed account password for a macOS host.
 
-The host will only return a password if its managed account password status is "Verified".
+On macOS, a password is returned only while its managed account password status is "Verified". On Windows, a password is returned whenever one has been escrowed, including after a failed rotation, in which case it is the last password the host reported.
 
 `GET /api/v1/fleet/hosts/:id/managed_account_password`
 
@@ -9140,6 +9273,8 @@ If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-e
 
 To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
+If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `403` error with the message: "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
+
 #### Parameters
 
 | Name              | Type    | In    | Description                                                                      |
@@ -9206,6 +9341,8 @@ X-Content-Type-Options: nosniff
 Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
+
+If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `400` error with the message: "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -10034,6 +10171,7 @@ Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, an
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get Android Enterprise](#get-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android zero-touch enrollment configuration](#get-android-zero-touch-enrollment-configuration)
 - [List Microsoft Graph credentials](#list-microsoft-graph-credentials)
 - [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials)
 
@@ -10089,7 +10227,9 @@ None.
       "apple_id": "apple@example.com",
       "org_name": "Fleet Device Management Inc.",
       "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
       "renew_date": "2023-11-29T00:00:00Z",
+      "default": true,
       "terms_expired": false,
       "macos_fleet": {
         "name": "💻 Workstations",
@@ -10111,7 +10251,9 @@ None.
       "apple_id": "apple@example.com",
       "org_name": "Fleet Device Management Inc.",
       "mdm_server_url": "https://example.com/mdm/apple/mdm",
+      "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
       "renew_date": "2023-11-29T00:00:00Z",
+      "default": true,
       "terms_expired": false,
       "token_invalid": false,
       "macos_team": {
@@ -10349,6 +10491,38 @@ Fleet currently supports one Microsoft Graph credential.
 `Status: 200`
 
 This endpoint returns a `422` when a tenant or client ID isn't a valid GUID, when `client_secret` is missing for a new credential, when more than one credential is supplied, or when Microsoft Graph rejects the credential.
+
+---
+
+### Get Android zero-touch enrollment configuration
+
+_Available in Fleet Premium_
+
+Get Fleet's Android zero-touch DPC extras JSON to paste into Google's zero-touch enrollment portal. Android MDM must be enabled.
+
+As part of this request, Fleet generates a token w/ 1,000 year expiry. If a token already exists, Fleet doesn't generate a new one.
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/zero_touch_configuration`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
+    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": "<token>"
+  }
+}
+```
 
 ---
 
@@ -11325,6 +11499,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
+      "hidden": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
     {
@@ -11347,6 +11522,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": true,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
@@ -11373,6 +11549,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": false,
       "install_software": {
         "name": "Adobe Acrobat",
         "software_title_id": 1234,
@@ -11433,6 +11610,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": false,
       "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
@@ -11455,6 +11633,7 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
+      "hidden": true,
       "fleet_maintained": false
     },
     {
@@ -11626,6 +11805,7 @@ _Available in Fleet Premium_
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
+    "hidden": false,
     "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "patch_software": {
@@ -11746,6 +11926,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
+| hidden | boolean | body | _Available in Fleet Premium_. Whether to hide this policy from the **Policies** page in Fleet Desktop. Only one of `hidden` and `conditional_access_enabled` can be `true`. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
 | software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |                                                                    |
@@ -11985,6 +12166,7 @@ _Available in Fleet Premium_
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
+| hidden | boolean | body | _Available in Fleet Premium_. Whether to hide this policy from the **Policies** page in Fleet Desktop. Only one of `hidden` and `conditional_access_enabled` can be `true`. |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
 | software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
@@ -12047,6 +12229,7 @@ Setting `patch_when_closed` or `notify_before_patching` to `false` after it was 
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
+    "hidden": false,
     "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -12435,14 +12618,19 @@ Returns a specific report's data.
 
 #### Parameters
 
-| Name      | Type    | In    | Description                                                                               |
-| --------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
-| id        | integer | path  | **Required**. The ID of the desired query.                                                |
-| fleet_id   | integer | query | Filter the query report to only include hosts that are associated with the fleet specified |
+| Name            | Type    | In    | Description                                                                               |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required**. The ID of the desired report.                                               |
+| fleet_id        | integer | query | Filter the report to only include hosts that are associated with the fleet specified.     |
+| query           | string  | query | Search query keywords. Matches the host's display name and any result column value.       |
+| page            | integer | query | Page number of the results to fetch. Only applies when `per_page` is set.                 |
+| per_page        | integer | query | Results per page. If omitted, all results are returned and `meta` is not included.        |
+| order_key       | string  | query | What to order results by. Valid options are `"last_fetched"`, `"host_name"`, `"host_id"`, or the name of a result column. Result column values are sorted as strings, and the built-in options take precedence over a result column with the same name. Default is `"last_fetched"`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`. |
 
 #### Example
 
-`GET /api/v1/fleet/reports/31/report`
+`GET /api/v1/fleet/reports/31/report?per_page=5`
 
 ##### Default response
 
@@ -12453,6 +12641,11 @@ Returns a specific report's data.
   "query_id": 31,
   "report_id": 31,
   "report_clipped": false,
+  "count": 12,
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
   "results": [
     {
       "host_id": 1,
@@ -12503,11 +12696,16 @@ Returns a specific report's data.
 }
 ```
 
-If a query has no results stored, then `results` will be an empty array:
+`count` is the total number of results matching the request across all pages.
+
+If a report has no results stored, then `results` will be an empty array:
 
 ```json
 {
   "query_id": 32,
+  "report_id": 32,
+  "report_clipped": false,
+  "count": 0,
   "results": []
 }
 ```
@@ -14191,7 +14389,7 @@ Get a list of all software.
 ```json
 {
   "counts_updated_at": "2026-06-04T12:34:56Z",
-  "count": 2,
+  "count": 3,
   "software_titles": [
     {
       "id": 2792,
@@ -14248,6 +14446,28 @@ Get a list of all software.
       "display_name": ""
     },
     {
+      "id": 3104,
+      "name": "gopls",
+      "icon_url": null,
+      "source": "go_binaries",
+      "extension_for": "",
+      "browser": "",
+      "hosts_count": 19,
+      "versions_count": 1,
+      "versions": [
+          {
+              "id": 702113,
+              "version": "v0.21.1",
+              "release": "go1.26.1",
+              "vulnerabilities": ["CVE-2026-56860"]
+          }
+      ],
+      "packages": null,
+      "software_package": null,
+      "app_store_app": null,
+      "display_name": ""
+    },
+    {
       "id": 2618,
       "name": "Raycast",
       "icon_url": null,
@@ -14279,11 +14499,15 @@ Get a list of all software.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
+
 A software title can have more than one package. The `packages` array lists all packages added for the title. `software_package` is kept for backwards compatibility and contains the oldest (first added) package; it's `null` when no package is available.
 
 ### List software versions
 
 > For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
+
+> A request without pagination parameters returns at most 10,000 versions. Use `page` and `per_page` to retrieve the rest; `count` in the response is the total number of versions matching the request.
 
 Get a list of all software versions.
 
@@ -14294,7 +14518,7 @@ Get a list of all software versions.
 | Name                    | Type    | In    | Description                                                                                                                                                                |
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
-| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| per_page                | integer | query | Results per page. If no pagination parameters are specified, defaults to 10,000.                                                                                            |
 | order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
@@ -14366,6 +14590,28 @@ Get a list of all software versions.
         "generated_cpe": "cpe:2.3:a:*:prettier:232.1.0:*:*:*:*:node.js:*:*",
         "hosts_count": 19,
         "vulnerabilities": null
+      },
+      {
+        "id": 4,
+        "name": "gopls",
+        "display_name": "",
+        "version": "v0.21.1",
+        "source": "go_binaries",
+        "release": "go1.26.1",
+        "generated_cpe": "",
+        "hosts_count": 19,
+        "vulnerabilities": [
+          {
+            "cve": "CVE-2026-56860",
+            "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2026-56860",
+            "cvss_score": 7.5,
+            "epss_probability": 0.00043,
+            "cisa_known_exploit": false,
+            "cve_published": "2026-01-15T18:15:00Z",
+            "cve_description": "Quadratic complexity in resolvePath in net/url when parsing a URL with many dot segments.",
+            "resolved_in_version": ""
+          }
+        ]
       }
     ],
     "meta": {
@@ -14376,6 +14622,8 @@ Get a list of all software versions.
 ```
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+`release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
 ### List operating systems
 
@@ -14602,6 +14850,8 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
+
 A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
 
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
@@ -14723,6 +14973,8 @@ Returns information about the specified software version.
 ```
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+
+`release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
 
 ### Get operating system version
@@ -15954,6 +16206,17 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
         "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
         "hosts_count": 50,
         "resolved_in_version": "5.0.0"
+      },
+      {
+        "id": 4187,
+        "software_title_id": 512,
+        "name": "rclone",
+        "version": "v1.74.0",
+        "source": "go_binaries",
+        "release": "go1.26.1",
+        "generated_cpe": "",
+        "hosts_count": 3,
+        "resolved_in_version": "v1.75.0"
       }
     ]
   }
@@ -15961,6 +16224,8 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 ```
 
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
+
+Each entry in `software` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD. For Go standard library vulnerabilities, `resolved_in_version` is empty because the fix is a rebuild with a newer Go toolchain.
 
 ---
 
@@ -16668,6 +16933,9 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
 | conditional_access_enabled | boolean | **Available in Fleet Premium.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra or Okta connected and configured in global config. |
+| certificates_idp_introspection_urls | array | **Available in Fleet Premium.** Allowlist of OAuth 2.0 token introspection URLs that the [Request certificate](#request-certificate) endpoint accepts in `idp_oauth_url`. Each entry must be an absolute `https` URL without embedded credentials and is matched exactly. While empty, requests that include IdP credentials are rejected. When it has entries, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every certificate request. |
+| certificates_idp_client_ids | array | **Available in Fleet Premium.** Optional allowlist of OAuth client IDs that the [Request certificate](#request-certificate) endpoint accepts in `idp_client_id`. When it has entries, `idp_client_id` must match one of them. Requires `certificates_idp_introspection_urls` to have entries. |
+| certificates_disable_host_end_user_binding | boolean | By default, a [Request certificate](#request-certificate) call authenticated with an [HTTP signature](#example-http-signature) must carry a CSR whose email and UPN match the end user Fleet has recorded for that host (the IdP username from SCIM or end user authentication, compared case-insensitively), and hosts with no recorded end user are rejected. Set to `true` to turn this check off. Requests authenticated with an API token are unaffected. Defaults to `false`. |
 
 <br/>
 

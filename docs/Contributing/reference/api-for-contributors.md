@@ -710,7 +710,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -723,7 +725,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -814,7 +818,9 @@ None.
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -827,7 +833,9 @@ None.
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -837,6 +845,64 @@ None.
     "ios_team": 2,
     "ipados_team": 3,
     "byod_team": 3
+  }
+}
+```
+
+### Set AB token as default
+
+`PATCH /api/v1/fleet/ab_tokens/:id/default`
+
+Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Hosts that are in Apple Business use their own AB token. If you have one AB token, it's always the default. Setting a new default clears the previous one.
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The AB token's ID |
+
+#### Example
+
+`PATCH /api/v1/fleet/ab_tokens/2/default`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "ab_token": {
+    "id": 2,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 2,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null
   }
 }
 ```
@@ -885,7 +951,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -898,7 +966,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -2876,7 +2946,7 @@ currently pending.
 
 ## Fleet-desktop-token-authenticated routes
 
-Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). application, and on iOS and iPadOS by the self-service Web Clip. Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
 If you're using Fleet Premium, you can require single sign-on (SSO) in front of these routes.
 
@@ -2976,6 +3046,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "failing_unhidden_policies_count": 1, // Available in Fleet Premium
   "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
@@ -2996,6 +3067,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   }
 }
 ```
+
+`failing_policies_count` counts all failing policies, including those marked `hidden`. `failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
 
 In regards to the `notifications` key:
 
@@ -3084,16 +3157,6 @@ Lists the software installed on the current device.
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`. Must be provided with `vulnerable=true`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 ##### Example
 
@@ -3207,16 +3270,6 @@ Retrieve the icon added via Fleet or icon from App Store (VPP).
 | Name            | Type    | In   | Description                               |
 | ----            | ------- | ---- | ----------------------------------------- |
 | id              | integer | path | ID of the software title to get icon for. |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's fleet.
 
@@ -3360,16 +3413,6 @@ Uninstalls software from a host via the My device page.
 | ---------         | ---------- | ---- | --------------------------------------------     |
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 #### Example
 
@@ -3548,16 +3591,6 @@ Returns the URL to open when clicking the "About Fleet" menu item in Fleet Deskt
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
-
 ##### Example
 
 `GET /api/v1/fleet/device/abcdef012456789/transparency`
@@ -3668,6 +3701,64 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 
 `Status: 204`
 
+##### Escrow already in progress
+
+Orbit is already handling an earlier request for this host, so nothing was queued. The end user has a passphrase prompt open, or dismissed the one they were given, rather than having one on the way. The `Retry-After` header carries the number of seconds until a new request is accepted if Orbit reports nothing further.
+
+`Status: 409`
+
+`Retry-After: 287`
+
+```json
+{
+  "message": "A disk encryption key is already being created for this host.",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A disk encryption key is already being created for this host."
+    }
+  ]
+}
+```
+
+---
+
+### Submit a BitLocker PIN
+
+_Available in Fleet Premium_
+
+Submits the end user's BitLocker startup PIN for a Windows host whose fleet requires one. Fleet stores the PIN
+encrypted, hands it to the host's fleetd on its next config poll, and deletes its copy at that point.
+
+Poll `GET /api/v1/fleet/device/{token}` for the outcome, reading
+`host.mdm.os_settings.disk_encryption.pin_request.status`: `pending`, `delivered`, `set`, or `failed`. When it is
+`failed`, `pin_request.error` carries the agent's reason.
+
+`POST /api/v1/fleet/device/{token}/disk_encryption_pin`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                                          |
+| ----- | ------ | ---- | ---------------------------------------------------- |
+| token | string | path | The device's authentication token.                   |
+| pin   | string | body | **Required.** 6 to 20 printable ASCII characters.    |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/disk_encryption_pin`
+
+##### Request body
+
+```json
+{
+  "pin": "my-pin-1234"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
 ---
 
 ### Get the setup experience status for the device
@@ -3770,6 +3861,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | passphrase | string | body | The LUKS passphrase generated for Fleet (the end user's existing passphrase is not transmitted) |
 | key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
 | salt | string | body | The salt corresponding to the specified LUKS key slot. Provided to track cases where an end user rotates LUKS credentials (at which point we'll no longer be able to decrypt data with the escrowed passphrase). |
+| status | string | body | Progress on the escrow request instead of a result: `prompting` and `escrowing` keep the request marked as in progress while the end user is at the passphrase prompt and while the key slot is created, so a second **Create key** on the My device page does not queue a duplicate; `canceled` and `timed_out` end it without recording a key or an error. If provided, all other request parameters are ignored. Only sent to servers advertising the `linux_escrow_status` capability. |
 
 ##### Example
 
@@ -3784,6 +3876,15 @@ Notifies the server about an agent error, resulting in two outcomes:
   "salt": "d34db33f",
   "key_slot": 1,
   "client_error": ""
+}
+```
+
+##### Request body (status report)
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "status": "prompting"
 }
 ```
 
@@ -4072,6 +4173,82 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
 }
 ```
 
+### Collect the BitLocker startup PIN
+
+Collects the BitLocker startup PIN an end user submitted from the **My device** page, so the agent can apply it to the
+volume.
+
+The response is the only place Fleet ever hands the PIN back out, and it can only be read once: the server deletes its
+encrypted copy as it responds and marks the submission `delivered`. A host with no pending submission gets an empty
+response.
+
+An uncollected submission expires after 15 minutes, and a collected one the agent never reports on expires after an hour.
+
+`POST /api/fleet/orbit/disk_encryption_pin/details`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_pin/details`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "pin": "my-pin-1234",
+  "request_uuid": "006112E7-7383-4F21-999C-8FA74BB3F573"
+}
+```
+
+### Upload the BitLocker startup PIN result
+
+Reports whether the agent applied the PIN it collected.
+
+`POST /api/fleet/orbit/disk_encryption_pin/result`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                           |
+| -------------- | ------ | ---- | ------------------------------------------------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                 |
+| request_uuid   | string | body | The id returned with the PIN the agent collected.                                      |
+| outcome        | string | body | `set` or `failed`.                                                                     |
+| client_error   | string | body | The reason the PIN could not be applied. Required when `outcome` is `failed`.          |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_pin/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "request_uuid": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "outcome": "failed",
+  "client_error": "PIN already set"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
 ### Upload Orbit script result
 
 `POST /api/fleet/orbit/scripts/result`
@@ -4287,6 +4464,42 @@ Body: <blob>
   "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
   "encryption_key": "Zm9vYmFyem9vYmFyZG9vYmFybG9vYmFy",
   "client_error": "example error",
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+---
+
+### Report disk encryption protection outcome
+
+Reports what the agent did about a Windows volume that is encrypted but whose BitLocker protection is off. The agent only calls this endpoint when the server asked it to act, via the `enable_bitlocker_protection` notification in the orbit config.
+
+This endpoint never touches the escrowed recovery key. It records what happened so the host's disk encryption details can tell an admin whether Fleet is still working on the host, what is blocking it, or that a restart is needed.
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                                                                                      |
+| -------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                                                                           |
+| outcome        | string | body | What the agent did. One of `restored`, `deferred`, or `failed`.                                                                                    |
+| client_error   | string | body | Why protection was not turned back on. Required for `deferred` and `failed`, ignored for `restored`. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "outcome": "failed",
+  "client_error": "BitLocker policy does not allow a TPM-only protector"
 }
 ```
 

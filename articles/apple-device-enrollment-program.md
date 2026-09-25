@@ -49,6 +49,9 @@ ADE makes sense for new device purchases going directly to employees, organizati
 
 Converting manually enrolled devices to ADE requires wiping them completely. The best way to handle this is timing your ADE implementation with device refresh cycles rather than forcing users through device wipes. During the transition period, organizations can run both enrollment methods side by side, using ADE for new purchases while keeping manual enrollment for devices already deployed.
 
+Fleet can enforce ADE-only enrollment. With **Allow only Apple Business enrollments** on, manual enrollment is blocked, so ADE is the only path in.
+
+
 ## Which Apple devices work with ADE?
 
 ADE works across [Apple's major device platforms](https://support.apple.com/en-us/102300) with specific operating system requirements that most current devices already meet.

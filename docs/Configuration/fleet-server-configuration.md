@@ -815,6 +815,20 @@ server:
   allow_private_network_integrations: true
 ```
 
+### server_allow_request_certificate_any_idp
+
+Turns off the identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. When set, requests authenticated with an HTTP signature don't have to name the end user recorded for the host, and IdP credentials are accepted for any introspection endpoint, not only those listed in `integrations.certificates_idp_introspection_urls`.
+
+This restores the behavior of Fleet versions that predate these checks. Use it while you migrate, then configure the `integrations.certificates_*` settings and turn it off.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_REQUEST_CERTIFICATE_ANY_IDP`
+- Config file format:
+```yaml
+server:
+  allow_request_certificate_any_idp: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
@@ -919,6 +933,17 @@ Enable this to significantly reduce the outbound bandwidth from the Fleet server
   server:
     gzip_responses: true
   ```
+
+### fleet_server_enable_csp
+
+When set to `1` or `true`, the Fleet server adds a `Content-Security-Policy` header to responses for the Fleet UI, API, and static assets. The policy restricts where the browser can load scripts, styles, images, fonts, and network connections from.
+
+The policy allows resources from the Fleet server, images from `www.gravatar.com` and any HTTPS origin (for custom logos), and WebSocket connections. Inline scripts and styles are allowed only when they carry a per-response nonce that the server injects into the UI.
+
+This is only supported as an environment variable.
+
+- Default value: not set (no `Content-Security-Policy` header is sent)
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
 
 ## Auth
 
@@ -3713,6 +3738,64 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   ```yaml
   mdm:
     apple_dep_sync_periodicity: 10m
+  ```
+
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
   ```
 
 ### mdm.windows_wstep_identity_cert_bytes
