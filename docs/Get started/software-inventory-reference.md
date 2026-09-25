@@ -218,9 +218,6 @@ org_settings:
 
 Fleet refreshes software inventory on the same schedule as other host details. To change the interval, set `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL` on the Fleet server (default: `1h`). Lowering this value increases load on the Fleet server. Learn more in the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval) reference.
 
-<meta name="category" value="guides">
-<meta name="authorGitHubUsername" value="karmine05">
-<meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="publishedOn" value="2026-09-11">
-<meta name="articleTitle" value="Software inventory reference">
+<meta name="pageOrderInSection" value="250">
 <meta name="description" value="Find out how Fleet collects software inventory and what software it covers on each platform.">
+<meta name="keywordsForDocsearch" value="software inventory, software coverage, supported platforms, vulnerability processing">
