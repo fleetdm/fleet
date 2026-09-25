@@ -257,10 +257,17 @@ type AuthConfig struct {
 }
 
 // OneTimeEnrollSecretsEnabled reports whether either platform mints one-time enroll secrets. An enrolling agent presents a
-// secret without saying which platform minted it, so the lookup has to run whenever either switch is on. It also keeps a secret
-// already delivered usable after its own switch is turned off, rather than failing the enrollment it was minted for.
+// secret without saying which platform minted it, so the lookup has to run whenever either switch is on.
 func (a AuthConfig) OneTimeEnrollSecretsEnabled() bool {
 	return a.UseOneTimeEnrollSecrets || a.MDMWindowsOneTimeEnrollSecrets
+}
+
+// OneTimeEnrollSecretsEnabledForPlatform reports whether one-time enroll secrets minted for the given platform are honored.
+func (a AuthConfig) OneTimeEnrollSecretsEnabledForPlatform(platform string) bool {
+	if platform == "windows" {
+		return a.MDMWindowsOneTimeEnrollSecrets
+	}
+	return a.UseOneTimeEnrollSecrets
 }
 
 // AppConfig defines configs related to HTTP

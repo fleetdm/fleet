@@ -244,6 +244,40 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		requireAuthFailed(t, err)
 		require.Empty(t, *f.rejections)
 	})
+
+	t.Run("a secret is honored only while the switch for the platform that minted it is on", func(t *testing.T) {
+		for _, tc := range []struct {
+			name                        string
+			platform                    string
+			useOneTimeEnrollSecrets     bool
+			windowsOneTimeEnrollSecrets bool
+			wantHonored                 bool
+		}{
+			{name: "windows secret, windows on", platform: "windows", windowsOneTimeEnrollSecrets: true, wantHonored: true},
+			{name: "windows secret, only apple on", platform: "windows", useOneTimeEnrollSecrets: true},
+			{name: "apple secret, only windows on", platform: "darwin", windowsOneTimeEnrollSecrets: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				f := newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) {
+					auth.UseOneTimeEnrollSecrets = tc.useOneTimeEnrollSecrets
+					auth.MDMWindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
+				})
+				f.row.Platform = tc.platform
+				f.ds.GetHostOneTimeEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
+					r := f.row
+					return &r, nil
+				}
+				_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), f.row.Secret, "")
+				if !tc.wantHonored {
+					// Treated as a shared secret, which it is not.
+					requireAuthFailed(t, err)
+					require.False(t, f.ds.EnrollOrbitFuncInvoked)
+					return
+				}
+				require.NoError(t, err)
+			})
+		}
+	})
 }
 
 func TestEnrollOsqueryWithOneTimeEnrollSecret(t *testing.T) {

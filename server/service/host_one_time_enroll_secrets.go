@@ -38,7 +38,7 @@ type enrollmentAttempt struct {
 
 // lookupOneTimeEnrollSecret returns the one-time enroll secret matching the
 // presented value, or nil when the value is not a one-time secret (it may still
-// be a shared one).
+// be a shared one) or was minted for a platform whose switch is off.
 func (svc *Service) lookupOneTimeEnrollSecret(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
 	oneTime, err := svc.ds.GetHostOneTimeEnrollSecret(ctx, secret)
 	if err != nil {
@@ -46,6 +46,10 @@ func (svc *Service) lookupOneTimeEnrollSecret(ctx context.Context, secret string
 			return nil, nil
 		}
 		return nil, err
+	}
+	// The stored platform, not the presented one.
+	if !svc.config.Auth.OneTimeEnrollSecretsEnabledForPlatform(oneTime.Platform) {
+		return nil, nil
 	}
 	return oneTime, nil
 }
