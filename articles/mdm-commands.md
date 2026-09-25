@@ -23,6 +23,8 @@ The end result simply needs to be a standard, plain text file with the correct k
 
 > Apple's [`DeviceLock`](https://developer.apple.com/documentation/devicemanagement/lock_a_device) and [`EraseDevice`](https://developer.apple.com/documentation/devicemanagement/erase_a_device) commands, Windows's [`RemoteWipe`](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp) commands (`doWipe`, `doWipeProtected`, etc.), and Android's [`LOCK`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.LOCK) and [`RESET_PASSWORD`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.RESET_PASSWORD) commands, are only available in Fleet Premium. Android's [`WIPE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.WIPE) command is available on Fleet Free for company-owned hosts.
 
+> While running the `RESET_PASSWORD` command on an Android host, `newPassword` can have a value of 4 characters or more, contrary to what is written in [AMAPI documentation](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand).
+
 ### Examples
 
 To restart a macOS host, we can use the ["Restart a Device" MDM command](https://developer.apple.com/documentation/devicemanagement/restart_a_device).
@@ -106,7 +108,6 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 ```
 
 > If you're trying to remove macOS configuration profiles via the `RemoveProfile` command, note that this endpoint (and `fleetctl run mdm command`) sends commands on the device channel only. User-scoped profiles installed via the user channel cannot be removed this way. In Fleet, in **host details > OS settings** profiles will have an icon indicator <img src="../website/assets/images/articles/user-scope-icon-16x16@2x.png" alt="user-scope-icon" style="display:inline; margin:0; height:16px; width:16px;"> when it is user-scoped.
-
 
 ## Step 2: Choose a target host
 
