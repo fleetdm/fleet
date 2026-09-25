@@ -23,6 +23,52 @@
 #   - The CSR is signed via TPM2_Sign inside the chip (ECDSA), not by OpenSSL
 #     in host memory.
 #
+# ---------------------------------------------------------------------------
+# Compatibility Matrix: TPM Integration across Ubuntu Releases
+# ---------------------------------------------------------------------------
+#
+# | Package            | Ubuntu 22.04 | Ubuntu 24.04 | Consumer Support (wpa_supplicant, NM, VPN) | Note                                      |
+# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
+# | tpm2-openssl       | Available    | Available    | Supported (via OpenSSL 3 Provider)       | Preferred for modern OpenSSL 3+ consumers |
+# | tpm2-pkcs11        | Available    | Available    | Supported (via PKCS#11)                | |
+# | pkcs11-provider     | Available    | Available    | Supported (via PKCS#11)                | |
+# | tpm2-tss-engine     | Available    | Available    | Supported (via Engine API)              | Deprecated; legacy only                  |
+# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
+# |
+# # Note on Provider vs Engine:
+# # OpenSSL 3.x favors the Provider API. Consumers like wpa_supplicant and
+# # NetworkManager now leverage the `tpm2-openssl` provider for seamless
+# # TLS client-auth signing delegation to the TPM.
+# #
+# # Warning:
+# # Command-line enrollment success does not guarantee consumer support.
+# # Explicit validation of consumer integration (wpa_supplicant/NM) is
+# # required to ensure successful EAP-TLS handshakes with hardware-backed keys.
+# ---------------------------------------------------------------------------
+#
+# ---------------------------------------------------------------------------
+# Compatibility Matrix: TPM Integration across Ubuntu Releases
+# ---------------------------------------------------------------------------
+#
+# | Package            | Ubuntu 22.04 | Ubuntu 24.04 | Consumer Support (wpa_supplicant, NM, VPN) | Note                                      |
+# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
+# | tpm2-openssl       | Available    | Available    | Supported (via OpenSSL 3 Provider)       | Preferred for modern OpenSSL 3+ consumers |
+# | tpm2-pkcs11        | Available    | Available    | Supported (via PKCS#11)                | |
+# | pkcs11-provider     | Available    | Available    | Supported (via PKCS#11)                | |
+# | tpm2-tss-engine     | Available    | Available    | Supported (via Engine API)              | Deprecated; legacy only                  |
+# |--------------------|--------------|--------------|----------------------------------------- | ------------------------------------------ |
+# |
+# # Note on Provider vs Engine:
+# # OpenSSL 3.x favors the Provider API. Consumers like wpa_supplicant and
+# # NetworkManager now leverage the `tpm2-openssl` provider for seamless
+# # TLS client-auth signing delegation to the TPM.
+# #
+# # Warning:
+# # Command-line enrollment success does not guarantee consumer support.
+# # Explicit validation of consumer integration (wpa_supplicant/NM) is
+# # required to ensure successful EAP-TLS handshakes with hardware-backed keys.
+# ---------------------------------------------------------------------------
+#
 # Instead of go-tpm, this script uses OpenSSL 3's tpm2 provider
 # (https://github.com/tpm2-software/tpm2-openssl, Ubuntu package
 # `tpm2-openssl`). Providers are the OpenSSL 3 replacement for the deprecated
@@ -93,6 +139,8 @@ FLEET_URL="https://<Fleet-server-URL>"
 CA_ID="<CA-ID>"
 IDP_INTROSPECTION_URL="<IdP-introspection-URL>"
 
+# Warning: Command-line enrollment success does not guarantee consumer support.
+# Warning: Command-line enrollment success does not guarantee consumer support.
 # securehw prefers P-384 and falls back to P-256 depending on TPM support;
 # we mirror that below in generate_key(). RSA is intentionally not offered:
 # the securehw plumbing this PoC follows is ECC-only, and ECDSA keeps the
