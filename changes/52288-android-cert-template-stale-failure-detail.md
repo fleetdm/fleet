@@ -1,0 +1,1 @@
+- Fixed Android certificate templates keeping the previous failure message after Fleet retried the install and delivered the certificate again. The stored detail is now cleared when the certificate reaches delivered, so a resolved failure no longer shows a stale error.
