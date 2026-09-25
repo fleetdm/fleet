@@ -86,7 +86,10 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enrolled_activity_at,
 		created_at,
 		updated_at,
-		host_uuid
+		host_uuid,
+		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row.
+		(SELECT h.id FROM hosts h WHERE h.uuid = mdm_windows_enrollments.host_uuid AND mdm_windows_enrollments.host_uuid != ''
+			ORDER BY h.id LIMIT 1) AS linked_host_id
 		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
@@ -235,8 +238,42 @@ func (ds *Datastore) ClearMDMWindowsManagedLocalAccountRotationRequest(ctx conte
 	return cleared > 0, nil
 }
 
-// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
-// returns the device information.
+// MDMWindowsGetEnrolledDeviceByID returns the enrollment with the given row id.
+func (ds *Datastore) MDMWindowsGetEnrolledDeviceByID(ctx context.Context, enrollmentID uint) (*fleet.MDMWindowsEnrolledDevice, error) {
+	stmt := `SELECT
+		id,
+		mdm_device_id,
+		mdm_hardware_id,
+		device_state,
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
+		not_in_oobe,
+		awaiting_configuration,
+		awaiting_configuration_at,
+		credentials_hash,
+		credentials_acknowledged,
+		hardware_serial,
+		ztd_registration_id,
+		enrolled_activity_at,
+		created_at,
+		updated_at,
+		host_uuid
+		FROM mdm_windows_enrollments WHERE id = ?`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, enrollmentID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithID(enrollmentID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get windows mdm enrollment by id")
+	}
+	return &winMDMDevice, nil
+}
+
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	// Only fetch the most recently enrolled entry which matches the one we enqueue commands for
 	stmt := `SELECT
@@ -2475,6 +2512,16 @@ func (ds *Datastore) GetWindowsMDMProfilePriorContents(ctx context.Context, keys
 		return nil, ctxerr.Wrap(ctx, err, "selecting windows profile prior content")
 	}
 	return rows, nil
+}
+
+func (ds *Datastore) ListMDMWindowsConfigProfilesByName(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
+	var profiles []*fleet.MDMWindowsConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles,
+		`SELECT profile_uuid, NULLIF(team_id, 0) AS team_id, name FROM mdm_windows_configuration_profiles WHERE name = ?`,
+		name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list windows configuration profiles by name")
+	}
+	return profiles, nil
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Context, teamID *uint, profileName string) error {

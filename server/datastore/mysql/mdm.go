@@ -2357,7 +2357,8 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
 		}
-		if rows, _ := res.RowsAffected(); rows == 0 {
+		rows, _ := res.RowsAffected()
+		if rows == 0 {
 			// this should never happen, log for debugging
 			ds.logger.DebugContext(ctx, "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
@@ -2365,6 +2366,12 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 		// The row now has status NULL, which the summary reports as pending, so refresh the per-host Windows profile status rollup in the
 		// same transaction.
 		if table == "host_mdm_windows_profiles" {
+			// An administrator resending the Fleetd enroll secret profile is how a host whose secret was spent gets another.
+			if rows > 0 {
+				if err := ds.mintWindowsEnrollSecretOnResendDB(ctx, tx, hostUUID, profUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for resent windows profile")
+				}
+			}
 			// This path only updates the profile row, so no rollup row can be orphaned.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after resend")
@@ -2648,11 +2655,25 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 	var count int64
 	var windowsHostUUIDs []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var secretEnrollmentIDs []uint
+		if table == "host_mdm_windows_profiles" {
+			targets, err := ds.windowsEnrollSecretBatchResendTargetsDB(ctx, tx, profileUUID, filters.ProfileStatus)
+			if err != nil {
+				return err
+			}
+			secretEnrollmentIDs = targets
+		}
+
 		res, err := tx.ExecContext(ctx, updateStmt, profileUUID, filters.ProfileStatus)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resending MDM profile on hosts")
 		}
 		count, _ = res.RowsAffected()
+
+		// The batch counterpart of the single-host resend mint. Same transaction as the reset, for the same reason.
+		if _, err := mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, secretEnrollmentIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "minting one-time enroll secrets for batch-resent windows profile")
+		}
 
 		// Collect the affected hosts for the rollup refresh. Selecting status IS NULL rows AFTER the update sees this transaction's own
 		// writes, so it cannot miss a row the update touched; rows already NULL are harmless extras (the recompute is idempotent). The

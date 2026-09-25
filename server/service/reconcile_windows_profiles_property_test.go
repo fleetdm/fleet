@@ -52,6 +52,7 @@ func newCursorFakeDS(initialHosts []string) (*mock.Store, *cursorFakeState) {
 	state := &cursorFakeState{pending: sorted, visited: map[string]int{}}
 
 	ds := new(mock.Store)
+	stubFleetWindowsProfileEnsure(ds)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		cfg := &fleet.AppConfig{}
 		cfg.MDM.WindowsEnabledAndConfigured = true
@@ -179,7 +180,7 @@ func TestPBT_ReconcileWindowsProfilesCoverage(t *testing.T) {
 
 		var completedAt int
 		for tick := 1; tick <= maxTicks; tick++ {
-			require.NoError(rt, ReconcileWindowsProfiles(ctx, ds, pbtLogger))
+			require.NoError(rt, ReconcileWindowsProfiles(ctx, ds, pbtLogger, false))
 			if passComplete() {
 				completedAt = tick
 				break
@@ -207,7 +208,7 @@ func TestPBT_ReconcileWindowsProfilesMonotonic(t *testing.T) {
 		var prev string
 		ticks := (len(hosts)+batch-1)/batch + 2
 		for range ticks {
-			require.NoError(rt, ReconcileWindowsProfiles(ctx, ds, pbtLogger))
+			require.NoError(rt, ReconcileWindowsProfiles(ctx, ds, pbtLogger, false))
 			cur := state.cursor
 			if prev != "" && cur != "" {
 				require.Greaterf(rt, cur, prev,
@@ -270,7 +271,7 @@ func TestPBT_ReconcileWindowsProfilesFailureNoAdvance(t *testing.T) {
 			}
 		}
 
-		err := ReconcileWindowsProfiles(t.Context(), ds, pbtLogger)
+		err := ReconcileWindowsProfiles(t.Context(), ds, pbtLogger, false)
 		require.Errorf(rt, err, "failure at %q did not propagate", failurePoint)
 		require.Equalf(rt, initialCursor, state.cursor,
 			"cursor advanced despite failure at %q; got %q (expected %q)", failurePoint, state.cursor, initialCursor)
@@ -316,7 +317,7 @@ func TestPBT_ReconcileWindowsProfilesFailureNoAdvanceMultiWindow(t *testing.T) {
 			return map[string]fleet.MDMWindowsProfileContents{}, nil
 		}
 
-		err := ReconcileWindowsProfiles(t.Context(), ds, pbtLogger)
+		err := ReconcileWindowsProfiles(t.Context(), ds, pbtLogger, false)
 		require.Errorf(rt, err, "failure on window %d/%d did not propagate", failWindow, numWindows)
 		// Confirms earlier windows really ran (so the precondition isn't vacuous).
 		require.Equalf(rt, failWindow, contentsCalls,
@@ -348,7 +349,7 @@ func TestPBT_ReconcileWindowsProfilesCursorAdvanceMatchesLastVisited(t *testing.
 		seen := 0
 		for seen < len(sorted) {
 			expectedWindow := sorted[seen:min(seen+batch, len(sorted))]
-			require.NoError(rt, ReconcileWindowsProfiles(ctx, ds, pbtLogger))
+			require.NoError(rt, ReconcileWindowsProfiles(ctx, ds, pbtLogger, false))
 
 			if len(expectedWindow) >= batch {
 				require.Equalf(rt, expectedWindow[len(expectedWindow)-1], state.cursor,

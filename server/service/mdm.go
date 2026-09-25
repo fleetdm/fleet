@@ -824,6 +824,11 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
 
+	// Host-secret placeholders are Fleet's to write, never an admin's
+	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command")
+	}
+
 	if cmdMsg.IsPremium() {
 		lic, err := svc.License(ctx)
 		if err != nil {
@@ -3804,12 +3809,12 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 		return err
 	}
 
-	// With one-time enroll secrets, resending the fleetd profile mints a new
-	// enrollment credential for the device, which is an admin decision.
-	if svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName) {
+	// With one-time enroll secrets, resending the profile that carries one mints a new enrollment credential for the device,
+	// which is an admin decision.
+	if deliversOneTimeEnrollSecret(svc.config.Auth, profileUUID, profileName) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
-			"The Fleetd configuration profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.").
-			WithStatus(http.StatusForbidden), "check fleetd profile device resend")
+			fmt.Sprintf("The %s profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.", profileName)).
+			WithStatus(http.StatusForbidden), "check one-time enroll secret profile device resend")
 	}
 
 	err = nil
@@ -3831,6 +3836,10 @@ type checkAndResendPolicyArgs struct {
 }
 
 func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, onError func(err error, rejected bool), profileUUID string, profileName string, policyArgs *checkAndResendPolicyArgs) {
+	if isWindowsEnrollSecretProfile(profileUUID, profileName) && !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+		onError(errWindowsEnrollSecretProfileOff(), true)
+		return
+	}
 	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -4373,6 +4382,9 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 		if err != nil {
 			return err
+		}
+		if isWindowsEnrollSecretProfile(profileUUID, prof.Name) && !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+			return errWindowsEnrollSecretProfileOff()
 		}
 		teamID = prof.TeamID
 		profileName = prof.Name

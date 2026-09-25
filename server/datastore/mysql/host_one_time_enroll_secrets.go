@@ -9,10 +9,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/jmoiron/sqlx"
 )
 
-const hostOneTimeEnrollSecretColumns = `id, secret, host_id, team_id, platform, hardware_uuid, hardware_serial, created_at, consumed_at, orbit_used_at, osquery_used_at` // nolint:gosec // Not hardcoded credentials
+const hostOneTimeEnrollSecretColumns = `id, secret, host_id, mdm_windows_enrollment_id, team_id, platform, hardware_uuid, hardware_serial, created_at, consumed_at, orbit_used_at, osquery_used_at` // nolint:gosec // Not hardcoded credentials
 
 func (ds *Datastore) GetHostOneTimeEnrollSecret(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
 	if strings.TrimSpace(secret) == "" {
@@ -182,6 +183,282 @@ func (ds *Datastore) mintHostOneTimeEnrollSecret(ctx context.Context, enrollment
 	return secret, nil
 }
 
+// MintWindowsMDMOneTimeEnrollSecret makes sure the given Windows MDM enrollment has a live one-time enroll secret, for the
+// fleetd install Fleet is about to send it.
+func (ds *Datastore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		minted, err := mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, []uint{enrollmentID})
+		if err != nil {
+			return err
+		}
+		if minted.found == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"), "minting one-time enroll secret")
+		}
+		return nil
+	})
+}
+
+type windowsOneTimeEnrollSecretMintResult struct {
+	// found is how many of the requested enrollments exist.
+	found int
+	// inserted is how many of those needed a new secret, because they had no live one.
+	inserted int
+}
+
+// mintWindowsMDMOneTimeEnrollSecretsDB gives each existing enrollment in enrollmentIDs a live secret, reusing an unconsumed one
+// where there is one. Reuse is what keeps the installer command line and the profile carrying the same secret, and what keeps
+// repeat calls harmless: Fleet re-enqueues the fleetd install on every session-start alert while fleetd looks absent.
+//
+// When the enrollment is already linked to a host, which it always is on an administrator resend, the secret is bound to that
+// host. That is what enforces that only that host can use it.
+//
+// Otherwise, as on a first fleetd install, there is no host to bind to: the automatic enrollment flows carry no Fleet host UUID.
+// The secret binds only to the enrollment, host_id stays NULL, and the host is recorded on first use. The serial is copied when a
+// DevDetail response already landed, as provenance.
+func mintWindowsMDMOneTimeEnrollSecretsDB(
+	ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint,
+) (windowsOneTimeEnrollSecretMintResult, error) {
+	var result windowsOneTimeEnrollSecretMintResult
+	if len(enrollmentIDs) == 0 {
+		return result, nil
+	}
+
+	stmt, args, err := sqlx.In(
+		`SELECT id, hardware_serial, host_uuid FROM mdm_windows_enrollments WHERE id IN (?) ORDER BY id FOR UPDATE`, enrollmentIDs)
+	if err != nil {
+		return result, ctxerr.Wrap(ctx, err, "build windows mdm enrollment lock for one-time enroll secrets")
+	}
+	var enrollments []windowsEnrollmentMintRow
+	if err := sqlx.SelectContext(ctx, tx, &enrollments, stmt, args...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "lock windows mdm enrollments for one-time enroll secrets")
+	}
+	result.found = len(enrollments)
+	if len(enrollments) == 0 {
+		return result, nil
+	}
+
+	lockedIDs := make([]uint, 0, len(enrollments))
+	for _, e := range enrollments {
+		lockedIDs = append(lockedIDs, e.ID)
+	}
+	stmt, args, err = sqlx.In(`
+		SELECT DISTINCT mdm_windows_enrollment_id FROM host_one_time_enroll_secrets
+		WHERE mdm_windows_enrollment_id IN (?) AND consumed_at IS NULL`, lockedIDs)
+	if err != nil {
+		return result, ctxerr.Wrap(ctx, err, "build live windows one-time enroll secret lookup")
+	}
+	var live []uint
+	if err := sqlx.SelectContext(ctx, tx, &live, stmt, args...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "load live windows one-time enroll secrets")
+	}
+	hasLive := make(map[uint]struct{}, len(live))
+	for _, id := range live {
+		hasLive[id] = struct{}{}
+	}
+
+	boundHosts, err := windowsEnrollmentBoundHostsDB(ctx, tx, enrollments)
+	if err != nil {
+		return result, err
+	}
+	for _, e := range enrollments {
+		host, known := boundHosts[e.ID]
+		if _, ok := hasLive[e.ID]; !ok || !known {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_one_time_enroll_secrets SET host_id = ?, hardware_uuid = ?
+			WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL AND host_id IS NULL`,
+			host.ID, host.UUID, e.ID); err != nil {
+			return result, ctxerr.Wrap(ctx, err, "bind live windows one-time enroll secret to its host")
+		}
+	}
+
+	var (
+		placeholders []string
+		insertArgs   []any
+	)
+	for _, e := range enrollments {
+		if _, ok := hasLive[e.ID]; ok {
+			continue
+		}
+		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "generate windows one-time enroll secret")
+		}
+		var serial string
+		if e.HardwareSerial != nil {
+			serial = *e.HardwareSerial
+		}
+		var (
+			hostID       *uint
+			hardwareUUID string
+		)
+		if host, known := boundHosts[e.ID]; known {
+			hostID, hardwareUUID = &host.ID, host.UUID
+		}
+		placeholders = append(placeholders, `(?, ?, ?, NULL, 'windows', ?, ?)`)
+		insertArgs = append(insertArgs, string(tok), hostID, e.ID, hardwareUUID, serial)
+	}
+	if len(placeholders) == 0 {
+		return result, nil
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO host_one_time_enroll_secrets
+			(secret, host_id, mdm_windows_enrollment_id, team_id, platform, hardware_uuid, hardware_serial)
+		VALUES `+strings.Join(placeholders, ", "), insertArgs...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "insert windows one-time enroll secrets")
+	}
+	result.inserted = len(placeholders)
+	return result, nil
+}
+
+type windowsEnrollmentMintRow struct {
+	ID             uint    `db:"id"`
+	HardwareSerial *string `db:"hardware_serial"`
+	HostUUID       string  `db:"host_uuid"`
+}
+
+type windowsEnrollmentBoundHost struct {
+	ID   uint
+	UUID string
+}
+
+// windowsEnrollmentBoundHostsDB returns, for each enrollment already linked to a host, the host row a one-time enroll secret for
+// it should bind to. Enrollments with no host_uuid, or whose host no longer exists, are absent from the result.
+//
+// Several rows can share a UUID (VM clones, or an orbit enrolled with --host-identifier=instance). Like the Apple mint, this binds
+// to the row the orbit enrollment will land on: the one whose osquery_host_id is the UUID, else the lowest id. Binding to any
+// other row would make consumeHostOneTimeEnrollSecret refuse the legitimate host.
+func windowsEnrollmentBoundHostsDB(
+	ctx context.Context, tx sqlx.ExtContext, enrollments []windowsEnrollmentMintRow,
+) (map[uint]windowsEnrollmentBoundHost, error) {
+	var uuids []string
+	for _, e := range enrollments {
+		if e.HostUUID != "" {
+			uuids = append(uuids, e.HostUUID)
+		}
+	}
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, uuid, osquery_host_id FROM hosts WHERE uuid IN (?) ORDER BY id`, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build hosts lookup for windows one-time enroll secrets")
+	}
+	var hosts []struct {
+		ID            uint    `db:"id"`
+		UUID          string  `db:"uuid"`
+		OsqueryHostID *string `db:"osquery_host_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load hosts for windows one-time enroll secrets")
+	}
+
+	// Keyed case-insensitively, because the enrollment's host_uuid and the hosts row need not agree on case.
+	chosen := make(map[string]windowsEnrollmentBoundHost, len(hosts))
+	for _, h := range hosts {
+		key := strings.ToLower(h.UUID)
+		_, seen := chosen[key]
+		matchesIdentifier := h.OsqueryHostID != nil && strings.EqualFold(*h.OsqueryHostID, h.UUID)
+		// Rows arrive in id order, so the first seen is the lowest id; an osquery_host_id match overrides it.
+		if !seen || matchesIdentifier {
+			chosen[key] = windowsEnrollmentBoundHost{ID: h.ID, UUID: h.UUID}
+		}
+	}
+
+	bound := make(map[uint]windowsEnrollmentBoundHost, len(enrollments))
+	for _, e := range enrollments {
+		if h, ok := chosen[strings.ToLower(e.HostUUID)]; ok {
+			bound[e.ID] = h
+		}
+	}
+	return bound, nil
+}
+
+func (ds *Datastore) GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error) {
+	var secrets []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &secrets, `
+		SELECT secret FROM host_one_time_enroll_secrets
+		WHERE mdm_windows_enrollment_id = ? AND consumed_at IS NULL
+		ORDER BY id DESC LIMIT 1`, enrollmentID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "load live windows one-time enroll secret")
+	}
+	if len(secrets) == 0 {
+		return "", nil
+	}
+	return secrets[0], nil
+}
+
+// isWindowsEnrollSecretProfileDB reports whether the profile is the Fleet-managed Fleetd enroll secret profile. The name is
+// reserved, so a user cannot author one that passes this check.
+func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, profileUUID string) (bool, error) {
+	var names []string
+	if err := sqlx.SelectContext(ctx, tx, &names,
+		`SELECT name FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load windows profile name")
+	}
+	return len(names) == 1 && names[0] == fleetmdm.FleetWindowsEnrollSecretProfileName, nil
+}
+
+// mintWindowsEnrollSecretOnResendDB mints for a host whose Fleetd enroll secret profile an administrator just resent. It runs in
+// the transaction that resets the profile's status, so the reconciler cannot deliver the profile before the secret exists.
+func (ds *Datastore) mintWindowsEnrollSecretOnResendDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID string) error {
+	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
+	if err != nil || !isSecretProfile {
+		return err
+	}
+	// Get the latest enrollment ID
+	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, []string{hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load windows mdm enrollment for resent enroll secret profile")
+	}
+	_, err = mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, enrollmentIDs)
+	return err
+}
+
+// windowsEnrollSecretBatchResendTargetsDB returns the enrollments of the hosts a batch resend of the Fleetd enroll secret profile
+// is about to reset, or nil for any other profile.
+func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
+	ctx context.Context, tx sqlx.ExtContext, profileUUID string, status fleet.MDMDeliveryStatus,
+) ([]uint, error) {
+	isSecretProfile, err := isWindowsEnrollSecretProfileDB(ctx, tx, profileUUID)
+	if err != nil || !isSecretProfile {
+		return nil, err
+	}
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, `
+		SELECT host_uuid FROM host_mdm_windows_profiles
+		WHERE profile_uuid = ? AND status = ?
+		FOR UPDATE`, profileUUID, status); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load hosts for batch-resent enroll secret profile")
+	}
+	enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDDB(ctx, tx, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load windows mdm enrollments for batch-resent enroll secret profile")
+	}
+	return enrollmentIDs, nil
+}
+
+// rejectSharedSecretForMDMLinkedWindowsUUID refuses a shared enroll secret that would insert a host with the UUID of a Windows
+// MDM enrollment Fleet has linked, typically one whose host was deleted. The real device recovers through the one-time secret
+// Fleet pushes to its enrollment.
+func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtContext, hardwareUUID string) error {
+	if hardwareUUID == "" {
+		return nil
+	}
+	var linked bool
+	if err := sqlx.GetContext(ctx, tx, &linked,
+		`SELECT EXISTS (SELECT 1 FROM mdm_windows_enrollments WHERE host_uuid = ?)`, hardwareUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "check windows mdm enrollment linked to enrolling uuid")
+	}
+	if linked {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
+			"shared enroll secret presented for the uuid of a windows mdm enrollment")
+	}
+	return nil
+}
+
 // consumeHostOneTimeEnrollSecret records the use of a one-time enroll secret
 // by one enrollment plane, inside the enrollment transaction so the node key
 // rotation and the consumption commit or roll back together. matchedHostID is
@@ -218,6 +495,24 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 		}
 	}
 
+	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
+	// must not land on a host that another Windows MDM enrollment already claims: that is a different machine presenting this
+	// host's identifiers, and landing would rotate the real host's node key.
+	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
+		var claimed bool
+		if err := sqlx.GetContext(ctx, tx, &claimed, `
+			SELECT EXISTS (
+				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
+			)`, matchedHostID, *s.MDMWindowsEnrollmentID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
+		}
+		if claimed {
+			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
+				"one-time enroll secret landing on a host claimed by another windows mdm enrollment")
+		}
+	}
+
 	if s.UsedAt(plane) != nil || s.OutsideWindow {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
 	}
@@ -231,8 +526,11 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 	default:
 		return ctxerr.Errorf(ctx, "unknown enrollment plane %q", plane)
 	}
+	// host_id is recorded on first use, which matters only for an enrollment-bound (Windows) secret.
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE host_one_time_enroll_secrets SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)) WHERE id = ?`, id); err != nil {
+		`UPDATE host_one_time_enroll_secrets
+		 SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)), host_id = COALESCE(host_id, ?)
+		 WHERE id = ?`, matchedHostID, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "consume one-time enroll secret")
 	}
 	return nil
@@ -262,6 +560,30 @@ func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtCo
 	if managed {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
 			"shared enroll secret presented for MDM-managed Apple host")
+	}
+	return nil
+}
+
+// rejectSharedSecretForMDMManagedWindowsHost refuses a shared enroll secret for a matched Windows host that is enrolled in Fleet MDM,
+// so that another machine cannot take the host over by presenting its identifiers. Such a host gets a one-time secret through the
+// Fleetd enroll secret profile, which an admin resends when fleetd has to enroll again. An enrollment row linked to the host is the
+// signal: an unenroll alert or a re-enrollment of the device deletes it. A host that would be inserted instead is checked by
+// rejectSharedSecretForMDMLinkedWindowsUUID.
+func rejectSharedSecretForMDMManagedWindowsHost(ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string) error {
+	if platform != "windows" {
+		return nil
+	}
+	var managed bool
+	err := sqlx.GetContext(ctx, tx, &managed, `
+		SELECT EXISTS (
+			SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid WHERE h.id = ? AND h.uuid != ''
+		)`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check Windows MDM management of matched host")
+	}
+	if managed {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
+			"shared enroll secret presented for MDM-managed Windows host")
 	}
 	return nil
 }

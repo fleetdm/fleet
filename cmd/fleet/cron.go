@@ -2159,6 +2159,7 @@ func newWindowsMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMWindowsProfileManager)
@@ -2173,7 +2174,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets)
 		}),
 	)
 

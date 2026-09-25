@@ -9,12 +9,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -700,6 +704,14 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 <Atomic>%s</Atomic>`, data)
 }
 
+// stubFleetWindowsProfileEnsure stubs the read made by ensureFleetWindowsProfiles, which ReconcileWindowsProfiles runs before the
+// reconcile pass, for tests that exercise the pass rather than the ensure step.
+func stubFleetWindowsProfileEnsure(ds *mock.Store) {
+	ds.ListMDMWindowsConfigProfilesByNameFunc = func(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
+		return nil, nil
+	}
+}
+
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
 func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
@@ -711,6 +723,7 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, cursor string) error {
 		return nil
 	}
+	stubFleetWindowsProfileEnsure(ds)
 
 	// The cron's batched path loads a snapshot (hosts + profiles + current state) per window and computes install/remove deltas in
 	// memory. Return every host from hostToProfile in a single window, each paired with its profile under a unique team_id so
@@ -1067,7 +1080,7 @@ func runWindowsUserScopeTickOpts(
 		return nil
 	}
 
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
 	result.finalUpserts = *finalUpserts
 	return result, ds
 }
@@ -1351,7 +1364,7 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	}
 
 	// Run ReconcileWindowsProfiles
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if insert fails
 
 	// Verify the command was preprocessed (UUID should be substituted)
@@ -1422,7 +1435,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 	}
 
 	// Run ReconcileWindowsProfiles
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if cert processing fails
 
 	// Verify no managed certificates were added due to failure
@@ -1509,7 +1522,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 	}
 
 	// Run ReconcileWindowsProfiles
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if cert processing fails
 
 	// Verify one managed certificates were added, for the successful host, but not for the failing one
@@ -1563,7 +1576,7 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 		return map[string]struct{}{}, nil
 	}
 
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err)
 	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked, "existence pre-check must run")
 	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
@@ -1693,7 +1706,7 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 		return nil
 	}
 
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler)))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
 	result.finalUpserts = *finalUpserts
 	return result
 }
@@ -2114,7 +2127,7 @@ func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
 		return map[string]fleet.MDMWindowsProfileContents{}, nil
 	}
 
-	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err, "insert-lag must not fail the tick; the cursor must advance so the next tick can retry")
 	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
 		"existence pre-check still runs (it confirms the profile exists on primary)")
@@ -2153,6 +2166,7 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			ds := new(mock.Store)
+			stubFleetWindowsProfileEnsure(ds)
 			logger := slog.New(slog.DiscardHandler)
 			cursor := tc.initialCursor
 			var setCalls int
@@ -2180,7 +2194,7 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 				return nil, nil, nil, nil, nil
 			}
 
-			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 			require.Equal(t, tc.wantSetCalls, setCalls)
 			require.Equal(t, tc.wantFinalCursor, cursor)
 		})
@@ -2274,6 +2288,7 @@ func newDrainLoopTestDS(
 	cursor *string,
 	calls *int,
 ) {
+	stubFleetWindowsProfileEnsure(ds)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		cfg := &fleet.AppConfig{}
 		cfg.MDM.WindowsEnabledAndConfigured = true
@@ -2350,22 +2365,22 @@ func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 	}
 
 	// Tick 1: deliver the first 3 hosts (contiguous prefix); cursor advances to the last delivered host.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, "h02", cursor)
 	require.Equal(t, [][]string{{"h00", "h01", "h02"}}, deliveredBatches)
 
 	// Ticks 2-3: next 3 hosts each.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, "h05", cursor)
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, "h08", cursor)
 
 	// Tick 4: final host (short window) drains and resets the cursor.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 
 	// Tick 5: empty fleet pass, cursor stays reset, nothing re-delivered.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 
 	// Every host was delivered exactly once across the ticks.
@@ -2396,19 +2411,19 @@ func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 
 	// Tick 1: drains 3 windows (2+2+1) to reach the cap of 5, stopping mid-third-window at h4.
 	snapshotCalls = 0
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, 3, snapshotCalls, "one tick should read multiple windows to fill the cap")
 	require.Equal(t, "h4", cursor)
 	require.ElementsMatch(t, []string{"h0", "h1", "h2", "h3", "h4"}, setKeys(delivered))
 
 	// Tick 2: delivers the last host; the short final window resets the cursor.
 	snapshotCalls = 0
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 	require.ElementsMatch(t, allHosts, setKeys(delivered))
 
 	// Tick 3: full no-op pass over the now all-delivered fleet, cursor stays reset.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Empty(t, cursor)
 }
 
@@ -2432,13 +2447,13 @@ func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 	newDrainLoopTestDS(ds, allHosts, nil /*profiles*/, delivered, &cursor, &snapshotCalls)
 
 	// Tick 1: the budget is already spent, so only the first window is scanned and the cursor advances to its last host (not reset).
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, 1, snapshotCalls)
 	require.Equal(t, "h1", cursor)
 
 	// Tick 2: resumes from the persisted cursor, reads the NEXT window and advances again, confirming progress isn't lost.
 	snapshotCalls = 0
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 	require.Equal(t, 1, snapshotCalls)
 	require.Equal(t, "h3", cursor)
 }
@@ -3649,4 +3664,95 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 			}, attrs)
 		})
 	}
+}
+
+func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
+	const globalSecret = "global-enroll-secret"
+	device := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17"}
+
+	serveFleetdMetadata := func(t *testing.T, status int) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(`{"fleetd_base_msi_url":"https://example.com/fleetd.msi","fleetd_base_msi_sha256":"abc"}`))
+		}))
+		t.Cleanup(srv.Close)
+		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
+	}
+
+	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool) (*Service, *mock.Store, *[]string) {
+		ds := new(mock.Store)
+		var events []string
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"}}, nil
+		}
+		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+			return []*fleet.EnrollSecret{{Secret: globalSecret}}, nil
+		}
+		ds.MintWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) error {
+			require.Equal(t, device.ID, enrollmentID)
+			events = append(events, "mint")
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			require.Equal(t, []string{device.MDMDeviceID}, deviceIDs)
+			events = append(events, "insert:"+string(cmd.RawCommand))
+			return nil
+		}
+		cfg := config.TestConfig()
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		return svc.(validationMiddleware).Service.(*Service), ds, &events
+	}
+
+	t.Run("enabled: mints for the enrollment before the command is queued", func(t *testing.T) {
+		serveFleetdMetadata(t, http.StatusOK)
+		svc, ds, events := newService(t, true)
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+
+		require.Len(t, *events, 2)
+		require.Equal(t, "mint", (*events)[0], "the placeholder has to have a secret to resolve to by the time it can be delivered")
+		// The command stores only the placeholder, never the value, and the global secret is not even looked up.
+		require.Contains(t, (*events)[1], fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
+		require.NotContains(t, (*events)[1], globalSecret)
+		require.False(t, ds.GetEnrollSecretsFuncInvoked)
+	})
+
+	t.Run("disabled: queues the global secret without minting", func(t *testing.T) {
+		serveFleetdMetadata(t, http.StatusOK)
+		svc, _, events := newService(t, false)
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+
+		require.Len(t, *events, 1)
+		require.Contains(t, (*events)[0], globalSecret)
+	})
+
+	t.Run("an install skipped for missing metadata leaves no secret behind", func(t *testing.T) {
+		// A minted secret nobody is delivered is still a live credential for the enrollment, so it must not be created ahead of
+		// an early return.
+		serveFleetdMetadata(t, http.StatusInternalServerError)
+		svc, _, events := newService(t, true)
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+		require.Empty(t, *events)
+	})
+}
+
+func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		// An Apple-only host secret, which Windows expansion refuses.
+		return []*fleet.MDMWindowsCommand{
+			{CommandUUID: "bad", RawCommand: []byte(
+				`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` +
+					fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Replace>`)},
+			{CommandUUID: "good", RawCommand: []byte(
+				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+	require.NoError(t, err, "a failed expansion must not fail the whole management session")
+	require.Len(t, cmds, 1)
+	require.Equal(t, "good", cmds[0].CmdID.Value)
 }

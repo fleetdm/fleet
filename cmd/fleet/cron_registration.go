@@ -255,6 +255,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.instanceID,
 			deps.ds,
 			deps.logger,
+			deps.config.Auth.MDMWindowsOneTimeEnrollSecrets,
 		)
 	})
 
