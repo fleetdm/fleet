@@ -1,0 +1,1 @@
+- On the **Settings > Integrations > MDM > Apple Business (AB)** page, the fleet assignment columns are now narrower and a unified width, so more of them stay visible before being hidden on a smaller screen or browser zoom. When columns are hidden, iPadOS fleet is now hidden first instead of BYOD fleet, since it's typically less important.
