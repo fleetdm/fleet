@@ -381,6 +381,27 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Versions");
     });
 
+    it("hides the Actions dropdown on 'All fleets' for a VPP title (#54081)", () => {
+      // `teamId` is undefined when viewing "All fleets" — none of the per-fleet
+      // Actions items can act (no team scope), and leaving the dropdown open
+      // stashes `show*Modal` state that pops the modal on team change.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            software_package: null,
+          })}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+    });
+
     it("hides Versions option for observers without manage permission", async () => {
       const observerRender = createCustomRenderer({
         context: {
@@ -816,6 +837,34 @@ describe("Software Summary Card", () => {
       // Actions dropdown item of the same text is only in the DOM when opened;
       // asserting on the modal's title text is unambiguous here.
       expect(screen.getByText("Schedule auto updates")).toBeInTheDocument();
+    });
+
+    it("hides the Self-service / Auto install / Auto updates chips on 'All fleets' (#54081)", () => {
+      // Backend returns team-scoped state (self_service, policies,
+      // auto_update_enabled) from an arbitrary team on nil teamID; we hide
+      // rather than mislabel one team's config as an "All fleets" fact.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos({ self_service: true }),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      // Kind pill stays — VPP is a title-level fact.
+      expect(screen.getByText("App Store (VPP)")).toBeInTheDocument();
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto updates")).not.toBeInTheDocument();
     });
 
     it("does not render the pills row when there is no installer", () => {

@@ -265,7 +265,14 @@ const SoftwareTitleDetailsPage = ({
   const renderLibrarySection = (title: ISoftwareTitleDetails) => {
     // Library section is Premium-only
     // Fleet Free should not see it even when an installer is present.
-    if (!isPremiumTier || !isAvailableForInstall) {
+    // "All fleets" (teamIdForApi undefined) has no team scope for
+    // edit/delete/add — the section is a management surface, so hide it
+    // entirely rather than surface actions that would target no fleet.
+    if (
+      !isPremiumTier ||
+      !isAvailableForInstall ||
+      typeof teamIdForApi !== "number"
+    ) {
       return null;
     }
 

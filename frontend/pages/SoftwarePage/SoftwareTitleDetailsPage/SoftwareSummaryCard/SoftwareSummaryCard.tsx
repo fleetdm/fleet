@@ -88,6 +88,11 @@ const SoftwareSummaryCard = ({
   ] = useState(false);
   const [showPoliciesModal, setShowPoliciesModal] = useState(false);
 
+  // Team-scoped fields on the response (chips, dropdown, installer modals)
+  // come from whichever team the backend picks on nil teamID — hide them
+  // under "All fleets" rather than mislabel one team's state as an aggregate.
+  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+
   const softwareDisplayName = getDisplayedSoftwareName(
     softwareTitle.name,
     softwareTitle.display_name,
@@ -163,11 +168,17 @@ const SoftwareSummaryCard = ({
   // accordion. The title-level chips would be misleading when one package
   // is self-service and another isn't. FMA and iOS in-house .ipa keep the
   // chips since they're single-package — the flag is owned by the page.
-  const showSelfServiceChip = isSelfService && !canActivateMultiplePackages;
-  const showAutoInstallChip = hasLinkedPolicies && !canActivateMultiplePackages;
+  // Self-service / Auto install / Patch / Auto updates are per-team config.
+  // On "All fleets" the backend returns state from an arbitrary team, so hide
+  // the chips rather than mislabel it as an all-fleets fact.
+  const showSelfServiceChip =
+    hasValidTeamId && isSelfService && !canActivateMultiplePackages;
+  const showAutoInstallChip =
+    hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
   // Gates on `app_store_app` directly since `isAppleVpp` flips false when
   // a co-existing custom package hides the VPP installer.
   const showAutoUpdateChip =
+    hasValidTeamId &&
     !!softwareTitle.app_store_app &&
     isIosOrIpadosApp &&
     !!softwareTitle.auto_update_enabled &&
@@ -310,8 +321,6 @@ const SoftwareSummaryCard = ({
   /** Versions / pin is a Premium-only Fleet-maintained app feature */
   const canManageVersions =
     canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
-  /** Installer modals require a specific team; hidden from "All Teams" */
-  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
@@ -338,7 +347,7 @@ const SoftwareSummaryCard = ({
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
           iconUploadedAt={iconUploadedAt}
-          canManageSoftware={canManageSoftware}
+          canManageSoftware={canManageSoftware && hasValidTeamId}
           onClickEditAppearance={
             canEditAppearance ? onClickEditAppearance : undefined
           }
