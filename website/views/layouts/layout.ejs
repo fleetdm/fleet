@@ -21,6 +21,15 @@
   <head>
     <title>Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %></title>
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% /* [?]: https://developers.google.com/search/docs/appearance/site-names#json-ld */%>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Fleet",
+      "url": "https://fleetdm.com/"
+    }
+    </script>
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -199,8 +208,23 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
-                    <div purpose="mobile-search" id="mobile-docsearch" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
-                    </div>
+                    <form purpose="google-search" id="mobile-article-search-form">
+                      <div purpose="mobile-search" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
+                        <label for="mobile-search" purpose="mobile-search-container" class="input-group d-flex flex-nowrap mb-0">
+                          <div class="input-group-prepend">
+                            <span class="input-group-text border-0 bg-transparent" >
+                              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                            </span>
+                          </div>
+                          <div purpose="inner-search-input" class="form-control border-0">
+                            <input class="docsearch-input pr-1" id="mobile-search" placeholder="Search" aria-label="Search"/>
+                          </div>
+                          <button type="submit" form="mobile-article-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">
+                            ⏎
+                          </button>
+                        </label>
+                      </div>
+                    </form>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
                       <div><p>Solutions</p></div>
                       <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
@@ -777,7 +801,7 @@
               <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
-                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
+                  <a purpose="iso-27001-badge" class="d-flex" href="https://www.iafcertsearch.org/certification/yQhogZVJ691JeF2brdffVk3Q" target="_blank" no-icon><img src="/images/badge-iso27001-48x48@2x.png" alt="ISO 27001 certified"></a>
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
@@ -822,7 +846,7 @@
 
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
-                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
+                  <a purpose="iso-27001-badge" class="d-flex" href="https://www.iafcertsearch.org/certification/yQhogZVJ691JeF2brdffVk3Q" target="_blank" no-icon><img src="/images/badge-iso27001-48x48@2x.png" alt="ISO 27001 certified"></a>
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
@@ -892,6 +916,7 @@
     <script src="/js/cloud.setup.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/ajax-overlay.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
     <script src="/js/components/bubble.component.js"></script>
@@ -916,6 +941,7 @@
     <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/ai-in-it.page.js"></script>
+    <script src="/js/pages/arch-linux-management.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/articles/basic-comparison.page.js"></script>
@@ -976,6 +1002,7 @@
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
+    <script src="/js/pages/omarchy.page.js"></script>
     <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
@@ -1129,6 +1156,18 @@
             });
           }
         }
+      });
+    </script>
+    <script>
+      // Sends search queries to a scoped Google search.
+      document.addEventListener('submit', function(event) {
+        var form = event.target.closest('form[purpose="google-search"]');
+        if (!form) { return; }
+        event.preventDefault();
+        var input = form.querySelector('input');
+        var searchQuery = (input ? input.value : '').trim();
+        if (!searchQuery) { return; }
+        window.open('https://www.google.com/search?q=' + encodeURIComponent('site:fleetdm.com ' + searchQuery), '_blank', 'noopener');
       });
     </script>
     <% if (sails.config.environment === 'production') { %>

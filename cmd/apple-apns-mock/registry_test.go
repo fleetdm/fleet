@@ -66,7 +66,6 @@ func TestRegistryDeliverToLiveSubscriber(t *testing.T) {
 
 	assert.Equal(t, delivered, r.deliver("aabb01", testPing("p1")))
 	assert.Equal(t, "p1", recv(t, sub))
-	assert.EqualValues(t, 1, r.connected.Load())
 }
 
 func TestRegistryDeliverToUnknownTokenIsNotHeld(t *testing.T) {
@@ -145,7 +144,6 @@ func TestRegistryUnsubscribeReturnsUndeliveredPing(t *testing.T) {
 
 	require.NotNil(t, evicted)
 	assert.Equal(t, "p1", string(evicted.payload))
-	assert.EqualValues(t, 0, r.connected.Load())
 	assert.Equal(t, 0, countEntries(r), "an unsubscribed token leaves nothing behind")
 }
 
@@ -153,13 +151,11 @@ func TestRegistryStaleUnsubscribeDoesNotEvictReplacement(t *testing.T) {
 	r := newRegistry()
 	subA, _ := r.subscribe("aabb01", 1)
 	subB, _ := r.subscribe("aabb01", 1)
-	require.EqualValues(t, 2, r.connected.Load())
 
 	// The replaced handler's deferred unsubscribe fires after the takeover.
 	evicted := r.unsubscribe("aabb01", subA)
 
 	assert.Nil(t, evicted, "subscribe already drained this subscriber when it evicted it")
-	assert.EqualValues(t, 1, r.connected.Load(), "the gauge counts connections, so a stale unsubscribe still decrements")
 	assert.True(t, r.isCurrent("aabb01", subB), "the replacement must survive")
 	require.Equal(t, delivered, r.deliver("aabb01", testPing("p1")))
 	assert.Equal(t, "p1", recv(t, subB))

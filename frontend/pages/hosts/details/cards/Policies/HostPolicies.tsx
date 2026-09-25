@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-
 import { Row } from "react-table";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import IconStatusMessage from "components/IconStatusMessage";
+import InfoBanner from "components/InfoBanner";
+import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import { SUPPORT_LINK } from "utilities/constants";
-import TableContainer from "components/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import InfoBanner from "components/InfoBanner";
-import IconStatusMessage from "components/IconStatusMessage";
 
 import {
   generatePolicyTableHeaders,
@@ -86,7 +85,7 @@ const Policies = ({
     }
     if (conditionalAccessBypassed) {
       return (
-        <InfoBanner borderRadius="xlarge">
+        <InfoBanner>
           <IconStatusMessage
             iconName="clock"
             iconColor="ui-fleet-black-50"

@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 26 workflow skills (invoke with /) — see "Skills reference" below
+├── skills/                    # 30 workflow skills (invoke with /) — see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 21 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 25 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -197,10 +197,13 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/release-retro` | `/release-retro` | Formats release retro notes into a Slack recap post and `~timebox` GitHub issues. Requires `gh` **and** the Slack MCP server (not part of the out-of-box setup). |
 | `/vuln-triage` | `/vuln-triage CVE-2024-1234` | Triages vulnerability false positives/negatives across NVD, OSV, OVAL, MSRC, and Office data sources. Uses the `nvdvuln` tool and WebFetch. |
 | `/new-fma` | `/new-fma` | Adds a Fleet-maintained app for macOS (Homebrew) and/or Windows (winget); verifies installer metadata with real tools and debugs FMA validator failures. Uses WebFetch. |
+| `/ai-profile-test` | `/ai-profile-test "Disable the camera"` | Proposes a new prompt test case for the AI configuration profile generator (`website/profile-generator/configuration-profile-generator-cases.js`): checks for duplicate coverage, verifies payload keys and CSP nodes against Apple/Microsoft docs, writes assertions in the file's substring style, and opens a PR. Requires `gh`; uses WebFetch. |
 | `/command-palette` | `/command-palette` | Authoring guide for the Fleet command palette — adding/editing items in `frontend/components/CommandPalette/groups/`, router paths, and new pages/actions that need a palette entry. |
 | `/tier-modes` | `/tier-modes` | Authoring guide for Fleet Free (`!isPremiumTier`) and Primo (`isPrimoMode`) gating in the frontend — for new pages/surfaces or when introducing new tier gating. |
 | `/content-style` | `/content-style` | Writes, edits, and reviews public-facing Fleet content (website, handbook, docs, articles, release notes, UI copy) to follow Fleet's voice and style guidelines. |
 | `/fleet-article-formatting` | `/fleet-article-formatting` | Applies Fleet's house article format and article-specific voice to articles (`category` `articles` or `comparison`) — title → dek → key takeaways → CTA button → body → closing. Pairs with `/content-style` for word-level voice. |
+| `/fleet-guide-formatting` | `/fleet-guide-formatting` | Applies Fleet's how-to guide structure to guides (`category` `guides`) — problem statement, prerequisites, inline gotcha callouts, task-based or numbered steps, optional verify/troubleshoot sections. Pairs with `/content-style` for word-level voice. |
+| `/fleet-case-study-formatting` | `/fleet-case-study-formatting` | Applies Fleet's customer case study structure to case studies (`category` `case study`) — challenge → choosing Fleet → results, the `attribution-quote`/`checklist` custom syntax, and the build-enforced summary/quote/company meta tags. Pairs with `/content-style` for word-level voice. |
 | `/aikido-tickets` | `/aikido-tickets` | Creates GitHub issues in `fleetdm/confidential` from Aikido pen test PDF reports. Reads findings, synthesizes attack path and fix recommendations, preserves full Aikido evidence in a collapsible section. Supports batch creation via parallel agents. Requires `gh` with `project` scope for board placement. |
 | `/openspec-*` | `/openspec-propose` | OpenSpec spec-driven workflow for larger changes (explore → propose → apply → archive). Four skills: `openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`. Vendored by the `openspec` CLI — see `openspec/README.md`. |
 

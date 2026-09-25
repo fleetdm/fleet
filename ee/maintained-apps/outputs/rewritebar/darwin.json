@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.32.0",
+      "version": "2.34.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.m91michel.rewritebar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.m91michel.rewritebar' AND version_compare(bundle_short_version, '2.32.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.m91michel.rewritebar' AND version_compare(bundle_short_version, '2.34.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.m91michel.rewritebar' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://rewritebar.com/download/v2.32.0.zip",
+      "installer_url": "https://rewritebar.com/download/v2.34.0.zip",
       "install_script_ref": "9638de12",
       "uninstall_script_ref": "44da42f4",
-      "sha256": "9256229c00fc77e7238fd97157126e7f3b29114b32f631b02c7a4eb1c4627f0f",
+      "sha256": "b88ad72120a9c403fcff13c717c2dc2a48dee1fb331845c9fb04fde93da51f8a",
       "default_categories": [
         "Productivity"
       ]

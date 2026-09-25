@@ -7,19 +7,6 @@ import type { StorybookConfig } from "@storybook/react-webpack5";
 
 const config: StorybookConfig = {
   webpackFinal: async (config) => {
-    if (!config.resolve) {
-      config.resolve = {};
-    }
-    if (!config.resolve.alias) {
-      config.resolve.alias = {};
-    }
-    (config.resolve.alias as Record<string, string>)[
-      "node-sql-parser"
-    ] = path.resolve(
-      __dirname,
-      "../node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
-    );
-
     config.module?.rules?.push({
       test: /\.scss$/,
       use: [
@@ -47,6 +34,30 @@ const config: StorybookConfig = {
         },
       ],
     });
+    // Mirror webpack.config.js: extract .css alongside .scss so cascade
+    // order matches import order. Without this, Storybook's default
+    // style-loader injects .css (e.g. react-select/dist/react-select.css)
+    // at runtime AFTER the extracted Fleet bundle, and any equal-specificity
+    // rule from a vendor .css beats Fleet's override (e.g. dark-mode Dropdown
+    // label color). Replace Storybook's default .css rule (rather than
+    // pushing) so CSS isn't processed by both style-loader AND MiniCss.
+    if (config.module?.rules) {
+      config.module.rules = config.module.rules.filter((rule) => {
+        if (rule && typeof rule === "object" && "test" in rule) {
+          const t = rule.test;
+          return !(t instanceof RegExp && t.test("x.css"));
+        }
+        return true;
+      });
+      config.module.rules.push({
+        test: /\.css$/,
+        use: [
+          { loader: MiniCssExtractPlugin.loader, options: {} },
+          "css-loader",
+          "postcss-loader",
+        ],
+      });
+    }
     config.plugins?.push(
       new MiniCssExtractPlugin({
         filename: "[name].css",
@@ -56,11 +67,8 @@ const config: StorybookConfig = {
     return config;
   },
   stories: [
-    "../frontend/components/**/*.stories.mdx",
     "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)",
-    "../frontend/pages/SoftwarePage/components/**/*.stories.@(js|jsx|ts|tsx)",
-    "../frontend/pages/SoftwarePage/SoftwareTitleDetailsPage/**/*.stories.@(js|jsx|ts|tsx)",
-    "../frontend/pages/admin/IntegrationsPage/**/*.stories.@(js|jsx|ts|tsx)",
+    "../frontend/pages/**/*.stories.@(js|jsx|ts|tsx)",
   ],
   addons: [
     "@storybook/addon-links",

@@ -28,6 +28,7 @@ func TestVPP(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"VPPInstallPushesViaDirectActivation", testVPPInstallPushesViaDirectActivation},
 		{"SetTeamVPPApps", testSetTeamVPPApps},
 		{"SetTeamVPPAppsWithLabels", testSetTeamVPPAppsWithLabels},
 		{"VPPAppMetadata", testVPPAppMetadata},
@@ -61,6 +62,7 @@ func TestVPP(t *testing.T) {
 		{"VPPInstallLookupsOnStuckQueue", testVPPInstallLookupsOnStuckQueue},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
 		{"RetryVPPInstallForHost", testRetryVPPAppInstallForHost},
+		{"RetryVPPInstallMovesSetupExperienceStep", testRetryVPPInstallMovesSetupExperienceStep},
 		{"VPPClientUsers", testVPPClientUsers},
 		{"BackfillVPPAppCountriesLowestIDWins", testBackfillVPPAppCountriesLowestIDWins},
 		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
@@ -3509,6 +3511,51 @@ func testVPPInstallPushesAfterCommit(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, queueRows, "push fired before the nano_enrollment_queue row was committed")
 }
 
+func testVPPInstallPushesViaDirectActivation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "direct-activation-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "direct_activation"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	appID := fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}
+
+	var pushedIDs []string
+	ds.WithPusher(pusherFunc(func(ctx context.Context, ids []string) (map[string]*push.Response, error) {
+		pushedIDs = append(pushedIDs, ids...)
+		return okPusherFunc(ctx, ids)
+	}))
+	t.Cleanup(func() { ds.WithPusher(nil) })
+
+	const cmd1, cmd2 = "direct-activation-cmd-1", "direct-activation-cmd-2"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, appID, cmd1, "evt-1", fleet.HostSoftwareInstallOptions{}))
+	// cmd2 stays queued behind cmd1, which is still activated.
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, appID, cmd2, "evt-2", fleet.HostSoftwareInstallOptions{}))
+
+	// cmd1's insert already pushed once; isolate the push triggered by activating cmd2.
+	pushedIDs = nil
+
+	// Mirrors production: the activity ACL adapter calls this directly against
+	// ds.writer(ctx) once cmd1 completes, with no surrounding transaction.
+	require.NoError(t, ds.ActivateNextUpcomingActivityForHost(ctx, host.ID, cmd1))
+
+	require.Equal(t, []string{host.UUID}, pushedIDs, "no APNs push when activation runs outside a transaction")
+
+	var cmd2Rows int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd2Rows, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", cmd2)
+	})
+	require.Equal(t, 1, cmd2Rows)
+}
+
 // testVPPInstallQueueRowNotBackdated ensures we don't backdate VPP installs into the nano commands table.
 func testVPPInstallQueueRowNotBackdated(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -4216,4 +4263,95 @@ func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore
 	inScope, err = ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, appTeamID)
 	require.NoError(t, err)
 	require.Empty(t, inScope)
+}
+
+func testRetryVPPInstallMovesSetupExperienceStep(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host-setup-experience",
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	adamID := "adam_vpp_setup_experience"
+	vpp := &fleet.VPPApp{
+		Name:             "setup experience app",
+		AdamID:           adamID,
+		Platform:         fleet.MacOSPlatform,
+		BundleIdentifier: adamID,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	cmdUUID := "cmd-uuid-setup-experience"
+	err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "event-1",
+		fleet.HostSoftwareInstallOptions{ForSetupExperience: true})
+	require.NoError(t, err)
+
+	var vppAppsTeamsID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &vppAppsTeamsID, `SELECT id FROM vpp_apps_teams WHERE adam_id = ?`, adamID)
+	})
+
+	// Point the step at the install's command uuid, the way SetupExperienceNextStep records it
+	// when it enqueues the install
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO setup_experience_status_results (host_uuid, name, status, vpp_app_team_id, nano_command_uuid) VALUES (?, ?, ?, ?, ?)`,
+			host.UUID, vpp.Name, fleet.SetupExperienceStatusRunning, vppAppsTeamsID, cmdUUID)
+		return err
+	})
+
+	install, err := ds.GetHostVPPInstallByCommandUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+
+	err = ds.RetryVPPInstall(ctx, install)
+	require.NoError(t, err)
+
+	// Check the step followed the install to its new command uuid, without which no later command
+	// result can match the step again
+	var newCmdUUID, stepCmdUUID string
+	var stepStatus fleet.SetupExperienceStatusResultStatus
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &newCmdUUID,
+			`SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ?`, host.ID)
+		if err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &stepCmdUUID,
+			`SELECT nano_command_uuid FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID)
+	})
+	require.NotEqual(t, cmdUUID, newCmdUUID)
+	require.Equal(t, newCmdUUID, stepCmdUUID)
+
+	// Check the retry left the step running, it only resolves once the attempts are used up
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stepStatus,
+			`SELECT status FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID)
+	})
+	require.Equal(t, fleet.SetupExperienceStatusRunning, stepStatus)
+
+	// Check the result of the retried command can still resolve the step, which is how it gets
+	// marked failed once the attempts are used up
+	updated, err := ds.MaybeUpdateSetupExperienceVPPStatus(ctx, host.UUID, newCmdUUID, fleet.SetupExperienceStatusFailure)
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	// Check a retry arriving after the step is already resolved leaves it pointing at the command
+	// that resolved it, rather than re-pointing a finished result at an unrelated command
+	install, err = ds.GetHostVPPInstallByCommandUUID(ctx, newCmdUUID)
+	require.NoError(t, err)
+	require.NoError(t, ds.RetryVPPInstall(ctx, install))
+
+	var resolvedStepCmdUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &resolvedStepCmdUUID,
+			`SELECT nano_command_uuid FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID)
+	})
+	require.Equal(t, newCmdUUID, resolvedStepCmdUUID)
 }

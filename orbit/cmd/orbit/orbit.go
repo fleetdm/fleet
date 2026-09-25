@@ -1283,8 +1283,11 @@ func orbitAction(c *cli.Context) error {
 	if serverIsReachable {
 		expired, _ := trw.HasExpired()
 		if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+			// Not fatal: a stale orbit node key (e.g. host deleted while offline) returns 401 here,
+			// and exiting would restart orbit before the re-enroll grace period elapses. The
+			// periodic rotation below retries once orbit re-enrolls.
 			if err := trw.Rotate(); err != nil {
-				return fmt.Errorf("rotating token: %w", err)
+				log.Error().Err(err).Msg("rotating token on startup")
 			}
 		}
 	}
@@ -1319,6 +1322,9 @@ func orbitAction(c *cli.Context) error {
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+		if c.Bool("fleet-desktop") {
+			registerFleetDesktopAppID(c.String("root-dir"))
+		}
 		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
@@ -1361,10 +1367,12 @@ func orbitAction(c *cli.Context) error {
 		}, updateRunner, orbitClient.TriggerOrbitRestart)
 
 		// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
-		_, err := updateRunner.UpdateAction()
-		if err != nil {
-			// OK, initial call may fail, ok to continue
-			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
+		if updateRunner != nil {
+			_, err := updateRunner.UpdateAction()
+			if err != nil {
+				// OK, initial call may fail, ok to continue
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
+			}
 		}
 
 		extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")

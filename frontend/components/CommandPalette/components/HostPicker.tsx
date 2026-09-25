@@ -1,12 +1,12 @@
-import React, { useEffect } from "react";
 import { Command } from "cmdk";
+import React, { useEffect } from "react";
 
 import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 
-import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 import HighlightedLabel from "./HighlightedLabel";
 import UprightEmoji from "./UprightEmoji";
+import usePickerSearch from "./usePickerSearch";
 
 const baseClass = "command-palette";
 

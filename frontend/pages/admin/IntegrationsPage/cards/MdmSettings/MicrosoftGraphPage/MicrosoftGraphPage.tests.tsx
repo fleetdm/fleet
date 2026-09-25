@@ -1,12 +1,11 @@
-import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer, getOpenModal } from "test/test-utils";
 import { createMockConfig } from "__mocks__/configMock";
+import { notify } from "components/ToastNotification";
 import { IMicrosoftGraphCredential } from "interfaces/microsoft_graph_credential";
 import microsoftGraphCredentialsAPI from "services/entities/microsoft_graph_credentials";
-
-import { notify } from "components/ToastNotification";
+import { createCustomRenderer, getOpenModal } from "test/test-utils";
 
 import MicrosoftGraphPage from "./MicrosoftGraphPage";
 
@@ -330,6 +329,41 @@ describe("MicrosoftGraphPage", () => {
     expect(notify.batch).toHaveBeenCalledWith([
       { variant: "error", message: "Microsoft Graph rejected the credential." },
     ]);
+  });
+
+  // A whole-credential failure (verification, licensing, missing private key) is reported without a per-field `name`, so
+  // it can't attach to a field. The toast then shows a static main line and puts the full server response in the
+  // expandable panel, so a long reason (e.g. AADSTS) doesn't render on both lines.
+  it("toasts the whole-credential failure with a static main line and the full response in the panel", async () => {
+    const rejection = {
+      data: {
+        errors: [
+          {
+            name: "microsoft_graph_credentials",
+            reason:
+              "Microsoft Graph returned an error (400): AADSTS90002: Tenant not found.",
+          },
+        ],
+      },
+    };
+    mockedAPI.applyCredentials.mockRejectedValue(rejection);
+    const { user } = renderPage([createMockCredential()]);
+
+    const secretField = await screen.findByLabelText("Client secret");
+    await user.clear(secretField);
+    await user.type(secretField, "some-secret");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledWith(
+        "Couldn't save Microsoft Graph credential.",
+        {
+          response: rejection,
+        }
+      );
+    });
+    // A whole-credential failure has no field, so the per-field batch toast path stays quiet.
+    expect(notify.batch).not.toHaveBeenCalled();
   });
 
   it("clears the secret error when the identity change that required it is reverted", async () => {

@@ -112,8 +112,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		return profileContents, nil
 	}
 
-	// Process each Fleet variable
-	result := profileContents
+	// Quote the SCEP SubjectName values about to be substituted, while the attribute boundaries are
+	// still the admin's own. The pass after substitution doubles any quote that arrived inside them.
+	result := transformSCEPSubjectNameData(profileContents, quoteAttributeValue)
 	for _, fleetVar := range fleetVars {
 		switch {
 		case fleetVar == string(fleet.FleetVarHostUUID):
@@ -241,6 +242,9 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		}
 		result = expanded
 	}
+
+	// Last, so every value that landed inside the quotes added above has been substituted by now.
+	result = transformSCEPSubjectNameData(result, doubleAttributeQuotes)
 
 	return result, nil
 }

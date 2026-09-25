@@ -397,13 +397,17 @@ type Service interface {
 	// included in the results. The inherited count is only meaningful when mergeInherited is true.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
+	// GetQueryReportResults returns the stored results of a query for hosts the requestor has access
+	// to, along with the total count of matching rows. Pagination metadata is returned only when
+	// opts.PerPage is set.
 	// Returns a boolean indicating whether the report is clipped.
-	GetQueryReportResults(ctx context.Context, id uint, teamID *uint) ([]HostQueryResultRow, bool, error)
+	GetQueryReportResults(ctx context.Context, id uint, teamID *uint, opts ListOptions) (results []HostQueryResultRow, count int, meta *PaginationMetadata, reportClipped bool, err error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
-	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
-	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
+	// QueryReportIsClipped returns true if a host's results for the report were recently rejected
+	// because storing them would have exceeded the effective report cap (see
+	// ServerSettings.GetEffectiveQueryReportCap). Merely reaching the cap does not clip a report.
+	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
 	// ListHostReports returns the reports/queries associated with the given host, filtered,
 	// sorted, and paginated according to opts.
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
@@ -455,10 +459,6 @@ type Service interface {
 	// AuthenticateDevice loads host identified by the device's auth token.
 	// Returns an error if the auth token doesn't exist.
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
-	// AuthenticateDeviceByCertificate loads host identified by certificate serial and UUID.
-	// This is used for iOS/iPadOS devices accessing My Device page via client certificates.
-	// Returns an error if the certificate doesn't match the host or if the host is not iOS/iPadOS.
-	AuthenticateDeviceByCertificate(ctx context.Context, certSerial uint64, hostUUID string) (host *Host, debug bool, err error)
 	// AuthenticateIDeviceByURL loads host identified by the URL UUID.
 	// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
 	// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
@@ -486,8 +486,9 @@ type Service interface {
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
-	// CleanupExpiredHosts cleans up hosts that have exceeded the expiry window and creates activities for each deletion.
-	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
+	// CleanupExpiredHostsBatch deletes up to batchSize hosts that have exceeded the expiry window and
+	// creates an activity for each deletion. Callers loop until it returns no hosts.
+	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
@@ -533,8 +534,10 @@ type Service interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
-	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
-	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
+	HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*HostDiskEncryptionKey, error)
+	// EscrowLUKSData stores a LUKS key or a client error. A non-empty status instead records orbit's
+	// progress: prompting and escrowing keep the request in flight, canceled and timed_out end it.
+	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
 
 	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
 	// creating the managed local admin account. When clientError is set no password is stored; the account is marked failed
@@ -623,6 +626,10 @@ type Service interface {
 
 	// PartnershipsConfig returns Fleet partnership-specific configuration
 	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
+
+	// AuthSettings returns the read-only authentication settings sourced from
+	// the server configuration, or nil when none is enabled.
+	AuthSettings(ctx context.Context) (*AuthSettings, error)
 
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
@@ -732,6 +739,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
+	// SetNotificationsService sets the notifications bounded context service for write operations.
+	SetNotificationsService(notificationsSvc NotificationsWriteService)
+
 	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)
@@ -824,7 +834,8 @@ type Service interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
-	ResetPolicy(ctx context.Context, policyID uint) error
+	// ResetPolicy clears a policy's pass/fail results for all hosts, or for a single host when hostID is set.
+	ResetPolicy(ctx context.Context, policyID uint, hostID *uint) error
 	ListPolicyAutomationActivities(ctx context.Context, policyID uint, opts ListOptions, status string) ([]*PolicyAutomationActivity, *PaginationMetadata, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error)
@@ -1046,6 +1057,11 @@ type Service interface {
 	// to any team).
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
+	// request: the token must match the automatic enrollment profile and the
+	// device's serial must currently be DEP-assigned to Fleet.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
+
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
@@ -1066,9 +1082,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
 	// the specified options.
@@ -1118,6 +1131,11 @@ type Service interface {
 
 	// UpdateABMTokenTeams updates the default macOS, iOS, iPadOS, and BYOD team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*ABMToken, error)
+
+	// SetABMTokenDefault marks the given ABM token as the default one used to
+	// sign GetToken responses for devices not enrolled through ABM, or unsets
+	// it so no token is the default. isDefault is required; nil is rejected.
+	SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*ABMToken, error)
 
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
@@ -1234,7 +1252,17 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error)
 
+	// TriggerLinuxDiskEncryptionEscrow queues a LUKS escrow request. It queues nothing and returns a
+	// LinuxEscrowInFlightError while fleetd is handling an earlier one.
 	TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *Host) error
+
+	// SubmitBitLockerPIN accepts a BitLocker startup PIN the end user typed on their My device page and queues it, encrypted, for the
+	// host's agent to apply. Device-authenticated.
+	SubmitBitLockerPIN(ctx context.Context, host *Host, pin string) error
+
+	// BitLockerPINStateForDevice reports whether this host's fleetd can apply an end-user-chosen BitLocker PIN, and where any
+	// submission stands, so the My device page knows which modal to show and what to poll for.
+	BitLockerPINStateForDevice(ctx context.Context, host *Host) (fleetdCanSetPIN bool, request *HostBitLockerPINRequest, err error)
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
@@ -1242,7 +1270,7 @@ type Service interface {
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
 	// personal indicates whether the end user selected "Personal (BYOD)" on the /enroll page; it is
 	// baked into the POST-back URL so the OTA enrollment handler can set the correct access rights.
-	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string, personal bool) ([]byte, error)
+	GetOTAProfile(ctx context.Context, enrollSecret, idpSessionID string, personal bool) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
@@ -1298,6 +1326,13 @@ type Service interface {
 	// SetOrUpdateDiskEncryptionProtection records the outcome of the agent's attempt to restore disk encryption
 	// protection on a host that was encrypted but unprotected.
 	SetOrUpdateDiskEncryptionProtection(ctx context.Context, outcome DiskEncryptionProtectionOutcome, clientError string) error
+
+	// GetBitLockerPINForHost hands the agent the startup PIN the end user submitted. It can only succeed once per
+	// submission: the PIN is cleared as it is read.
+	GetBitLockerPINForHost(ctx context.Context) (pin string, requestUUID string, err error)
+
+	// SetBitLockerPINOutcome records whether the agent managed to apply the PIN it collected.
+	SetBitLockerPINOutcome(ctx context.Context, requestUUID string, outcome BitLockerPINRequestStatus, clientError string) error
 
 	// GetMDMWindowsConfigProfile retrieves the specified configuration profile.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
@@ -1709,8 +1744,8 @@ type Service interface {
 	//////////////////////////////////////////////////////////////////////////////
 	// Microsoft Graph
 
-	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status. Client secrets are masked.
-	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredential, error)
+	// ListMicrosoftGraphCredentials returns the stored Microsoft Graph credentials with their per-tenant sync status.
+	ListMicrosoftGraphCredentials(ctx context.Context) ([]*MicrosoftGraphCredentialMetadata, error)
 	// ApplyMicrosoftGraphCredentials declaratively reconciles the stored Microsoft Graph credentials to the supplied
 	// list, verifying any new or changed credential against Graph before storing it. A tenant absent from the list is deleted.
 	ApplyMicrosoftGraphCredentials(ctx context.Context, creds []MicrosoftGraphCredential, dryRun bool) error
@@ -1937,6 +1972,11 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after fleetd's
+	// last sign of life (hand-off or progress report). It only matters for agents that report nothing.
+	LinuxEscrowInFlightWindow = 5 * time.Minute
+	// LinuxEscrowInFlightMessage is the LinuxEscrowInFlightError message.
+	LinuxEscrowInFlightMessage = "A disk encryption key is already being created for this host."
 	// MFALinkTTL is how long MFA verification links stay active
 	MFALinkTTL = time.Minute * 15
 )

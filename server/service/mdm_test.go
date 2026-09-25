@@ -2034,6 +2034,15 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		require.Equal(t, declUUID, puid)
 		return nil, errors.New("simulated declaration lookup error")
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
 
 	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")
@@ -4581,6 +4590,17 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
+	t.Run("fails if Android MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AndroidEnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "gsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.ErrorContains(t, err, "Android MDM isn't turned on.")
+	})
+
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
 		testCases := []struct {
 			name             string
@@ -5036,6 +5056,12 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, MDMEnrollUserID: ""}, nil
 		}
+		// No incumbent holds the host, which is the ordinary case.
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+			assert.Equal(t, testHostUUID, hostUUID)
+			assert.Equal(t, testHardwareID, mdmHardwareID)
+			return false, "", nil
+		}
 	}
 
 	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
@@ -5084,6 +5110,40 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
 		assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+	})
+
+	t.Run("serial claims a host already held by other hardware: refused", func(t *testing.T) {
+		svc, ds, _, ctx := newSvc(t)
+		// A second device reporting the victim's serial. Nothing corroborates the claim, so it must not take the host.
+		claimantHardwareID := "claimant-hardware-id"
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: claimantHardwareID, HostUUID: ""}
+		stubLink(t, ds, true)
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+			assert.Equal(t, testHostUUID, hostUUID)
+			assert.Equal(t, claimantHardwareID, mdmHardwareID)
+			return true, testHardwareID, nil
+		}
+
+		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err, "the session must continue; only the link is refused")
+		assert.True(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "the host must not be relinked to the claimant")
+		assert.Empty(t, enrolledDevice.HostUUID, "in-memory HostUUID must not be set from a refused claim")
+		assert.False(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked,
+			"the refused serial must not be persisted, or the orbit reverse-link path inherits the same bad claim")
+	})
+
+	t.Run("conflict lookup fails: link is refused rather than allowed", func(t *testing.T) {
+		svc, ds, _, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: testHardwareID, HostUUID: ""}
+		stubLink(t, ds, true)
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(_ context.Context, _, _ string) (bool, string, error) {
+			return false, "", errors.New("db is down")
+		}
+
+		_, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "an unreadable guard must fail closed")
 	})
 
 	t.Run("serial with no matching host (NotFound): Get is reinjected for retry", func(t *testing.T) {
@@ -5388,6 +5448,204 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Android MDM isn't turned on")
+	})
+
+	// Wipe is COBO-only. The dedicated wipe endpoint refuses personally-owned hosts, so the
+	// custom command path must refuse them too, with the same error.
+	setupWipeDS := func(t *testing.T, enrollmentStatus string) *mock.Store {
+		ds := setupDS(t)
+		// ListHostsLiteByUUIDs does not populate host.MDM, so the host the wipe validation
+		// sees must come from a separate load.
+		hostWithMDM := *androidHost
+		hostWithMDM.MDM = fleet.MDMHostData{EnrollmentStatus: new(enrollmentStatus)}
+		ds.HostFunc = func(_ context.Context, id uint) (*fleet.Host, error) {
+			require.Equal(t, androidHost.ID, id)
+			return &hostWithMDM, nil
+		}
+		return ds
+	}
+
+	t.Run("rejects WIPE on personally-owned host", func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			payload string
+		}{
+			{"explicit type", `{"type":"WIPE","wipeParams":{}}`},
+			{"lowercase type", `{"type":"wipe","wipeParams":{}}`},
+			{"padded type", `{"type":" Wipe ","wipeParams":{}}`},
+			// AMAPI sets the type to WIPE itself when only wipeParams is given, so a payload
+			// with no type at all still wipes the device. This is the shape the AMAPI docs
+			// recommend, and wipeReason exists specifically for the BYOD work-profile case.
+			{"inferred from wipeParams", `{"wipeParams":{}}`},
+			{"inferred with wipeReason", `{"wipeParams":{"wipeReason":{"defaultMessage":"bye"}}}`},
+			// A mismatched type must not launder a wipe past the check.
+			{"wipeParams under another type", `{"type":"LOCK","wipeParams":{}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
+				androidMock := &mockAndroidService{
+					IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+						t.Error("wipe must not reach AMAPI for a personally-owned host")
+						return nil, errors.New("unexpected call")
+					},
+				}
+				opts := &TestServerOpts{
+					SkipCreateTestUsers: true,
+					AndroidModule:       androidMock,
+					// premium so the LOCK case clears premium gating and reaches the wipe check
+					License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+				}
+				svc, ctx := newTestService(t, ds, nil, nil, opts)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+					t.Error("no activity must be recorded for a refused wipe")
+					return nil
+				}
+
+				encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
+				_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+				require.Error(t, err)
+				// same message the dedicated POST /hosts/{id}/wipe endpoint returns
+				require.ErrorContains(t, err, "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.")
+				var badRequestErr *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequestErr)
+			})
+		}
+	})
+
+	t.Run("allows WIPE on company-owned host", func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			payload string
+		}{
+			{"explicit type", `{"type":"WIPE","wipeParams":{}}`},
+			{"inferred from wipeParams", `{"wipeParams":{}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := setupWipeDS(t, fleet.MDMEnrollmentStatusAutomatic)
+				androidMock := &mockAndroidService{
+					IssueCustomCommandFunc: func(_ context.Context, hostID uint, _ []byte) (*android.MDMAndroidCommand, error) {
+						require.Equal(t, androidHost.ID, hostID)
+						return &android.MDMAndroidCommand{
+							CommandUUID: "cmd-uuid-wipe",
+							CommandType: "WIPE",
+						}, nil
+					},
+				}
+				// no License: Android wipe is available on Fleet Free, matching the
+				// dedicated endpoint, so it must not be premium gated here either
+				opts := &TestServerOpts{
+					SkipCreateTestUsers: true,
+					AndroidModule:       androidMock,
+				}
+				svc, ctx := newTestService(t, ds, nil, nil, opts)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+
+				var capturedActivity activity_api.ActivityDetails
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+					capturedActivity = act
+					return nil
+				}
+
+				encoded := base64.StdEncoding.EncodeToString([]byte(tc.payload))
+				result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+				require.NoError(t, err)
+				assert.Equal(t, "WIPE", result.RequestType)
+				require.NotNil(t, capturedActivity)
+			})
+		}
+	})
+
+	t.Run("non-WIPE command skips the wipe validation", func(t *testing.T) {
+		ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-reboot",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"REBOOT"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.False(t, ds.HostFuncInvoked, "only WIPE should pay for the extra host load")
+	})
+
+	t.Run("lowercase command type is normalized to uppercase", func(t *testing.T) {
+		ds := setupDS(t)
+		var capturedJSON []byte
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+				capturedJSON = rawJSON
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-lower",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"reboot"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "REBOOT", result.RequestType)
+		assert.Contains(t, string(capturedJSON), `"type":"reboot"`, "original JSON should be passed to IssueCustomCommand")
+	})
+
+	t.Run("lowercase lock is premium gated", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"lock"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("AMAPI error surfaces as bad request not 500", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return nil, &fleet.BadRequestError{Message: "Android Management API rejected the command: Internal Server Error"}
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"NOT_A_REAL_COMMAND"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		assert.Contains(t, badReq.Message, "rejected the command")
 	})
 }
 

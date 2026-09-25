@@ -5,21 +5,38 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
 
-// reconcileAppleProfilesBatchSize bounds how many distinct hosts the
-// batched Apple MDM reconciliation cron processes per tick. The cron uses
-// a host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
-// page through the host universe in batches, smoothing the writer pressure
-// that the legacy unbounded reconciliation generates during bulk events
-// (team transfers, profile changes).
+// reconcileAppleProfilesBatchSize is the scan window: how many enrolled Apple hosts the reconciler reads per snapshot.
+// Snapshot reads are cheap (indexed, no set-difference), so within a single tick the drain loop pages through many windows
+// until a budget is hit.
 //
-// var (not const) so tests can override it.
-var reconcileAppleProfilesBatchSize = 5000
+// var rather than const so tests can override it.
+var reconcileAppleProfilesBatchSize = 2000
+
+// reconcileAppleProfilesDeliveryCap bounds how many distinct hosts the cron schedules for install/remove per tick. It governs
+// the bulk case: once this many hosts have been delivered work, the tick stops even if scan budget remains, advancing the
+// cursor only to the last delivered host so the remainder resumes next tick. This is what smooths writer pressure — a bulk
+// change is spread across ~ceil(hosts/cap) ticks. Set <= 0 to disable the cap (drain the whole fleet, bounded only by the
+// scan budget).
+//
+// var rather than const so tests can override it.
+var reconcileAppleProfilesDeliveryCap = 2000
+
+// reconcileAppleProfilesScanBudget is the wall-clock budget for a single tick's drain loop. It governs the sparse/idle case: a
+// no-work pass over the whole fleet completes within one tick, collapsing single-change latency from ceil(hosts/batch) x
+// interval to roughly the actual work time.
+//
+// Shorter than the Windows equivalent's 24s because the Apple schedule runs three jobs sequentially per 30s tick (profiles,
+// declarations, device names) — see newAppleMDMProfileManagerSchedule. Taking 24s here would starve the other two.
+//
+// var rather than const so tests can override it.
+var reconcileAppleProfilesScanBudget = 12 * time.Second
 
 // ReconcileAppleProfilesBatched is the batched Apple MDM profile
 // reconciler cron entry point. It pulls one bounded host window per
@@ -33,6 +50,7 @@ func ReconcileAppleProfilesBatched(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
+	useOneTimeEnrollSecrets bool,
 ) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -52,91 +70,170 @@ func ReconcileAppleProfilesBatched(
 	if block == nil || block.Type != "CERTIFICATE" {
 		return ctxerr.New(ctx, "failed to decode PEM block from SCEP certificate")
 	}
-	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
+	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes, useOneTimeEnrollSecrets); err != nil {
 		logger.ErrorContext(ctx, "unable to ensure fleetd configuration profiles are in place", "details", err)
 	}
 
-	cursor, err := ds.GetMDMAppleReconcileCursor(ctx)
-	if err != nil {
-		logger.WarnContext(ctx, "failed to read apple MDM reconcile cursor; starting from beginning", "err", err)
-		cursor = ""
+	// Read the cursor; on error, treat as start-of-pass and continue. A stale or missing cursor is harmless because the
+	// in-memory diff installs only what actually differs from the current state.
+	entryCursor, cerr := ds.GetMDMAppleReconcileCursor(ctx)
+	if cerr != nil {
+		logger.WarnContext(ctx, "failed to read apple MDM reconcile cursor; starting from beginning", "err", cerr)
+		entryCursor = ""
 	}
 
-	hosts, allProfiles, hostLabels, currentByHost, pageFull, err := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading apple profile reconcile snapshot")
-	}
-	logger.DebugContext(ctx, "batched reconcile: loaded snapshot",
-		"cursor", cursor, "hosts_in_batch", len(hosts), "profile_count", len(allProfiles))
-
-	if len(hosts) == 0 {
-		if cursor != "" {
-			logger.DebugContext(ctx, "apple MDM reconcile pass complete; resetting cursor", "cursor", cursor)
-			if cerr := ds.SetMDMAppleReconcileCursor(ctx, ""); cerr != nil {
-				logger.WarnContext(ctx, "failed to reset apple MDM reconcile cursor", "err", cerr)
-			}
-		}
-		return nil
-	}
-
-	// Advance the cursor whenever the underlying host page was full. Deciding
-	// from len(hosts) is wrong: duplicate-UUID host rows are collapsed after
-	// the SQL LIMIT, so a full page can dedupe to fewer than batchSize hosts —
-	// treating that as the end of the host universe wraps the cursor early and
-	// permanently starves every host later in the UUID ordering.
-	var nextCursor string
-	if pageFull {
-		nextCursor = hosts[len(hosts)-1].UUID
-	}
+	cursor := entryCursor
+	// commitCursor is the cursor value to persist at tick end. It advances only past windows that were fully delivered; the
+	// deferred write fires only when err == nil, so an error leaves the cursor untouched and the next tick re-scans from the
+	// same point. Re-scanning is cheap and idempotent since delivered work is now pending, so it no longer computes as work.
+	commitCursor := entryCursor
 
 	defer func() {
 		switch {
 		case err != nil:
 			logger.WarnContext(ctx, "batched reconcile: tick errored; cursor not advanced",
-				"cursor", cursor, "next_cursor", nextCursor, "err", err)
-		case cursor != nextCursor:
-			if cerr := ds.SetMDMAppleReconcileCursor(ctx, nextCursor); cerr != nil {
-				logger.WarnContext(ctx, "failed to advance apple MDM reconcile cursor", "err", cerr)
+				"cursor", entryCursor, "err", err)
+		case commitCursor != entryCursor:
+			if serr := ds.SetMDMAppleReconcileCursor(ctx, commitCursor); serr != nil {
+				logger.WarnContext(ctx, "failed to advance apple MDM reconcile cursor", "err", serr)
 			} else {
 				logger.DebugContext(ctx, "batched reconcile: cursor advanced",
-					"cursor", cursor, "next_cursor", nextCursor)
+					"cursor", entryCursor, "next_cursor", commitCursor)
 			}
 		default:
-			logger.DebugContext(ctx, "batched reconcile: tick complete, cursor unchanged",
-				"cursor", cursor)
+			logger.DebugContext(ctx, "batched reconcile: tick complete, cursor unchanged", "cursor", entryCursor)
 		}
 	}()
 
-	if cursor != "" || nextCursor != "" {
-		logger.DebugContext(ctx, "apple MDM reconcile tick using cursor",
-			"cursor", cursor, "next_cursor", nextCursor,
-			"batch_size", reconcileAppleProfilesBatchSize,
-			"hosts_in_batch", len(hosts),
-		)
+	// One CA budget for the whole tick, shared across every window the loop drains. A per-window limit would multiply the
+	// issuance rate against the customer's CA by the number of windows, which is not what
+	// mdm.certificate_profiles_limit promises. 0 means unlimited, which is a nil budget.
+	var caInstallBudget *int
+	if certProfilesLimit > 0 {
+		caInstallBudget = new(certProfilesLimit)
 	}
 
-	profilesWithBrokenLabel := make(map[string]struct{})
-	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
-	for _, p := range allProfiles {
-		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
-		if p.HasBrokenLabel() {
-			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+	deadline := time.Now().Add(reconcileAppleProfilesScanBudget)
+	deliveredHosts := 0
+
+	for {
+		hosts, allProfiles, hostLabels, currentByHost, pageFull, serr := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
+		if serr != nil {
+			err = ctxerr.Wrap(ctx, serr, "loading apple profile reconcile snapshot")
+			return err
+		}
+		logger.DebugContext(ctx, "batched reconcile: loaded snapshot",
+			"cursor", cursor, "hosts_in_batch", len(hosts), "profile_count", len(allProfiles))
+
+		if len(hosts) == 0 {
+			// Reached the end of the host space (or empty fleet): reset the cursor so the next pass restarts from the beginning.
+			commitCursor = ""
+			return nil
+		}
+
+		profilesWithBrokenLabel := make(map[string]struct{})
+		profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
+		for _, p := range allProfiles {
+			profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+			if p.HasBrokenLabel() {
+				profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+			}
+		}
+
+		toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+		toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
+		logger.DebugContext(ctx, "batched reconcile: computed deltas",
+			"to_install", len(toInstall), "to_remove", len(toRemove))
+
+		// Apply the per-tick delivery cap at host granularity. Hosts come back ascending by uuid, so capping keeps a contiguous
+		// prefix of the work-hosts and the cursor can resume at the last delivered host.
+		workHosts := appleHostsWithWork(hosts, toInstall, toRemove)
+		// Advance past the whole window by default. Deciding end-of-space from len(hosts) is wrong: duplicate-UUID host rows
+		// are collapsed after the SQL LIMIT, so a full page can dedupe to fewer than batchSize hosts — treating that as the end
+		// of the host universe wraps the cursor early and permanently starves every host later in the UUID ordering. That is
+		// what pageFull is for.
+		advanceTo := hosts[len(hosts)-1].UUID
+
+		partial := false
+		if reconcileAppleProfilesDeliveryCap > 0 {
+			// Invariant: deliveredHosts < cap here. We return below as soon as it reaches the cap. So remaining >= 1.
+			remaining := reconcileAppleProfilesDeliveryCap - deliveredHosts
+			if len(workHosts) > remaining {
+				allowed := make(map[string]struct{}, remaining)
+				for _, h := range workHosts[:remaining] {
+					allowed[h] = struct{}{}
+				}
+				toInstall = filterApplePayloadsByHost(toInstall, allowed)
+				toRemove = filterApplePayloadsByHost(toRemove, allowed)
+				advanceTo = workHosts[remaining-1] // resume after the last delivered host
+				workHosts = workHosts[:remaining]
+				partial = true
+			}
+		}
+
+		if len(toInstall) > 0 || len(toRemove) > 0 {
+			if _, eerr := apple_mdm.ExecuteReconcileBatch(
+				ctx, ds, commander, redisKeyValue, logger,
+				appConfig, caInstallBudget, toInstall, toRemove,
+			); eerr != nil {
+				err = eerr
+				return err
+			}
+		}
+		deliveredHosts += len(workHosts)
+
+		// Advance only after a successful execute.
+		commitCursor = advanceTo
+		cursor = advanceTo
+
+		switch {
+		case partial:
+			// Delivery cap hit mid-window; the un-delivered remainder resumes next tick from cursor = advanceTo.
+			return nil
+		case !pageFull:
+			// Short page => end of the host space; reset for the next pass.
+			commitCursor = ""
+			return nil
+		case reconcileAppleProfilesDeliveryCap > 0 && deliveredHosts >= reconcileAppleProfilesDeliveryCap:
+			// Delivery cap reached exactly at a window boundary.
+			return nil
+		case time.Now().After(deadline):
+			// Scan budget exhausted; resume next tick from cursor = advanceTo.
+			return nil
+		}
+		// Otherwise keep draining the next window within this tick.
+	}
+}
+
+// appleHostsWithWork returns the host UUIDs that have at least one install or remove in this window, in the order hosts are
+// given (ascending by uuid). The drain loop uses this both to count delivered hosts against the cap and to pick the contiguous
+// prefix to deliver when the cap is reached mid-window.
+func appleHostsWithWork(hosts []*fleet.AppleHostReconcileInfo, toInstall, toRemove []*fleet.MDMAppleProfilePayload) []string {
+	work := make(map[string]struct{})
+	for _, p := range toInstall {
+		work[p.HostUUID] = struct{}{}
+	}
+	for _, p := range toRemove {
+		work[p.HostUUID] = struct{}{}
+	}
+	ordered := make([]string, 0, len(work))
+	for _, h := range hosts {
+		if _, ok := work[h.UUID]; ok {
+			ordered = append(ordered, h.UUID)
 		}
 	}
+	return ordered
+}
 
-	toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
-	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
-
-	logger.DebugContext(ctx, "batched reconcile: computed deltas",
-		"to_install", len(toInstall), "to_remove", len(toRemove))
-
-	if len(toInstall) == 0 && len(toRemove) == 0 {
-		return nil
+// filterApplePayloadsByHost returns only the payloads whose HostUUID is in the allowed set, preserving order. Used to trim a
+// window's deltas to the hosts that fit under the per-tick delivery cap.
+func filterApplePayloadsByHost(payloads []*fleet.MDMAppleProfilePayload, allowed map[string]struct{}) []*fleet.MDMAppleProfilePayload {
+	out := make([]*fleet.MDMAppleProfilePayload, 0, len(payloads))
+	for _, p := range payloads {
+		if _, ok := allowed[p.HostUUID]; ok {
+			out = append(out, p)
+		}
 	}
-
-	_, err = apple_mdm.ExecuteReconcileBatch(
-		ctx, ds, commander, redisKeyValue, logger,
-		appConfig, certProfilesLimit, toInstall, toRemove,
-	)
-	return err
+	return out
 }

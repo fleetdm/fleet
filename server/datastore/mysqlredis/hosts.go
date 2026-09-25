@@ -34,9 +34,9 @@ func (d *Datastore) SyncEnrolledHostIDs(ctx context.Context) error {
 		return nil
 	}
 
-	dbCount, err := d.CountEnrolledHosts(ctx)
+	dbCount, err := d.CountAllHosts(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "count enrolled hosts from the database")
+		return ctxerr.Wrap(ctx, err, "count all hosts from the database")
 	}
 
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
@@ -190,8 +190,8 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return nil
 }
 
-func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
-	details, err := d.Datastore.CleanupExpiredHosts(ctx)
+func (d *Datastore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
+	details, err := d.Datastore.CleanupExpiredHostsBatch(ctx, batchSize)
 	if err != nil {
 		return details, err
 	}

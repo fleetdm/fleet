@@ -311,6 +311,7 @@ type UserPayload struct {
 	NewPassword              *string       `json:"new_password,omitempty"`
 	Settings                 *UserSettings `json:"settings,omitempty"`
 	InviteID                 *uint         `json:"-"`
+	JITProvisioned           bool          `json:"-"`
 
 	// If this is an API-only user, then this can be used to specify which
 	// API endpoints the user has access to

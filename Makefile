@@ -453,13 +453,21 @@ test: lint test-go test-js
 	@echo "Generate and bundle required Go code and Javascript code"
 generate: clean-assets generate-js generate-go
 
-generate-ci:
+generate-ci: generate-osquery-sql-parser
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
+# The generated parser is gitignored; it is regenerated here and by the yarn
+# pre-hooks of every script that consumes it (test, lint, storybook). This
+# target is also the way to (re)create the file manually, e.g. to debug it.
+.help-short--generate-osquery-sql-parser:
+	@echo "Generate the osquery SQL parser from its grammar (frontend/utilities/osquery_sql_parser)"
+generate-osquery-sql-parser:
+	yarn generate:osquery-sql-parser
+
 .help-short--generate-js:
 	@echo "Generate and bundle required js code"
-generate-js: clean-assets .prefix
+generate-js: clean-assets .prefix generate-osquery-sql-parser
 	NODE_ENV=production yarn run webpack --progress
 
 .help-short--generate-go:
@@ -474,7 +482,7 @@ generate-go: .prefix
 # run webpack in watch mode to continuously re-generate the bundle
 .help-short--generate-dev:
 	@echo "Generate and bundle required Javascript code in a watch loop"
-generate-dev: .prefix
+generate-dev: .prefix generate-osquery-sql-parser
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
@@ -975,18 +983,16 @@ desktop-windows-arm64:
 
 # Build desktop executable for Linux.
 #
+# CGO is disabled so the result is a fully static binary with no glibc
+# dependency, runnable on older distros (e.g. Ubuntu 20.04) regardless of the
+# host used to build it.
+#
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
 #
 # Output: desktop.tar.gz
 desktop-linux:
-	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir -p /output/fleet-desktop && \
-		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-s -w -linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
-		cd /output && \
-		tar czf desktop.tar.gz fleet-desktop && \
-		rm -r fleet-desktop"
+	$(call build-desktop-linux,amd64)
 
 # Build desktop executable for Linux ARM.
 #
@@ -995,13 +1001,14 @@ desktop-linux:
 #
 # Output: desktop.tar.gz
 desktop-linux-arm64:
-	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir -p /output/fleet-desktop && \
-		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-s -w -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
-		cd /output && \
-		tar czf desktop.tar.gz fleet-desktop && \
-		rm -r fleet-desktop"
+	$(call build-desktop-linux,arm64)
+
+define build-desktop-linux
+	rm -rf fleet-desktop && mkdir -p fleet-desktop
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(1) go build -trimpath -o fleet-desktop/fleet-desktop -ldflags "-s -w -X=main.version=$(FLEET_DESKTOP_VERSION)" ./orbit/cmd/desktop
+	tar czf desktop.tar.gz fleet-desktop
+	rm -r fleet-desktop
+endef
 
 # Build orbit executable for Windows.
 # This generates orbit executable for Windows that includes versioninfo binary properties
@@ -1065,7 +1072,7 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
 
 # make update-go version=1.24.4
-UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_DOCKERFILES := ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
 UPDATE_GO_MODS := \
 	go.mod \
 	./tools/mdm/windows/bitlocker/go.mod \

@@ -32,6 +32,7 @@ var (
 	MicrosoftAutoUpdateVersionShortener = makeVersionShortener(2) // "4.82.26020434" → "4.82"
 	OperaVersionShortener               = makeVersionShortener(2) // "129.0.5823.28" → "129.0"
 	TwingateVersionShortener            = makeVersionShortener(2) // "2026.29.22575" → "2026.29"
+	Microsoft365CopilotVersionShortener = makeVersionShortener(2) // "1.2608.0301" → "1.2608"
 	CitrixWorkspaceVersionShortener     = makeVersionShortener(3) // "25.11.1.42" → "25.11.1"
 	ElgatoStreamDeckVersionShortener    = makeVersionShortener(3) // "7.3.1.22604" → "7.3.1"
 	FileMakerProVersionShortener        = makeVersionShortener(3) // "22.0.5.500" → "22.0.5"
@@ -113,6 +114,22 @@ func PdVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps
 func SmallstepAgentVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
 	if app.Version == "" {
 		return app, errors.New("empty version for Smallstep Agent")
+	}
+	if strings.HasPrefix(app.Version, "v") {
+		return app, nil
+	}
+	app.Version = "v" + app.Version
+	return app, nil
+}
+
+// RaspberryPiImagerVersionTransformer prepends "v" to match what macOS reports as
+// bundle_short_version for Raspberry Pi Imager (e.g. "2.0.11.1" → "v2.0.11.1"; the
+// app's CFBundleShortVersionString carries the upstream GitHub release tag's "v"
+// prefix). Without this, Fleet Desktop's own "update available" check treats the
+// "v" prefix as making the installed version older, showing a phantom update.
+func RaspberryPiImagerVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Raspberry Pi Imager")
 	}
 	if strings.HasPrefix(app.Version, "v") {
 		return app, nil

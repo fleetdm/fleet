@@ -1149,7 +1149,11 @@ func (c *Client) ApplyGroup(
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					switch {
 					case b != nil:
-						if err := c.uploadMacOSSetupAssistant(b, &tmID, filepath.Base(tmMacSetup[tmName].MacOSSetupAssistant.Value)); err != nil {
+						var setupAsstName string
+						if ms := tmMacSetup[tmName]; ms != nil {
+							setupAsstName = filepath.Base(ms.MacOSSetupAssistant.Value)
+						}
+						if err := c.uploadMacOSSetupAssistant(b, &tmID, setupAsstName); err != nil {
 							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
 								// "Couldn't add. CONFIG_NAME_INVALID"
@@ -2381,6 +2385,15 @@ func (c *Client) DoGitOps(
 		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
 			integrations.(map[string]interface{})["conditional_access_enabled"] = false
 		}
+		if idpURLs, ok := integrations.(map[string]any)["certificates_idp_introspection_urls"]; !ok || idpURLs == nil {
+			integrations.(map[string]any)["certificates_idp_introspection_urls"] = []any{}
+		}
+		if idpClientIDs, ok := integrations.(map[string]any)["certificates_idp_client_ids"]; !ok || idpClientIDs == nil {
+			integrations.(map[string]any)["certificates_idp_client_ids"] = []any{}
+		}
+		if requireHostEndUserBinding, ok := integrations.(map[string]any)["certificates_disable_host_end_user_binding"]; !ok || requireHostEndUserBinding == nil {
+			integrations.(map[string]any)["certificates_disable_host_end_user_binding"] = false
+		}
 		// ensure that legacy certificate authorities are not set in integrations
 		if _, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; ok {
 			return nil, errors.New("org_settings.integrations.ndes_scep_proxy is not supported, please use org_settings.certificate_authorities.ndes_scep_proxy instead")
@@ -2510,6 +2523,11 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["apple_require_hardware_attestation"] = incoming.Controls.AppleRequireHardwareAttestation
 		if incoming.Controls.AppleRequireHardwareAttestation == nil {
 			mdmAppConfig["apple_require_hardware_attestation"] = false
+		}
+
+		mdmAppConfig["only_allow_apple_business_enrollment"] = incoming.Controls.OnlyAllowAppleBusinessEnrollment
+		if incoming.Controls.OnlyAllowAppleBusinessEnrollment == nil {
+			mdmAppConfig["only_allow_apple_business_enrollment"] = false
 		}
 
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured

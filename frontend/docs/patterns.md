@@ -160,11 +160,12 @@ Render the label from the resolved display name, but pass the **raw** `name` to
 #### Display name
 
 **Never render `name` directly in the UI.** Always route software names through
-`getDisplayedSoftwareName(name, display_name)` from `pages/SoftwarePage/helpers.tsx`.
-It prefers `display_name`, normalizes known awkward titles (e.g.
-`microsoft.companyportal` → `Company Portal`), and falls back to a sensible
-default. This applies everywhere a software title is shown: table rows, dropdown
-options, modal text, activity feed entries, automation summaries, etc.
+`getDisplayedSoftwareName(name, display_name, bundle_identifier?)` from
+`pages/SoftwarePage/helpers.tsx`. It prefers `display_name`, normalizes known
+awkward titles (e.g. `microsoft.companyportal` → `Company Portal`), and falls back
+to a sensible default. This applies everywhere a software title is shown: table
+rows, dropdown options, modal text, activity feed entries, automation summaries,
+etc.
 
 ```tsx
 // good
@@ -312,6 +313,13 @@ export default PackComposerPage;
 ```
 
 ## Forms
+
+### Form field labels
+
+Use the built-in `label` prop on any FormField-based control (`InputField`,
+`InputFieldHiddenContent`, `Dropdown`, `Checkbox`, `Radio`, `Slider`, `TextArea`, etc.)
+instead of creating separate label elements or wrapper divs. This keeps label styling and
+accessibility consistent across the app.
 
 ### Form submission
 

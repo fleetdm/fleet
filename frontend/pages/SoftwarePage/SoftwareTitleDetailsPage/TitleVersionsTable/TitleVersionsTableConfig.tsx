@@ -1,45 +1,49 @@
 import React from "react";
+import { CellProps } from "react-table";
 
-import { ISoftwareTitleVersion } from "interfaces/software";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import {
   IHeaderProps,
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
-import { CellProps } from "react-table";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import {
+  formatSoftwareVersion,
+  ISoftwareTitleVersion,
+  SoftwareSource,
+} from "interfaces/software";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 interface ISoftwareTitleVersionsTableConfigProps {
   teamId?: number;
   isIPadOSOrIOSApp: boolean;
+  /** Versions carry no source of their own; the title's applies to every row. */
+  source: SoftwareSource;
 }
 
 type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
 type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
 type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
-type IVersionHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
 
 const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
   isIPadOSOrIOSApp,
+  source,
 }: ISoftwareTitleVersionsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
-      Header: (cellProps: IVersionHeaderProps) => (
+      Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
           value="Version"
-          disableSortBy={false}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
@@ -61,7 +65,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
           <LinkCell
             className="name-link"
             path={softwareVersionDetailsPath}
-            value={cellProps.cell.value}
+            value={formatSoftwareVersion({ ...cellProps.row.original, source })}
           />
         );
       },
@@ -87,8 +91,13 @@ const generateSoftwareTitleVersionsTableConfig = ({
     },
     {
       title: "Hosts",
-      Header: "Hosts",
-      disableSortBy: true,
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Hosts"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
       accessor: "hosts_count",
       Cell: (cellProps: IHostCountCellProps): JSX.Element => (
         <TextCell value={cellProps.cell.value} />

@@ -1997,6 +1997,13 @@
       "description": "Connect Fonts is an app that manages fonts and digital assets."
     },
     {
+      "name": "Connect Fonts",
+      "slug": "connect-fonts/windows",
+      "platform": "windows",
+      "unique_identifier": "Monotype Connect",
+      "description": "Connect Fonts (Monotype Connect on Windows) is a font management platform for discovering, licensing, organizing, and activating fonts."
+    },
+    {
       "name": "Copilot",
       "slug": "copilot-money/darwin",
       "platform": "darwin",
@@ -2690,6 +2697,20 @@
       "description": "Dot is a menu bar calendar with meeting reminders."
     },
     {
+      "name": "dotPeek",
+      "slug": "dotpeek/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotPeek",
+      "description": "dotPeek is a free .NET decompiler and assembly browser by JetBrains."
+    },
+    {
+      "name": "dotTrace",
+      "slug": "dottrace/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains dotTrace",
+      "description": "dotTrace is a performance profiler for .NET applications."
+    },
+    {
       "name": "Doughnut",
       "slug": "doughnut/darwin",
       "platform": "darwin",
@@ -2800,6 +2821,13 @@
       "platform": "windows",
       "unique_identifier": "Druva inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync (GovCloud)",
+      "slug": "druva-insync@govcloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
       "name": "DuckDuckGo",
@@ -3334,6 +3362,13 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox Developer Edition (ARM64)",
+      "slug": "firefox@developer-edition-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Developer Edition (AArch64 en-US)",
+      "description": "Mozilla Firefox Developer Edition (ARM64) is the native ARM64 build of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
       "name": "Mozilla Firefox Developer Edition",
       "slug": "firefox@developer-edition/darwin",
       "platform": "darwin",
@@ -3360,6 +3395,13 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox Nightly (ARM64)",
+      "slug": "firefox@nightly-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Nightly",
+      "description": "Mozilla Firefox Nightly (ARM64) is the native ARM64 build of Firefox Nightly, the daily development build of the Firefox web browser with the newest features before they reach beta and release."
     },
     {
       "name": "Mozilla Firefox Nightly",
@@ -3416,6 +3458,13 @@
       "platform": "darwin",
       "unique_identifier": "org.herf.Flux",
       "description": "f.lux is a screen colour temperature controller."
+    },
+    {
+      "name": "Flycut",
+      "slug": "flycut/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.generalarcade.flycut",
+      "description": "Flycut is a clipboard manager for developers."
     },
     {
       "name": "Focusrite Control 2",
@@ -5497,6 +5546,13 @@
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
+      "name": "Microsoft OLE DB Driver 19 for SQL Server",
+      "slug": "microsoft-ole-db-driver-19/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OLE DB Driver 19 for SQL Server",
+      "description": "Microsoft OLE DB Driver 19 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
+    },
+    {
       "name": "Microsoft OneNote",
       "slug": "microsoft-onenote/darwin",
       "platform": "darwin",
@@ -5705,6 +5761,13 @@
       "platform": "darwin",
       "unique_identifier": "me.guillaumeb.MonitorControl",
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
+    },
+    {
+      "name": "Monotype Fonts",
+      "slug": "monotype/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.monotype.monotype-fonts",
+      "description": "Monotype Fonts is a desktop app for finding, activating, and managing fonts from the Monotype Fonts library."
     },
     {
       "name": "Moom",
@@ -6148,6 +6211,13 @@
       "description": "NVIDIA GeForce NOW is a cloud gaming platform."
     },
     {
+      "name": "NVIDIA Sync",
+      "slug": "nvidia-sync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nvidia.nvidia-sync",
+      "description": "NVIDIA Sync is a utility for launching applications and containers on remote Linux systems."
+    },
+    {
       "name": "OBS",
       "slug": "obs/darwin",
       "platform": "darwin",
@@ -6447,6 +6517,13 @@
       "platform": "darwin",
       "unique_identifier": "com.facebook.Origami-Studio",
       "description": "Origami Studio is a tool to design tool for interactive interfaces."
+    },
+    {
+      "name": "Orion",
+      "slug": "orion/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kagi.kagimacOS",
+      "description": "Orion is a WebKit-based web browser."
     },
     {
       "name": "P4V",
@@ -7149,6 +7226,13 @@
       "description": "qView is an image viewer."
     },
     {
+      "name": "R for macOS",
+      "slug": "r/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.R-project.R",
+      "description": "R for macOS is a free software environment for statistical computing and graphics."
+    },
+    {
       "name": "R for Windows",
       "slug": "r/windows",
       "platform": "windows",
@@ -7196,6 +7280,20 @@
       "platform": "darwin",
       "unique_identifier": "com.realmacsoftware.rapidweaver8",
       "description": "RapidWeaver is a web design software."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.raspberrypi.rpi-imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
+    },
+    {
+      "name": "Raspberry Pi Imager",
+      "slug": "raspberry-pi-imager/windows",
+      "platform": "windows",
+      "unique_identifier": "Raspberry Pi Imager",
+      "description": "Raspberry Pi Imager is an imaging utility to install operating systems to a microSD card."
     },
     {
       "name": "Raycast",
@@ -8434,7 +8532,14 @@
       "slug": "tableau-prep/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
-      "description": "Tableau Prep is a combine, shape, and clean your data for analysis."
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
+    },
+    {
+      "name": "Tableau Prep",
+      "slug": "tableau-prep/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Prep Builder",
+      "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
       "name": "Tableau Desktop",
@@ -9053,6 +9158,13 @@
       "description": "VIA is a keyboard configurator."
     },
     {
+      "name": "Vim",
+      "slug": "vim/windows",
+      "platform": "windows",
+      "unique_identifier": "Vim",
+      "description": "Vim is a text editor."
+    },
+    {
       "name": "Vimcal",
       "slug": "vimcal/darwin",
       "platform": "darwin",
@@ -9212,6 +9324,13 @@
       "platform": "darwin",
       "unique_identifier": "com.prakashjoshipax.VoiceInk",
       "description": "VoiceInk is a voice to text app."
+    },
+    {
+      "name": "Vorssaint",
+      "slug": "vorssaint/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vorssaint.utils",
+      "description": "Vorssaint is a menu bar toolkit with keep-awake, system monitor and volume mixer."
     },
     {
       "name": "VPN Tracker 365",

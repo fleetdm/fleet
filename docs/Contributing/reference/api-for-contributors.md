@@ -12,7 +12,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live report](#live-report)
 - [Trigger cron schedule](#trigger-cron-schedule)
-- [Device-authenticated routes](#device-authenticated-routes)
+- [Fleet-desktop-token-authenticated routes](#Fleet-desktop-token-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Setup](#setup)
 - [Scripts](#scripts)
@@ -2470,7 +2470,7 @@ Gets all labels visible to the currently logged-in user.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2508,9 +2508,9 @@ Gets all labels visible to the currently logged-in user.
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters Ubuntu hosts",
-      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu' OR platform_like LIKE '%ubuntu%';",
       "label_type": "builtin",
-      "label_membership_type": "dynamic",,
+      "label_membership_type": "dynamic",
       "team_id": null,
       "team_name": null,
       "fleet_id": null,
@@ -2680,10 +2680,6 @@ These API routes are used by the Fleet UI.
 - [Check result store status](#check-result-store-status)
 - [Search targets](#search-targets)
 - [Count targets](#count-targets)
-- [Run live report](#run-live-report)
-- [Run live report by name](#run-live-report-by-name)
-- [Retrieve live report results (standard WebSocket API)](#retrieve-live-report-results-standard-websocket-api)
-- [Retrieve live report results (SockJS)](#retrieve-live-report-results-sockjs)
 
 ### Check live report status
 
@@ -2846,514 +2842,6 @@ Counts the number of online and offline hosts included in a given set of selecte
 }
 ```
 
-### Run live report
-
-Runs the specified report as a live report on the specified hosts or group of hosts and returns a new live report campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
-
-After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
-
-`POST /api/v1/fleet/queries/run`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and fleet IDs (`selected.fleets`). When provided, builtin label IDs, custom label IDs and fleet IDs become `AND` filters. Within each selector, selecting two or more fleets, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.fleets`). Use `0` fleet ID to filter by hosts assigned to "Unassigned". See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by ID
-
-`POST /api/v1/fleet/queries/run`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info",
-  "selected": {
-    "hosts": [171]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 1,
-      "OnlineHosts": 0,
-      "OfflineHosts": 1,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 1,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with multiple hosts targeted by label ID
-
-`POST /api/v1/fleet/queries/run`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info;",
-  "selected": {
-    "labels": [7]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 102,
-      "OnlineHosts": 0,
-      "OfflineHosts": 24,
-      "MissingInActionHosts": 0,
-      "NewHosts": 0
-    },
-    "id": 2,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-### Run live report by name
-
-Runs the specified saved report as a live report on the specified targets. Returns a new live report campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
-
-After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and fleet selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
-
-One of `query` and `query_id` must be specified.
-
-#### Example with one host targeted by hostname
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-##### Request body
-
-```json
-{
-  "query_id": 1,
-  "selected": {
-    "hosts": ["macbook-pro.local"]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 1,
-      "OnlineHosts": 0,
-      "OfflineHosts": 1,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 1,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with multiple hosts targeted by label name
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info",
-  "selected": {
-    "labels": ["All Hosts"]
-  }
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "campaign": {
-    "created_at": "0001-01-01T00:00:00Z",
-    "updated_at": "0001-01-01T00:00:00Z",
-    "Metrics": {
-      "TotalHosts": 102,
-      "OnlineHosts": 0,
-      "OfflineHosts": 24,
-      "MissingInActionHosts": 0,
-      "NewHosts": 1
-    },
-    "id": 2,
-    "query_id": 3,
-    "status": 0,
-    "user_id": 1
-  }
-}
-```
-
-#### Example with invalid label
-
-`POST /api/v1/fleet/queries/run_by_identifiers`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT instance_id FROM system_info",
-  "selected": {
-    "labels": ["Windows", "Banana", "Apple"]
-  }
-}
-```
-
-##### Default response
-
-`Status: 400`
-
-```json
-{
-  "message": "Bad request",
-  "errors": [
-    {
-      "name": "base",
-      "reason": "Invalid label name(s): Banana, Apple."
-    }
-  ],
-  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
-}
-```
-
-
-### Retrieve live report results (standard WebSocket API)
-
-You can retrieve the results of a live report using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
-
-Before you retrieve the live report results, you must create a live report campaign by running the live report. Use the [Run live report](#run-live-report) or [Run live report by name](#run-live-report-by-name) endpoints to create a live report campaign.
-
-Note that live reports are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the report.
-
-`/api/v1/fleet/results/websocket`
-
-### Parameters
-
-| Name       | Type    | In  | Description                                                      |
-| ---------- | ------- | --- | ---------------------------------------------------------------- |
-| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
-
-### Example
-
-#### Example script to handle request and response
-
-```js
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
-
-socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
-  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaign-id> } }));
-};
-
-socket.onmessage = ({ data }) => {
-  console.log(data);
-  const message = JSON.parse(data);
-  if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close();
-  }
-}
-```
-
-### Detailed request and response walkthrough with example data
-
-#### webSocket.onopen()
-
-##### Response data
-
-```json
-o
-```
-
-#### webSocket.send()
-
-##### Request data
-
-```json
-[
-  {
-    "type": "auth",
-    "data": { "token": <insert_token_here> }
-  }
-]
-```
-
-```json
-[
-  {
-    "type": "select_campaign",
-    "data": { "campaign_id": 12 }
-  }
-]
-```
-
-#### webSocket.onmessage()
-
-##### Response data
-
-```json
-// Sends the total number of hosts targeted and segments them by status
-
-[
-  {
-    "type": "totals",
-    "data": {
-      "count": 24,
-      "online": 6,
-      "offline": 18,
-      "missing_in_action": 0
-    }
-  }
-]
-```
-
-```json
-// Sends the expected results, actual results so far, and the status of the live report
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 0,
-      "status": "pending"
-    }
-  }
-]
-```
-
-```json
-// Sends the result for a given host
-
-[
-  {
-    "type": "result",
-    "data": {
-      "distributed_query_execution_id": 39,
-      "host": {
-        "id": 42,
-        "hostname": "foobar",
-        "display_name": "foobar"
-      },
-      "rows": [
-        // query results data for the given host
-      ],
-      "error": null
-    }
-  }
-]
-```
-
-```json
-// Sends the status of "finished" when messages with the results for all expected hosts have been sent
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 6,
-      "status": "finished"
-    }
-  }
-]
-```
-
-### Retrieve live report results (SockJS)
-
-You can also retrieve live report results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
-
-Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-report-results-standard-websocket-api).
-
-`/api/v1/fleet/results/`
-
-### Parameters
-
-| Name       | Type    | In  | Description                                                      |
-| ---------- | ------- | --- | ---------------------------------------------------------------- |
-| token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
-
-### Example
-
-#### Example script to handle request and response
-
-```js
-const socket = new SockJS(`<your-base-url>/api/v1/fleet/results`, undefined, {});
-
-socket.onopen = () => {
-  socket.send(JSON.stringify({ type: 'auth', data: { token: <token> } }));
-  socket.send(JSON.stringify({ type: 'select_campaign', data: { campaign_id: <campaignID> } }));
-};
-
-socket.onmessage = ({ data }) => {
-  console.log(data);
-  const message = JSON.parse(data);
-
-  if (message.type === 'status' && message.data.status === 'finished') {
-    socket.close();
-  }
-}
-```
-
-##### Detailed request and response walkthrough
-
-#### socket.onopen()
-
-##### Response data
-
-```json
-o
-```
-
-#### socket.send()
-
-##### Request data
-
-```json
-[
-  {
-    "type": "auth",
-    "data": { "token": <insert_token_here> }
-  }
-]
-```
-
-```json
-[
-  {
-    "type": "select_campaign",
-    "data": { "campaign_id": 12 }
-  }
-]
-```
-
-#### socket.onmessage()
-
-##### Response data
-
-```json
-// Sends the total number of hosts targeted and segments them by status
-
-[
-  {
-    "type": "totals",
-    "data": {
-      "count": 24,
-      "online": 6,
-      "offline": 18,
-      "missing_in_action": 0
-    }
-  }
-]
-```
-
-```json
-// Sends the expected results, actual results so far, and the status of the live report
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 0,
-      "status": "pending"
-    }
-  }
-]
-```
-
-```json
-// Sends the result for a given host
-
-[
-  {
-    "type": "result",
-    "data": {
-      "distributed_query_execution_id": 39,
-      "host": {
-        "id": 42,
-        "hostname": "foobar",
-        "display_name": "foobar"
-      },
-      "rows": [
-        // query results data for the given host
-      ],
-      "error": null
-    }
-  }
-]
-```
-
-```json
-// Sends the status of "finished" when messages with the results for all expected hosts have been sent
-
-[
-  {
-    "type": "status",
-    "data": {
-      "expected_results": 6,
-      "actual_results": 6,
-      "status": "finished"
-    }
-  }
-]
-```
-
 ---
 
 ## Trigger cron schedule
@@ -3386,26 +2874,40 @@ currently pending.
 
 ---
 
-## Device-authenticated routes
+## Fleet-desktop-token-authenticated routes
 
-Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
-- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
-- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
-- [Get Fleet Desktop information](#get-fleet-desktop-information)
-- [Get device's software](#get-devices-software)
-- [Get device's software install results](#get-devices-software-install-results)
-- [Get device's software MDM command results](#get-devices-software-mdm-command-results)
-- [Uninstall software via self-service](#uninstall-software-via-self-service)
-- [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
-- [Get device's policies](#get-devices-policies)
-- [Get device's certificate](#get-devices-certificate)
-- [Get device's API features](#get-devices-api-features)
-- [Get device's transparency URL](#get-devices-transparency-url)
-- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
-- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
-- [Report an agent error](#report-an-agent-error)
+If you're using Fleet Premium, you can require single sign-on (SSO) in front of these routes.
+
+Some routes are always exempt from SSO and others are exempt while a host is still going through [setup experience](https://fleetdm.com/guides/setup-experience):
+
+- [Get Fleet Desktop information](#get-fleet-desktop-information) (`GET /api/v1/fleet/device/{token}/desktop`) — *always exempt; polled by the Fleet Desktop tray app*
+- [Ping Server with Device Token](#ping-server-with-device-token) (`HEAD /api/v1/fleet/device/{token}/ping`) — *always exempt; polled by the Fleet Desktop tray app*
+- `POST /api/v1/fleet/device/{token}/debug/errors` — *always exempt; agent error reporting*
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *always exempt*
+- [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *always exempt*
+- [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *always exempt; starts the sign-in flow*
+- `GET /api/v1/fleet/device/{token}` — *exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
+- `POST /api/v1/fleet/device/{token}/refetch` — *exempt during setup experience*
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *exempt during setup experience*
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
+- [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
+- [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
+- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
+- [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *exempt during setup experience*
+- [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
 
 #### Get device's Google Chrome profiles
 
@@ -3499,6 +3001,69 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+
+#### Initiate Fleet Desktop single sign-on
+_Available in Fleet Premium_
+
+Starts the SAML authentication flow for the Fleet Desktop "My device" page. Returns the IdP URL to send the browser to. Fleet also sets a handshake cookie, which it reads back when the IdP redirects to the callback.
+
+`POST /api/v1/fleet/device/{token}/sso`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/sso`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "url": "https://idp.example.com/saml/sso?SAMLRequest=..."
+}
+```
+
+This endpoint sets the `__Host-FLEETSSOSESSIONID` handshake cookie. Fleet uses it to validate the SAML response when the IdP redirects back to the existing MDM SSO callback, `POST /api/v1/fleet/mdm/sso/callback`. There's no new callback route, so IdP apps that already point at that URL keep working. On success, the callback replies `303` to the device page and sets the `__Host-FLEET_DESKTOP_SESSION` cookie that carries the device SSO session.
+
+##### Error responses
+
+| Status | When |
+| ------ | ---- |
+| `400`  | `fleet_desktop.sso_enabled` is `false`, no IdP is configured under `mdm.end_user_authentication`, the device page and the IdP callback aren't served from the same host, or Fleet couldn't fetch and parse the IdP metadata. |
+| `401`  | The device token is invalid or expired. |
+| `402`  | Fleet Premium is required. |
+| `429`  | The rate limit was exceeded. This endpoint uses its own bucket, set by `auth.sso_rate_limit_per_minute`. The default is the login rate of 10 requests per minute. |
+
+##### Which IdP identity is accepted
+
+Fleet accepts any identity the configured IdP authenticates. Completing the flow proves that a person signed in at the IdP. Fleet doesn't compare that identity against the host's enrollment-time IdP account, so the device token stays the only host-specific secret.
+
+Fleet records the authenticated identity in `mdm_idp_accounts`, which it shares with the MDM SSO flows, and the device SSO session references it. This flow never writes a host-to-IdP-account association in `host_mdm_idp_accounts`. That link belongs to enrollment.
+
+##### Callback failures
+
+Once the callback has verified the assertion and identified the flow as Fleet Desktop, failures redirect to `/device/{token}?sso_error=<reason>` and set no session cookie. Reasons are `sso_disabled` (the setting was turned off between initiation and the callback) and `server_error`.
+
+Failures before that point have no SSO session to read the device page URL from. To handle them, Fleet sets `RelayState` to `fleet_desktop` on the SAML `AuthnRequest`, and the IdP echoes it back with the assertion. The callback uses that value to tell a Fleet Desktop flow apart from the MDM flows. It then redirects to a device error page instead of the shared MDM one:
+
+- An assertion that doesn't verify redirects to `/device/sso-error?reason=error`.
+- A missing or expired handshake cookie redirects to `/device/sso-error?reason=session_expired`.
+
+Without a `RelayState` that Fleet recognizes, these fall back to `/mdm/sso/callback?error=true` and `/mdm/sso/callback?error=true&reason=session_expired`.
+
+##### Hosts and cookies
+
+Both cookies use the `__Host-` prefix, which scopes them to a single host name. The device page and the SAML callback must therefore be reached on the same host name. The port can differ, because cookies aren't port-scoped.
+
+Pointing `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` at a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable. Neither cookie reaches the leg that needs to read it. Rather than send the end user into a redirect loop, this endpoint fails with `400`.
+
+Only this endpoint sets the `fleet_desktop` SSO initiator, and it sets it server-side. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`. Accepting it there would create a device SSO session for any host UUID, without the caller ever holding that host's device token.
 
 #### Get device's software
 
@@ -4030,6 +3595,32 @@ with the download option.
   "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
 }
 ```
+
+---
+
+#### Send APNs ping to device
+
+Sends an APNs push notification to the current device, prompting it to check in with the Fleet server and pick up any pending MDM commands or configuration profiles. Used by the **My device** page when the user refetches.
+
+This is intentionally separate from the refetch endpoint so that programmatic refetches don't each trigger an APNs push.
+
+The device must be an Apple host with MDM turned on. The request has no body. If the device is offline, the push notification will be delivered when the device comes back online.
+
+`POST /api/v1/fleet/device/{token}/apns_ping`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/apns_ping`
+
+##### Default response
+
+`Status: 204`
 
 ---
 

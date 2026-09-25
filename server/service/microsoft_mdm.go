@@ -966,6 +966,10 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 // returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
 // host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string, enrollType fleet.WindowsMDMEnrollType, err error) {
+	if svc.wstepCertManager == nil {
+		return "", "", 0, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
+	}
+
 	if authToken == nil {
 		return "", "", 0, errors.New("authToken is empty")
 	}
@@ -1044,7 +1048,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		}
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
+		tokenData, err := svc.wstepCertManager.GetAzureAuthTokenClaims(ctx, authToken.Content)
 		if err != nil {
 			return "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
 		}
@@ -1170,7 +1174,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// Removing the device if already MDM enrolled
-	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg)
+	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
@@ -1239,14 +1243,16 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 // allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
 // redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
 // this redirect_uri and Fleet only reflects it into a window.location assignment in the TOS page. We restrict it to the
-// two schemes that protocol uses:
+// schemes Windows enrollment clients use:
 //   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
 //     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
 //     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
+//   - ms-aadj-redir: the out-of-box experience (OOBE) Entra join flow, redirect_uri=ms-aadj-redir://auth/mdm.
 //   - https: the browser-based federated flow.
 var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
-	"https":       {},
-	"ms-appx-web": {},
+	"https":         {},
+	"ms-aadj-redir": {},
+	"ms-appx-web":   {},
 }
 
 // windowsTOSRedirectURIAllowed reports whether redirectURI is safe to reflect into the Windows MDM TOS page.
@@ -1786,6 +1792,27 @@ scan:
 		}
 		return false
 	}
+	// The serial arrives in the device's own DevDetail response and nothing corroborates it, so it must not be able to
+	// take over a host that already belongs to different hardware. Refusing here costs the device nothing: the fleetd
+	// installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
+	// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM
+	// device ID.
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, enrolledDevice.MDMHardwareID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	if conflicted {
+		svc.logger.WarnContext(ctx, "windows mdm: refusing to link enrollment to a host already claimed by other hardware",
+			"device_id", enrolledDevice.MDMDeviceID,
+			"hardware_serial", serial,
+			"host_uuid", host.UUID,
+			"claimed_by_hardware_id", conflictingHardwareID)
+		return false
+	}
+
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: link by DevDetail failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
@@ -1864,8 +1891,9 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "wipe succeeded: get host by identifier")
 				}
-				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
-					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -3039,7 +3067,9 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
 // HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(
+	ctx context.Context, secTokenMsg *fleet.RequestSecurityToken, hostUUID string,
+) error {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
@@ -3047,7 +3077,7 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 	}
 
 	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
+	deletedHostUUID, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -3055,7 +3085,25 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 		return err
 	}
 
+	svc.warnOnWindowsMDMHardwareIDCollision(ctx, reqHWDeviceID, hostUUID, deletedHostUUID)
+
 	return nil
+}
+
+// warnOnWindowsMDMHardwareIDCollision reports that the enrollment just deleted for the hardware ID the enrolling device
+// presented belonged to a different host.
+func (svc *Service) warnOnWindowsMDMHardwareIDCollision(ctx context.Context, hardwareID, hostUUID, deletedHostUUID string) {
+	if hostUUID == "" || deletedHostUUID == "" || deletedHostUUID == hostUUID {
+		return
+	}
+
+	svc.logger.WarnContext(ctx,
+		"windows host is enrolling in MDM with a hardware ID already held by another host, which takes over that host's "+
+			"enrollment and leaves it unmanaged",
+		"mdm_hardware_id", hardwareID,
+		"enrolling_host_uuid", hostUUID,
+		"existing_host_uuid", deletedHostUUID,
+	)
 }
 
 // getDeviceProvisioningInformation returns a valid WapProvisioningDoc

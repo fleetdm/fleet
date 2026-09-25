@@ -1,30 +1,30 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getNextLocationPath } from "utilities/helpers";
-import { ICustomHostVital } from "interfaces/custom_host_vitals";
-import customHostVitalsAPI, {
-  IListCustomHostVitalsResponse,
-} from "services/entities/custom_host_vitals";
-
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
 import SectionHeader from "components/SectionHeader";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { AppContext } from "context/app";
+import { ICustomHostVital } from "interfaces/custom_host_vitals";
+import PATHS from "router/paths";
+import customHostVitalsAPI, {
+  IListCustomHostVitalsResponse,
+} from "services/entities/custom_host_vitals";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+
+import AddCustomHostVitalModal from "../../components/AddCustomHostVitalModal";
+import DeleteCustomHostVitalModal from "../../components/DeleteCustomHostVitalModal";
+import EditCustomHostVitalModal from "../../components/EditCustomHostVitalModal";
+import { IVariablesCardProps } from "../../VariablesNavItems";
 
 import generateTableHeaders from "./CustomHostVitalsTableConfig";
-import { IVariablesCardProps } from "../../VariablesNavItems";
-import AddCustomHostVitalModal from "../../components/AddCustomHostVitalModal";
-import EditCustomHostVitalModal from "../../components/EditCustomHostVitalModal";
-import DeleteCustomHostVitalModal from "../../components/DeleteCustomHostVitalModal";
 
 const baseClass = "custom-host-vitals-tab";
 

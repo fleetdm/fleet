@@ -169,6 +169,7 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
+	Default          bool   `json:"default,omitempty"`
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
@@ -288,6 +289,11 @@ type MDM struct {
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.
 	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
+	// OnlyAllowAppleBusinessEnrollment restricts Apple MDM enrollment to devices
+	// assigned to Fleet in Apple Business (ADE). Manual, OTA, and account-driven
+	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
+	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -338,6 +344,12 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
+// and renewals, plus those that might have a valid profile lying around with the static SCEP can't enroll.
+func (m MDM) IsAppleMDMSCEPBlocked() bool {
+	return m.OnlyAllowAppleBusinessEnrollment && m.AppleRequireHardwareAttestation
 }
 
 type DiskEncryptionConfig struct {
@@ -1193,6 +1205,8 @@ func (c *AppConfig) Obfuscate() {
 	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
 		gwIntegration.ApiKey.SetMasked()
 	}
+	// Integrations.CertificatesIdPIntrospectionURLs and CertificatesIdPClientIDs are deliberately not masked: no secret,
+	// just URLs and public OAuth client IDs.
 	// The Apple account provisioning IdP client secret lives in
 	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
 	// whenever the feature is configured (token URL present implies a stored
@@ -1303,6 +1317,12 @@ func (c *AppConfig) Copy() *AppConfig {
 				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
+	}
+	if c.Integrations.CertificatesIdPIntrospectionURLs.Value != nil {
+		clone.Integrations.CertificatesIdPIntrospectionURLs.Value = slices.Clone(c.Integrations.CertificatesIdPIntrospectionURLs.Value)
+	}
+	if c.Integrations.CertificatesIdPClientIDs.Value != nil {
+		clone.Integrations.CertificatesIdPClientIDs.Value = slices.Clone(c.Integrations.CertificatesIdPClientIDs.Value)
 	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
 	// if len(c.Integrations.DigiCert.Value) > 0 {
@@ -1798,6 +1818,17 @@ func (f *ServerSettings) GetQueryReportCap() int {
 	return f.QueryReportCap
 }
 
+// GetEffectiveQueryReportCap returns the report cap raised to the given host
+// count when that is higher. Results are stored per host, so this lets a report
+// that returns one row per host cover the whole fleet while bounding the worst
+// case to one row per host.
+func (f *ServerSettings) GetEffectiveQueryReportCap(hostCount int) int {
+	if reportCap := f.GetQueryReportCap(); hostCount <= reportCap {
+		return reportCap
+	}
+	return hostCount
+}
+
 // HostExpirySettings contains settings pertaining to automatic host expiry.
 type HostExpirySettings struct {
 	HostExpiryEnabled bool `json:"host_expiry_enabled"`
@@ -2291,6 +2322,14 @@ type Partnerships struct {
 	EnablePrimo bool `json:"enable_primo,omitempty"`
 }
 
+// AuthSettings exposes the read-only authentication settings that come from
+// the server configuration and that the UI adapts to.
+type AuthSettings struct {
+	// UseOneTimeEnrollSecrets mirrors the auth.use_one_time_enroll_secrets
+	// server configuration.
+	UseOneTimeEnrollSecrets bool `json:"use_one_time_enroll_secrets,omitempty"`
+}
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "free" or "premium")
@@ -2465,8 +2504,9 @@ type DeviceGlobalConfig struct {
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
-	EnabledAndConfigured bool `json:"enabled_and_configured"`
-	RequireAllSoftware   bool `json:"require_all_software_macos"`
+	EnabledAndConfigured             bool `json:"enabled_and_configured"`
+	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 
 // DeviceFeatures is a subset of AppConfig.Features with information used by

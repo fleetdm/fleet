@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -927,7 +928,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	require.Len(t, hostSoftware.CurrInstalled(), 1)
 
 	// Add installed paths and signature information
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "abc123hash"
 	testExecHash := "def456hash"
 	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -946,7 +947,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1030,6 +1031,60 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Contains(t, string(body), "/Applications/Google Chrome.app", "JSON should contain the installed path")
 	assert.Contains(t, string(body), "EQHXZ8M8AV", "JSON should contain the team identifier")
 	assert.Contains(t, string(body), "abc123hash", "JSON should contain the hash")
+}
+
+func (s *integrationTestSuite) TestListHostsPopulateEndUsers() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         new(t.Name() + "1"),
+		OsqueryHostID:   new(t.Name() + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// ReplaceHostDeviceMapping rejects mixed sources, so write one source at a time.
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "anna@acme.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+	}, fleet.DeviceMappingMDMIdpAccounts))
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{HostID: host.ID, Email: "anna@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles"))
+
+	findHost := func(resp listHostsResponse) *fleet.HostResponse {
+		for i, h := range resp.Hosts {
+			if h.ID == host.ID {
+				return &resp.Hosts[i]
+			}
+		}
+		return nil
+	}
+
+	// end users are omitted unless populate_end_users is set
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp)
+	got := findHost(listResp)
+	require.NotNil(t, got)
+	require.Empty(t, got.EndUsers)
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "populate_end_users", "true")
+	got = findHost(listResp)
+	require.NotNil(t, got)
+	require.Len(t, got.EndUsers, 1)
+	assert.Equal(t, "anna@acme.com", got.EndUsers[0].IdpUserName)
+	require.Len(t, got.EndUsers[0].OtherEmails, 1)
+	assert.Equal(t, "anna@example.com", got.EndUsers[0].OtherEmails[0].Email)
+	assert.Equal(t, "google_chrome_profiles", got.EndUsers[0].OtherEmails[0].Source)
+
+	s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "populate_end_users", "foo").Body.Close()
 }
 
 func (s *integrationTestSuite) TestGetHostSummary() {
@@ -1231,27 +1286,23 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 		0,
 	)
 
-	// transferring a mix of real and non-existent host IDs must not record the
-	// fabricated IDs in the activity: only hosts that actually exist are logged.
+	// transferring a mix of real and non-existent host IDs is rejected as not
+	// found, so fabricated IDs can't reach the audit trail: the latest
+	// transferred_hosts activity is still the one recorded above.
+	lastTransferActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", 0)
 	nonExistentHostID := hosts[2].ID + 1000
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &tm1.ID,
 		HostIDs: []uint{hosts[0].ID, nonExistentHostID},
-	}, http.StatusOK, &addResp)
-	mixedActivityID := s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
-			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[0].DisplayName()),
-		0,
-	)
+	}, http.StatusNotFound, &addResp)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", lastTransferActivityID)
 
-	// transferring only non-existent host IDs must not record any activity: the
-	// latest transferred_hosts activity is still the mixed transfer above.
+	// transferring only non-existent host IDs is rejected the same way.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &tm1.ID,
 		HostIDs: []uint{nonExistentHostID},
-	}, http.StatusOK, &addResp)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", mixedActivityID)
+	}, http.StatusNotFound, &addResp)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", lastTransferActivityID)
 
 	// check that hosts are now part of team 1
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
@@ -1854,25 +1905,32 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		Source:           "apps",
 	}
 	ghCli := fleet.Software{
-		Name:   "gh",
-		Source: "homebrew_packages",
+		Name:    "gh",
+		Version: "2.55.0",
+		Source:  "homebrew_packages",
+	}
+	axiosPackage := fleet.Software{
+		Name:    "axios",
+		Version: "1.7.7",
+		Source:  "npm_packages",
 	}
 
 	// Update the host's software.
 	software := []fleet.Software{
-		safariApp, googleChromeApp, ghCli,
+		safariApp, googleChromeApp, ghCli, axiosPackage,
 	}
 	hostSoftware, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 3)
+	require.Len(t, hostSoftware.CurrInstalled(), 4)
 
 	// Update the host's software installed paths for the software above.
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
+	ghKegPath := "/opt/homebrew/Cellar/gh"
 	for _, s := range software {
 		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
@@ -1886,6 +1944,10 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
 			}
 		}
+		if s.Name == "gh" {
+			// A Homebrew keg is one row carrying the executables it installs.
+			pathItems = [][5]string{{ghKegPath, "", "", "", ""}}
+		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
@@ -1896,7 +1958,15 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
+			if path == ghKegPath {
+				// gh-deferred is a file fleetd found but has not hashed yet.
+				swPaths[key] = fleet.ExecutableHashes{
+					"2.55.0/bin/gh":          "1111",
+					"2.55.0/bin/gh-helper":   "2222",
+					"2.55.0/bin/gh-deferred": "",
+				}
+			}
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1912,7 +1982,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		nil, http.StatusOK, &getHostSoftwareResp,
 		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
 	)
-	require.Len(t, getHostSoftwareResp.Software, 3)
+	require.Len(t, getHostSoftwareResp.Software, 4)
 	require.Equal(t, "Safari.app", getHostSoftwareResp.Software[0].Name)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].InstalledPaths, 1)
@@ -1945,11 +2015,31 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
+	// The Homebrew keg lists its path once, and expands its executables into one signature
+	// information entry each. The one fleetd has not hashed yet is left out.
 	require.Equal(t, "gh", getHostSoftwareResp.Software[2].Name)
 	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions, 1)
-	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths, 1)
-	require.Equal(t, "/some/path/gh", getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths[0])
-	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
+	ghVersion := getHostSoftwareResp.Software[2].InstalledVersions[0]
+	require.Equal(t, []string{ghKegPath}, ghVersion.InstalledPaths)
+	require.Len(t, ghVersion.SignatureInformation, 2)
+	sort.Slice(ghVersion.SignatureInformation, func(i, j int) bool {
+		return *ghVersion.SignatureInformation[i].ExecutablePath < *ghVersion.SignatureInformation[j].ExecutablePath
+	})
+	for i, binary := range []string{"gh", "gh-helper"} {
+		sigInfo := ghVersion.SignatureInformation[i]
+		require.Equal(t, ghKegPath, sigInfo.InstalledPath)
+		require.Empty(t, sigInfo.TeamIdentifier)
+		require.Nil(t, sigInfo.CDHashSHA256)
+		require.Equal(t, ghKegPath+"/2.55.0/bin/"+binary, *sigInfo.ExecutablePath)
+	}
+	require.Equal(t, "1111", *ghVersion.SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, "2222", *ghVersion.SignatureInformation[1].ExecutableSHA256)
+
+	// Sources that report no hashes keep an empty signature information list.
+	require.Equal(t, "axios", getHostSoftwareResp.Software[3].Name)
+	require.Len(t, getHostSoftwareResp.Software[3].InstalledVersions, 1)
+	require.Equal(t, []string{"/some/path/axios"}, getHostSoftwareResp.Software[3].InstalledVersions[0].InstalledPaths)
+	require.Nil(t, getHostSoftwareResp.Software[3].InstalledVersions[0].SignatureInformation)
 }
 
 func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
@@ -2105,12 +2195,25 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	// Unknown host ID: 404.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID+9999), nil, http.StatusNotFound, &resp)
 
-	// iOS and iPadOS hosts can't use device-token auth, so the endpoint
-	// rejects them with 400 instead of minting an unusable URL.
+	// iOS and iPadOS hosts have no device auth token; their URL is the host
+	// UUID landing on the self-service tab, matching the Web Clip profile in
+	// docs/solutions/ios-ipados.
 	iosHost := createOrbitEnrolledHost(t, "ios", "device-url-ios", s.ds)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusBadRequest, &resp)
+	var iosResp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusOK, &iosResp)
+	require.Equal(t, "https://fleet.example.com/device/"+iosHost.UUID+"/self-service", iosResp.DeviceURL)
 	ipadHost := createOrbitEnrolledHost(t, "ipados", "device-url-ipad", s.ds)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusBadRequest, &resp)
+	var ipadResp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusOK, &ipadResp)
+	require.Equal(t, "https://fleet.example.com/device/"+ipadHost.UUID+"/self-service", ipadResp.DeviceURL)
+
+	// Android and ChromeOS have no My device page at all, so the endpoint explains
+	// that rather than minting a URL that leads nowhere. See #48439.
+	for _, platform := range []string{"android", "chrome", "CrOS"} {
+		unsupportedHost := createOrbitEnrolledHost(t, platform, "device-url-"+platform, s.ds)
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", unsupportedHost.ID), nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLUnsupportedPlatformMessage, "platform %s", platform)
+	}
 
 	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
 	defer func() { s.token = s.getTestAdminToken() }()
@@ -2123,4 +2226,51 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
+}
+func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
+	t := s.T()
+
+	hostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	// Nothing ever clears refetch_requested for an Android host, so a request that
+	// will never be acted on must not set it.
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+
+	// The device-authenticated route is rejected too. GET /hosts/:id/device_url no
+	// longer mints a token for Android (#48439), but one issued by an earlier version
+	// still reaches this route.
+	const androidDeviceToken = "android-refetch-device-token" //nolint:gosec // G101 false positive, test fixture value
+	createDeviceTokenForHost(t, s.ds, hostID, androidDeviceToken)
+
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", androidDeviceToken), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+}
+
+func (s *integrationTestSuite) TestChartsLinuxPlatformFilter() {
+	t := s.T()
+	s.createHosts(t, "ubuntu", "rhel", "debian", "linux", "darwin")
+
+	var resp chart_api.Response
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "linux")
+	assert.Equal(t, 4, resp.TotalHosts)
+	assert.Equal(t, []string{"linux"}, resp.Filters.Platforms)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "ubuntu")
+	assert.Equal(t, 1, resp.TotalHosts)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "darwin")
+	assert.Equal(t, 1, resp.TotalHosts)
 }

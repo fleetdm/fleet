@@ -477,6 +477,7 @@ type agent struct {
 	softwareCount                 softwareEntityCount
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	softwareAdobePluginsCount     softwareExtraEntityCount
+	softwareGoBinariesCount       entityCount
 	userCount                     entityCount
 	policyPassProb                float64
 	munkiIssueProb                float64
@@ -581,6 +582,7 @@ type agent struct {
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 	softwareAdobePluginsFailProb     float64
+	softwareGoBinariesFailProb       float64
 
 	softwareInstaller softwareInstaller
 
@@ -691,6 +693,8 @@ type softwareEntityCount struct {
 	duplicateBundleIdentifiersPercent int
 	softwareRenaming                  bool
 	embeddedBundlePaths               bool
+	homebrewKegPercent                int
+	homebrewLargeKegPercent           int
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -739,10 +743,12 @@ func newAgent(
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareAdobePluginsQueryFailureProb float64,
+	softwareGoBinariesQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	softwareAdobePluginsCount softwareExtraEntityCount,
+	softwareGoBinariesCount entityCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -830,6 +836,7 @@ func newAgent(
 		softwareCount:                 softwareCount,
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
 		softwareAdobePluginsCount:     softwareAdobePluginsCount,
+		softwareGoBinariesCount:       softwareGoBinariesCount,
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
@@ -853,6 +860,7 @@ func newAgent(
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 		softwareAdobePluginsFailProb:     softwareAdobePluginsQueryFailureProb,
+		softwareGoBinariesFailProb:       softwareGoBinariesQueryFailureProb,
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
@@ -2975,6 +2983,59 @@ func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
 	return fleetSoftware
 }
 
+// A large keg stands in for a formula like netpbm (~360 tools) or texlive, which install
+// hundreds of executables where most formulae install one or two.
+const (
+	minLargeKegExecutables = 200
+	maxLargeKegExecutables = 400
+)
+
+// kegBucket maps a formula to a number in [0, 100) that is stable across runs and across hosts,
+// so a formula is a keg, is large, and installs the same executables wherever it appears — as with
+// a real formula, whose contents are a property of the formula, not of the machine.
+func kegBucket(salt, name string) int {
+	sum := sha256.Sum256([]byte(salt + "\x00" + name))
+	return (int(sum[0])<<8 | int(sum[1])) % 100
+}
+
+// homebrewExecutableHashes simulates the macos_homebrew_executable_sha256 software override
+// query: one row per Mach-O executable a Homebrew formula installs under its keg, hashed by the
+// fleetd executable_hashes table. That fan-out, not the number of formulae, is what sizes a macOS
+// host's installed path delta, so it is what the two keg flags control.
+func (a *agent) homebrewExecutableHashes(software []map[string]string) []map[string]string {
+	var results []map[string]string
+	for _, s := range software {
+		kegPath, name := s["installed_path"], s["name"]
+		if s["source"] != "homebrew_packages" || kegPath == "" {
+			continue
+		}
+		if kegBucket("keg", name) >= a.softwareCount.homebrewKegPercent {
+			continue
+		}
+
+		count := kegBucket("count", name)%3 + 1
+		if kegBucket("large", name) < a.softwareCount.homebrewLargeKegPercent {
+			count = minLargeKegExecutables + kegBucket("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
+		}
+
+		for i := range count {
+			binary := name
+			if i > 0 {
+				binary = fmt.Sprintf("%s-%d", binary, i+1)
+			}
+			executablePath := kegPath + "/" + s["version"] + "/bin/" + binary
+			results = append(results, map[string]string{
+				"keg_path":          kegPath,
+				"version":           s["version"],
+				"executable_path":   executablePath,
+				"executable_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(executablePath))),
+				"hash_state":        "hashed",
+			})
+		}
+	}
+	return results
+}
+
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	commonVSCodeExtensionsSoftware := make([]map[string]string, a.softwareVSCodeExtensionsCount.common)
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
@@ -3094,6 +3155,66 @@ func (a *agent) softwareAdobePlugins() []map[string]string {
 		plugins[i], plugins[j] = plugins[j], plugins[i]
 	})
 	return plugins
+}
+
+// goBinDir returns the directory `go install` puts binaries in.
+func (a *agent) goBinDir() string {
+	switch a.os {
+	case "windows":
+		return `C:\Users\fleet\go\bin\`
+	case "darwin":
+		return "/Users/fleet/go/bin/"
+	default:
+		return "/home/fleet/go/bin/"
+	}
+}
+
+func (a *agent) goBinary(name, modulePath, baseVersion, alternateVersion, goVersion string) map[string]string {
+	return map[string]string{
+		"name":           name,
+		"version":        a.selectSoftwareVersion(name, baseVersion, alternateVersion),
+		"extension_id":   modulePath,
+		"extension_for":  "",
+		"source":         "go_binaries",
+		"release":        goVersion,
+		"vendor":         "",
+		"arch":           "",
+		"installed_path": a.goBinDir() + name,
+	}
+}
+
+// softwareGoBinaries generates the Go binaries reported by fleetd's go_binaries table,
+// covering the three shapes the real table emits: binaries installed with `go install`, one
+// built with `go build` (version "(devel)" and no module path, because it was built outside
+// module mode), and one name and version built with two toolchains, which Fleet stores as
+// two software rows because release is part of the software checksum.
+func (a *agent) softwareGoBinaries() []map[string]string {
+	if a.softwareGoBinariesCount.common == 0 && a.softwareGoBinariesCount.unique == 0 {
+		return nil
+	}
+
+	modulePath := func(name string) string { return "github.com/fleetdm/osquery-perf/" + name }
+
+	var binaries []map[string]string
+	for i := range a.softwareGoBinariesCount.common {
+		name := fmt.Sprintf("common-go-binary-%d", i)
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v0.0.1", "v0.0.2", "go1.26.1"))
+	}
+	for i := range a.softwareGoBinariesCount.unique {
+		name := fmt.Sprintf("unique-go-binary-%s-%d", a.CachedString("hostname"), i)
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v1.1.1", "v1.1.2", "go1.26.1"))
+	}
+
+	develBinary := a.goBinary("devel-go-binary", "", "v0.0.1", "v0.0.2", "go1.26.1")
+	develBinary["version"] = "(devel)"
+	binaries = append(binaries, develBinary)
+
+	if a.softwareGoBinariesCount.common > 0 {
+		name := "common-go-binary-0"
+		binaries = append(binaries, a.goBinary(name, modulePath(name), "v0.0.1", "v0.0.2", "go1.25.4"))
+	}
+
+	return binaries
 }
 
 func selectKernels(kernelList []map[string]string) []map[string]string {
@@ -3790,6 +3911,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			}
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_homebrew_executable_sha256":
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb { // nolint:gosec // load testing, not security-sensitive
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.homebrewExecutableHashes(cachedResults.software)
+		}
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.StatusOK
 		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
@@ -3995,6 +4125,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		}
 		if ss == fleet.StatusOK {
 			results = a.softwareAdobePlugins()
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_go_binaries":
+		ss := fleet.StatusOK
+		if a.softwareGoBinariesFailProb > 0.0 && rand.Float64() <= a.softwareGoBinariesFailProb { //nolint:gosec // ignore weak randomizer
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareGoBinaries()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
@@ -4402,6 +4541,7 @@ func main() {
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 		softwareAdobePluginsQueryFailureProb     = flag.Float64("software_adobe_plugins_query_fail_prob", 0.0, "Probability of the software adobe_plugins query failing")
+		softwareGoBinariesQueryFailureProb       = flag.Float64("software_go_binaries_query_fail_prob", 0.0, "Probability of the software go_binaries query failing")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
 			"Probability of the pre-install query failing")
@@ -4415,6 +4555,7 @@ func main() {
 		commonAdobePluginsSoftwareCount              = flag.Int("common_adobe_plugins_software_count", 5, "Number of common adobe_plugins installed plugins reported to fleet")
 		commonAdobePluginsSoftwareUninstallCount     = flag.Int("common_adobe_plugins_software_uninstall_count", 1, "Number of common adobe_plugins plugins to uninstall")
 		commonAdobePluginsSoftwareUninstallProb      = flag.Float64("common_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling common_adobe_plugins_software_uninstall_count common plugin/s")
+		commonGoBinariesSoftwareCount                = flag.Int("common_go_binaries_software_count", 5, "Number of common go_binaries binaries reported to fleet")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonVSCodeExtensionsSoftwareUninstallCount = flag.Int("common_vscode_extensions_software_uninstall_count", 1, "Number of common vscode_extensions software to uninstall")
 		commonSoftwareUninstallProb                  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
@@ -4425,10 +4566,16 @@ func main() {
 		uniqueAdobePluginsSoftwareCount              = flag.Int("unique_adobe_plugins_software_count", 1, "Number of unique adobe_plugins plugins installed on each host")
 		uniqueAdobePluginsSoftwareUninstallCount     = flag.Int("unique_adobe_plugins_software_uninstall_count", 1, "Number of unique adobe_plugins plugins to uninstall")
 		uniqueAdobePluginsSoftwareUninstallProb      = flag.Float64("unique_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling unique_adobe_plugins_software_uninstall_count unique plugin/s")
+		uniqueGoBinariesSoftwareCount                = flag.Int("unique_go_binaries_software_count", 1, "Number of unique go_binaries binaries installed on each host")
 		uniqueSoftwareUninstallCount                 = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueVSCodeExtensionsSoftwareUninstallCount = flag.Int("unique_vscode_extensions_software_uninstall_count", 1, "Number of unique vscode_extensions software to uninstall")
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
+
+		homebrewKegPercent = flag.Int("software_homebrew_keg_percent", 80,
+			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
+		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
+			"Percentage of those kegs that install 200 or more executables, standing in for a formula like netpbm or texlive (0-100)")
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
@@ -4502,6 +4649,7 @@ func main() {
 		androidStatusInterval    = flag.Duration("android_status_interval", 5*time.Minute, "Interval between Android STATUS_REPORT messages (real devices report ~every 24h; lower values stress test Fleet harder)")
 		androidAppCount          = flag.Int("android_app_count", 50, "Number of installed apps each Android device reports")
 		androidNonComplianceProb = flag.Float64("android_non_compliance_prob", 0.05, "Probability of an Android STATUS_REPORT including non-compliance details [0, 1]")
+		androidVitalsChurnProb   = flag.Float64("android_vitals_churn_prob", defaultVitalsChurnProb, "Probability of an Android STATUS_REPORT reporting changed host vitals; 0 reports identical vitals forever, which MySQL stores without writing a row [0, 1]")
 	)
 
 	flag.Parse()
@@ -4561,8 +4709,17 @@ func main() {
 	if *uniqueAdobePluginsSoftwareUninstallCount > *uniqueAdobePluginsSoftwareCount {
 		log.Fatalf("Argument unique_adobe_plugins_software_uninstall_count cannot be bigger than unique_adobe_plugins_software_count")
 	}
+	if *commonGoBinariesSoftwareCount < 0 {
+		log.Fatalf("Argument common_go_binaries_software_count cannot be negative, got %d", *commonGoBinariesSoftwareCount)
+	}
+	if *uniqueGoBinariesSoftwareCount < 0 {
+		log.Fatalf("Argument unique_go_binaries_software_count cannot be negative, got %d", *uniqueGoBinariesSoftwareCount)
+	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
+	}
+	if *androidVitalsChurnProb < 0 || *androidVitalsChurnProb > 1 {
+		log.Fatalf("Argument android_vitals_churn_prob must be between 0 and 1, got %f", *androidVitalsChurnProb)
 	}
 
 	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
@@ -4701,6 +4858,7 @@ func main() {
 				*androidStatusInterval,
 				*androidAppCount,
 				*androidNonComplianceProb,
+				*androidVitalsChurnProb,
 				stats,
 			)
 			go androidDevice.runLoop()
@@ -4722,6 +4880,7 @@ func main() {
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
 			*softwareAdobePluginsQueryFailureProb,
+			*softwareGoBinariesQueryFailureProb,
 			softwareInstaller{
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
@@ -4743,6 +4902,8 @@ func main() {
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 				softwareRenaming:                  *softwareRenaming,
 				embeddedBundlePaths:               *embeddedBundlePaths,
+				homebrewKegPercent:                *homebrewKegPercent,
+				homebrewLargeKegPercent:           *homebrewLargeKegPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{
@@ -4763,6 +4924,10 @@ func main() {
 				commonSoftwareUninstallProb:  *commonAdobePluginsSoftwareUninstallProb,
 				uniqueSoftwareUninstallCount: *uniqueAdobePluginsSoftwareUninstallCount,
 				uniqueSoftwareUninstallProb:  *uniqueAdobePluginsSoftwareUninstallProb,
+			},
+			entityCount{
+				common: *commonGoBinariesSoftwareCount,
+				unique: *uniqueGoBinariesSoftwareCount,
 			},
 			entityCount{
 				common: *commonUserCount,

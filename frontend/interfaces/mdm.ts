@@ -1,6 +1,6 @@
-import { IConfigServerSettings } from "./config";
+import { IConfigServerSettings, IMdmConfig } from "./config";
 import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
-import { isAppleDevice } from "./platform";
+import { isAndroid, isAppleDevice, isWindows } from "./platform";
 
 export interface IMdmApple {
   common_name: string;
@@ -35,6 +35,7 @@ export interface IMdmAbToken {
   renew_date: string;
   terms_expired: boolean;
   token_invalid: boolean;
+  default: boolean;
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
@@ -168,6 +169,48 @@ export type ProfilePlatform =
   | "linux"
   | "android";
 
+// Checks if MDM is configured for a given platform.
+// It will return false for platforms that do not have MDM as a concept.
+// It will return false on a missing config.
+export const isMDMConfiguredForPlatform = (
+  platform: ProfilePlatform,
+  mdmConfig: IMdmConfig | undefined
+) => {
+  if (!mdmConfig) {
+    return false;
+  }
+
+  if (isWindows(platform)) {
+    return mdmConfig.windows_enabled_and_configured;
+  }
+
+  if (isAppleDevice(platform)) {
+    return mdmConfig.enabled_and_configured;
+  }
+
+  if (isAndroid(platform)) {
+    return mdmConfig.android_enabled_and_configured;
+  }
+
+  // Other platform types do not have MDM.
+  return false;
+};
+
+export const platformToMDMLabel = (platform: ProfilePlatform) => {
+  switch (platform) {
+    case "android":
+      return "Android";
+    case "darwin":
+    case "ios":
+    case "ipados":
+      return "Apple";
+    case "windows":
+      return "Windows";
+    default:
+      return "Unknown";
+  }
+};
+
 export interface IProfileLabel {
   name: string;
   id?: number; // id is only present when the label is not broken
@@ -229,6 +272,13 @@ export interface IHostMdmProfile {
   managed_local_account: string | null;
   // identifier when this profile represents an Android certificate template
   certificate_template_id?: number;
+  /** Whether Fleet is in the middle of automatically retrying this profile after a failed
+   * install, along with the retries already used and the number allowed. Only present on Android
+   * certificate templates, and only on installs — removals are never retried. Note a manual
+   * resend also sets retry_count, so only `retrying` identifies an automatic retry. */
+  retrying?: boolean;
+  retry_count?: number;
+  max_retries?: number;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -273,6 +323,7 @@ export const isLinuxDiskEncryptionStatus = (
   ["verified", "failed", "action_required"].includes(status);
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
+export const FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME = "Fleetd configuration";
 export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
   "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
@@ -336,29 +387,6 @@ export const isBYODManualEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
   return enrollmentStatus === "On (manual)";
-};
-
-/** MDM enrollment channels as reported by the device. Account-Driven User
- * Enrollment is the only personal (BYOD) flow that enrolls on the user channel;
- * manual BYOD enrolls on the device channel like company-owned hosts. */
-export const MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN = "User Enrollment (Device)";
-
-/** Whether a host enrolled through Account-Driven User Enrollment, which decides
- * how the end user re-enrolls. The enrollment status can't answer this: manual
- * BYOD reports the same "On (manual - personal)". See #50868. */
-export const isAccountDrivenUserEnrollment = (
-  lastMdmEnrollmentType?: string | null
-) => {
-  return lastMdmEnrollmentType === MDM_ENROLLMENT_TYPE_ACCOUNT_DRIVEN;
-};
-
-/** Personal (BYOD) enrollment status. Note this covers BOTH manual BYOD and
- * Account-Driven User Enrollment — the status alone cannot tell them apart, so
- * use `isAccountDrivenUserEnrollment` when the difference matters. See #50868. */
-export const isPersonalEnrollmentStatus = (
-  enrollmentStatus: MdmEnrollmentStatus | null
-) => {
-  return enrollmentStatus === "On (manual - personal)";
 };
 
 /** This checks if the device is enrolled via an Apple ID user enrollment.

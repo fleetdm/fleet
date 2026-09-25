@@ -1,11 +1,9 @@
-import sendRequest from "services";
-
-import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
-
 // TODO - move disk encryption types like this to dedicated file
 import { DiskEncryptionStatus } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IDiskEncryptionStatusAggregate {
   macos: number;
@@ -60,6 +58,10 @@ const diskEncryptionService = {
       "POST",
       DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW(token)
     );
+  },
+  submitBitLockerPIN: (token: string, pin: string) => {
+    const { DEVICE_DISK_ENCRYPTION_PIN } = endpoints;
+    return sendRequest("POST", DEVICE_DISK_ENCRYPTION_PIN(token), { pin });
   },
 };
 
