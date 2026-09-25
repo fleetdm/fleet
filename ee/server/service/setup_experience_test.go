@@ -120,6 +120,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Len(t, requestedInstalls, 1)
 	assert.Len(t, requestedUpdateSetupExperience, 1)
 	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
+	assert.Equal(t, fleet.SetupExperienceStatusRunning, requestedUpdateSetupExperience[0].Status)
 
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
 	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{

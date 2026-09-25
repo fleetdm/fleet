@@ -20,11 +20,12 @@ import (
 // linking host_uuid, plus typical jitter.
 const windowsFreshEnrollmentWindow = 5 * time.Minute
 
-// setupExperienceGatingPolicyClause selects the policies that gate a Windows/Linux setup-experience software item: those
-// whose install-software automation points at the item's installer, excluding patch policies. A patch policy's query passes
-// when the app is absent (nothing outdated to find), so a pass can't be read as "installed and up to date" and would skip the
-// install on a fresh host. Requires the policies table to be aliased as `p`.
-const setupExperienceGatingPolicyClause = `p.software_installer_id IS NOT NULL AND p.type != 'patch'`
+// setupExperienceGatingPolicyClause narrows the policies whose install-software automation points at a Windows/Linux
+// setup-experience software item's installer (callers constrain p.software_installer_id to that installer) to the ones that
+// gate it: everything except patch policies. A patch policy's query passes when the app is absent (nothing outdated to find),
+// so a pass can't be read as "installed and up to date" and would skip the install on a fresh host. Requires the policies
+// table to be aliased as `p`.
+const setupExperienceGatingPolicyClause = `p.type != '` + fleet.PolicyTypePatch + `'`
 
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
 	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, false)
