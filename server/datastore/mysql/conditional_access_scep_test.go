@@ -146,7 +146,7 @@ MIICEjCCAXsCAg36MA0GCSqGSIb3DQEBBQUAMIGbMQswCQYDVQQGEwJKUDEOMAwG
 
 		lastID, err := result.LastInsertId()
 		require.NoError(t, err)
-		serialNumber = uint64(lastID) // nolint:gosec,G115
+		serialNumber = uint64(lastID) //nolint:gosec // G115
 
 		_, err = q.ExecContext(ctx, `
 			INSERT INTO conditional_access_scep_certificates
