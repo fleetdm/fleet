@@ -179,6 +179,7 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
 		}
+		// Empty once the secret is consumed. The value is then delivered empty on purpose.
 		secretValues[secretType] = secret
 	}
 

@@ -11,7 +11,7 @@ func init() {
 	MigrationClient.AddMigration(Up_20260925185221, Down_20260925185221)
 }
 
-// Up_20260923202234 migration: Bind one-time enroll secrets to the Windows MDM enrollment they were minted for,
+// Up_20260925185221 migration: Bind one-time enroll secrets to the Windows MDM enrollment they were minted for,
 // and clear the profile name this release reserves.
 //
 // Windows MDM mints a one-time enroll secret before a hosts row exists: the automatic enrollment flows carry no Fleet host UUID
