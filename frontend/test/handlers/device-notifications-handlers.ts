@@ -57,6 +57,7 @@ export const createMockNotificationView = (
     }),
   ],
   actions: HOUR_ACTIONS,
+  install_at: null,
   ...overrides,
 });
 
@@ -129,6 +130,31 @@ export const installingThenSettledDeviceNotificationHandler = () => {
       state.requestCount === 1
         ? createMockInstallingNotificationView()
         : createMockSettledNotificationView()
+    );
+  });
+  return { handler, state };
+};
+
+/** Answers the 5 minute reminder with an install_at 65 seconds away for the first two requests, then "Updating..." for every app as Fleet does once it queues the installs at that deadline. Also counts the requests it served. */
+export const reminderThenInstallingDeviceNotificationHandler = () => {
+  const state = { requestCount: 0 };
+  const installAt = new Date(Date.now() + 65000).toISOString();
+  const handler = http.get(notificationUrl, () => {
+    state.requestCount += 1;
+    return HttpResponse.json(
+      state.requestCount <= 2
+        ? createMockNotificationView({
+            title: "These apps will close and update in **5 minutes**",
+            actions: [
+              { id: "dismiss", label: "Hide" },
+              { id: "update_now", label: "Update now" },
+            ],
+            install_at: installAt,
+          })
+        : {
+            ...createMockInstallingNotificationView(),
+            install_at: installAt,
+          }
     );
   });
   return { handler, state };
