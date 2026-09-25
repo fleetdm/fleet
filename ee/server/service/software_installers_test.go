@@ -3605,18 +3605,22 @@ func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
 
 	// setup returns the service plus a reader for whatever payload reached the
 	// datastore, which is where the computed flags land.
-	setup := func(t *testing.T, installEdited bool, uninstallEdited bool) (*Service, context.Context, func() *fleet.UpdateSoftwareInstallerPayload) {
+	setup := func(t *testing.T, installEdited bool, uninstallEdited bool, extensions ...string) (*Service, context.Context, func() *fleet.UpdateSoftwareInstallerPayload) {
 		t.Helper()
 		ds := new(mock.Store)
 		svc, baseSvc := newTestServiceWithMock(t, ds)
 		teamID := uint(0)
 		fmaID := uint(3)
+		extension := "pkg"
+		if len(extensions) > 0 {
+			extension = extensions[0]
+		}
 		installer := &fleet.SoftwareInstaller{
 			TeamID:                &teamID,
 			TitleID:               new(titleID),
 			InstallerID:           installerID,
-			Name:                  "app.pkg",
-			Extension:             "pkg",
+			Name:                  "app." + extension,
+			Extension:             extension,
 			Version:               "1.0",
 			Platform:              "darwin",
 			PackageIDList:         "com.example.app",
@@ -3715,6 +3719,30 @@ func TestUpdateSoftwareInstallerScriptEditedFlags(t *testing.T) {
 		require.NotNil(t, saved())
 		require.True(t, saved().InstallScriptEdited)
 		require.False(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("clearing an edited install script returns it to Fleet management", func(t *testing.T) {
+		svc, ctx, saved := setup(t, true, false)
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: new(""),
+		})
+
+		require.NotNil(t, saved())
+		require.False(t, saved().InstallScriptEdited)
+		require.False(t, saved().UninstallScriptEdited)
+	})
+
+	t.Run("clearing an edited install script works without a package default", func(t *testing.T) {
+		svc, ctx, saved := setup(t, true, false, "dmg")
+
+		update(t, svc, ctx, &fleet.UpdateSoftwareInstallerPayload{
+			InstallScript: new(""),
+		})
+
+		require.NotNil(t, saved())
+		require.Equal(t, storedInstall, *saved().InstallScript)
+		require.False(t, saved().InstallScriptEdited)
 	})
 }
 
