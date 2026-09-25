@@ -824,6 +824,7 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 	}
 
 	personal := fleet.MDMEnrollmentStatusPersonal
+	manualPersonal := fleet.MDMEnrollmentStatusManualPersonal
 	manual := fleet.MDMEnrollmentStatusManual
 
 	cases := []struct {
@@ -831,7 +832,8 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 		enrollmentStatus *string
 		wantVitalsLoaded bool
 	}{
-		{"personal enrollment", &personal, false},
+		{"account-driven personal enrollment", &personal, false},
+		{"manual personal enrollment", &manualPersonal, false},
 		{"non-personal enrollment", &manual, true},
 		{"unknown enrollment status", nil, true},
 	}
@@ -853,6 +855,55 @@ func TestHostDetailsSkipsDeviceVitalsForPersonalEnrollment(t *testing.T) {
 			} else {
 				assert.Equal(t, fleet.HostMDMAppleDeviceVitals{}, hostDetail.HostMDMAppleDeviceVitals)
 			}
+		})
+	}
+}
+
+func TestHostDetailsAppleEnrollmentAllowedFlags(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	mockHostDetailsDatastore(ds)
+	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
+
+	for _, tc := range []struct {
+		status        string
+		personal      bool
+		wantPopulated bool
+	}{
+		{status: fleet.MDMEnrollmentStatusPersonal, personal: true, wantPopulated: true},
+		{status: fleet.MDMEnrollmentStatusManualPersonal, personal: true, wantPopulated: true},
+		{status: fleet.MDMEnrollmentStatusManual, personal: false, wantPopulated: true},
+		{status: fleet.MDMEnrollmentStatusAutomatic, personal: false, wantPopulated: false},
+	} {
+		t.Run(tc.status, func(t *testing.T) {
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return &fleet.HostMDMApplePermissions{
+					HostUUID:             hostUUID,
+					IsPersonalEnrollment: tc.personal,
+					AccessRights:         apple_mdm.AppleEnrollmentAccessRights(tc.personal),
+				}, nil
+			}
+			host := &fleet.Host{
+				ID:       3,
+				Platform: "ios",
+				UUID:     "abc123",
+				MDM:      fleet.MDMHostData{EnrollmentStatus: new(tc.status)},
+			}
+			hostDetail, err := svc.getHostDetails(test.UserContext(t.Context(), test.UserAdmin), host, fleet.HostDetailOptions{ExcludeSoftware: true})
+			require.NoError(t, err)
+
+			if !tc.wantPopulated {
+				require.Nil(t, hostDetail.MDM.WipeAllowed)
+				require.Nil(t, hostDetail.MDM.LockAllowed)
+				require.Nil(t, hostDetail.MDM.ClearPasscodeAllowed)
+				return
+			}
+			require.NotNil(t, hostDetail.MDM.WipeAllowed)
+			require.NotNil(t, hostDetail.MDM.LockAllowed)
+			require.NotNil(t, hostDetail.MDM.ClearPasscodeAllowed)
+			require.Equal(t, !tc.personal, *hostDetail.MDM.WipeAllowed)
+			require.Equal(t, !tc.personal, *hostDetail.MDM.LockAllowed)
+			require.Equal(t, !tc.personal, *hostDetail.MDM.ClearPasscodeAllowed)
 		})
 	}
 }
@@ -5363,9 +5414,9 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 		pending      fleet.PendingDeviceAction
 		wantSuppress bool
 	}{
-		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
-		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
-		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new(fleet.MDMEnrollmentStatusPersonal), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new(fleet.MDMEnrollmentStatusPersonal), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new(fleet.MDMEnrollmentStatusPersonal), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
 		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (manual - personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
@@ -5433,7 +5484,7 @@ func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 
 	const hostID = 1
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (manual - personal)")}}, nil
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(fleet.MDMEnrollmentStatusPersonal)}}, nil
 	}
 	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 

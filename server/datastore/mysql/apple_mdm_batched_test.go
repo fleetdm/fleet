@@ -32,7 +32,7 @@ func TestGetAppleProfileReconcileSnapshotChecksMDMStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		nanoEnroll(t, ds, h, false)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		return h
@@ -73,7 +73,7 @@ func TestGetAppleProfileReconcileSnapshotPageFullWithDuplicateUUIDs(t *testing.T
 			Platform:        "darwin",
 		})
 		require.NoError(t, err)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		return h
 	}
@@ -152,7 +152,7 @@ func TestGetAppleMDMHostForReconcileIgnoresHostMDMStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		nanoEnroll(t, ds, h, false)
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, enrolled, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		return h

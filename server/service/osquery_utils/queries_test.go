@@ -1173,14 +1173,14 @@ func TestDirectIngestMDMMac(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
-				require.False(t, isPersonalEnrollment)
+				require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 				return nil
 			}
 
@@ -1252,11 +1252,11 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
 				require.False(t, isServer)
 				require.True(t, enrolled)
 				require.True(t, installedFromDep)
-				require.False(t, isPersonalEnrollment)
+				require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 
 				require.Equal(t, tc.wantServerURL, serverURL)
 				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
@@ -1299,14 +1299,14 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 				},
 			}, nil
 		}
-		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
 			require.False(t, isServer)
 			require.True(t, enrolled)
 			require.True(t, installedFromDep)
 			require.Equal(t, "https://test.example.com", serverURL)
 			require.Equal(t, "test-reference", fleetEnrollmentRef)
 			require.Equal(t, fleet.WellKnownMDMFleet, name)
-			require.False(t, isPersonalEnrollment)
+			require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 
 			return nil
 		}
@@ -1330,7 +1330,7 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 
 // TestDirectIngestMDMMacPersonalEnrollment guards that the macOS detail-query
 // ingest reads the BYOD signal back from the profile's ServerURL (byod=1) rather
-// than hardcoding false, which would otherwise clobber the is_personal_enrollment
+// than hardcoding it, which would otherwise clobber the personal enrollment type
 // set by the Apple Authenticate flow on every check-in.
 func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 	ds := new(mock.Store)
@@ -1350,37 +1350,37 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
 		mdmData      []map[string]string
-		wantPersonal bool
+		wantPersonal fleet.PersonalEnrollmentType
 	}{
 		{
 			name:         "Fleet byod=1",
 			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
-			wantPersonal: true,
+			wantPersonal: fleet.PersonalEnrollmentTypeManualProfile,
 		},
 		{
 			name:         "Fleet no byod",
 			mdmData:      generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
-			wantPersonal: false,
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
 		},
 		{
 			name:         "Fleet byod=1 alongside other params",
 			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
-			wantPersonal: true,
+			wantPersonal: fleet.PersonalEnrollmentTypeManualProfile,
 		},
 		{
 			name:         "Fleet byod=0",
 			mdmData:      generateRows("https://test.example.com?byod=0", apple_mdm.FleetPayloadIdentifier),
-			wantPersonal: false,
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
 		},
 		{
 			name:         "non-Fleet byod=1 ignored",
 			mdmData:      generateRows("https://test.example.com?byod=1", "com.unknown.mdm"),
-			wantPersonal: false,
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
-				require.Equal(t, tc.wantPersonal, isPersonalEnrollment)
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
+				require.Equal(t, tc.wantPersonal, personalType)
 				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
 				return nil
 			}
@@ -1606,14 +1606,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
 				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
-				require.False(t, isPersonalEnrollment)
+				require.Equal(t, fleet.PersonalEnrollmentTypeNone, personalType)
 				return nil
 			}
 			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -5353,7 +5353,7 @@ func TestDirectIngestMDMWindowsKeepsAutopilotMarker(t *testing.T) {
 		return &fleet.MDMWindowsEnrolledDevice{MDMNotInOOBE: true}, nil
 	}
 	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string,
-		installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool,
+		installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType,
 	) error {
 		gotEnrolled, gotAutomatic = enrolled, installedFromDep
 		return nil

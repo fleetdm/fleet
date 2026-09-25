@@ -3354,8 +3354,8 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 						discoveryURL,
 						installedFromDEP,
 						fleet.WellKnownMDMFleet,
-						"",    // fleet_enrollment_ref: empty for Windows
-						false, // is_personal_enrollment: always false for Windows
+						"", // fleet_enrollment_ref: empty for Windows
+						fleet.PersonalEnrollmentTypeNone,
 					); err != nil {
 						svc.logger.WarnContext(ctx, "updating host_mdm.enrolled after Windows MDM enrollment", "err", err)
 						ctxerr.Handle(ctx, err)
