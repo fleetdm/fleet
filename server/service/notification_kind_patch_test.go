@@ -390,6 +390,9 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
+			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+				return nil, nil
+			}
 			// the end user pressed Update now on this notification
 			view, err := kind.updateNow(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID, Status: c.status,
@@ -494,6 +497,9 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 		return "device-token", nil
+	}
+	ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+		return nil, nil
 	}
 	notification := &notifications_api.EndUserNotification{
 		UUID: "notification-uuid", HostID: hostID,
@@ -621,6 +627,9 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
+			}
+			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+				return nil, nil
 			}
 			view, err := kind.Render(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID,

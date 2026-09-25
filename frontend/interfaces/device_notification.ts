@@ -33,6 +33,7 @@ export interface INotificationView {
   description: string;
   items: INotificationItem[];
   actions: INotificationAction[];
+  install_at: string | null;
 }
 
 /** JS → Swift bridge message ids. Distinct from server-side action ids. */
