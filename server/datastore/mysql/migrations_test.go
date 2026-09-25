@@ -56,6 +56,15 @@ func TestMigrationStatus(t *testing.T) {
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
 	assert.Empty(t, status.MissingTable)
 	assert.Empty(t, status.MissingData)
+
+	// Databases built from main before a renumbering still carry the old
+	// versions; they must not be reported as unknown, which stops dev servers.
+	_, err = ds.writer(context.Background()).Exec(`INSERT INTO ` + tables.MigrationClient.TableName +
+		` (version_id, is_applied) VALUES (20260923183241, 1), (20260923202245, 1)`)
+	require.NoError(t, err)
+	status, err = ds.MigrationStatus(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, fleet.AllMigrationsCompleted, status.StatusCode)
 }
 
 func TestV4732MigrationFix(t *testing.T) {
