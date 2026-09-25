@@ -168,9 +168,9 @@ func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger 
 	// Only missing profiles are written, never an existing one. Rewriting would change its checksum and redeliver it to every host
 	// in the team, a fleet-wide wave of commands on an upgrade for a profile that almost always carries an empty value. A future
 	// content change that has to reach existing hosts should be a deliberate step.
-	present := make(map[uint]bool, len(existing))
+	present := make(map[uint]struct{}, len(existing))
 	for _, profile := range existing {
-		present[ptr.ValOrZero(profile.TeamID)] = true
+		present[ptr.ValOrZero(profile.TeamID)] = struct{}{}
 	}
 
 	syncML, err := windowsEnrollSecretProfileSyncML()
@@ -188,7 +188,7 @@ func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger 
 	}
 	written := 0
 	for _, teamID := range teamIDs {
-		if present[ptr.ValOrZero(teamID)] {
+		if _, ok := present[ptr.ValOrZero(teamID)]; ok {
 			continue
 		}
 		if err := ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
