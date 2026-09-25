@@ -450,7 +450,7 @@ func TestBatchAssociateVPPAppsDryRunReportsMissingAssets(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	payload := func(adamID string) []fleet.VPPBatchPayload {
 		return []fleet.VPPBatchPayload{{
@@ -507,7 +507,7 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	}
 
 	svc := newTestService(t, ds)
-	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	payload := func(adamID string, platform fleet.InstallableDevicePlatform) []fleet.VPPBatchPayload {
 		return []fleet.VPPBatchPayload{{
