@@ -41,8 +41,8 @@ const OrgNameCell = ({
         size="xsmall"
         tooltip={
           <>
-            Used when a manually enrolling device requests a token for a Managed
-            Apple ID login.{" "}
+            Restricting Managed Apple Account sign-in to managed hosts only
+            works if the restriction is turned on in Apple Business.{" "}
             <CustomLink
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/default-ab-token`}
               text="Learn more"
@@ -52,7 +52,7 @@ const OrgNameCell = ({
           </>
         }
       >
-        Default token
+        Default sign-in
       </Tag>
     </>
   ) : (
