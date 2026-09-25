@@ -4,6 +4,7 @@ package scripts
 
 import (
 	"context"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -232,4 +233,82 @@ func TestPreambleDoesNotChangeInterpreterChoice(t *testing.T) {
 			require.Equal(t, wantKind, gotKind)
 		})
 	}
+}
+
+func TestShebangInterpreter(t *testing.T) {
+	for _, tc := range []struct {
+		contents, interp, arg string
+	}{
+		{"echo 1", "", ""},
+		{"#!/bin/sh\necho 1", "/bin/sh", ""},
+		{"#! /bin/zsh -e\necho 1", "/bin/zsh", "-e"},
+		{"#!/usr/bin/env -S python3 -u\r\nprint(1)", "/usr/bin/env", "-S python3 -u"},
+		{"#!\t/bin/bash\t-x -e\n", "/bin/bash", "-x -e"},
+		{"#!", "", ""},
+	} {
+		interp, arg := shebangInterpreter(tc.contents)
+		require.Equal(t, tc.interp, interp, tc.contents)
+		require.Equal(t, tc.arg, arg, tc.contents)
+	}
+}
+
+func TestExecCmdMissingInterpreterFallsBackToSystemProfile(t *testing.T) {
+	binDir := t.TempDir()
+	marker := filepath.Join(binDir, "NIXOS")
+	require.NoError(t, os.WriteFile(marker, nil, 0o600))
+	origMarker, origBinDir := nixosMarkerFile, nixosSystemBinDir
+	nixosMarkerFile, nixosSystemBinDir = marker, binDir
+	t.Cleanup(func() { nixosMarkerFile, nixosSystemBinDir = origMarker, origBinDir })
+	fakePython := filepath.Join(binDir, "python3")
+	require.NoError(t, os.WriteFile(fakePython, []byte("#!/bin/sh\necho \"fake python3 $1\"\n"), 0o700)) // nolint:gosec // G306
+	// a same-named interpreter on PATH must not be picked up
+	pathDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(pathDir, "python3.99"), []byte("#!/bin/sh\necho from-path\n"), 0o700)) // nolint:gosec // G306
+	t.Setenv("PATH", pathDir)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for _, tc := range []struct {
+		name, contents, want string
+	}{
+		{"no args", "#!/nonexistent/fleet-test/python3\nprint(1)\n", "fake python3 "},
+		{"with args", "#!/nonexistent/fleet-test/python3 -u\nprint(1)\n", "fake python3 -u\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scriptPath, err := writeTestScript(tc.contents)
+			require.NoError(t, err)
+			defer os.Remove(scriptPath)
+
+			output, exitCode, err := ExecCmd(ctx, scriptPath, nil)
+			require.NoError(t, err)
+			require.Equal(t, 0, exitCode)
+			require.True(t, strings.HasPrefix(string(output), tc.want), string(output))
+
+			after, err := os.ReadFile(scriptPath)
+			require.NoError(t, err)
+			require.Equal(t, tc.contents, string(after))
+		})
+	}
+
+	t.Run("not in system profile", func(t *testing.T) {
+		scriptPath, err := writeTestScript("#!/nonexistent/fleet-test/python3.99\nprint(1)\n")
+		require.NoError(t, err)
+		defer os.Remove(scriptPath)
+
+		_, exitCode, err := ExecCmd(ctx, scriptPath, nil)
+		require.ErrorContains(t, err, "/nonexistent/fleet-test/python3.99 not found on this host")
+		require.Equal(t, -1, exitCode)
+	})
+
+	t.Run("not NixOS", func(t *testing.T) {
+		nixosMarkerFile = filepath.Join(binDir, "no-such-marker")
+		scriptPath, err := writeTestScript("#!/nonexistent/fleet-test/python3\nprint(1)\n")
+		require.NoError(t, err)
+		defer os.Remove(scriptPath)
+
+		_, exitCode, err := ExecCmd(ctx, scriptPath, nil)
+		require.ErrorIs(t, err, fs.ErrNotExist)
+		require.Equal(t, -1, exitCode)
+	})
 }
