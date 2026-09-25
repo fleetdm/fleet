@@ -1,1 +1,0 @@
-- Fixed Android configuration profiles keeping the previous failure message after the profile transitioned back to verified. The stored detail is now cleared when a profile is verified, so a resolved failure no longer shows a stale error.

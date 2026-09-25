@@ -1,3 +1,0 @@
-- Added `signature_information` with `executable_path` and `executable_sha256` for each Mach-O executable installed by a Homebrew formula under its keg's `bin` and `sbin`, for use with Santa binary rules. Requires an updated fleetd.
-- Added per-executable SHA-256 hashes to the host software page: the **Hash** column falls back to the executable hash when a title has no cdhash, and the version details list a formula's Mach-O executables with their hashes, up to 10 of them, alongside a button that copies every hash.
-- Fixed Homebrew executable hashes lingering after a binary is removed from a keg: a host now reports the keg's full set of executables on every run, so an entry disappears within one detail query interval.

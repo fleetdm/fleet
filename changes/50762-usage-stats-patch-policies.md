@@ -1,1 +1,0 @@
-- Added `numPoliciesAutomationEnabledSoftware` to Fleet's anonymous usage statistics, and extended the reported Fleet-maintained apps with whether each is covered by a patch policy and whether that policy has a software automation.
