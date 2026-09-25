@@ -378,6 +378,9 @@ export interface IActivityDetails {
   request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
+  /** Notification script exit code on notify-before-patching activities; keys
+   *  into COPY_BY_EXIT_CODE for the failure reason shown in the details column. */
+  exit_code?: number;
   script_name?: string;
   self_service?: boolean;
   self_service_category_id?: number | null;
