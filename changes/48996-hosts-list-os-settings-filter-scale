@@ -1,0 +1,2 @@
+- Improved the performance of filtering the hosts list by OS settings status on Windows. The filter now reads the maintained per-host profile status rollup instead of re-aggregating every host's configuration profile rows on each request, which made the page take over a minute for fleets with many profiles applied to many hosts.
+- Fixed Windows hosts reporting a stale OS settings status for up to an hour after a configuration profile was resent because a custom host vital or an IdP-sourced variable changed.

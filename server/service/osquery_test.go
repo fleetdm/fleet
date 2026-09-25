@@ -1990,30 +1990,31 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
-		hostDetailQueryPrefix + "mdm":                                     {},
-		hostDetailQueryPrefix + "munki_info":                              {},
-		hostDetailQueryPrefix + "kubequery_info":                          {},
-		hostDetailQueryPrefix + "orbit_info":                              {},
-		hostDetailQueryPrefix + "software_vscode_extensions":              {},
-		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
-		hostDetailQueryPrefix + "software_adobe_plugins":                  {},
-		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
-		hostDetailQueryPrefix + "software_go_binaries":                    {},
-		hostDetailQueryPrefix + "software_python_packages":                {},
-		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
-		hostDetailQueryPrefix + "software_macos_firefox":                  {},
-		hostDetailQueryPrefix + "battery":                                 {},
-		hostDetailQueryPrefix + "software_macos_codesign":                 {},
-		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
-		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
-		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
-		hostDetailQueryPrefix + "disk_space_darwin":                       {},
-		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
-		hostDetailQueryPrefix + "certificates_windows":                    {},
-		hostDetailQueryPrefix + "tpm_pin_config_verify":                   {},
-		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":          {},
-		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":         {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                    {},
+		hostDetailQueryPrefix + "mdm":                                       {},
+		hostDetailQueryPrefix + "munki_info":                                {},
+		hostDetailQueryPrefix + "kubequery_info":                            {},
+		hostDetailQueryPrefix + "orbit_info":                                {},
+		hostDetailQueryPrefix + "software_vscode_extensions":                {},
+		hostDetailQueryPrefix + "software_jetbrains_plugins":                {},
+		hostDetailQueryPrefix + "software_adobe_plugins":                    {},
+		hostDetailQueryPrefix + "software_linux_fleetd_pacman":              {},
+		hostDetailQueryPrefix + "software_go_binaries":                      {},
+		hostDetailQueryPrefix + "software_python_packages":                  {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir":   {},
+		hostDetailQueryPrefix + "software_macos_firefox":                    {},
+		hostDetailQueryPrefix + "battery":                                   {},
+		hostDetailQueryPrefix + "software_macos_codesign":                   {},
+		hostDetailQueryPrefix + "software_macos_executable_sha256":          {},
+		hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": {},
+		hostDetailQueryPrefix + "software_rpm_last_opened_at":               {},
+		hostDetailQueryPrefix + "software_deb_last_opened_at":               {},
+		hostDetailQueryPrefix + "disk_space_darwin":                         {},
+		hostDetailQueryPrefix + "disk_space_darwin_legacy":                  {},
+		hostDetailQueryPrefix + "certificates_windows":                      {},
+		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
+		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
+		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -2474,6 +2475,45 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, mockClock.Now(), gotTime)
 	require.Len(t, gotResults, 1)
 	assert.Equal(t, true, *gotResults[1])
+
+	mockClock.AddTime(1 * time.Second)
+
+	// Results for labels that are not dynamic labels applicable to the host
+	// (manual labels, other teams' labels, unknown IDs) must be discarded, not
+	// recorded as false: a false becomes a membership DELETE, which would let a
+	// host remove itself from a manual label.
+	gotResults = map[uint]*bool{}
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "1":  {{"col1": "val1"}},
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	require.Len(t, gotResults, 1)
+	assert.True(t, *gotResults[1])
+	assert.NotContains(t, gotResults, uint(98))
+	assert.NotContains(t, gotResults, uint(99))
+
+	// When every reported label is inapplicable, nothing is recorded at all.
+	ds.RecordLabelQueryExecutionsFuncInvoked = false
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "98": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "99": {},
+		},
+		map[string]fleet.OsqueryStatus{},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	assert.False(t, ds.RecordLabelQueryExecutionsFuncInvoked)
 
 	mockClock.AddTime(1 * time.Second)
 
@@ -3037,7 +3077,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil, nil
 	}
 
-	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]struct{},
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, paths map[string]fleet.ExecutableHashes,
 		result *fleet.UpdateHostSoftwareDBResult,
 	) error {
 		return nil
@@ -5299,6 +5339,22 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
 	}
+	gitKeg := map[string]string{
+		"name":              "git",
+		"version":           "2.46.0",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "homebrew_packages",
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    "/opt/homebrew/Cellar/git",
+	}
+	gitKegWithExecutables := func(executables string) map[string]string {
+		row := maps.Clone(gitKeg)
+		row["executable_hashes"] = executables
+		return row
+	}
 	someRow := map[string]string{
 		"1": "1",
 	}
@@ -5897,6 +5953,45 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"team_identifier": "com.slack.slack",
 					},
 				},
+			},
+		},
+		{
+			name: "macos homebrew executable hashes are carried on the keg's row",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                            fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					gitKeg,
+				},
+				hostDetailQueryPrefix + "software_macos_homebrew_executable_sha256": []map[string]string{
+					{
+						"keg_path":          "/opt/homebrew/Cellar/git",
+						"version":           "2.46.0",
+						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git",
+						"executable_sha256": "aaaa",
+						"hash_state":        "hashed",
+					},
+					{
+						"keg_path":          "/opt/homebrew/Cellar/git",
+						"version":           "2.46.0",
+						"executable_path":   "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell",
+						"executable_sha256": "",
+						"hash_state":        "deferred",
+					},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					gitKegWithExecutables(`{"2.46.0/bin/git":"aaaa","2.46.0/bin/git-shell":""}`),
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"macos_homebrew_executable_sha256": osquery_utils.SoftwareOverrideQueries["macos_homebrew_executable_sha256"],
 			},
 		},
 		{
@@ -6504,6 +6599,74 @@ func TestProcessSoftwareForNewlyFailingPoliciesSuppressedDuringSetupExperience(t
 		require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "setup-host-uuid", failing, newlyFailing))
 		require.True(t, insertCalled, "outside setup experience the policy automation installs normally")
 	})
+}
+
+// A patch policy whose app is on a displayed patch notification queues no install, because that
+// notification's countdown is what installs the app.
+func TestProcessSoftwareForNewlyFailingPoliciesPatchNotification(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	const (
+		policyID    = uint(1)
+		installerID = uint(100)
+		hostID      = uint(42)
+	)
+	titleID := uint(7)
+
+	var canSkipWhileAppIsOpen bool
+	ds.GetPoliciesWithAssociatedInstallerFunc = func(_ context.Context, _ uint, _ []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+		return []fleet.PolicySoftwareInstallerData{{
+			ID:                      policyID,
+			InstallerID:             installerID,
+			OverridePreInstallQuery: canSkipWhileAppIsOpen,
+		}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(_ context.Context, _ uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{InstallerID: installerID, TitleID: &titleID, Platform: "darwin"}, nil
+	}
+	ds.IsSoftwareInstallerLabelScopedFunc = func(_ context.Context, _, _ uint) (bool, error) {
+		return true, nil
+	}
+	ds.GetHostLastInstallDataFunc = func(_ context.Context, _, _ uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+	var appHasDisplayedPatchNotification bool
+	ds.DisplayedPatchNotificationExistsForAppFunc = func(_ context.Context, _ uint, _ uint) (bool, error) {
+		return appHasDisplayedPatchNotification, nil
+	}
+	var insertCalled bool
+	ds.InsertSoftwareInstallRequestFunc = func(_ context.Context, _, _ uint, _ fleet.HostSoftwareInstallOptions) (string, error) {
+		insertCalled = true
+		return "exec-uuid", nil
+	}
+
+	orbitKey := "orbit-key"
+	failing := map[uint]*bool{policyID: new(false)}
+	newlyFailing := map[uint]struct{}{policyID: {}}
+
+	// a notification the end user has seen lists the app, so its countdown installs it
+	canSkipWhileAppIsOpen = true
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.False(t, insertCalled, "a displayed patch notification already covers this app, so no second install should queue")
+
+	// no displayed notification lists the app, so the policy automation installs it
+	appHasDisplayedPatchNotification = false
+	insertCalled = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an app with no displayed patch notification should install")
+
+	// an install that cannot skip never opens a notification, so the check is not made
+	canSkipWhileAppIsOpen = false
+	appHasDisplayedPatchNotification = true
+	insertCalled = false
+	ds.DisplayedPatchNotificationExistsForAppFuncInvoked = false
+	require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "darwin", &orbitKey, "", failing, newlyFailing))
+	require.True(t, insertCalled, "an install that cannot skip should not be held back by a notification")
+	require.False(t, ds.DisplayedPatchNotificationExistsForAppFuncInvoked)
 }
 
 // TestPolicyAutomationDeferredActivation verifies that policy-automation

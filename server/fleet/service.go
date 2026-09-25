@@ -534,7 +534,7 @@ type Service interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
-	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+	HostEncryptionKey(ctx context.Context, id uint, archivedFallbackToSerial bool) (*HostDiskEncryptionKey, error)
 	// EscrowLUKSData stores a LUKS key or a client error. A non-empty status instead records orbit's
 	// progress: prompting and escrowing keep the request in flight, canceled and timed_out end it.
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string, status string) error
@@ -738,6 +738,9 @@ type Service interface {
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
+
+	// SetNotificationsService sets the notifications bounded context service for write operations.
+	SetNotificationsService(notificationsSvc NotificationsWriteService)
 
 	// SetActivityService sets the activity bounded context service for write operations.
 	// This should be called after service creation to inject the activity service dependency.
@@ -1079,9 +1082,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
-	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
 	// the specified options.

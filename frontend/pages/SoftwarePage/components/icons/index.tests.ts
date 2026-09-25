@@ -1,6 +1,7 @@
 import AcrobatReader from "./AcrobatReader";
 import AdobePlugin from "./AdobePlugin";
 import Extension from "./Extension";
+import GoBinary from "./GoBinary";
 import AdobeCreativeCloud from "./png/AdobeCreativeCloud.png";
 
 import { getMatchedSoftwareIcon } from "./index";
@@ -29,6 +30,20 @@ describe("getMatchedSoftwareIcon", () => {
       expect(
         getMatchedSoftwareIcon({ name: "zoom", source: "adobe_plugins" })
       ).toBe(AdobePlugin);
+    });
+  });
+
+  describe("Go binaries", () => {
+    it("uses the Go icon for a binary whose name matches an application", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "zoom", source: "go_binaries" })
+      ).toBe(GoBinary);
+    });
+
+    it("uses the Go icon for a binary whose name matches nothing", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "gopls", source: "go_binaries" })
+      ).toBe(GoBinary);
     });
   });
 

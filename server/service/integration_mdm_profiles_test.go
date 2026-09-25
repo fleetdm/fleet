@@ -4668,6 +4668,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 
 	checkHostsFilteredByOSSettingsStatus := func(t *testing.T, wantHosts []string, wantStatus fleet.MDMDeliveryStatus, teamID *uint, labels ...*fleet.Label) {
+		// Filtering hosts by OS settings reads the maintained host_mdm_windows_profiles_status rollup, same as the profiles
+		// summary. This test simulates device reports by writing host_mdm_windows_profiles directly, bypassing the write paths
+		// that maintain the rollup, so reconcile it before reading.
+		require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 		var teamFilter string
 		if teamID != nil {
 			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)

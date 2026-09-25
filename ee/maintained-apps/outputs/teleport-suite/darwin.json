@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "18.11.1",
+      "version": "18.11.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh' AND path NOT LIKE '%/.tsh/bin/%' AND version_compare(bundle_short_version, '18.11.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh' AND path NOT LIKE '%/.tsh/bin/%' AND version_compare(bundle_short_version, '18.11.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.gravitational.teleport.tsh' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.teleport.dev/teleport-18.11.1.pkg",
+      "installer_url": "https://cdn.teleport.dev/teleport-18.11.2.pkg",
       "install_script_ref": "06049925",
       "uninstall_script_ref": "387919ac",
-      "sha256": "a7998fb3a37d58977d30a49f5ccdb931bd9b4e9c9c7c3a262affecd88c57100c",
+      "sha256": "963f56cb1736d943699786132dd7c3439087948d45bd5baf0a9097fb244b1f69",
       "default_categories": [
         "Developer tools"
       ]
