@@ -490,10 +490,10 @@ module.exports.custom = {
   // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
-  // Website search (Google Programmable Search Engine + Custom Search JSON API)
+  // Website search (Google Cloud Vertex AI Search, "fleetdm-website" GCP project)
   // If either of these is missing, fleetdm.com/search falls back to redirecting to a scoped Google search.
-  // googleSearchApiKey: '…',
-  // googleSearchEngineId: '…',
+  // googleSearchServingConfig: 'projects/…/locations/global/collections/default_collection/dataStores/…/servingConfigs/default_search',
+  // googleSearchGcpServiceAccountKey: undefined,// The parsed JSON service account key.
 
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',

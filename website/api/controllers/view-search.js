@@ -20,7 +20,7 @@ module.exports = {
       description: 'Which page of search results to display.',
       defaultsTo: 1,
       min: 1,
-      max: 10,// The search API only serves the first 100 results (10 pages of 10).
+      max: 10,
     },
 
   },
@@ -43,44 +43,64 @@ module.exports = {
 
     let searchQuery = q.trim();
 
-    // If this Sails app is not configured with Google Programmable Search credentials,
-    // fall back to opening a scoped Google search (the pre-2026-09-30 behavior).
-    if(!sails.config.custom.googleSearchApiKey || !sails.config.custom.googleSearchEngineId) {
+    // If this Sails app is not configured with Vertex AI Search credentials, fall back
+    // to opening a scoped Google search (the pre-2026-09-30 behavior).
+    if(!sails.config.custom.googleSearchServingConfig || !sails.config.custom.googleSearchGcpServiceAccountKey) {
       throw {redirect: 'https://www.google.com/search?q='+encodeURIComponent('site:fleetdm.com '+searchQuery)};
     }
 
     let searchResults = [];
-    let formattedTotalResults = '0';
+    let totalResults = 0;
     let hasMoreResults = false;
     let searchFailed = false;
 
     if(searchQuery) {
       try {
-        let apiResponse = await sails.helpers.http.get('https://www.googleapis.com/customsearch/v1', {
-          key: sails.config.custom.googleSearchApiKey,
-          cx: sails.config.custom.googleSearchEngineId,
-          q: searchQuery,
-          num: 10,
-          start: (page - 1) * 10 + 1,
+        let {google} = require('googleapis');
+        let auth = new google.auth.GoogleAuth({
+          credentials: sails.config.custom.googleSearchGcpServiceAccountKey,
+          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
         });
-        formattedTotalResults = apiResponse.searchInformation ? apiResponse.searchInformation.formattedTotalResults : '0';
-        hasMoreResults = !!(apiResponse.queries && apiResponse.queries.nextPage) && page < 10;
-        for(let item of (apiResponse.items || [])) {
-          let displayPath = item.link;
+        let discoveryengine = google.discoveryengine({version: 'v1', auth});
+        let apiResponse = await discoveryengine.projects.locations.collections.dataStores.servingConfigs.search({
+          servingConfig: sails.config.custom.googleSearchServingConfig,
+          requestBody: {
+            query: searchQuery,
+            pageSize: 10,
+            offset: (page - 1) * 10,
+            contentSearchSpec: {snippetSpec: {returnSnippet: true}},
+          },
+        }, {timeout: 10000});
+        totalResults = apiResponse.data.totalSize || 0;
+        hasMoreResults = page * 10 < totalResults && page < 10;
+        for(let result of (apiResponse.data.results || [])) {
+          let doc = result.document && result.document.derivedStructData;
+          if(!doc || !doc.link) {
+            continue;
+          }
+          let snippet = '';
+          if(_.isArray(doc.snippets) && doc.snippets[0] && doc.snippets[0].snippetStatus === 'SUCCESS') {
+            // Snippets come back as HTML with <b> highlights; display them as plain text.
+            snippet = _.unescape(doc.snippets[0].snippet.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+          } else if(_.isObject(doc.pagemap) && _.isArray(doc.pagemap.metatags) && doc.pagemap.metatags[0]) {
+            // Basic website search doesn't generate snippets, so fall back to the page's meta description.
+            snippet = doc.pagemap.metatags[0]['og:description'] || doc.pagemap.metatags[0]['description'] || '';
+          }
+          let displayPath = doc.link;
           try {
-            let parsedUrl = new URL(item.link);
+            let parsedUrl = new URL(doc.link);
             displayPath = parsedUrl.hostname + decodeURIComponent(parsedUrl.pathname).replace(/\/$/, '');
           } catch(unusedErr) { /* If the URL can't be parsed, display it as-is. */ }
           searchResults.push({
-            url: item.link,
-            title: item.title,
-            snippet: (item.snippet || '').replace(/\s+/g, ' ').trim(),
+            url: doc.link,
+            title: doc.title || displayPath,
+            snippet,
             displayPath,
           });
         }
       } catch(err) {
         // Show a fallback link rather than an error page if the search API is unavailable (e.g. over quota).
-        sails.log.warn('The Google search API returned an error when searching for "'+searchQuery+'":', err);
+        sails.log.warn('The Vertex AI Search API returned an error when searching for "'+searchQuery+'":', err);
         searchFailed = true;
       }
     }
@@ -89,7 +109,7 @@ module.exports = {
     return {
       searchQuery,
       searchResults,
-      formattedTotalResults,
+      formattedTotalResults: totalResults.toLocaleString('en-US'),
       currentPage: page,
       hasMoreResults,
       searchFailed,
