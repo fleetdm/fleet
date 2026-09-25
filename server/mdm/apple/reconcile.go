@@ -82,7 +82,12 @@ func ComputeReconcileDeltas(
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
 	profilesByTeam map[uint][]*fleet.AppleProfileForReconcile,
 	profilesWithBrokenLabels map[string]struct{},
-) (toInstall, toRemove []*fleet.MDMAppleProfilePayload) {
+	optInsByHost map[string]map[string]struct{},
+) (toInstall, toRemove []*fleet.MDMAppleProfilePayload, optInChanges *fleet.MDMProfileOptInChanges) {
+	optInChanges = &fleet.MDMProfileOptInChanges{
+		Add:   make([]fleet.HostProfileUUID, 0),
+		Purge: make([]fleet.HostProfileUUID, 0),
+	}
 	for _, host := range hosts {
 		teamProfiles := profilesByTeam[host.EffectiveTeamID()]
 		desired := make(map[string]*fleet.AppleProfileForReconcile, len(teamProfiles))
@@ -97,15 +102,59 @@ func ComputeReconcileDeltas(
 
 		installingChannels := make(map[profileChannelKey]struct{})
 
+		optIns := optInsByHost[host.UUID]
+		unknownMembershipOptIns := make(map[string]struct{})
 		for _, p := range teamProfiles {
-			onHost := false
-			if c, ok := currentByProfile[p.ProfileUUID]; ok {
-				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			c, present := currentByProfile[p.ProfileUUID]
+			onHost := present && c.OperationType == fleet.MDMOperationTypeInstall // nolint:nilaway // the present check is what gates on existence therefore c can not be nil.
+
+			adoptedFromOtherTeam := false
+			if p.SelfService {
+				// Self-service is macOS-only: never install or adopt it elsewhere. Any stray
+				// opt-in is purged below since the profile is never desired.
+				if !fleet.IsMacOSPlatform(host.Platform) {
+					continue
+				}
+				if _, optedIn := optIns[p.ProfileUUID]; !optedIn {
+					// the user did not manually opt-in to the profile, but it might be adopted from an installed profile from another team
+					adoptedFromOtherTeam = adoptableFromAlreadyInstalled(current, p)
+					if !adoptedFromOtherTeam {
+						continue
+					}
+				}
 			}
-			if !EntityAppliesToHost(p, host, labelsForHost, onHost) {
+
+			if !EntityAppliesToHost(p, host, labelsForHost, onHost || adoptedFromOtherTeam) {
+				// Opted in but held back only by unknown dynamic label membership: keep the opt-in.
+				if p.SelfService {
+					if _, optedIn := optIns[p.ProfileUUID]; optedIn && EntityAppliesToHost(p, host, labelsForHost, true) {
+						unknownMembershipOptIns[p.ProfileUUID] = struct{}{}
+					}
+				}
 				continue
 			}
 			desired[p.ProfileUUID] = p
+			if adoptedFromOtherTeam {
+				optInChanges.Add = append(optInChanges.Add, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: p.ProfileUUID})
+			}
+		}
+
+		// Purge any opt-in that is not in the desired set (might have lost it due to label scoping changes) and is not broken
+		for profUUID := range optIns {
+			if prof, ok := desired[profUUID]; ok {
+				// check if the profile is no longer self-service, then purge
+				if !prof.SelfService {
+					optInChanges.Purge = append(optInChanges.Purge, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: profUUID})
+				}
+				continue
+			}
+			if IsBrokenProfile(profUUID, profilesWithBrokenLabels) {
+				continue
+			}
+			if _, unknown := unknownMembershipOptIns[profUUID]; unknown {
+				continue
+			}
+			optInChanges.Purge = append(optInChanges.Purge, fleet.HostProfileUUID{HostUUID: host.UUID, ProfileUUID: profUUID})
 		}
 
 		for profUUID, p := range desired {
@@ -194,7 +243,7 @@ func ComputeReconcileDeltas(
 			})
 		}
 	}
-	return toInstall, toRemove
+	return toInstall, toRemove, optInChanges
 }
 
 // IsBrokenProfile returns true if any label assignment on the profile
@@ -218,6 +267,24 @@ func scopeOrDefaultDDM(s fleet.PayloadScope) fleet.PayloadScope {
 		return fleet.PayloadScopeSystem
 	}
 	return s
+}
+
+// adoptableFromAlreadyInstalled reports whether the host carries an identical same-identifier
+// profile under a different profile UUID (a team transfer), in which case the
+// self-service profile is adopted instead of the old one being removed.
+func adoptableFromAlreadyInstalled(current []*fleet.MDMAppleProfilePayload, p *fleet.AppleProfileForReconcile) bool {
+	for _, r := range current {
+		if r.ProfileUUID == p.ProfileUUID ||
+			r.OperationType != fleet.MDMOperationTypeInstall ||
+			r.Status == nil || *r.Status == fleet.MDMDeliveryFailed ||
+			r.ProfileIdentifier != p.ProfileIdentifier ||
+			r.Scope != p.Scope ||
+			!bytes.Equal(r.Checksum, p.Checksum) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // ComputeDeclarationDeltas is the DDM equivalent of ComputeReconcileDeltas.
@@ -628,7 +695,8 @@ func ExecuteReconcileBatch(
 	for profileUUID, hostUUIDs := range throttledHostsByProfile {
 		for i := 0; i < len(hostUUIDs); i += throttleLogBatchSize {
 			end := min(i+throttleLogBatchSize, len(hostUUIDs))
-			logger.InfoContext(ctx, "throttled CA certificate profile installation",
+			logger.InfoContext(
+				ctx, "throttled CA certificate profile installation",
 				"profile.uuid", profileUUID,
 				"mdm.target.host.uuids", hostUUIDs[i:end],
 				"mdm.certificate.profiles.limit", caBudgetAtEntry,
@@ -1020,13 +1088,24 @@ func ReconcileProfilesForEnrollingHost(
 		return nil, ctxerr.Wrap(ctx, err, "bulk get host mdm apple profiles")
 	}
 
-	toInstall, toRemove := ComputeReconcileDeltas(
-		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
+	optIns, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm profile opt-ins")
+	}
+
+	toInstall, toRemove, optInChanges := ComputeReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel, optIns,
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 	// Defer user-scoped profile delivery to the cron — see function comment.
 	toInstall = fleet.FilterOutUserScopedProfiles(toInstall)
+
+	if len(optInChanges.Add) > 0 || len(optInChanges.Purge) > 0 {
+		if err := ds.ApplyHostMDMProfileOptInChanges(ctx, optInChanges); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "applying host mdm profile opt-in changes")
+		}
+	}
 
 	if len(toInstall) == 0 && len(toRemove) == 0 {
 		return nil, nil
@@ -1098,8 +1177,16 @@ func PendingProfilesForHost(
 		return nil, nil, err
 	}
 
-	toInstall, toRemove = ComputeReconcileDeltas(
+	optIns, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// While this can technically return optInChanges we refrain from updating here, and delegate it to the
+	// cron reconciler, or the initial one-time ReconcileProfilesForEnrollingHost
+	toInstall, toRemove, _ = ComputeReconcileDeltas(
 		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
+		optIns,
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 

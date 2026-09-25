@@ -1644,7 +1644,7 @@ type BulkGetHostLabelMembershipsFunc func(ctx context.Context, hostIDs []uint, l
 
 type BulkGetHostMDMAppleProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error)
 
-type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error)
+type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, optInsByHost map[string]map[string]struct{}, pageFull bool, err error)
 
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -2479,6 +2479,10 @@ type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint) error
 type ClearABMTokenDefaultFunc func(ctx context.Context) error
 
 type SetABMTokenServerUUIDFunc func(ctx context.Context, tokenID uint, serverUUID string) error
+
+type ApplyHostMDMProfileOptInChangesFunc func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error
+
+type BulkGetHostMDMProfileOptInsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -6164,6 +6168,12 @@ type DataStore struct {
 
 	SetABMTokenServerUUIDFunc        SetABMTokenServerUUIDFunc
 	SetABMTokenServerUUIDFuncInvoked bool
+
+	ApplyHostMDMProfileOptInChangesFunc        ApplyHostMDMProfileOptInChangesFunc
+	ApplyHostMDMProfileOptInChangesFuncInvoked bool
+
+	BulkGetHostMDMProfileOptInsFunc        BulkGetHostMDMProfileOptInsFunc
+	BulkGetHostMDMProfileOptInsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11838,7 +11848,7 @@ func (s *DataStore) BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, host
 	return s.BulkGetHostMDMAppleProfilesByUUIDsFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error) {
+func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, optInsByHost map[string]map[string]struct{}, pageFull bool, err error) {
 	s.mu.Lock()
 	s.GetAppleProfileReconcileSnapshotFuncInvoked = true
 	s.mu.Unlock()
@@ -14762,4 +14772,18 @@ func (s *DataStore) SetABMTokenServerUUID(ctx context.Context, tokenID uint, ser
 	s.SetABMTokenServerUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetABMTokenServerUUIDFunc(ctx, tokenID, serverUUID)
+}
+
+func (s *DataStore) ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {
+	s.mu.Lock()
+	s.ApplyHostMDMProfileOptInChangesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyHostMDMProfileOptInChangesFunc(ctx, changes)
+}
+
+func (s *DataStore) BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error) {
+	s.mu.Lock()
+	s.BulkGetHostMDMProfileOptInsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetHostMDMProfileOptInsFunc(ctx, hostUUIDs)
 }

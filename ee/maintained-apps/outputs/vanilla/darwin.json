@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2",
+      "version": "3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.matthewpalmer.Vanilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.matthewpalmer.Vanilla' AND version_compare(bundle_short_version, '2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.matthewpalmer.Vanilla' AND version_compare(bundle_short_version, '3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.matthewpalmer.Vanilla' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://macrelease.matthewpalmer.net/distribution/appcasts/Vanilla-61.dmg",
+      "installer_url": "https://macrelease.matthewpalmer.net/distribution/appcasts/Vanilla-82.dmg",
       "install_script_ref": "c9b28237",
       "uninstall_script_ref": "d027eb51",
-      "sha256": "249ce3e326fad5f89580803574fbe4229a1c0796b4483e650fc27941c00cfe22",
+      "sha256": "434476180b9aa276749844401f42a9d8348cae9161d8759d273229a8250e99ec",
       "default_categories": [
         "Developer tools"
       ]

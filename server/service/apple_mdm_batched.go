@@ -117,7 +117,7 @@ func ReconcileAppleProfilesBatched(
 	deliveredHosts := 0
 
 	for {
-		hosts, allProfiles, hostLabels, currentByHost, pageFull, serr := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
+		hosts, allProfiles, hostLabels, currentByHost, optInsByHost, pageFull, serr := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
 		if serr != nil {
 			err = ctxerr.Wrap(ctx, serr, "loading apple profile reconcile snapshot")
 			return err
@@ -140,11 +140,20 @@ func ReconcileAppleProfilesBatched(
 			}
 		}
 
-		toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+		toInstall, toRemove, optInChanges := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel, optInsByHost)
 		toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 		logger.DebugContext(ctx, "batched reconcile: computed deltas",
 			"to_install", len(toInstall), "to_remove", len(toRemove))
+
+		// Opt-in changes are applied for the whole window, even hosts the delivery cap defers: they are idempotent and the
+		// deferred hosts recompute the same install/remove next tick.
+		if len(optInChanges.Add) > 0 || len(optInChanges.Purge) > 0 {
+			if aerr := ds.ApplyHostMDMProfileOptInChanges(ctx, optInChanges); aerr != nil {
+				err = aerr
+				return err
+			}
+		}
 
 		// Apply the per-tick delivery cap at host granularity. Hosts come back ascending by uuid, so capping keeps a contiguous
 		// prefix of the work-hosts and the cursor can resume at the last delivered host.
