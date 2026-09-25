@@ -46,8 +46,8 @@ const PastActivityFeed = ({
         title="No activity"
         message={
           isPremiumTier
-            ? "Completed actions will appear here (scripts, software, lock, and wipe)."
-            : "Completed script runs will appear here."
+            ? "Completed commands (e.g. lock, wipe) will appear here."
+            : "Completed commands will appear here."
         }
         className={`${baseClass}__empty-feed`}
       />
