@@ -13,11 +13,13 @@ on:
     paths:
       - "orbit/**.go"
       - "client/**.go"
+      - "tools/tuf/test/**"
       - ".github/workflows/fleet-and-orbit.yml"
   pull_request:
     paths:
       - "orbit/**.go"
       - "client/**.go"
+      - "tools/tuf/test/**"
       - ".github/workflows/fleet-and-orbit.yml"
   workflow_dispatch: # Manual
 
