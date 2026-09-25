@@ -660,12 +660,17 @@ func (svc *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, 
 		return ctxerr.Wrap(ctx, err, "handling install self-service configuration profile")
 	}
 
-	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeInstalledOptInConfigurationProfile{
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeInstalledOptInConfigurationProfile{
 		HostID:          hostID,
 		HostDisplayName: liteHost.DisplayName(),
 		SelfService:     false, // IT admin triggered the opt-in
 		ProfileName:     profileName,
-	}), "generating activity for installed opt-in configuration profile")
+	}); err != nil {
+		// do not fail, but log an error
+		svc.logger.ErrorContext(ctx, "failed logging activity for installed opt-in configuration profile", "err", err)
+	}
+
+	return nil
 }
 
 func (svc *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
@@ -690,12 +695,16 @@ func (svc *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "handling uninstall self-service configuration profile")
 	}
 
-	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeUninstalledOptInConfigurationProfile{
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeUninstalledOptInConfigurationProfile{
 		HostID:          hostID,
 		HostDisplayName: liteHost.DisplayName(),
 		SelfService:     false, // IT admin triggered the opt-out
 		ProfileName:     profileName,
-	}), "generating activity for uninstalled opt-in configuration profile")
+	}); err != nil {
+		// do not fail, but log an error
+		svc.logger.ErrorContext(ctx, "failed logging activity for uninstalled opt-in configuration profile", "err", err)
+	}
+	return nil
 }
 
 func (svc *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
@@ -709,12 +718,16 @@ func (svc *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Con
 		return err
 	}
 
-	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledOptInConfigurationProfile{
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledOptInConfigurationProfile{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		SelfService:     true,
 		ProfileName:     profileName,
-	}), "generating activity for installed opt-in configuration profile")
+	}); err != nil {
+		// do not fail, but log an error
+		svc.logger.ErrorContext(ctx, "failed logging activity for installed opt-in configuration profile", "err", err)
+	}
+	return nil
 }
 
 func (svc *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
@@ -728,12 +741,16 @@ func (svc *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.C
 		return err
 	}
 
-	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, nil, fleet.ActivityTypeUninstalledOptInConfigurationProfile{
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeUninstalledOptInConfigurationProfile{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		SelfService:     true,
 		ProfileName:     profileName,
-	}), "generating activity for uninstalled opt-in configuration profile")
+	}); err != nil {
+		// do not fail, but log an error
+		svc.logger.ErrorContext(ctx, "failed logging activity for uninstalled opt-in configuration profile", "err", err)
+	}
+	return nil
 }
 
 func (svc *Service) handleInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) (string, error) {

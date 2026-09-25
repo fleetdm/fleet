@@ -3771,7 +3771,7 @@ SELECT
 	COALESCE(hmwp.operation_type, '') AS operation_type,
 	COALESCE(hmwp.detail, '') AS detail,
 	hmwp.command_uuid,
-	mmwp.hidden
+	COALESCE(mwcp.hidden, FALSE) AS hidden
 FROM
 	host_mdm_windows_profiles hmwp
 	LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
