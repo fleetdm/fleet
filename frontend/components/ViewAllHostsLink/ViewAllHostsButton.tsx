@@ -2,7 +2,7 @@ import classnames from "classnames";
 import React from "react";
 import { browserHistory } from "react-router";
 
-import Button from "components/buttons/Button";
+import Button, { ButtonVariant } from "components/buttons/Button";
 import Icon from "components/Icon";
 import PATHS from "router/paths";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
@@ -22,6 +22,8 @@ interface IHostLinkProps {
   rowHover?: boolean;
   /** Don't actually create a button, useful when click is handled by an ancestor */
   noLink?: boolean;
+  /** Default: "subdued" */
+  variant?: ButtonVariant;
 }
 
 const baseClass = "view-all-hosts-button";
@@ -36,6 +38,7 @@ const ViewAllHostsButton = ({
   customText,
   rowHover = false,
   noLink = false,
+  variant = "subdued",
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsButtonClass = classnames(baseClass, className, {
     [`${baseClass}__condensed`]: condensed,
@@ -62,7 +65,7 @@ const ViewAllHostsButton = ({
     <Button
       className={viewAllHostsButtonClass}
       onClick={onClick}
-      variant="subdued"
+      variant={variant}
       size="small"
     >
       {!condensed && (
