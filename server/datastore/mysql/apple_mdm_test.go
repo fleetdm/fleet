@@ -8978,7 +8978,7 @@ func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datast
 			"https://test.jamfcloud.com/mdm",
 			false, // installedFromDep
 			fleet.WellKnownMDMJamf,
-			"",    // fleetEnrollmentRef
+			"",                               // fleetEnrollmentRef
 			fleet.PersonalEnrollmentTypeNone, // isPersonalEnrollment
 		))
 
