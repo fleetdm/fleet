@@ -96,8 +96,7 @@ module "free" {
     engine         = "redis"
     engine_version = "7.1"
     family         = "redis7"
-    # Reference-architecture size for <=5k hosts; module default (cache.m5.large)
-    # peaked at 12 MB / 0.4% CPU on this cluster.
+    # Reference-architecture size for <=5k hosts
     instance_type = "cache.t4g.small"
     log_delivery_configuration = [
       {
