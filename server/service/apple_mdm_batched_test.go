@@ -42,6 +42,9 @@ func appleReconcileMocks(t *testing.T) *mock.Store {
 	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
+	ds.ApplyHostMDMProfileOptInChangesFunc = func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {
+		return nil
+	}
 	return ds
 }
 
@@ -49,7 +52,7 @@ func appleReconcileMocks(t *testing.T) *mock.Store {
 // query does (uuid > afterHostUUID, ascending, LIMIT batchSize), and counts the windows the drain loop pulls. No profiles are
 // returned, so every window computes zero work — which is exactly the idle/sparse case the drain loop exists to speed up.
 func pageAppleHosts(ds *mock.Store, allHosts []*fleet.AppleHostReconcileInfo, windows *int) {
-	ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, bool, error) {
+	ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, map[string]map[string]struct{}, bool, error) {
 		*windows++
 		var page []*fleet.AppleHostReconcileInfo
 		for _, h := range allHosts {
@@ -60,7 +63,7 @@ func pageAppleHosts(ds *mock.Store, allHosts []*fleet.AppleHostReconcileInfo, wi
 				break
 			}
 		}
-		return page, nil, nil, nil, len(page) == batchSize, nil
+		return page, nil, nil, nil, nil, len(page) == batchSize, nil
 	}
 }
 
@@ -89,12 +92,12 @@ func TestReconcileAppleProfilesBatchedCursorAdvance(t *testing.T) {
 		// Returns the same page once, then nothing, so the drain loop terminates on the second window rather than spinning
 		// against a snapshot that ignores the cursor.
 		served := false
-		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, bool, error) {
+		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, map[string]map[string]struct{}, bool, error) {
 			if served {
-				return nil, nil, nil, nil, false, nil
+				return nil, nil, nil, nil, nil, false, nil
 			}
 			served = true
-			return snapshotHosts, nil, nil, nil, pageFull, nil
+			return snapshotHosts, nil, nil, nil, nil, pageFull, nil
 		}
 		return ds, &savedCursor
 	}
@@ -109,7 +112,7 @@ func TestReconcileAppleProfilesBatchedCursorAdvance(t *testing.T) {
 
 		var windows int
 		inner := ds.GetAppleProfileReconcileSnapshotFunc
-		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, bool, error) {
+		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, map[string]map[string]struct{}, bool, error) {
 			windows++
 			if windows > 1 {
 				// The loop only gets here if the full page was treated as full.
@@ -200,10 +203,10 @@ func TestReconcileAppleProfilesBatchedDrainLoop(t *testing.T) {
 		var windows int
 		ds, _, saved := newPagingDS(t, "", appleHostsNamed("h01", "h02", "h03", "h04", "h05"), &windows)
 		paging := ds.GetAppleProfileReconcileSnapshotFunc
-		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, bool, error) {
+		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, map[string]map[string]struct{}, bool, error) {
 			if windows == 1 {
 				// Fail on the second window, after the first already advanced commitCursor.
-				return nil, nil, nil, nil, false, errors.New("boom")
+				return nil, nil, nil, nil, nil, false, errors.New("boom")
 			}
 			return paging(ctx, afterHostUUID, batchSize)
 		}
@@ -236,5 +239,80 @@ func TestAppleReconcileDeliveryCapHelpers(t *testing.T) {
 		require.Len(t, got, 1)
 		require.Equal(t, "h01", got[0].HostUUID)
 		require.Empty(t, filterApplePayloadsByHost(install, map[string]struct{}{}))
+	})
+}
+
+func TestReconcileAppleProfilesBatchedOptIns(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	hostA := &fleet.AppleHostReconcileInfo{HostID: 1, UUID: "uuid-A", TeamID: new(uint(1)), Platform: "darwin"}
+	forced := &fleet.AppleProfileForReconcile{
+		ProfileUUID: "aForced", ProfileIdentifier: "com.example.forced", TeamID: 1,
+		Checksum: []byte("ffff"), Scope: fleet.PayloadScopeSystem,
+	}
+	selfService := &fleet.AppleProfileForReconcile{
+		ProfileUUID: "aSelfService", ProfileIdentifier: "com.example.ss", TeamID: 1,
+		Checksum: []byte("ssss"), Scope: fleet.PayloadScopeSystem, SelfService: true,
+	}
+	forcedVerifiedOnA := map[string][]*fleet.MDMAppleProfilePayload{hostA.UUID: {{
+		ProfileUUID: forced.ProfileUUID, ProfileIdentifier: forced.ProfileIdentifier, HostUUID: hostA.UUID,
+		Checksum: forced.Checksum, Scope: forced.Scope,
+		OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified),
+	}}}
+
+	// A single short window holding hosts, so the drain loop runs exactly once.
+	newDS := func(
+		t *testing.T, hosts []*fleet.AppleHostReconcileInfo, profiles []*fleet.AppleProfileForReconcile,
+		current map[string][]*fleet.MDMAppleProfilePayload, optIns map[string]map[string]struct{},
+	) *mock.Store {
+		ds := appleReconcileMocks(t)
+		ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
+		ds.SetMDMAppleReconcileCursorFunc = func(ctx context.Context, cursor string) error { return nil }
+		ds.GetAppleProfileReconcileSnapshotFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]*fleet.AppleHostReconcileInfo, []*fleet.AppleProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMAppleProfilePayload, map[string]map[string]struct{}, bool, error) {
+			return hosts, profiles, nil, current, optIns, false, nil
+		}
+		return ds
+	}
+	optedInForcedOnA := map[string]map[string]struct{}{hostA.UUID: {forced.ProfileUUID: {}}}
+
+	t.Run("nothing to do -> opt-ins untouched, nothing enqueued", func(t *testing.T) {
+		ds := newDS(t, []*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{forced}, forcedVerifiedOnA, nil)
+
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0, false))
+		require.False(t, ds.ApplyHostMDMProfileOptInChangesFuncInvoked)
+		require.False(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+	})
+
+	t.Run("purge-only window (self-service flipped to force install) applies the purge", func(t *testing.T) {
+		ds := newDS(t, []*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{forced}, forcedVerifiedOnA, optedInForcedOnA)
+		var applied *fleet.MDMProfileOptInChanges
+		ds.ApplyHostMDMProfileOptInChangesFunc = func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {
+			applied = changes
+			return nil
+		}
+
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0, false))
+		require.NotNil(t, applied)
+		require.Empty(t, applied.Add)
+		require.Equal(t, []fleet.HostProfileUUID{{HostUUID: hostA.UUID, ProfileUUID: forced.ProfileUUID}}, applied.Purge)
+		require.False(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+	})
+
+	t.Run("un-opted self-service profile is not installed", func(t *testing.T) {
+		ds := newDS(t, []*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{selfService}, nil, nil)
+
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0, false))
+		require.False(t, ds.ApplyHostMDMProfileOptInChangesFuncInvoked)
+		require.False(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+	})
+
+	t.Run("opt-in apply error aborts the tick", func(t *testing.T) {
+		ds := newDS(t, []*fleet.AppleHostReconcileInfo{hostA}, []*fleet.AppleProfileForReconcile{forced}, forcedVerifiedOnA, optedInForcedOnA)
+		ds.ApplyHostMDMProfileOptInChangesFunc = func(ctx context.Context, changes *fleet.MDMProfileOptInChanges) error {
+			return errors.New("boom")
+		}
+
+		require.ErrorContains(t, ReconcileAppleProfilesBatched(ctx, ds, nil, nil, logger, 0, false), "boom")
 	})
 }

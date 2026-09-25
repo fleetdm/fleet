@@ -2907,8 +2907,8 @@ type Datastore interface {
 	// state needed by the batched Apple profile reconciler: the bounded host
 	// window (afterHostUUID, batchSize), every Apple profile with its label
 	// assignments, host↔label memberships for labels referenced by those
-	// profiles, and current host_mdm_apple_profiles rows for the host window.
-	// All reads run inside a single read-only MySQL transaction so they
+	// profiles, current host_mdm_apple_profiles rows and profile opt-ins for
+	// the host window. All reads run inside a single read-only MySQL transaction so they
 	// observe one snapshot. If the host window is empty the remaining slices
 	// and maps are nil. pageFull reports whether the underlying host page hit
 	// batchSize before same-UUID rows were deduplicated; cursor-paginating
@@ -2923,6 +2923,7 @@ type Datastore interface {
 		allProfiles []*AppleProfileForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleProfilePayload,
+		optInsByHost map[string]map[string]struct{},
 		pageFull bool,
 		err error,
 	)
@@ -4283,6 +4284,12 @@ type Datastore interface {
 	ClearABMTokenDefault(ctx context.Context) error
 	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
 	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
+	// ApplyHostMDMProfileOptInChanges runs Add then Purge in one transaction.
+	ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *MDMProfileOptInChanges) error
+
+	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
+	// host UUID -> profile UUID set.
+	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
 }
 
 type AndroidDatastore interface {
