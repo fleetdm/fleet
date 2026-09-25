@@ -1,0 +1,1 @@
+- Fixed `fleetctl generate-gitops` failing on Fleet Free when Apple MDM is turned on.
