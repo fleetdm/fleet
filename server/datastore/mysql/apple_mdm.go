@@ -9080,3 +9080,22 @@ func (ds *Datastore) bulkGetHostMDMProfileOptInsTransaction(
 
 	return out, nil
 }
+
+func (ds *Datastore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
+	if hostUUID == "" {
+		return false, fleet.NewInvalidArgumentError("hostUUID", "hostUUID cannot be empty")
+	}
+	if profileUUID == "" {
+		return false, fleet.NewInvalidArgumentError("profileUUID", "profileUUID cannot be empty")
+	}
+
+	out, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{hostUUID})
+	if err != nil {
+		return false, err
+	}
+	if profiles, ok := out[hostUUID]; ok {
+		_, optedIn := profiles[profileUUID]
+		return optedIn, nil
+	}
+	return false, nil
+}

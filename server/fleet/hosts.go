@@ -540,6 +540,13 @@ type Host struct {
 	HostMDMAndroidDeviceVitals
 }
 
+func (h *Host) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
 type HostForeignVitalGroup struct {
 	Name  string
 	Query string

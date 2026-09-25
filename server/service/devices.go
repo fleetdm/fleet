@@ -1154,3 +1154,55 @@ func deviceSendAPNSPing(ctx context.Context, request any, svc fleet.Service) (fl
 
 	return sendAPNSPingResponse{Err: nil}, nil
 }
+
+type deviceInstallSelfServiceConfigurationProfileRequest struct {
+	Token       string `url:"token"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+func (r *deviceInstallSelfServiceConfigurationProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceInstallSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return installSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	req := request.(*deviceInstallSelfServiceConfigurationProfileRequest)
+
+	err := svc.DeviceInstallSelfServiceConfigurationProfile(ctx, host, req.ProfileUUID)
+	if err != nil {
+		return installSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	return installSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}
+
+type deviceUninstallSelfServiceConfigurationProfileRequest struct {
+	Token       string `url:"token"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+func (r *deviceUninstallSelfServiceConfigurationProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceUninstallSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return uninstallSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	req := request.(*deviceUninstallSelfServiceConfigurationProfileRequest)
+
+	err := svc.DeviceUninstallSelfServiceConfigurationProfile(ctx, host, req.ProfileUUID)
+	if err != nil {
+		return uninstallSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	return uninstallSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}

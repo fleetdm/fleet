@@ -12,11 +12,13 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	ctx_authz "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
@@ -634,4 +636,236 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 	})
 
 	return sliceResponse, nil
+}
+
+func (svc *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// first we perform a basic authz check, we use selective list action to include gitops users
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	liteHost, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching host lite")
+	}
+
+	// now we can do a specific authz check based on team id of the host before proceeding
+	// We re-use the resend action here to match the same role levels
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: liteHost.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	profileName, err := svc.handleInstallSelfServiceConfigurationProfile(ctx, liteHost, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "handling install self-service configuration profile")
+	}
+
+	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeInstalledOptInConfigurationProfile{
+		HostID:          hostID,
+		HostDisplayName: liteHost.DisplayName(),
+		SelfService:     false, // IT admin triggered the opt-in
+		ProfileName:     profileName,
+	}), "generating activity for installed opt-in configuration profile")
+}
+
+func (svc *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	// first we perform a basic authz check, we use selective list action to include gitops users
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	liteHost, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching host lite")
+	}
+
+	// now we can do a specific authz check based on team id of the host before proceeding
+	// We re-use the resend action here to match the same role levels
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: liteHost.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	profileName, err := svc.handleUninstallSelfServiceConfigurationProfile(ctx, liteHost, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "handling uninstall self-service configuration profile")
+	}
+
+	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeUninstalledOptInConfigurationProfile{
+		HostID:          hostID,
+		HostDisplayName: liteHost.DisplayName(),
+		SelfService:     false, // IT admin triggered the opt-out
+		ProfileName:     profileName,
+	}), "generating activity for uninstalled opt-in configuration profile")
+}
+
+func (svc *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	// Check auth was actually done by device token to avoid outside callers.
+	if !svc.authz.IsAuthenticatedWith(ctx, ctx_authz.AuthnDeviceToken) {
+		return authz.ForbiddenWithInternal("device token authentication required", nil, "self-service configuration profile", "install")
+	}
+
+	profileName, err := svc.handleInstallSelfServiceConfigurationProfile(ctx, host, profileUUID)
+	if err != nil {
+		return err
+	}
+
+	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledOptInConfigurationProfile{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SelfService:     true,
+		ProfileName:     profileName,
+	}), "generating activity for installed opt-in configuration profile")
+}
+
+func (svc *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	// Check auth was actually done by device token to avoid outside callers.
+	if !svc.authz.IsAuthenticatedWith(ctx, ctx_authz.AuthnDeviceToken) {
+		return authz.ForbiddenWithInternal("device token authentication required", nil, "self-service configuration profile", "uninstall")
+	}
+
+	profileName, err := svc.handleUninstallSelfServiceConfigurationProfile(ctx, host, profileUUID)
+	if err != nil {
+		return err
+	}
+
+	return ctxerr.Wrap(ctx, svc.NewActivity(ctx, nil, fleet.ActivityTypeUninstalledOptInConfigurationProfile{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SelfService:     true,
+		ProfileName:     profileName,
+	}), "generating activity for uninstalled opt-in configuration profile")
+}
+
+func (svc *Service) handleInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) (string, error) {
+	if host == nil {
+		return "", fleet.NewInvalidArgumentError("host", "host cannot be nil")
+	}
+	if profileUUID == "" {
+		return "", fleet.NewInvalidArgumentError("profileUUID", "profileUUID cannot be empty")
+	}
+	if !fleet.IsMacOSPlatform(host.Platform) {
+		return "", &fleet.BadRequestError{
+			Message: "Self-service configuration profiles are only supported on macOS",
+		}
+	}
+
+	if optedIn, err := svc.ds.HasHostMDMProfileOptIn(ctx, host.UUID, profileUUID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking host MDM profile opt-in")
+	} else if optedIn {
+		return "", &fleet.ConflictError{
+			Message: "This profile is already installed or installing for this host.",
+		}
+	}
+
+	profile, err := svc.ds.GetAppleProfileForReconcile(ctx, host.EffectiveTeamID(), profileUUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting Apple profile for reconcile")
+	}
+	if profile == nil {
+		// Same error for not found and does not apply, to avoid leaking information about profile availability
+		return "", &fleet.BadRequestError{
+			Message: "This profile is not available for self-service installation on this host.",
+		}
+	}
+
+	if !profile.SelfService {
+		return "", &fleet.BadRequestError{
+			Message: "This is not a valid self-service profile.",
+		}
+	}
+
+	profileLabelIds := []uint{}
+	for _, label := range slices.Concat(profile.GetIncludeLabels(), profile.GetExcludeLabels()) {
+		if label.LabelID == nil {
+			continue
+		}
+		profileLabelIds = append(profileLabelIds, *label.LabelID)
+	}
+
+	bulkHostLabelMemberships, err := svc.ds.BulkGetHostLabelMemberships(ctx, []uint{host.ID}, profileLabelIds)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting host label memberships")
+	}
+	hostLabelMemberships := map[uint]struct{}{}
+	if memberships, ok := bulkHostLabelMemberships[host.ID]; ok {
+		hostLabelMemberships = memberships
+	}
+
+	if !reconcile.EntityAppliesToHost(profile, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabelMemberships, true) {
+		return "", &fleet.BadRequestError{
+			Message: "This profile is not available for self-service installation on this host.",
+		}
+	}
+
+	if err := svc.ds.ApplyHostMDMProfileOptInChanges(ctx, &fleet.MDMProfileOptInChanges{
+		Add: []fleet.HostProfileUUID{
+			{
+				HostUUID:    host.UUID,
+				ProfileUUID: profile.ProfileUUID,
+			},
+		},
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "applying host MDM profile opt-in changes")
+	}
+
+	return profile.ProfileName, nil
+}
+
+func (svc *Service) handleUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) (profileName string, err error) {
+	if host == nil {
+		return "", fleet.NewInvalidArgumentError("host", "host cannot be nil")
+	}
+	if profileUUID == "" {
+		return "", fleet.NewInvalidArgumentError("profileUUID", "profileUUID cannot be empty")
+	}
+	if !fleet.IsMacOSPlatform(host.Platform) {
+		return "", &fleet.BadRequestError{
+			Message: "Self-service configuration profiles are only supported on macOS",
+		}
+	}
+
+	if optedIn, err := svc.ds.HasHostMDMProfileOptIn(ctx, host.UUID, profileUUID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking host MDM profile opt-in")
+	} else if !optedIn {
+		return "", NewNotFoundError(
+			"This profile is not installed for this host.",
+		)
+	}
+
+	profile, err := svc.ds.GetAppleProfileForReconcile(ctx, host.EffectiveTeamID(), profileUUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting Apple profile for reconcile")
+	}
+	if profile == nil {
+		// If the profile is not found for reconciliation, it means it is not available for self-service uninstallation.
+		// Shouldn't happen, as on profile deletion we clear out opt-in rows.
+		return "", &fleet.BadRequestError{
+			Message: "This profile is not available for self-service uninstallation on this host.",
+		}
+	}
+
+	if !profile.SelfService {
+		return "", &fleet.BadRequestError{
+			Message: "This is not a valid self-service profile.",
+		}
+	}
+
+	if profile.HasBrokenLabel() {
+		return "", &fleet.BadRequestError{
+			Message: "This profile has a broken label and cannot be uninstalled through self-service.",
+		}
+	}
+
+	if err := svc.ds.ApplyHostMDMProfileOptInChanges(ctx, &fleet.MDMProfileOptInChanges{
+		Purge: []fleet.HostProfileUUID{
+			{
+				HostUUID:    host.UUID,
+				ProfileUUID: profileUUID,
+			},
+		},
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "applying host MDM profile opt-in changes")
+	}
+
+	return profile.ProfileName, nil
 }

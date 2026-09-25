@@ -144,7 +144,18 @@ func (ds *Datastore) GetAppleMDMHostForReconcile(
 // concern in suites that accumulate profile rows across many sub-tests
 // without cleanup.
 func (ds *Datastore) ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
-	return ds.listAppleProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID)
+	return ds.listAppleProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID, nil)
+}
+
+func (ds *Datastore) GetAppleProfileForReconcile(ctx context.Context, teamID uint, profileUUID string) (*fleet.AppleProfileForReconcile, error) {
+	profiles, err := ds.listAppleProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID, []string{profileUUID})
+	if err != nil {
+		return nil, err
+	}
+	if len(profiles) == 0 {
+		return nil, nil
+	}
+	return profiles[0], nil
 }
 
 // listAppleProfilesForReconcileTransaction loads Apple configuration profiles
@@ -157,7 +168,7 @@ func (ds *Datastore) ListAppleProfilesForReconcileByTeam(ctx context.Context, te
 // in-memory handlers can apply the same "broken-label" semantics as the
 // legacy SQL: broken include-* profiles do not apply, and broken profiles
 // are exempted from removal.
-func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Context, tx common_mysql.DBReadTx, teamID *uint) ([]*fleet.AppleProfileForReconcile, error) {
+func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Context, tx common_mysql.DBReadTx, teamID *uint, filterProfileUUIDs []string) ([]*fleet.AppleProfileForReconcile, error) {
 	type profileRow struct {
 		ProfileUUID       string             `db:"profile_uuid"`
 		ProfileIdentifier string             `db:"identifier"`
@@ -171,20 +182,33 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 
 	profStmt := `
 		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope, self_service
-		FROM mdm_apple_configuration_profiles
+		FROM mdm_apple_configuration_profiles WHERE %s
 	`
+	var whereFilters string
 	var profArgs []any
 	if teamID != nil {
 		// team_id=0 is the "no team" / global team — its own scope.
 		// A host with a real team only matches profiles for that team;
 		// it does NOT also inherit team_id=0 profiles. EffectiveTeamID()
 		// on the host already maps nil → 0, so equality is correct.
-		profStmt += ` WHERE team_id = ?`
+		whereFilters = `team_id = ? AND `
 		profArgs = append(profArgs, *teamID)
 	}
 
+	if len(filterProfileUUIDs) > 0 {
+		inQuery, inArgs, err := sqlx.In("profile_uuid IN (?) AND ", filterProfileUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building profile UUID filter")
+		}
+		whereFilters += inQuery
+		profArgs = append(profArgs, inArgs...)
+	}
+
+	// To satisfy the last WHERE AND clause.
+	whereFilters += "TRUE"
+
 	var rows []profileRow
-	if err := sqlx.SelectContext(ctx, tx, &rows, profStmt, profArgs...); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &rows, fmt.Sprintf(profStmt, whereFilters), profArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for reconcile")
 	}
 	if len(rows) == 0 {
@@ -441,7 +465,7 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 			return nil
 		}
 
-		allProfiles, inner = ds.listAppleProfilesForReconcileTransaction(ctx, tx, nil)
+		allProfiles, inner = ds.listAppleProfilesForReconcileTransaction(ctx, tx, nil, nil)
 		if inner != nil {
 			return inner
 		}
