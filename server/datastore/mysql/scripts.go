@@ -2698,6 +2698,101 @@ WHERE
 	return nil
 }
 
+// deletableHostScriptResultPredicate is shared whole by the select and the
+// delete, so the re-check on the primary cannot drift from the reader's. One
+// subquery per host_mdm_actions column, so each uses its own index. created_at
+// is when the run was handed out, so updated_at is what bounds the result.
+const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1)
+	AND hsr.created_at < ? AND hsr.updated_at < ?
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.lock_ref = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.unlock_ref = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM setup_experience_status_results sesr WHERE sesr.script_execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM batch_activity_host_results bahr WHERE bahr.host_execution_id = hsr.execution_id)`
+
+func (ds *Datastore) CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k rows per tick
+	)
+	return cleanupHostScriptResultsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	// Keyset cursor on the created_at index. Rows the sweep keeps are passed
+	// once per run rather than once per batch, and there can be many: a run a
+	// host never answered stays pinned forever, at the front of the index.
+	// created_at has ties, so the cursor carries the primary key too.
+	const selectStmt = `
+SELECT hsr.id, hsr.created_at
+FROM host_script_results hsr
+WHERE hsr.created_at >= ? AND (hsr.created_at > ? OR hsr.id > ?)
+	AND ` + deletableHostScriptResultPredicate + `
+ORDER BY hsr.created_at, hsr.id
+LIMIT ?`
+
+	type resultKey struct {
+		ID        uint      `db:"id"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	var deleted int64
+	// TIMESTAMP epoch, not a zero time.Time: the driver serializes that as
+	// "0000-00-00", which MySQL rejects under NO_ZERO_DATE.
+	last := resultKey{CreatedAt: time.Unix(0, 0).UTC()}
+	hitCap := true
+	for range maxBatches {
+		var rows []resultKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt,
+			last.CreatedAt, last.CreatedAt, last.ID, olderThan, olderThan, batchSize); err != nil {
+			return deleted, ctxerr.Wrap(ctx, err, "select expired host script results")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		last = rows[len(rows)-1]
+		ids := make([]uint, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ID
+		}
+		n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		if err != nil {
+			return deleted, err
+		}
+		deleted += n
+		// The cursor moved past this batch whether or not the delete took it, so
+		// only a short page ends the run.
+		if len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup host script results hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", deleted, "max_batches", maxBatches)
+	}
+	return deleted, nil
+}
+
+// deleteHostScriptResultsByIDs re-checks the predicate on the primary, since a
+// row the reader selected can have been answered or referenced since.
+func deleteHostScriptResultsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
+	const deleteStmt = `
+DELETE hsr FROM host_script_results hsr
+WHERE hsr.id IN (?) AND ` + deletableHostScriptResultPredicate
+	stmt, args, err := sqlx.In(deleteStmt, ids, olderThan, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete expired host script results")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired host script results")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents string) (uint, error) {
 	csum := md5ChecksumScriptContent(contents)
 	scriptContentsID, err := ds.optimisticGetOrInsert(ctx,
