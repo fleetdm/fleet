@@ -71,12 +71,32 @@
     }
   }
   [purpose='hero-text'] {
-    max-width: 490px;
+    max-width: 640px;
     text-align: left;
     h1 {
       max-width: 640px;
-      font-size: 32px;
+      font-size: 48px;
       margin-bottom: 32px;
+    }
+    // Unlike the centered bottom CTA ticker, the hero ticker is left aligned and sized in ems so it scales with the heading.
+    [purpose='ticker-container'] {
+      display: flex;
+      left: 0;
+      transform: none;
+    }
+    [purpose='option-container'] {
+      display: flex;
+      flex-direction: column;
+      height: 1.2em;
+    }
+    [purpose='hero-ticker-option'] {
+      transform: translateY(1.6em);
+      &.visible {
+        transform: translateY(0%);
+      }
+      &.animating-out {
+        transform: translateY(-1.6em);
+      }
     }
     [purpose='hero-subtitle'] {
       color: #515774;
@@ -936,7 +956,10 @@
     }
 
     [purpose='hero-text'] {
-      max-width: 380px;
+      max-width: 500px;
+      h1 {
+        font-size: 40px;
+      }
     }
     [purpose='hero-quote'] {
       [purpose='hero-quote-profile-image'] {
@@ -1261,8 +1284,9 @@
       max-width: 100%;
       h1 {
         text-align: center;
-        max-width: 480px;
-        font-size: 48px;
+        max-width: none;
+        // Sized so the longest ticker option still fits on one line.
+        font-size: ~'min(48px, 7vw)';
         margin: 0 auto 24px;
       }
       [purpose='hero-subtitle'] {
@@ -1483,8 +1507,10 @@
 
     [purpose='hero-text'] {
       h1 {
-        max-width: 360px;
-        font-size: 36px;
+        font-size: ~'min(36px, 7.2vw)';
+      }
+      [purpose='ticker-container'] {
+        white-space: nowrap;
       }
     }
     [purpose='homepage-content'] {
