@@ -1,7 +1,7 @@
 /** software/titles/:id */
 
 import { AxiosError } from "axios";
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
@@ -143,6 +143,18 @@ const SoftwareTitleDetailsPage = ({
   // the same Versions modal.
   const [showVersionsModal, setShowVersionsModal] = useState(false);
 
+  // Command palette lets the user switch fleets while a modal is open. The
+  // Library section unmounts on nil teamIdForApi, but page-owned modal state
+  // would remount the modal when the user returned to a specific fleet.
+  useEffect(() => {
+    setShowLibraryEditModal(false);
+    setShowDeleteModal(false);
+    setShowAddPackageModal(false);
+    setShowVersionsModal(false);
+    setSelectedPackagePolicies(null);
+    setSelectedInstallerId(null);
+  }, [teamIdForApi]);
+
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
@@ -265,7 +277,14 @@ const SoftwareTitleDetailsPage = ({
   const renderLibrarySection = (title: ISoftwareTitleDetails) => {
     // Library section is Premium-only
     // Fleet Free should not see it even when an installer is present.
-    if (!isPremiumTier || !isAvailableForInstall) {
+    // "All fleets" (teamIdForApi undefined) has no team scope for
+    // edit/delete/add — the section is a management surface, so hide it
+    // entirely rather than surface actions that would target no fleet.
+    if (
+      !isPremiumTier ||
+      !isAvailableForInstall ||
+      typeof teamIdForApi !== "number"
+    ) {
       return null;
     }
 
@@ -576,7 +595,13 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
-    if (!showLibraryEditModal || !installerResult) return null;
+    if (
+      !showLibraryEditModal ||
+      !installerResult ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
     const { meta } = installerResult;
     // On a multi-package title, the row callback set `selectedInstallerId`;
     // resolve it to the actual package so the modal edits the right one.
