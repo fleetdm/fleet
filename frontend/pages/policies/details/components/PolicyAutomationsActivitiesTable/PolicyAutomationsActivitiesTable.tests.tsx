@@ -574,4 +574,34 @@ describe("PolicyAutomationsActivitiesTable", () => {
       expect(policiesAPI.reset).toHaveBeenCalledWith(123, 42)
     );
   });
+
+  it("keeps a host-scoped reset when the run's host has no display name", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity({ host_display_name: "" })], 1)
+    );
+    (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        currentAutomatedPolicies={[]}
+        canResetPolicy
+      />
+    );
+
+    await user.click(await screen.findByText("Software installed (1Password)"));
+    const resetButtons = screen.getAllByRole("button", {
+      name: "Reset policy",
+    });
+    await user.click(resetButtons[resetButtons.length - 1]);
+    expect(
+      screen.getByText(/this host until its next check in/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/all hosts/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.reset).toHaveBeenCalledWith(123, 42)
+    );
+  });
 });

@@ -301,7 +301,7 @@ const PolicyAutomationsActivitiesTable = ({
       {showResetModal && (
         <PolicyResetModal
           policy={policy}
-          hostDisplayName={resetHost?.displayName}
+          host={resetHost}
           currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           isResetting={isResetting}
