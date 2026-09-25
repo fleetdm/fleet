@@ -74,5 +74,8 @@
     flex-direction: row;
     align-items: center;
     gap: $gap-action-elements;
+    // Stay pinned to the top of the header row so the buttons don't slide
+    // down when "Last fetched..." wraps under the h1 and stretches the row.
+    align-self: flex-start;
   }
 }
