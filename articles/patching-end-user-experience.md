@@ -38,18 +38,7 @@ Here's what the end user sees with each option:
 
 This chart shows what happens after a patch policy fails:
 
-```mermaid
-graph TD;
-    fail["Patch policy fails on a host"] --> option{"Which patch option?"};
-    option -->|Patch when app is closed| closedRunning{"Is the app running?"};
-    closedRunning -->|No| install["Fleet installs the patch"];
-    closedRunning -->|Yes| retry["Fleet skips the install<br>and retries on the next policy run"];
-    option -->|Force patch, patch immediately| installNow["Fleet installs the patch right away<br>with no notification"];
-    option -->|Force patch, notify before patching| notifyRunning{"Is the app running?"};
-    notifyRunning -->|No| install;
-    notifyRunning -->|Yes| notify["Fleet skips the install and notifies the end user.<br>Fleet installs the patch 1 hour later."];
-    option -->|End user initiated| manual["Nothing installs.<br>The end user updates from self-service."];
-```
+![Flow chart: after a patch policy fails, Patch when app is closed installs the patch if the app isn't running and skips the install if it is. Force patch with Patch immediately installs right away with no notification. Force patch with Notify before patching installs silently if the app isn't running, or notifies the end user and installs 1 hour later if it is. End user initiated installs nothing on its own.](../website/assets/images/articles/patching-end-user-experience-patch-options-1200x726@2x.png)
 
 
 ## Patch when app is closed
@@ -99,32 +88,7 @@ The notification has no title bar, no close button, and doesn't close with Esc. 
 
 This timeline shows what happens after the notification appears:
 
-```mermaid
-sequenceDiagram
-    participant F as Fleet
-    participant D as Fleet Desktop
-    participant U as End user
-
-    F->>D: Patch policy failed and the app is running
-    D->>U: 0 min. Save your work. These apps will close and update in 1 hour.
-    Note over F,U: The 1-hour timer starts when the notification appears
-    alt End user selects Update now
-        U->>D: Update now
-        D->>F: Install all listed apps now
-    else End user selects Remind me 5 minutes before
-        U->>D: Remind me 5 minutes before
-        Note over D,U: Notification closes
-        D->>U: 55 min. These apps will close and update in 5 minutes.
-        alt End user selects Update now
-            U->>D: Update now
-            D->>F: Install all listed apps now
-        else End user selects Hide
-            U->>D: Hide
-            Note over D,U: Notification closes
-            Note over F,U: 60 min. Fleet closes and updates the listed apps in the background
-        end
-    end
-```
+![Timeline: at 0 minutes the Save your work notification appears and the 1-hour timer starts. Remind me 5 minutes before leads to a 5-minute reminder at 55 minutes. Hide leads to the apps closing and updating at 60 minutes. Update now, in either notification, updates all listed apps right away.](../website/assets/images/articles/patching-end-user-experience-notify-timeline-1200x583@2x.png)
 
 
 ### Multiple apps
@@ -145,17 +109,7 @@ Fleet only starts the 1-hour timer after the end user sees the notification. Her
 - **No one is logged in.** Nothing installs. The notification appears after the end user logs in.
 - **Fleet Desktop is missing or older than 1.5.0.** There's no notification and Fleet skips the patch. You'll see a "failed to notify" activity telling you to deploy Fleet Desktop.
 
-```mermaid
-graph TD;
-    start["The app is running, so Fleet tries to notify the end user"] --> desktop{"Is Fleet Desktop 1.5.0<br>or later installed?"};
-    desktop -->|No| failed["No notification. Fleet skips the patch.<br>IT sees a failed to notify activity."];
-    desktop -->|Yes| shown{"Screen locked, no one logged in,<br>another notification showing,<br>or notification couldn't load?"};
-    shown -->|Yes| later["Nothing is shown and nothing installs.<br>Fleet tries again on the next policy run."];
-    shown -->|No| timer["Notification appears.<br>The 1-hour timer starts."];
-    timer --> online{"Is the host online<br>when the hour is up?"};
-    online -->|Yes| update["Fleet closes and updates the app"];
-    online -->|No| offline["Fleet skips the patch. When the host is back online,<br>Fleet notifies the end user again and patches 1 hour later."];
-```
+![What happens when a notification can't be shown: host offline, Fleet skips the patch and notifies again when it's back online. Screen locked, another notification showing, or the notification couldn't load, nothing installs and Fleet tries again on the next policy run. No one logged in, nothing installs until the end user logs in. Fleet Desktop missing or older than 1.5.0, Fleet skips the patch and IT sees a failed to notify activity.](../website/assets/images/articles/patching-end-user-experience-notifications-not-shown-1200x701@2x.png)
 
 
 ### Installs that never show a notification
