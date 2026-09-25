@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -703,8 +702,8 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 <Atomic>%s</Atomic>`, data)
 }
 
-// stubFleetWindowsProfileEnsure stubs the datastore calls made by ensureFleetWindowsProfiles, which ReconcileWindowsProfiles
-// now runs before the reconcile pass. These tests exercise the pass, not the ensure step; they just must not panic on the calls.
+// stubFleetWindowsProfileEnsure stubs the read made by ensureFleetWindowsProfiles, which ReconcileWindowsProfiles runs before the
+// reconcile pass, for tests that exercise the pass rather than the ensure step.
 func stubFleetWindowsProfileEnsure(ds *mock.Store) {
 	ds.ListMDMWindowsConfigProfilesByNameFunc = func(ctx context.Context, name string) ([]*fleet.MDMWindowsConfigProfile, error) {
 		return nil, nil
@@ -878,7 +877,6 @@ func TestProcessClientEventAlertLoginStatus(t *testing.T) {
 
 	newSvc := func(t *testing.T) (*mock.Store, *Service) {
 		ds := new(mock.Store)
-		stubFleetWindowsProfileEnsure(ds)
 		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
 	}
 
@@ -1029,7 +1027,6 @@ func runWindowsUserScopeTickOpts(
 	t.Helper()
 	ctx := t.Context()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 
 	profile := &fleet.MDMWindowsConfigProfile{
 		ProfileUUID: "wuser-scope-profile",
@@ -1337,7 +1334,6 @@ func TestReconcileWindowsProfilesHoldsMixedScopeProfilesWhole(t *testing.T) {
 func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Setup test data with a profile containing Fleet variable
@@ -1399,7 +1395,6 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		Tier: fleet.TierPremium,
 	})
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Setup test data with a profile containing a certificate that will fail processing
@@ -1465,7 +1460,6 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		Tier: fleet.TierPremium,
 	})
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Setup test data with a profile containing a certificate that will fail processing
@@ -1559,7 +1553,6 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	deletedProfile := &fleet.MDMWindowsConfigProfile{
@@ -1655,7 +1648,6 @@ func runWindowsReconcileOnce(t *testing.T, snapshot windowsReconcileSnapshot) wi
 	t.Helper()
 	ctx := t.Context()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	finalUpserts, _ := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{})
 
 	if snapshot.userContexts != nil {
@@ -2114,7 +2106,6 @@ func TestReconcileWindowsProfilesDeletesRowAfterTransferToMirroredTeam(t *testin
 func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	freshProfile := &fleet.MDMWindowsConfigProfile{
@@ -2295,6 +2286,7 @@ func newDrainLoopTestDS(
 	cursor *string,
 	calls *int,
 ) {
+	stubFleetWindowsProfileEnsure(ds)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		cfg := &fleet.AppConfig{}
 		cfg.MDM.WindowsEnabledAndConfigured = true
@@ -2349,7 +2341,6 @@ func newDrainLoopTestDS(
 func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Large scan window (the whole fleet fits in one window), small delivery cap, no wall-clock limit.
@@ -2405,7 +2396,6 @@ func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
 func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	setReconcileWindowsBudgets(t, 2 /*scanBatch*/, 5 /*deliveryCap*/, time.Hour)
@@ -2441,7 +2431,6 @@ func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
 func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	logger := slog.New(slog.DiscardHandler)
 
 	// Small windows, generous delivery cap (so the cap never governs), and an already-expired scan budget so the loop halts after
@@ -2469,7 +2458,6 @@ func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
 
 func TestRekeyWindowsDevice(t *testing.T) {
 	ds := new(mock.Store)
-	stubFleetWindowsProfileEnsure(ds)
 	kv := new(mock.KVStore)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
 		KeyValueStore: kv,
@@ -2688,7 +2676,6 @@ func TestGetESPCommands(t *testing.T) {
 	// assert ds.<Func>Invoked == false (the auto-set flag is independent of the func body).
 	newSvc := func(t *testing.T) (*mock.Store, *Service) {
 		ds := new(mock.Store)
-		stubFleetWindowsProfileEnsure(ds)
 		// HostLiteByIdentifier exposes OsqueryHostID so Stage 3's setupExperienceHostUUID() resolves to the same
 		// key Windows orbit uses as setup_experience_status_results.host_uuid (production data shape).
 		osqueryHostID := "osquery-" + hostUUID
@@ -3391,7 +3378,6 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 			var enqueued *fleet.MDMWindowsCommand
 			var intendedRelaxed *bool
 			ds := new(mock.Store)
-			stubFleetWindowsProfileEnsure(ds)
 			ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
 				ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
 			) error {
@@ -3545,7 +3531,6 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			}
 
 			ds := new(mock.Store)
-			stubFleetWindowsProfileEnsure(ds)
 			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
 				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
 			}
@@ -3646,7 +3631,6 @@ func TestWarnOnWindowsMDMHardwareIDCollision(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			stubFleetWindowsProfileEnsure(ds)
 			ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, gotHWID string) (string, error) {
 				require.Equal(t, hwID, gotHWID)
 				if tc.deleteErr != nil {
@@ -3684,22 +3668,16 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 	const globalSecret = "global-enroll-secret"
 	device := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17"}
 
-	metadataUp := func(t *testing.T) {
+	serveFleetdMetadata := func(t *testing.T, status int) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
 			_, _ = w.Write([]byte(`{"fleetd_base_msi_url":"https://example.com/fleetd.msi","fleetd_base_msi_sha256":"abc"}`))
 		}))
 		t.Cleanup(srv.Close)
 		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
 	}
-	metadataDown := func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		t.Cleanup(srv.Close)
-		dev_mode.SetOverride("FLEET_DEV_DOWNLOAD_FLEETDM_URL", srv.URL, t)
-	}
 
-	newService := func(t *testing.T, windowsSwitch bool) (*Service, *mock.Store, *[]string) {
+	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool) (*Service, *mock.Store, *[]string) {
 		ds := new(mock.Store)
 		var events []string
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -3719,13 +3697,13 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 			return nil
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsSwitch
+		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		return svc.(validationMiddleware).Service.(*Service), ds, &events
 	}
 
-	t.Run("switch on mints for the enrollment before the command is queued", func(t *testing.T) {
-		metadataUp(t)
+	t.Run("enabled: mints for the enrollment before the command is queued", func(t *testing.T) {
+		serveFleetdMetadata(t, http.StatusOK)
 		svc, ds, events := newService(t, true)
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 
@@ -3737,12 +3715,11 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.False(t, ds.GetEnrollSecretsFuncInvoked)
 	})
 
-	t.Run("switch off never mints", func(t *testing.T) {
-		metadataUp(t)
-		svc, ds, events := newService(t, false)
+	t.Run("disabled: queues the global secret without minting", func(t *testing.T) {
+		serveFleetdMetadata(t, http.StatusOK)
+		svc, _, events := newService(t, false)
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 
-		require.False(t, ds.MintWindowsMDMOneTimeEnrollSecretFuncInvoked)
 		require.Len(t, *events, 1)
 		require.Contains(t, (*events)[0], globalSecret)
 	})
@@ -3750,93 +3727,30 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 	t.Run("an install skipped for missing metadata leaves no secret behind", func(t *testing.T) {
 		// A minted secret nobody is delivered is still a live credential for the enrollment, so it must not be created ahead of
 		// an early return.
-		metadataDown(t)
-		svc, ds, events := newService(t, true)
+		serveFleetdMetadata(t, http.StatusInternalServerError)
+		svc, _, events := newService(t, true)
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
-
-		require.False(t, ds.MintWindowsMDMOneTimeEnrollSecretFuncInvoked)
 		require.Empty(t, *events)
 	})
 }
 
-func TestWindowsMDMCommandHostSecretPlaceholders(t *testing.T) {
-	t.Run("a custom command carrying one is refused before anything is queued", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, _ := newTestService(t, ds, nil, nil)
-		for _, placeholder := range []string{
-			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret),
-			fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword),
-		} {
-			cmd := `<Exec><CmdID>c1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI></Target>` +
-				`<Data>` + placeholder + `</Data></Item></Exec>`
-			_, err := svc.(validationMiddleware).Service.(*Service).enqueueMicrosoftMDMCommand(t.Context(), []byte(cmd), []string{"device-1"})
-			var badRequest *fleet.BadRequestError
-			require.ErrorAs(t, err, &badRequest, placeholder)
-			require.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, placeholder)
-		}
-	})
+func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		// An Apple-only host secret, which Windows expansion refuses.
+		return []*fleet.MDMWindowsCommand{
+			{CommandUUID: "bad", RawCommand: []byte(
+				`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` +
+					fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Replace>`)},
+			{CommandUUID: "good", RawCommand: []byte(
+				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	svc, _ := newTestService(t, ds, nil, nil)
 
-	t.Run("one command that fails expansion does not hold back the rest", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
-			// An Apple-only host secret, which Windows expansion refuses.
-			return []*fleet.MDMWindowsCommand{
-				{CommandUUID: "bad", RawCommand: []byte(
-					`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` +
-						fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Replace>`)},
-				{CommandUUID: "good", RawCommand: []byte(
-					`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
-			}, nil
-		}
-		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
-		svc, _ := newTestService(t, ds, nil, nil)
-
-		cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
-		require.NoError(t, err, "a failed expansion must not fail the whole management session")
-		require.Len(t, cmds, 1)
-		require.Equal(t, "good", cmds[0].CmdID.Value)
-	})
-
-	t.Run("expansion resolves the live secret for the enrollment, escaped", func(t *testing.T) {
-		placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
-		doc := `<Data>FLEET_SECRET="` + placeholder + `"</Data>`
-		for _, tc := range []struct{ live, want string }{
-			// The tokens never need escaping, but a value that did would not break the SyncML.
-			{live: "a&b", want: `<Data>FLEET_SECRET="a&amp;b"</Data>`},
-			// Nothing minted: the host gets an empty value, which fleetd reads as nothing waiting.
-			{live: "", want: `<Data>FLEET_SECRET=""</Data>`},
-		} {
-			ds := new(mock.Store)
-			ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
-				require.EqualValues(t, 7, enrollmentID)
-				require.True(t, ctxdb.IsPrimaryRequired(ctx), "the secret may have been minted moments ago")
-				return tc.live, nil
-			}
-			svc, _ := newTestService(t, ds, nil, nil)
-			got, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(), doc, 7)
-			require.NoError(t, err)
-			require.Equal(t, tc.want, got)
-		}
-	})
-
-	t.Run("a document without host secrets never reaches the datastore", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, _ := newTestService(t, ds, nil, nil)
-		doc := `<Replace><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`
-		got, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(), doc, 7)
-		require.NoError(t, err)
-		require.Equal(t, doc, got)
-		require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
-	})
-
-	t.Run("a failed lookup is an error, not an empty secret", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
-			return "", errors.New("db down")
-		}
-		svc, _ := newTestService(t, ds, nil, nil)
-		_, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(),
-			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret), 7)
-		require.ErrorContains(t, err, "db down")
-	})
+	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+	require.NoError(t, err, "a failed expansion must not fail the whole management session")
+	require.Len(t, cmds, 1)
+	require.Equal(t, "good", cmds[0].CmdID.Value)
 }

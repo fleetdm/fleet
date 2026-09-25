@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	hostidentity_types "github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -573,18 +575,18 @@ func TestEnsureFleetdConfigRemovesPlaceholderProfilesWhenOff(t *testing.T) {
 
 func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
 	for _, tc := range []struct {
-		name                string
-		windowsSwitch       bool
-		windowsMDMEnabled   bool
-		wantRejectOnWindows bool
+		name                        string
+		windowsOneTimeEnrollSecrets bool
+		windowsMDMEnabled           bool
+		wantRejectOnWindows         bool
 	}{
-		{name: "switch on, Windows MDM on", windowsSwitch: true, windowsMDMEnabled: true, wantRejectOnWindows: true},
+		{name: "enabled, Windows MDM on", windowsOneTimeEnrollSecrets: true, windowsMDMEnabled: true, wantRejectOnWindows: true},
 		// with Windows MDM off the profile cannot be resent, so a refused host would have no way back
-		{name: "switch on, Windows MDM off", windowsSwitch: true, windowsMDMEnabled: false},
-		{name: "switch off", windowsSwitch: false, windowsMDMEnabled: true},
+		{name: "enabled, Windows MDM off", windowsOneTimeEnrollSecrets: true, windowsMDMEnabled: false},
+		{name: "disabled", windowsOneTimeEnrollSecrets: false, windowsMDMEnabled: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) { auth.MDMWindowsOneTimeEnrollSecrets = tc.windowsSwitch })
+			f := newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) { auth.MDMWindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets })
 			f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				ac := &fleet.AppConfig{}
 				ac.MDM.EnabledAndConfigured = true
@@ -611,6 +613,46 @@ func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRejectOnWindows, osqueryCfg.RejectSharedSecretForWindowsMDMHosts)
 			require.False(t, osqueryCfg.RejectSharedSecretForMDMHosts)
+		})
+	}
+}
+
+func TestExpandWindowsHostSecrets(t *testing.T) {
+	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+	withPlaceholder := `<Data>FLEET_SECRET="` + placeholder + `"</Data>`
+	for _, tc := range []struct {
+		name    string
+		doc     string
+		live    string
+		liveErr error
+		want    string
+		wantErr string
+	}{
+		// The tokens never need escaping, but a value that did would not break the SyncML.
+		{name: "live secret is resolved, escaped", doc: withPlaceholder, live: "a&b", want: `<Data>FLEET_SECRET="a&amp;b"</Data>`},
+		// Nothing minted: the host gets an empty value, which fleetd reads as nothing waiting.
+		{name: "nothing minted resolves to empty", doc: withPlaceholder, want: `<Data>FLEET_SECRET=""</Data>`},
+		{name: "failed lookup is an error, not an empty secret", doc: withPlaceholder, liveErr: errors.New("db down"), wantErr: "db down"},
+		// The lookup func is set only when the document needs it; an unset mock func panics if called.
+		{name: "document without host secrets never reaches the datastore", doc: `<Data>plain</Data>`, want: `<Data>plain</Data>`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			if tc.doc == withPlaceholder {
+				ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+					require.EqualValues(t, 7, enrollmentID)
+					require.True(t, ctxdb.IsPrimaryRequired(ctx), "the secret may have been minted moments ago")
+					return tc.live, tc.liveErr
+				}
+			}
+			svc, _ := newTestService(t, ds, nil, nil)
+			got, err := svc.(validationMiddleware).Service.(*Service).expandWindowsHostSecrets(t.Context(), tc.doc, 7)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
