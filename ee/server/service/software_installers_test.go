@@ -3201,6 +3201,44 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 	}
 }
 
+func TestBatchSetSoftwareInstallersStopsAfterFirstFailure(t *testing.T) {
+	t.Parallel()
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	var processed atomic.Int32
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		processed.Add(1)
+		return nil, errors.New("boom")
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	payloads := []*fleet.SoftwareInstallerPayload{
+		{URL: "https://example.com/a.pkg"},
+		{URL: "https://example.com/b.pkg"},
+		{URL: "https://example.com/c.pkg"},
+	}
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		status := getKey(batchSoftwarePrefix + requestUUID)
+		return status != nil && strings.HasPrefix(*status, batchSetFailedPrefix)
+	}, 10*time.Second, 50*time.Millisecond, "batch never failed")
+	require.Equal(t, int32(1), processed.Load())
+}
+
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 	t.Parallel()
 
