@@ -846,7 +846,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 	serveCSP := cspEV == "1" || cspEV == "true"
 
-	var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+	var apiHandler, frontendHandler, endUserEnrollOTAHandler, endUserEnrollNextStepsHandler http.Handler
 	{
 		frontendHandler = service.PrometheusMetricsHandler(
 			"get_frontend",
@@ -923,6 +923,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			ds,
 			redis_key_value.New(redisPool),
 			clock.C,
+			logger,
+			serveCSP,
+		)
+
+		endUserEnrollNextStepsHandler = service.ServeEndUserEnrollNextSteps(
+			config.Server.URLPrefix,
 			logger,
 			serveCSP,
 		)
@@ -1106,6 +1112,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 	rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+	// Registered with and without the trailing slash: the design and any link
+	// written as /enroll/next-steps/ would otherwise fall through to the "/"
+	// catch-all and serve the admin UI to an enrolling end user.
+	rootMux.Handle("/enroll/next-steps", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps", config))
+	rootMux.Handle("/enroll/next-steps/", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps/", config))
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{

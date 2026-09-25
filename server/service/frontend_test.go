@@ -154,6 +154,84 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	}
 }
 
+// The next-steps page is informational, so it must render for anyone who lands
+// on it: no enroll secret, no datastore lookup, and above all no IdP redirect,
+// which would bounce a user who already authenticated back through SSO just to
+// read the instructions.
+func TestServeEndUserEnrollNextSteps(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ts := httptest.NewServer(ServeEndUserEnrollNextSteps("", logger, false))
+	t.Cleanup(ts.Close)
+
+	for _, tc := range []struct {
+		name  string
+		query string
+	}{
+		{name: "with enroll secret", query: "?enroll_secret=foo"},
+		{name: "without enroll secret", query: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response, err := http.DefaultClient.Get(ts.URL + tc.query)
+			require.NoError(t, err)
+			defer response.Body.Close()
+
+			assert.Equal(t, http.StatusOK, response.StatusCode)
+			assert.Equal(t, "text/html; charset=utf-8", response.Header.Get("Content-Type"))
+
+			bodyBytes, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			bodyString := string(bodyBytes)
+			assert.Contains(t, bodyString, `IS_NEXT_STEPS = "true"`)
+			assert.Contains(t, bodyString, "Next steps...")
+			assert.Contains(t, bodyString, "You can close this page.")
+		})
+	}
+}
+
+// The next-steps page is only reachable if it is actually mounted, and a
+// stdlib ServeMux matches "/enroll/next-steps" exactly: without the trailing
+// slash pattern the URL the design specifies falls through to the "/" catch-all
+// and serves the admin UI to an enrolling end user.
+func TestEnrollNextStepsMuxRouting(t *testing.T) {
+	nextSteps := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("next-steps"))
+	})
+	ota := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ota"))
+	})
+	catchAll := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("catch-all"))
+	})
+
+	mux := http.NewServeMux()
+	mux.Handle("/enroll", ota)
+	mux.Handle("/enroll/next-steps", nextSteps)
+	mux.Handle("/enroll/next-steps/", nextSteps)
+	mux.Handle("/", catchAll)
+
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{path: "/enroll", want: "ota"},
+		{path: "/enroll?enroll_secret=foo", want: "ota"},
+		{path: "/enroll/next-steps", want: "next-steps"},
+		{path: "/enroll/next-steps/", want: "next-steps"},
+		{path: "/enroll/next-steps?enroll_secret=foo", want: "next-steps"},
+		{path: "/enroll/next-steps/?enroll_secret=foo", want: "next-steps"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			mux.ServeHTTP(recorder, httptest.NewRequest("GET", tc.path, nil))
+			assert.Equal(t, tc.want, recorder.Body.String())
+		})
+	}
+}
+
 // ssoURLCaptureService captures the customOriginalURL passed to InitiateMDMSSO so
 // tests can assert which query parameters survive into the SAML round-trip.
 type ssoURLCaptureService struct {
