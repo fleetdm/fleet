@@ -2,38 +2,38 @@ import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
-import { ITeamConfig } from "interfaces/team";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import {
   DISK_ENCRYPTION_SETTINGS_PLATFORMS,
   DiskEncryptionSettingsPlatform,
   isDiskEncryptionSettingsPlatform,
 } from "interfaces/platform";
-
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import permissions from "utilities/permissions";
-
+import { ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
 import diskEncryptionAPI, {
   IUpdateDiskEncryptionFormData,
 } from "services/entities/disk_encryption";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
-import Button from "components/buttons/Button";
-import Card from "components/Card";
-import CustomLink from "components/CustomLink";
-import Checkbox from "components/forms/fields/Checkbox";
-import DataError from "components/DataError";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 import {
@@ -42,7 +42,6 @@ import {
   IDiskEncryptionSettings,
   isMacOSDiskEncryptionEnforceOnly,
 } from "./helpers";
-import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const baseClass = "disk-encryption";
 
@@ -60,26 +59,43 @@ const getPlatformTabPath = (
     fleet_id: teamId,
   });
 
-const MDM_REQUIRED_TOOLTIPS: Partial<
-  Record<DiskEncryptionSettingsPlatform, string>
+const MDM_REQUIRED_EMPTY_STATES: Partial<
+  Record<DiskEncryptionSettingsPlatform, JSX.Element>
 > = {
-  macos: "To make changes, first turn on Apple MDM.",
-  windows: "To make changes, first turn on Windows MDM.",
+  macos: (
+    <EmptyState
+      header="Turn on MDM to enforce disk encryption"
+      info={
+        <>
+          You must turn on Apple MDM to enforce disk encryption for macOS hosts.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/turn-on-apple-mdm`}
+            text="Learn more"
+            newTab
+          />
+        </>
+      }
+      variant="form"
+    />
+  ),
+  windows: (
+    <EmptyState
+      header="Turn on MDM to enforce disk encryption"
+      info={
+        <>
+          You must turn on Windows MDM to enforce disk encryption for Windows
+          hosts.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`}
+            text="Learn more"
+            newTab
+          />
+        </>
+      }
+      variant="form"
+    />
+  ),
 };
-
-const withMdmRequiredTooltip = (children: JSX.Element, tipContent?: string) =>
-  tipContent ? (
-    <TooltipWrapper
-      tipContent={tipContent}
-      position="top"
-      showArrow
-      underline={false}
-    >
-      {children}
-    </TooltipWrapper>
-  ) : (
-    children
-  );
 
 export type IDiskEncryptionProps = IOSSettingsCommonProps;
 
@@ -247,24 +263,18 @@ const DiskEncryption = ({
     }
   };
 
-  const renderSaveButton = (
-    platform: DiskEncryptionSettingsPlatform,
-    mdmRequiredTip?: string
-  ) => (
+  const renderSaveButton = (platform: DiskEncryptionSettingsPlatform) => (
     <GitOpsModeTooltipWrapper
-      renderChildren={(disableChildren) =>
-        withMdmRequiredTooltip(
-          <Button
-            disabled={disableChildren || isPlatformFormDisabled(platform)}
-            isLoading={isSaving}
-            className={`${baseClass}__save-button`}
-            onClick={() => onSaveDiskEncryption(platform)}
-          >
-            Save
-          </Button>,
-          mdmRequiredTip
-        )
-      }
+      renderChildren={(disableChildren) => (
+        <Button
+          disabled={disableChildren || isPlatformFormDisabled(platform)}
+          isLoading={isSaving}
+          className={`${baseClass}__save-button`}
+          onClick={() => onSaveDiskEncryption(platform)}
+        >
+          Save
+        </Button>
+      )}
     />
   );
 
@@ -326,28 +336,19 @@ const DiskEncryption = ({
     isEnabled: boolean,
     formFields: JSX.Element
   ) => {
-    // GitOps mode has its own tooltip on Save, so only explain the MDM
-    // requirement when that isn't what's disabling the form
-    const mdmRequiredTip =
-      gitOpsModeEnabled || isPlatformMdmEnabled[platform]
-        ? undefined
-        : MDM_REQUIRED_TOOLTIPS[platform];
+    const mdmRequiredEmptyState = isPlatformMdmEnabled[platform]
+      ? undefined
+      : MDM_REQUIRED_EMPTY_STATES[platform];
 
     return (
       <>
-        {!isTechnician && (
-          <Card
-            className={`${baseClass}__settings-card`}
-            color="white"
-            borderRadiusSize="large"
-          >
-            {withMdmRequiredTooltip(
-              <div className={`${baseClass}__form-fields`}>{formFields}</div>,
-              mdmRequiredTip
-            )}
-            {renderSaveButton(platform, mdmRequiredTip)}
-          </Card>
-        )}
+        {!isTechnician &&
+          (mdmRequiredEmptyState || (
+            <Card className={`${baseClass}__settings-card`} color="white">
+              <div className={`${baseClass}__form-fields`}>{formFields}</div>
+              {renderSaveButton(platform)}
+            </Card>
+          ))}
         {isEnabled ? (
           <DiskEncryptionTable
             platform={platform}

@@ -359,6 +359,14 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 
 	// Send primary account info if we have an SSO account, and no adminAccount config or the primary account type is not "none"
 	if ssoAccount != nil && (adminAccount == nil || adminAccount.PrimaryAccountType != fleet.PrimaryAccountTypeNone) {
+		fullName, err := mobileconfig.XMLEscapeString(ssoAccount.FullName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping primary account full name")
+		}
+		userName, err := mobileconfig.XMLEscapeString(ssoAccount.UserName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping primary account user name")
+		}
 		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
@@ -366,7 +374,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
       <%t />
-`, ssoAccount.FullName, ssoAccount.UserName, ssoAccount.LockPrimaryAccountInfo)
+`, fullName, userName, ssoAccount.LockPrimaryAccountInfo)
 	}
 
 	if adminAccount != nil {
@@ -385,6 +393,14 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 			// no-op for admin account type as that is default
 		}
 
+		shortName, err := mobileconfig.XMLEscapeString(adminAccount.ShortName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping admin account short name")
+		}
+		fullName, err := mobileconfig.XMLEscapeString(adminAccount.FullName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping admin account full name")
+		}
 		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
 		payload += fmt.Sprintf(`
       <key>AutoSetupAdminAccounts</key>
@@ -400,7 +416,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
           <string>%s</string>
         </dict>
       </array>
-`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+`, adminAccount.Hidden, passwordHashEncoded, shortName, fullName)
 	}
 
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -793,8 +809,8 @@ func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []s
 	cmdPayload := commandPayload{
 		CommandUUID: cmdUUID,
 		Command: map[string]any{
-			"RequestType": "SetRecoveryLock",
-			"NewPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
+			"RequestType": fleet.SetRecoveryLockCmdName,
+			"NewPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPendingPassword,
 		},
 	}
 	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
@@ -804,6 +820,44 @@ func (svc *MDMAppleCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []s
 
 	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing SetRecoveryLock command")
+	}
+
+	return nil
+}
+
+func (svc *MDMAppleCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	// Use the host secret placeholder - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword)
+}
+
+func (svc *MDMAppleCommander) VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error {
+	// Use the host secret placeholder for the last known password - the actual password will be injected at delivery time
+	// by ExpandHostSecrets, which looks up the password from host_recovery_key_passwords.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
+}
+
+func (svc *MDMAppleCommander) VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	// A device without a recovery lock password will accept a empty password in a VerifyRecoveryLock, so we use it to ensure the same process
+	// for both setting and clearing is always verified by the device.
+	return svc.verifyRecoveryLock(ctx, hostUUID, cmdUUID, "")
+}
+
+func (svc *MDMAppleCommander) verifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID, password string) error {
+	cmdPayload := commandPayload{
+		CommandUUID: cmdUUID,
+		Command: map[string]any{
+			"RequestType": fleet.VerifyRecoveryLockCmdName,
+			"Password":    password,
+		},
+	}
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling verifyRecoveryLock payload")
+	}
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, string(rawBytes)); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing verifyRecoveryLock command")
 	}
 
 	return nil
@@ -845,6 +899,10 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 //
 // See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
 func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	escapedGUID, err := mobileconfig.XMLEscapeString(guid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping account GUID")
+	}
 	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -862,7 +920,7 @@ func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, guid, passwordHashEncoded, cmdUUID)
+</plist>`, escapedGUID, passwordHashEncoded, cmdUUID)
 
 	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
@@ -875,11 +933,11 @@ func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID
 // CurrentPassword is the existing password from encrypted_password column.
 // NewPassword is the new password from pending_encrypted_password column.
 // See https://developer.apple.com/documentation/devicemanagement/set_recovery_lock
-func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	cmdPayload := commandPayload{
 		CommandUUID: cmdUUID,
 		Command: map[string]any{
-			"RequestType":     "SetRecoveryLock",
+			"RequestType":     fleet.SetRecoveryLockCmdName,
 			"CurrentPassword": "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPassword,
 			"NewPassword":     "$" + fleet.HostSecretPrefix + fleet.HostSecretRecoveryLockPendingPassword,
 		},
@@ -889,7 +947,7 @@ func (svc *MDMAppleCommander) RotateRecoveryLock(ctx context.Context, hostUUID s
 		return ctxerr.Wrap(ctx, err, "marshalling RotateRecoveryLock payload")
 	}
 
-	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, string(rawBytes)); err != nil {
+	if err := svc.EnqueueCommand(ctx, hostUUIDs, string(rawBytes)); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing RotateRecoveryLock command")
 	}
 

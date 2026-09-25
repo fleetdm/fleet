@@ -91,17 +91,13 @@ func (r *registry) subscribe(token string, seq int64) (*subscriber, *ping) {
 	}
 	e.sub = sub
 	e.seq = seq
-	r.connected.Add(1)
 	return sub, evicted
 }
 
 // unsubscribe releases the stream and returns any unwritten ping. It detaches
 // only if sub is still the token's current subscriber, so a replaced handler's
-// deferred cleanup cannot evict its replacement. connected always decrements:
-// the handler calls this exactly once per subscribe.
+// deferred cleanup cannot evict its replacement.
 func (r *registry) unsubscribe(token string, sub *subscriber) *ping {
-	r.connected.Add(-1)
-
 	token, sh := r.shardFor(token)
 	sh.Lock()
 	defer sh.Unlock()
@@ -165,12 +161,13 @@ func (r *registry) deliver(token string, p *ping) deliverResult {
 	if e == nil || e.sub == nil {
 		return notHeld
 	}
-	select {
-	case e.sub.ch <- p:
-		return delivered
-	default:
+	if len(e.sub.ch) == cap(e.sub.ch) {
+		r.coalesced.Add(1)
 		return bufferFull
 	}
+	r.deliveredLive.Add(1)
+	e.sub.ch <- p // deliver is the only sender and holds the lock, so this cannot block
+	return delivered
 }
 
 // holds reports whether this node has a live stream for the token. Every

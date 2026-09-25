@@ -1,11 +1,14 @@
 import React from "react";
 import { Column, Row } from "react-table";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
   isEnrolledInMdm,
   isLinuxDiskEncryptionStatus,
@@ -14,15 +17,8 @@ import {
   MdmProfileStatus,
   ProfilePlatform,
 } from "interfaces/mdm";
+import { isAppleDevice } from "interfaces/platform";
 import { isDDMProfile } from "services/entities/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-
-import OSSettingsNameCell from "./OSSettingsNameCell";
-import OSSettingStatusCell from "./OSSettingStatusCell";
-import OSSettingsResendCell from "./OSSettingsResendCell";
-import { getControlDisplayOption } from "./statusDisplayConfig";
 
 import {
   generateHostNameSettingIfEligible,
@@ -34,6 +30,11 @@ import {
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
   WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
+
+import OSSettingsNameCell from "./OSSettingsNameCell";
+import OSSettingsResendCell from "./OSSettingsResendCell";
+import OSSettingStatusCell from "./OSSettingStatusCell";
+import { getControlDisplayOption } from "./statusDisplayConfig";
 
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
@@ -86,7 +87,8 @@ export const getRowActionProps = (
   row: IHostMdmProfileWithAddedStatus,
   canResendProfiles: boolean,
   canRotateRecoveryLockPassword?: boolean,
-  canResendHostNameTemplate?: boolean
+  canResendHostNameTemplate?: boolean,
+  canResendFleetdWhileVerifying?: boolean
 ) => {
   const { platform, profile_uuid: profileUUID } = row;
 
@@ -96,18 +98,31 @@ export const getRowActionProps = (
   const isAndroidCertificate =
     platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+  // Android config profiles (unlike certificates) are delivered via AMAPI
+  // policy sync rather than pushed by Fleet, so they can never be resent.
+  const isAndroidConfigProfile =
+    platform === "android" && !isAndroidCertificate;
 
   return {
     canResendProfiles:
       canResendProfiles &&
       !SYNTHETIC_PROFILE_UUIDS.includes(profileUUID) &&
       (isWindowsProfile || isAppleMobileConfigProfile || isAndroidCertificate),
+    // With one-time enroll secrets, resending the Fleetd configuration profile
+    // is how an admin gives a host a usable enroll secret, and that profile
+    // sits in "verifying" until osquery's next profile refetch.
+    canResendWhileVerifying:
+      !!canResendFleetdWhileVerifying &&
+      isAppleMobileConfigProfile &&
+      row.name === FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME,
     canRotateRecoveryLockPassword:
       profileUUID === REC_LOCK_SYNTHETIC_PROFILE_UUID &&
       canRotateRecoveryLockPassword,
     canResendHostNameTemplate:
       profileUUID === HOST_NAME_SYNTHETIC_PROFILE_UUID &&
       canResendHostNameTemplate,
+    showDisabledResendForAndroidProfile:
+      canResendProfiles && isAndroidConfigProfile,
   };
 };
 
@@ -119,11 +134,14 @@ const generateTableConfig = (
   canRotateRecoveryLockPassword?: boolean,
   rotateRecoveryLockPassword?: () => Promise<void>,
   canResendHostNameTemplate?: boolean,
-  resendHostNameTemplate?: () => Promise<void>
+  resendHostNameTemplate?: () => Promise<void>,
+  canResendFleetdWhileVerifying?: boolean
 ): ITableColumnConfig[] => {
   return [
     {
-      Header: "Name",
+      Header: (cellProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
       accessor: "name",
       sortType: "caseInsensitive",
       Cell: (cellProps: ITableStringCellProps) => {
@@ -137,7 +155,12 @@ const generateTableConfig = (
       },
     },
     {
-      Header: "Status",
+      Header: (cellProps) => (
+        <HeaderCell
+          value="Status"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "status",
       sortType: (
         a: Row<IHostMdmProfileWithAddedStatus>,
@@ -167,16 +190,21 @@ const generateTableConfig = (
           cellProps.row.original,
           canResendProfiles,
           canRotateRecoveryLockPassword,
-          canResendHostNameTemplate
+          canResendHostNameTemplate,
+          canResendFleetdWhileVerifying
         );
 
         return (
           <OSSettingsResendCell
             canResendProfiles={rowActions.canResendProfiles}
+            canResendWhileVerifying={rowActions.canResendWhileVerifying}
             canRotateRecoveryLockPassword={
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}

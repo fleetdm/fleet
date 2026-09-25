@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.5.13403",
+      "version": "7.1.7.13891",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence' AND version_compare(bundle_short_version, '7.1.5.13403') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence' AND version_compare(bundle_short_version, '7.1.7.13891') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'us.zoom.ZoomPresence' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.zoom.us/prod/7.1.5.13403/ZoomRooms.pkg",
+      "installer_url": "https://cdn.zoom.us/prod/7.1.7.13891/ZoomRooms.pkg",
       "install_script_ref": "6fe6c33d",
       "uninstall_script_ref": "24ba341d",
-      "sha256": "3b303bc150a3a5d639f09439abf84f2117784a2124ba660f7c73917ba5ef9ab6",
+      "sha256": "536588928c08c76a66c1fe6f6bea47a91164fcbc4e5f2ee5567c438da3daea0a",
       "default_categories": [
         "Communication"
       ]

@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cx.ring' AND version_compare(bundle_short_version, '2.42') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'cx.ring' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.jami.net/mac_osx/jami2026082009.dmg",
+      "installer_url": "https://dl.jami.net/mac_osx/jami2026092414.dmg",
       "install_script_ref": "656eb108",
       "uninstall_script_ref": "aff7c461",
-      "sha256": "8e9e1990ce3af57629a619991c91f08c0518273facbed5b3fcdd736ef11fa6e6",
+      "sha256": "ffc18183959b4ce34f8f4a1cb7aee869c19101ce52b0c86ac1b3c6a151b911a2",
       "default_categories": [
         "Communication"
       ]

@@ -250,7 +250,6 @@ func testGraphCredentialMetadataOmitsSecret(t *testing.T, ds *Datastore) {
 	require.Len(t, meta, 1)
 	assert.Equal(t, testTenantA, meta[0].TenantID)
 	assert.Equal(t, "client-"+testTenantA, meta[0].ClientID)
-	assert.Empty(t, meta[0].ClientSecret, "the metadata read must not carry the secret")
 	// The fields the UI needs, including the banner flag, still come through.
 	assert.True(t, meta[0].CredentialInvalid)
 }

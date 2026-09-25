@@ -1,7 +1,7 @@
 import React from "react";
 
-import { getErrorReason } from "interfaces/errors";
 import CustomLink from "components/CustomLink";
+import { getErrorReason } from "interfaces/errors";
 
 const PRIVATE_KEY_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/fleet-server-private-key";

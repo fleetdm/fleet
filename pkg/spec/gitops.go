@@ -193,7 +193,8 @@ type GitOpsControls struct {
 	AndroidSettings                any `json:"android_settings"`
 	LinuxSettings                  any `json:"linux_settings"`
 
-	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
+	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
+	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
@@ -214,6 +215,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
@@ -225,7 +227,7 @@ type Policy struct {
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
 	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
-	// explicitly vs. omitted, which patch_when_closed validation needs.
+	// explicitly vs. omitted, which the patch option validation needs.
 	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
 	RunScript                  *PolicyRunScript                       `json:"run_script"`
 	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
@@ -1321,7 +1323,8 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	// global configuration (or the no-team/unassigned file).
 	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
 		multiError = multierror.Append(multiError, fmt.Errorf(
-			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename))
+			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+		))
 	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
@@ -1698,15 +1701,6 @@ func resolveAndReturnFileBytes(path string) ([]byte, error) {
 	return fileBytes, nil
 }
 
-// blankFleetSecrets removes $FLEET_SECRET_* references from contents. Secrets are
-// only expanded server-side, so a placeholder left inside a <data> payload would
-// fail base64 decoding when the profile is parsed for validation.
-func blankFleetSecrets(contents []byte) []byte {
-	return []byte(fleet.MaybeExpand(string(contents), func(name string, _, _ int) (string, bool) {
-		return "", strings.HasPrefix(name, fleet.ServerSecretPrefix)
-	}))
-}
-
 // defaultAllowedExtensions is the default set of file extensions allowed for
 // glob expansion (YAML files). Entity types that need different extensions
 // (e.g. scripts) should override this in their GlobExpandOptions.
@@ -2037,15 +2031,28 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
-			mc := mobileconfig.Mobileconfig(blankFleetSecrets(fileBytes))
-			parsed, err := mc.ParseConfigProfile()
-			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse mobileconfig file %s: %v", item.Path, err))
+			if err := fleet.ValidateNoSecretsInProfileName(fileBytes); err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("invalid profile name in file %s: %v", item.Path, err))
 				continue
 			}
-			if parsed.PayloadDisplayName == "" {
-				multiError = multierror.Append(multiError, fmt.Errorf("mobileconfig file %s is missing PayloadDisplayName", item.Path))
+
+			// Expand variables the way the apply path does before validating (see
+			// getProfilesContents); an unexpanded variable inside a <data> element
+			// isn't valid base64 and fails to parse. Secrets are guaranteed to be
+			// set in the environment by resolveAndUpdateProfilePath.
+			expanded, err := ExpandEnvBytesIncludingSecrets(fileBytes)
+			if err != nil {
+				logFn("[!] skipping profile %s for policy automations: %v\n", item.Path, err)
+				continue
+			}
+
+			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
+			mc := mobileconfig.Mobileconfig(expanded)
+			parsed, err := mc.ParseConfigProfile()
+			if err != nil {
+				// Best effort: this only feeds the resend_configuration_profile name
+				// lookup, profiles are validated for real when they are applied.
+				logFn("[!] skipping profile %s for policy automations: %v\n", item.Path, err)
 				continue
 			}
 
@@ -2139,11 +2146,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// Make sure team name is correct, and do additional validation
 	var patchSlugs []string
 	for _, item := range result.Policies {
-		if item.Name == "" {
-			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
-		} else {
-			item.Name = norm.NFC.String(item.Name)
-		}
+		item.Name = norm.NFC.String(item.Name)
 		// Reconcile the shadow value into the embedded field the apply path reads.
 		if item.ContinuousAutomations.Valid {
 			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
@@ -2151,11 +2154,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
-		if item.Query == "" && item.Type != fleet.PolicyTypePatch {
-			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
-		}
 		if item.Type == fleet.PolicyTypePatch {
-			if _, ok := fmasBySlug[item.FleetMaintainedAppSlug]; !ok {
+			_, slugIsKnownFMA := fmasBySlug[item.FleetMaintainedAppSlug]
+			if !slugIsKnownFMA {
 				multiError = multierror.Append(
 					multiError,
 					fmt.Errorf(
@@ -2168,24 +2169,31 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
-			if item.PatchWhenClosed {
+			if item.PatchWhenClosed || item.NotifyBeforePatching {
+				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
+				if item.NotifyBeforePatching && slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+				}
+				patchOption := "patch_when_closed"
+				if item.NotifyBeforePatching {
+					patchOption = "notify_before_patching"
+				}
 				// Declarative: reject an explicit false instead of letting the datastore silently
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
 				// Fleet manages the app-open query, so a user pre_install_query on the FMA is rejected.
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug))
+						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when %q is true; Fleet manages this query.`,
+						item.Name, item.FleetMaintainedAppSlug, patchOption))
 				}
 			}
-		} else if item.FleetMaintainedAppSlug != "" {
-			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -2194,6 +2202,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
 			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies included in `%s`: %q", filepath.Base(parentFilePath), item.Name))
+		}
+		if err := item.Verify(); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("Couldn't apply policy %q: %w", item.Name, err))
 		}
 	}
 	duplicates := getDuplicateNames(

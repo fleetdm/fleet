@@ -591,8 +591,9 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 		require.Equal(t, "SetRecoveryLock", cmd.Command.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), cmdUUID)
 		require.Contains(t, string(cmd.Raw), "SetRecoveryLock")
-		// Should contain the placeholder, not the actual password
-		require.Contains(t, string(cmd.Raw), "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword)
+		// Should contain the placeholder, not the actual password. The new password is
+		// staged in the pending column until the device verifies it.
+		require.Contains(t, string(cmd.Raw), "$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword)
 		require.Contains(t, string(cmd.Raw), "<key>NewPassword</key>")
 		return nil, nil
 	}
@@ -638,23 +639,9 @@ func TestMDMAppleCommanderSetAutoAdminPassword(t *testing.T) {
 	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
 
 	hostUUID := "host-uuid-1"
-	guid := "AAAAAAAA-BBBB-CCCC-DDDD-000000000001"
-	cmdUUID := uuid.New().String()
 	hashPlist, err := GenerateSaltedSHA512PBKDF2Hash("test-password-1234")
 	require.NoError(t, err)
 	expectedB64 := base64.StdEncoding.EncodeToString(hashPlist)
-
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
-		require.NotNil(t, cmd)
-		require.Equal(t, []string{hostUUID}, id)
-		require.Equal(t, "SetAutoAdminPassword", cmd.Command.Command.RequestType)
-		require.Contains(t, string(cmd.Raw), cmdUUID)
-		require.Contains(t, string(cmd.Raw), "<key>GUID</key>")
-		require.Contains(t, string(cmd.Raw), "<string>"+guid+"</string>")
-		require.Contains(t, string(cmd.Raw), "<key>passwordHash</key>")
-		require.Contains(t, string(cmd.Raw), "<data>"+expectedB64+"</data>")
-		return nil, nil
-	}
 
 	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
 		require.ElementsMatch(t, []string{hostUUID}, targetUUIDs)
@@ -678,10 +665,50 @@ func TestMDMAppleCommanderSetAutoAdminPassword(t *testing.T) {
 		return false, nil
 	}
 
-	err = cmdr.SetAutoAdminPassword(ctx, hostUUID, guid, hashPlist, cmdUUID)
-	require.NoError(t, err)
-	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	for _, tc := range []struct {
+		name    string
+		guid    string
+		wantRaw string
+	}{
+		{
+			name:    "plain GUID",
+			guid:    "AAAAAAAA-BBBB-CCCC-DDDD-000000000001",
+			wantRaw: "AAAAAAAA-BBBB-CCCC-DDDD-000000000001",
+		},
+		{
+			name:    "GUID with XML special characters",
+			guid:    "AAAA&BBBB<CCCC>",
+			wantRaw: "AAAA&amp;BBBB&lt;CCCC&gt;",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmdUUID := uuid.New().String()
+			mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+				require.NotNil(t, cmd)
+				require.Equal(t, []string{hostUUID}, id)
+				require.Equal(t, "SetAutoAdminPassword", cmd.Command.Command.RequestType)
+				require.Contains(t, string(cmd.Raw), cmdUUID)
+				require.Contains(t, string(cmd.Raw), "<key>GUID</key>")
+				require.Contains(t, string(cmd.Raw), "<string>"+tc.wantRaw+"</string>")
+				require.Contains(t, string(cmd.Raw), "<key>passwordHash</key>")
+				require.Contains(t, string(cmd.Raw), "<data>"+expectedB64+"</data>")
+
+				var decoded struct {
+					Command struct{ GUID string }
+				}
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &decoded))
+				require.Equal(t, tc.guid, decoded.Command.GUID)
+				return nil, nil
+			}
+			mdmStorage.EnqueueCommandFuncInvoked = false
+			mdmStorage.RetrievePushInfoFuncInvoked = false
+
+			err := cmdr.SetAutoAdminPassword(ctx, hostUUID, tc.guid, hashPlist, cmdUUID)
+			require.NoError(t, err)
+			require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+			require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+		})
+	}
 }
 
 func TestMDMAppleCommanderClearPasscode(t *testing.T) {
@@ -988,6 +1015,42 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
 			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true, PrimaryAccountType: fleet.PrimaryAccountTypeStandard},
 		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("account names with XML special characters round-trip", func(t *testing.T) {
+		sso := &SSOAccountConfig{FullName: `Ann O'Brien & Co <QA>`, UserName: `ann"obrien`}
+		admin := &AdminAccountConfig{ShortName: "_fleet<admin>", FullName: "Fleet & Co Admin", PasswordHash: []byte("fake-hash"), Hidden: true}
+
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "<string>Ann O&#39;Brien &amp; Co &lt;QA&gt;</string>")
+			require.Contains(t, raw, "<string>ann&#34;obrien</string>")
+			require.Contains(t, raw, "<string>_fleet&lt;admin&gt;</string>")
+			require.Contains(t, raw, "<string>Fleet &amp; Co Admin</string>")
+
+			var decoded struct {
+				Command struct {
+					PrimaryAccountFullName string
+					PrimaryAccountUserName string
+					AutoSetupAdminAccounts []struct {
+						ShortName string `plist:"shortName"`
+						FullName  string `plist:"fullName"`
+					}
+				}
+			}
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &decoded))
+			require.Equal(t, sso.FullName, decoded.Command.PrimaryAccountFullName)
+			require.Equal(t, sso.UserName, decoded.Command.PrimaryAccountUserName)
+			require.Len(t, decoded.Command.AutoSetupAdminAccounts, 1)
+			require.Equal(t, admin.ShortName, decoded.Command.AutoSetupAdminAccounts[0].ShortName)
+			require.Equal(t, admin.FullName, decoded.Command.AutoSetupAdminAccounts[0].FullName)
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID, sso, admin)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	})

@@ -6,8 +6,8 @@ import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
 
-import OSSettingsResendCell from "../OSSettingsResendCell";
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
+import OSSettingsResendCell from "../OSSettingsResendCell";
 import {
   getRowActionProps,
   IHostMdmProfileWithAddedStatus,
@@ -27,6 +27,7 @@ interface IControlDetailsModalProps {
   /** Fleet setting for macOS: disk encryption enforced without key escrow. */
   isMacOSDiskEncryptionEnforceOnly?: boolean;
   canResendProfiles: boolean;
+  canResendFleetdWhileVerifying?: boolean;
   canRotateRecoveryLockPassword?: boolean;
   canResendHostNameTemplate?: boolean;
   resendRequest: (profileUUID: string) => Promise<void>;
@@ -44,6 +45,7 @@ const ControlDetailsModal = ({
   isDeviceUser = false,
   isMacOSDiskEncryptionEnforceOnly = false,
   canResendProfiles,
+  canResendFleetdWhileVerifying = false,
   canRotateRecoveryLockPassword,
   canResendHostNameTemplate,
   resendRequest,
@@ -61,8 +63,18 @@ const ControlDetailsModal = ({
   // to it (an activation predicate excluded the host), so it replaces the
   // sentence. Other statuses keep theirs — the detail may describe a past
   // attempt, since resending only nulls the status until the next cron run.
+  //
+  // Disk encryption on "Action required" is the other exception. The generic
+  // copy for that status names a BitLocker PIN, but the server reaches the same
+  // status for several unrelated reasons (the agent could not add a TPM
+  // protector, the TPM is not ready, a restart is staged) and sends the actual
+  // reason in the detail. Preferring the detail keeps the reason in one place,
+  // server-side, instead of asserting a PIN that may not be required at all.
   const detailReplacesMessage =
-    displayOption?.statusText === "Verified" && !!detailText;
+    !!detailText &&
+    (displayOption?.statusText === "Verified" ||
+      (displayOption?.statusText === "Action required" &&
+        isDiskEncryptionProfile(control.name)));
 
   const renderMessage = () => {
     if (detailReplacesMessage) {
@@ -92,7 +104,8 @@ const ControlDetailsModal = ({
     control,
     canResendProfiles,
     canRotateRecoveryLockPassword,
-    canResendHostNameTemplate
+    canResendHostNameTemplate,
+    canResendFleetdWhileVerifying
   );
 
   // Guidance that quotes the detail makes the block below it redundant.
@@ -136,10 +149,14 @@ const ControlDetailsModal = ({
           <Button onClick={onExit}>Close</Button>
           <OSSettingsResendCell
             canResendProfiles={rowActions.canResendProfiles}
+            canResendWhileVerifying={rowActions.canResendWhileVerifying}
             canRotateRecoveryLockPassword={
               rowActions.canRotateRecoveryLockPassword
             }
             canResendHostNameTemplate={rowActions.canResendHostNameTemplate}
+            showDisabledResendForAndroidProfile={
+              rowActions.showDisabledResendForAndroidProfile
+            }
             profile={control}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}

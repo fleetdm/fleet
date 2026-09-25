@@ -1,8 +1,22 @@
-import React, { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
+import React, { useEffect, useRef, useState } from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import DataSet from "components/DataSet";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon/Icon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  wasBYODEnrolled,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+} from "interfaces/mdm";
 import {
   isAndroid,
   isIPadOrIPhone,
@@ -10,12 +24,9 @@ import {
   platformSupportsDiskEncryption,
   DiskEncryptionSupportedPlatform,
 } from "interfaces/platform";
-import {
-  isBYODAccountDrivenUserEnrollment,
-  wasBYODEnrolled,
-  MDM_ENROLLMENT_STATUS_UI_MAP,
-} from "interfaces/mdm";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { getHardwareModelDisplay } from "pages/hosts/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
@@ -23,20 +34,12 @@ import {
   removeOSPrefix,
   compareVersions,
 } from "utilities/helpers";
-import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import TooltipWrapper from "components/TooltipWrapper";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Card from "components/Card";
-import DataSet from "components/DataSet";
-import CardHeader from "components/CardHeader";
-import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
-import Icon from "components/Icon/Icon";
-import Button from "components/buttons/Button";
-
-import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
+
+import buildAndroidHostVitals, {
+  stripAndroidOSPatchLevel,
+} from "./androidVitals";
 
 /** Everything buildHostVitals needs to render the pre-existing host vitals.
  * Shared with the "View all" modal so both surfaces build the same rows from
@@ -412,11 +415,18 @@ export const buildHostVitals = ({
         key="hardware-model"
         title="Hardware model"
         value={
-          <TooltipTruncatedText
-            value={hardwareModelDisplay.value}
-            tooltip={hardwareModelDisplay.tooltip}
-            alwaysShowTooltip={hardwareModelDisplay.alwaysShowTooltip}
-          />
+          hardwareModelDisplay.tooltip ? (
+            <TooltipWrapper
+              className={`${baseClass}__ellipsis-tooltip`}
+              tipContent={hardwareModelDisplay.tooltip}
+            >
+              <span className={`${baseClass}__ellipsis-tooltip-text`}>
+                {hardwareModelDisplay.value}
+              </span>
+            </TooltipWrapper>
+          ) : (
+            <TooltipTruncatedText value={hardwareModelDisplay.value} />
+          )
         }
       />
     ),
@@ -433,6 +443,7 @@ export const buildHostVitals = ({
           value={
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={vitalsData.last_restarted_at}
+              tooltipPosition="bottom"
             />
           }
         />
@@ -449,12 +460,15 @@ export const buildHostVitals = ({
     const label = isAdeIDevice
       ? "Show location"
       : getCityCountryLocation(geolocation);
+    const truncatedLabel = (
+      <TooltipTruncatedText value={label} fixedPositionStrategy />
+    );
     const locationValue = toggleLocationModal ? (
       <Button variant="link" onClick={toggleLocationModal}>
-        {label}
+        {truncatedLabel}
       </Button>
     ) : (
-      label
+      truncatedLabel
     );
     vitals.push({
       sortKey: "Location",
@@ -560,15 +574,40 @@ export const buildHostVitals = ({
 
   // Operating system
   // No tooltip if there's no requirement, including all Windows, Linux, ChromeOS, Android operating systems
+  //
+  // Checked as a number rather than for truthiness: the card's data is run
+  // through normalizeEmptyValues, which rewrites an empty value to the
+  // empty-cell string, and that string is truthy.
+  const hasApiLevel = isAndroidHost && typeof vitalsData.api_level === "number";
+
   if (!osUpdateMinimumVersion) {
-    const version = vitalsData.os_version;
+    const version = isAndroidHost
+      ? stripAndroidOSPatchLevel(vitalsData.os_version)
+      : vitalsData.os_version;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
       <>
         {version.slice(0, -8)}&nbsp;
         <TooltipWrapperArchLinuxRolling />
       </>
     ) : (
-      <TooltipTruncatedText value={version} />
+      <TooltipTruncatedText
+        value={version}
+        // Android reports the API level separately from the OS version string;
+        // it rides along on this row rather than getting a vital of its own.
+        // The version is repeated in the tooltip because supplying `tooltip`
+        // replaces the truncated-text tooltip, which would otherwise leave a
+        // long version unreadable in a narrow column.
+        tooltip={
+          hasApiLevel ? (
+            <>
+              {version}
+              <br />
+              Android API level: {vitalsData.api_level}
+            </>
+          ) : undefined
+        }
+        alwaysShowTooltip={hasApiLevel}
+      />
     );
     vitals.push({
       sortKey: "Operating system",
@@ -606,7 +645,7 @@ export const buildHostVitals = ({
                 <Icon name="error-outline" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
-                className={`${baseClass}__os-version-tooltip`}
+                className={`${baseClass}__ellipsis-tooltip`}
                 tipContent={
                   <>
                     Minimum version required: <b>{osUpdateMinimumVersion}</b>
@@ -615,7 +654,7 @@ export const buildHostVitals = ({
                   </>
                 }
               >
-                <span className={`${baseClass}__os-version-text`}>
+                <span className={`${baseClass}__ellipsis-tooltip-text`}>
                   {vitalsData.os_version}
                 </span>
               </TooltipWrapper>
@@ -693,6 +732,10 @@ export const buildHostVitals = ({
         />
       ),
     });
+  }
+
+  if (isAndroidHost) {
+    vitals.push(...buildAndroidHostVitals(vitalsData, mdm));
   }
 
   customHostVitals?.forEach((vital) => {
@@ -793,11 +836,7 @@ const Vitals = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader header="Vitals" />
         {showExpandedVitals && toggleVitalsModal && (

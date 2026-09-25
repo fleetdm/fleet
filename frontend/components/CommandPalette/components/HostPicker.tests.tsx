@@ -1,9 +1,9 @@
-import React from "react";
 import { waitFor } from "@testing-library/react";
 import { Command } from "cmdk";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
+import { createCustomRenderer } from "test/test-utils";
 
 import HostPicker from "./HostPicker";
 
@@ -94,6 +94,62 @@ describe("HostPicker", () => {
     expect(
       await findByText(/No hosts match "nonexistent"\./)
     ).toBeInTheDocument();
+  });
+
+  // Regression: cmdk's uncontrolled auto-select doesn't re-run when items
+  // reference-change after an async fetch, so nothing ends up highlighted
+  // and Enter is a no-op until the user first presses ArrowDown. The
+  // picker signals the parent via `onResultsChange` so the parent can
+  // point cmdk's highlight at the first row explicitly.
+  it("calls onResultsChange with the first host's cmdk value once results load", async () => {
+    mockedHosts.loadHosts.mockResolvedValue(
+      hostsResponseWith(
+        {
+          id: 42,
+          display_name: "results-first-host",
+          status: "online",
+          team_id: null,
+          team_name: null,
+        },
+        {
+          id: 43,
+          display_name: "results-second-host",
+          status: "offline",
+          team_id: null,
+          team_name: null,
+        }
+      )
+    );
+    const onResultsChange = jest.fn();
+
+    const { findByText } = renderPicker(
+      <HostPicker
+        search="results-load-test"
+        onSelect={jest.fn()}
+        onResultsChange={onResultsChange}
+      />
+    );
+    // Anchor on visible content so we know results actually rendered.
+    await findByText("results-first-host");
+
+    // Final call reflects the loaded results — earlier `null` calls from
+    // the initial empty render are expected and don't matter for the fix.
+    expect(onResultsChange).toHaveBeenLastCalledWith("HOST_RESULT 42");
+  });
+
+  it("calls onResultsChange with null when the query returns no hosts", async () => {
+    const onResultsChange = jest.fn();
+
+    const { findByText } = renderPicker(
+      <HostPicker
+        search="results-empty-test"
+        onSelect={jest.fn()}
+        onResultsChange={onResultsChange}
+      />
+    );
+    await findByText(/No hosts match/);
+
+    expect(onResultsChange).toHaveBeenCalledWith(null);
   });
 
   describe("columns", () => {

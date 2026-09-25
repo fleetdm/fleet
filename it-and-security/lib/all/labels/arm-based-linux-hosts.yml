@@ -1,0 +1,5 @@
+- name: ARM-based Linux hosts
+  description: Linux hosts on ARM64/aarch64 architecture
+  query: SELECT 1 FROM os_version WHERE arch LIKE 'aarch64%' OR arch LIKE 'arm64%';
+  label_membership_type: dynamic
+  platform: linux

@@ -1,7 +1,8 @@
 import PropTypes from "prop-types";
-import teamInterface, { ITeam } from "./team";
-import { IUserSettings } from "./config";
+
 import { IApiEndpointRef } from "./api_endpoint";
+import { IUserSettings } from "./config";
+import teamInterface, { ITeam } from "./team";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -84,11 +85,6 @@ export interface IUserUpdateFormData {
   mfa_enabled?: boolean;
   role?: UserRole;
   id: number;
-}
-
-export interface IResetPasswordFormErrors {
-  new_password?: string | null;
-  new_password_confirmation?: string | null;
 }
 
 export interface IResetPasswordForm {

@@ -1,20 +1,20 @@
-import React, { useContext } from "react";
-import { AppContext } from "context/app";
 import { addHours, isPast } from "date-fns";
+import React, { useContext } from "react";
 
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import { AppContext } from "context/app";
+import { IOSSettings, MacDiskEncryptionActionRequired } from "interfaces/host";
 import {
   DiskEncryptionStatus,
   MdmEnrollmentStatus,
   isAutomaticDeviceEnrollment,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
+  isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
-
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 import {
   INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
@@ -24,6 +24,8 @@ const baseClass = "host-details-banners";
 
 export interface IHostBannersBaseProps {
   macDiskEncryptionStatus: DiskEncryptionStatus | null | undefined;
+  /** Why the macOS disk encryption status is action_required, if it is */
+  diskEncryptionActionRequired?: MacDiskEncryptionActionRequired | null;
   mdmEnrollmentStatus: MdmEnrollmentStatus | null;
   connectedToFleetMdm?: boolean;
   hostPlatform?: HostPlatform;
@@ -39,6 +41,9 @@ export interface IHostBannersBaseProps {
   lastMdmEnrolledAt?: string;
   /** The timestamp of the last detail update */
   detailUpdatedAt?: string;
+  /** Whether or not this host is assigned to Fleet via DEP */
+  depAssignedToFleet: boolean;
+  onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -49,11 +54,14 @@ const HostDetailsBanners = ({
   hostOsVersion,
   connectedToFleetMdm,
   macDiskEncryptionStatus,
+  diskEncryptionActionRequired,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
   lastMdmEnrolledAt,
   detailUpdatedAt,
+  depAssignedToFleet,
+  onlyAllowAppleBusinessEnrollment,
 }: IHostBannersBaseProps) => {
   const { config } = useContext(AppContext);
 
@@ -79,11 +87,6 @@ const HostDetailsBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     !isNewMdmEnrollment;
 
-  // ADE-enrolled hosts escrow their FileVault key automatically, so the end user
-  // doesn't need to log out. Manually-enrolled hosts only get a new key at next
-  // login, so they keep the log-out instruction.
-  const isAdeEnrolled = isAutomaticDeviceEnrollment(mdmEnrollmentStatus);
-
   const actionRequiredBanner = (
     <div className={baseClass}>
       <InfoBanner color="yellow">
@@ -94,6 +97,42 @@ const HostDetailsBanners = ({
     </div>
   );
 
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    !depAssignedToFleet &&
+    isMdmUnenrolled &&
+    isAppleDevice(hostPlatform)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host can&apos;t enroll in Apple MDM. Only current devices listed
+          in Apple Business can enroll. To allow manual enrollment, turn off the
+          &quot;Only allow Apple Business enrollment&quot; setting <br /> in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
+
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    isAppleDevice(hostPlatform) &&
+    !depAssignedToFleet &&
+    !isAutomaticDeviceEnrollment(mdmEnrollmentStatus)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host is no longer eligible for Apple MDM. It was enrolled
+          manually, but only Apple Business devices can enroll now. To allow
+          manual enrollment, turn off the &quot;Only allow Apple Business
+          enrollment&quot; setting in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
   if (showTurnOnMdmInfoBanner) {
     return (
       <div className={baseClass}>
@@ -109,10 +148,11 @@ const HostDetailsBanners = ({
     return (
       <div className={baseClass}>
         <InfoBanner color="yellow">
-          {isAdeEnrolled ? (
+          {diskEncryptionActionRequired === "turn_on_encryption" ? (
             <>
-              Disk encryption: FileVault key will be escrowed automatically on
-              this host&apos;s next refetch.
+              Disk encryption: Disk encryption is off, and this host&apos;s
+              fleet doesn&apos;t enforce it. Fleet will store the recovery key
+              when the end user turns on FileVault.
             </>
           ) : (
             <>
@@ -163,7 +203,20 @@ const HostDetailsBanners = ({
     hostPlatform === "windows" &&
     diskEncryptionOSSetting?.status === "action_required"
   ) {
-    return actionRequiredBanner;
+    // Fleet is holding the repair until the host restarts, so point the admin at the restart rather than at My device.
+    if (diskEncryptionOSSetting?.action_required === "restart") {
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">
+            Disk encryption: Requires a restart. Ask the user to restart their
+            device so disk encryption protection can be turned back on.
+          </InfoBanner>
+        </div>
+      );
+    }
+    if (diskEncryptionOSSetting?.action_required === "create_pin") {
+      return actionRequiredBanner;
+    }
   }
 
   return null;

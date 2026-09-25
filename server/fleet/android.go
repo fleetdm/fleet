@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 )
@@ -94,7 +95,8 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		}
 	}
 
-	if err := json.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
+	// This only checks that every value has the right type.
+	if err := jsondecode.Unmarshal(m.RawJSON, &androidmanagement.Policy{}); err != nil {
 		return parseAndroidProfileValidationError(err)
 	}
 
@@ -106,11 +108,9 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 }
 
 func parseAndroidProfileValidationError(err error) error {
-	var typeErr *json.UnmarshalTypeError
-
 	// Check for type mismatches (e.g., array where object expected)
-	if errors.As(err, &typeErr) {
-		fieldPath := typeErr.Field
+	if jsondecode.IsTypeError(err) {
+		fieldPath := jsondecode.FieldPath(err)
 		if fieldPath == "" {
 			fieldPath = "<root>"
 		}
@@ -332,9 +332,15 @@ var validAndroidWorkProfileWidgets = map[string]struct{}{
 	"WORK_PROFILE_WIDGETS_DISALLOWED":  {},
 }
 
+var validAndroidCredentialProviderPolicies = map[string]struct{}{
+	"CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED": {},
+	"CREDENTIAL_PROVIDER_ALLOWED":            {},
+}
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
-// Configuration must be valid JSON with only "managedConfiguration" and/or
-// "workProfileWidgets" as top-level keys. Empty configuration is not allowed.
+// Configuration must be valid JSON with only "managedConfiguration",
+// "workProfileWidgets" and/or "credentialProviderPolicy" as top-level keys.
+// Empty configuration is not allowed.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
 		return &BadRequestError{
@@ -343,15 +349,16 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	}
 
 	type androidAppConfig struct {
-		ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets   string          `json:"workProfileWidgets"`
+		ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
+		WorkProfileWidgets       string          `json:"workProfileWidgets"`
+		CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
 	}
 
 	var cfg androidAppConfig
 	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
 		if strings.Contains(err.Error(), "unknown field") {
 			return &BadRequestError{
-				Message: `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+				Message: `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
 			}
 		}
 
@@ -362,6 +369,10 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 
 	if _, validVal := validAndroidWorkProfileWidgets[cfg.WorkProfileWidgets]; cfg.WorkProfileWidgets != "" && !validVal {
 		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "workProfileWidget".`, cfg.WorkProfileWidgets)}
+	}
+
+	if _, validVal := validAndroidCredentialProviderPolicies[cfg.CredentialProviderPolicy]; cfg.CredentialProviderPolicy != "" && !validVal {
+		return &BadRequestError{Message: fmt.Sprintf(`Couldn't update configuration. "%s" is not a supported value for "credentialProviderPolicy".`, cfg.CredentialProviderPolicy)}
 	}
 
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {

@@ -1,18 +1,50 @@
+import {
+  PRE_INSTALL_QUERY_FAIL_OUTPUT,
+  SKIPPED_INSTALL_DETAILS,
+} from "components/ActivityDetails/InstallDetails/constants";
+import {
+  getAutomationNotifiedMessage,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicyAutomationActivity } from "interfaces/policy";
-import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
 import { Colors } from "styles/var/colors";
 
 const withName = (base: string, name?: string) =>
   name ? `${base} (${name})` : base;
 
-/**
- * Human-readable label for the "Automation" column. Failure rows mirror the
- * success wording with "failed" — e.g. "Software installed (1Password)" vs
- * "Software failed (1Password)".
- */
+// Undefined on pre-4.93 skips, which were all patch-when-closed, so only an explicit false means notify.
+export const isNotifySkip = (activity: IPolicyAutomationActivity): boolean =>
+  activity.details?.patch_when_closed === false;
+
+// One notify activity can cover several policies (bundled toast). The row is
+// scoped to a single policy, so pick the title paired with currentPolicyId
+// from the parallel software_titles / policy_ids arrays. Pairing is only safe
+// when the two arrays are the same length (the BE skips policy_ids entries
+// for deleted policies, which desyncs indexing).
+const getNotifySoftwareName = (
+  details: IPolicyAutomationActivity["details"] | undefined,
+  currentPolicyId?: number
+): string | undefined => {
+  const titles = details?.software_titles;
+  const policyIds = details?.policy_ids;
+  if (
+    currentPolicyId !== undefined &&
+    titles &&
+    policyIds &&
+    titles.length === policyIds.length
+  ) {
+    const i = policyIds.indexOf(currentPolicyId);
+    if (i !== -1) return titles[i];
+  }
+  return details?.software_title || titles?.[0];
+};
+
+/** Label for the "Automation" column. `currentPolicyId` scopes multi-title
+ *  notify activities to the title patched by that policy. */
 export const getAutomationRunDisplayName = (
-  activity: IPolicyAutomationActivity
+  activity: IPolicyAutomationActivity,
+  currentPolicyId?: number
 ): string => {
   const { type, status, details } = activity;
   const failed = status === "error";
@@ -20,15 +52,18 @@ export const getAutomationRunDisplayName = (
   switch (type) {
     case ActivityType.InstalledSoftware:
     case ActivityType.InstalledAppStoreApp:
-      // A patch-when-closed skip is recorded as a failed_install, but it was
-      // deferred because the app was open — not a failure. Label it distinctly,
-      // matching the activity feed and install-details treatment.
+      // App-open skips are recorded as failed_install but aren't failures.
       if (details?.skipped_install) {
         return withName("Patch skipped", details?.software_title);
       }
       return withName(
         failed ? "Software failed" : "Software installed",
         details?.software_title
+      );
+    case ActivityType.NotifiedEndUserBeforePatching:
+      return withName(
+        failed ? "Failed to notify" : "Notified end user",
+        getNotifySoftwareName(details, currentPolicyId)
       );
     case ActivityType.RanScript:
       return withName(
@@ -60,13 +95,18 @@ export const getAutomationRunDisplayName = (
   }
 };
 
-/** Status icon paired with an automation outcome: a patch-when-closed skip is
- *  the same "!" glyph as a failure but muted grey (deferred, not a failure),
- *  a red outline for other failures, and a green one for successes. */
+/** Grey "!" for deliberate non-successes (app-open skips, notify success);
+ *  red for failures, green for successes. */
 export const getAutomationStatusIcon = (
   activity: IPolicyAutomationActivity
 ): { name: "error-outline" | "success-outline"; color?: Colors } => {
   if (activity.details?.skipped_install) {
+    return { name: "error-outline", color: "ui-fleet-black-50" };
+  }
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status === "success"
+  ) {
     return { name: "error-outline", color: "ui-fleet-black-50" };
   }
   return activity.status === "error"
@@ -82,16 +122,31 @@ export const getAutomationStatusIcon = (
 export const getDetailOutputText = (
   activity: IPolicyAutomationActivity
 ): string => {
+  // Notify success/deferral: computed sentence keyed on time_before.
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status === "success"
+  ) {
+    return getAutomationNotifiedMessage(activity.details?.time_before);
+  }
   if (activity.details?.skipped_install) {
-    return SKIPPED_INSTALL_DETAILS;
+    return isNotifySkip(activity)
+      ? SKIPPED_INSTALL_NOTIFY_EXPLANATION
+      : SKIPPED_INSTALL_DETAILS;
   }
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;
   }
-  // For software installs, the install-script output is the primary preview, but
-  // a failure at the pre-install query or post-install script stage leaves it
-  // empty — fall back to those so the row still shows the failing stage's output.
-  // Other activity types have null pre/post output, so this is just `output`.
+  // An empty (not null) pre-install output means the installer's own query ran and returned nothing.
+  // Only a software install activity carries a pre-install query at all.
+  if (
+    activity.type === ActivityType.InstalledSoftware &&
+    activity.status === "error" &&
+    activity.pre_install_output === ""
+  ) {
+    return PRE_INSTALL_QUERY_FAIL_OUTPUT;
+  }
+  // Fall back through the install stages so the failing stage's output shows.
   return (
     activity.output ||
     activity.post_install_output ||

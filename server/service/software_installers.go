@@ -66,6 +66,9 @@ type updateSoftwareInstallerRequest struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. Omitted leaves it unchanged. FMA-only.
 	PatchWhenClosed *bool
+	// NotifyBeforePatching skips the install while the app is open and notifies the end user an hour
+	// before the patch is forced. Omitted leaves it unchanged. FMA-only.
+	NotifyBeforePatching *bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -130,11 +133,12 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
-		installerID, err := strconv.ParseUint(idVal[0], 10, 32)
+		parsedInstallerID, err := strconv.ParseUint(idVal[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid installer_id: %s", idVal[0])}
 		}
-		decoded.InstallerID = new(uint(installerID))
+		installerID := uint(parsedInstallerID)
+		decoded.InstallerID = &installerID
 	}
 
 	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
@@ -180,6 +184,14 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode patch_when_closed bool in multipart form: %s", err.Error())}
 		}
 		decoded.PatchWhenClosed = &parsed
+	}
+
+	if notifyBeforePatchingVal, ok := r.MultipartForm.Value["notify_before_patching"]; ok && len(notifyBeforePatchingVal) > 0 && notifyBeforePatchingVal[0] != "" {
+		parsed, err := strconv.ParseBool(notifyBeforePatchingVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode notify_before_patching bool in multipart form: %s", err.Error())}
+		}
+		decoded.NotifyBeforePatching = &parsed
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -284,23 +296,24 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	req := request.(*updateSoftwareInstallerRequest)
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:           req.TitleID,
-		InstallerID:       ptr.ValOrZero(req.InstallerID),
-		TeamID:            req.TeamID,
-		InstallScript:     req.InstallScript,
-		PreInstallQuery:   req.PreInstallQuery,
-		PostInstallScript: req.PostInstallScript,
-		UninstallScript:   req.UninstallScript,
-		SelfService:       req.SelfService,
-		LabelsIncludeAny:  req.LabelsIncludeAny,
-		LabelsExcludeAny:  req.LabelsExcludeAny,
-		LabelsIncludeAll:  req.LabelsIncludeAll,
-		Categories:        req.Categories,
-		DisplayName:       req.DisplayName,
-		Configuration:     req.Configuration,
-		PinnedVersion:     req.Version,
-		Patch:             req.Patch,
-		PatchWhenClosed:   req.PatchWhenClosed,
+		TitleID:              req.TitleID,
+		InstallerID:          ptr.ValOrZero(req.InstallerID),
+		TeamID:               req.TeamID,
+		InstallScript:        req.InstallScript,
+		PreInstallQuery:      req.PreInstallQuery,
+		PostInstallScript:    req.PostInstallScript,
+		UninstallScript:      req.UninstallScript,
+		SelfService:          req.SelfService,
+		LabelsIncludeAny:     req.LabelsIncludeAny,
+		LabelsExcludeAny:     req.LabelsExcludeAny,
+		LabelsIncludeAll:     req.LabelsIncludeAll,
+		Categories:           req.Categories,
+		DisplayName:          req.DisplayName,
+		Configuration:        req.Configuration,
+		PinnedVersion:        req.Version,
+		Patch:                req.Patch,
+		PatchWhenClosed:      req.PatchWhenClosed,
+		NotifyBeforePatching: req.NotifyBeforePatching,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -390,11 +403,12 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	if v, ok := r.MultipartForm.Value["software_title_id"]; ok && len(v) > 0 && v[0] != "" {
-		id, err := strconv.ParseUint(v[0], 10, 32)
+		parsedTitleID, err := strconv.ParseUint(v[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid software_title_id: %s", v[0])}
 		}
-		decoded.TitleID = new(uint(id))
+		titleID := uint(parsedTitleID)
+		decoded.TitleID = &titleID
 	}
 
 	val, ok = r.MultipartForm.Value["install_script"]
@@ -1079,7 +1093,6 @@ func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc
 
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
 	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL)
 	if !alreadyAuthenticated {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {

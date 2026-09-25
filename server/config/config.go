@@ -149,6 +149,7 @@ type ServerConfig struct {
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
 	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
+	AllowRequestCertificateAnyIdP    bool          `yaml:"allow_request_certificate_any_idp"`
 	EndpointRequestSizeOverrides     EndpointRequestSizeOverrides
 }
 
@@ -249,6 +250,7 @@ type AuthConfig struct {
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
+	UseOneTimeEnrollSecrets     bool          `yaml:"use_one_time_enroll_secrets"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -325,13 +327,13 @@ type OsqueryConfig struct {
 	// the config with an "etag" key added, and the constant {"etag":"ok"}
 	// body when its etag matches the current config.
 	//
-	// Default is TRUE. Setting FLEET_OSQUERY_CONFIG_ETAGS=false and
-	// restarting is the escape hatch that disables the feature entirely: the
-	// request's etag field is ignored, every response is the full config
-	// with no "etag" key (byte-identical to the pre-feature behavior for
-	// every agent, opted-in or not), and no etag store I/O happens. This is
-	// broader than RedisConfigETags below, which only disables the Redis
-	// short circuit while leaving the conditional request protocol active.
+	// Default is FALSE: the request's etag field is ignored, every response
+	// is the full config with no "etag" key (byte-identical to the
+	// pre-feature behavior for every agent, opted-in or not), and no etag
+	// store I/O happens. Setting FLEET_OSQUERY_CONFIG_ETAGS=true and
+	// restarting opts a deployment in. This gate is broader than
+	// RedisConfigETags below, which only disables the Redis short circuit
+	// while leaving the conditional request protocol active.
 	ConfigETags bool `yaml:"config_etags"`
 
 	// RedisConfigETags enables the Redis-backed osquery config ETag SHORT
@@ -341,15 +343,29 @@ type OsqueryConfig struct {
 	// config (zero database reads for that request). Requires Redis to be
 	// configured; silently has no effect without it.
 	//
-	// Default is TRUE. Setting FLEET_OSQUERY_REDIS_CONFIG_ETAGS=false and
-	// restarting fully disables the short circuit: every config request then
-	// takes the always-full-build path, byte-identical to the behavior
-	// without this feature — use that for A/B comparison and for ruling the
-	// feature out when debugging config delivery.
+	// Default is FALSE: every config request takes the always-full-build
+	// path, byte-identical to the behavior without this feature. Setting
+	// FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true and restarting enables the short
+	// circuit, and requires ConfigETags above to be true as well (see
+	// effectiveRedisConfigETags). Toggling it back off is the A/B lever for
+	// ruling the feature out when debugging config delivery.
 	//
 	// See fleet.OsqueryService.GetClientConfigWithETag and the
 	// server/service/redis_config_etag package for the full contract.
 	RedisConfigETags bool `yaml:"redis_config_etags"`
+
+	// ConfigInMemoryCache enables the in-memory cache that serves the
+	// scheduled-report section of the osquery config — the response's
+	// "packs" key — for PackConfigCacheTTL, keyed by (team,
+	// query_reports_disabled), instead of rebuilding it from the database on
+	// every check-in. It never covers the rest of the response: "options"
+	// and "decorators" are rebuilt from agent options every time.
+	//
+	// Default is FALSE: every check-in builds from the database, which is
+	// slower but immune to any staleness in the cache. Setting
+	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
+	// deployment in. Independent of the config ETag options above.
+	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -1038,6 +1054,28 @@ type MDMConfig struct {
 	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
 	// (fetching and setting of DEP profiles).
 	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
+	// AppleAPNsPushExpiration is the value used for the apns-expiration header
+	// on APNs push notifications, so APNs stores and retries delivery to
+	// offline devices until then. Zero or negative omits the header.
+	AppleAPNsPushExpiration time.Duration `yaml:"apple_apns_push_expiration"`
+	// AppleAPNsSweepInterval is the tick interval of the APNs sweep cron,
+	// which walks enabled enrollments in daily laps and re-pushes any silent
+	// for more than a day.
+	AppleAPNsSweepInterval time.Duration `yaml:"apple_apns_sweep_interval"`
+	// AppleCommandCleanupShortRetention is how long completed recurring Apple
+	// MDM commands (refetches, device renames, VPP verifications, DDM tickles)
+	// and inactive queue rows are kept before the hourly cleanup deletes them.
+	// Zero disables the tier; otherwise the floor is one hour.
+	AppleCommandCleanupShortRetention time.Duration `yaml:"apple_command_cleanup_short_retention"`
+	// AppleCommandCleanupStandardRetention is the same window for every other
+	// completed command type on the deletion allowlist.
+	AppleCommandCleanupStandardRetention time.Duration `yaml:"apple_command_cleanup_standard_retention"`
+	// AppleCommandCleanupMaxRowDeletionsPerRun caps queue/result pairs deleted
+	// per cleanup run; zero stops pair deletion.
+	AppleCommandCleanupMaxRowDeletionsPerRun int `yaml:"apple_command_cleanup_max_row_deletions_per_run"`
+	// AppleCommandCleanupMaxCmdDeletionsPerRun caps nano_commands rows deleted
+	// per cleanup run; zero stops command deletion.
+	AppleCommandCleanupMaxCmdDeletionsPerRun int `yaml:"apple_command_cleanup_max_command_deletions_per_run"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
 	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
@@ -1059,6 +1097,17 @@ type MDMConfig struct {
 	// WindowsWSTEPIdentityKey is the content of the private key used to sign
 	// WSTEP responses.
 	WindowsWSTEPIdentityKeyBytes string `yaml:"windows_wstep_identity_key_bytes"`
+	// WindowsEnrollmentRetention is the minimum time since an orphaned or
+	// superseded Windows MDM enrollment row was last updated before the hourly
+	// cleanup deletes it. It is measured from the row's updated_at, not from
+	// when it became orphaned. Zero or negative disables the cleanup.
+	WindowsEnrollmentRetention time.Duration `yaml:"windows_enrollment_retention"`
+	// WindowsCommandRetention is the minimum age of Windows MDM command history
+	// (raw responses, results and commands) before the hourly cleanup deletes
+	// it, measured from when a row was recorded or, for results, last updated.
+	// Queued commands and the wipe a host's status depends on are kept
+	// regardless. Non-positive disables the cleanup.
+	WindowsCommandRetention time.Duration `yaml:"windows_command_retention"`
 
 	// the following fields hold the parsed, validated TLS certificate set the
 	// first time Microsoft WSTEP is called, as well as the PEM-encoded
@@ -1083,9 +1132,10 @@ type MDMConfig struct {
 	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
 	// not complete end user authentication is allowed to enroll into a team that
 	// requires it. Defaults to true so that agents predating end user
-	// authentication (and installers built with `fleetctl package
-	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
-	// end user authentication for all Orbit enrollments.
+	// authentication, installers built with `fleetctl package
+	// --bypass-end-user-auth`, and macOS hosts enrolling fleetd before MDM can
+	// still enroll. Set to false to strictly enforce end user authentication for
+	// all Orbit enrollments on every platform.
 	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
@@ -1103,6 +1153,42 @@ func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string
 	if m.AndroidBatchSize < 0 {
 		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
 			"Android MDM configuration")
+	}
+}
+
+// appleCommandCleanupMinRetention is the floor for a non-zero retention window:
+// a mistyped short value must not sweep commands out from under in-flight
+// operations.
+const appleCommandCleanupMinRetention = time.Hour
+
+// ValidateAppleCommandCleanup checks the Apple MDM command cleanup knobs: a
+// retention window is either 0 (tier disabled) or at least one hour, and the
+// per-run deletion caps are non-negative.
+func (m MDMConfig) ValidateAppleCommandCleanup(initFatal func(err error, msg string)) {
+	const msg = "Apple MDM configuration"
+	retentions := []struct {
+		key string
+		val time.Duration
+	}{
+		{"mdm.apple_command_cleanup_short_retention", m.AppleCommandCleanupShortRetention},
+		{"mdm.apple_command_cleanup_standard_retention", m.AppleCommandCleanupStandardRetention},
+	}
+	for _, r := range retentions {
+		if r.val != 0 && r.val < appleCommandCleanupMinRetention {
+			initFatal(fmt.Errorf("%s must be 0 (disabled) or at least %s", r.key, appleCommandCleanupMinRetention), msg)
+		}
+	}
+	caps := []struct {
+		key string
+		val int
+	}{
+		{"mdm.apple_command_cleanup_max_row_deletions_per_run", m.AppleCommandCleanupMaxRowDeletionsPerRun},
+		{"mdm.apple_command_cleanup_max_command_deletions_per_run", m.AppleCommandCleanupMaxCmdDeletionsPerRun},
+	}
+	for _, c := range caps {
+		if c.val < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no deletions)", c.key), msg)
+		}
 	}
 }
 
@@ -1601,6 +1687,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
+	man.addConfigBool("server.allow_request_certificate_any_idp", false,
+		"Disable the request certificate API identity safeguards: accept IdP credentials for any introspection endpoint and do not bind device-authenticated requests to the host's end user")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 	man.addConfigString(EndpointRequestSizeOverridesKey, "", "Per-endpoint max request body size overrides, as a list of {endpoint, max_request_size} objects")
 
@@ -1618,6 +1706,8 @@ func (man Manager) addConfigs() {
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
+	man.addConfigBool("auth.use_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1686,10 +1776,12 @@ func (man Manager) addConfigs() {
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
-	man.addConfigBool("osquery.config_etags", true,
-		"Enable conditional osquery config requests: agents that send an etag receive the minimal 'unchanged' body when their config is current. On by default. Set to false as an escape hatch to disable the feature entirely — every response is then the full config with no etag, identical to the behavior before this feature existed.")
-	man.addConfigBool("osquery.redis_config_etags", true,
-		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. On by default; requires Redis (no effect without it). Set to false to restore the always-full-build behavior while keeping conditional requests active (see osquery.config_etags to disable the feature entirely).")
+	man.addConfigBool("osquery.config_etags", false,
+		"Enable conditional osquery config requests: agents that send an etag receive the minimal 'unchanged' body when their config is current. Off by default; while off, every response is the full config with no etag, identical to the behavior before this feature existed.")
+	man.addConfigBool("osquery.redis_config_etags", false,
+		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
+	man.addConfigBool("osquery.config_in_memory_cache", false,
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1993,10 +2085,20 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+	man.addConfigDuration("mdm.apple_apns_push_expiration", 30*24*time.Hour, "How long APNs should store and retry delivering push notifications to offline devices (apns-expiration header, 30 days is APNs' documented maximum); zero or negative omits the header")
+	man.hideConfig("mdm.apple_apns_push_expiration")
+	man.addConfigDuration("mdm.apple_apns_sweep_interval", 1*time.Minute, "Tick interval of the APNs sweep cron, which re-pushes Apple MDM enrollments that have been silent for more than a day")
+	man.hideConfig("mdm.apple_apns_sweep_interval")
+	man.addConfigDuration("mdm.apple_command_cleanup_short_retention", 24*time.Hour, "How long completed recurring Apple MDM commands (refetches, device renames, VPP verifications, DeclarativeManagement) and inactive queue rows are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigDuration("mdm.apple_command_cleanup_standard_retention", 30*24*time.Hour, "How long other completed Apple MDM commands on the deletion allowlist are kept before deletion (0 = disabled, minimum 1h)")
+	man.addConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run", 1000, "Maximum Apple MDM command queue entries (one command to one host, with its result) deleted per hourly cleanup run (0 = none)")
+	man.addConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run", 1000, "Maximum unreferenced Apple MDM commands deleted per hourly cleanup run (0 = none)")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "Minimum time since an orphaned or superseded Windows MDM enrollment was last updated before the hourly cleanup deletes it (0 disables the cleanup)")
+	man.addConfigDuration("mdm.windows_command_retention", 30*24*time.Hour, "Minimum time since Windows MDM command history (responses, results, commands) was recorded or last updated before the hourly cleanup deletes it (0 disables the cleanup)")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
@@ -2154,6 +2256,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
 			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
+			AllowRequestCertificateAnyIdP:    man.getConfigBool("server.allow_request_certificate_any_idp"),
 			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
@@ -2162,6 +2265,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			UseOneTimeEnrollSecrets:     man.getConfigBool("auth.use_one_time_enroll_secrets"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2203,6 +2307,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
 			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
+			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2373,10 +2478,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			AppleAPNsPushExpiration:           man.getConfigDuration("mdm.apple_apns_push_expiration"),
+			AppleAPNsSweepInterval:            man.getConfigDuration("mdm.apple_apns_sweep_interval"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			WindowsEnrollmentRetention:        man.getConfigDuration("mdm.windows_enrollment_retention"),
+			WindowsCommandRetention:           man.getConfigDuration("mdm.windows_command_retention"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
@@ -2390,6 +2499,11 @@ func (man Manager) LoadConfig() FleetConfig {
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
 			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
+
+			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
+			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),
+			AppleCommandCleanupMaxRowDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run"),
+			AppleCommandCleanupMaxCmdDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_command_deletions_per_run"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
@@ -2862,6 +2976,7 @@ func TestConfig() FleetConfig {
 			MaxJitterPercent:      0,
 			AllowBodyAuthFallback: true,
 			ConfigETags:           true,
+			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

@@ -103,12 +103,16 @@ type Service struct {
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
 
+	// notificationsSvc is the notifications bounded context service for write operations.
+	notificationsSvc fleet.NotificationsWriteService
+
 	// agentNotifier publishes check-in wake-ups for agents connected over the
 	// WebSocket transport; nil when the transport is disabled.
 	agentNotifier fleet.AgentCheckInNotifier
 
 	// packConfigCache caches marshaled pack config JSON per (teamID, queryReportsDisabled).
 	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
+	// Nil when osquery.config_in_memory_cache is disabled.
 	packConfigCache *gocache.Cache
 }
 
@@ -195,6 +199,11 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
+	var packConfigCache *gocache.Cache
+	if config.Osquery.ConfigInMemoryCache {
+		packConfigCache = gocache.New(PackConfigCacheTTL, 30*time.Second)
+	}
+
 	svc := &Service{
 		ds:                ds,
 		task:              task,
@@ -232,7 +241,7 @@ func NewService(
 		installAttemptCounter:           installAttemptCounter,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
-		packConfigCache:                 gocache.New(PackConfigCacheTTL, 30*time.Second),
+		packConfigCache:                 packConfigCache,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -254,6 +263,12 @@ func (svc *Service) SetConfigETagStore(store fleet.ConfigETagStore) {
 // This should be called after NewService to inject the activity service dependency.
 func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
+}
+
+// SetNotificationsService sets the notifications bounded context service for write operations.
+// This should be called after NewService to inject the notifications service dependency.
+func (svc *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	svc.notificationsSvc = notificationsSvc
 }
 
 // SetACMEService sets the ACME service module service for write operations.

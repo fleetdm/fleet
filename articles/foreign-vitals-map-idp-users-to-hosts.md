@@ -6,6 +6,8 @@ _Available in Fleet Premium._
 
 Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/guides/fleet-variables) or criteria for [labels](https://fleetdm.com/guides/managing-labels-in-fleet).
 
+> A Fleet user is someone who signs in to the Fleet UI to perform administrative tasks, while an end user is the person assigned to the host.
+
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
 Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during these enrollment scenarios:
@@ -110,7 +112,11 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 5. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
 6. From the side menu, select **Overview** and select **Start provisioning**.
 
-> Note: Entra does not support [syncing nested groups using SCIM](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/application-provisioning-config-problem-no-users-provisioned). Please consider using dynamic group membership instead.
+Fleet supports nested groups in Entra (added in Fleet 4.91.0). When a user belongs to a nested group, Fleet maps the user to that group and all of its parent groups.
+
+> Assign each nested group to your app in step 5, just like a top-level group. Entra won't send a nested group to Fleet just because its parent group is assigned.
+
+If you configured SCIM in Entra before upgrading to Fleet 4.91.0, select **Restart provisioning** on the app's **Overview** page after the upgrade. This tells Entra to resend all users and groups to Fleet, including nested groups.
 
 It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To speed this up, you can use the "Provision on demand" option in Microsoft Entra ID.
 

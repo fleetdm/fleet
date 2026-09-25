@@ -2,12 +2,14 @@ package tests
 
 import (
 	"context"
+	mockredis "github.com/fleetdm/fleet/v4/server/mock/redis"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -96,6 +98,18 @@ func (ds *AndroidDSWithMock) UpdateTeamIDOnAndroidDevices(ctx context.Context, h
 	return ds.Datastore.UpdateTeamIDOnAndroidDevices(ctx, hostUUIDs, teamID)
 }
 
+func (ds *AndroidDSWithMock) GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
+	return ds.Datastore.GetZeroTouchEnrollmentToken(ctx, teamID)
+}
+
+func (ds *AndroidDSWithMock) CreateZeroTouchEnrollmentToken(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	return ds.Datastore.CreateZeroTouchEnrollmentToken(ctx, token)
+}
+
+func (ds *AndroidDSWithMock) DeleteZeroTouchEnrollmentTokens(ctx context.Context) error {
+	return ds.Datastore.DeleteZeroTouchEnrollmentTokens(ctx)
+}
+
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
 func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	return nil
@@ -124,7 +138,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, noopNewActivity, config.AndroidAgentConfig{})
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, noopNewActivity, config.AndroidAgentConfig{}, service.WithKeyValueStore(newMemKeyValueStore()))
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -260,4 +274,26 @@ func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
 	}
 	// Use a named Fleet datastore for Android integration tests to ensure the expected database exists
 	return mysqltest.CreateNamedMySQLDS(t, name)
+}
+
+func newMemKeyValueStore() fleet.KeyValueStore {
+	var mu sync.Mutex
+	vals := map[string]string{}
+	return &mockredis.KeyValueStore{
+		SetFunc: func(_ context.Context, key, value string, _ time.Duration) error {
+			mu.Lock()
+			defer mu.Unlock()
+			vals[key] = value
+			return nil
+		},
+		GetFunc: func(_ context.Context, key string) (*string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			v, ok := vals[key]
+			if !ok {
+				return nil, nil
+			}
+			return &v, nil
+		},
+	}
 }

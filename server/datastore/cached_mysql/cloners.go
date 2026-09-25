@@ -36,12 +36,6 @@ func (r *rawJSONMessage) Clone() (fleet.Cloner, error) {
 	return &msg, nil
 }
 
-type integer int
-
-func (i integer) Clone() (fleet.Cloner, error) {
-	return i, nil
-}
-
 type queryIDList []uint
 
 func (ql queryIDList) Clone() (fleet.Cloner, error) {

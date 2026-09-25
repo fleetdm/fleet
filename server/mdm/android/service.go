@@ -15,7 +15,7 @@ type Service interface {
 	EnterpriseSignupSSE(ctx context.Context) (chan string, error)
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
-	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*EnrollmentToken, error)
+	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpSessionID string, fullyManaged bool) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
@@ -39,7 +39,9 @@ type Service interface {
 	// IssueCustomCommand issues an arbitrary AMAPI command (the raw JSON from the API request) against
 	// the given host. It persists the command in mdm_android_commands with raw_command populated but
 	// does NOT update host_mdm_actions (custom commands have no UI state). Returns the persisted
-	// command so the caller can read CommandUUID and CommandType for the API response.
+	// command so the caller can read CommandUUID and CommandType for the API response. Returns a
+	// BadRequestError for command types AMAPI does not support on a personally-owned host, which it
+	// otherwise accepts and reports as done while the device ignores them.
 	IssueCustomCommand(ctx context.Context, hostID uint, rawJSON []byte) (*MDMAndroidCommand, error)
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
@@ -69,6 +71,11 @@ type Service interface {
 
 	// CreateAndroidWebApp creates a new web app for the given enterprise.
 	CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
+
+	// GetZeroTouchConfiguration returns the DPC extras JSON for zero-touch enrollment.
+	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
+	// teamID is the fleet to enroll devices into; nil means "Unassigned."
+	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
 }
 
 // /////////////////////////////////////////////
@@ -104,5 +111,12 @@ type EnterpriseSignupResponse struct {
 
 type EnrollmentTokenResponse struct {
 	*EnrollmentToken
+	DefaultResponse
+}
+
+type ZeroTouchConfigurationResponse struct {
+	DPCExtras string `json:"dpc_extras"`
+	ExpiresAt string `json:"expires_at"`
+	Warning   string `json:"warning,omitempty"`
 	DefaultResponse
 }

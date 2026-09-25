@@ -48,6 +48,13 @@ type OrbitConfigNotifications struct {
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
+	// EnableBitLockerProtection tells Orbit that the volume is encrypted but its protection is off, and that it should
+	// turn protection back on.
+	EnableBitLockerProtection bool `json:"enable_bitlocker_protection,omitempty"`
+
+	// BitLockerPINRequestPending tells fleetd on Windows that the end user has submitted a BitLocker startup PIN.
+	BitLockerPINRequestPending bool `json:"bitlocker_pin_request_pending,omitempty"`
+
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
@@ -145,10 +152,28 @@ type DatastoreEnrollOrbitConfig struct {
 	OrbitNodeKey string
 	TeamID       *uint
 	IdentityCert *types.HostIdentityCertificate
+
+	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
+	// secret; the enrollment consumes it for the orbit plane.
+	OneTimeEnrollSecretID *uint
+	// RejectSharedSecretForMDMHosts refuses a shared enroll secret that would
+	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
+	RejectSharedSecretForMDMHosts bool
+
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
 type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithEnrollOrbitCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOrbitCreated(created *bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
 func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
@@ -181,6 +206,18 @@ func WithEnrollOrbitTeamID(teamID *uint) DatastoreEnrollOrbitOption {
 func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.IdentityCert = identityCert
+	}
+}
+
+func WithEnrollOrbitOneTimeEnrollSecret(id uint) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.OneTimeEnrollSecretID = &id
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForMDMHosts = reject
 	}
 }
 

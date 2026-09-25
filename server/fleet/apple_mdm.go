@@ -52,7 +52,7 @@ type MDMAppleCommandIssuer interface {
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
@@ -75,6 +75,9 @@ const (
 	MDMAppleStatusIdle               = "Idle"
 	MDMAppleStatusNotNow             = "NotNow"
 )
+
+// Statuses a device will not answer again; NotNow is still outstanding and gets re-served.
+var MDMAppleTerminalStatuses = []string{MDMAppleStatusAcknowledged, MDMAppleStatusError, MDMAppleStatusCommandFormatError}
 
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
@@ -248,6 +251,12 @@ type MDMAppleConfigProfile struct {
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
+
+	// SelfService indicates the profile is a self-service profile, meaning it can be managed by the end user or the IT admin,
+	// but will not be automatically installed unless opted in to.
+	SelfService bool `db:"self_service" json:"self_service"`
+	// Hidden can be used as an indicator in UI's to hide certain profiles from being displayed.
+	Hidden bool `db:"hidden" json:"hidden"`
 }
 
 // MDMProfilesUpdates flags updates that were done during batch processing of profiles.
@@ -520,9 +529,12 @@ type AppleProfileForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (p *AppleProfileForReconcile) GetTeamID() uint                          { return p.TeamID }
-func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode  { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetTeamID() uint { return p.TeamID }
+
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode { return p.IncludeMode }
+
 func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
+
 func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
 
 // HasBrokenLabel reports whether any include or exclude label on the
@@ -573,8 +585,10 @@ type AppleDeclarationForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (d *AppleDeclarationForReconcile) GetTeamID() uint                         { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetTeamID() uint { return d.TeamID }
+
 func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
+
 func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
 	return d.IncludeLabels
 }
@@ -903,6 +917,8 @@ type SCEPIdentityAssociation struct {
 	// EnrollmentType is nano_enrollment.type and should be examined to determine
 	// the proper enrollment profile.
 	EnrollmentType string `db:"type"`
+	// DEPAssignedToFleet indicates whether the device is assigned to the fleet via AB.
+	DEPAssignedToFleet bool `db:"dep_assigned_to_fleet"`
 }
 
 type DeviceInfoForACMERenewal struct {
@@ -1051,7 +1067,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 	}
 
-	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+	if r.Type == "com.apple.configuration.package" {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
@@ -1061,7 +1077,8 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 
 	if len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen {
 		return NewInvalidArgumentError("Identifier", fmt.Sprintf(
-			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen,
+		))
 	}
 
 	return err
@@ -1145,7 +1162,8 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 		invalid.Append("Identifier", "The custom activation must include an Identifier.")
 	case len(r.Identifier) > MDMAppleDeclarationIdentifierMaxLen:
 		invalid.Append("Identifier", fmt.Sprintf(
-			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen))
+			"Identifier must be %d bytes or fewer.", MDMAppleDeclarationIdentifierMaxLen,
+		))
 	}
 
 	switch configs := r.Payload.StandardConfigurations; {
@@ -1156,7 +1174,8 @@ func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier str
 	case configs[0] != configurationIdentifier:
 		invalid.Append("StandardConfigurations", fmt.Sprintf(
 			"The custom activation must reference the identifier of the configuration profile used to upload it. Expected %q, got %q.",
-			configurationIdentifier, configs[0]))
+			configurationIdentifier, configs[0],
+		))
 	}
 
 	if invalid.HasErrors() {
@@ -1519,9 +1538,9 @@ type MDMAppleMachineInfo struct {
 	Version                         string `plist:"VERSION"`
 }
 
-// macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
+// appleProductRe matches an Apple product model identifier such as "MacBookPro18,3" or "iPhone10,1", capturing the
 // alphabetic family prefix (group 1) and the numeric major version (group 2).
-var macProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
+var appleProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
 
 // appleSiliconMajorThreshold maps each traditional Mac product family to the first major
 // version number that corresponds to an Apple Silicon model. Any major version equal to or
@@ -1537,16 +1556,24 @@ var appleSiliconMajorThreshold = map[string]int{
 	"iMac": 21,
 }
 
+// a11MajorThreshold maps each device (that we support and know has shipped with A11) to the first major version number.
+var a11MajorThreshold = map[string]int{
+	// iPhone 10,1 was the first iPhone with the A11 Bionic chip (iPhone 8, Late 2017).
+	"iPhone": 10,
+	// iPad 8,1 was the first iPad with the A11 Bionic chip (iPad Pro 11-inch, 2018).
+	"iPad": 8,
+}
+
 func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
 		strings.HasPrefix(modelIdentifier, "iPad") {
 		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
-		// error; however, other non-Mac Apple devices like AppleTV will return an error
+		// error; however, other non-Mac Apple devices will also return no, except for invalid product family strings
 		return false, "", 0, nil
 	}
 
-	matches := macProductRe.FindStringSubmatch(modelIdentifier)
+	matches := appleProductRe.FindStringSubmatch(modelIdentifier)
 	if matches == nil {
 		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
 	}
@@ -1566,7 +1593,22 @@ func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 		return true, family, major, nil
 	}
 
-	return false, "", 0, fmt.Errorf("failed to detect if model identifier (%q) was mac", modelIdentifier)
+	return false, "", 0, nil
+}
+
+func IsPrefixedIdentifier(modelIdentifier string, prefix string) (bool, string, int, error) {
+	matches := appleProductRe.FindStringSubmatch(modelIdentifier)
+	if matches == nil {
+		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+	}
+
+	if !strings.HasPrefix(modelIdentifier, prefix) {
+		return false, "", 0, nil
+	}
+
+	family := matches[1]
+	major, _ := strconv.Atoi(matches[2])
+	return true, family, major, nil
 }
 
 // IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
@@ -1597,7 +1639,36 @@ func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
 
 	threshold, ok := appleSiliconMajorThreshold[family]
 	if !ok {
-		return false, fmt.Errorf("unrecognized Mac product family in identifier: %q", modelIdentifier)
+		return false, nil
+	}
+
+	return major >= threshold, nil
+}
+
+func IsA11ChipDevice(modelIdentifier string) (bool, error) {
+	isIPhone, iPhoneFamily, iPhoneMajor, err := IsPrefixedIdentifier(modelIdentifier, "iPhone")
+	if err != nil {
+		return false, err
+	}
+	isIPad, iPadFamily, iPadMajor, err := IsPrefixedIdentifier(modelIdentifier, "iPad")
+	if err != nil {
+		return false, err
+	}
+
+	if !isIPhone && !isIPad {
+		return false, nil
+	}
+
+	major := iPhoneMajor
+	family := iPhoneFamily
+	if isIPad {
+		major = iPadMajor
+		family = iPadFamily
+	}
+
+	threshold, ok := a11MajorThreshold[family]
+	if !ok {
+		return false, nil
 	}
 
 	return major >= threshold, nil
@@ -1709,6 +1780,7 @@ const (
 	EnableLostModeCmdName       = "EnableLostMode"
 	DisableLostModeCmdName      = "DisableLostMode"
 	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	VerifyRecoveryLockCmdName   = "VerifyRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
 	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
@@ -1757,25 +1829,34 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password     string
+	Password     *string
+	Status       *MDMDeliveryStatus
 	UpdatedAt    time.Time
 	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
 type HostRecoveryLockPasswordPayload struct {
-	HostUUID string
-	Password string
+	HostUUID              string
+	Password              string
+	PendingSetCommandUUID string
+}
+
+type HostRecoveryLockPending struct {
+	HasCurrentPassword       bool             `db:"has_current_password"` // Whether or not encrypted_password contains a value
+	PendingSetCommandUUID    *string          `db:"pending_set_command_uuid"`
+	PendingVerifyCommandUUID *string          `db:"pending_verify_command_uuid"`
+	OperationType            MDMOperationType `db:"operation_type"`
+	Retries                  int              `db:"retry"`
 }
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
 type HostRecoveryLockRotationStatus struct {
-	HostUUID            string  // Host UUID
-	HasPassword         bool    // encrypted_password is not null and deleted=0
-	Status              *string // current status (verified, failed, pending, NULL)
-	OperationType       string  // install or remove
-	HasPendingRotation  bool    // pending_encrypted_password is not null
-	PendingErrorMessage *string // error from failed rotation
+	HostUUID           string  // Host UUID
+	HasPassword        bool    // encrypted_password is not null and deleted=0
+	Status             *string // current status (verified, failed, pending, NULL)
+	OperationType      string  // install or remove
+	HasPendingRotation bool    // pending_encrypted_password is not null
 }
 
 // HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.
@@ -1952,3 +2033,104 @@ type ComputedAppleSoftwareUpdateHost struct {
 	AppleSoftwareUpdateHost
 	Resend bool
 }
+
+// MDMAppleAPNsSweepState is the APNs sweep cron's persisted position: the
+// keyset cursor of the enrollment walk plus the batch size computed at the
+// start of the pass, so the size rides along with the cursor instead of
+// being recounted every tick. A nil state means no pass is in progress.
+type MDMAppleAPNsSweepState struct {
+	Cursor    string `json:"cursor"`
+	BatchSize int    `json:"batch_size"`
+}
+
+// MDMAppleCommandCleanupCursor is a keyset position in a nano_command_results
+// scan ordered by (updated_at, id, command_uuid): the order the
+// (status, updated_at) index yields once InnoDB appends the primary key.
+type MDMAppleCommandCleanupCursor struct {
+	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	CommandUUID string    `json:"command_uuid"`
+}
+
+// MDMAppleCommandOrphanCursor is a keyset position in a nano_commands scan
+// ordered by (created_at, command_uuid).
+type MDMAppleCommandOrphanCursor struct {
+	CreatedAt   time.Time `json:"created_at"`
+	CommandUUID string    `json:"command_uuid"`
+}
+
+// MDMAppleCommandCleanupState is the Apple MDM command cleanup cron's persisted
+// position between runs. Each retention scan keeps its own cursor so rows
+// pinned at the front of one scan (never-swept types, guarded references)
+// cannot starve the eligible rows behind them; a scan that reaches rows
+// younger than its window resets its cursor and laps again. A nil state means
+// every scan starts from the oldest rows.
+type MDMAppleCommandCleanupState struct {
+	// Retention is keyed by "<tier>:<status>", e.g. "short:Acknowledged". It
+	// may be nil after a round trip through storage; a missing key means that
+	// scan starts from the oldest rows.
+	Retention map[string]MDMAppleCommandCleanupCursor `json:"retention"`
+	Orphan    MDMAppleCommandOrphanCursor             `json:"orphan"`
+}
+
+// MDMAppleCommandCleanupStateStore persists the Apple MDM command cleanup
+// cron's cursors between runs. Only the Redis-backed datastore implements it;
+// like EnrollHostLimiter it is handed to the cron on its own rather than
+// through Datastore, so deployments without it simply pass nil and every run
+// starts from the oldest rows.
+type MDMAppleCommandCleanupStateStore interface {
+	// GetMDMAppleCommandCleanupState returns the stored cursors, or nil when
+	// none are stored.
+	GetMDMAppleCommandCleanupState(ctx context.Context) (*MDMAppleCommandCleanupState, error)
+	// SetMDMAppleCommandCleanupState stores the cursors. A nil state resets
+	// them.
+	SetMDMAppleCommandCleanupState(ctx context.Context, state *MDMAppleCommandCleanupState) error
+}
+
+// MDMAppleCommandCleanupOptions carries the server config knobs into one run of
+// the Apple MDM command cleanup.
+type MDMAppleCommandCleanupOptions struct {
+	// ShortRetention is how long inactive queue rows and completed commands
+	// in AppleMDMShortRetentionClasses are kept; zero skips the inactive
+	// purge and moves the short classes to the standard window.
+	ShortRetention time.Duration
+	// StandardRetention is how long other completed commands in
+	// AppleMDMStandardRetentionRequestTypes are kept; zero skips that sweep.
+	StandardRetention time.Duration
+	// MaxRowDeletions caps queue/result pairs deleted per run; zero deletes
+	// none.
+	MaxRowDeletions int
+	// MaxCmdDeletions caps nano_commands rows deleted per run; zero deletes
+	// none.
+	MaxCmdDeletions int
+}
+
+// MDMAppleCommandCleanupStats reports what one cleanup run did, for the cron's
+// log line.
+type MDMAppleCommandCleanupStats struct {
+	InactivePairsDeleted int
+	ShortPairsDeleted    int
+	StandardPairsDeleted int
+	// CommandsDeleted: nano_commands rows removed right after their pairs; OrphanCommandsDeleted: found by the background walk.
+	CommandsDeleted       int
+	OrphanCommandsDeleted int
+	// RowBudgetExhausted is set when a pair sweep stopped early, on
+	// MaxRowDeletions or its per-run scan cap, with candidates left, so the
+	// backlog carries over to the next run.
+	RowBudgetExhausted bool
+	// CmdBudgetExhausted is set when the command mop stopped on
+	// MaxCmdDeletions with candidates left.
+	CmdBudgetExhausted bool
+}
+
+// The following constants represent which GetToken[1] service types supported by Fleet for Apple MDM.
+//
+// [1] https://developer.apple.com/documentation/devicemanagement/get-token#Discussion
+const (
+	TokenServiceTypeMAID = "com.apple.maid" // nolint:gosec // not a credential
+)
+
+const (
+	TokenSourceDefault       = "default"
+	TokenSourceDEPAssignment = "dep_assignment"
+)

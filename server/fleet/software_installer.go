@@ -54,8 +54,9 @@ type SoftwareInstallDetails struct {
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
 
-	AppOpenQuery    string `json:"-" db:"app_open_query"`
-	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
+	AppOpenQuery string `json:"-" db:"app_open_query"`
+	// OverridePreInstallQuery means the install needs to use AppOpenQuery as its pre-install condition.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 type SoftwareInstallerURL struct {
@@ -471,6 +472,20 @@ func (s SoftwareInstallerStatus) IsValid() bool {
 	}
 }
 
+// HostSoftwareTitleKey identifies one software title on one host.
+type HostSoftwareTitleKey struct {
+	HostID          uint
+	SoftwareTitleID uint
+}
+
+// What a host has installed for one software title. A title can have more than one row when several
+// copies are installed.
+type HostSoftwareTitleVersion struct {
+	HostID          uint   `db:"host_id"`
+	SoftwareTitleID uint   `db:"title_id"`
+	Version         string `db:"version"`
+}
+
 // HostLastInstallData contains data for the last installation of a package on a host.
 type HostLastInstallData struct {
 	// ExecutionID is the installation ID of the package on the host.
@@ -482,6 +497,8 @@ type HostLastInstallData struct {
 	// requests the host refetch; it is used to throttle continuous policy automation
 	// re-installs (see continuousAutomationOnCooldown).
 	UpdatedAt time.Time `db:"updated_at"`
+	// OverridePreInstallQuery means the install runs the app open query as its pre-install condition
+	OverridePreInstallQuery bool `db:"override_pre_install_query"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
@@ -539,11 +556,17 @@ type HostSoftwareInstallerResult struct {
 	// PatchWhenClosed is set from the triggering policy; it distinguishes an empty pre-install result
 	// caused by the app being open from an ordinary pre-install-query failure.
 	PatchWhenClosed bool `json:"-" db:"patch_when_closed"`
+	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
+	// empty pre-install result as the app being open rather than a query failure.
+	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
+	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
+	SoftwareInstallerAppOpenNotifyCopy      = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch is forced."
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -568,11 +591,14 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			// For patch-when-closed, an empty result means the app was open, not a query failure.
-			if h.PatchWhenClosed {
-				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
-			} else {
+			// An empty result means the app was open only if this attempt ran the app open query.
+			switch {
+			case !h.OverridePreInstallQuery:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			case h.NotifyBeforePatching:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
+			default:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
 			}
 			return
 		}
@@ -656,6 +682,9 @@ type UploadSoftwareInstallerPayload struct {
 	UserID               uint
 	URL                  string
 	FleetMaintainedAppID *uint
+	// FMAName is the FMA's catalog name, for user-facing errors. Title is the
+	// software title name, which on Windows is often the registry DisplayName instead.
+	FMAName string
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
 	RollbackVersion string
@@ -699,6 +728,14 @@ type UploadSoftwareInstallerPayload struct {
 	AppOpenQuery          string
 	InstallScriptEdited   bool
 	UninstallScriptEdited bool
+}
+
+// FMADisplayName returns the name to show users for a Fleet-maintained app payload.
+func (p *UploadSoftwareInstallerPayload) FMADisplayName() string {
+	if p.FMAName != "" {
+		return p.FMAName
+	}
+	return p.Title
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
@@ -797,6 +834,9 @@ type UpdateSoftwareInstallerPayload struct {
 	Patch *bool
 	// PatchWhenClosed skips the install while the app is open. FMA-only.
 	PatchWhenClosed *bool
+	// NotifyBeforePatching skips the install while the app is open and notifies the end user an
+	// hour before the patch is forced. FMA-only.
+	NotifyBeforePatching *bool
 	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
 	// request of whether to change them.
 	InstallScriptEdited   bool
@@ -808,7 +848,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
-		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil
+		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil &&
+		u.NotifyBeforePatching == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -902,13 +943,17 @@ func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 // host with installer information if a matching installer exists. This is the
 // payload returned by the "Get host's (device's) software" endpoints.
 type HostSoftwareWithInstaller struct {
-	ID                uint                            `json:"id" db:"id"`
-	Name              string                          `json:"name" db:"name"`
-	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
-	IconUrl           *string                         `json:"icon_url" db:"-"`
-	Source            string                          `json:"source" db:"source"`
-	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
-	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
+	ID               uint                     `json:"id" db:"id"`
+	Name             string                   `json:"name" db:"name"`
+	BundleIdentifier string                   `json:"bundle_identifier,omitempty" db:"-"`
+	IconUrl          *string                  `json:"icon_url" db:"-"`
+	Source           string                   `json:"source" db:"source"`
+	ExtensionFor     string                   `json:"extension_for" db:"extension_for"`
+	Status           *SoftwareInstallerStatus `json:"status" db:"status"`
+	// SkippedInstall is set when the last install was a patch-when-closed skip
+	// (the target app was open); Status is then "failed_install". The UI keys on
+	// this to render "Patch skipped" instead of "Failed".
+	SkippedInstall    bool                            `json:"skipped_install,omitempty" db:"skipped_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
@@ -921,6 +966,11 @@ type HostSoftwareWithInstaller struct {
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+
+	// SoftwareAutoUpdateConfig carries VPP auto-update fields (enabled + window).
+	// Populated post-pagination from software_update_schedules keyed on the host's
+	// team + title ID. Nil for hosts with no team (matches list-titles semantics).
+	SoftwareAutoUpdateConfig
 }
 
 func (h *HostSoftwareWithInstaller) IsPackage() bool {
@@ -961,6 +1011,7 @@ type PatchPolicyData struct {
 	ID                           uint   `json:"id" db:"id"`
 	Name                         string `json:"name" db:"name"`
 	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
+	NotifyBeforePatching         bool   `json:"notify_before_patching" db:"notify_before_patching"`
 	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
@@ -1182,6 +1233,7 @@ type HostSoftwareInstalledVersion struct {
 	SoftwareTitleID  uint       `json:"-" db:"software_title_id"`
 	Source           string     `json:"-" db:"source"`
 	Version          string     `json:"version" db:"version"`
+	Release          string     `json:"release,omitempty" db:"release"`
 	BundleIdentifier string     `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
@@ -1375,7 +1427,7 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		if p.FleetMaintainedAppID != nil {
 			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
 				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
-				fmaNames = append(fmaNames, p.Title)
+				fmaNames = append(fmaNames, p.FMADisplayName())
 			}
 			continue
 		}
@@ -1385,8 +1437,8 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
-	// inventory app, so only one can be added.
+	// Two FMAs on one title share a bundle identifier (Firefox and Firefox ESR) or a Windows
+	// DisplayName (x64 and ARM64 Firefox Nightly): same inventory app, so only one can be added.
 	if len(fmaNames) > 1 {
 		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
 	}
@@ -1414,6 +1466,8 @@ type HostSoftwareInstallOptions struct {
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
 	WithRetries bool
+	// OverridePreInstallQuery makes the install use the app open query as its pre-install condition.
+	OverridePreInstallQuery bool
 	// DeferActivation enqueues the upcoming activity without activating it;
 	// the activity stays invisible to the host until the fleet-initiated
 	// release cron activates it within the configured per-minute budget. Set
@@ -1422,10 +1476,11 @@ type HostSoftwareInstallOptions struct {
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy are fleet-initiated (and we also
-// make sure SelfService is false, as this case is always user-initiated).
+// Software installs initiated via a policy, scheduled updates or setup
+// experience are fleet-initiated (and we also make sure SelfService is false,
+// as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

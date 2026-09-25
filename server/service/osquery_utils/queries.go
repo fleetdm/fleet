@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/url"
 	"regexp"
@@ -19,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1020,12 +1023,37 @@ var macOSEntraIDDetails = DetailQuery{
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
+// entraDeviceCertIssuerLike matches the issuer of the certificate Windows stores for
+// an Entra-joined or Entra-registered device; its subject is the Entra device ID.
+const entraDeviceCertIssuerLike = "net + windows + MS-Organization-Access%"
+
 // windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
 var windowsEntraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
-	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;",
+	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE '" + entraDeviceCertIssuerLike + "' LIMIT 1;",
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
+// windowsEntraJoinUser reads the UPN of the user who joined the device to Entra, so
+// agent-only Windows hosts get IdP vitals without an end user authentication prompt.
+// The datastore ignores it for hosts enrolled in Fleet MDM, which receive profiles and
+// certificates that must not follow a device-asserted identity.
+// The JoinInfo subkey is named after the device's certificate thumbprint; matching them
+// drops stale keys but is not an integrity control. Newest certificate first, so a
+// current record without a user yields an empty user_email, not an older record's.
+// Registry first: osquery's certificates table enumerates every store regardless of WHERE.
+var windowsEntraJoinUser = DetailQuery{
+	Query: `SELECT MAX(CASE WHEN r.name = 'UserEmail' THEN r.data END) AS user_email
+FROM registry r
+CROSS JOIN certificates c ON UPPER(c.sha1) = UPPER(SUBSTR(r.key, LENGTH('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\') + 1))
+WHERE r.key LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\%'
+  AND c.issuer LIKE '` + entraDeviceCertIssuerLike + `'
+GROUP BY r.key
+ORDER BY MAX(c.not_valid_after) DESC
+LIMIT 1;`,
+	Platforms:        []string{"windows"},
+	DirectIngestFunc: directIngestEntraJoinUser,
 }
 
 var softwareMacOS = DetailQuery{
@@ -1246,34 +1274,56 @@ var scheduledQueryStats = DetailQuery{
 	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
+// softwareLinuxPacman splits pacman's "[epoch:]pkgver-pkgrel" version the way
+// rpm_packages already arrives: the epoch is dropped and pkgrel goes in release,
+// so version holds the upstream version the NVD knows about. pkgver can contain
+// neither ':' nor '-', so the first of each is the separator.
 var softwareLinuxPacman = DetailQuery{
 	Query: `
+WITH packages AS (
+  SELECT
+    name,
+    arch,
+    CASE WHEN instr(version, ':') > 0 THEN substr(version, instr(version, ':') + 1) ELSE version END AS version_release
+  FROM fleetd_pacman_packages
+)
 SELECT
   name AS name,
-  version AS version,
+  CASE WHEN instr(version_release, '-') > 0 THEN substr(version_release, 1, instr(version_release, '-') - 1) ELSE version_release END AS version,
   '' AS extension_id,
   '' AS extension_for,
   'pacman_packages' AS source,
-  '' AS release,
+  CASE WHEN instr(version_release, '-') > 0 THEN substr(version_release, instr(version_release, '-') + 1) ELSE '' END AS release,
   '' AS vendor,
   arch AS arch,
   '' AS installed_path
-FROM fleetd_pacman_packages`,
+FROM packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
 
+// softwareGoBinaries collects Go binaries installed with `go install`, reported by fleetd's
+// go_binaries table. Two ecosystem attributes ride in existing columns:
+//   - module_path is stored in extension_id. Used for vulnerability detection and is not
+//     part of a software title's identity, so two binaries built from the same module keep
+//     separate titles and a renamed module keeps one title.
+//   - go_version is stored in release. It is part of the software identity, so the same
+//     binary version built with two toolchains is two software rows: they differ in their
+//     standard-library vulnerabilities and in the version the UI displays.
+//
+// version keeps the leading "v" and the "(devel)" value for `go build` binaries as reported;
+// the vulnerability matcher normalizes and skips them respectively.
 var softwareGoBinaries = DetailQuery{
 	Query: `
 SELECT
   name AS name,
   version AS version,
-  '' AS extension_id,
+  module_path AS extension_id,
   '' AS extension_for,
   'go_binaries' AS source,
-  '' AS release,
+  go_version AS release,
   '' AS vendor,
   '' AS arch,
   installed_path AS installed_path
@@ -1669,6 +1719,46 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			return mainSoftwareResults
 		},
 	},
+	// macos_homebrew_executable_sha256 collects every Mach-O executable a Homebrew formula
+	// installs under its keg's bin and sbin, and the sha256 of each, via the fleetd
+	// `executable_hashes` table. A file the table did not hash this run still comes back, with
+	// hash_state 'deferred', so the rows for a keg are its complete membership every run.
+	// Discovery keys on the path_type column rather than on the table being present: older
+	// extensions resolve every path as an app bundle, so they would return empty hashes while
+	// spawning a process per file. path_type has never shipped without hash_state, so it gates
+	// both.
+	"macos_homebrew_executable_sha256": {
+		// SQLite pushes the correlated LIKE into the extension and calls it once per keg and
+		// directory, as the apps override does per bundle. executable_hashes keeps only the last
+		// path constraint it receives, so bin and sbin are separate UNION members, not an OR.
+		// The unary plus keeps the path_type filter in SQLite: when osquery hands the extension
+		// that constant equality next to the correlated LIKE, the join returns no rows.
+		Query: `
+		SELECT
+		  hp.path AS keg_path,
+		  hp.version AS version,
+		  eh.executable_path AS executable_path,
+		  eh.executable_sha256 AS executable_sha256,
+		  eh.hash_state AS hash_state
+		FROM homebrew_packages hp
+		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/bin/%'
+		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
+		UNION ALL
+		SELECT
+		  hp.path AS keg_path,
+		  hp.version AS version,
+		  eh.executable_path AS executable_path,
+		  eh.executable_sha256 AS executable_sha256,
+		  eh.hash_state AS hash_state
+		FROM homebrew_packages hp
+		JOIN executable_hashes eh ON eh.path LIKE hp.path || '/' || hp.version || '/sbin/%'
+		WHERE hp.type = 'formula' AND +eh.path_type = 'file'
+		`,
+		Description:            "A software override query[^1] to append the sha256 hash of Mach-O executables installed by Homebrew formulae to macOS software entries. Requires `fleetd`",
+		Platforms:              []string{"darwin"},
+		Discovery:              `SELECT 1 FROM pragma_table_info('executable_hashes') WHERE name = 'path_type'`,
+		SoftwareProcessResults: mergeHomebrewExecutableHashes,
+	},
 	// windows_last_opened_at collects last opened at information from prefetch files on Windows
 	// hosts. Joining this within the main software query is not performant enough to do on the
 	// device (resulted in denylisted queries during testing), so we do it on the server instead.
@@ -1786,6 +1876,66 @@ WHERE (
   AND path NOT LIKE 'C:\Program Files\WindowsApps\%'`,
 		SoftwareProcessResults: processProgramFilesScan,
 	},
+}
+
+// hashStateDeferred marks a Mach-O file the fleetd executable_hashes table found but did not
+// hash this run, because its per-run byte budget was spent. A later run hashes it.
+const hashStateDeferred = "deferred"
+
+// mergeHomebrewExecutableHashes attaches to each Homebrew formula's row the set of Mach-O
+// executables its keg installs, as a JSON document keyed by each file's path relative to the
+// Cellar directory. The server stores one row per keg carrying that document, so a file that
+// stops being reported is a file that is gone.
+//
+// Rows are keyed by installed path and version together because homebrew_packages.path is the
+// Cellar directory, which every installed version of a formula shares.
+func mergeHomebrewExecutableHashes(mainSoftwareResults, results []map[string]string) []map[string]string {
+	if len(results) == 0 {
+		// The host is saying nothing about membership, so no row carries a document and the
+		// datastore leaves every stored one alone. Absence of the query is never evidence that a
+		// keg lost its executables.
+		return mainSoftwareResults
+	}
+
+	execsByKeg := make(map[string]fleet.ExecutableHashes, len(results))
+	for _, r := range results {
+		kegPath := r["keg_path"]
+		relPath, under := strings.CutPrefix(r["executable_path"], kegPath+"/")
+		if !under || relPath == "" {
+			continue
+		}
+		key := kegPath + fleet.SoftwareFieldSeparator + r["version"]
+		if execsByKeg[key] == nil {
+			execsByKeg[key] = fleet.ExecutableHashes{}
+		}
+		switch {
+		case r["hash_state"] == hashStateDeferred:
+			// Membership without a value. The datastore carries the stored hash over until a
+			// later run reports one.
+			execsByKeg[key][relPath] = ""
+		case r["executable_sha256"] != "":
+			execsByKeg[key][relPath] = r["executable_sha256"]
+		}
+		// Anything else is a file that could not be read, which is not membership.
+	}
+
+	for _, row := range mainSoftwareResults {
+		if row["source"] != "homebrew_packages" {
+			continue
+		}
+		// A formula that installs only scripts, and every cask, carries an empty document rather
+		// than none: the query did run, so the datastore can clear what it has stored.
+		execs := execsByKeg[row["installed_path"]+fleet.SoftwareFieldSeparator+row["version"]]
+		if execs == nil {
+			execs = fleet.ExecutableHashes{}
+		}
+		encoded, err := json.Marshal(execs)
+		if err != nil {
+			continue
+		}
+		row["executable_hashes"] = string(encoded)
+	}
+	return mainSoftwareResults
 }
 
 // processProgramFilesScan deduplicates file scan results against existing programs entries,
@@ -2219,6 +2369,37 @@ func directIngestEntraIDDetails(
 	return nil
 }
 
+func directIngestEntraJoinUser(
+	ctx context.Context,
+	logger *slog.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	// the query is only sent to Windows hosts, but results are not filtered by platform
+	if host.Platform != "windows" {
+		return nil
+	}
+	// Failed queries never reach here: no rows means not joined, and a row without a
+	// usable user means joined without one. Either way the empty UPN clears the mapping.
+	var upn string
+	if len(rows) > 0 {
+		upn = strings.ToLower(strings.TrimSpace(rows[0]["user_email"]))
+		if upn != "" && !microsoft_mdm.IsValidEntraUPN(upn) {
+			logger.WarnContext(ctx, "ignoring invalid Entra join user email", "host.id", host.ID, "length", len(upn))
+			upn = ""
+		}
+	}
+	updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, host.ID, upn)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set entra join host device mapping")
+	}
+	if updated {
+		logger.InfoContext(ctx, "reconciled host IdP mapping from Entra join record", "host.id", host.ID)
+	}
+	return nil
+}
+
 func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
@@ -2310,7 +2491,7 @@ var (
 
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
-	sPaths := map[string]struct{}{}
+	sPaths := map[string]fleet.ExecutableHashes{}
 
 	for _, row := range rows {
 		// Attempt to parse the last_opened_at and emit a debug log if it fails.
@@ -2379,11 +2560,27 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			if epath, ok := row["executable_path"]; ok {
 				execPath = epath
 			}
-			key := fmt.Sprintf(
-				"%s%s%s%s%s%s%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, execSHA256, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
-			)
-			sPaths[key] = struct{}{}
+			key := fleet.HostSoftwareInstalledPathKey{
+				InstalledPath:     installedPath,
+				TeamIdentifier:    teamIdentifier,
+				CDHashSHA256:      cdhashSHA256,
+				ExecutableSHA256:  execSHA256,
+				ExecutablePath:    execPath,
+				SoftwareUniqueStr: s.ToUniqueStr(),
+			}
+			// A Homebrew keg carries the executables it installs as a document rather than one
+			// row per executable. The field is absent unless the override query ran, which is
+			// what tells the datastore apart from a keg that installs none.
+			var execHashes fleet.ExecutableHashes
+			if raw, ok := row["executable_hashes"]; ok {
+				if err := json.Unmarshal([]byte(raw), &execHashes); err != nil {
+					logger.DebugContext(ctx, "host reported unparseable executable hashes",
+						"host_id", host.ID,
+						"installed_path", installedPath,
+						"err", err)
+				}
+			}
+			sPaths[key.String()] = execHashes
 		}
 	}
 
@@ -2423,7 +2620,21 @@ var (
 	// "ad<id> 9.7.15" for a custom client. version_compare can't order those
 	// against a real version, so the patch policy would never see a match.
 	anyDeskClientVersion = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*\s+(\d+(?:\.\d+)*)$`)
-	basicAppSanitizers   = []struct {
+	// rpiImagerVersion strips the leading "v" that Raspberry Pi Imager's build
+	// embeds in its reported version on both platforms -- macOS
+	// CFBundleShortVersionString/CFBundleVersion and the Windows registry
+	// DisplayVersion (e.g. "v2.0.11.1", "v2.0.8") -- which doesn't match the
+	// release version and breaks version ordering. Captures only the
+	// dotted-numeric run so a future build metadata suffix (e.g.
+	// "v2.0.11.1-beta") doesn't end up in the ingested version, which
+	// version_compare can't order.
+	rpiImagerVersion = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
+	// rAppVersionFormat extracts the R version from R.app's
+	// CFBundleShortVersionString. The "R" name is duplicated in some builds
+	// and not others, e.g. "R 4.5.1 GUI 1.82 High Sierra build" -> "4.5.1" and
+	// "R R 4.6.1 GUI 1.83 High Sierra build" -> "4.6.1".
+	rAppVersionFormat  = regexp.MustCompile(`^R (?:R )?(\d+(?:\.\d+)+) GUI`)
+	basicAppSanitizers = []struct {
 		matchBundleIdentifier string
 		matchName             string
 		mutate                func(*fleet.Software, *slog.Logger)
@@ -2524,6 +2735,22 @@ var (
 			},
 		},
 		// end of #34159 cleanup in basic matchers
+		{
+			matchBundleIdentifier: "com.raspberrypi.rpi-imager",
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if versionMatches := rpiImagerVersion.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
+			},
+		},
+		{
+			matchBundleIdentifier: "org.R-project.R",
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if versionMatches := rAppVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
+					s.Version = versionMatches[1]
+				}
+			},
+		},
 	}
 	customSanitizers = []struct {
 		matches func(*fleet.Software) bool
@@ -2598,6 +2825,21 @@ var (
 			},
 			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if matches := anyDeskClientVersion.FindStringSubmatch(s.Version); len(matches) == 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// Raspberry Pi Imager's Windows installer also embeds a leading "v" in
+			// its registered DisplayVersion (e.g. "v2.0.8"), the same versioning
+			// quirk as its macOS build. Strip it so version_compare can order it.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.EqualFold(s.Name, "Raspberry Pi Imager") &&
+					rpiImagerVersion.MatchString(s.Version)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := rpiImagerVersion.FindStringSubmatch(s.Version); len(matches) == 2 {
 					s.Version = matches[1]
 				}
 			},
@@ -3558,25 +3800,134 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	}
 }
 
+// bitLockerPresent matches a host where BitLocker can be used at all: it is either built in, and so never appears as
+// an optional feature, or it appears and is enabled. Every BitLocker discovery clause starts from this. osquery enumerates
+// all of Win32_OptionalFeature, which has one row per name, each time the table is referenced, so it is referenced once.
+const bitLockerPresent = `NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state IS NOT 1)`
+
+// bitLockerPresentDiscovery is the complete discovery clause for a query whose only precondition is that BitLocker is
+// usable on the host.
+var bitLockerPresentDiscovery = fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				%s
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent)
+
+// bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
+var bitlockerPolicyQueries = map[string]DetailQuery{
+	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
+	// TPM-only protector the agent has to create, and Windows offers the end user no way to add a protector to an unprotected volume.
+	"bitlocker_startup_policy_relax": {
+		Platforms: []string{"windows"},
+		// We only want to run this query iff:
+		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
+		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
+		// - And the volume is fully encrypted, whether or not protection is currently on.
+		Discovery: fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				%s
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
+				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
+				-- Volume is fully encrypted.
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger *slog.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_startup_policy_relax")
+				return nil
+			}
+
+			if len(rows) > 1 {
+				return ctxerr.Errorf(
+					ctx,
+					"bitlocker_startup_policy_relax query: invalid number of rows: %d", len(rows),
+				)
+			}
+
+			// Only an explicit "disallowed" blocks the agent. Any other value, including an unset dropdown, already
+			// permits a TPM-only protector, so there is nothing to clear and no command worth sending.
+			if len(rows) == 0 || rows[0]["data"] != fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+				return nil
+			}
+
+			logger.InfoContext(ctx, "Clearing a startup policy that blocks restoring BitLocker protection",
+				"query", "bitlocker_startup_policy_relax",
+				"host_id", host.ID)
+			// The same payload tpm_pin_config_verify sends, because every dropdown defaults to 'optional'.
+			cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
+				microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
+					CmdUUID: uuid.NewString(),
+					Enabled: true,
+				},
+			)
+			if err != nil {
+				return err
+			}
+			return ds.MDMWindowsInsertCommandForHosts(ctx, []string{host.UUID}, cmd)
+		},
+	},
+	// Protectors can be deleted while BitLocker protection stays on. This also records whether a startup PIN is set, which
+	// only matters where a PIN is required but is read from the same table. bitlocker_key_protectors runs PowerShell on every
+	// scan, so both answers come from a single aggregate scan rather than one EXISTS per column.
+	"bitlocker_key_protectors_verify": {
+		Platforms: []string{"windows"},
+		Discovery: bitLockerPresentDiscovery,
+		Query: `
+			SELECT
+				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
+				COALESCE(MAX(key_protector_type IN (1,2,4,5,6)), 0) AS boot_protector_set,
+				-- 4: TPM And PIN. 6: TPM And PIN And Startup key.
+				COALESCE(MAX(key_protector_type IN (4,6)), 0) AS tpm_pin_set
+			FROM bitlocker_key_protectors
+			WHERE drive_letter = 'C:'`,
+		DirectIngestFunc: func(
+			ctx context.Context,
+			logger *slog.Logger,
+			host *fleet.Host,
+			ds fleet.Datastore,
+			rows []map[string]string,
+		) error {
+			if host == nil || host.UUID == "" {
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "bitlocker_key_protectors_verify")
+				return nil
+			}
+			// Anything other than the single expected row means the answer is unknown. Leave the columns alone: a NULL boot
+			// protector already reads as "nothing to act on" everywhere downstream.
+			if len(rows) != 1 {
+				logger.DebugContext(ctx, "Ingestion not run, unexpected row count",
+					"query", "bitlocker_key_protectors_verify", "rows", len(rows))
+				return nil
+			}
+			return ds.SetOrUpdateHostDiskBitLockerProtectors(ctx, host.ID,
+				rows[0]["boot_protector_set"] == "1", rows[0]["tpm_pin_set"] == "1")
+		},
+	},
+}
+
 var tpmPINQueries = map[string]DetailQuery{
-	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host has the proper
-	// BitLocker policy for allowing the setup of a TPM PIN protector, if not properly set, the proper
-	// configuration is enforced via an MDM command.
+	// The tpm_pin_config_verify query checks the Windows registry to verify whether the host's BitLocker policies allow
+	// the PIN Fleet's flow sets: a TPM PIN protector, enhanced PIN characters, the minimum PIN length Fleet validates, and
+	// standard users changing their own PIN. If any is off, one MDM command sets all of them.
 	"tpm_pin_config_verify": {
 		Platforms: []string{"windows"},
 		// We only want to run this query iff:
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And a TPM PIN is not yet set.
 		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-		Discovery: `
+		Discovery: fmt.Sprintf(`
 			WITH should_run(yes) AS (
 			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
+				%s
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
@@ -3584,8 +3935,9 @@ var tpmPINQueries = map[string]DetailQuery{
 				-- Volume is encrypted
 				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
 			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
-		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+		// Every value under the policy key, matched by name in Go because registry value names are case-insensitive.
+		Query: "SELECT name, data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE'",
 		DirectIngestFunc: func(
 			ctx context.Context,
 			logger *slog.Logger,
@@ -3598,24 +3950,30 @@ var tpmPINQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if len(rows) > 1 {
-				return ctxerr.Errorf(
-					ctx,
-					"tpm_pin_config_verify query: invalid number of rows: %d", len(rows),
-				)
+			values := make(map[string]string, len(rows))
+			for _, row := range rows {
+				values[strings.ToLower(row["name"])] = strings.TrimSpace(row["data"])
 			}
+			useTPMPIN := values["usetpmpin"]
+			minimumPIN, minimumPINSet := values["minimumpin"]
+			disallowPINChange, disallowPINChangeSet := values["disallowstandarduserpinreset"]
 
-			// If no results are returned, then the policy setting is in a 'Not Configured' state.
-			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
-			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+			// Only a required or optional UseTPMPIN permits a PIN protector. An unset UseEnhancedPin does not permit enhanced characters. An
+			// unset MinimumPIN or DisallowStandardUserPINReset is Windows' default, which is already what Fleet wants.
+			if (useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired) &&
+				useTPMPIN != strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)) ||
+				values["useenhancedpin"] != "1" ||
+				(minimumPINSet && minimumPIN != strconv.Itoa(microsoft_mdm.BitLockerPINMinLength)) ||
+				(disallowPINChangeSet && disallowPINChange != "0") {
 				logger.InfoContext(ctx, "Updating TPM PIN protector configuration via MDM",
 					"query", "tpm_pin_config_verify",
 					"host_id", host.ID)
 				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
 					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
-						CmdUUID:      uuid.NewString(),
-						Enabled:      true,
-						ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+						CmdUUID:              uuid.NewString(),
+						Enabled:              true,
+						ConfigurePIN:         new(uint(microsoft_mdm.PolicyOptDropdownOptional)),
+						ConfigurePINPolicies: true,
 					},
 				)
 				if err != nil {
@@ -3626,48 +3984,9 @@ var tpmPINQueries = map[string]DetailQuery{
 			return nil
 		},
 	},
-	"tpm_pin_set_verify": {
-		Platforms: []string{"windows"},
-		// We only want to run this query iff:
-		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
-		Discovery: `
-			WITH should_run(yes) AS (
-			SELECT
-				(
-					-- BitLocker is an optional feature but enabled
-					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-				)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`,
-		Query: `
-			SELECT EXISTS(
-				SELECT 1
-				FROM bitlocker_key_protectors
-				-- 4: TPM And PIN.
-				-- 6: TPM And PIN And Startup key.
-				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
-				LIMIT 1
-			) AS criteria
-			WHERE criteria = 1`,
-		DirectIngestFunc: func(
-			ctx context.Context,
-			logger *slog.Logger,
-			host *fleet.Host,
-			ds fleet.Datastore,
-			rows []map[string]string,
-		) error {
-			if host == nil || host.UUID == "" {
-				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "tpm_pin_set_verify")
-				return nil
-			}
-			return ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, len(rows) > 0)
-		},
-	},
 }
 
-//go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Contributing/host-vitals/understanding-host-vitals.md"
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool
@@ -3736,6 +4055,10 @@ func GetDetailQueries(
 				requireTPMPin = teamMDMConfig.DiskEncryptionConfig().BitLockerPINRequired
 			}
 
+			if enableDiskEncryption {
+				maps.Copy(generatedMap, bitlockerPolicyQueries)
+			}
+
 			if enableDiskEncryption && requireTPMPin {
 				for key, query := range tpmPINQueries {
 					generatedMap[key] = query
@@ -3747,6 +4070,11 @@ func GetDetailQueries(
 	if integrations.ConditionalAccessMicrosoft {
 		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
+	}
+
+	// IdP host vitals are a premium feature.
+	if license.IsPremium(ctx) {
+		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

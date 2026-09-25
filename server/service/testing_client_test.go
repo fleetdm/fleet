@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -98,6 +99,9 @@ type withServer struct {
 	redisPool fleet.RedisPool
 
 	fleetSvc fleet.Service
+
+	notificationsSvc      notifications_api.Service
+	patchNotificationKind PatchNotificationKind
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -123,6 +127,8 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.token = ts.getTestAdminToken()
 	ts.cachedAdminToken = ts.token
 	ts.redisPool = redisPool
+	ts.notificationsSvc = opts.NotificationsSvc
+	ts.patchNotificationKind = opts.PatchNotificationKind
 }
 
 func (ts *withServer) TearDownSuite() {
@@ -808,6 +814,38 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 
 	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
 	return 0
+}
+
+// countHostActivitiesOfType returns how many activities of the given type are on the host's own timeline. Used to
+// assert that an operation records exactly one, or none, which the "last activity" helpers cannot express.
+func (ts *withServer) countHostActivitiesOfType(hostID uint, name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK,
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "1000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
+}
+
+// countActivitiesOfType returns how many activities of the given type exist. Used to assert that an operation records
+// no activity, which "last activity" helpers cannot express on a suite that shares its database across tests.
+func (ts *withServer) countActivitiesOfType(name string) int {
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10000")
+
+	var count int
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			count++
+		}
+	}
+	return count
 }
 
 func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {

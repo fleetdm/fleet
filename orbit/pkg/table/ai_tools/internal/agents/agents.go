@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/paths"
@@ -27,9 +28,14 @@ type Agent struct {
 	BinaryPath    string // resolved path of the executable file (hashed)
 	Version       string
 	Runtime       string // node | bun | python | rust | go | native
-	InstallMethod string // npm-global | pipx | homebrew | cargo | native
+	InstallMethod string // npm-global | pipx | homebrew | cargo | native | evidence
 	Running       int
 	PID           int
+
+	// Classification / multi-signal detection.
+	Category   string // agent-runtime | agent-harness | empty (legacy catalog)
+	Confidence int    // 0–100; catalog = 100
+	Evidence   string // CSV of signal tokens
 
 	// Security posture (computed during Scan).
 	SHA256         string // hash of the agent binary (diffable identity / threat-intel match)
@@ -61,15 +67,27 @@ func knownAgents() []known {
 		{"continue-cli", []string{"cn"}, "@continuedev/cli", "", "node", nil},
 		{"cursor-agent", []string{"cursor-agent"}, "", "", "native", nil},
 		{"amazon-q", []string{"q", "kiro"}, "", "", "native", nil},
+		// Catalog sugar for common CLIs; multi-signal evidence still covers unknowns.
+		{"grok", []string{"grok"}, "", "", "native", nil},
 	}
 }
 
 // Scan detects agent CLIs reachable from a home directory (and system dirs).
-func Scan(h homes.Home, snap *proc.Snapshot) []Agent {
+// When b is non-nil, Tier-B multi-signal candidates (tool homes, workspace
+// shapes, frameworks) are merged with catalog hits.
+func Scan(h homes.Home, snap *proc.Snapshot, b *evidence.Bundle) []Agent {
 	r := paths.For(h.Dir)
 	binDirs := agentBinDirs(h.Dir, r)
+	// Include tool-private bin dirs (e.g. ~/.grok/bin) used by modern CLIs.
+	binDirs = append(binDirs,
+		filepath.Join(h.Dir, ".grok", "bin"),
+		filepath.Join(h.Dir, ".hermes", "bin"),
+		filepath.Join(h.Dir, ".openclaw", "bin"),
+	)
 	nmDirs := nodeModulesDirs(h.Dir, r)
-	var out []Agent
+	out := make([]Agent, 0, len(knownAgents()))
+	seen := map[string]int{} // name -> index in out
+
 	for _, k := range knownAgents() {
 		a, ok := detect(k, h.Dir, binDirs, nmDirs)
 		if !ok {
@@ -80,22 +98,127 @@ func Scan(h homes.Home, snap *proc.Snapshot) []Agent {
 		if a.Runtime == "" {
 			a.Runtime = k.runtime
 		}
+		a.Category = "agent-runtime"
+		a.Confidence = 100
+		a.Evidence = "catalog"
 		cmdline := markRunning(&a, k, snap)
+		if a.Running == 1 {
+			a.Evidence = "catalog,running"
+		}
+		if a.BinaryPath != "" {
+			a.Evidence += ",binary"
+		}
 		a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
 		enrichPosture(&a, k, h, cmdline)
+		seen[a.Name] = len(out)
 		out = append(out, a)
 	}
+
+	// Tier B: multi-signal candidates from the shared evidence bundle.
+	if b != nil {
+		for _, c := range evidence.AgentCandidates(h, snap, b) {
+			if idx, ok := seen[c.Name]; ok && mergesInto(out[idx], c) {
+				// Merge into catalog row: keep conf 100, union evidence.
+				out[idx].Evidence = mergeEvidence(out[idx].Evidence, c.Signals.CSV())
+				if c.Running == 1 && out[idx].Running == 0 {
+					out[idx].Running, out[idx].PID = c.Running, c.PID
+				}
+				if out[idx].BinaryPath == "" && c.BinaryPath != "" {
+					out[idx].BinaryPath = c.BinaryPath
+					out[idx].SHA256 = fsutil.SHA256(resolveSystemBinary(c.BinaryPath))
+				}
+				if c.Category == "agent-harness" {
+					out[idx].Category = "agent-harness"
+				}
+				continue
+			}
+			// Also skip if path already covered under another name.
+			if pathSeen(out, c.Path) {
+				continue
+			}
+			a := Agent{
+				UID:           h.UID,
+				Username:      h.Username,
+				Name:          c.Name,
+				Binary:        c.Binary,
+				Path:          c.Path,
+				BinaryPath:    c.BinaryPath,
+				InstallMethod: "evidence",
+				Runtime:       "native",
+				Running:       c.Running,
+				PID:           c.PID,
+				Category:      c.Category,
+				Confidence:    c.Confidence,
+				Evidence:      c.Signals.CSV(),
+			}
+			if a.Category == "" {
+				a.Category = "agent-runtime"
+			}
+			if a.BinaryPath != "" {
+				a.SHA256 = fsutil.SHA256(resolveSystemBinary(a.BinaryPath))
+			}
+			seen[a.Name] = len(out)
+			out = append(out, a)
+		}
+	}
 	return out
+}
+
+func mergeEvidence(a, b string) string {
+	s := evidence.Signals{}
+	for _, csv := range []string{a, b} {
+		for tok := range strings.SplitSeq(csv, ",") {
+			s.Add(strings.TrimSpace(tok))
+		}
+	}
+	return s.CSV()
+}
+
+// mergesInto reports whether an evidence candidate describes the same install
+// as an existing row rather than merely sharing its name. Tool-home candidates
+// are named after a known tool, so a name match really is the same tool.
+// Workspace and framework candidates are named after a directory, so a project
+// directory that happens to be called "grok" or "codex" must not fold into that
+// tool's row, contribute unrelated evidence, and relabel its category.
+func mergesInto(a Agent, c evidence.AgentCandidate) bool {
+	if c.BinaryPath != "" && a.BinaryPath != "" &&
+		filepath.Clean(c.BinaryPath) == filepath.Clean(a.BinaryPath) {
+		return true
+	}
+	return c.Signals.Has("tool_home")
+}
+
+func pathSeen(out []Agent, path string) bool {
+	if path == "" {
+		return false
+	}
+	for _, a := range out {
+		if a.Path == path || a.BinaryPath == path {
+			return true
+		}
+	}
+	return false
 }
 
 func detect(k known, home string, binDirs, nmDirs []string) (Agent, bool) {
 	a := Agent{}
 
-	// 1. npm global package (best version signal).
+	// 1. npm global package (best version signal). Prefer installs under the
+	// user's home over system-wide node_modules so multi-user hosts don't
+	// attribute root's package version to every account.
 	if k.npmPkg != "" {
+		homeFound := false
 		for _, nm := range nmDirs {
 			pkgDir := filepath.Join(nm, filepath.FromSlash(k.npmPkg))
-			if ver, ok := npmVersion(filepath.Join(pkgDir, "package.json")); ok {
+			ver, ok := npmVersion(filepath.Join(pkgDir, "package.json"))
+			if !ok {
+				continue
+			}
+			underHome := home != "" && strings.HasPrefix(pkgDir, home)
+			if underHome {
+				a.Path, a.Version, a.InstallMethod, a.Runtime = pkgDir, ver, "npm-global", "node"
+				homeFound = true
+			} else if !homeFound && a.Path == "" {
 				a.Path, a.Version, a.InstallMethod, a.Runtime = pkgDir, ver, "npm-global", "node"
 			}
 		}
@@ -255,26 +378,58 @@ func methodFromPath(path string) string {
 
 // markRunning sets Running/PID when a process matches the agent and returns the
 // matched process command line (or "") so the caller can inspect runtime flags.
+// Matching is exact name / exe basename / path-token only — never process-name
+// suffix (catalog binary "q" must not match processes like "icq").
 func markRunning(a *Agent, k known, snap *proc.Snapshot) string {
 	if snap == nil {
 		return ""
 	}
 	for pid, p := range snap.Procs {
-		name := strings.ToLower(p.Name)
-		cmd := strings.ToLower(p.Cmdline)
 		for _, bin := range k.binaries {
-			b := strings.ToLower(bin)
-			if name == b || name == b+".exe" || strings.Contains(cmd, "/"+b+" ") || strings.HasSuffix(name, b) {
+			if procMatchesBin(p.Name, p.Exe, p.Cmdline, bin) {
 				a.Running, a.PID = 1, pid
 				return p.Cmdline
 			}
 		}
-		if k.npmPkg != "" && strings.Contains(cmd, strings.ToLower(k.npmPkg)) {
-			a.Running, a.PID = 1, pid
-			return p.Cmdline
+		if k.npmPkg != "" {
+			pkg := strings.ToLower(k.npmPkg)
+			cmd := strings.ToLower(p.Cmdline)
+			// Package path token (scoped npm pkgs), not bare substring of short names.
+			if strings.Contains(cmd, "/"+pkg) || strings.Contains(cmd, "\\"+pkg) ||
+				strings.Contains(cmd, pkg+"/") || strings.Contains(cmd, pkg+"@") {
+				a.Running, a.PID = 1, pid
+				return p.Cmdline
+			}
 		}
 	}
 	return ""
+}
+
+// procMatchesBin reports whether a live process is the given binary.
+// Matches exact process name, exe basename, or a path-token in the command
+// line — never name suffix (short bins like "q" would false-positive).
+func procMatchesBin(name, exe, cmdline, bin string) bool {
+	bin = strings.ToLower(bin)
+	if bin == "" {
+		return false
+	}
+	name = strings.ToLower(name)
+	if name == bin || name == bin+".exe" {
+		return true
+	}
+	base := strings.ToLower(filepath.Base(exe))
+	if base == bin || base == bin+".exe" {
+		return true
+	}
+	cmd := strings.ToLower(cmdline)
+	for _, sep := range []string{"/", "\\"} {
+		tok := sep + bin
+		if strings.HasSuffix(cmd, tok) || strings.Contains(cmd, tok+" ") ||
+			strings.HasSuffix(cmd, tok+".exe") || strings.Contains(cmd, tok+".exe ") {
+			return true
+		}
+	}
+	return false
 }
 
 func isDir(p string) bool {

@@ -179,10 +179,21 @@ type ActivityTypeResetPolicy struct {
 	Name     string  `json:"policy_name"`
 	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
 	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	// HostID and HostDisplayName are set only when the reset was scoped to a single host.
+	HostID          *uint   `json:"host_id,omitempty"`
+	HostDisplayName *string `json:"host_display_name,omitempty"`
 }
 
 func (a ActivityTypeResetPolicy) ActivityName() string {
 	return "reset_policy"
+}
+
+// HostIDs links a host-scoped reset to that host so it shows in the host's activity feed.
+func (a ActivityTypeResetPolicy) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
 }
 
 type ActivityTypeAppliedSpecPolicy struct {
@@ -408,6 +419,7 @@ type ActivityTypeChangedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	Role      string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserGlobalRole) ActivityName() string {
@@ -419,6 +431,7 @@ type ActivityTypeDeletedUserGlobalRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	OldRole   string `json:"role"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserGlobalRole) ActivityName() string {
@@ -432,6 +445,7 @@ type ActivityTypeChangedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
@@ -445,6 +459,7 @@ type ActivityTypeDeletedUserTeamRole struct {
 	Role      string `json:"role"`
 	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
@@ -461,12 +476,42 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 	return "fleet_enrolled"
 }
 
+// ActivityTypeHostEnrollmentRejected is recorded when an orbit or osquery
+// enrollment is refused by the one-time enroll secret rules. Emission is
+// rate-limited per host and reason by the service layer, since a stuck agent
+// retries every few minutes.
+type ActivityTypeHostEnrollmentRejected struct {
+	HostID          *uint  `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostSerial      string `json:"host_serial"`
+	HostUUID        string `json:"host_uuid"`
+	Platform        string `json:"platform"`
+	EnrollmentPlane string `json:"enrollment_plane"`
+	Reason          string `json:"reason"`
+}
+
+func (a ActivityTypeHostEnrollmentRejected) ActivityName() string {
+	return "host_enrollment_rejected"
+}
+
+// HostIDs links the activity to the targeted host's timeline when that host is known.
+func (a ActivityTypeHostEnrollmentRejected) HostIDs() []uint {
+	if a.HostID == nil {
+		return nil
+	}
+	return []uint{*a.HostID}
+}
+
+// WasFromAutomation marks the activity as Fleet-initiated: enrollment is
+// refused by the server, never by a user.
+func (a ActivityTypeHostEnrollmentRejected) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeMDMEnrolled struct {
-	// HostID is omitted when zero. It is always set for Apple enrollments and
-	// for Windows enrollments where the host is known at enrollment time;
-	// Windows Azure automatic enrollments are linked to their host later (via
-	// the serial reported on the first management session), so their
-	// enrollment activity has no host_id (see #47874).
+	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
+	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
+	// is deferred until the enrollment is linked to a host rather than recorded without one.
 	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
@@ -769,6 +814,20 @@ func (a ActivityTypeCreatedManagedLocalAccount) HostIDs() []uint {
 
 func (a ActivityTypeCreatedManagedLocalAccount) WasFromAutomation() bool {
 	return true
+}
+
+// ActivityTypeCreatedDiskEncryptionPIN records that the person at the keyboard set the host's BitLocker startup PIN.
+type ActivityTypeCreatedDiskEncryptionPIN struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCreatedDiskEncryptionPIN) ActivityName() string {
+	return "created_disk_encryption_pin"
+}
+
+func (a ActivityTypeCreatedDiskEncryptionPIN) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 type ActivityTypeViewedManagedLocalAccount struct {
@@ -1165,14 +1224,14 @@ func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool
 	return a.FleetInitiated
 }
 
-// ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
-// to rotate the managed local account password (the device acked the
-// SetAutoAdminPassword command with an error or command-format error). Always
-// attributed to Fleet — the failure is detected at ack time, outside any user
-// context, regardless of who originally initiated the rotation.
+// ActivityTypeFailedToRotateManagedLocalAccountPassword records that the device reported it could not rotate the
+// password. Always attributed to Fleet: the failure arrives from the device outside any user context.
 type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	// Detail is the reason the device reported, when it sent one. Only Windows reports one today: the macOS ack
+	// carries no reason beyond the command status, so the field is absent there rather than filled with a placeholder.
+	Detail string `json:"detail,omitempty"`
 }
 
 func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) ActivityName() string {
@@ -1305,7 +1364,8 @@ type ActivityTypeInstalledSoftware struct {
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
 	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
-	SkippedInstall bool `json:"skipped_install,omitempty"`
+	SkippedInstall  bool `json:"skipped_install,omitempty"`
+	PatchWhenClosed bool `json:"patch_when_closed"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1314,6 +1374,13 @@ func (a ActivityTypeInstalledSoftware) ActivityName() string {
 
 func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+// HostOnly hides patch-when-closed skips from the global activity feed; they
+// stay on the host activity feed. Skips fire on every policy re-eval while the
+// app is open, which is too noisy globally.
+func (a ActivityTypeInstalledSoftware) HostOnly() bool {
+	return a.SkippedInstall
 }
 
 func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
@@ -1330,6 +1397,30 @@ func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
 
 func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
 	return a.HostID, a.CommandUUID
+}
+
+type ActivityTypeNotifiedEndUserBeforePatching struct {
+	HostID                uint       `json:"host_id"`
+	HostDisplayName       string     `json:"host_display_name"`
+	PatchNotificationUUID string     `json:"patch_notification_uuid"`
+	SoftwareTitles        []string   `json:"software_titles"`
+	PolicyIDs             []uint     `json:"policy_ids"`
+	TimeBefore            int        `json:"time_before"`
+	InstallAt             *time.Time `json:"install_at"`
+	Status                string     `json:"status"`
+	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {
+	return "notified_end_user_before_patching"
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) WasFromAutomation() bool {
+	return len(a.PolicyIDs) > 0
 }
 
 type ActivityTypeUninstalledSoftware struct {
@@ -1439,8 +1530,9 @@ func (a ActivityTypeDeletedOrgLogo) ActivityName() string {
 }
 
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
+// If jit is true, the activities are marked as originating from JIT (just-in-time) SSO provisioning.
 func LogRoleChangeActivities(
-	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User, jit bool,
 ) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
 		if err := svc.NewActivity(
@@ -1451,6 +1543,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				Role:      *user.GlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1465,6 +1558,7 @@ func LogRoleChangeActivities(
 				UserName:  user.Name,
 				UserEmail: user.Email,
 				OldRole:   *oldGlobalRole,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1492,6 +1586,7 @@ func LogRoleChangeActivities(
 				Role:      t.Role,
 				TeamID:    t.ID,
 				TeamName:  t.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -1511,6 +1606,7 @@ func LogRoleChangeActivities(
 				Role:      o.Role,
 				TeamID:    o.ID,
 				TeamName:  o.Name,
+				JIT:       jit,
 			},
 		); err != nil {
 			return err
@@ -2596,4 +2692,16 @@ func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
 
 func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeEnabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "enabled_apple_business_only_enrollment"
+}
+
+type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
+
+func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
+	return "disabled_apple_business_only_enrollment"
 }
