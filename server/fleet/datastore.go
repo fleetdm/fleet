@@ -466,8 +466,9 @@ type Datastore interface {
 	// upsert. Returns a NotFoundError if no row owns the token.
 	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
-	// FailingPoliciesCount returns the number of failling policies for 'host'
-	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+	// FailingPoliciesCount returns the number of failing policies for 'host', in total and
+	// excluding hidden policies.
+	FailingPoliciesCount(ctx context.Context, host *Host) (total uint, unhidden uint, err error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -536,13 +537,9 @@ type Datastore interface {
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
 	// their corresponding nano_command_results entries for the given enrollment ID
-	// and REFETCH command prefix type that were sent and acknowledged/errored at
-	// least 30 days ago. The current command UUID is excluded from deletion.
-	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
-
-	// CleanupOrphanedNanoRefetchCommands deletes up to 100 REFETCH-prefixed nano_commands
-	// older than 30 days that have no remaining references in nano_enrollment_queue.
-	CleanupOrphanedNanoRefetchCommands(ctx context.Context) error
+	// and REFETCH command prefix type that were sent and acknowledged/errored
+	// more than olderThan ago. The current command UUID is excluded from deletion.
+	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, olderThan time.Duration) error
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
@@ -855,6 +852,8 @@ type Datastore interface {
 	// DeletePatchNotificationApps drops apps from a notification, so the reminder
 	// stops naming an app the end user already updated.
 	DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// GetPatchNotification returns a notification's patch row, or nil when it has none.
+	GetPatchNotification(ctx context.Context, notificationUUID string) (*PatchNotification, error)
 	// SetPatchNotificationInstallAt moves when the patch is forced out to installAt,
 	// never earlier, and returns the deadline in effect.
 	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
@@ -2911,8 +2910,8 @@ type Datastore interface {
 	// state needed by the batched Apple profile reconciler: the bounded host
 	// window (afterHostUUID, batchSize), every Apple profile with its label
 	// assignments, host↔label memberships for labels referenced by those
-	// profiles, and current host_mdm_apple_profiles rows for the host window.
-	// All reads run inside a single read-only MySQL transaction so they
+	// profiles, current host_mdm_apple_profiles rows and profile opt-ins for
+	// the host window. All reads run inside a single read-only MySQL transaction so they
 	// observe one snapshot. If the host window is empty the remaining slices
 	// and maps are nil. pageFull reports whether the underlying host page hit
 	// batchSize before same-UUID rows were deduplicated; cursor-paginating
@@ -2927,6 +2926,7 @@ type Datastore interface {
 		allProfiles []*AppleProfileForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleProfilePayload,
+		optInsByHost map[string]map[string]struct{},
 		pageFull bool,
 		err error,
 	)
@@ -4287,6 +4287,12 @@ type Datastore interface {
 	ClearABMTokenDefault(ctx context.Context) error
 	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
 	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
+	// ApplyHostMDMProfileOptInChanges runs Add then Purge in one transaction.
+	ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *MDMProfileOptInChanges) error
+
+	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
+	// host UUID -> profile UUID set.
+	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
 }
 
 type AndroidDatastore interface {

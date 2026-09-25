@@ -9,6 +9,7 @@ import {
   errorDeviceNotificationHandler,
   installingThenSettledDeviceNotificationHandler,
   notFoundDeviceNotificationHandler,
+  reminderThenInstallingDeviceNotificationHandler,
   settledDeviceNotificationHandler,
 } from "test/handlers/device-notifications-handlers";
 import mockServer from "test/mock-server";
@@ -225,6 +226,46 @@ describe("DeviceNotificationPage", () => {
     await waitFor(() => {
       expect(state.requestCount).toBe(settledRequestCount);
     });
+  });
+
+  it("a 5 minute reminder left open refetches at install_at and every 30 seconds after, and shows its queued installs as Updating...", async () => {
+    jest.useFakeTimers();
+    const {
+      handler,
+      state,
+    } = reminderThenInstallingDeviceNotificationHandler();
+    mockServer.use(handler);
+
+    renderPage();
+
+    expect(
+      await screen.findByRole("button", { name: "Update now" })
+    ).toBeInTheDocument();
+    expect(state.requestCount).toBe(1);
+
+    // skip refetching the reminder toast while its install_at is still ahead
+    jest.advanceTimersByTime(64000);
+    await waitFor(() => {
+      expect(state.requestCount).toBe(1);
+    });
+
+    // refetch the reminder toast at install_at and show no status because the installs are not queued
+    jest.advanceTimersByTime(1000);
+    await waitFor(() => {
+      expect(state.requestCount).toBe(2);
+    });
+    expect(screen.queryByText("Updating...")).not.toBeInTheDocument();
+
+    // skip refetching the reminder toast for the 30 seconds after install_at
+    jest.advanceTimersByTime(29000);
+    await waitFor(() => {
+      expect(state.requestCount).toBe(2);
+    });
+
+    // refetch the reminder toast 30 seconds after install_at and show the queued installs as Updating...
+    jest.advanceTimersByTime(1000);
+    expect((await screen.findAllByText("Updating...")).length).toBe(3);
+    expect(state.requestCount).toBe(3);
   });
 
   // The toast stays open on a terminal view: the end user closes it with Hide.

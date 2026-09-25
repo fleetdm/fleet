@@ -7,6 +7,12 @@ import (
 
 const PatchNotificationKind = "patch"
 
+// A row of patch_notifications. InstallAt is null until the first toast reaches the end user.
+type PatchNotification struct {
+	NotificationUUID string     `db:"notification_uuid"`
+	InstallAt        *time.Time `db:"install_at"`
+}
+
 type PatchNotificationApp struct {
 	PolicyID            *uint `db:"policy_id"`
 	SoftwareTitleID     uint  `db:"software_title_id"`
@@ -22,6 +28,7 @@ type PatchNotificationDue struct {
 	Payload          json.RawMessage `db:"payload"`
 	DisplayedAt      *time.Time      `db:"displayed_at"`
 	InstallAt        time.Time       `db:"install_at"`
+	HostOnline       bool            `db:"host_online"`
 }
 
 type PatchNotificationAppDetail struct {

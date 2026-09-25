@@ -1,0 +1,1 @@
+- Fixed "Reset policy" from a single automation run on the policy details page resetting the policy for all hosts instead of only that run's host.

@@ -1,0 +1,1 @@
+* Added a `hidden` option to fleet-level policies so admins can hide policies from end users in Fleet Desktop, and exposed a failing policies count that excludes hidden policies on the device endpoints.

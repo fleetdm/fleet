@@ -329,7 +329,8 @@ WHERE ` + whereTeam
 		return []*fleet.MDMCommand{}, nil, nil, nil
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
-		ds.logger.DebugContext(ctx, "list mdm commands: multiple hosts found for identifier",
+		ds.logger.DebugContext(
+			ctx, "list mdm commands: multiple hosts found for identifier",
 			"identifier", identifier, "count", len(dest),
 		)
 	}
@@ -355,7 +356,8 @@ WHERE ` + whereTeam
 	for _, h := range dest {
 		if prev, ok := byUUID[h.UUID]; ok {
 			// TODO: how should we handle this unexpected case?
-			ds.logger.DebugContext(ctx, "list mdm commands: multiple hosts found for identifier",
+			ds.logger.DebugContext(
+				ctx, "list mdm commands: multiple hosts found for identifier",
 				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
 				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
 			)
@@ -919,7 +921,8 @@ FROM (
 			switch {
 			case label.Exclude && label.RequireAll:
 				// this should never happen so log it for debugging
-				ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
+				ds.logger.DebugContext(
+					ctx, "unsupported profile label: cannot be both exclude and require all",
 					"profile_uuid", label.ProfileUUID,
 					"label_name", label.LabelName,
 				)
@@ -1247,7 +1250,8 @@ OR
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:
-			ds.logger.DebugContext(ctx, "tried to set profile status for a host with unsupported platform",
+			ds.logger.DebugContext(
+				ctx, "tried to set profile status for a host with unsupported platform",
 				"platform", h.Platform,
 				"host_uuid", h.UUID,
 			)
@@ -1478,6 +1482,13 @@ WHERE
 			mdm_configuration_profile_labels mcpl
 		WHERE
 			mcpl.apple_profile_uuid = macp.profile_uuid
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 
 UNION
@@ -1510,6 +1521,13 @@ WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1547,6 +1565,13 @@ WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 0
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1586,6 +1611,13 @@ WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1633,6 +1665,13 @@ WHERE
 	EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1685,6 +1724,13 @@ WHERE
 	EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1699,7 +1745,15 @@ HAVING
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID, host.ID, teamID, host.ID, host.ID, host.ID, teamID, host.ID, host.ID, host.ID, teamID); err != nil {
+	if err := sqlx.SelectContext(
+		ctx, ds.reader(ctx), &rows, stmt,
+		teamID, host.UUID,
+		host.ID, teamID, host.UUID,
+		host.ID, teamID, host.UUID,
+		host.ID, teamID, host.UUID,
+		host.ID, host.ID, host.ID, teamID, host.UUID,
+		host.ID, host.ID, host.ID, teamID, host.UUID,
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -3285,7 +3339,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
+		stmt := fmt.Sprintf(
+			`
 	    INSERT INTO host_mdm_managed_certificates (
               host_uuid,
               profile_uuid,
@@ -3368,7 +3423,8 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
 			if limit == 0 {
-				ds.logger.DebugContext(ctx, "skipping check of certificates hosts to renew, limit exceeded by prior platform",
+				ds.logger.DebugContext(
+					ctx, "skipping check of certificates hosts to renew, limit exceeded by prior platform",
 					"host_cert_type", hostCertType,
 					"host_platform", hostPlatform,
 				)
@@ -3414,7 +3470,8 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}
 			if len(hostCertsToRenew) == 0 {
-				ds.logger.DebugContext(ctx, "No certificates on hosts to renew",
+				ds.logger.DebugContext(
+					ctx, "No certificates on hosts to renew",
 					"host_cert_type", hostCertType,
 					"host_platform", hostPlatform,
 				)
