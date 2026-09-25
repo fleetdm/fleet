@@ -17564,6 +17564,14 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", *iPadHostID), nil, http.StatusOK, &getHostMDMResponse)
 	assert.Equal(t, fleet.MDMEnrollmentStatusPersonal, getHostMDMResponse.EnrollmentStatus)
 	assert.Equal(t, fleet.WellKnownMDMFleet, getHostMDMResponse.Name)
+
+	for _, hostID := range []uint{*iPhoneHostID, *iPadHostID} {
+		var macadminsData macadminsDataResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostID), nil, http.StatusOK, &macadminsData)
+		require.NotNil(t, macadminsData.Macadmins)
+		require.NotNil(t, macadminsData.Macadmins.MDM)
+		assert.Equal(t, fleet.MDMEnrollmentStatusPersonal, macadminsData.Macadmins.MDM.EnrollmentStatus)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
