@@ -27,18 +27,22 @@
     overflow: hidden;
   }
 
-  [purpose='hero-background-image'] {
-    background: url('/images/homepage-hero-2500x420@2x.png');
-    background-size: auto 329px;
-    background-repeat: no-repeat;
-    background-position-x: calc(~'100% + -50%');
-    background-position-y: top;
-  }
-
   [purpose='homepage-hero'] {
     padding: 64px;
     max-width: 1200px;
-    // height: 448px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 48px;
+  }
+  [purpose='hero-image'] {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 50%;
+    img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+    }
   }
   [purpose='ticker-container'] {
     overflow: hidden;
@@ -71,11 +75,15 @@
     }
   }
   [purpose='hero-text'] {
-    max-width: 640px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 50%;
+    display: flex;
+    flex-direction: column;
     text-align: left;
     h1 {
-      max-width: 640px;
-      font-size: 48px;
+      // Sized so the longest ticker option fits on one line in a half-width column.
+      font-size: 40px;
       margin-bottom: 32px;
     }
     // Unlike the centered bottom CTA ticker, the hero ticker is left aligned and sized in ems so it scales with the heading.
@@ -956,9 +964,9 @@
     }
 
     [purpose='hero-text'] {
-      max-width: 500px;
       h1 {
-        font-size: 40px;
+        // Scales with the half-width column so the longest ticker option fits on one line.
+        font-size: ~'min(40px, calc((100vw - 144px) / 25))';
       }
     }
     [purpose='hero-quote'] {
@@ -1047,11 +1055,30 @@
     [purpose='homepage-hero'] {
       max-width: 100%;
       padding: 48px 32px;
-      // height: 418px;
+      flex-direction: column;
     }
-    [purpose='hero-background-image'] {
-      // background-size: auto 400px;
-      background-position: calc(~'100% + -56%') top;
+    [purpose='hero-text'] {
+      max-width: 100%;
+      width: 100%;
+      text-align: center;
+      h1 {
+        font-size: 48px;
+        margin-bottom: 24px;
+      }
+      [purpose='ticker-container'] {
+        margin: 0 auto;
+      }
+      [purpose='hero-subtitle'] {
+        max-width: 600px;
+        margin: 0 auto 24px;
+      }
+      [purpose='button-row'] {
+        justify-content: center;
+      }
+    }
+    [purpose='hero-image'] {
+      max-width: 600px;
+      width: 100%;
     }
 
     [purpose='homepage-content'] {
@@ -1265,37 +1292,12 @@
       font-size: 48px;
     }
 
-    [purpose='homepage-hero'] {
-      // height: 100%;
-      // padding: 48px 27px 330px 24px;
-      height: 600px;
-    }
-    [purpose='hero-container'] {
-      background: linear-gradient(180deg, #FFF 0%, #EEF7F8 150px);
-    }
-    [purpose='hero-background-image'] {
-      background: url('/images/homepage-hero-sm-767x347@2x.png');
-      background-size: auto 347px;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
     [purpose='hero-text'] {
-      width: 100%;
-      max-width: 100%;
       h1 {
-        text-align: center;
-        max-width: none;
         // Sized so the longest ticker option still fits on one line.
         font-size: ~'min(48px, 7vw)';
-        margin: 0 auto 24px;
-      }
-      [purpose='hero-subtitle'] {
-        text-align: center;
-        max-width: 600px;
-        margin: 0 auto 24px;
       }
       [purpose='button-row'] {
-        justify-content: center;
         [purpose='cta-button'] {
           width: unset;
         }
@@ -1502,7 +1504,6 @@
       padding-top: 32px;
       padding-left: 16px;
       padding-right: 16px;
-      height: 600px;
     }
 
     [purpose='hero-text'] {
@@ -1582,9 +1583,6 @@
         border-bottom: 1px solid #E2E4EA;
         border-right: none;
       }
-    }
-    [purpose='hero-background-image'] {
-      background-size: auto 337px;
     }
     [purpose='hero-text'] {
       [purpose='button-row'] {
@@ -1716,13 +1714,7 @@
     [purpose='homepage-hero'] {
       padding-top: 44px;
       padding-left: 16px;
-      padding-right: 17px;
-      padding-bottom: 240px;
-      height: unset;
-    }
-
-    [purpose='hero-background-image'] {
-      background-size: auto 265px;
+      padding-right: 16px;
     }
 
     [purpose='hero-text'] {
