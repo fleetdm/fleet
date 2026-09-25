@@ -1,0 +1,1 @@
+- Removed the startup health check (`/services/collector/health`) from the native Splunk HEC log destination, so Fleet no longer fails to start when only the HEC event endpoint is reachable.
