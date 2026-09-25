@@ -178,10 +178,11 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 		SecretsUpdatedAt  sql.NullTime       `db:"secrets_updated_at"`
 		Scope             fleet.PayloadScope `db:"scope"`
 		SelfService       bool               `db:"self_service"`
+		Hidden            bool               `db:"hidden"`
 	}
 
 	profStmt := `
-		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope, self_service
+		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope, self_service, hidden
 		FROM mdm_apple_configuration_profiles WHERE %s
 	`
 	var whereFilters string
@@ -227,6 +228,7 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			Checksum:          r.Checksum,
 			Scope:             r.Scope,
 			SelfService:       r.SelfService,
+			Hidden:            r.Hidden,
 		}
 		if r.SecretsUpdatedAt.Valid {
 			t := r.SecretsUpdatedAt.Time
