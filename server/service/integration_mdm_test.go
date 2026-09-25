@@ -27652,10 +27652,32 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// --- mac: the end user renames the device -> drift -> failed ---
+	// --- mac: the end user renames the device -> drift -> re-enforced ---
 	submitSystemInfo("Renamed by user")
-	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
-	require.Contains(t, driftedRow.Detail, "renamed on the device")
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	reenforcedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotEqual(t, *macRow.CommandUUID, *reenforcedRow.CommandUUID)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, *reenforcedRow.CommandUUID, cmd.CommandUUID)
+	var reenforceCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &reenforceCmd))
+	require.Len(t, reenforceCmd.Command.Settings, 1)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, reenforceCmd.Command.Settings[0].DeviceName)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
 	// --- iOS: ack then verify through the DeviceInformation refetch path ---
 	cmd, err = iosDevice.Idle()
@@ -27666,24 +27688,40 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, err)
 	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+	refetchIOS := func(deviceName string) {
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+		cmd, err := iosDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "CertificateList":
+				cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+			case "DeviceInformation":
+				cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+					deviceName, "iPhone14,6", "America/Los_Angeles")
+			default:
+				cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+	}
+	refetchIOS("WS-" + iosHost.HardwareSerial)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- iOS: the end user renames the device -> drift -> re-enforced ---
+	refetchIOS("Renamed by user")
+	requireRowStatus(iosHost.UUID, nil)
+	runDeviceNameCron()
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryPending)
 	cmd, err = iosDevice.Idle()
 	require.NoError(t, err)
-	for cmd != nil {
-		switch cmd.Command.RequestType {
-		case "InstalledApplicationList":
-			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "CertificateList":
-			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
-		case "DeviceInformation":
-			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
-				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
-		default:
-			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
-		}
-		require.NoError(t, err)
-	}
-	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
 
 	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
 	cmd, err = iosFailDevice.Idle()
@@ -27720,6 +27758,9 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.Nil(t, cmd)
 
 	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// The mac already carries the template name, so rename it off-template (its
+	// failed row ignores the report) to make the cron send a command.
+	submitSystemInfo("Renamed by user")
 	// re-save the resolvable template to queue rows again
 	s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
@@ -27950,18 +27991,20 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	submitSystemInfo("WS-" + macHost.HardwareSerial)
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
 
-	// end user renames the device off-template → drift → failed
+	// end user renames the device off-template → drift → re-queued
 	submitSystemInfo("Renamed by user")
-	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	requireRowStatus(macHost.UUID, nil)
 
 	// --- host detail exposes the host_name object for the No-team host ---
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
-	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+	require.Equal(t, fleet.HostNameSettingPending, getHostResp.Host.MDM.OSSettings.HostName.Status)
 
 	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	// Queued rows can't be resent, so first simulate the device rejecting a command.
+	require.NoError(t, s.ds.SetHostDeviceNameStatus(ctx, macHost.UUID, fleet.MDMDeliveryFailed, nil, "", "rejected"))
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
 	requireRowStatus(macHost.UUID, nil) // reset to queued
 

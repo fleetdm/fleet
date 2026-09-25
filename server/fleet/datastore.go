@@ -2104,16 +2104,17 @@ type Datastore interface {
 	// host's current name as observed at a name-ingestion site: the DeviceName in
 	// the iOS/iPadOS refetch result, or computer_name from macOS osquery
 	// system_info. It only acts on rows in the verifying or verified state: a
-	// match moves the row to verified; a mismatch moves it to failed (drift). Rows
-	// in any other state, or hosts with no row, are left untouched.
+	// match moves the row to verified; a mismatch (drift) re-queues the row, like
+	// ResendHostDeviceName, so the template is re-enforced. It reports whether the
+	// row was re-queued for drift. Rows in any other state, or hosts with no row,
+	// are left untouched.
 	//
 	// A mismatch on a row that entered verifying only recently is ignored (the
 	// row stays verifying): a report generated before the device applied the
 	// rename can arrive after the acknowledgment and still carry the old name,
-	// and treating it as drift would strand the host at failed until an explicit
-	// resend. The stale window is the agent's collect-to-submit latency, so a
-	// small fixed grace covers it.
-	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error
+	// and treating it as drift would send a needless rename. The stale window is
+	// the agent's collect-to-submit latency, so a small fixed grace covers it.
+	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) (bool, error)
 
 	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the
 	// given host, or a not-found error if the host has no row.
