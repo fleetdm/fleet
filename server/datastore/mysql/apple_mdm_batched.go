@@ -427,6 +427,7 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 	allProfiles []*fleet.AppleProfileForReconcile,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
+	optInsByHost map[string]map[string]struct{},
 	pageFull bool,
 	err error,
 ) {
@@ -476,12 +477,17 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 		}
 
 		currentByHost, inner = ds.bulkGetHostMDMAppleProfilesByUUIDsTransaction(ctx, tx, hostUUIDs)
+		if inner != nil {
+			return inner
+		}
+
+		optInsByHost, inner = ds.bulkGetHostMDMProfileOptInsTransaction(ctx, tx, hostUUIDs)
 		return inner
 	})
 	if err != nil {
-		return nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
+		return nil, nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
 	}
-	return hosts, allProfiles, hostLabels, currentByHost, pageFull, nil
+	return hosts, allProfiles, hostLabels, currentByHost, optInsByHost, pageFull, nil
 }
 
 // GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used by

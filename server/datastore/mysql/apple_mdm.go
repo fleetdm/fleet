@@ -9055,6 +9055,14 @@ func (ds *Datastore) ApplyHostMDMProfileOptInChanges(ctx context.Context, change
 }
 
 func (ds *Datastore) BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error) {
+	return ds.bulkGetHostMDMProfileOptInsTransaction(ctx, ds.reader(ctx), hostUUIDs)
+}
+
+func (ds *Datastore) bulkGetHostMDMProfileOptInsTransaction(
+	ctx context.Context,
+	tx common_mysql.DBReadTx,
+	hostUUIDs []string,
+) (map[string]map[string]struct{}, error) {
 	out := make(map[string]map[string]struct{}, len(hostUUIDs))
 	if len(hostUUIDs) == 0 {
 		return out, nil
@@ -9078,7 +9086,7 @@ func (ds *Datastore) BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs 
 			HostUUID    string `db:"host_uuid"`
 			ProfileUUID string `db:"profile_uuid"`
 		}
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, q, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "select host mdm profile opt-ins")
 		}
 

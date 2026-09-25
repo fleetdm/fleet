@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -1004,9 +1003,6 @@ func ReconcileProfilesForEnrollingHost(
 	hostUUID string,
 	certProfilesLimit int,
 ) ([]string, error) {
-	// Require primary here for enrollment to ensure no read-write races can happen.
-	ctx = ctxdb.RequirePrimary(ctx, true)
-
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reading app config: %w", err)
@@ -1113,8 +1109,6 @@ func PendingProfilesForHost(
 	ds fleet.Datastore,
 	hostUUID string,
 ) (toInstall, toRemove []*fleet.MDMAppleProfilePayload, err error) {
-	// Require primary here for enrollment to ensure no read-write races can happen.
-	ctx = ctxdb.RequirePrimary(ctx, true)
 	host, err := ds.GetAppleMDMHostForReconcile(ctx, hostUUID)
 	if err != nil || host == nil {
 		return nil, nil, err

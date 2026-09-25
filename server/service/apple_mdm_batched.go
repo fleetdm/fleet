@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -53,8 +52,6 @@ func ReconcileAppleProfilesBatched(
 	certProfilesLimit int,
 	useOneTimeEnrollSecrets bool,
 ) (err error) {
-	// Require primary here for reconciling apple profiles, to avoid read-write races and stale opt-in installs
-	ctx = ctxdb.RequirePrimary(ctx, true)
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -120,7 +117,7 @@ func ReconcileAppleProfilesBatched(
 	deliveredHosts := 0
 
 	for {
-		hosts, allProfiles, hostLabels, currentByHost, pageFull, serr := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
+		hosts, allProfiles, hostLabels, currentByHost, optInsByHost, pageFull, serr := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
 		if serr != nil {
 			err = ctxerr.Wrap(ctx, serr, "loading apple profile reconcile snapshot")
 			return err
@@ -141,16 +138,6 @@ func ReconcileAppleProfilesBatched(
 			if p.HasBrokenLabel() {
 				profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
 			}
-		}
-
-		hostUUIDs := make([]string, 0, len(hosts))
-		for _, h := range hosts {
-			hostUUIDs = append(hostUUIDs, h.UUID)
-		}
-		optInsByHost, oerr := ds.BulkGetHostMDMProfileOptIns(ctx, hostUUIDs)
-		if oerr != nil {
-			err = oerr
-			return err
 		}
 
 		toInstall, toRemove, optInChanges := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel, optInsByHost)

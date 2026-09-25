@@ -1646,7 +1646,7 @@ type BulkGetHostLabelMembershipsFunc func(ctx context.Context, hostIDs []uint, l
 
 type BulkGetHostMDMAppleProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error)
 
-type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error)
+type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, optInsByHost map[string]map[string]struct{}, pageFull bool, err error)
 
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -11860,7 +11860,7 @@ func (s *DataStore) BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, host
 	return s.BulkGetHostMDMAppleProfilesByUUIDsFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, pageFull bool, err error) {
+func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, optInsByHost map[string]map[string]struct{}, pageFull bool, err error) {
 	s.mu.Lock()
 	s.GetAppleProfileReconcileSnapshotFuncInvoked = true
 	s.mu.Unlock()
