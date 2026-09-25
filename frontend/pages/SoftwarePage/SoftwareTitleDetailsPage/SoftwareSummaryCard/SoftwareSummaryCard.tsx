@@ -156,12 +156,16 @@ const SoftwareSummaryCard = ({
   // because a Fleet-maintained app uploaded as a custom package still counts
   // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
   // by their dominant source; Custom package is the catch-all fallback.
-  const installerKindLabel = ([
-    [isFleetMaintainedApp, "Fleet-maintained"],
-    [isAppleVpp, "App Store (VPP)"],
-    [isAndroidPlayStoreApp, "Play Store"],
-    [isCustomPackage, customPackageChipLabel],
-  ] as const).find(([flag]) => flag)?.[1];
+  // Hidden on "All fleets": the kind derives from the backend's arbitrary-team
+  // installer pick, so it's not a reliable aggregate fact either.
+  const installerKindLabel = hasValidTeamId
+    ? ([
+        [isFleetMaintainedApp, "Fleet-maintained"],
+        [isAppleVpp, "App Store (VPP)"],
+        [isAndroidPlayStoreApp, "Play Store"],
+        [isCustomPackage, customPackageChipLabel],
+      ] as const).find(([flag]) => flag)?.[1]
+    : undefined;
 
   // Titles that can hold multiple custom packages move Self-service and
   // Auto-install/Patch indicators down to per-row icons on the Library

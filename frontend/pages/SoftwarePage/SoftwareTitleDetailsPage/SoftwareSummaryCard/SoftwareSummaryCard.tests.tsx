@@ -839,10 +839,10 @@ describe("Software Summary Card", () => {
       expect(screen.getByText("Schedule auto updates")).toBeInTheDocument();
     });
 
-    it("hides the Self-service / Auto install / Auto updates chips on 'All fleets' (#54081)", () => {
-      // Backend returns team-scoped state (self_service, policies,
-      // auto_update_enabled) from an arbitrary team on nil teamID; we hide
-      // rather than mislabel one team's config as an "All fleets" fact.
+    it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets' (#54081)", () => {
+      // Every pill derives from `app_store_app` / `software_package`, which
+      // the backend fills from an arbitrary team on nil teamID; we hide the
+      // row rather than mislabel one team's data as an "All fleets" fact.
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitleDetails({
@@ -860,8 +860,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      // Kind pill stays — VPP is a title-level fact.
-      expect(screen.getByText("App Store (VPP)")).toBeInTheDocument();
+      expect(screen.queryByText("App Store (VPP)")).not.toBeInTheDocument();
       expect(screen.queryByText("Self service")).not.toBeInTheDocument();
       expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
       expect(screen.queryByText("Auto updates")).not.toBeInTheDocument();
