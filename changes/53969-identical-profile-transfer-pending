@@ -1,0 +1,1 @@
+- Fixed a bug where moving an Apple host between fleets that have an identical configuration profile, while that profile was still pending on the host, left the profile stuck in "Enforcing (pending)" for up to 2 hours.
