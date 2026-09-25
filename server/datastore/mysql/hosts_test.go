@@ -16007,6 +16007,21 @@ func testHostMDMPersonalEnrollmentType(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.True(t, didEnroll)
 		requireRow(t, byod.Host.ID, fleet.PersonalEnrollmentTypeWorkProfile, fleet.MDMEnrollmentStatusPersonal)
+
+		// The stored type is carried through as-is, not recomputed from ownership.
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_mdm SET enrolled = 0, personal_enrollment_type = 'manual_profile' WHERE host_id = ?`, byod.Host.ID)
+		require.NoError(t, err)
+		didEnroll, err = ds.SetAndroidHostEnrolled(ctx, byod.Host.ID)
+		require.NoError(t, err)
+		require.True(t, didEnroll)
+		requireRow(t, byod.Host.ID, fleet.PersonalEnrollmentTypeManualProfile, fleet.MDMEnrollmentStatusManualPersonal)
+
+		require.NoError(t, ds.UpdateMDMData(ctx, cobo.Host.ID, false))
+		didEnroll, err = ds.SetAndroidHostEnrolled(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, didEnroll)
+		requireRow(t, cobo.Host.ID, fleet.PersonalEnrollmentTypeNone, fleet.MDMEnrollmentStatusAutomatic)
 	})
 
 	var mismatched int

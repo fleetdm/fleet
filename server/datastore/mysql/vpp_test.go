@@ -3907,7 +3907,7 @@ func testVPPInstallEnrollmentChannelRouting(t *testing.T, ds *Datastore) {
 		// Account-Driven User Enrollment: the primary enrollment row (id = host
 		// UUID) is type "User Enrollment (Device)".
 		nanoEnrollUserDevice(t, ds, host)
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeAccountDriven))
 
 		commandXML := enqueueAndReadCommand(t, host, "adue-cmd")
 		require.NotContains(t, commandXML, "<key>ChangeManagementState</key>",
