@@ -1,0 +1,1 @@
+- Updated the report **Interval** help text and the reports guide to explain that the interval counts time the host is awake, so hosts that sleep may report less often.
