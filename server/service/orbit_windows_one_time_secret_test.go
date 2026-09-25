@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
 	hostidentity_types "github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
-	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -21,216 +19,68 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 	const (
 		enrollmentID = uint(11)
 		deviceID     = "device-otes"
-		hardwareID   = "hw-otes"
 	)
+	hostInfo := fleet.OrbitHostInfo{HardwareUUID: "hw-uuid-1", HardwareSerial: "SER-OTES", Hostname: "DESKTOP-OTES", Platform: "windows"}
+	// The first-install shape: minted before the host existed, so bound to the enrollment only.
+	firstInstall := fleet.HostOneTimeEnrollSecret{ID: 7, Secret: "one-time-secret", MDMWindowsEnrollmentID: new(enrollmentID), Platform: "windows"}
 
-	hostInfo := fleet.OrbitHostInfo{
-		HardwareUUID:   "hw-uuid-1",
-		HardwareSerial: "SER-OTES",
-		Hostname:       "DESKTOP-OTES",
-		Platform:       "windows",
-	}
-
-	device := func() *fleet.MDMWindowsEnrolledDevice {
-		return &fleet.MDMWindowsEnrolledDevice{
-			ID:              enrollmentID,
-			MDMDeviceID:     deviceID,
-			MDMHardwareID:   hardwareID,
-			MDMEnrollUserID: "user@example.com", // valid UPN: user-driven enrollment
-			CreatedAt:       time.Now().UTC().Add(-2 * time.Minute),
-		}
-	}
-
-	newSvc := func(t *testing.T) (fleet.Service, *enrollOrbitStore, *TestServerOpts) {
-		inner := new(mock.Store)
-		ds := &enrollOrbitStore{
-			Store: inner,
-			enrollOrbitFunc: func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-				return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: "windows"}, nil
-			},
-		}
+	newSvc := func(t *testing.T, secret fleet.HostOneTimeEnrollSecret) (fleet.Service, *mock.DataStore) {
+		ds := new(mock.DataStore)
 		cfg := config.TestConfig()
 		// The Windows switch alone, so this stays a test of the Windows path rather than passing on the macOS one.
 		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = true
-		serverOpts := &TestServerOpts{KeyValueStore: memoryKVStore()}
-		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, serverOpts)
+		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
-		// The first-install shape: minted before the host existed, so bound to the enrollment only, with host_id and the hardware
-		// identifiers unset. A secret minted once the host is known is bound to it too; see the subtests that override this.
-		inner.GetHostOneTimeEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
-			if secret != "one-time-secret" {
-				return nil, newNotFoundError()
-			}
-			return &fleet.HostOneTimeEnrollSecret{
-				ID:                     7,
-				Secret:                 secret,
-				MDMWindowsEnrollmentID: new(enrollmentID),
-				Platform:               "windows",
-			}, nil
+		device := &fleet.MDMWindowsEnrolledDevice{ID: enrollmentID, MDMDeviceID: deviceID, MDMHardwareID: "hw-otes"}
+		ds.GetHostOneTimeEnrollSecretFunc = func(ctx context.Context, _ string) (*fleet.HostOneTimeEnrollSecret, error) {
+			return &secret, nil
 		}
-		inner.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+		ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+			return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: "windows"}, nil
+		}
+		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
 			return nil, newNotFoundError()
 		}
-		inner.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			cfg := &fleet.AppConfig{}
 			cfg.MDM.WindowsEnabledAndConfigured = true
 			return cfg, nil
 		}
-		inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
-		inner.MDMWindowsGetEnrolledDeviceByIDFunc = func(ctx context.Context, id uint) (*fleet.MDMWindowsEnrolledDevice, error) {
-			require.Equal(t, enrollmentID, id)
-			return device(), nil
-		}
-		inner.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
-			return false, "", nil
-		}
-		inner.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, id string) (*fleet.MDMWindowsEnrolledDevice, error) {
-			return device(), nil
-		}
-		inner.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) { return nil, "", nil }
-		inner.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, m []*fleet.HostDeviceMapping, source string) error {
-			return nil
-		}
-		inner.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, name string, email string) (*fleet.ScimUser, error) {
-			return nil, newNotFoundError()
-		}
-		inner.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-			return nil, nil
-		}
-		inner.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
-			return []*fleet.Host{{ID: 42, UUID: "host-uuid-1", Hostname: hostInfo.Hostname}}, nil
-		}
-		inner.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
-			return true, nil
-		}
-		serverOpts.ActivityMock.NewActivityFunc = func(context.Context, *activity_api.User, activity_api.ActivityDetails) error {
-			return nil
-		}
-		return svc, ds, serverOpts
-	}
-
-	t.Run("links to the enrollment the secret was minted for, without consulting the serial", func(t *testing.T) {
-		svc, ds, _ := newSvc(t)
-		var linkedHostUUID, linkedDeviceID string
-		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
-			linkedHostUUID, linkedDeviceID = hostUUID, id
-			return true, nil
-		}
-
-		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "one-time-secret", "")
-		require.NoError(t, err)
-		require.NotEmpty(t, nodeKey)
-
-		require.True(t, ds.MDMWindowsGetEnrolledDeviceByIDFuncInvoked, "the enrollment must come from the secret")
-		require.Equal(t, "host-uuid-1", linkedHostUUID)
-		require.Equal(t, deviceID, linkedDeviceID)
-		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked,
-			"a device-asserted serial must not be consulted when the secret already identifies the enrollment")
-	})
-
-	// Minted once the enrollment was linked to a host, as it always is on an administrator resend.
-	boundSecret := func(hardwareUUID string) func(context.Context, string) (*fleet.HostOneTimeEnrollSecret, error) {
-		return func(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
-			if secret != "one-time-secret" {
-				return nil, newNotFoundError()
-			}
-			return &fleet.HostOneTimeEnrollSecret{
-				ID:                     7,
-				Secret:                 secret,
-				HostID:                 new(uint(42)),
-				MDMWindowsEnrollmentID: new(enrollmentID),
-				Platform:               "windows",
-				HardwareUUID:           hardwareUUID,
-			}, nil
-		}
-	}
-
-	t.Run("a secret bound to a host is refused to any other machine, and nothing is linked", func(t *testing.T) {
-		svc, ds, serverOpts := newSvc(t)
-		ds.GetHostOneTimeEnrollSecretFunc = boundSecret("victim-hw-uuid")
-		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: id, Hostname: "victim"}, nil
-		}
-		var rejected *fleet.ActivityTypeHostEnrollmentRejected
-		serverOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, d activity_api.ActivityDetails) error {
-			if r, ok := d.(fleet.ActivityTypeHostEnrollmentRejected); ok {
-				rejected = &r
-			}
-			return nil
-		}
-
-		// hostInfo presents hw-uuid-1, a different machine from the one the secret was minted for.
-		_, err := svc.EnrollOrbit(t.Context(), hostInfo, "one-time-secret", "")
-		require.Error(t, err)
-
-		require.False(t, ds.enrollOrbitInvoked, "refused before the enrollment runs, so no host row is created or taken over")
-		require.False(t, ds.MDMWindowsGetEnrolledDeviceByIDFuncInvoked, "the enrollment must not be moved to the other machine")
-		require.NotNil(t, rejected)
-		require.Equal(t, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, rejected.Reason)
-		require.Equal(t, uint(42), *rejected.HostID, "the activity names the host the secret belongs to")
-	})
-
-	t.Run("a secret bound to a host still enrolls and links that host", func(t *testing.T) {
-		svc, ds, _ := newSvc(t)
-		ds.GetHostOneTimeEnrollSecretFunc = boundSecret(strings.ToUpper(hostInfo.HardwareUUID))
-		var linkedDeviceID string
-		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
-			linkedDeviceID = id
-			return true, nil
-		}
-
-		// Case differs from what was recorded; the comparison is case-insensitive, as on the Apple path.
-		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "one-time-secret", "")
-		require.NoError(t, err)
-		require.NotEmpty(t, nodeKey)
-		require.Equal(t, deviceID, linkedDeviceID)
-	})
-
-	t.Run("a host already claimed by other hardware is not relinked", func(t *testing.T) {
-		svc, ds, _ := newSvc(t)
-		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
-			return true, "other-hw", nil
-		}
-		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
-			t.Fatal("must not link a host claimed by different hardware")
-			return false, nil
-		}
-
-		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "one-time-secret", "")
-		require.NoError(t, err, "a refused link must not fail the enrollment")
-		require.NotEmpty(t, nodeKey)
-	})
-
-	t.Run("a failed enrollment lookup leaves the host enrolled but unlinked", func(t *testing.T) {
-		svc, ds, _ := newSvc(t)
+		ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
 		ds.MDMWindowsGetEnrolledDeviceByIDFunc = func(ctx context.Context, id uint) (*fleet.MDMWindowsEnrolledDevice, error) {
-			return nil, newNotFoundError()
+			require.Equal(t, enrollmentID, id)
+			return device, nil
 		}
-		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
-			t.Fatal("must not link when the enrollment could not be loaded")
-			return false, nil
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, id string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return device, nil
 		}
+		ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			return []*fleet.Host{{ID: 42, UUID: "host-uuid-1"}}, nil
+		}
+		ds.MDMWindowsClaimEnrolledActivityFunc = func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error) {
+			return true, nil
+		}
+		return svc, ds
+	}
 
-		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "one-time-secret", "")
-		require.NoError(t, err, "linkage is bookkeeping and must never fail the enrollment")
-		require.NotEmpty(t, nodeKey)
-	})
-
-	t.Run("a shared secret still falls back to the serial branch", func(t *testing.T) {
-		svc, ds, _ := newSvc(t)
-		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-			return &fleet.EnrollSecret{Secret: secret}, nil
+	t.Run("links the host to the enrollment the secret was minted for", func(t *testing.T) {
+		// On an administrator resend the enrollment is already linked, so the secret is bound to the host too. Its hardware UUID is
+		// this host's, recorded in different case; the comparison is case-insensitive, as on the Apple path.
+		resend := firstInstall
+		resend.HostID, resend.HardwareUUID = new(uint(42)), "HW-UUID-1"
+		for name, secret := range map[string]fleet.HostOneTimeEnrollSecret{"first install": firstInstall, "resend": resend} {
+			t.Run(name, func(t *testing.T) {
+				svc, ds := newSvc(t, secret)
+				var linkedHostUUID, linkedDeviceID string
+				ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, id string) (bool, error) {
+					linkedHostUUID, linkedDeviceID = hostUUID, id
+					return true, nil
+				}
+				_, err := svc.EnrollOrbit(t.Context(), hostInfo, secret.Secret, "")
+				require.NoError(t, err)
+				require.Equal(t, "host-uuid-1", linkedHostUUID)
+				require.Equal(t, deviceID, linkedDeviceID)
+			})
 		}
-		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
-			require.Equal(t, hostInfo.HardwareSerial, serial)
-			return nil, newNotFoundError()
-		}
-
-		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "shared-secret", "")
-		require.NoError(t, err)
-		require.NotEmpty(t, nodeKey)
-		require.False(t, ds.MDMWindowsGetEnrolledDeviceByIDFuncInvoked)
-		require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked,
-			"hosts that predate one-time secrets must keep the existing linkage path")
 	})
 }

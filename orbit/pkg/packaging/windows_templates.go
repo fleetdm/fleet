@@ -56,16 +56,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
 
     <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
-    <!--
-      Hidden keeps the enroll secret out of verbose MSI logs: WiX turns it into an MsiHiddenProperties entry, which authoring
-      directly is a candle error (CNDL0070, "special MSI properties cannot be authored"). Fleet MDM passes the secret on the
-      msiexec command line, so without this /l*v writes it in cleartext.
-
-      CA_UpdateSecret below needs no Property of its own: HideTarget on that action makes WiX list CA_UpdateSecret in
-      MsiHiddenProperties too, which is what hides the SetProperty line that formats the secret into it. The built MSI's
-      MsiHiddenProperties is "CA_UpdateSecret;FLEET_SECRET", and an install with the secret on the command line logs it
-      nowhere under /l*v.
-    -->
     <Property Id="FLEET_SECRET" Value="dummy" Hidden="yes"/>
     <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
 	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>

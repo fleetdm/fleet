@@ -200,7 +200,9 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 }
 
 // linkWindowsEnrollmentFromOneTimeSecret links the enrolling host to the Windows MDM enrollment its one-time enroll secret was
-// minted for. Failures here are logged, not returned. Linkage is post-enrollment bookkeeping, and enroll checks happen earlier.
+// minted for. Failures here are logged, not returned. Linkage is post-enrollment bookkeeping, and enroll checks happen earlier:
+// consumption already refused a host that another Windows MDM enrollment claims, so unlike the serial branch this needs no
+// conflict check of its own.
 func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, host *fleet.Host, enrollmentID uint) {
 	// The primary: this runs during enrollment, moments after the rows involved were written, and a replica could miss them.
 	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctxdb.RequirePrimary(ctx, true), enrollmentID)
@@ -208,19 +210,6 @@ func (svc *Service) linkWindowsEnrollmentFromOneTimeSecret(ctx context.Context, 
 		svc.logger.ErrorContext(ctx, "failed to load windows mdm enrollment for one-time enroll secret linkage",
 			"err", err, "host_uuid", host.UUID, "enrollment_id", enrollmentID)
 		ctxerr.Handle(ctx, err)
-		return
-	}
-
-	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
-	switch {
-	case err != nil:
-		svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment during one-time secret linkage",
-			"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
-		ctxerr.Handle(ctx, err)
-		return
-	case conflicted:
-		svc.logger.WarnContext(ctx, "refusing to link windows mdm enrollment to a host already claimed by other hardware",
-			"host_uuid", host.UUID, "device_id", device.MDMDeviceID, "claimed_by_hardware_id", conflictingHardwareID)
 		return
 	}
 
