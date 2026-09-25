@@ -299,7 +299,41 @@ describe("getDetailOutputText for notify rows", () => {
     expect(text).toMatch(/patches it after 1 hour/);
   });
 
-  it("falls through to activity.output for a notify failure row", () => {
+  it("renders the exit-code reason for a screen-locked notify failure (#53769)", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 41,
+          },
+        })
+      )
+    ).toMatch(/screen was locked/i);
+  });
+
+  it("renders the deferred sentence for a notify failure with no script execution id", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+          },
+        })
+      )
+    ).toMatch(/Another notification was displayed/);
+  });
+
+  it("falls through to activity.output for a notify failure with an unmapped exit code", () => {
     expect(
       getDetailOutputText(
         mockActivity({
@@ -310,6 +344,8 @@ describe("getDetailOutputText for notify rows", () => {
             policy_id: 123,
             software_title: "1Password",
             time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 99,
           },
         })
       )
