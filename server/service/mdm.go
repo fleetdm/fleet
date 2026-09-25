@@ -824,9 +824,7 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
 
-	// Host-secret placeholders are Fleet's to write, never an admin's: getPendingMDMCmds expands them per enrollment at
-	// delivery, so one here would have Fleet inject that device's secret into a payload of the caller's choosing, and an
-	// unsupported type would fail expansion for every pending command on the device. Profile uploads already refuse them.
+	// Host-secret placeholders are Fleet's to write, never an admin's
 	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command")
 	}
@@ -3812,8 +3810,7 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 	}
 
 	// With one-time enroll secrets, resending the profile that carries one mints a new enrollment credential for the device,
-	// which is an admin decision. On Windows this is the whole recovery story: the MSI's fixed product GUID means a resent
-	// install never re-runs, so an admin resending this profile is the only way a host whose secret was spent gets another.
+	// which is an admin decision.
 	if deliversOneTimeEnrollSecret(svc.config.Auth, profileUUID, profileName) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
 			fmt.Sprintf("The %s profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.", profileName)).

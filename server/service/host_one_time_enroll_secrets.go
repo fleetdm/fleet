@@ -172,9 +172,8 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 		if secretType != fleet.HostSecretEnrollSecret {
 			return "", ctxerr.Errorf(ctx, "host secret type %s is not supported on Windows", secretType)
 		}
-		// The primary: the fleetd install and the push to a deleted host's enrollment are minted and delivered in the same
-		// management session, so a replica even slightly behind would resolve to nothing. A resend is minted well before its
-		// delivery, but the command does not say which case it is, and only documents carrying the placeholder get this far.
+		// Using primary: the fleetd install and the push to a deleted host's enrollment are minted and delivered in the same
+		// management session, so a replica even slightly behind would resolve to nothing.
 		secret, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctxdb.RequirePrimary(ctx, true), enrollmentID)
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
