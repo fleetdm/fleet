@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import React from "react";
+import { browserHistory } from "react-router";
 
 import createMockConfig from "__mocks__/configMock";
 import { createMockHostScript } from "__mocks__/scriptMock";
@@ -13,6 +14,8 @@ const baseProps = {
   onClose: jest.fn(),
   page: 0,
   setPage: jest.fn(),
+  sortDirection: "asc" as const,
+  setSortDirection: jest.fn(),
   hostScriptResponse: {
     scripts: [],
     meta: { has_next_results: false, has_previous_results: false },
@@ -55,7 +58,6 @@ describe("RunScriptModal", () => {
         "href",
         expect.stringContaining("fleet_id=7")
       );
-      expect(screen.getByText(/available to this host/i)).toBeInTheDocument();
     });
 
     it("falls back to fleet_id=0 (No team) when the host is unassigned", () => {
@@ -106,7 +108,7 @@ describe("RunScriptModal", () => {
       expect(link.getAttribute("href")).not.toContain("fleet_id");
     });
 
-    it("hides the link and shows guidance text for a global technician", () => {
+    it("hides the link and guidance text for a global technician", () => {
       const technicianUser = createMockUser({ global_role: "technician" });
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -123,8 +125,8 @@ describe("RunScriptModal", () => {
 
       expect(screen.getByText("No scripts available")).toBeInTheDocument();
       expect(
-        screen.getByText("Ask your admin to add a script for this host.")
-      ).toBeInTheDocument();
+        screen.queryByText(/Ask your admin to add a script/i)
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("link", { name: /Add a script/i })
       ).not.toBeInTheDocument();
@@ -172,10 +174,74 @@ describe("RunScriptModal", () => {
       render(<RunScriptModal {...baseProps} currentUser={technicianUser} />);
 
       expect(
-        screen.getByText("Ask your admin to add a script for this host.")
-      ).toBeInTheDocument();
+        screen.queryByText(/Ask your admin to add a script/i)
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("link", { name: /Add a script/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("platform-aware empty state", () => {
+    it("tells an admin that a Windows host only runs PowerShell scripts", () => {
+      const adminUser = createMockUser({ global_role: "admin" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: adminUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={adminUser}
+          hostPlatform="windows"
+        />
+      );
+
+      expect(screen.getByText("No compatible scripts")).toBeInTheDocument();
+      expect(
+        screen.getByText(/can only run PowerShell \(\.ps1\) scripts/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /Add a script/i })
+      ).toBeInTheDocument();
+    });
+
+    it("tells a technician that a macOS host only runs shell and Python scripts", () => {
+      const technicianUser = createMockUser({ global_role: "technician" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: technicianUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={technicianUser}
+          hostPlatform="darwin"
+        />
+      );
+
+      expect(screen.getByText("No compatible scripts")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /can only run shell \(\.sh\) and Python \(\.py\) scripts/i
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Ask your admin to add a script/i)
       ).not.toBeInTheDocument();
     });
   });
@@ -210,6 +276,74 @@ describe("RunScriptModal", () => {
       ).not.toBeInTheDocument();
       // TooltipTruncatedTextCell renders the script name in both the cell and tooltip
       expect(screen.getAllByText("cleanup.sh").length).toBeGreaterThan(0);
+      expect(screen.getByText("Scripts")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Close" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows an 'Add script' button that goes to scripts with fleet_id for an admin", async () => {
+      const adminUser = createMockUser({ global_role: "admin" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: adminUser,
+          },
+        },
+      });
+
+      const pushSpy = jest
+        .spyOn(browserHistory, "push")
+        .mockImplementation(jest.fn());
+
+      const { user } = render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={adminUser}
+          hostScriptResponse={{
+            scripts: [createMockHostScript({ name: "cleanup.sh" })],
+            meta: { has_next_results: false, has_previous_results: false },
+          }}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { name: /Add script/i }));
+      expect(pushSpy).toHaveBeenCalledWith(
+        expect.stringContaining("fleet_id=7")
+      );
+      pushSpy.mockRestore();
+    });
+
+    it("hides the 'Add script' button for a global technician", () => {
+      const technicianUser = createMockUser({ global_role: "technician" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: technicianUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={technicianUser}
+          hostScriptResponse={{
+            scripts: [createMockHostScript({ name: "cleanup.sh" })],
+            meta: { has_next_results: false, has_previous_results: false },
+          }}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /Add script/i })
+      ).not.toBeInTheDocument();
     });
   });
 
