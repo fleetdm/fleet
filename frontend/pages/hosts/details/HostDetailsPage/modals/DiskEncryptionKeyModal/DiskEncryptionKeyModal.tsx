@@ -60,7 +60,7 @@ const DiskEncryptionKeyModal = ({
             {recoveryText}{" "}
             <CustomLink
               newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/disk-encryption-key`}
               text="Learn more"
             />
           </p>
