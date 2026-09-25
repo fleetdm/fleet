@@ -2075,7 +2075,7 @@ SELECT
 	COALESCE(hmap.status, '%s') AS status,
 	COALESCE(hmap.operation_type, '') AS operation_type,
 	COALESCE(hmap.detail, '') AS detail,
-	macp.hidden
+	COALESCE(macp.hidden, FALSE) AS hidden
 FROM
 	host_mdm_android_profiles hmap
 	LEFT JOIN mdm_android_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
