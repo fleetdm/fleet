@@ -244,6 +244,23 @@ func main() {
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
 		},
+		// The NIX_ORBIT_* names are accepted so the nixpkgs services.orbit module
+		// keeps working once it drops its downstream patches.
+		&cli.StringFlag{
+			Name:    "osqueryd-path",
+			Usage:   "Path to an externally managed osqueryd binary. Requires --disable-updates, osqueryd is not downloaded or updated by fleetd",
+			EnvVars: []string{"ORBIT_OSQUERYD_PATH", "NIX_ORBIT_OSQUERYD_PATH"},
+		},
+		&cli.StringFlag{
+			Name:    "desktop-path",
+			Usage:   "Path to an externally managed Fleet Desktop executable (the .app bundle on macOS). Requires --osqueryd-path, used when --fleet-desktop is set",
+			EnvVars: []string{"ORBIT_DESKTOP_PATH", "NIX_ORBIT_DESKTOP_PATH"},
+		},
+		&cli.StringFlag{
+			Name:    "osquery-log-path",
+			Usage:   "Sets a custom osquery log directory, it must be an absolute path (defaults to <root-dir>/osquery_log)",
+			EnvVars: []string{"ORBIT_OSQUERY_LOG_PATH", "NIX_ORBIT_OSQUERY_LOG_PATH"},
+		},
 		&cli.BoolFlag{
 			Name:    "fleet-managed-host-identity-certificate",
 			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
@@ -585,6 +602,32 @@ func orbitAction(c *cli.Context) error {
 		return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 	}
 
+	if p := c.String("osquery-log-path"); p != "" && !filepath.IsAbs(p) {
+		return fmt.Errorf("the osquery log path must be an absolute path: %q", p)
+	}
+
+	externalOsquerydPath := c.String("osqueryd-path")
+	externalDesktopPath := c.String("desktop-path")
+	if externalOsquerydPath != "" {
+		if !c.Bool("disable-updates") {
+			return errors.New("osqueryd-path requires disable-updates")
+		}
+		if !filepath.IsAbs(externalOsquerydPath) {
+			return fmt.Errorf("osqueryd-path must be an absolute path: %q", externalOsquerydPath)
+		}
+		if c.Bool("fleet-desktop") && externalDesktopPath == "" {
+			return errors.New("desktop-path is required when fleet-desktop and osqueryd-path are set")
+		}
+	}
+	if externalDesktopPath != "" {
+		if externalOsquerydPath == "" {
+			return errors.New("desktop-path requires osqueryd-path")
+		}
+		if !filepath.IsAbs(externalDesktopPath) {
+			return fmt.Errorf("desktop-path must be an absolute path: %q", externalDesktopPath)
+		}
+	}
+
 	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
 	disableKeystore := c.Bool("disable-keystore")
 	enrollSecretPath := c.String("enroll-secret-path")
@@ -802,7 +845,25 @@ func orbitAction(c *cli.Context) error {
 	var updater *update.Updater
 	var updateRunner *update.Runner
 	var osqueryVersion string
-	if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+	switch {
+	case externalOsquerydPath != "":
+		log.Info().Msgf("orbit version: %s", build.Version)
+		log.Info().Msgf("running with externally managed osqueryd: %s", externalOsquerydPath)
+		if _, err := os.Stat(externalOsquerydPath); err != nil {
+			return fmt.Errorf("osqueryd-path: %w", err)
+		}
+		osquerydPath = externalOsquerydPath
+		if v, err := update.GetVersion(osquerydPath); err == nil && v != "" {
+			log.Info().Msgf("Found osquery version: %s", v)
+			osqueryVersion = v
+		}
+		if c.Bool("fleet-desktop") {
+			if _, err := os.Stat(externalDesktopPath); err != nil {
+				return fmt.Errorf("desktop-path: %w", err)
+			}
+			desktopPath = externalDesktopPath
+		}
+	case !c.Bool("disable-updates") || c.Bool("dev-mode"):
 		updater, err := update.NewUpdater(opt)
 		if err != nil {
 			return fmt.Errorf("create updater: %w", err)
@@ -886,7 +947,7 @@ func orbitAction(c *cli.Context) error {
 			// executed without a defined number of max attempts
 			return fmt.Errorf("getting targets after retry: %w", err)
 		}
-	} else {
+	default:
 		log.Info().Msg("running with auto updates disabled")
 		updater = update.NewDisabled(opt)
 		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
@@ -1039,7 +1100,11 @@ func orbitAction(c *cli.Context) error {
 		optionsAfterFlagfile []osquery.Option
 	)
 	options = append(options, osquery.WithDataPath(c.String("root-dir"), ""))
-	options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
+	osqueryLogPath := c.String("osquery-log-path")
+	if osqueryLogPath == "" {
+		osqueryLogPath = filepath.Join(c.String("root-dir"), "osquery_log")
+	}
+	options = append(options, osquery.WithLogPath(osqueryLogPath))
 	optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags(
 		[]string{"--database_path", osqueryDB},
 	))
@@ -1490,7 +1555,8 @@ func orbitAction(c *cli.Context) error {
 	// only setup extensions autoupdate if we have enabled updates
 	// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
 	// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
-	if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+	// (extensions come from the update server, so never with externally managed components)
+	if externalOsquerydPath == "" && (!c.Bool("disable-updates") || c.Bool("dev-mode")) {
 		extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
 			RootDir: c.String("root-dir"),
 		}, updateRunner, orbitClient.TriggerOrbitRestart)

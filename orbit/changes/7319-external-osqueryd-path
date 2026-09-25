@@ -1,0 +1,2 @@
+* Added `--osqueryd-path`, `--desktop-path` and `--osquery-log-path` flags to fleetd so systems that manage their own osquery (e.g. NixOS) can run fleetd with `--disable-updates` and no components downloaded from the update server.
+* Fixed script execution on NixOS, which has no `/bin/bash`, by resolving a missing shebang interpreter from the system profile (`/run/current-system/sw/bin`).
