@@ -1,11 +1,7 @@
 import createMockHost from "__mocks__/hostMock";
 import { HostPlatform } from "interfaces/platform";
 
-import {
-  canShowMyDeviceButton,
-  hasEverEnrolled,
-  hasReportedVitals,
-} from "./helpers";
+import { canShowMyDeviceButton, hasEverEnrolled } from "./helpers";
 
 describe("canShowMyDeviceButton", () => {
   it("returns true when Fleet Desktop is installed and the host is not wiped", () => {
@@ -153,21 +149,4 @@ describe("hasEverEnrolled", () => {
       false
     );
   });
-});
-
-describe("hasReportedVitals", () => {
-  it.each([
-    { detailUpdatedAt: "2026-08-21T10:30:00Z", expected: true },
-    { detailUpdatedAt: "2000-01-01T00:00:00Z", expected: false },
-    { detailUpdatedAt: "", expected: false },
-  ])(
-    "returns $expected for detail_updated_at '$detailUpdatedAt'",
-    ({ detailUpdatedAt, expected }) => {
-      expect(
-        hasReportedVitals(
-          createMockHost({ detail_updated_at: detailUpdatedAt })
-        )
-      ).toBe(expected);
-    }
-  );
 });
