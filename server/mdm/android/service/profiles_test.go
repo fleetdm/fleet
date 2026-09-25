@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
@@ -87,6 +88,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
 		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
 		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
+		{"ReconcileProfilesWithClientDisablesRetry", testReconcileProfilesWithClientDisablesRetry},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -204,6 +206,42 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func testReconcileProfilesWithClientDisablesRetry(t *testing.T, ds fleet.Datastore, client *mock.Client, _ *profileReconciler) {
+	ctx := t.Context()
+
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appConfig.MDM.AndroidEnabledAndConfigured
+	appConfig.MDM.AndroidEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appConfig))
+	t.Cleanup(func() {
+		appConfig.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		require.NoError(t, ds.SaveAppConfig(context.WithoutCancel(ctx), appConfig))
+	})
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, _ string, policy *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		assert.True(t, androidmgmt.RetryDisabled(ctx), "profile reconcile must not wait out AMAPI quota errors")
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, _ string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		assert.True(t, androidmgmt.RetryDisabled(ctx), "profile reconcile must not wait out AMAPI quota errors")
+		return device, nil
+	}
+
+	createAndroidHost(t, ds, 1)
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("p1"), nil)
+	require.NoError(t, err)
+
+	err = ReconcileProfilesWithClient(ctx, ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{
+		Package:       "com.fleetdm.agent",
+		SigningSHA256: "abc123def456",
+	}, 0)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
 func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {

@@ -28,6 +28,7 @@ module.exports = {
     invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
     policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
     managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -77,10 +78,11 @@ module.exports = {
         updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
       return patchPoliciesResponse.data;
-    }).intercept({ status: 429 }, (err) => {
+    }).intercept({ status: 429 }, () => {
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
     }).intercept({ status: 400 }, (err) => {
       return {'invalidPolicy': `Attempted to update a policy with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
     }).intercept({status: 403}, ()=>{
