@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2",
+      "version": "7.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bombich.ccc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bombich.ccc' AND version_compare(bundle_short_version, '7.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bombich.ccc' AND version_compare(bundle_short_version, '7.2.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bombich.ccc' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://bombich.scdn1.secure.raxcdn.com/software/files/ccc-7.2.8408.zip",
+      "installer_url": "https://bombich.scdn1.secure.raxcdn.com/software/files/ccc-7.2.1.8411.zip",
       "install_script_ref": "dbe8941c",
       "uninstall_script_ref": "8711c5ac",
-      "sha256": "cbaa9021d56070f617ee20236b70473eeef0df068c015e3c407c334b55027cbc",
+      "sha256": "1036589cdb6d75d3ade2e5f7c9f292d7341459354a7d5ae2f6bdf5e7ee2e39da",
       "default_categories": [
         "Utilities"
       ]
