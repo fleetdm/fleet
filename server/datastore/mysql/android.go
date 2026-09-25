@@ -82,7 +82,8 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			foundHost  bool
 		)
 		if host.UUID != "" {
-			err := sqlx.GetContext(ctx, tx, &existingID,
+			err := sqlx.GetContext(
+				ctx, tx, &existingID,
 				`SELECT id FROM hosts WHERE uuid = ? AND platform IN ('android', '') ORDER BY (node_key = ?) DESC, id LIMIT 1`,
 				host.UUID, host.NodeKey,
 			)
@@ -210,7 +211,8 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		}
 
 		// Sync team_id to android_devices so it survives host deletion.
-		if _, err := tx.ExecContext(ctx,
+		if _, err := tx.ExecContext(
+			ctx,
 			`UPDATE android_devices SET team_id = ? WHERE host_id = ?`,
 			host.TeamID, host.Host.ID,
 		); err != nil {
@@ -298,7 +300,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		}
 
 		// Keep android_devices.team_id in sync so the team survives host deletion.
-		if _, err := tx.ExecContext(ctx,
+		if _, err := tx.ExecContext(
+			ctx,
 			`UPDATE android_devices SET team_id = ? WHERE host_id = ?`,
 			host.TeamID, host.Host.ID,
 		); err != nil {
@@ -456,7 +459,8 @@ func (ds *Datastore) UpdateTeamIDOnAndroidDevices(ctx context.Context, hostUUIDs
 
 func (ds *Datastore) GetAndroidDeviceLastTeamID(ctx context.Context, enterpriseSpecificID string) (*uint, bool, error) {
 	var teamID *uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &teamID,
+	err := sqlx.GetContext(
+		ctx, ds.reader(ctx), &teamID,
 		`SELECT team_id FROM android_devices WHERE enterprise_specific_id = ?`,
 		enterpriseSpecificID,
 	)
@@ -936,7 +940,8 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 		switch {
 		case lbl.Exclude && lbl.RequireAll:
 			// this should never happen so log it for debugging
-			ds.logger.WarnContext(ctx, "unsupported profile label: cannot be both exclude and require all. Label will be ignored.",
+			ds.logger.WarnContext(
+				ctx, "unsupported profile label: cannot be both exclude and require all. Label will be ignored.",
 				"profile_uuid", lbl.ProfileUUID,
 				"label_name", lbl.LabelName,
 			)
@@ -1213,7 +1218,8 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *android.M
 		req.RequestUUID = uuid.NewString()
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, stmt,
 		req.RequestUUID,
 		req.RequestName,
 		req.PolicyID,
@@ -1264,7 +1270,8 @@ func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMA
 		VALUES
 			(?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, stmt,
 		cmd.CommandUUID,
 		cmd.HostUUID,
 		cmd.OperationName,
@@ -1364,7 +1371,8 @@ func (ds *Datastore) InsertMDMAndroidCommand(ctx context.Context, cmd *android.M
 		VALUES
 			(?, ?, ?, ?, ?, ?)
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+	if _, err := ds.writer(ctx).ExecContext(
+		ctx, stmt,
 		cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for custom command")
@@ -1391,7 +1399,8 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 			VALUES
 				(?, ?, ?, ?, ?, ?, ?, ?)
 		`
-		if _, err := tx.ExecContext(ctx, insertCmdStmt,
+		if _, err := tx.ExecContext(
+			ctx, insertCmdStmt,
 			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.RawCommand, cmd.Status,
 			cmd.ErrorCode, cmd.ErrorMessage,
 		); err != nil {
@@ -1455,7 +1464,8 @@ func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdB
 		LIMIT ?
 	`
 	var cmds []*android.MDMAndroidCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmds, stmt,
+	if err := sqlx.SelectContext(
+		ctx, ds.reader(ctx), &cmds, stmt,
 		string(android.MDMAndroidCommandStatusPending), createdBefore, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing pending mdm android commands")
@@ -1786,7 +1796,8 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 			limitClause = fmt.Sprintf("LIMIT %d", batchSize)
 		}
 
-		hostsWithChangesStmt := fmt.Sprintf(`
+		hostsWithChangesStmt := fmt.Sprintf(
+			`
 	WITH ds AS ( %s )
 
 	SELECT host_uuid FROM (
@@ -1976,7 +1987,8 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
+		stmt := fmt.Sprintf(
+			`
 			INSERT INTO host_mdm_android_profiles (
 				host_uuid,
 				status,
@@ -2051,21 +2063,24 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 func (ds *Datastore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
 	// TODO(AP): confirm whether we should be hiding any profile names for Android like we do
 	// for other platforms
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
-	profile_uuid,
-	profile_name AS name,
+	hmap.profile_uuid,
+	hmap.profile_name AS name,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail
+	COALESCE(hmap.status, '%s') AS status,
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail,
+	macp.hidden
 FROM
-	host_mdm_android_profiles
+	host_mdm_android_profiles hmap
+	LEFT JOIN mdm_android_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
 WHERE
-host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+hmap.host_uuid = ? AND NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -2433,7 +2448,8 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 		VALUES
 			(?, ?, ?, ?, ?, ?)`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, stmt,
 		payload.HostID,
 		payload.AdamID,
 		payload.CommandUUID,
@@ -2691,7 +2707,8 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 
 	// Track which fleet variables this app config uses so SCIM can trigger resends.
 	var appConfigID uint
-	if err := sqlx.GetContext(ctx, tx, &appConfigID,
+	if err := sqlx.GetContext(
+		ctx, tx, &appConfigID,
 		`SELECT id FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`,
 		appID, teamID,
 	); err != nil {

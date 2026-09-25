@@ -53,6 +53,7 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"GetABMOrganizationNamesAssociatedByDefaultTeams", testGetABMOrganizationNamesAssociatedByDefaultTeams},
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
+		{"GetHostMDMAppleProfilesOrphanedRows", testGetHostMDMAppleProfilesOrphanedRows},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestUpdateMDMAppleConfigProfile", testUpdateMDMAppleConfigProfile},
@@ -13831,4 +13832,32 @@ func testHostMDMProfileOptIns(t *testing.T, ds *Datastore) {
 	got, err = ds.BulkGetHostMDMProfileOptIns(ctx, []string{"host-B"})
 	require.NoError(t, err)
 	require.Equal(t, map[string]map[string]struct{}{"host-B": set("a1")}, got)
+}
+
+func testGetHostMDMAppleProfilesOrphanedRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := uuid.NewString()
+
+	// Host rows whose profile/declaration no longer exist, e.g. pending removal after deletion.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+			(host_uuid, profile_uuid, command_uuid, status, operation_type, profile_name, profile_identifier, checksum, scope)
+			VALUES (?, ?, ?, ?, ?, 'P', 'com.p', UNHEX(REPEAT('00', 16)), 'System')`,
+			hostUUID, "a"+uuid.NewString(), uuid.NewString(), fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
+			(host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope)
+			VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), 'com.d', ?, 'D', 'System')`,
+			hostUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove, "d"+uuid.NewString())
+		return err
+	})
+
+	profs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	for _, p := range profs {
+		require.False(t, p.Hidden)
+		require.False(t, p.SelfService)
+	}
 }

@@ -11081,11 +11081,41 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	devicePath := func(profUUID, action string) string {
 		return fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/%s", token, profUUID, action)
 	}
+	// ssDetails returns the self-service profile's entry from the admin and device host details, asserting both
+	// agree and that it is listed at most once.
+	ssDetails := func() *fleet.HostMDMProfile {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		var deviceResp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceResp))
+		find := func(profs *[]fleet.HostMDMProfile) *fleet.HostMDMProfile {
+			require.NotNil(t, profs)
+			var found *fleet.HostMDMProfile
+			for _, p := range *profs {
+				if p.ProfileUUID == ssUUID {
+					require.Nil(t, found, "self-service profile listed more than once")
+					found = &p
+				}
+			}
+			return found
+		}
+		got := find(hostResp.Host.MDM.Profiles)
+		require.Equal(t, got, find(deviceResp.Host.MDM.Profiles))
+		return got
+	}
+	requireAvailable := func() {
+		d := ssDetails()
+		require.NotNil(t, d)
+		require.Nil(t, d.Status)
+		require.True(t, d.SelfService)
+	}
 
 	// Without an opt-in, only the regular profile is delivered.
 	reconcileAndAck()
 	require.NotNil(t, hostProfile("I1"))
 	require.Nil(t, hostProfile("ISS1"))
+	requireAvailable()
 
 	// Invalid targets are rejected.
 	s.Do("POST", adminPath(regularUUID, "install"), nil, http.StatusBadRequest)
@@ -11105,6 +11135,9 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	require.NotNil(t, p)
 	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
 	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+	d := ssDetails()
+	require.NotNil(t, d)
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), *d.Status)
 
 	// End user opts out from the device endpoint; the reconciler removes it.
 	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusAccepted)
@@ -11116,9 +11149,14 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	p = hostProfile("ISS1")
 	require.NotNil(t, p)
 	require.Equal(t, fleet.MDMOperationTypeRemove, p.OperationType)
+	d = ssDetails()
+	require.NotNil(t, d)
+	require.Equal(t, fleet.MDMOperationTypeRemove, d.OperationType)
+	require.Equal(t, string(fleet.MDMDeliveryPending), *d.Status)
 	reconcileAndAck()
 	require.Nil(t, hostProfile("ISS1"))
 	require.NotNil(t, hostProfile("I1"))
+	requireAvailable()
 
 	// End user opts back in from the device endpoint.
 	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusAccepted)
