@@ -2544,7 +2544,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		Platform:       hostInfo.Platform,
 		PlatformLike:   hostInfo.PlatformLike,
 	}
+	// Logged only after commit because a rejected enrollment rolls back and overwrites nothing.
+	var overwrittenHostID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		overwrittenHostID = 0
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
@@ -2563,11 +2566,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				// This means a orbit host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if orbit's node key file was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(
-					ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
-					"identifier", hostInfo.HardwareUUID,
-					"host_id", enrolledHostInfo.ID,
-				)
+				overwrittenHostID = enrolledHostInfo.ID
 			}
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
 			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil &&
@@ -2728,6 +2727,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	if err != nil {
 		return nil, err
 	}
+	if overwrittenHostID != 0 {
+		ds.logger.WarnContext(
+			ctx, "orbit host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+			"identifier", hostInfo.HardwareUUID,
+			"host_id", overwrittenHostID,
+		)
+	}
 
 	return &host, nil
 }
@@ -2777,7 +2783,10 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 	}
 
 	var host fleet.Host
+	// Logged only after commit because a rejected enrollment rolls back and overwrites nothing.
+	var overwrittenHostID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		overwrittenHostID = 0
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
@@ -2839,11 +2848,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				// This means a osquery host already enrolled at this hosts entry.
 				// This can happen if two devices have duplicate hardware identifiers or
 				// if osquery.db was deleted from the device (e.g. uninstall+install).
-				ds.logger.WarnContext(
-					ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
-					"identifier", hardwareUUID,
-					"host_id", enrolledHostInfo.ID,
-				)
+				overwrittenHostID = enrolledHostInfo.ID
 			}
 
 			// We do not support duplicate host identifiers when using TPM-backed host identity certificates.
@@ -2984,6 +2989,13 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 	})
 	if err != nil {
 		return nil, err
+	}
+	if overwrittenHostID != 0 {
+		ds.logger.WarnContext(
+			ctx, "osquery host with duplicate identifier has enrolled in Fleet and will overwrite existing host data",
+			"identifier", hardwareUUID,
+			"host_id", overwrittenHostID,
+		)
 	}
 	return &host, nil
 }
