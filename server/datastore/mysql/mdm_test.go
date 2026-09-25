@@ -51,6 +51,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestBatchSetMDMProfilesSoftwareUpdateTracking", testBatchSetMDMProfilesSoftwareUpdateTracking},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
+		{"TestMDMConfigProfilesDescription", testMDMConfigProfilesDescription},
 		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestMDMEULA", testMDMEULA},
@@ -1957,6 +1958,172 @@ type anyProfile struct {
 // Scoped to only the Windows hosts present in the want map so that rows
 // belonging to hosts not in the current assertion are left untouched. This
 // prevents implicitly hiding issues for hosts the test phase doesn't check.
+
+func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	opts := fleet.ListOptions{OrderKey: "name"}
+
+	// create one profile of each type with a description
+	apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "apple",
+		Identifier:   "com.example.apple",
+		Description:  "apple desc",
+		Mobileconfig: mobileconfig.Mobileconfig("<plist/>"),
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", apple.Description)
+
+	decl := declForTest("decl", "decl", "decl")
+	decl.Description = "decl desc"
+	decl, err = ds.NewMDMAppleDeclaration(ctx, decl, nil)
+	require.NoError(t, err)
+
+	win, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:        "windows",
+		Description: "windows desc",
+		SyncML:      []byte("<Replace></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "windows desc", win.Description)
+
+	android := androidConfigProfileForTest(t, "android", nil)
+	android.Description = "android desc"
+	android, err = ds.NewMDMAndroidConfigProfile(ctx, *android, nil)
+	require.NoError(t, err)
+	require.Equal(t, "android desc", android.Description)
+
+	// get and list return the description for every type
+	gotApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", gotApple.Description)
+	gotDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "decl desc", gotDecl.Description)
+	gotWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows desc", gotWin.Description)
+	gotAndroid, err := ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "android desc", gotAndroid.Description)
+
+	appleListed, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, appleListed, 1)
+	require.Equal(t, "apple desc", appleListed[0].Description)
+	byIdent, err := ds.GetMDMAppleConfigProfileByTeamAndIdentifier(ctx, nil, apple.Identifier)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc", byIdent.Description)
+
+	listed, _, err := ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, listed, 4)
+	descByName := make(map[string]string, len(listed))
+	for _, p := range listed {
+		descByName[p.Name] = p.Description
+	}
+	require.Equal(t, map[string]string{
+		"android": "android desc",
+		"apple":   "apple desc",
+		"decl":    "decl desc",
+		"windows": "windows desc",
+	}, descByName)
+
+	// a description-only update must not move uploaded_at: it is not part of
+	// the checksum, so nothing is re-delivered
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID: apple.ProfileUUID,
+		Identifier:  apple.Identifier,
+		Name:        apple.Name,
+		Description: "apple desc 2",
+	}, nil)
+	require.NoError(t, err)
+	updApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple desc 2", updApple.Description)
+	require.Equal(t, gotApple.UploadedAt, updApple.UploadedAt)
+	require.Equal(t, gotApple.Checksum, updApple.Checksum)
+
+	gotDecl.Description = "decl desc 2"
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
+	require.NoError(t, err)
+	updDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.Equal(t, "decl desc 2", updDecl.Description)
+	require.Equal(t, gotDecl.UploadedAt, updDecl.UploadedAt)
+	require.Equal(t, gotDecl.Token, updDecl.Token)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        win.Name,
+		Description: "windows desc 2",
+	}, nil)
+	require.NoError(t, err)
+	updWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows desc 2", updWin.Description)
+	require.Equal(t, gotWin.UploadedAt, updWin.UploadedAt)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: android.ProfileUUID,
+		Name:        android.Name,
+		Description: "android desc 2",
+	}, nil)
+	require.NoError(t, err)
+	updAndroid, err := ds.GetMDMAndroidConfigProfile(ctx, android.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "android desc 2", updAndroid.Description)
+	require.Equal(t, gotAndroid.UploadedAt, updAndroid.UploadedAt)
+
+	// the batch path writes the description too, and a description-only
+	// change there is not reported as an update to the profiles' content
+	bApple := generateAppleCP("batch-apple", "com.example.batch-apple", 0)
+	bApple.Description = "batch apple"
+	bDecl := declForTest("batch-decl", "batch-decl", "batch-decl")
+	bDecl.Description = "batch decl"
+	bWin := windowsConfigProfileForTest(t, "batch-windows", "./Batch")
+	bWin.Description = "batch windows"
+	bAndroid := androidConfigProfileForTest(t, "batch-android", nil)
+	bAndroid.Description = "batch android"
+	_, err = ds.BatchSetMDMProfiles(ctx, nil,
+		[]*fleet.MDMAppleConfigProfile{bApple}, []*fleet.MDMWindowsConfigProfile{bWin},
+		[]*fleet.MDMAppleDeclaration{bDecl}, []*fleet.MDMAndroidConfigProfile{bAndroid}, nil)
+	require.NoError(t, err)
+
+	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, listed, 4)
+	descByName = make(map[string]string, len(listed))
+	uploadedAtByName := make(map[string]time.Time, len(listed))
+	for _, p := range listed {
+		descByName[p.Name] = p.Description
+		uploadedAtByName[p.Name] = p.UploadedAt
+	}
+	require.Equal(t, map[string]string{
+		"batch-android": "batch android",
+		"batch-apple":   "batch apple",
+		"batch-decl":    "batch decl",
+		"batch-windows": "batch windows",
+	}, descByName)
+
+	bApple.Description = "batch apple 2"
+	bDecl.Description = "batch decl 2"
+	bWin.Description = "batch windows 2"
+	bAndroid.Description = "batch android 2"
+	_, err = ds.BatchSetMDMProfiles(ctx, nil,
+		[]*fleet.MDMAppleConfigProfile{bApple}, []*fleet.MDMWindowsConfigProfile{bWin},
+		[]*fleet.MDMAppleDeclaration{bDecl}, []*fleet.MDMAndroidConfigProfile{bAndroid}, nil)
+	require.NoError(t, err)
+
+	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	require.NoError(t, err)
+	require.Len(t, listed, 4)
+	for _, p := range listed {
+		require.Equal(t, descByName[p.Name]+" 2", p.Description, p.Name)
+		require.Equal(t, uploadedAtByName[p.Name], p.UploadedAt, p.Name)
+	}
+}
+
 func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
 	// Collect the set of Windows host UUIDs in the assertion and the
 	// (profile_uuid, host_uuid) pairs that are expected as remove rows.

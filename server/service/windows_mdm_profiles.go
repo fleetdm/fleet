@@ -230,6 +230,8 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
+	// Not settable through this endpoint yet, so carry the stored value.
+	cp.Description = existing.Description
 
 	if _, err := svc.ds.UpdateMDMWindowsConfigProfile(ctx, *cp, usesFleetVars); err != nil {
 		if _, ok := errors.AsType[endpointer.ExistsErrorInterface](err); ok {

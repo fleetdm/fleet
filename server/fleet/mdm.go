@@ -683,6 +683,7 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
@@ -714,8 +715,9 @@ type BatchModifyMDMConfigProfilePayload struct {
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
-	Name     string `json:"name,omitempty"`
-	Contents []byte `json:"contents,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"-"`
+	Contents    []byte `json:"contents,omitempty"`
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
@@ -738,6 +740,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "windows",
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
@@ -756,6 +759,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Identifier:       cp.Identifier,
 		Platform:         "darwin",
 		Checksum:         cp.Checksum,
@@ -777,6 +781,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
@@ -801,6 +806,7 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "android",
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,

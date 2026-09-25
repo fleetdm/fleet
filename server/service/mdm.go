@@ -2422,6 +2422,8 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
+	// Not settable through this endpoint yet, so carry the stored value.
+	cp.Description = existing.Description
 
 	if _, err := svc.ds.UpdateMDMAndroidConfigProfile(ctx, *cp, varNames); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -3122,6 +3124,7 @@ func getAppleProfiles(
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
+			mdmDecl.Description = prof.Description
 			mdmDecl.SecretsUpdatedAt = prof.SecretsUpdatedAt
 			// PayloadScope is a Fleet extension (not part of Apple's DDM schema). The
 			// parsed value drives the scope column; the key stays in the stored JSON
@@ -3187,6 +3190,7 @@ func getAppleProfiles(
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
 		}
+		mdmProf.Description = prof.Description
 		mdmProf.SecretsUpdatedAt = prof.SecretsUpdatedAt
 
 		for _, labelName := range prof.LabelsIncludeAll {
@@ -3282,9 +3286,10 @@ func getWindowsProfiles(
 		}
 
 		mdmProf := &fleet.MDMWindowsConfigProfile{
-			TeamID: tmID,
-			Name:   profile.Name,
-			SyncML: profile.Contents,
+			TeamID:      tmID,
+			Name:        profile.Name,
+			Description: profile.Description,
+			SyncML:      profile.Contents,
 		}
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
@@ -3356,9 +3361,10 @@ func getAndroidProfiles(ctx context.Context,
 			continue
 		}
 		mdmProf := &fleet.MDMAndroidConfigProfile{
-			TeamID:  tmID,
-			Name:    profile.Name,
-			RawJSON: profile.Contents,
+			TeamID:      tmID,
+			Name:        profile.Name,
+			Description: profile.Description,
+			RawJSON:     profile.Contents,
 		}
 		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
