@@ -536,13 +536,9 @@ type Datastore interface {
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
 	// their corresponding nano_command_results entries for the given enrollment ID
-	// and REFETCH command prefix type that were sent and acknowledged/errored at
-	// least 30 days ago. The current command UUID is excluded from deletion.
-	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
-
-	// CleanupOrphanedNanoRefetchCommands deletes up to 100 REFETCH-prefixed nano_commands
-	// older than 30 days that have no remaining references in nano_enrollment_queue.
-	CleanupOrphanedNanoRefetchCommands(ctx context.Context) error
+	// and REFETCH command prefix type that were sent and acknowledged/errored
+	// more than olderThan ago. The current command UUID is excluded from deletion.
+	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, olderThan time.Duration) error
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
