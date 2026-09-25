@@ -100,7 +100,7 @@ class Action:
     new_summary: Optional[str] = None
     new_start: Optional[dt.date] = None
     new_end: Optional[dt.date] = None
-    category: Optional[str] = None  # "release_day" | "rc" | "develop" (for create)
+    category: Optional[str] = None  # "release_day" | "fleetd_release_day" | "rc" | "develop"
 
 
 def fetch_milestones() -> list[Milestone]:
@@ -399,8 +399,9 @@ def pick_keeper(events: list[CalEvent]) -> CalEvent:
 
 def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
     """Build the rename/move action that brings a single kept event in line with
-    its milestone. Release day is anchored to the due date; RC and Develop keep
-    their existing start and only move their end date."""
+    its milestone. Release day is anchored to the due date and must be all-day
+    (timed events are converted); RC and Develop keep their existing start and
+    only move their end date."""
     if cat in ("release_day", "fleetd_release_day"):
         new_summary = (
             fleetd_release_day_summary(m.title)
@@ -415,6 +416,8 @@ def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
             changes.append(
                 f"dates {fmt_date(ev.start)}..{fmt_date(ev.end)} -> {fmt_date(new_start)}..{fmt_date(new_end)}"
             )
+        if not ev.is_all_day:
+            changes.append("timed -> all-day")
     elif cat == "rc":
         new_summary = f"Release candidate (next release - {m.title})"
         # Preserve the existing start; only the end tracks the milestone due date.
@@ -443,6 +446,7 @@ def build_sync_action(cat: str, m: Milestone, ev: CalEvent) -> Optional[Action]:
         new_summary=new_summary,
         new_start=new_start,
         new_end=new_end,
+        category=cat,
     )
 
 
@@ -601,10 +605,16 @@ def apply_action(service, action: Action) -> None:
         body = {}
         if action.new_summary is not None:
             body["summary"] = action.new_summary
-        if action.new_start is not None and action.event and action.event.is_all_day:
-            body["start"] = {"date": action.new_start.isoformat()}
-        if action.new_end is not None and action.event and action.event.is_all_day:
-            body["end"] = {"date": action.new_end.isoformat()}
+        # Release day events are always all-day; a matched timed event is
+        # converted (dateTime must be explicitly nulled for patch to switch).
+        write_dates = action.event and (
+            action.event.is_all_day
+            or action.category in ("release_day", "fleetd_release_day")
+        )
+        if action.new_start is not None and write_dates:
+            body["start"] = {"date": action.new_start.isoformat(), "dateTime": None}
+        if action.new_end is not None and write_dates:
+            body["end"] = {"date": action.new_end.isoformat(), "dateTime": None}
         service.events().patch(
             calendarId=CALENDAR_ID,
             eventId=action.event.id,
