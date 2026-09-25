@@ -40,6 +40,7 @@ func main() {
 	rootCmd.AddCommand(issuesCmd)
 	rootCmd.AddCommand(issuesWithHistoricalLabelCmd)
 	rootCmd.AddCommand(projectCmd)
+	rootCmd.AddCommand(choreCmd)
 	rootCmd.AddCommand(sprintCmd)
 	rootCmd.AddCommand(milestoneCmd)
 	rootCmd.AddCommand(releasesCmd)
