@@ -55,7 +55,7 @@ type SetupExperienceStatusResult struct {
 	ScriptExecutionID               *string                           `db:"script_execution_id" json:"execution_id,omitempty" `
 	Error                           *string                           `db:"error" json:"error" `
 	// PolicyGated marks a Windows/Linux setup-experience software item whose installer has at least one gating policy (a
-	// team policy with an install-software automation pointing at the same installer). It is resolved server-side at
+	// non-patch team policy with an install-software automation pointing at the same installer). It is resolved server-side at
 	// enqueue time and is internal (json:"-"). When set, the item is installed only if some in-scope gating policy
 	// fails, and skipped if every one passes; the set of gating policies is derived from the installer at decision time.
 	// False for un-gated items. It only ever qualifies a software-installer row.
