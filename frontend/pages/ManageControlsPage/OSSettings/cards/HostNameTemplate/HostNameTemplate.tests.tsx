@@ -47,9 +47,7 @@ describe("HostNameTemplate card", () => {
 
     render(<HostNameTemplate {...baseProps} />);
 
-    expect(
-      screen.getByText("This feature is included in Fleet Premium.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Included in Fleet Premium")).toBeInTheDocument();
     expect(screen.queryByDisplayValue(/./)).not.toBeInTheDocument();
   });
 
