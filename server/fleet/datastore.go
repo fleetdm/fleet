@@ -3455,6 +3455,11 @@ type Datastore interface {
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
+	// CleanupHostSoftwareInstalls deletes installs and uninstalls that finished
+	// before olderThan, except those a host is still working on, those setup
+	// experience refers to, and the newest one per host and installer in each
+	// direction. The count is what was deleted before any failure.
+	CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error)
 
 	// SaveInHouseAppUpdates persists new values to an existing in house app.
 	SaveInHouseAppUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error

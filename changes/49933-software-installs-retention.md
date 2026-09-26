@@ -1,0 +1,1 @@
+- Added an hourly cleanup that deletes software install and uninstall records more than 30 days old, configurable with `server.software_install_results_retention`.
