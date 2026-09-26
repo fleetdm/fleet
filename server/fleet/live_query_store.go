@@ -19,8 +19,12 @@ type LiveQueryStore interface {
 	QueriesForHost(hostID uint) (map[string]string, error)
 	// QueryCompletedByHost marks the query with the given name as completed by the
 	// given host. After calling QueryCompleted, that query will no longer be
-	// sent to the host.
-	QueryCompletedByHost(name string, hostID uint) error
+	// sent to the host. It reports whether the query was active and still
+	// targeting the host at that moment.
+	QueryCompletedByHost(name string, hostID uint) (bool, error)
+	// RestoreQueryTargetForHost undoes QueryCompletedByHost for a host whose
+	// result could not be delivered, so the query is sent to it again.
+	RestoreQueryTargetForHost(name string, hostID uint) error
 	// CleanupInactiveQueries removes any inactive queries. This is used via a
 	// cron job to regularly cleanup any queries that may have failed to be
 	// stopped properly in Redis.
