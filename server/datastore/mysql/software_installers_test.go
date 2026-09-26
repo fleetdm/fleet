@@ -36,6 +36,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"ListPendingSoftwareInstalls", testListPendingSoftwareInstalls},
 		{"GetSoftwareInstallResults", testGetSoftwareInstallResult},
 		{"CleanupUnusedSoftwareInstallers", testCleanupUnusedSoftwareInstallers},
+		{"CleanupHostSoftwareInstalls", testCleanupHostSoftwareInstalls},
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"BatchSetSoftwareInstallersReturnsModified", testBatchSetSoftwareInstallersReturnsModified},
 		{"BatchSetSoftwareInstallersMultipleCustomPackages", testBatchSetSoftwareInstallersMultipleCustomPackages},
@@ -8455,4 +8456,196 @@ VALUES `+strings.Join(placeholders, ","), args...)
 	deepTouched := countFilteredTo(deepTeam, deepHosts)
 	require.Less(t, deepTouched, int64(6*titleRows),
 		"must not rescan a host's install history once per row of that history")
+}
+
+func testCleanupHostSoftwareInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	recent := now.Add(-2 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "install-retention"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Retention", "retention@example.com", true)
+	host := test.NewHost(t, ds, "install-retention", "10.0.0.2", "irkey", uuid.NewString(), now, test.WithTeamID(team.ID))
+
+	exec := func(stmt string, args ...any) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+	exists := func(execID string) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM host_software_installs WHERE execution_id = ?`, execID)
+		})
+		return n == 1
+	}
+	newInstaller := func(name string) *uint {
+		tfr, err := fleet.NewTempFileReader(bytes.NewReader([]byte(name)), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "install", InstallerFile: tfr, StorageID: name, Filename: name + ".pkg",
+			Title: name, Source: "apps", Platform: "darwin", TeamID: &team.ID, UserID: user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return &id
+	}
+
+	// The sweep bounds created_at and updated_at, so both are explicit. A nil
+	// exit code is a run the host has not answered.
+	seedAt := func(installerID *uint, uninstall bool, exitCode *int, createdAt, updatedAt time.Time) string {
+		execID := uuid.NewString()
+		installCode, uninstallCode := exitCode, (*int)(nil)
+		if uninstall {
+			installCode, uninstallCode = nil, exitCode
+		}
+		// Activation copies the installer's title onto the row, which is what a
+		// deleted installer leaves behind.
+		exec(`INSERT INTO host_software_installs
+			(host_id, execution_id, software_installer_id, software_title_id, uninstall,
+				install_script_exit_code, uninstall_script_exit_code, created_at, updated_at)
+			VALUES (?, ?, ?, (SELECT title_id FROM software_installers WHERE id = ?), ?, ?, ?, ?, ?)`,
+			host.ID, execID, installerID, installerID, uninstall, installCode, uninstallCode, createdAt, updatedAt)
+		return execID
+	}
+	done := func(installerID *uint, at time.Time) string {
+		return seedAt(installerID, false, new(0), at, at)
+	}
+
+	// Ids ascend with insert order, and the uninstalls land after the installs,
+	// so keeping lastInstall proves the two directions are ranked apart.
+	ladder := newInstaller("ladder")
+	firstInstall, secondInstall, lastInstall := done(ladder, old), done(ladder, old), done(ladder, old)
+	firstUninstall := seedAt(ladder, true, new(0), old, old)
+	lastUninstall := seedAt(ladder, true, new(0), old, old)
+
+	// A run the host never answered can be overtaken by a later one. Deleting it
+	// would drop a result the host is still going to report.
+	stalled := newInstaller("stalled")
+	stalePending := seedAt(stalled, false, nil, old, old)
+	done(stalled, old)
+
+	guarded := newInstaller("guarded")
+	setupRef := done(guarded, old)
+	// Handed out before the cutoff, answered after it.
+	lateReport := seedAt(guarded, false, new(0), old, recent)
+	recentDone := done(guarded, recent)
+
+	// The newest row is canceled, so the tab still shows the one before it.
+	canceledLast := newInstaller("canceled-last")
+	beforeCanceled := done(canceledLast, old)
+	canceledNewer := done(canceledLast, old)
+	exec(`UPDATE host_software_installs SET canceled = 1, updated_at = ? WHERE execution_id = ?`, old, canceledNewer)
+
+	// A successful uninstall stays removed = 0 when its siblings are marked
+	// removed, and it is still what the tab shows.
+	removedLast := newInstaller("removed-last")
+	beforeRemoved := seedAt(removedLast, true, new(0), old, old)
+	removedNewer := seedAt(removedLast, true, new(0), old, old)
+	exec(`UPDATE host_software_installs SET removed = 1, updated_at = ? WHERE execution_id = ?`, old, removedNewer)
+
+	// CreateIntermediateInstallFailureRecord backdates created_at on a new row, so
+	// the highest id is not always the latest attempt. Both win a read: byTime on
+	// the software tab, byID for GetHostLastInstallData.
+	outOfOrder := newInstaller("out-of-order")
+	byTime := done(outOfOrder, now.Add(-36*time.Hour))
+	byID := done(outOfOrder, old)
+
+	// Deleting an installer marks its rows removed, then the foreign key nulls
+	// software_installer_id. What escapes the mark is a successful uninstall.
+	orphaned := newInstaller("orphaned")
+	orphanVisible := done(orphaned, old)
+	orphanRemoved := done(orphaned, old)
+	orphanCanceled := done(orphaned, old)
+	exec(`UPDATE host_software_installs SET removed = 1, updated_at = ? WHERE execution_id = ?`, old, orphanRemoved)
+	exec(`UPDATE host_software_installs SET canceled = 1, updated_at = ? WHERE execution_id = ?`, old, orphanCanceled)
+	exec(`UPDATE host_software_installs SET software_installer_id = NULL, updated_at = ? WHERE software_installer_id = ?`,
+		old, *orphaned)
+
+	// Neither installer nor title: no read reaches the row at all.
+	noInstaller := done(nil, old)
+
+	exec(`INSERT INTO setup_experience_status_results (host_uuid, name, status, host_software_installs_execution_id) VALUES (?, ?, 'success', ?)`,
+		host.UUID, "guarded", setupRef)
+
+	deleted, err := ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 6, deleted,
+		"firstInstall, secondInstall, firstUninstall, orphanRemoved, orphanCanceled and noInstaller")
+
+	assert.False(t, exists(firstInstall))
+	assert.False(t, exists(secondInstall))
+	assert.False(t, exists(firstUninstall))
+	assert.False(t, exists(orphanRemoved))
+	assert.False(t, exists(orphanCanceled))
+	assert.False(t, exists(noInstaller))
+
+	assert.True(t, exists(lastInstall))
+	assert.True(t, exists(lastUninstall))
+	assert.True(t, exists(stalePending))
+	assert.True(t, exists(setupRef))
+	assert.True(t, exists(lateReport))
+	assert.True(t, exists(recentDone))
+	assert.True(t, exists(beforeCanceled))
+	assert.True(t, exists(beforeRemoved))
+	assert.True(t, exists(byTime))
+	assert.True(t, exists(byID))
+	assert.True(t, exists(orphanVisible))
+
+	deleted, err = ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+
+	// The cap stops a run partway and the next one drains the rest.
+	capped := newInstaller("capped")
+	stale := []string{done(capped, old), done(capped, old), done(capped, old)}
+	done(capped, old)
+
+	deleted, err = cleanupHostSoftwareInstallsDB(ctx, ds, cutoff, 1, 1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+
+	deleted, err = cleanupHostSoftwareInstallsDB(ctx, ds, cutoff, 1, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted)
+	for _, execID := range stale {
+		assert.False(t, exists(execID))
+	}
+
+	// A row referenced between select and delete is saved by the re-check.
+	racing := newInstaller("racing")
+	raced := done(racing, old)
+	done(racing, old)
+	var racedID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &racedID, `SELECT id FROM host_software_installs WHERE execution_id = ?`, raced)
+	})
+	exec(`INSERT INTO setup_experience_status_results (host_uuid, name, status, host_software_installs_execution_id) VALUES (?, ?, 'success', ?)`,
+		host.UUID, "racing", raced)
+
+	n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), []uint{racedID}, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.True(t, exists(raced))
+
+	// A host deletion refreshes updated_at, so its installs outlive the window by
+	// one retention period, then all go: nothing shows a gone host's last install.
+	gone := newInstaller("gone")
+	deletedHost := done(gone, old)
+	exec(`UPDATE host_software_installs SET host_deleted_at = NOW() WHERE execution_id = ?`, deletedHost)
+	deleted, err = ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+	assert.True(t, exists(deletedHost))
+
+	exec(`UPDATE host_software_installs SET updated_at = ? WHERE execution_id = ?`, old, deletedHost)
+	deleted, err = ds.CleanupHostSoftwareInstalls(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHost))
 }
