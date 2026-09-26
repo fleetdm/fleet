@@ -22,7 +22,7 @@ runs:
       # $HOME/.fleetctl, not any user-supplied value, so it cannot inject a path.
       run: | # zizmor: ignore[github-env]
         FLEET_URL="$(printf '%s' "$FLEET_URL" | sed 's:/*$::')"
-        FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
+        FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent --connect-timeout 10 --max-time 60 | jq --raw-output '.version')"
         DEFAULT_FLEETCTL_VERSION="latest"
 
         # Decide which fleetctl version to install:
