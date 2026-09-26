@@ -13,6 +13,9 @@ type GoogleWorkspaceGroup struct {
 	DisplayName string
 	// MemberExternalIDs holds the Google user IDs of the group's direct members.
 	MemberExternalIDs []string
+	// ChildGroupExternalIDs holds the Google group IDs of the groups nested
+	// directly inside this one (maps to scim_group_group edges).
+	ChildGroupExternalIDs []string
 }
 
 // GoogleWorkspaceDirectory pulls users and groups from a Google Workspace
@@ -29,6 +32,6 @@ type GoogleWorkspaceDirectory interface {
 	// not populated here — it is resolved from ListGroups by the sync engine.
 	ListUsers(ctx context.Context) ([]*ScimUser, error)
 	// ListGroups returns every group in the configured domain along with the
-	// external IDs (Google user IDs) of each group's members.
+	// external IDs of each group's direct user members and nested child groups.
 	ListGroups(ctx context.Context) ([]*GoogleWorkspaceGroup, error)
 }
