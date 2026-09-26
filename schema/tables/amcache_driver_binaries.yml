@@ -1,0 +1,127 @@
+name: amcache_driver_binaries
+description: Driver binaries recorded in the Windows Amcache hive by the Microsoft Compatibility
+  Appraiser, with the driver's SHA-1 and the appraiser's signing assessment.
+platforms:
+  - windows
+evented: false
+notes: |-
+  Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.
+
+  A value that is absent from the record or that cannot be decoded leaves the column empty. On a
+  text column that is the empty string. On an integer or bigint column osquery renders an empty
+  value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
+  an empty string.
+
+  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
+  not a core osquery table and is only available on hosts where that extension is loaded, for
+  example through fleetd's extensions agent option or osquery's extensions.load file.
+
+  The signed, inbox and kernel_mode columns are the appraiser's assessment recorded at inventory
+  time, not a live signature check. A driver that was signed when it was inventoried still reads as
+  signed after its certificate is revoked.
+examples: |-
+  List kernel-mode drivers that Windows did not ship and that the appraiser did not assess as
+  signed, which is the shape a bring-your-own-vulnerable-driver load leaves behind.
+
+  ```
+  SELECT path, driver_name, sha1, driver_version, link_time
+  FROM amcache_driver_binaries
+  WHERE kernel_mode = 1 AND inbox = 0 AND signed = 0;
+  ```
+columns:
+  - name: path
+    type: text
+    description: Full path of the driver binary, lowercased, taken from the Amcache subkey name with
+      forward slashes rewritten to backslashes. Joins LOWER(drivers.image) and authenticode.path.
+    required: false
+  - name: driver_name
+    type: text
+    description: File name of the driver binary.
+    required: false
+  - name: sha1
+    type: text
+    description: SHA-1 of the driver binary as lowercase hexadecimal, taken from the record's
+      DriverId value and never from a program id. Windows hashes only the first 31,457,280 bytes of
+      a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings
+      case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the
+      file exists.
+    required: false
+  - name: signed
+    type: integer
+    description: Value is 1 if the appraiser assessed the driver as signed. This is the assessment
+      recorded at inventory time and not a live signature check.
+    required: false
+  - name: inbox
+    type: integer
+    description: Value is 1 if the appraiser assessed the driver as shipping with Windows. This is
+      the assessment recorded at inventory time.
+    required: false
+  - name: kernel_mode
+    type: integer
+    description: Value is 1 if the appraiser assessed the driver as running in kernel mode. This is
+      the assessment recorded at inventory time.
+    required: false
+  - name: driver_type
+    type: bigint
+    description: Flags word the appraiser records for the driver. The bits confirmed by measurement
+      on the reference hives are 0x2 kernel mode, 0x4 user mode, 0x8 signed, 0x10 inbox, 0x20
+      self-signed and 0x40000 AMD64, and the first three agree with kernel_mode, signed and inbox on
+      every record observed. Further bits are set on real records whose meaning is not established
+      here, so treat an unlisted bit as unknown rather than as unset.
+    required: false
+  - name: driver_version
+    type: text
+    description: Version of the driver binary.
+    required: false
+  - name: product
+    type: text
+    description: Product name from the driver binary's PE version resource.
+    required: false
+  - name: product_version
+    type: text
+    description: Product version from the driver binary's PE version resource.
+    required: false
+  - name: driver_company
+    type: text
+    description: Company name from the driver binary's PE version resource.
+    required: false
+  - name: service
+    type: text
+    description: Name of the service the driver is registered under. Joins services.name.
+    required: false
+  - name: inf
+    type: text
+    description: Name of the INF that installed the driver. Joins amcache_driver_packages.inf and
+      amcache_device_pnp.inf.
+    required: false
+  - name: driver_package_strong_name
+    type: text
+    description: Strong name of the driver package in the driver store.
+    required: false
+  - name: image_size
+    type: bigint
+    description: Size of the driver image in bytes as recorded in its PE header.
+    required: false
+  - name: checksum
+    type: bigint
+    description: Checksum from the driver binary's PE header.
+    required: false
+  - name: link_time
+    type: bigint
+    description: Link timestamp from the driver binary's PE header, as a unix epoch. Interpreted as
+      UTC. Windows stores this one as a number rather than as a date string. It is
+      attacker-influenced PE metadata and not a record of when the driver was loaded, and it is the
+      column that forces the bigint type, because 42 percent of the values on the reference hives
+      exceed 2,147,483,647 and would render as a negative epoch in an integer column.
+    required: false
+  - name: modified_time
+    type: bigint
+    description: Last write time of the driver file on disk as the appraiser recorded it, as a unix
+      epoch. Interpreted as UTC. This mirrors shimcache.modified_time.
+    required: false
+  - name: last_write_time
+    type: bigint
+    description: Time the record was last written by the Microsoft Compatibility Appraiser, as a
+      unix epoch. Interpreted as UTC. This is not when the program ran, the driver loaded or the
+      device was connected.
+    required: false
