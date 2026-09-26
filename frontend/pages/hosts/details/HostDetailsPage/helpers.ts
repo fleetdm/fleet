@@ -60,3 +60,8 @@ export const canShowMyDeviceButton = (
 // then, which is what separates them from hosts that can return vitals.
 export const hasEverEnrolled = (host: Pick<IHost, "last_enrolled_at">) =>
   !!host.last_enrolled_at && host.last_enrolled_at >= INITIAL_FLEET_DATE;
+
+// A host that has never reported vitals is still coming up (e.g. orbit is enrolled and running setup experience but osquery
+// has not checked in yet).
+export const hasReportedVitals = (host: Pick<IHost, "detail_updated_at">) =>
+  !!host.detail_updated_at && host.detail_updated_at >= INITIAL_FLEET_DATE;
