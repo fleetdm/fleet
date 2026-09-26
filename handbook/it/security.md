@@ -2110,6 +2110,23 @@ questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 This section contains explanations of the latest external security audits performed on Fleet software.
 
 
+### June 2026 penetration testing of Fleet 4.86.0
+
+In June 2026, [Aikido Security](https://www.aikido.dev/) performed a white box penetration test of the Fleet application. This was Fleet's first agentic penetration test: a large swarm of AI agents with access to Fleet's source code attacked a dedicated test environment running Fleet 4.86.0 over a 24-hour period. Testing covered authentication, authorization, input handling, business logic, and API behavior. Over the following weeks, we re-ran targeted agent tests to validate each fix.
+
+Because a swarm of agents covers far more surface area in parallel than a single human tester, the assessment surfaced more findings than previous black box penetration tests. The assessment identified findings across high, medium, and low severities, and no critical severity findings. Findings were concentrated in these categories:
+
+- Authorization and access controls
+- Authentication and device enrollment
+- MDM protocol handling
+- Information disclosure in API responses and error messages
+- Input validation and hardening opportunities
+
+Fleet triaged every finding. Each one was fixed in a subsequent Fleet release, accepted with documented rationale, or determined to be a false positive. All findings are resolved.
+
+You can find the remediation report here: [2026-06-05-fleet-penetration-test-remediation.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2026-06-05-fleet-penetration-test-remediation.pdf).
+
+
 ### July 2025 penetration testing of Fleet 4.70.1
 
 In July 2025, [BHIS](https://www.blackhillsinfosec.com/) performed an application penetration assessment of the application from Fleet. 
