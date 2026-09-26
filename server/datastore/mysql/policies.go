@@ -42,7 +42,8 @@ const policyCols = `
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
 	p.patch_software_title_id, p.continuous_automations_enabled, p.patch_when_closed,
-	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid
+	p.notify_before_patching,
+	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid, p.hidden
 `
 
 const (
@@ -121,10 +122,10 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, hidden, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
-		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, args.Hidden,
 	)
 	switch {
 	case err == nil:
@@ -482,7 +483,8 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
 			conditional_access_enabled = ?, continuous_automations_enabled = ?, patch_when_closed = ?,
-			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?,
+			notify_before_patching = ?,
+			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?, hidden = ?,
 			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
@@ -490,7 +492,8 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform,
 		p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID,
 		p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled,
-		p.PatchWhenClosed, p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID,
+		p.PatchWhenClosed, p.NotifyBeforePatching,
+		p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID, p.Hidden,
 		p.ID,
 	)
 	if err != nil {
@@ -1583,14 +1586,16 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 				platforms, critical, calendar_events_enabled, software_installer_id,
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
 				type, patch_software_title_id, continuous_automations_enabled, patch_when_closed,
-				resend_apple_profile_uuid, resend_windows_profile_uuid
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?)`,
+				notify_before_patching,
+				resend_apple_profile_uuid, resend_windows_profile_uuid, hidden
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
 		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled, args.PatchWhenClosed,
-		resendProf.AppleUUID, resendProf.WindowsUUID,
+		args.NotifyBeforePatching,
+		resendProf.AppleUUID, resendProf.WindowsUUID, args.Hidden,
 	)
 	switch {
 	case err == nil:
@@ -1937,9 +1942,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			patch_software_title_id,
 			continuous_automations_enabled,
 			patch_when_closed,
+			notify_before_patching,
 			resend_apple_profile_uuid,
-			resend_windows_profile_uuid
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?)
+			resend_windows_profile_uuid,
+			hidden
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1956,8 +1963,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			patch_software_title_id = VALUES(patch_software_title_id),
 			continuous_automations_enabled = VALUES(continuous_automations_enabled),
 			patch_when_closed = VALUES(patch_when_closed),
+			notify_before_patching = VALUES(notify_before_patching),
 			resend_apple_profile_uuid = VALUES(resend_apple_profile_uuid),
-			resend_windows_profile_uuid = VALUES(resend_windows_profile_uuid)
+			resend_windows_profile_uuid = VALUES(resend_windows_profile_uuid),
+			hidden = VALUES(hidden)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -2038,10 +2047,20 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						return ctxerr.Wrap(ctx, err, "getting patch policy installer")
 					}
 
+					if spec.NotifyBeforePatching && installer.Platform != "darwin" {
+						return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+							Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error(),
+						})
+					}
+
 					// Defensive: this can only happen if this endpoint is being called not via gitops
 					// and batch software didn't get called before.
-					if spec.PatchWhenClosed && installer.PreInstallQuery != "" {
-						return ctxerr.Errorf(ctx, "policy %q: pre_install_query can't be set on Fleet-maintained app %q when patch_when_closed is true", spec.Name, spec.FleetMaintainedAppSlug)
+					if (spec.PatchWhenClosed || spec.NotifyBeforePatching) && installer.PreInstallQuery != "" {
+						patchOption := "patch_when_closed"
+						if spec.NotifyBeforePatching {
+							patchOption = "notify_before_patching"
+						}
+						return ctxerr.Errorf(ctx, "policy %q: pre_install_query can't be set on Fleet-maintained app %q when %s is true", spec.Name, spec.FleetMaintainedAppSlug, patchOption)
 					}
 
 					generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
@@ -2070,7 +2089,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				// Continuous automations must be enabled so the patch policy keeps retrying the
 				// install until the app is closed.
-				if spec.PatchWhenClosed {
+				if spec.PatchWhenClosed || spec.NotifyBeforePatching {
 					spec.ContinuousAutomationsEnabled = true
 				}
 
@@ -2080,7 +2099,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
 					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled, spec.PatchWhenClosed,
-					resendProf.AppleUUID, resendProf.WindowsUUID,
+					spec.NotifyBeforePatching,
+					resendProf.AppleUUID, resendProf.WindowsUUID, spec.Hidden,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -3120,7 +3140,9 @@ func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, tea
 	if len(policyIDs) == 0 {
 		return nil, nil
 	}
-	query := `SELECT id, software_installer_id, continuous_automations_enabled FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL AND id IN (?);`
+	query := `SELECT id, software_installer_id, continuous_automations_enabled,
+		patch_when_closed OR notify_before_patching AS override_pre_install_query
+		FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL AND id IN (?);`
 	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated installer")
@@ -3218,7 +3240,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 					PARTITION BY he.host_id
 					ORDER BY
 						CASE
-							WHEN he.source IN (?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp) have priority 1
+							WHEN he.source IN (?, ?, ?) THEN 1  -- IdP sources (mdm_idp_accounts, idp, entra_join) have priority 1
 							WHEN he.source = ? THEN 2         -- Google Chrome profiles have priority 2
 							ELSE 3                             -- Other sources have lower priority
 						END,
@@ -3237,7 +3259,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 
 	query, args, err := sqlx.In(query,
 		policyIDs,
-		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, // IdP sources
+		fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, fleet.DeviceMappingEntraJoin, // IdP sources
 		fleet.DeviceMappingGoogleChromeProfiles, // Chrome profiles
 		domain, teamID,                          // domain and team_id for WHERE clause
 		teamID) // h.team_id in main WHERE
@@ -3321,10 +3343,10 @@ func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, t
 }
 
 func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
-	query := `SELECT id, name, patch_when_closed, continuous_automations_enabled FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
+	query := `SELECT id, name, patch_when_closed, notify_before_patching, continuous_automations_enabled FROM policies WHERE team_id = ? AND patch_software_title_id = ? AND type = ?`
 	var policy fleet.PatchPolicyData
 
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID, fleet.PolicyTypePatch)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("PatchPolicy"), "get patch policy")

@@ -3,17 +3,16 @@
 import React, { useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import PATHS from "router/paths";
 
-import { ISoftwareTitleVersion } from "interfaces/software";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import LastUpdatedText from "components/LastUpdatedText";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-import LastUpdatedText from "components/LastUpdatedText";
+import { ISoftwareTitleVersion, SoftwareSource } from "interfaces/software";
+import PATHS from "router/paths";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig";
 
@@ -69,6 +68,7 @@ const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
 interface ITitleVersionsTableProps {
   router: InjectedRouter;
   data: ISoftwareTitleVersion[];
+  source: SoftwareSource;
   isLoading: boolean;
   teamIdForApi?: number;
   isIPadOSOrIOSApp: boolean;
@@ -85,6 +85,7 @@ interface IRowProps extends Row {
 const TitleVersionsTable = ({
   router,
   data,
+  source,
   isLoading,
   teamIdForApi,
   isIPadOSOrIOSApp,
@@ -109,8 +110,9 @@ const TitleVersionsTable = ({
       generateSoftwareTitleVersionsTableConfig({
         teamId: teamIdForApi,
         isIPadOSOrIOSApp,
+        source,
       }),
-    [teamIdForApi, isIPadOSOrIOSApp]
+    [teamIdForApi, isIPadOSOrIOSApp, source]
   );
 
   const renderVersionsCount = () => (

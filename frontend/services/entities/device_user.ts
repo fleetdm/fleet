@@ -1,16 +1,15 @@
+import { IHostCertificate } from "interfaces/certificates";
+import { ICommandResult } from "interfaces/command";
 import { IDUPDetails } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
-import { IHostCertificate } from "interfaces/certificates";
+import { IDeviceSoftware } from "interfaces/software";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   getPathWithQueryParams,
 } from "utilities/url";
-
-import { ICommandResult } from "interfaces/command";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -34,6 +33,7 @@ export interface IGetDeviceSoftwareResponse {
 interface IGetDeviceDetailsApiParams {
   token: string;
   exclude_software?: boolean;
+  include_hidden_policies?: boolean;
 }
 
 export interface IGetDeviceCertificatesResponse {
@@ -72,12 +72,16 @@ export default {
   loadHostDetails: ({
     token,
     exclude_software,
+    include_hidden_policies,
   }: IGetDeviceDetailsApiParams): Promise<IDUPDetails> => {
     const { DEVICE_USER_DETAILS } = endpoints;
-    let path = `${DEVICE_USER_DETAILS}/${token}`;
-    if (exclude_software) {
-      path += "?exclude_software=true";
-    }
+    const queryString = buildQueryStringFromParams({
+      exclude_software: exclude_software || undefined,
+      include_hidden_policies: include_hidden_policies || undefined,
+    });
+    const path = `${DEVICE_USER_DETAILS}/${token}${
+      queryString ? `?${queryString}` : ""
+    }`;
     return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (

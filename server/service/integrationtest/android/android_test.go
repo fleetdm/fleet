@@ -130,7 +130,9 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		})
 
 		t.Run("if android MDM is not configured", func(t *testing.T) {
-			s.Do(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusConflict, "enroll_secret", "secret")
+			err := s.DS.ApplyEnrollSecrets(t.Context(), nil, []*fleet.EnrollSecret{{Secret: "valid-secret"}})
+			require.NoError(t, err)
+			s.Do(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusConflict, "enroll_secret", "valid-secret")
 		})
 
 		t.Run("if enroll secret is invalid", func(t *testing.T) {

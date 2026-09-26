@@ -1,6 +1,7 @@
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
+
 import { IDerivedContext } from "./derivations";
 
 const buildMdmItems = (
@@ -210,6 +211,25 @@ const buildMdmItems = (
             ],
           },
         ]),
+    // Android zero-touch enrollment
+    ...(isPremiumTier && isAndroidMdmEnabledAndConfigured
+      ? [
+          {
+            id: "android-zero-touch",
+            label: "Android zero-touch",
+            group: "MDM" as const,
+            path: paths.ADMIN_INTEGRATIONS_MDM_ANDROID_ZERO_TOUCH,
+            keywords: [
+              "dpc",
+              "extras",
+              "google",
+              "unboxed",
+              "company owned",
+              "provisioning",
+            ],
+          },
+        ]
+      : []),
   ];
 };
 

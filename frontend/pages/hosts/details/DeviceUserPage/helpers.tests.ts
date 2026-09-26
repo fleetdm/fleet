@@ -1,10 +1,12 @@
 import { ISetupStep } from "interfaces/setup";
+
 import {
   canAutoInitiateDeviceSSO,
   clearDeviceSSOAttempt,
   isSoftwareScriptSetup,
   isSSORequiredError,
   recordDeviceSSOAttempt,
+  toEndUserIssues,
 } from "./helpers";
 
 const setupStep = (source?: ISetupStep["source"]): ISetupStep => ({
@@ -97,5 +99,31 @@ describe("device SSO attempt flag", () => {
       .mockImplementation(() => undefined);
 
     expect(recordDeviceSSOAttempt("token-a")).toBe(false);
+  });
+});
+
+describe("toEndUserIssues", () => {
+  it("drops hidden failing policies from both counts", () => {
+    expect(
+      toEndUserIssues({
+        total_issues_count: 5,
+        critical_vulnerabilities_count: 2,
+        failing_policies_count: 3,
+        failing_unhidden_policies_count: 1,
+      })
+    ).toEqual({
+      total_issues_count: 3,
+      critical_vulnerabilities_count: 2,
+      failing_policies_count: 1,
+      failing_unhidden_policies_count: 1,
+    });
+  });
+
+  it("passes issues through when the server does not report the unhidden count", () => {
+    const issues = {
+      total_issues_count: 3,
+      failing_policies_count: 3,
+    };
+    expect(toEndUserIssues(issues)).toBe(issues);
   });
 });

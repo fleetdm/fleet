@@ -1,21 +1,20 @@
 import React, { useCallback } from "react";
 import { useQuery } from "react-query";
-import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
 
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { getBuiltinPlatformLabelId } from "interfaces/label";
 import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
-
 import diskEncryptionAPI, {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
 } from "services/entities/disk_encryption";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
-
-import TableContainer from "components/TableContainer";
-import EmptyState from "components/EmptyState";
-import DataError from "components/DataError";
+import labelsAPI, { ILabelsSummaryResponse } from "services/entities/labels";
+import { getPathWithQueryParams } from "utilities/url";
 
 import {
   generateTableHeaders,
@@ -24,6 +23,13 @@ import {
 } from "./DiskEncryptionTableConfig";
 
 const baseClass = "disk-encryption-table";
+
+// tab platforms mapped to the osquery platform of their built-in label
+const PLATFORM_TO_OSQUERY_PLATFORM = {
+  macos: "darwin",
+  windows: "windows",
+  linux: "linux",
+} as const;
 
 interface IDiskEncryptionTableProps {
   platform: keyof IDiskEncryptionStatusAggregate;
@@ -59,6 +65,18 @@ const DiskEncryptionTable = ({
     }
   );
 
+  // builtin labels are global, so the summary is fetched without a fleet
+  // (Free tier rejects fleet-scoped summaries)
+  const { data: labels } = useQuery<
+    ILabelsSummaryResponse,
+    Error,
+    ILabelsSummaryResponse["labels"]
+  >(["labelsSummary"], () => labelsAPI.summary(), {
+    select: (res) => res.labels,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
   const onSelectSingleRow = useCallback(
     (row: IDiskEncryptionRowProps) => {
       const { status, teamId } = row.original;
@@ -67,11 +85,21 @@ const DiskEncryptionTable = ({
         [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: status?.value,
         fleet_id: teamId,
       };
-      const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, queryParams);
+      // fall back to the unfiltered hosts page when the platform label hasn't
+      // loaded or is missing, rather than dropping the click
+      const labelId = getBuiltinPlatformLabelId(
+        labels,
+        PLATFORM_TO_OSQUERY_PLATFORM[platform]
+      );
+      const endpoint =
+        labelId !== undefined
+          ? PATHS.MANAGE_HOSTS_LABEL(labelId)
+          : PATHS.MANAGE_HOSTS;
+      const path = getPathWithQueryParams(endpoint, queryParams);
 
       router.push(path);
     },
-    [router]
+    [router, labels, platform]
   );
 
   const tableHeaders = generateTableHeaders();

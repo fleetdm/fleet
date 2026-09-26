@@ -1,10 +1,10 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
 import { createMockCommand } from "__mocks__/commandMock";
 import commandsAPI from "services/entities/command";
+import { createCustomRenderer } from "test/test-utils";
 
 import CancelCommandModal from "./CancelCommandModal";
 

@@ -38,6 +38,7 @@ fleet_maintained_apps:
   - slug: fma3/windows
     self_service: true
     version: ^123
+  - slug: fma4/darwin
 app_store_apps:
   - app_store_id: "1234567890"
     labels_exclude_any:

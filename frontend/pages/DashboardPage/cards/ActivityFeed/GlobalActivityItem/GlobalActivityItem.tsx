@@ -1,6 +1,14 @@
 import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
+import {
+  renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import ActivityItem from "components/ActivityItem";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import TooltipWrapper from "components/TooltipWrapper";
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   DATASET_LABEL,
@@ -18,16 +26,15 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+import { API_NO_TEAM_ID } from "interfaces/team";
+import {
+  formatMdmCommandNameForActivityItem,
+  PREMIUM_ONLY_DETAIL_ACTIVITIES,
+} from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
-
-import ActivityItem from "components/ActivityItem";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-import TooltipWrapper from "components/TooltipWrapper";
-import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
 
@@ -49,6 +56,8 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
   ActivityType.FailedEnrollmentProfileRenewal,
+  ActivityType.NotifiedEndUserBeforePatching,
+  ActivityType.HostEnrollmentRejected,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -160,6 +169,9 @@ const getMacOSSetupAssistantMessage = (
     </>
   );
 };
+
+const isPassiveRoleActivity = (activity: IActivity): boolean =>
+  !!activity.details?.jit || activity.actor_id === activity.details?.user_id;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -328,62 +340,91 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
-    const { actor_id } = activity;
-    const { user_id, user_email, role } = activity.details || {};
+    const { user_email, role, jit } = activity.details || {};
 
-    if (actor_id === user_id) {
-      // this is the case when SSO user is crated via JIT provisioning
-      // should only be possible for premium tier, but check anyway
+    if (isPassiveRoleActivity(activity)) {
       return (
         <>
           was assigned the <b>{role}</b> role
-          {isPremiumTier && " for all fleets"}.
+          {isPremiumTier && " for all fleets"}
+          {jit && " via just-in-time (JIT) provisioning"}.
         </>
       );
     }
     return (
       <>
-        changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
+        changed <b>{user_email}</b> to <b>{role}</b>
         {isPremiumTier && " for all fleets"}.
       </>
     );
   },
   userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    const { user_email, role, jit } = activity.details || {};
+
+    if (isPassiveRoleActivity(activity)) {
+      return (
+        <>
+          was removed as <b>{role}</b>
+          {isPremiumTier && " for all fleets"}
+          {jit && " via just-in-time (JIT) provisioning"}.
+        </>
+      );
+    }
     return (
       <>
-        removed <b>{activity.details?.user_email}</b> as{" "}
-        <b>{activity.details?.role}</b>
+        removed <b>{user_email}</b> as <b>{role}</b>
         {isPremiumTier && " for all fleets"}.
       </>
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
-    const { actor_id } = activity;
-    const { user_id, user_email, role, team_name } = activity.details || {};
+    const { user_email, role, team_name, jit } = activity.details || {};
 
-    const varText =
-      actor_id === user_id ? (
+    if (isPassiveRoleActivity(activity)) {
+      return (
         <>
-          was assigned the <b>{role}</b> role
-        </>
-      ) : (
-        <>
-          changed <b>{user_email}</b> to <b>{role}</b>
+          was assigned the <b>{role}</b> role for the <b>{team_name}</b> fleet
+          {jit && " via just-in-time (JIT) provisioning"}.
         </>
       );
+    }
     return (
       <>
-        {varText} for the <b>{team_name}</b> fleet.
+        changed <b>{user_email}</b> to <b>{role}</b> for the <b>{team_name}</b>{" "}
+        fleet.
       </>
     );
   },
   userDeletedTeamRole: (activity: IActivity) => {
+    const { user_email, team_name, jit } = activity.details || {};
+
+    if (isPassiveRoleActivity(activity)) {
+      return (
+        <>
+          was removed from the <b>{team_name}</b> fleet
+          {jit && " via just-in-time (JIT) provisioning"}.
+        </>
+      );
+    }
     return (
       <>
-        removed <b>{activity.details?.user_email}</b> from the{" "}
-        <b>{activity.details?.team_name}</b> fleet.
+        removed <b>{user_email}</b> from the <b>{team_name}</b> fleet.
       </>
     );
+  },
+  hostEnrollmentRejected: (activity: IActivity) => {
+    const { host_display_name, host_serial } = activity.details || {};
+    let host: React.ReactNode = "a host";
+    if (host_display_name) {
+      host = <b>{host_display_name}</b>;
+    } else if (host_serial) {
+      host = (
+        <>
+          a host with serial number <b>{host_serial}</b>
+        </>
+      );
+    }
+    return <>rejected an enrollment for {host}.</>;
   },
   fleetEnrolled: (activity: IActivity) => {
     const { host_display_name, host_serial } = activity.details || {};
@@ -2108,6 +2149,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdDiskEncryptionPIN: (activity: IActivity) => {
+    return (
+      <>
+        <b>End user </b>created a disk encryption PIN for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdLabel: (activity: IActivity) => {
     const fleetText = activity.details?.fleet_name ? (
       <>
@@ -2399,6 +2448,32 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  notifiedEndUserBeforePatching: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const {
+      host_display_name: hostName,
+      software_titles: titles = [],
+      status,
+      time_before: timeBefore,
+    } = details;
+    const timeLabel = formatNotifyTimeLabel(timeBefore);
+    const failed = isNotifyFailure(status);
+    const verb = failed ? "failed to notify" : "notified";
+
+    const titleList = renderNotifyTitleList(titles);
+
+    return (
+      <>
+        {" "}
+        {verb} end user {timeLabel} before patching
+        {titleList && <> {titleList}</>} on{" "}
+        <strong>{hostName || "the host"}</strong>.
+      </>
+    );
+  },
   enabledOnlyAppleBusinessEnrollment: () => {
     return <>enabled Apple Business only enrollment for Apple hosts.</>;
   },
@@ -2465,6 +2540,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.FleetEnrolled: {
       return TAGGED_TEMPLATES.fleetEnrolled(activity);
+    }
+    case ActivityType.HostEnrollmentRejected: {
+      return TAGGED_TEMPLATES.hostEnrollmentRejected(activity);
     }
     case ActivityType.MdmEnrolled: {
       return TAGGED_TEMPLATES.mdmEnrolled(activity);
@@ -2874,6 +2952,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
     }
+    case ActivityType.CreatedDiskEncryptionPIN: {
+      return TAGGED_TEMPLATES.createdDiskEncryptionPIN(activity);
+    }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
@@ -2943,6 +3024,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
+    case ActivityType.NotifiedEndUserBeforePatching: {
+      return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
+    }
     case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
     }
@@ -2971,7 +3055,9 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
+  const hasDetails =
+    ACTIVITIES_WITH_DETAILS.has(activity.type) &&
+    (isPremiumTier || !PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type));
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = (
@@ -2980,8 +3066,10 @@ const GlobalActivityItem = ({
 
     switch (activity.type) {
       case ActivityType.UserChangedGlobalRole:
+      case ActivityType.UserDeletedGlobalRole:
       case ActivityType.UserChangedTeamRole:
-        return activity.actor_id === activity.details?.user_id ? (
+      case ActivityType.UserDeletedTeamRole:
+        return isPassiveRoleActivity(activity) ? (
           <b>{activity.details?.user_email} </b>
         ) : (
           DEFAULT_ACTOR_DISPLAY
@@ -3004,6 +3092,9 @@ const GlobalActivityItem = ({
         if (!activity.actor_full_name?.trim()) return <b>Fleet </b>;
         return DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
+      case ActivityType.CreatedDiskEncryptionPIN:
         // The template carries the "End user" subject for this roll-up.
         return null;
       case ActivityType.UserMFARequested:

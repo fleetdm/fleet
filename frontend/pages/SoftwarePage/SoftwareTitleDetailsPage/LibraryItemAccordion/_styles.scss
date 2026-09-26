@@ -232,29 +232,29 @@
   display: flex;
   flex-direction: column;
   border: 1px solid $ui-fleet-black-10;
-  border-radius: 8px;
+  border-radius: $border-radius-large;
   overflow: hidden;
 
   // Match each header's corner radius to its position in the list so the
   // focus-visible outline (drawn just inside the header) stays flush with
   // the list's rounded clip.
   .library-item-accordion:first-child .library-item-accordion__header {
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    border-top-left-radius: $border-radius-large;
+    border-top-right-radius: $border-radius-large;
   }
 
   // Only round the last header's bottom corners when it sits flush against
   // the list's bottom edge — i.e. when its panel isn't expanded below it.
   .library-item-accordion:last-child:not(.library-item-accordion--expanded)
     .library-item-accordion__header {
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: $border-radius-large;
+    border-bottom-right-radius: $border-radius-large;
   }
 
   .library-item-accordion:last-child.library-item-accordion--expanded
     .library-item-accordion__panel {
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: $border-radius-large;
+    border-bottom-right-radius: $border-radius-large;
   }
 
   .library-item-accordion:last-child .library-item-accordion__header,

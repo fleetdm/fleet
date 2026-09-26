@@ -16,9 +16,9 @@ func TestCacheRoundTrip(t *testing.T) {
 				PR: &ghapi.PullRequest{Number: 55555, HeadRefName: "b"}}},
 			BucketNeedsYourHands: {{Kind: KindIssue, Number: 38348, Title: "do it", Bucket: BucketNeedsYourHands}},
 		}},
-		Statuses:      map[int]string{38348: "In progress"},
-		Projects:      map[int]int{38348: 58},
-		IssueProjects: map[int][]ProjectRef{38348: {{Number: 58, UpdatedAt: "2026-06-01T00:00:00Z"}}},
+		Statuses:      map[string]string{ghapi.IssueRefKey("fleetdm/fleet", 38348): "In progress"},
+		Projects:      map[string]int{ghapi.IssueRefKey("fleetdm/fleet", 38348): 58},
+		IssueProjects: map[string][]ProjectRef{ghapi.IssueRefKey("fleetdm/fleet", 38348): {{Number: 58, UpdatedAt: "2026-06-01T00:00:00Z"}}},
 	}
 	if err := SaveCache(path, res); err != nil {
 		t.Fatalf("SaveCache: %v", err)
@@ -30,7 +30,8 @@ func TestCacheRoundTrip(t *testing.T) {
 	if at.IsZero() {
 		t.Error("expected a non-zero fetchedAt")
 	}
-	if got.Login != "george" || got.Statuses[38348] != "In progress" || len(got.IssueProjects[38348]) != 1 {
+	key := ghapi.IssueRefKey("fleetdm/fleet", 38348)
+	if got.Login != "george" || got.Statuses[key] != "In progress" || len(got.IssueProjects[key]) != 1 {
 		t.Errorf("round-trip mismatch: %+v", got)
 	}
 	// The Bucket-keyed board map must survive JSON round-trip.
@@ -53,14 +54,15 @@ func TestApplyFetchNilMapsSafe(t *testing.T) {
 	fc, _ := LoadFocusStore("")
 	m := &Model{
 		triage: tr, links: lk, focus: fc,
-		statuses: map[int]string{}, projects: map[int]int{}, issueProjects: map[int][]ProjectRef{},
+		statuses: map[string]string{}, projects: map[string]int{}, issueProjects: map[string][]ProjectRef{},
 	}
 	// A fetch/cache with all-nil enrichment maps (as an old cache would deserialize).
 	m.applyFetch(FetchResult{Login: "x", Board: Board{Buckets: map[Bucket][]Item{}}})
 	// These assignments panicked ("assignment to entry in nil map") before the fix.
-	m.issueProjects[42] = []ProjectRef{{Number: 58}}
-	m.statuses[42] = "In progress"
-	m.projects[42] = 58
+	key := ghapi.IssueRefKey("fleetdm/fleet", 42)
+	m.issueProjects[key] = []ProjectRef{{Number: 58}}
+	m.statuses[key] = "In progress"
+	m.projects[key] = 58
 	if m.issueProjects == nil || m.statuses == nil || m.projects == nil {
 		t.Fatal("enrichment maps must stay non-nil after applyFetch")
 	}
@@ -88,17 +90,18 @@ func TestIsCompleted(t *testing.T) {
 }
 
 func TestMostRecentProject(t *testing.T) {
-	m := &Model{issueProjects: map[int][]ProjectRef{
-		42: {
+	key := ghapi.IssueRefKey("fleetdm/fleet", 42)
+	m := &Model{issueProjects: map[string][]ProjectRef{
+		key: {
 			{Number: 58, UpdatedAt: "2026-06-01T00:00:00Z"},
 			{Number: 71, UpdatedAt: "2026-06-30T00:00:00Z"}, // most recent
 			{Number: 97, UpdatedAt: "2026-05-01T00:00:00Z"},
 		},
 	}}
-	if got := m.mostRecentProject(42); got != 71 {
+	if got := m.mostRecentProject(key); got != 71 {
 		t.Errorf("expected most recent project 71, got %d", got)
 	}
-	if got := m.mostRecentProject(999); got != 0 {
+	if got := m.mostRecentProject(ghapi.IssueRefKey("fleetdm/fleet", 999)); got != 0 {
 		t.Errorf("unknown issue should give 0, got %d", got)
 	}
 }

@@ -79,14 +79,16 @@ import (
 )
 
 const (
-	bitsInByte              = 8
-	queryKeyPrefix          = "livequery:"
-	sqlKeyPrefix            = "sql:"
-	activeQueriesKey        = "livequery:active"
-	activeReverseQueriesKey = "livequery:active:reverse"
-	reverseHostKeyPrefix    = "livequery:host:"
-	queryExpiration         = 7 * 24 * time.Hour
-	queryResultsCountPrefix = "query_results_count:"
+	bitsInByte               = 8
+	queryKeyPrefix           = "livequery:"
+	sqlKeyPrefix             = "sql:"
+	activeQueriesKey         = "livequery:active"
+	activeReverseQueriesKey  = "livequery:active:reverse"
+	reverseHostKeyPrefix     = "livequery:host:"
+	queryExpiration          = 7 * 24 * time.Hour
+	queryResultsCountPrefix  = "query_results_count:"
+	queryReportsHostCountKey = "query_reports_host_count"
+	queryReportClippedPrefix = "query_report_clipped:"
 )
 
 type redisLiveQuery struct {
@@ -784,7 +786,7 @@ func queryResultsCountKey(queryID uint) string {
 }
 
 // GetQueryResultsCounts returns the current count of query results for multiple queries.
-// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+// Queries with no stored count are absent from the result.
 func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error) {
 	if len(queryIDs) == 0 {
 		return make(map[uint]int), nil
@@ -831,8 +833,7 @@ func (r *redisLiveQuery) collectBatchResultsCounts(keys []string, keyToID map[st
 	for _, key := range keys {
 		count, err := redigo.Int(conn.Receive())
 		if err != nil {
-			if err == redigo.ErrNil {
-				results[keyToID[key]] = 0
+			if errors.Is(err, redigo.ErrNil) {
 				continue
 			}
 			return fmt.Errorf("receive query results count: %w", err)
@@ -900,6 +901,54 @@ func (r *redisLiveQuery) incrBatchResultsCounts(keys []string, amountByKey map[s
 	return nil
 }
 
+// SetQueryResultsCountsIfAbsent seeds counts only for queries that have none stored.
+func (r *redisLiveQuery) SetQueryResultsCountsIfAbsent(counts map[uint]int) error {
+	if len(counts) == 0 {
+		return nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the increments.
+	keys := make([]string, 0, len(counts))
+	countByKey := make(map[string]int, len(counts))
+	for queryID, count := range counts {
+		key := queryResultsCountKey(queryID)
+		keys = append(keys, key)
+		countByKey[key] = count
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.setBatchResultsCountsIfAbsent(slotKeys, countByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) setBatchResultsCountsIfAbsent(keys []string, countByKey map[string]int) error {
+	// Plain connection: redis.ConfigureDoer wraps it in a redisc.RetryConn whose Send is unsupported.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("SET", key, countByKey[key], "NX"); err != nil {
+			return fmt.Errorf("send set query results count if absent: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for range keys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive set query results count if absent: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // SetQueryResultsCount sets the query results count for a query to a specific value.
 // Used to reset counts to zero when a query is modified, or to adjust the count
 // in the cleanup cron job after deleting excess rows.
@@ -924,6 +973,193 @@ func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 	key := queryResultsCountKey(queryID)
 	if _, err := conn.Do("DEL", key); err != nil {
 		return fmt.Errorf("delete query results count: %w", err)
+	}
+
+	return nil
+}
+
+// SetQueryReportsHostCount stores the total number of hosts used to compute the
+// effective query report cap.
+func (r *redisLiveQuery) SetQueryReportsHostCount(count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", queryReportsHostCountKey, count); err != nil {
+		return fmt.Errorf("set query reports host count: %w", err)
+	}
+
+	return nil
+}
+
+// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount. ok is
+// false when none is stored.
+func (r *redisLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	count, err := redigo.Int(conn.Do("GET", queryReportsHostCountKey))
+	if err != nil {
+		if errors.Is(err, redigo.ErrNil) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("get query reports host count: %w", err)
+	}
+
+	return count, true, nil
+}
+
+// SetQueryReportsHostCountIfAbsent seeds the host count only when none is stored.
+func (r *redisLiveQuery) SetQueryReportsHostCountIfAbsent(count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", queryReportsHostCountKey, count, "NX"); err != nil {
+		return fmt.Errorf("set query reports host count if absent: %w", err)
+	}
+
+	return nil
+}
+
+// IncrQueryReportsHostCount adjusts the stored host count by delta.
+func (r *redisLiveQuery) IncrQueryReportsHostCount(delta int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("INCRBY", queryReportsHostCountKey, delta); err != nil {
+		return fmt.Errorf("incr query reports host count: %w", err)
+	}
+
+	return nil
+}
+
+func queryReportClippedKey(queryID uint) string {
+	return fmt.Sprintf("%s%d", queryReportClippedPrefix, queryID)
+}
+
+// MarkQueryReportsClipped sets the clipped marker for each query, refreshing its expiration.
+func (r *redisLiveQuery) MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error {
+	if len(ttlByQueryID) == 0 {
+		return nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the result counts.
+	keys := make([]string, 0, len(ttlByQueryID))
+	ttlByKey := make(map[string]time.Duration, len(ttlByQueryID))
+	for queryID, ttl := range ttlByQueryID {
+		key := queryReportClippedKey(queryID)
+		keys = append(keys, key)
+		ttlByKey[key] = ttl
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.markBatchClipped(slotKeys, ttlByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) markBatchClipped(keys []string, ttlByKey map[string]time.Duration) error {
+	// Plain connection: redis.ConfigureDoer wraps it in a redisc.RetryConn whose Send is unsupported.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("SET", key, 1, "EX", int(ttlByKey[key].Seconds())); err != nil {
+			return fmt.Errorf("send set query report clipped: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for range keys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive set query report clipped: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// QueryReportsClipped returns which of the given queries currently have a clipped marker.
+// Queries without a marker are absent from the returned map.
+func (r *redisLiveQuery) QueryReportsClipped(queryIDs []uint) (map[uint]bool, error) {
+	clipped := make(map[uint]bool, len(queryIDs))
+	if len(queryIDs) == 0 {
+		return clipped, nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the result counts.
+	keys := make([]string, 0, len(queryIDs))
+	keyToID := make(map[string]uint, len(queryIDs))
+	for _, queryID := range queryIDs {
+		key := queryReportClippedKey(queryID)
+		keys = append(keys, key)
+		keyToID[key] = queryID
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.collectBatchClipped(slotKeys, keyToID, clipped); err != nil {
+			return nil, err
+		}
+	}
+
+	return clipped, nil
+}
+
+func (r *redisLiveQuery) collectBatchClipped(keys []string, keyToID map[string]uint, clipped map[uint]bool) error {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("EXISTS", key); err != nil {
+			return fmt.Errorf("send exists query report clipped: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, key := range keys {
+		exists, err := redigo.Bool(conn.Receive())
+		if err != nil {
+			return fmt.Errorf("receive query report clipped: %w", err)
+		}
+		if exists {
+			clipped[keyToID[key]] = true
+		}
+	}
+
+	return nil
+}
+
+// ClearQueryReportsClipped removes the clipped marker for the given queries.
+func (r *redisLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
+	if len(queryIDs) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(queryIDs))
+	for _, queryID := range queryIDs {
+		keys = append(keys, queryReportClippedKey(queryID))
+	}
+
+	// Keys have no hash tag, so DEL them one slot at a time.
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+		args := make([]any, 0, len(slotKeys))
+		for _, key := range slotKeys {
+			args = append(args, key)
+		}
+		_, err := conn.Do("DEL", args...)
+		conn.Close()
+		if err != nil {
+			return fmt.Errorf("clear query reports clipped: %w", err)
+		}
 	}
 
 	return nil

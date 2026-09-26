@@ -344,7 +344,22 @@ func main() {
 			var (
 				pingErrCount            = 0
 				lastDesktopSummaryCheck time.Time
+				pinToast                *bitLockerPINToast
 			)
+			if runtime.GOOS == "windows" {
+				// The marker keeps track of the toast notification across Fleet Desktop restarts.
+				var markerPath string
+				if dir, err := logDir(); err != nil {
+					log.Error().Err(err).Msg("find directory for the BitLocker PIN toast marker")
+				} else {
+					markerPath = filepath.Join(dir, "Fleet", "bitlocker-pin-toast")
+				}
+				loginID, err := currentLoginID()
+				if err != nil {
+					log.Warn().Err(err).Msg("identify the Windows login for the BitLocker PIN toast")
+				}
+				pinToast = newBitLockerPINToast(markerPath, loginID)
+			}
 
 			for {
 				<-pingTicker.C
@@ -400,7 +415,12 @@ func main() {
 				}
 
 				menuManager.SetConnected(&sum.DesktopSummary, false)
-				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
+				menuManager.UpdateFailingPolicies(trayFailingPoliciesCount(sum.DesktopSummary))
+
+				if runtime.GOOS == "windows" {
+					// Comparing the link on every summary also re-posts the toast after the device token rotates.
+					pinToast.submit(sum.Notifications.NeedsBitLockerPIN, client.BrowserDeviceURL(tokenReader.GetCached()))
+				}
 
 				// Check our file to see if we should migrate
 				var migrationType string
@@ -598,6 +618,15 @@ func (m *mdmMigrationHandler) ShowInstructions() error {
 		return err
 	}
 	return nil
+}
+
+// Servers older than the hidden-policies feature don't report the unhidden
+// count, so fall back to the total to keep the pre-upgrade behavior.
+func trayFailingPoliciesCount(sum fleet.DesktopSummary) *uint {
+	if sum.FailingUnhiddenPolicies != nil {
+		return sum.FailingUnhiddenPolicies
+	}
+	return sum.FailingPolicies
 }
 
 // getLockfile checks for the fleet desktop lock file, and returns an error if it can't secure it.

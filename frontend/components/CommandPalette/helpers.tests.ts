@@ -255,6 +255,30 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("turn-on-apple-mdm");
     });
 
+    it("shows Android zero-touch only once Android MDM is configured", () => {
+      const androidMdmOff = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: false,
+      }).map((i) => i.id);
+      const androidMdmOn = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: true,
+      }).map((i) => i.id);
+
+      expect(androidMdmOff).not.toContain("android-zero-touch");
+      expect(androidMdmOn).toContain("android-zero-touch");
+    });
+
+    it("hides Android zero-touch from non-admins", () => {
+      const ids = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: true,
+        canAccessSettings: false,
+      }).map((i) => i.id);
+
+      expect(ids).not.toContain("android-zero-touch");
+    });
+
     it("shows Microsoft Graph on premium regardless of whether Windows MDM is on", () => {
       // The Autopilot sync only reads the tenant's registry, so the credential is useful before Windows MDM is on.
       const windowsMdmOff = buildPaletteItems({
@@ -747,6 +771,14 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("edit-abm");
       expect(ids).not.toContain("add-vpp");
       expect(ids).not.toContain("edit-vpp");
+    });
+
+    it("hides Android zero-touch, whose page paywalls on Free", () => {
+      const ids = buildPaletteItems({
+        ...FREE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: true,
+      }).map((i) => i.id);
+      expect(ids).not.toContain("android-zero-touch");
     });
 
     it("hides the Microsoft Graph command, whose page paywalls on Free", () => {

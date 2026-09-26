@@ -41,8 +41,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
 			return false, nil
 		}
-		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
-			return uint(0), nil
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, uint, error) {
+			return uint(0), uint(0), nil
 		}
 
 		testCases := []struct {
@@ -82,8 +82,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
-		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
-			return uint(1), nil
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, uint, error) {
+			return uint(1), uint(1), nil
 		}
 		const expectedPlatform = "darwin"
 		ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
@@ -201,8 +201,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
-		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
-			return uint(1), nil
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, uint, error) {
+			return uint(1), uint(1), nil
 		}
 		ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
 			return true, nil
@@ -311,8 +311,8 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		var authErr *fleet.AuthRequiredError
 		require.ErrorAs(t, err, &authErr)
 
-		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
-			return uint(1), nil
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, uint, error) {
+			return uint(1), uint(1), nil
 		}
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -541,6 +541,49 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 					require.Equal(t, c.out, sum.Notifications)
 					require.EqualValues(t, 1, *sum.FailingPolicies)
 				}
+			})
+		}
+	})
+
+	t.Run("BitLocker PIN prompt", func(t *testing.T) {
+		// The decision itself is tested in ee/server/service. These cases check the summary uses it.
+		for _, tc := range []struct {
+			name       string
+			statusErr  error
+			wantPrompt bool
+		}{
+			{name: "a host that needs a PIN is prompted", wantPrompt: true},
+			{name: "a failed lookup fails the summary", statusErr: errors.New("bitlocker status unavailable")},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+				svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+				ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
+					return false, nil
+				}
+				ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, uint, error) { return 0, 0, nil }
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					ac := &fleet.AppConfig{}
+					ac.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(true)
+					ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+					return ac, nil
+				}
+				ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+					return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: true}, nil
+				}
+				ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+					return &fleet.HostMDMDiskEncryption{ActionRequired: new(fleet.ActionRequiredCreatePIN)}, tc.statusErr
+				}
+
+				ctx = test.HostContext(ctx, &fleet.Host{ID: 1, UUID: "win-uuid", Platform: "windows", OsqueryHostID: new("win")})
+				sum, err := svc.GetFleetDesktopSummary(ctx)
+				if tc.statusErr != nil {
+					require.ErrorIs(t, err, tc.statusErr)
+					return
+				}
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantPrompt, sum.Notifications.NeedsBitLockerPIN)
 			})
 		}
 	})

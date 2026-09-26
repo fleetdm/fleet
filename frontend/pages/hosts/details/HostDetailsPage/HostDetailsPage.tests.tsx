@@ -1,18 +1,18 @@
+import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
 
+import createMockConfig from "__mocks__/configMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-
+import { notify } from "components/ToastNotification";
 import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
-import hostAPI from "services/entities/hosts";
 import activitiesAPI from "services/entities/activities";
-import teamAPI from "services/entities/teams";
 import commandAPI from "services/entities/command";
-import { notify } from "components/ToastNotification";
+import hostAPI from "services/entities/hosts";
+import teamAPI from "services/entities/teams";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import local from "utilities/local";
 
 import HostDetailsPage, {
@@ -101,11 +101,13 @@ const renderHostDetails = (overrides?: {
   currentUser?: IUser;
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
+  location?: typeof mockLocation;
 }) => {
   const {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
+    location = mockLocation,
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -124,7 +126,7 @@ const renderHostDetails = (overrides?: {
   return render(
     <HostDetailsPage
       router={createMockRouter()}
-      location={mockLocation}
+      location={location}
       params={{ host_id: "1" }}
     />
   );
@@ -176,6 +178,53 @@ describe("HostDetailsPage - APNS ping on refetch", () => {
       expect(hostAPI.refetch).toHaveBeenCalled();
     });
     expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("HostDetailsPage - MDM status modal Check in now", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.resetAllMocks();
+  });
+
+  it("delays the host details refetch by 5 seconds after a successful check-in", async () => {
+    stubQueries(mockAppleHost());
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      host_dep_assignment: null,
+    });
+
+    renderHostDetails({
+      currentUser: ADMIN,
+      isGlobalAdmin: true,
+      location: { ...mockLocation, query: { show_mdm_status: "true" } },
+    });
+
+    const checkInButton = await screen.findByRole("button", {
+      name: /check in now/i,
+    });
+    const callsBeforeCheckIn = (hostAPI.loadHostDetails as jest.Mock).mock.calls
+      .length;
+
+    // Fake timers only from here on, so user-event can control its own
+    // internal delays via the advanceTimers option.
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    await user.click(checkInButton);
+    expect(hostAPI.apnsPing).toHaveBeenCalledWith(1);
+
+    // No immediate refetch -- the app delays it 5s so the device has time to check in.
+    expect((hostAPI.loadHostDetails as jest.Mock).mock.calls.length).toBe(
+      callsBeforeCheckIn
+    );
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(
+      (hostAPI.loadHostDetails as jest.Mock).mock.calls.length
+    ).toBeGreaterThan(callsBeforeCheckIn);
   });
 });
 

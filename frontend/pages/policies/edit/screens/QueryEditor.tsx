@@ -1,22 +1,21 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router/lib/Router";
 
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
-import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
+import BackButton from "components/BackButton";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { IPolicyFormData, IPolicy } from "interfaces/policy";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import PolicyForm from "pages/policies/edit/components/PolicyForm";
 import PATHS from "router/paths";
+import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
-import { getErrorReason } from "interfaces/errors";
-import { IPolicyFormData, IPolicy } from "interfaces/policy";
-
-import BackButton from "components/BackButton";
-import PolicyForm from "pages/policies/edit/components/PolicyForm";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 interface IQueryEditorProps {
   router: InjectedRouter;
@@ -63,6 +62,7 @@ const QueryEditor = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     policyTeamId,
     setLastEditedQueryDescription,
@@ -164,6 +164,7 @@ const QueryEditor = ({
       };
       if (isPremiumTier) {
         payload.critical = formData.critical;
+        payload.hidden = formData.hidden;
         payload.team_id = formData.team_id;
       }
 
@@ -217,6 +218,7 @@ const QueryEditor = ({
       lastEditedQueryBody,
       lastEditedQueryResolution,
       lastEditedQueryCritical,
+      lastEditedQueryHidden,
       lastEditedQueryPlatform,
     });
 
