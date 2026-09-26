@@ -1,17 +1,24 @@
 import { screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import { notify } from "components/ToastNotification";
-import { IDUPDetails, IHostDevice } from "interfaces/host";
+import {
+  IDeviceDiskEncryptionSetting,
+  IDUPDetails,
+  IHostDevice,
+} from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
+  createDefaultDeviceResponse,
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
@@ -22,7 +29,11 @@ import {
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
@@ -412,6 +423,118 @@ describe("Device User Page", () => {
       });
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+  });
+
+  describe("issues count", () => {
+    it("counts only unhidden failing policies", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.issues = {
+        total_issues_count: 3,
+        critical_vulnerabilities_count: 0,
+        failing_policies_count: 3,
+        failing_unhidden_policies_count: 1,
+      };
+      mockServer.use(customDeviceHandler({ host }));
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS("testToken"),
+          }}
+        />
+      );
+
+      // The tooltip breakdown is covered by the toEndUserIssues unit test; hovering
+      // is viewport-dependent (mobile view opens tooltips on click) and flaky here.
+      const issuesTitle = await screen.findByText("Issues");
+      expect(issuesTitle.nextElementSibling).toHaveTextContent(/^1$/);
+    });
+  });
+
+  describe("hidden policies toggle", () => {
+    it("requests hidden policies only after the toggle is switched on", async () => {
+      const requestedUrls: string[] = [];
+      // With software inventory off, the Software tab is not rendered but its
+      // path stays in the tab list, so deep-linking to Policies selects no tab.
+      const response = createDefaultDeviceResponse();
+      response.global_config.features.enable_software_inventory = true;
+      const devicePolicy = (id: number, name: string) =>
+        (({
+          id,
+          name,
+          description: "",
+          resolution: "",
+          platform: "darwin",
+          critical: false,
+          conditional_access_enabled: false,
+          response: "fail",
+        } as unknown) as IHostPolicy);
+      const visible = [devicePolicy(1, "Visible policy")];
+      const withHidden = [
+        ...visible,
+        devicePolicy(2, "Hidden policy A"),
+        devicePolicy(3, "Hidden policy B"),
+      ];
+      mockServer.use(
+        http.get(baseUrl("/device/:token"), ({ request }) => {
+          requestedUrls.push(request.url);
+          const includeHidden = request.url.includes(
+            "include_hidden_policies=true"
+          );
+          return HttpResponse.json({
+            ...response,
+            host: {
+              ...response.host,
+              policies: includeHidden ? withHidden : visible,
+            },
+          });
+        })
+      );
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      // Tabs are route-driven, so land directly on the Policies tab.
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS_POLICIES("testToken"),
+          }}
+        />
+      );
+      await screen.findByText(/Details/);
+      expect(
+        requestedUrls.some((url) => url.includes("include_hidden_policies"))
+      ).toBe(false);
+      // The tab count follows the list that is shown.
+      const policiesTab = screen.getByRole("tab", { name: /policies/i });
+      expect(policiesTab).toHaveTextContent(/Policies\s*1$/);
+
+      await user.click(
+        await screen.findByRole("switch", { name: "Show hidden policies" })
+      );
+
+      await waitFor(() => {
+        expect(
+          requestedUrls.some((url) =>
+            url.includes("include_hidden_policies=true")
+          )
+        ).toBe(true);
+      });
+      await waitFor(() => {
+        expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
+      });
+      expect(screen.getAllByText("Hidden policy A").length).toBeGreaterThan(0);
     });
   });
 
@@ -1014,5 +1137,82 @@ describe("Device User Page - Linux disk encryption key escrow", () => {
     });
     expect(screen.queryByText(/Wait 30 seconds/i)).toBeNull();
     expect(screen.queryByText(/already asking/i)).toBeNull();
+  });
+});
+
+describe("BitLocker PIN deep link", () => {
+  const INSTRUCTIONS = /Type .Manage BitLocker. and launch/;
+
+  /** What the device endpoint reports for a Windows host still waiting on a PIN. */
+  const needsPIN = (
+    fleetdCanSetPIN: boolean
+  ): IDeviceDiskEncryptionSetting => ({
+    status: "action_required",
+    detail: "",
+    action_required: "create_pin",
+    fleetd_can_set_pin: fleetdCanSetPIN,
+  });
+
+  const windowsHost = (diskEncryption: IDeviceDiskEncryptionSetting) => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "windows";
+    host.mdm.os_settings = {
+      certificates: [],
+      disk_encryption: diskEncryption,
+    };
+    return host;
+  };
+
+  const renderWithCreatePINLink = async (host: IHostDevice) => {
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={router}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: "/device/testToken",
+          query: { ...mockLocation.query, create_pin: "1" },
+        }}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    return router;
+  };
+
+  /** The parameter is always consumed, so a reload never reopens the modal. */
+  const expectParamDropped = (router: ReturnType<typeof createMockRouter>) =>
+    waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith("/device/testToken");
+    });
+
+  it("opens the Create PIN form and drops only its own parameter", async () => {
+    const router = await renderWithCreatePINLink(windowsHost(needsPIN(true)));
+
+    expect(await screen.findByLabelText("BitLocker PIN")).toBeVisible();
+    await expectParamDropped(router);
+  });
+
+  it("opens the instructions when the host's fleetd cannot be handed a PIN", async () => {
+    await renderWithCreatePINLink(windowsHost(needsPIN(false)));
+
+    expect(await screen.findByText(INSTRUCTIONS)).toBeVisible();
+    expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
+  });
+
+  it("ignores the parameter when the host does not need a PIN", async () => {
+    const router = await renderWithCreatePINLink(
+      windowsHost({ status: "verified", detail: "" })
+    );
+
+    expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
+    expect(screen.queryByText(INSTRUCTIONS)).toBeNull();
+    await expectParamDropped(router);
   });
 });

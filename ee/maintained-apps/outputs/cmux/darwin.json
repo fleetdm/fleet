@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.64.23",
+      "version": "0.64.25",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmuxterm.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmuxterm.app' AND version_compare(bundle_short_version, '0.64.23') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cmuxterm.app' AND version_compare(bundle_short_version, '0.64.25') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.cmuxterm.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/manaflow-ai/cmux/releases/download/v0.64.23/cmux-macos.dmg",
+      "installer_url": "https://github.com/manaflow-ai/cmux/releases/download/v0.64.25/cmux-macos.dmg",
       "install_script_ref": "622f9d4c",
       "uninstall_script_ref": "b35acf22",
-      "sha256": "80a3572cbac937149ff1638771952105fe9d685198395ffdf2addf92f525a9bd",
+      "sha256": "0afb2f8ff9bfef10f03e61ff12e65ce02dbca5c96cb9047118e13483ac5b08ad",
       "default_categories": [
         "Productivity"
       ]

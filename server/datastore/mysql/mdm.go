@@ -329,16 +329,17 @@ WHERE ` + whereTeam
 		return []*fleet.MDMCommand{}, nil, nil, nil
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
-		ds.logger.DebugContext(ctx, "list mdm commands: multiple hosts found for identifier",
+		ds.logger.DebugContext(
+			ctx, "list mdm commands: multiple hosts found for identifier",
 			"identifier", identifier, "count", len(dest),
 		)
 	}
 
 	if len(listOpts.Filters.CommandStatuses) > 0 {
 		for _, h := range dest {
-			if !fleet.ClassicMDMSupported(h.Platform) || h.Platform == "windows" {
+			if !fleet.ClassicMDMSupported(h.Platform) && !fleet.IsAndroidPlatform(h.Platform) || h.Platform == "windows" {
 				return nil, nil, nil, &fleet.BadRequestError{
-					Message: `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`,
+					Message: `Currently, "command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts.`,
 				}
 			}
 		}
@@ -355,7 +356,8 @@ WHERE ` + whereTeam
 	for _, h := range dest {
 		if prev, ok := byUUID[h.UUID]; ok {
 			// TODO: how should we handle this unexpected case?
-			ds.logger.DebugContext(ctx, "list mdm commands: multiple hosts found for identifier",
+			ds.logger.DebugContext(
+				ctx, "list mdm commands: multiple hosts found for identifier",
 				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
 				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
 			)
@@ -494,9 +496,9 @@ SELECT
     c.updated_at,
     c.status,
     CASE c.status
-        WHEN 'pending' THEN 'pending'
-        WHEN 'acknowledged' THEN 'ran'
-        WHEN 'error' THEN 'failed'
+        WHEN 'Pending' THEN 'pending'
+        WHEN 'Acknowledged' THEN 'ran'
+        WHEN 'Error' THEN 'failed'
         ELSE 'pending'
     END AS command_status,
     c.command_type AS request_type,
@@ -510,6 +512,7 @@ WHERE c.host_uuid IN (?)`
 			androidStmt += " AND c.command_type = ?"
 			androidParams = append(androidParams, listOpts.Filters.RequestType)
 		}
+		androidStmt, androidParams = addAndroidCommandStatusFilter(androidStmt, &listOpts.Filters, androidParams)
 		androidStmt, androidParams, err = sqlx.In(androidStmt, androidParams...)
 		if err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Android devices")
@@ -627,6 +630,27 @@ func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, p
 				stmt += " COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error'"
 			}
 
+		}
+		stmt += ")"
+	}
+	return stmt, params
+}
+
+func addAndroidCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, params []any) (string, []any) {
+	if len(filter.CommandStatuses) > 0 {
+		stmt += " AND ("
+		for i, status := range filter.CommandStatuses {
+			if i > 0 {
+				stmt += " OR "
+			}
+			switch status {
+			case fleet.MDMCommandStatusFilterPending:
+				stmt += " c.status = 'Pending'"
+			case fleet.MDMCommandStatusFilterRan:
+				stmt += " c.status = 'Acknowledged'"
+			case fleet.MDMCommandStatusFilterFailed:
+				stmt += " c.status = 'Error'"
+			}
 		}
 		stmt += ")"
 	}
@@ -892,7 +916,8 @@ FROM (
 			switch {
 			case label.Exclude && label.RequireAll:
 				// this should never happen so log it for debugging
-				ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
+				ds.logger.DebugContext(
+					ctx, "unsupported profile label: cannot be both exclude and require all",
 					"profile_uuid", label.ProfileUUID,
 					"label_name", label.LabelName,
 				)
@@ -1220,7 +1245,8 @@ OR
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:
-			ds.logger.DebugContext(ctx, "tried to set profile status for a host with unsupported platform",
+			ds.logger.DebugContext(
+				ctx, "tried to set profile status for a host with unsupported platform",
 				"platform", h.Platform,
 				"host_uuid", h.UUID,
 			)
@@ -1451,6 +1477,13 @@ WHERE
 			mdm_configuration_profile_labels mcpl
 		WHERE
 			mcpl.apple_profile_uuid = macp.profile_uuid
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 
 UNION
@@ -1483,6 +1516,13 @@ WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1520,6 +1560,13 @@ WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 0
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1559,6 +1606,13 @@ WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1606,6 +1660,13 @@ WHERE
 	EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1658,6 +1719,13 @@ WHERE
 	EXISTS (
 		SELECT 1 FROM mdm_configuration_profile_labels
 		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	) AND (
+	 	-- not self_service or host has opted in
+		macp.self_service = 0
+		OR EXISTS (
+			SELECT 1 FROM host_mdm_profile_opt_ins oi
+			WHERE oi.host_uuid = ? AND oi.profile_uuid = macp.profile_uuid
+		)
 	)
 GROUP BY
 	profile_uuid, identifier
@@ -1672,7 +1740,15 @@ HAVING
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID, host.ID, teamID, host.ID, host.ID, host.ID, teamID, host.ID, host.ID, host.ID, teamID); err != nil {
+	if err := sqlx.SelectContext(
+		ctx, ds.reader(ctx), &rows, stmt,
+		teamID, host.UUID,
+		host.ID, teamID, host.UUID,
+		host.ID, teamID, host.UUID,
+		host.ID, teamID, host.UUID,
+		host.ID, host.ID, host.ID, teamID, host.UUID,
+		host.ID, host.ID, host.ID, teamID, host.UUID,
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -3063,19 +3139,17 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	}
 	idp := accts[hostID]
 
-	// manually set IdP mappings (source "idp", written by
-	// SetOrUpdateIDPHostDeviceMapping) are reported by the API under the same
-	// "mdm_idp_accounts" source, so both sources form a single logical mapping
-	// and must be reconciled together to avoid duplicate device mappings.
+	// manual ("idp") and device-reported ("entra_join") rows are reported under the
+	// same "mdm_idp_accounts" source, so all three reconcile together.
 	var hostEmails []fleet.HostDeviceMapping
-	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?)`
-	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP); err != nil {
+	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source IN (?, ?, ?)`
+	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingIDP, fleet.DeviceMappingEntraJoin); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host_emails")
 	}
 
 	var mdmIdpEmails, manualIdpEmails []fleet.HostDeviceMapping
 	for _, he := range hostEmails {
-		if he.Source == fleet.DeviceMappingIDP {
+		if he.Source == fleet.DeviceMappingIDP || he.Source == fleet.DeviceMappingEntraJoin {
 			manualIdpEmails = append(manualIdpEmails, he)
 			continue
 		}
@@ -3128,12 +3202,16 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		maxCapacity += len(hits) - 1
 	}
 	idsToDelete := make([]uint, 0, maxCapacity)
+	var removingEntraJoin bool
 	if len(misses) > 0 {
 		// log the emails we'll be deleting
 		msg := "reconcile host emails: deleting emails"
 		for _, m := range misses {
 			idsToDelete = append(idsToDelete, m.ID)
 			msg += fmt.Sprintf(" %s", m.Email)
+			if m.Source == fleet.DeviceMappingEntraJoin {
+				removingEntraJoin = true
+			}
 		}
 		logger.InfoContext(ctx, msg, "host_id", hostID)
 	}
@@ -3159,6 +3237,13 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete host_emails")
+		}
+	}
+	if removingEntraJoin {
+		// Drop the SCIM link that came with the device-reported mapping so the
+		// authenticated user gets linked; the association step skips hosts that have one.
+		if _, err := deleteObservedHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete scim link of superseded entra join mapping")
 		}
 	}
 
@@ -3249,7 +3334,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
+		stmt := fmt.Sprintf(
+			`
 	    INSERT INTO host_mdm_managed_certificates (
               host_uuid,
               profile_uuid,
@@ -3332,7 +3418,8 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
 			if limit == 0 {
-				ds.logger.DebugContext(ctx, "skipping check of certificates hosts to renew, limit exceeded by prior platform",
+				ds.logger.DebugContext(
+					ctx, "skipping check of certificates hosts to renew, limit exceeded by prior platform",
 					"host_cert_type", hostCertType,
 					"host_platform", hostPlatform,
 				)
@@ -3378,7 +3465,8 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}
 			if len(hostCertsToRenew) == 0 {
-				ds.logger.DebugContext(ctx, "No certificates on hosts to renew",
+				ds.logger.DebugContext(
+					ctx, "No certificates on hosts to renew",
 					"host_cert_type", hostCertType,
 					"host_platform", hostPlatform,
 				)

@@ -1,0 +1,1 @@
+- Fixed SSO logins accepting a SAML response more than once: verified assertions are now single-use until they expire, so a captured response cannot be replayed to log in again.

@@ -47,6 +47,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
+		{"TestMDMWindowsPendingCommandsDeliveryOrder", testMDMWindowsPendingCommandsDeliveryOrder},
 		{"TestMDMWindowsGetESPReleaseAckStatus", testMDMWindowsGetESPReleaseAckStatus},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
@@ -91,6 +92,9 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsPerHostReconcileLoaders", testWindowsPerHostReconcileLoaders},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
+		{"TestCleanupStaleMDMWindowsEnrollments", testCleanupStaleMDMWindowsEnrollments},
+		{"TestCleanupStaleMDMWindowsEnrollmentsAfterHostDelete", testCleanupStaleMDMWindowsEnrollmentsAfterHostDelete},
+		{"TestCleanupMDMWindowsCommandHistory", testCleanupMDMWindowsCommandHistory},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestMDMWindowsConflictingEnrollmentHardwareID", testMDMWindowsConflictingEnrollmentHardwareID},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
@@ -698,6 +702,24 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				fleet.DiskEncryptionEnforcing:      []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			}
 
+			checkExpected(t, nil, expected)
+
+			// A volume that is still encrypting has no PIN to create: Windows only offers PIN setup on a protected
+			// volume, so that host is Fleet's work to finish rather than the end user's.
+			keyUpdatedAt := time.Now().Add(-10 * time.Minute)
+			setKeyUpdatedAt(t, hosts[0].ID, keyUpdatedAt)
+			updateHostDisks(t, hosts[0].ID, false, keyUpdatedAt.Add(5*time.Minute))
+
+			checkExpected(t, nil, hostIDsByDEStatus{
+				fleet.DiskEncryptionFailed: []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing: []uint{
+					hosts[0].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID,
+				},
+			})
+
+			// Back to the encrypted host the rest of this subtest was set up with, confirmed before going on.
+			setKeyUpdatedAt(t, hosts[0].ID, time.Now().Add(-time.Minute))
+			updateHostDisks(t, hosts[0].ID, true, time.Now())
 			checkExpected(t, nil, expected)
 
 			// Set the "tpm_pin_set" to true for the host that would be "verified"
@@ -2175,6 +2197,107 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, 0)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
+}
+
+func testMDMWindowsPendingCommandsDeliveryOrder(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(t *testing.T) (enrollmentID uint, hostUUID string) {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-1C3ARC1",
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               uuid.NewString(),
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID), d.HostUUID
+	}
+
+	// Insert order is the reverse of command_uuid order, so a tie broken by command_uuid returns these backwards.
+	newBurst := func() []*fleet.MDMWindowsCommand {
+		var cmds []*fleet.MDMWindowsCommand
+		for i, prefix := range []string{"zzz-", "mmm-", "aaa-"} {
+			cmds = append(cmds, &fleet.MDMWindowsCommand{
+				CommandUUID:  prefix + uuid.NewString(),
+				RawCommand:   []byte(fmt.Sprintf("<Exec>%d</Exec>", i)),
+				TargetLocURI: fmt.Sprintf("./test/uri/%d", i),
+			})
+		}
+		return cmds
+	}
+	uuidsOf := func(cmds []*fleet.MDMWindowsCommand) []string {
+		out := make([]string, 0, len(cmds))
+		for _, cmd := range cmds {
+			out = append(out, cmd.CommandUUID)
+		}
+		return out
+	}
+	// Force the tie rather than depend on the inserts landing in the same second.
+	setCreatedAt := func(t *testing.T, createdAt string, cmdUUIDs []string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt, args, err := sqlx.In(`UPDATE windows_mdm_commands SET created_at = ? WHERE command_uuid IN (?)`, createdAt, cmdUUIDs)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+	enqueue := func(t *testing.T, enrollmentID uint, cmdUUIDs []string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			for _, cmdUUID := range cmdUUIDs {
+				if _, err := q.ExecContext(ctx,
+					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`, enrollmentID, cmdUUID); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	pending := func(t *testing.T, enrollmentID uint) []string {
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
+		require.NoError(t, err)
+		return uuidsOf(cmds)
+	}
+	const sameSecond = "2026-01-01 00:00:00"
+
+	t.Run("single-row inserts", func(t *testing.T) {
+		enrollmentID, hostUUID := newEnrollment(t)
+		burst := newBurst()
+		for _, cmd := range burst {
+			require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, cmd))
+		}
+		setCreatedAt(t, sameSecond, uuidsOf(burst))
+		require.Equal(t, uuidsOf(burst), pending(t, enrollmentID))
+	})
+
+	t.Run("multi-row insert", func(t *testing.T) {
+		enrollmentID, _ := newEnrollment(t)
+		burst := newBurst()
+		require.NoError(t, ds.MDMWindowsBulkInsertCommands(ctx, burst))
+		enqueue(t, enrollmentID, uuidsOf(burst))
+		setCreatedAt(t, sameSecond, uuidsOf(burst))
+		require.Equal(t, uuidsOf(burst), pending(t, enrollmentID))
+	})
+
+	t.Run("older created_at beats higher id", func(t *testing.T) {
+		// Rows that predate the id column were backfilled in primary-key order, so this is the shape they can have.
+		enrollmentID, hostUUID := newEnrollment(t)
+		burst := newBurst()
+		for _, cmd := range burst {
+			require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, cmd))
+		}
+		setCreatedAt(t, sameSecond, uuidsOf(burst))
+		last := burst[len(burst)-1].CommandUUID
+		setCreatedAt(t, "2025-12-31 00:00:00", []string{last})
+		want := append([]string{last}, uuidsOf(burst[:len(burst)-1])...)
+		require.Equal(t, want, pending(t, enrollmentID))
+	})
 }
 
 func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
@@ -7403,6 +7526,493 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
+func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(hostUUID string) *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.NewString(),
+			MDMHardwareID:          uuid.NewString() + uuid.NewString(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-1C3ARC1",
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               hostUUID,
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		d.ID = mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
+		return d
+	}
+	// Set directly: the columns default to NOW() and updated_at auto-updates.
+	setTimes := func(id uint, createdAt, updatedAt time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET created_at = ?, updated_at = ? WHERE id = ?`, createdAt, updatedAt, id)
+			return err
+		})
+	}
+	enrollmentExists := func(id uint) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM mdm_windows_enrollments WHERE id = ?`, id)
+		})
+		return n == 1
+	}
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	recent := now.Add(-1 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	host := test.NewHost(t, ds, "win-live", "10.0.0.1", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+
+	// Linked to a live host: never deleted.
+	linkedOld := newEnrollment(host.UUID)
+	setTimes(linkedOld.ID, old, old)
+
+	// Orphaned and old: deleted, queued command cascades. Enqueue before
+	// backdating since flipping has_pending_commands bumps updated_at.
+	orphanOld := newEnrollment(uuid.NewString())
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test",
+	}
+	require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{orphanOld.MDMDeviceID}, cmd))
+	setTimes(orphanOld.ID, old, old)
+
+	// Orphaned but recent: kept, the device may still relink.
+	orphanRecent := newEnrollment(uuid.NewString())
+	setTimes(orphanRecent.ID, recent, recent)
+
+	// Never linked (empty host_uuid) and old: deleted.
+	unlinkedOld := newEnrollment("")
+	setTimes(unlinkedOld.ID, old, old)
+
+	// Never linked but recent: kept, osquery may not have linked it yet.
+	unlinkedRecent := newEnrollment("")
+	setTimes(unlinkedRecent.ID, recent, recent)
+
+	// Superseded: the older of two enrollments for a live host is deleted, the
+	// newer one is kept even though it is also older than the cutoff.
+	host2 := test.NewHost(t, ds, "win-reenrolled", "10.0.0.2", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+	supersededOld := newEnrollment(host2.UUID)
+	setTimes(supersededOld.ID, old.Add(-time.Hour), old)
+	supersedingOld := newEnrollment(host2.UUID)
+	setTimes(supersedingOld.ID, old, old)
+
+	// Superseded but recently updated: kept until it ages out.
+	host3 := test.NewHost(t, ds, "win-reenrolled-recent", "10.0.0.3", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+	supersededRecent := newEnrollment(host3.UUID)
+	setTimes(supersededRecent.ID, old, recent)
+	supersedingRecent := newEnrollment(host3.UUID)
+	setTimes(supersedingRecent.ID, recent, recent)
+
+	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, cutoff)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, deleted)
+
+	assert.True(t, enrollmentExists(linkedOld.ID), "linked to a live host")
+	assert.False(t, enrollmentExists(orphanOld.ID), "orphaned and old")
+	assert.True(t, enrollmentExists(orphanRecent.ID), "orphaned but recent")
+	assert.False(t, enrollmentExists(unlinkedOld.ID), "never linked and old")
+	assert.True(t, enrollmentExists(unlinkedRecent.ID), "never linked but recent")
+	assert.False(t, enrollmentExists(supersededOld.ID), "superseded and old")
+	assert.True(t, enrollmentExists(supersedingOld.ID), "newest enrollment for its host")
+	assert.True(t, enrollmentExists(supersededRecent.ID), "superseded but recent")
+	assert.True(t, enrollmentExists(supersedingRecent.ID), "newest enrollment for its host")
+
+	var queued int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queued, `SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ?`, orphanOld.ID)
+	})
+	assert.Equal(t, 0, queued, "queued commands cascade with the enrollment")
+
+	// Idempotent: a second pass finds nothing.
+	deleted, err = ds.CleanupStaleMDMWindowsEnrollments(ctx, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+
+	// Batching: a live enrollment sits between stale orphans so the id cursor
+	// has to skip a kept row; the batch size and cap cannot cover them in one
+	// pass.
+	host4 := test.NewHost(t, ds, "win-live-2", "10.0.0.4", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+	staleIDs := make([]uint, 0, 5)
+	addStale := func() {
+		d := newEnrollment(uuid.NewString())
+		setTimes(d.ID, old, old)
+		staleIDs = append(staleIDs, d.ID)
+	}
+	addStale()
+	addStale()
+	keep := newEnrollment(host4.UUID)
+	setTimes(keep.ID, old, old)
+	addStale()
+	addStale()
+	addStale()
+	deleted, err = cleanupStaleMDMWindowsEnrollmentsDB(ctx, ds, cutoff, 2, 1)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, deleted, "one batch of two, then the cap stops the run")
+	assert.False(t, enrollmentExists(staleIDs[0]))
+	assert.False(t, enrollmentExists(staleIDs[1]))
+	assert.True(t, enrollmentExists(staleIDs[2]), "left for the next run")
+
+	deleted, err = cleanupStaleMDMWindowsEnrollmentsDB(ctx, ds, cutoff, 2, 10)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, deleted, "remaining stale rows drain across batches")
+	for _, id := range staleIDs {
+		assert.False(t, enrollmentExists(id))
+	}
+	assert.True(t, enrollmentExists(keep.ID), "live enrollment skipped by the cursor")
+	assert.True(t, enrollmentExists(linkedOld.ID))
+
+	// Relinking between the id selection and the delete bumps updated_at, so
+	// the row must survive.
+	relinked := newEnrollment(uuid.NewString())
+	setTimes(relinked.ID, old, old)
+	gone := newEnrollment(uuid.NewString())
+	setTimes(gone.ID, old, old)
+	host5 := test.NewHost(t, ds, "win-relinked", "10.0.0.5", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host5.UUID, relinked.MDMDeviceID)
+	require.NoError(t, err)
+	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{relinked.ID, gone.ID}, cutoff)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, deleted)
+	assert.True(t, enrollmentExists(relinked.ID), "relinked between select and delete")
+	assert.False(t, enrollmentExists(gone.ID))
+
+	// Recreating the host with the same UUID makes the relink a no-op, so
+	// updated_at stays old; the delete must re-check the host itself.
+	recreated := newEnrollment(uuid.NewString())
+	setTimes(recreated.ID, old, old)
+	test.NewHost(t, ds, "win-recreated", "10.0.0.6", uuid.NewString(), recreated.HostUUID, now, test.WithPlatform("windows"))
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, recreated.HostUUID, recreated.MDMDeviceID)
+	require.NoError(t, err)
+	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{recreated.ID}, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, enrollmentExists(recreated.ID), "host recreated between select and delete")
+
+	// Deleting the newer enrollment after selection makes the older one current
+	// again, so it must survive too.
+	host6 := test.NewHost(t, ds, "win-reenrolled-then-reverted", "10.0.0.7", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+	older := newEnrollment(host6.UUID)
+	setTimes(older.ID, old.Add(-time.Hour), old)
+	newer := newEnrollment(host6.UUID)
+	setTimes(newer.ID, old, old)
+	require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, newer.MDMDeviceID))
+	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{older.ID}, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, enrollmentExists(older.ID), "newer enrollment removed between select and delete")
+}
+
+func testCleanupMDMWindowsCommandHistory(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	// Two hours, not one: the queue GC drops acked rows older than an hour,
+	// and the ack helper relies on that.
+	recent := now.Add(-2 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	// Two enrolled devices with hosts, so a command fanned out to both (the
+	// profile install shape) can have one stale and one live result.
+	devA := createEnrolledDevice(t, ds)
+	hostA := test.NewHost(t, ds, "win-a", "10.0.0.1", uuid.NewString(), devA.HostUUID, now, test.WithPlatform("windows"))
+	devB := createEnrolledDevice(t, ds)
+	test.NewHost(t, ds, "win-b", "10.0.0.2", uuid.NewString(), devB.HostUUID, now, test.WithPlatform("windows"))
+
+	newCommand := func() *fleet.MDMWindowsCommand {
+		return &fleet.MDMWindowsCommand{
+			CommandUUID:  uuid.NewString(),
+			RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+			TargetLocURI: "./Device/Test",
+		}
+	}
+	// The insert paths stamp created_at with NOW() and the sweep keys on it.
+	backdateCommand := func(cmd *fleet.MDMWindowsCommand, createdAt time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_commands SET created_at = ? WHERE command_uuid = ?`, createdAt, cmd.CommandUUID)
+			return err
+		})
+	}
+	enqueue := func(createdAt time.Time, devs ...*fleet.MDMWindowsEnrolledDevice) *fleet.MDMWindowsCommand {
+		cmd := newCommand()
+		ids := make([]string, 0, len(devs))
+		for _, d := range devs {
+			ids = append(ids, d.MDMDeviceID)
+		}
+		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, ids, cmd))
+		backdateCommand(cmd, createdAt)
+		return cmd
+	}
+	// ack runs the real check-in path, then backdates what it wrote and lets
+	// the queue GC drop the acked row the way it would an hour later.
+	ack := func(dev *fleet.MDMWindowsEnrolledDevice, cmd *fleet.MDMWindowsCommand, at time.Time) int64 {
+		_, err := ds.MDMWindowsSaveResponse(ctx, dev, createResponseAsEnrichedSyncML(t, dev, []enrichResponseEntry{
+			{Type: "Atomic", StatusCode: 200, UUID: cmd.CommandUUID},
+		}), nil)
+		require.NoError(t, err)
+		var responseID int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &responseID,
+				`SELECT response_id FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?`,
+				dev.ID, cmd.CommandUUID); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `UPDATE windows_mdm_responses SET created_at = ? WHERE id = ?`, at, responseID); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx,
+				`UPDATE windows_mdm_command_results SET created_at = ?, updated_at = ? WHERE enrollment_id = ? AND command_uuid = ?`,
+				at, at, dev.ID, cmd.CommandUUID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_queue SET acked_at = ? WHERE enrollment_id = ? AND command_uuid = ?`,
+				at, dev.ID, cmd.CommandUUID)
+			return err
+		})
+		require.NoError(t, ds.CleanupWindowsMDMCommandQueue(ctx))
+		return responseID
+	}
+	count := func(stmt string, args ...any) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, stmt, args...)
+		})
+		return n
+	}
+	commandExists := func(cmd *fleet.MDMWindowsCommand) bool {
+		return count(`SELECT COUNT(*) FROM windows_mdm_commands WHERE command_uuid = ?`, cmd.CommandUUID) == 1
+	}
+	resultExists := func(dev *fleet.MDMWindowsEnrolledDevice, cmd *fleet.MDMWindowsCommand) bool {
+		return count(`SELECT COUNT(*) FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?`,
+			dev.ID, cmd.CommandUUID) == 1
+	}
+	responseExists := func(id int64) bool {
+		return count(`SELECT COUNT(*) FROM windows_mdm_responses WHERE id = ?`, id) == 1
+	}
+
+	// Acknowledged before the cutoff: the whole chain goes.
+	oldAcked := enqueue(old, devA)
+	oldAckedResponse := ack(devA, oldAcked, old)
+
+	// Acknowledged after the cutoff: kept.
+	recentAcked := enqueue(recent, devA)
+	recentAckedResponse := ack(devA, recentAcked, recent)
+
+	// Old but still queued: the command is pending, so it stays no matter its age.
+	oldPending := enqueue(old, devA)
+
+	// Old response whose result the device re-acknowledged recently: kept.
+	oldReacked := enqueue(old, devA)
+	oldReackedResponse := ack(devA, oldReacked, old)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
+			recent, oldReacked.CommandUUID)
+		return err
+	})
+
+	// Old wipe hostA's status still depends on: command, result and the
+	// response carrying it all stay.
+	oldWipe := newCommand()
+	require.NoError(t, ds.WipeHostViaWindowsMDM(ctx, hostA, oldWipe))
+	backdateCommand(oldWipe, old)
+	oldWipeResponse := ack(devA, oldWipe, old)
+
+	// One command fanned out to both devices: A's result is old and goes, B's
+	// is recent and keeps the command alive, and nothing of B's is touched.
+	shared := enqueue(old, devA, devB)
+	sharedAResponse := ack(devA, shared, old)
+	sharedBResponse := ack(devB, shared, recent)
+
+	// B's own old chain goes too; the sweep is per row, not per host.
+	oldAckedB := enqueue(old, devB)
+	oldAckedBResponse := ack(devB, oldAckedB, old)
+
+	counts, err := ds.CleanupMDMWindowsCommandHistory(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 3, counts.Responses, "oldAcked, shared on A, oldAckedB")
+	assert.EqualValues(t, 3, counts.Results)
+	assert.EqualValues(t, 2, counts.Commands, "oldAcked and oldAckedB; shared is still referenced by B")
+
+	assert.False(t, commandExists(oldAcked), "acknowledged before the cutoff")
+	assert.False(t, resultExists(devA, oldAcked))
+	assert.False(t, responseExists(oldAckedResponse))
+
+	assert.True(t, commandExists(recentAcked), "acknowledged after the cutoff")
+	assert.True(t, resultExists(devA, recentAcked))
+	assert.True(t, responseExists(recentAckedResponse))
+
+	assert.True(t, commandExists(oldPending), "old but still queued")
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, oldPending.CommandUUID))
+
+	assert.True(t, commandExists(oldReacked), "result re-acknowledged recently")
+	assert.True(t, resultExists(devA, oldReacked))
+	assert.True(t, responseExists(oldReackedResponse))
+
+	assert.True(t, commandExists(oldWipe), "wipe the host's status depends on")
+	assert.True(t, resultExists(devA, oldWipe))
+	assert.True(t, responseExists(oldWipeResponse))
+
+	assert.True(t, commandExists(shared), "still referenced by B's result")
+	assert.False(t, resultExists(devA, shared))
+	assert.False(t, responseExists(sharedAResponse))
+	assert.True(t, resultExists(devB, shared))
+	assert.True(t, responseExists(sharedBResponse))
+
+	assert.False(t, commandExists(oldAckedB))
+	assert.False(t, resultExists(devB, oldAckedB))
+	assert.False(t, responseExists(oldAckedBResponse))
+
+	// Idempotent: a second pass finds nothing.
+	counts, err = ds.CleanupMDMWindowsCommandHistory(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, counts.Total())
+
+	// Batching: the cap stops a run partway and the next one drains the rest.
+	var staleCmds []*fleet.MDMWindowsCommand
+	for range 3 {
+		cmd := enqueue(old, devA)
+		ack(devA, cmd, old)
+		staleCmds = append(staleCmds, cmd)
+	}
+	counts, err = cleanupMDMWindowsCommandHistoryDB(ctx, ds, cutoff, 1, 1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, counts.Responses)
+	assert.EqualValues(t, 1, counts.Results)
+	assert.EqualValues(t, 1, counts.Commands, "the command whose result this run deleted")
+
+	counts, err = cleanupMDMWindowsCommandHistoryDB(ctx, ds, cutoff, 1, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, counts.Responses)
+	assert.EqualValues(t, 2, counts.Results)
+	assert.EqualValues(t, 2, counts.Commands)
+	for _, cmd := range staleCmds {
+		assert.False(t, commandExists(cmd))
+		assert.False(t, resultExists(devA, cmd))
+	}
+
+	// The deletes re-check on the primary what the select saw on the reader:
+	// a result re-acknowledged since then survives with its response, and so
+	// does a command that is still queued or pinned by a wipe.
+	pinned := enqueue(old, devA)
+	pinnedResponse := ack(devA, pinned, old)
+	gone := enqueue(old, devA)
+	goneResponse := ack(devA, gone, old)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE windows_mdm_command_results SET updated_at = ? WHERE command_uuid = ?`,
+			recent, pinned.CommandUUID)
+		return err
+	})
+	results, responses, err := deleteMDMWindowsResponsesByIDs(ctx, ds.writer(ctx),
+		[]uint{uint(pinnedResponse), uint(goneResponse)}, cutoff) //nolint:gosec // small test ids
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, results)
+	assert.EqualValues(t, 1, responses)
+	assert.True(t, resultExists(devA, pinned), "re-acknowledged between select and delete")
+	assert.True(t, responseExists(pinnedResponse))
+	assert.False(t, resultExists(devA, gone))
+	assert.False(t, responseExists(goneResponse))
+
+	free := enqueue(old, devA)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE command_uuid = ?`, free.CommandUUID)
+		return err
+	})
+	n, err := deleteMDMWindowsCommandsByUUIDs(ctx, ds.writer(ctx),
+		[]string{free.CommandUUID, gone.CommandUUID, oldPending.CommandUUID, oldWipe.CommandUUID, shared.CommandUUID})
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, n, "only the two nothing references any more")
+	assert.False(t, commandExists(free))
+	assert.False(t, commandExists(gone))
+	assert.True(t, commandExists(oldPending), "still queued")
+	assert.True(t, commandExists(oldWipe), "pinned by wipe_ref")
+	assert.True(t, commandExists(shared), "pinned by B's result")
+
+	// A byte-identical re-ack through the real ack path changes no column, so
+	// only the explicit updated_at in its ON DUPLICATE KEY UPDATE keeps the
+	// sweep from deleting a result the device confirmed today.
+	reacked := enqueue(old, devA)
+	ack(devA, reacked, old)
+	_, err = ds.MDMWindowsSaveResponse(ctx, devA, createResponseAsEnrichedSyncML(t, devA, []enrichResponseEntry{
+		{Type: "Atomic", StatusCode: 200, UUID: reacked.CommandUUID},
+	}), nil)
+	require.NoError(t, err)
+	counts, err = ds.CleanupMDMWindowsCommandHistory(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, counts.Total())
+	assert.True(t, resultExists(devA, reacked), "identical re-ack today extends retention")
+	assert.True(t, commandExists(reacked))
+}
+
+func testCleanupStaleMDMWindowsEnrollmentsAfterHostDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC()
+	old := now.Add(-90 * 24 * time.Hour)
+	cutoff := now.Add(-30 * 24 * time.Hour)
+
+	enrollIdle := func(name string) (*fleet.Host, uint) {
+		h := test.NewHost(t, ds, name, "10.0.0.1", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+		windowsEnroll(t, ds, h)
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &id, `SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?`, h.UUID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET created_at = ?, updated_at = ? WHERE id = ?`, old, old, id)
+			return err
+		})
+		return h, id
+	}
+	exists := func(id uint) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM mdm_windows_enrollments WHERE id = ?`, id)
+		})
+		return n == 1
+	}
+
+	// An idle enrollment whose host was just deleted must get the full
+	// retention window, whichever deletion path removed the host.
+	single, singleID := enrollIdle("win-single-delete")
+	batch, batchID := enrollIdle("win-batch-delete")
+	require.NoError(t, ds.DeleteHost(ctx, single.ID))
+	require.NoError(t, ds.DeleteHosts(ctx, []uint{batch.ID}))
+
+	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, exists(singleID), "host deleted with DeleteHost")
+	assert.True(t, exists(batchID), "host deleted with DeleteHosts")
+
+	// Incoming-host cleanup deletes hosts without deleteHosts, so it needs its
+	// own coverage. Such a host has no hostname, osquery version or serial.
+	incoming, incomingID := enrollIdle("win-incoming")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET hostname = '', osquery_version = '', hardware_serial = '',
+			created_at = ? WHERE id = ?`, now.Add(-time.Hour), incoming.ID)
+		return err
+	})
+	removed, err := ds.CleanupIncomingHosts(ctx, now)
+	require.NoError(t, err)
+	require.Contains(t, removed, incoming.ID)
+
+	deleted, err = ds.CleanupStaleMDMWindowsEnrollments(ctx, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, exists(incomingID), "host removed by incoming-host cleanup")
+
+	// Once the retention window has passed since deletion, all are reaped. The
+	// generous cutoff absorbs clock drift between Go and the MySQL server.
+	deleted, err = ds.CleanupStaleMDMWindowsEnrollments(ctx, now.Add(24*time.Hour))
+	require.NoError(t, err)
+	require.EqualValues(t, 3, deleted)
+}
+
 // readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.
 func readWindowsHostProfile(t *testing.T, ds *Datastore, hostUUID, profileUUID string) (fleet.MDMDeliveryStatus, string, int) {
 	t.Helper()
@@ -7823,6 +8433,10 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	const nonReservedName = "enum-test-profile"
 	reservedName := mdm.FleetWindowsOSUpdatesProfileName
 	now := time.Now()
+	var (
+		probeHostID   uint
+		probeHostUUID string
+	)
 	for caseIdx, c := range cases {
 		hostUUID := fmt.Sprintf("enum-host-%04d", caseIdx)
 		h := test.NewHost(t, ds, hostUUID, "1.1.1.1", hostUUID, hostUUID, now, test.WithPlatform("windows"))
@@ -7831,6 +8445,11 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 
 		if filter, ok := bucketFilter[expectedBucketByCase[caseIdx]]; ok {
 			expectedHostsByBucket[filter] = append(expectedHostsByBucket[filter], h.ID)
+		}
+
+		// Remember one verified host for the rollup divergence probe below.
+		if probeHostUUID == "" && expectedBucketByCase[caseIdx] == "verified" {
+			probeHostID, probeHostUUID = h.ID, hostUUID
 		}
 
 		for i, p := range c {
@@ -7871,24 +8490,38 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	// 2) Per-host membership via ListHosts with OSSettingsFilter. This
 	//    catches regressions that preserve aggregate counts but swap two
 	//    hosts between buckets, and also exercises filterHostsByOSSettingsStatus
-	//    (the host-list path uses the same windowsHostProfileStatusSubquery
-	//    helper but a different outer query).
+	//    (the host-list path reads the same host_mdm_windows_profiles_status
+	//    rollup but wraps it in a different outer query).
 	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
-	for _, filter := range []fleet.OSSettingsStatus{
-		fleet.OSSettingsFailed,
-		fleet.OSSettingsPending,
-		fleet.OSSettingsVerifying,
-		fleet.OSSettingsVerified,
-	} {
+	listHostIDs := func(filter fleet.OSSettingsStatus) []uint {
 		gotHosts, err := ds.ListHosts(ctx, teamFilter, fleet.HostListOptions{OSSettingsFilter: filter})
 		require.NoError(t, err)
 		gotIDs := make([]uint, 0, len(gotHosts))
 		for _, h := range gotHosts {
 			gotIDs = append(gotIDs, h.ID)
 		}
-		require.ElementsMatchf(t, expectedHostsByBucket[filter], gotIDs,
+		return gotIDs
+	}
+	for _, filter := range []fleet.OSSettingsStatus{
+		fleet.OSSettingsFailed,
+		fleet.OSSettingsPending,
+		fleet.OSSettingsVerifying,
+		fleet.OSSettingsVerified,
+	} {
+		require.ElementsMatchf(t, expectedHostsByBucket[filter], listHostIDs(filter),
 			"per-host membership mismatch for OSSettingsFilter=%s", filter)
 	}
+
+	// 3) Both checks above reconciled the rollup first, so neither can tell a rollup read apart from a recompute over
+	//    host_mdm_windows_profiles. Diverge the two on one host: only a rollup-backed filter follows the rollup.
+	require.NotEmpty(t, probeHostUUID, "expected at least one verified host to probe")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles_status SET status = ? WHERE host_uuid = ?`,
+			fleet.MDMDeliveryFailed, probeHostUUID)
+		return err
+	})
+	require.Contains(t, listHostIDs(fleet.OSSettingsFailed), probeHostID)
+	require.NotContains(t, listHostIDs(fleet.OSSettingsVerified), probeHostID)
 }
 
 // windowsEnrollmentFixture describes a Windows MDM enrollment row for tests. The non-zero fields below are the

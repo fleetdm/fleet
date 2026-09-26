@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "15.0.22",
+      "version": "15.0.23",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser' AND version_compare(bundle_short_version, '15.0.22') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser' AND version_compare(bundle_short_version, '15.0.23') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.torproject.torbrowser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.torproject.org/dist/torbrowser/15.0.22/tor-browser-macos-15.0.22.dmg",
+      "installer_url": "https://www.torproject.org/dist/torbrowser/15.0.23/tor-browser-macos-15.0.23.dmg",
       "install_script_ref": "5696723c",
       "uninstall_script_ref": "f961039a",
-      "sha256": "4e8f1a7a6e978b8bcd991f294b59b9c6bbf253c559b122c8888b10eefaf00d87",
+      "sha256": "2ab21948feb8327bbcced2174fd7f4b94a289350060c4ebbc1cd96d28c333db9",
       "default_categories": [
         "Browsers"
       ]

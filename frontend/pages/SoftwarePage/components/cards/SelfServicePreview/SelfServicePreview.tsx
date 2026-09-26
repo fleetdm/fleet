@@ -55,7 +55,6 @@ const SelfServicePreview = ({
     // Mobile preview with screenshot + overlay
     return (
       <Card
-        borderRadiusSize="medium"
         color="white"
         className={`${baseClass}__preview-card ${baseClass}__preview-card--mobile`}
         paddingSize="xlarge"
@@ -89,16 +88,12 @@ const SelfServicePreview = ({
   // Desktop HTML/CSS self-service preview
   return (
     <Card
-      borderRadiusSize="medium"
       color="grey"
       className={`${baseClass}__preview-card`}
       paddingSize="xlarge"
     >
       <div className={`${baseClass}__disabled-overlay`} />
-      <Card
-        className={`${baseClass}__preview-card__self-service`}
-        borderRadiusSize="xxlarge"
-      >
+      <Card className={`${baseClass}__preview-card__self-service`}>
         <SelfServiceHeader contactUrl={contactUrl} variant="preview" />
         <div className={`${baseClass}__filter-row`}>
           {hasCategories && (

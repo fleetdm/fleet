@@ -88,7 +88,7 @@ const ProfileStatusAggregate = ({
     );
 
     return (
-      <Card className={baseClass} borderRadiusSize="large" path={path}>
+      <Card className={baseClass} path={path}>
         <ProfileStatusCount
           key={value}
           statusIcon={iconName}

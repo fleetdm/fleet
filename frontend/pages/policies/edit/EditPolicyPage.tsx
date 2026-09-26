@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 import MainContent from "components/MainContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import SidePanelContent from "components/SidePanelContent";
@@ -65,6 +66,7 @@ const PolicyPage = ({
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
     setLastEditedQueryLabelsIncludeAll,
@@ -131,6 +133,7 @@ const PolicyPage = ({
     // cleanup when component unmounts
     return () => {
       setLastEditedQueryCritical(false);
+      setLastEditedQueryHidden(false);
       setLastEditedQueryPlatform(null);
     };
   }, []);
@@ -162,6 +165,7 @@ const PolicyPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryCritical(returnedQuery.critical);
+        setLastEditedQueryHidden(returnedQuery.hidden ?? false);
         setLastEditedQueryPlatform(returnedQuery.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedQuery.labels_include_any || []
@@ -259,19 +263,16 @@ const PolicyPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live report. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live report. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+          variant="banner-link"
+        />
+      </InfoBanner>
     );
   };
 

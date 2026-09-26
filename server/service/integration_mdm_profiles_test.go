@@ -4668,6 +4668,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 
 	checkHostsFilteredByOSSettingsStatus := func(t *testing.T, wantHosts []string, wantStatus fleet.MDMDeliveryStatus, teamID *uint, labels ...*fleet.Label) {
+		// Filtering hosts by OS settings reads the maintained host_mdm_windows_profiles_status rollup, same as the profiles
+		// summary. This test simulates device reports by writing host_mdm_windows_profiles directly, bypassing the write paths
+		// that maintain the rollup, so reconcile it before reading.
+		require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 		var teamFilter string
 		if teamID != nil {
 			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
@@ -6119,7 +6124,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -6199,7 +6204,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
+	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
@@ -9278,6 +9283,133 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		require.Nil(t, status)
 		return err
 	})
+}
+
+// Moving a host between fleets that hold a byte-identical profile must keep the
+// pending install the host already has queued, whether the device hasn't
+// fetched it yet or answered NotNow.
+func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsPendingInstallForIdenticalProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	const identifier = "com.example.transfer.shared"
+	shared := mobileconfigForTest("TransferShared", identifier)
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_A"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_B"})
+	require.NoError(t, err)
+	for _, tm := range []*fleet.Team{teamA, teamB} {
+		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{shared}},
+			http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	}
+
+	profileUUIDForTeam := func(teamID uint) string {
+		var profUUID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &profUUID,
+				`SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, identifier)
+		})
+		return profUUID
+	}
+
+	type hostProfileRow struct {
+		ProfileUUID string                   `db:"profile_uuid"`
+		Status      *fleet.MDMDeliveryStatus `db:"status"`
+		CommandUUID string                   `db:"command_uuid"`
+	}
+	getRow := func(hostUUID string) hostProfileRow {
+		var row hostProfileRow
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT profile_uuid, status, command_uuid FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_identifier = ?`,
+				hostUUID, identifier)
+		})
+		return row
+	}
+	isQueued := func(hostUUID, cmdUUID string) bool {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ? AND active = 1`, hostUUID, cmdUUID)
+		})
+		return n > 0
+	}
+	transfer := func(h *fleet.Host, teamID uint) {
+		s.Do("POST", "/api/v1/fleet/hosts/transfer",
+			addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{h.ID}}, http.StatusOK)
+	}
+
+	// drainCommands answers every queued command, NotNow for notNowCmd and
+	// Acknowledged for the rest, and reports whether wantCmd was delivered.
+	drainCommands := func(device *mdmtest.TestAppleMDMClient, wantCmd, notNowCmd string) bool {
+		var seen bool
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.CommandUUID == wantCmd {
+				seen = true
+			}
+			if cmd.CommandUUID == notNowCmd {
+				cmd, err = device.NotNow(cmd.CommandUUID)
+			} else {
+				cmd, err = device.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+		return seen
+	}
+
+	offlineHost, offlineDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	notNowHost, notNowDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	for _, h := range []*fleet.Host{offlineHost, notNowHost} {
+		transfer(h, teamA.ID)
+		require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h.UUID))
+	}
+	s.awaitTriggerProfileSchedule(t)
+
+	profA, profB := profileUUIDForTeam(teamA.ID), profileUUIDForTeam(teamB.ID)
+	require.NotEqual(t, profA, profB)
+
+	queuedCmds := make(map[string]string, 2)
+	for _, h := range []*fleet.Host{offlineHost, notNowHost} {
+		row := getRow(h.UUID)
+		require.Equal(t, profA, row.ProfileUUID)
+		require.NotNil(t, row.Status)
+		require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+		require.NotEmpty(t, row.CommandUUID)
+		queuedCmds[h.UUID] = row.CommandUUID
+	}
+
+	// the offline host never checks in; the other fetches the install and defers it
+	require.True(t, drainCommands(notNowDevice, queuedCmds[notNowHost.UUID], queuedCmds[notNowHost.UUID]))
+
+	for _, h := range []*fleet.Host{offlineHost, notNowHost} {
+		transfer(h, teamB.ID)
+		require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h.UUID))
+	}
+	s.awaitTriggerProfileSchedule(t)
+
+	for _, tc := range []struct {
+		host   *fleet.Host
+		device *mdmtest.TestAppleMDMClient
+	}{
+		{offlineHost, offlineDevice},
+		{notNowHost, notNowDevice},
+	} {
+		cmdUUID := queuedCmds[tc.host.UUID]
+		row := getRow(tc.host.UUID)
+		require.Equal(t, profB, row.ProfileUUID, "host %s", tc.host.UUID)
+		require.NotNil(t, row.Status)
+		require.Equal(t, fleet.MDMDeliveryPending, *row.Status)
+		require.Equal(t, cmdUUID, row.CommandUUID, "the new fleet's row takes over the queued install")
+		require.True(t, isQueued(tc.host.UUID, cmdUUID), "the taken-over install must still be queued for the device")
+
+		require.True(t, drainCommands(tc.device, cmdUUID, ""), "device must receive the queued install")
+		row = getRow(tc.host.UUID)
+		require.NotNil(t, row.Status)
+		require.Equal(t, fleet.MDMDeliveryVerifying, *row.Status)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {

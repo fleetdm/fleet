@@ -462,4 +462,45 @@ describe("SelfService", () => {
       within(getUpdatesCard()).queryByRole("button", { name: /^Update$/ })
     ).not.toBeInTheDocument();
   });
+
+  it("sorts rows by display name, falling back to the title name", async () => {
+    // Served in raw-name order so the assertion fails both if the table sorts by
+    // the raw name (a package identifier or script filename) and if it doesn't
+    // sort at all.
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "bbb-no-display-name" }),
+          createMockDeviceSoftware({
+            id: 2,
+            name: "GUI.delta.guard",
+            display_name: "Delta Guard",
+          }),
+          createMockDeviceSoftware({
+            id: 3,
+            name: "zzz.aurora.access",
+            display_name: "Aurora Access Client",
+          }),
+        ],
+        count: 3,
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    await screen.findAllByText("Aurora Access Client");
+
+    const expected = [
+      "Aurora Access Client",
+      "bbb-no-display-name",
+      "Delta Guard",
+    ];
+    const rendered = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => expected.find((n) => row.textContent?.includes(n)));
+
+    expect(rendered).toEqual(expected);
+  });
 });

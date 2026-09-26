@@ -1,0 +1,1 @@
+- Fixed Observer+ seeing an enabled **Update** button in the Update details modal on the host details Software > Library tab, which produced a 403 when clicked. Observer+ can still open the modal to view the available version, but the Update button is now hidden for users without software write permission.

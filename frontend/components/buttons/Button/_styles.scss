@@ -139,6 +139,21 @@ $base-class: "button";
     align-items: center;
   }
 
+  // `loadingText` puts the spinner beside a visible label, so this spinner is inline and takes the variant's own text color.
+  .children-wrapper--loading-text {
+    gap: $pad-xsmall;
+
+    .loading-spinner {
+      .background {
+        display: none;
+      }
+
+      .path {
+        stroke: currentColor;
+      }
+    }
+  }
+
   &--default {
     @include button-variant(
       $core-fleet-green,

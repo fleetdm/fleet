@@ -1,0 +1,59 @@
+// Package types defines internal interfaces for the notifications bounded
+// context.
+package types
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/notifications/api"
+)
+
+// Datastore is what the service needs of the notifications tables. Each method
+// is documented on its implementation in internal/mysql.
+type Datastore interface {
+	NewEndUserNotification(ctx context.Context, notification *api.EndUserNotification) (*api.EndUserNotification, error)
+	GetEndUserNotificationByUUID(ctx context.Context, notificationUUID string) (*api.EndUserNotification, error)
+	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error)
+	GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error)
+	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error)
+	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error
+	DeferEndUserNotificationsForHosts(ctx context.Context, hostIDs []uint) error
+	ExpireEndUserNotifications(ctx context.Context) (int64, error)
+	DeleteExpiredEndUserNotifications(ctx context.Context, olderThan time.Time, limit int) (int64, error)
+	VerifyEndUserNotification(ctx context.Context, notificationUUID string, displayedAt time.Time) error
+	DelayEndUserNotification(ctx context.Context, notificationUUID string, nextAttemptAt time.Time, payload json.RawMessage) error
+	// ActOnEndUserNotification returns false when the notification was already
+	// terminal, so only the first call gets true.
+	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
+	SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+	SetEndUserNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error
+	FailEndUserNotificationsForHost(ctx context.Context, hostID uint, reason string) error
+	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
+}
+
+type NotFoundError struct {
+	Identifier string
+}
+
+func (e *NotFoundError) Error() string {
+	return "end user notification not found: " + e.Identifier
+}
+
+func (e *NotFoundError) IsNotFound() bool { return true }
+
+// InvalidArgumentError is what the response encoder answers with 422, the same
+// way it reads IsNotFound above for a 404.
+type InvalidArgumentError struct {
+	Name   string
+	Reason string
+}
+
+func (e *InvalidArgumentError) Error() string {
+	return "validation failed: " + e.Name + " " + e.Reason
+}
+
+func (e *InvalidArgumentError) Invalid() []map[string]string {
+	return []map[string]string{{"name": e.Name, "reason": e.Reason}}
+}

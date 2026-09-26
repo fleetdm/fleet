@@ -43,6 +43,8 @@ Logs are sent directly to [Splunk](https://www.splunk.com/) via the [HTTP Event 
 
 Events are batched up to 1MB before sending. Events over 1MB are dropped, with a notification sent to the Fleet server logs. Fleet retries on transient errors (HTTP 503) with exponential backoff.
 
+Fleet doesn't check the connection to Splunk when it starts. If the HEC URL or token is wrong, Fleet still starts, and the errors appear in the Fleet server logs each time Fleet tries to send logs to Splunk.
+
 To use this destination, enable HEC on your Splunk instance and create an HEC token. Then configure Fleet with the HEC URL and token:
 
 ```yaml
