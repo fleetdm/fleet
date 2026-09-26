@@ -707,6 +707,10 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 			return err
 		}
 
+		if err := deleteMDMProfileOptIns(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
+
 		return nil
 	})
 }
@@ -821,6 +825,23 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	}
 
 	return nil
+}
+
+// deleteMDMProfileOptIns deletes all rows referencing the profiles with the given UUIDs.
+func deleteMDMProfileOptIns(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	stmt := "DELETE FROM host_mdm_profile_opt_ins WHERE profile_uuid IN (?)"
+	stmt, args, err := sqlx.In(stmt, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement for deleting mdm profile opt ins")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	return ctxerr.Wrap(ctx, err, "executing delete for mdm profile opt ins")
+}
+
+// deleteHostMDMProfileOptIns deletes all rows referencing the host.
+func deleteHostMDMProfileOptIns(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_profile_opt_ins WHERE host_uuid = ?", hostUUID)
+	return ctxerr.Wrap(ctx, err, "executing delete for mdm profile opt ins")
 }
 
 func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sqlx.ExtContext, declUUIDs []string) error {
@@ -4883,6 +4904,10 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		// cases (local wipe, restore from backup, manual MDM profile removal).
 		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting mdm host certificates for host")
+		}
+
+		if err := deleteHostMDMProfileOptIns(ctx, tx, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting host_mdm_profile_opt_ins for host")
 		}
 
 		// Do platform-specific cleanup.
