@@ -201,6 +201,9 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 }
 
 func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if c.IsFree {
+		return nil, fleet.ErrMissingLicense
+	}
 	if !c.WithAssets {
 		return nil, nil
 	}
