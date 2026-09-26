@@ -987,9 +987,10 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
 	// AMAPI only sends memory events on status reports, so an enrollment payload always
-	// calculates as "not supported". Leaving the fields zero skips the host_disks write and
-	// keeps the last measurement, rather than downgrading it until the next status report.
-	if gigsTotal, gigsAvailable, percentAvailable := svc.calculateAndroidStorageMetrics(ctx, device, true); gigsAvailable >= 0 {
+	// calculates as "not supported". On enrollment, leaving the fields zero skips the
+	// host_disks write and keeps the last measurement until the next status report, which
+	// is still written as reported.
+	if gigsTotal, gigsAvailable, percentAvailable := svc.calculateAndroidStorageMetrics(ctx, device, true); !fromEnroll || gigsAvailable >= 0 {
 		host.Host.GigsTotalDiskSpace = gigsTotal
 		host.Host.GigsDiskSpaceAvailable = gigsAvailable
 		host.Host.PercentDiskSpaceAvailable = percentAvailable

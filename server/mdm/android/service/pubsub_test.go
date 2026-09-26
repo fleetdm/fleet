@@ -1409,6 +1409,43 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, "Android 15 (2026-05-01)", capturedHost.Host.OSVersion)
 	})
 
+	t.Run("status report without MEASURED events still records storage as not supported", func(t *testing.T) {
+		existingHost.Host.GigsTotalDiskSpace = 0
+		existingHost.Host.GigsDiskSpaceAvailable = 0
+		existingHost.Host.PercentDiskSpaceAvailable = 0
+
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId(deviceName),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: enterpriseSpecificID,
+				Brand:                "UpdatedBrand",
+				Model:                "UpdatedModel",
+				SerialNumber:         "updated-serial",
+				Hardware:             "updated-hardware",
+			},
+			SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidBuildNumber: "updated-build", AndroidVersion: "15"},
+			MemoryInfo: &androidmanagement.MemoryInfo{
+				TotalRam:             int64(16 * 1024 * 1024 * 1024),
+				TotalInternalStorage: int64(128 * 1024 * 1024 * 1024),
+			},
+		}
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+			Data:       base64.StdEncoding.EncodeToString(deviceBytes),
+		}
+
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", message))
+
+		// Only an enrollment keeps the last measurement. A status report is written as reported, so a
+		// host that stops measuring shows "Not supported" and its total stays current.
+		require.NotNil(t, capturedHost)
+		require.InDelta(t, 128.0, capturedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, -1, capturedHost.Host.GigsDiskSpaceAvailable, 0.01)
+		require.InDelta(t, -1, capturedHost.Host.PercentDiskSpaceAvailable, 0.01)
+	})
+
 	t.Run("UUID is set from EnterpriseSpecificId", func(t *testing.T) {
 		mockDS.UpdateAndroidHostFuncInvoked = false
 		capturedHost = nil
