@@ -1,0 +1,327 @@
+- name: CIS 5.1 - Ensure 'Bluetooth Audio Gateway (BTAGService)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'BTAGService' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.2 - Ensure 'Bluetooth Support (bthserv)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'bthserv' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.3 - Ensure 'Computer Browser (Browser)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Computer Browser (Browser)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'Browser' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.4 - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'MapsBroker' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.5 - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'GameInputSvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.6 - Ensure 'Geolocation (lfsvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'lfsvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.7 - Ensure 'IIS Admin (IISADMIN)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'IISADMIN' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.8 - Ensure 'Infrared monitor (irmon)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Infrared monitor service (irmon)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'irmon' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.9 - Ensure 'Link-Layer Topology Discovery (lltdsvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'lltdsvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.10 - Ensure 'WSL (LxssManager)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Subsystem for Linux (LxssManager)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'LxssManager' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.11 - Ensure 'Microsoft FTP (FTPSVC)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Microsoft FTP Service (FTPSVC)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'FTPSVC' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.12 - Ensure 'iSCSI Initiator (MSiSCSI)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'MSiSCSI' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.13 - Ensure 'OpenSSH Server (sshd)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'OpenSSH SSH Server (sshd)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'sshd' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.15 - Ensure 'Problem Reports (wercplsupport)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'wercplsupport' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.16 - Ensure 'Remote Access Auto Connection (RasAuto)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'RasAuto' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.17 - Ensure 'Remote Desktop Config (SessionEnv)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'SessionEnv' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.18 - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'TermService' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.19 - Ensure 'Remote Desktop UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Remote Desktop UserMode Port Redirector (UmRdpService)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'UmRdpService' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.20 - Ensure 'RPC Locator (RpcLocator)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Remote Procedure Call (RPC) Locator (RpcLocator)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'RpcLocator' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.21 - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'RemoteRegistry' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.22 - Ensure 'Routing and Remote Access (RemoteAccess)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Routing and Remote Access (RemoteAccess)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'RemoteAccess' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.23 - Ensure 'Server (LanmanServer)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Server (LanmanServer)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'LanmanServer' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.24 - Ensure 'Simple TCP/IP (simptcp)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'simptcp' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.25 - Ensure 'SNMP Service (SNMP)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'SNMP Service (SNMP)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'SNMP' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.26 - Ensure 'Special Administration Console (sacsvr)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Special Administration Console Helper (sacsvr)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'sacsvr' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.27 - Ensure 'SSDP Discovery (SSDPSRV)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'SSDP Discovery (SSDPSRV)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'SSDPSRV' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.28 - Ensure 'UPnP Device Host (upnphost)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'UPnP Device Host (upnphost)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'upnphost' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.29 - Ensure 'Web Management (WMSvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Web Management Service (WMSvc)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'WMSvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.30 - Ensure 'Windows Error Reporting (WerSvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'WerSvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.31 - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'Wecsvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.32 - Ensure 'Windows Media Player Network Sharing (WMPNetworkSvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Media Player Network Sharing Service (WMPNetworkSvc)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'WMPNetworkSvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.33 - Ensure 'Windows Mobile Hotspot (icssvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Mobile Hotspot Service (icssvc)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'icssvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.34 - Ensure 'Windows Push Notifications (WpnService)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'WpnService' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.35 - Ensure 'Windows PushToInstall (PushToInstall)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'PushToInstall' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.36 - Ensure 'Windows Remote Management (WinRM)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Windows Remote Management (WinRM) (WinRM)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'WinRM' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.37 - Ensure 'WinHTTP Web Proxy Auto-Discovery (WinHttpAutoProxySvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled' (Level 2)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'WinHttpAutoProxySvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.38 - Ensure 'World Wide Web Publishing (W3SVC)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'World Wide Web Publishing Service (W3SVC)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'W3SVC' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.39 - Ensure 'Xbox Accessory Management (XboxGipSvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Xbox Accessory Management Service (XboxGipSvc)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'XboxGipSvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.40 - Ensure 'Xbox Live Auth Manager (XblAuthManager)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Xbox Live Auth Manager (XblAuthManager)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'XblAuthManager' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.41 - Ensure 'Xbox Live Game Save (XblGameSave)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Xbox Live Game Save (XblGameSave)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'XblGameSave' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
+
+- name: CIS 5.42 - Ensure 'Xbox Live Networking (XboxNetApiSvc)' is set to 'Disabled'
+  platform: windows
+  description: "Ensure 'Xbox Live Networking Service (XboxNetApiSvc)' is set to 'Disabled' (Level 1)."
+  resolution: "Run the service configuration script to disable this service."
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'XboxNetApiSvc' AND start_type NOT IN ('DISABLED'));
+  run_script:
+    path: "../scripts/configure-services.ps1"
