@@ -1686,6 +1686,7 @@ This activity contains the following fields:
 - "install_uuid": ID of the software installation.
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
 - "source": Software source type (e.g., "pkg_packages", "sh_packages", "ps1_packages").
@@ -1703,6 +1704,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
@@ -1776,6 +1778,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "script_execution_id": ID of the software uninstall script.
 - "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.
@@ -1788,6 +1791,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_display_name": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
   "self_service": false,
   "status": "uninstalled",
@@ -2092,6 +2096,7 @@ This activity contains the following fields:
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
@@ -2099,6 +2104,8 @@ This activity contains the following fields:
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
+- "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
 
 #### Example
 
@@ -2108,11 +2115,32 @@ This activity contains the following fields:
   "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
+  "software_display_name": "Logic Pro",
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
-  "from_setup_experience": false
+  "from_setup_experience": false,
+  "version_name": "Logic Pro",
+  "configuration": null
+}
+```
+
+#### Example (iOS app with a managed app configuration)
+
+```json
+{
+  "host_id": 57,
+  "self_service": false,
+  "host_display_name": "Anna's iPhone",
+  "software_title": "Zoom Workplace",
+  "app_store_id": "546505307",
+  "command_uuid": "12345678-90ab-cdef-1234-567890abcdef",
+  "policy_id": null,
+  "policy_name": null,
+  "from_setup_experience": false,
+  "version_name": "Production",
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
 ```
 
@@ -2669,6 +2697,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2678,6 +2707,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2690,6 +2720,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2699,6 +2730,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -2711,6 +2743,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -2720,6 +2753,7 @@ This activity contains the following fields:
   "host_id": 123,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 12334
 }
 ```
@@ -3360,6 +3394,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "software_title_id": ID of the software title.
 
 #### Example
@@ -3369,6 +3404,7 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
+  "software_display_name": "Adobe Acrobat.app",
   "software_title_id": 1234
 }
 ```
@@ -3635,6 +3671,47 @@ This activity contains the following fields:
 }
 ```
 
+## installed_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is installed on a host by the user.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements",
+}
+```
+
+## uninstalled_opt_in_configuration_profile
+
+Generated when an opt-in configuration profile is uninstalled on a host by the user.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements",
+}
+```
+
 ## added_microsoft_graph_credential
 
 Generated when a Microsoft Graph credential is added.
@@ -3656,14 +3733,8 @@ Generated when a Microsoft Graph credential is edited.
 
 This activity contains the following fields:
 - "tenant_id": the Microsoft Entra tenant ID the credential authenticates against.
-
-#### Example
-
-```json
-{
 	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
 }
-```
 
 ## deleted_microsoft_graph_credential
 

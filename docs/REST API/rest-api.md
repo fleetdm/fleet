@@ -1248,7 +1248,7 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 ### Request certificate
 
-Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) CAs. Google CA [coming soon](https://github.com/fleetdm/fleet/issues/52623).
+Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant), [custom EST](#custom-est-proxy), and [NDES and Okta](#ndes-scep-proxy) (Okta uses NDES under the hood) CAs. Google CA [coming soon](https://github.com/fleetdm/fleet/issues/52623)
 
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
@@ -3480,6 +3480,7 @@ None.
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Rotate host's disk encryption key](#rotate-hosts-disk-encryption-key)
 - [Get host's Recovery Lock password](#get-hosts-recovery-lock-password)
 - [Get host's certificates](#get-hosts-certificates)
 - [Lock host](#lock-host)
@@ -3557,7 +3558,7 @@ the `software` table.
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
@@ -3867,7 +3868,7 @@ Response payload with the `munki_issue_id` filter provided:
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -4332,7 +4333,19 @@ Returns the information of the specified host.
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
-          "detail": ""
+          "detail": "",
+          "self_service": true
+        },
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381234",
+          "name": "profile2",
+          "status": "verifying",
+          "operation_type": "install",
+          "scope": "device",
+          "managed_local_account": "",
+          "detail": "",
+          "self_service": false,
+          "hidden": true
         }
       ]
     }
@@ -5138,7 +5151,8 @@ If `hostname` is specified when there is more than one host with the same hostna
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
-          "detail": ""
+          "detail": "",
+          "self_service": true
         }
       ]
     }
@@ -5865,7 +5879,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
-          "detail": ""
+          "detail": "",
+          "self_service": true
         }
       ]
     }
@@ -6696,7 +6711,7 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
@@ -6749,10 +6764,51 @@ The host will only return a key if its disk encryption status is "Verified." Get
   "host_id": 8,
   "encryption_key": {
     "key": "5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT",
-    "updated_at": "2022-12-01T05:31:43Z"
+    "updated_at": "2022-12-01T05:31:43Z",
+    "rotation_pending": false
   }
 }
 ```
+
+`rotation_pending` is `true` while a [rotation request](#rotate-hosts-disk-encryption-key) is waiting for the host to acknowledge it. `key` is the current key until the host acknowledges the rotation.
+
+### Rotate host's disk encryption key
+
+_Available in Fleet Premium_
+
+Sends an MDM command that rotates the FileVault recovery key for a macOS host. Fleet escrows the new key as soon as the host acknowledges the command. The host doesn't need a user logged in. Until then, [Get host's disk encryption key](#get-hosts-disk-encryption-key) returns the current key with `rotation_pending` set to `true`.
+
+Fleet uses the host's current key to authorize the rotation, so the current key must be decryptable by Fleet. If the host reports that the rotation failed, Fleet logs a `failed_to_rotate_disk_encryption_key` activity and prompts the end user for their password at their next login to escrow a new key.
+
+Requirements:
+- macOS host enrolled in Fleet MDM
+- Key escrow is turned on for the host's fleet.
+- The host's current key has been escrowed and is decryptable by Fleet
+
+`POST /api/v1/fleet/hosts/:id/encryption_key/rotate`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                            |
+| ---- | ------- | ---- | ---------------------------------------------------------------------- |
+| id   | integer | path | **Required**. The ID of the host to rotate the disk encryption key for. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/8/encryption_key/rotate`
+
+##### Default response
+
+`Status: 200`
+
+##### Rotation already in progress
+
+`Status: 409`
+
+##### Key escrow turned off, or key not decryptable
+
+`Status: 422`
+
 ### Get host's Recovery Lock password
 
 Retrieves the Recovery Lock password for a host.
@@ -6909,7 +6965,8 @@ Retrieves a list of the configuration profiles assigned to a host.
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo="
+      "checksum": "dGVzdAo=",
+      "self_service": true
     }
   ]
 }
@@ -7970,7 +8027,7 @@ Returns a list of the hosts that belong to the specified label.
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
-| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
@@ -8133,6 +8190,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
+| name                      | string   | body | The display name for the profile. If not specified, the name is derived from the profile file (e.g., `PayloadDisplayName` for .mobileconfig, filename for .xml/.json). |
+| description               | string   | body | An optional description for the profile. |
 | fleet_id                  | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
 | labels_include_all        | array    | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array    | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
@@ -8185,14 +8244,14 @@ results (i.e., only profiles that are associated with "Unassigned" are listed).
 
 #### Parameters
 
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| fleet_id                   | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.              |
-| page                      | integer | query | Page number of the results to fetch.                                     |
-| per_page                  | integer | query | Results per page.                                                        |
-| order_key                 | string  | query | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |
-| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| Name                      | Type    | In     | Description                                                               |
+| ------------------------- | ------  | -----  | ------------------------------------------------------------------------- |
+| fleet_id                  | string  | query  | _Available in Fleet Premium_. The fleet id to filter profiles.              |
+| page                      | integer | query  | Page number of the results to fetch.                                     |
+| per_page                  | integer | query  | Results per page.                                                        |
+| order_key                 | string  | query  | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |
+| order_direction           | string  | query  | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after                     | string  | query  | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -8211,11 +8270,13 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "profile_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
       "team_id": 0,
       "name": "Example macOS profile",
+      "description": "Configures passcode settings",
       "platform": "darwin",
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
+      "self_service": true,
       "labels_exclude_any": [
        {
         "name": "Label name 1",
@@ -8228,10 +8289,13 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
       "team_id": 0,
       "name": "Example Windows profile",
+      "payload_display_name": "Windows profile",
       "platform": "windows",
+      "description": "Configures firewall rules",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
+      "self_service": true,
       "labels_include_all": [
         {
           "name": "Label name 2",
@@ -8279,6 +8343,8 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
   "team_id": 0,
   "name": "Example profile",
+  "payload_display_name": "Windows profile",
+  "description": "Configures passcode settings",
   "platform": "darwin",
   "identifier": "com.example.profile",
   "created_at": "2023-03-31T00:00:00Z",
@@ -8359,7 +8425,7 @@ Update an existing configuration profile. Use this endpoint to change which host
 | labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
-| activation                | file     | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
+| activation                | file    | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
 
@@ -8461,11 +8527,11 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 
 #### Parameters
 
-| Name      | Type   | In    | Description                                                                                                                       |
-| --------- | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Name       | Type   | In    | Description                                                                                                                       |
+| ---------  | ------ | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
 | fleet_id   | number | query | _Available in Fleet Premium_ The fleet ID to apply the configuration profiles to. Only one of `fleet_name` or `fleet_id` may be included in the request.          |
 | fleet_name | string | query | _Available in Fleet Premium_ The name of the fleet to apply the custom settings to. Only one of `fleet_name` or `fleet_id` may be included in the request. |
-| dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| dry_run    | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | configuration_profiles  | object   | body  | **Required**. See [configuration_profiles](#configuration-profiles) |
 
 ##### Configuration profiles
@@ -8476,10 +8542,15 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | labels_include_all      | array   | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array   | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
-| display_name            | string  | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
+| name                    | string  | The display name for the profile. Required for Windows and declaration (DDM) profiles. For .mobileconfig profiles, if not specified, the profile's `PayloadDisplayName` is used. |
+| description             | string  | An optional description for the profile. |
 | activation              | string  | _Available in Fleet Premium_. The Base64 encoded activation criteria for the profile. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
+| self_service            | boolean | Specifies if the profile should be opt-in for end users (no forced install). Supported for .mobileconfig profiles. Default is `false`. |
+| hidden                  | boolean | Specifies if the profile should be hidden from end users on Fleet Desktop. `self_service` must be set to `false` (force install of profile) to use this option. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
+
+> `display_name` is deprecated. Please use `name` instead.
 
 #### Example
 
@@ -8492,11 +8563,12 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
   "configuration_profiles": [
     {
       "profile": "<base64-encoded DDM profile>",
-      "display_name": "Passcode Settings",
+      "name": "Passcode Settings",
       "activation": "eyJldmVudCI6...",
       "labels_include_any": [
         "Apple Silicon macOS hosts"
-      ]
+      ],
+      "self_service": true
     }
   ]
 }
@@ -16338,7 +16410,8 @@ _Available in Fleet Premium_
         "configuration_profiles": [
           {
             "path": "path/to/profile1.mobileconfig",
-            "labels": ["Label 1", "Label 2"]
+            "labels": ["Label 1", "Label 2"],
+            "self_service": true
           },
           {
             "path": "path/to/declaration.json",
@@ -16882,7 +16955,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels": ["Label 1", "Label 2"],
+          "self_service": true
         },
         {
           "path": "path/to/profile2.json",
@@ -17095,7 +17169,8 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "configuration_profiles": [
           {
            "path": "path/to/profile1.mobileconfig",
-           "labels": ["Label 1", "Label 2"]
+           "labels": ["Label 1", "Label 2"],
+           "self_service": true
           },
           {
            "path": "path/to/declaration.json",
