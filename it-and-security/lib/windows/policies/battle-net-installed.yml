@@ -1,0 +1,6 @@
+- name: Windows - Battle.net installed
+  query: SELECT 1 FROM programs WHERE name = "Battle.net";
+  critical: false
+  description: Battle.net is required to be installed on all workstations.
+  resolution: Install Battle.net from https://www.blizzard.com/apps/battle.net/desktop.
+  platform: windows
