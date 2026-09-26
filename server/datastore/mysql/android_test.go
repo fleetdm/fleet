@@ -34,6 +34,7 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHost", testNewAndroidHost},
 		{"NewAndroidHostDedupesOrbitEnrolled", testNewAndroidHostDedupesOrbitEnrolled},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
+		{"UpdateAndroidHostEnrollmentTimes", testUpdateAndroidHostEnrollmentTimes},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
@@ -503,6 +504,69 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Nil(t, reloaded.TeamID, "UpdateAndroidHost must not resurrect a team_id that was cleared by a concurrent transfer")
 	})
+}
+
+func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const enterpriseSpecificID = "es_id_enrollment_times"
+
+	created, err := ds.NewAndroidHost(ctx, createAndroidHost(enterpriseSpecificID), false)
+	require.NoError(t, err)
+
+	longAgo := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
+	backdate := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`UPDATE hosts SET created_at = ?, last_enrolled_at = ? WHERE id = ?`,
+				longAgo, longAgo, created.Host.ID,
+			); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+				created.Host.ID, longAgo,
+			)
+			return err
+		})
+	}
+
+	backdate()
+	beforeReport, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	require.WithinDuration(t, longAgo, beforeReport.SeenTime, time.Second)
+	require.WithinDuration(t, longAgo, beforeReport.LastEnrolledAt, time.Second)
+
+	// A status report is not an enrollment: it refreshes the last-seen time only.
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	afterReport, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), afterReport.SeenTime, time.Minute,
+		"a status report must refresh the host's last-seen time")
+	assert.WithinDuration(t, longAgo, afterReport.LastEnrolledAt, time.Second,
+		"a status report must not move the enrollment time")
+
+	backdate()
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, true, false))
+
+	afterEnroll, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), afterEnroll.LastEnrolledAt, time.Minute,
+		"a re-enrollment must refresh the enrollment time")
+	assert.WithinDuration(t, time.Now(), afterEnroll.SeenTime, time.Minute,
+		"a re-enrollment must refresh the last-seen time")
+	assert.WithinDuration(t, longAgo, afterEnroll.CreatedAt, time.Second,
+		"a re-enrollment reuses the host row, so its creation time must not move")
+
+	reportedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	delayed, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, delayed.SeenTime, time.Second,
+		"a delayed delivery must be seen at the device's report time, not when Fleet processed it")
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
