@@ -157,8 +157,9 @@ const SoftwareOSTable = ({
       includeName: true,
       includeVulnerabilities: true,
       includeIcon: true,
+      disableVersionSort: platform === "all",
     });
-  }, [data, router, teamId]);
+  }, [data, router, teamId, platform]);
 
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(
@@ -213,13 +214,15 @@ const SoftwareOSTable = ({
   const handlePlatformFilterDropdownChange = (
     platformSelected: SingleValue<CustomOptionType>
   ) => {
+    // Omit order_key/order_direction so SoftwarePage recomputes its
+    // platform-dependent default sort (version once a single platform is
+    // selected, host count for "all") instead of carrying over whatever was
+    // sorted before the filter changed.
     router?.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_OS,
         queryParams: {
           fleet_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
           page: 0,
           platform: platformSelected?.value,
         },
@@ -244,6 +247,12 @@ const SoftwareOSTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
+        // Remounts on platform change so TableContainer/react-table re-reads
+        // defaultSortHeader/defaultSortDirection as fresh initial state
+        // (they're otherwise only read once, at mount) instead of leaving
+        // the sort indicator stuck on the previous platform's sort after
+        // SoftwarePage recomputes its platform-dependent default.
+        key={platform}
         columnConfigs={softwareTableHeaders}
         data={data?.os_versions ?? []}
         isLoading={isLoading}
