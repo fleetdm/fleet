@@ -560,6 +560,15 @@ func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
 		"a re-enrollment must refresh the last-seen time")
 	assert.WithinDuration(t, longAgo, afterEnroll.CreatedAt, time.Second,
 		"a re-enrollment reuses the host row, so its creation time must not move")
+
+	reportedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	delayed, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, delayed.SeenTime, time.Second,
+		"a delayed delivery must be seen at the device's report time, not when Fleet processed it")
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
