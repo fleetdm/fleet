@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.7.3",
+      "version": "1.7.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitgapp.cursr';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitgapp.cursr' AND version_compare(bundle_short_version, '1.7.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitgapp.cursr' AND version_compare(bundle_short_version, '1.7.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bitgapp.cursr' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/bitgapp/Cursr/releases/download/v1.7.3/Cursr-mac-arm64.dmg",
+      "installer_url": "https://github.com/bitgapp/Cursr/releases/download/v1.7.4/Cursr-mac-arm64.dmg",
       "install_script_ref": "fdee1fdd",
       "uninstall_script_ref": "fa446557",
-      "sha256": "e60db5a98cadbbdd4d5e1d44c9d335028f9e013f00c473544e04b1153f43f823",
+      "sha256": "1403a29035fb386480231844e71476eefbd1aff874dfcb22afebd101a8587194",
       "default_categories": [
         "Productivity"
       ]
