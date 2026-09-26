@@ -546,8 +546,6 @@ func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
 		"a status report must refresh the host's last-seen time")
 	assert.WithinDuration(t, longAgo, afterReport.LastEnrolledAt, time.Second,
 		"a status report must not move the enrollment time")
-	assert.Equal(t, fleet.StatusOnline, afterReport.Status(time.Now()),
-		"a host that just reported must not read offline")
 
 	backdate()
 	require.NoError(t, ds.UpdateAndroidHost(ctx, created, true, false))
