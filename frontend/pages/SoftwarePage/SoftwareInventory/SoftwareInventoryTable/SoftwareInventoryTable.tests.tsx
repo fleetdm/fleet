@@ -3,6 +3,8 @@ import { noop } from "lodash";
 import React from "react";
 
 import {
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
   createMockSoftwareTitlesResponse,
   createMockSoftwareVersionsResponse,
 } from "__mocks__/softwareMock";
@@ -14,6 +16,58 @@ import SoftwareInventoryTable from "./SoftwareInventoryTable";
 const mockRouter = createMockRouter();
 
 describe("Software inventory table", () => {
+  it("distinguishes script packages with the same title name", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    const softwareTitles = [
+      createMockSoftwareTitle({
+        id: 1,
+        name: "hello",
+        source: "py_packages",
+        software_package: createMockSoftwarePackage({ name: "hello.py" }),
+      }),
+      createMockSoftwareTitle({
+        id: 2,
+        name: "hello",
+        source: "sh_packages",
+        software_package: createMockSoftwarePackage({ name: "hello.sh" }),
+      }),
+    ];
+
+    render(
+      <SoftwareInventoryTable
+        router={mockRouter}
+        isSoftwareEnabled
+        showVersions={false}
+        data={createMockSoftwareTitlesResponse({
+          count: 2,
+          software_titles: softwareTitles,
+        })}
+        installableSoftwareExists
+        query=""
+        perPage={20}
+        orderDirection="asc"
+        orderKey="name"
+        vulnFilters={{
+          vulnerable: false,
+          exploit: false,
+          minCvssScore: undefined,
+          maxCvssScore: undefined,
+        }}
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+        onAddFiltersClick={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("row", { name: /hello \(hello\.py\)/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("row", { name: /hello \(hello\.sh\)/ })
+    ).toBeInTheDocument();
+  });
+
   it("Renders the page-wide disabled state when software inventory is disabled", () => {
     const render = createCustomRenderer({
       context: {
