@@ -31,7 +31,9 @@ A patch policy automatically checks whether a Fleet-maintained app is up to date
 Key benefits:
 - **Automatic query generation** — Fleet creates the correct query for the app and platform.
 - **Fail only if outdated** — The policy only fails if the app IS installed AND running an older version. Hosts without the app installed pass the policy.
-- **Install only if app is closed** — If enabled, the policy automation skips the install if the app is currently running. 
+- **Install only if app is closed** — If enabled, the policy automation skips the install if the app is currently running.
+
+> Currently, Fleet patch skipped activities on the policy details page, under **Automation runs** are displayed when "Failed" filter is enabled. We will [improve this soon](https://github.com/fleetdm/fleet/issues/54055), and add [filters to host activity](https://github.com/fleetdm/fleet/issues/54051) feed.
 
 ### In the Fleet UI
 
