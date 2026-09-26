@@ -2894,6 +2894,8 @@ type Datastore interface {
 	// profile on every enrollment.
 	ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*AppleProfileForReconcile, error)
 
+	GetAppleProfileForReconcile(ctx context.Context, teamID uint, profileUUID string) (*AppleProfileForReconcile, error)
+
 	// BulkGetHostLabelMemberships returns the subset of (hostID, labelID)
 	// pairs from label_membership that are present, restricted to the
 	// provided host IDs and label IDs. The outer map is keyed by host ID and
@@ -4293,6 +4295,8 @@ type Datastore interface {
 	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
 	// host UUID -> profile UUID set.
 	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
+	// HasHostMDMProfileOptIn checks if a given host has opted in to a specific MDM profile.
+	HasHostMDMProfileOptIn(ctx context.Context, hostUUID string, profileUUID string) (bool, error)
 }
 
 type AndroidDatastore interface {

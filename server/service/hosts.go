@@ -11,6 +11,7 @@ import (
 	"iter"
 	"net/http"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -2125,6 +2127,17 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+				}
+
+				// Appended after the OS settings summary above so not-yet-installed opt-in profiles don't count as pending.
+				if host.Platform == "darwin" && license.IsPremium(ctx) {
+					available, err := svc.availableSelfServiceAppleProfiles(ctx, host, profs)
+					if err != nil {
+						return nil, err
+					}
+					for _, p := range available {
+						profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+					}
 				}
 
 				// Nano details were read above the outer MDM guard; reuse the
@@ -4978,4 +4991,55 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
+// with a nil status so they read as available to install.
+func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")
+	}
+
+	listed := make(map[string]struct{}, len(profs))
+	for _, p := range profs {
+		listed[p.ProfileUUID] = struct{}{}
+	}
+	var candidates []*fleet.AppleProfileForReconcile
+	var labelIDs []uint
+	for _, p := range teamProfiles {
+		if _, ok := listed[p.ProfileUUID]; ok || !p.SelfService {
+			continue
+		}
+		candidates = append(candidates, p)
+		for _, l := range slices.Concat(p.IncludeLabels, p.ExcludeLabels) {
+			if l.LabelID != nil {
+				labelIDs = append(labelIDs, *l.LabelID)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	memberships, err := svc.ds.BulkGetHostLabelMemberships(ctx, []uint{host.ID}, labelIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label memberships")
+	}
+	var out []fleet.HostMDMAppleProfile
+	for _, p := range candidates {
+		// entityOnHost=true matches the install endpoint, which lets unknown dynamic label membership through.
+		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], true) {
+			continue
+		}
+		out = append(out, fleet.HostMDMAppleProfile{
+			ProfileUUID: p.ProfileUUID,
+			Name:        p.ProfileName,
+			Identifier:  p.ProfileIdentifier,
+			Scope:       p.Scope,
+			SelfService: true,
+			Hidden:      p.Hidden,
+		})
+	}
+	return out, nil
 }

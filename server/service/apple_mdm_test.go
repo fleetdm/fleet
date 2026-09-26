@@ -2308,6 +2308,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
+	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
+		return nil, nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}

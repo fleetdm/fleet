@@ -2708,3 +2708,35 @@ type ActivityTypeDisabledAppleBusinessOnlyEnrollment struct{}
 func (a ActivityTypeDisabledAppleBusinessOnlyEnrollment) ActivityName() string {
 	return "disabled_apple_business_only_enrollment"
 }
+
+type ActivityTypeInstalledOptInConfigurationProfile struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// SelfService indicates whether the end-user or the IT admin opted in to the profile.
+	SelfService bool   `json:"self_service"`
+	ProfileName string `json:"profile_name"`
+}
+
+func (a ActivityTypeInstalledOptInConfigurationProfile) ActivityName() string {
+	return "installed_opt_in_configuration_profile"
+}
+
+func (a ActivityTypeInstalledOptInConfigurationProfile) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeUninstalledOptInConfigurationProfile struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	// SelfService indicates whether the end-user or the IT admin opted out of the profile.
+	SelfService bool   `json:"self_service"`
+	ProfileName string `json:"profile_name"`
+}
+
+func (a ActivityTypeUninstalledOptInConfigurationProfile) ActivityName() string {
+	return "uninstalled_opt_in_configuration_profile"
+}
+
+func (a ActivityTypeUninstalledOptInConfigurationProfile) HostIDs() []uint {
+	return []uint{a.HostID}
+}

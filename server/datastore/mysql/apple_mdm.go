@@ -1027,48 +1027,56 @@ func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID strin
 	stmt := fmt.Sprintf(
 		`
 SELECT
-	profile_uuid,
-	profile_name AS name,
-	profile_identifier AS identifier,
+	hmap.profile_uuid,
+	hmap.profile_name AS name,
+	hmap.profile_identifier AS identifier,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	scope,
+	COALESCE(hmap.status, '%s') AS status,
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail,
+	hmap.scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
+		WHEN hmap.scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
-	END AS managed_local_account
+	END AS managed_local_account,
+	COALESCE(macp.hidden, FALSE) AS hidden,
+	COALESCE(macp.self_service, FALSE) AS self_service
 FROM
-	host_mdm_apple_profiles
+	host_mdm_apple_profiles hmap
+	LEFT JOIN mdm_apple_configuration_profiles macp
+		ON hmap.profile_uuid = macp.profile_uuid
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+	hmap.host_uuid = ? AND (NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s')))
 
 UNION ALL
 
 SELECT
-	declaration_uuid AS profile_uuid,
-	declaration_name AS name,
-	declaration_identifier AS identifier,
+	hmad.declaration_uuid AS profile_uuid,
+	hmad.declaration_name AS name,
+	hmad.declaration_identifier AS identifier,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	scope,
+	COALESCE(hmad.status, '%s') AS status,
+	COALESCE(hmad.operation_type, '') AS operation_type,
+	COALESCE(hmad.detail, '') AS detail,
+	hmad.scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
+		WHEN hmad.scope = 'User' THEN COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
-	END AS managed_local_account
+	END AS managed_local_account,
+	COALESCE(mad.hidden, FALSE) AS hidden,
+	FALSE AS self_service
 FROM
-	host_mdm_apple_declarations
+	host_mdm_apple_declarations hmad
+	LEFT JOIN mdm_apple_declarations mad
+		ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+	hmad.host_uuid = ? AND hmad.declaration_name NOT IN (?) AND NOT (hmad.operation_type = '%s' AND COALESCE(hmad.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -9079,4 +9087,23 @@ func (ds *Datastore) bulkGetHostMDMProfileOptInsTransaction(
 	}
 
 	return out, nil
+}
+
+func (ds *Datastore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
+	if hostUUID == "" {
+		return false, fleet.NewInvalidArgumentError("hostUUID", "hostUUID cannot be empty")
+	}
+	if profileUUID == "" {
+		return false, fleet.NewInvalidArgumentError("profileUUID", "profileUUID cannot be empty")
+	}
+
+	out, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{hostUUID})
+	if err != nil {
+		return false, err
+	}
+	if profiles, ok := out[hostUUID]; ok {
+		_, optedIn := profiles[profileUUID]
+		return optedIn, nil
+	}
+	return false, nil
 }

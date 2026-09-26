@@ -1029,6 +1029,14 @@ type SendAPNSPingFunc func(ctx context.Context, hostID uint) error
 
 type DeviceSendAPNSPingFunc func(ctx context.Context, host *fleet.Host) error
 
+type InstallSelfServiceConfigurationProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type UninstallSelfServiceConfigurationProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type DeviceInstallSelfServiceConfigurationProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
+
+type DeviceUninstallSelfServiceConfigurationProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2541,6 +2549,18 @@ type Service struct {
 
 	DeviceSendAPNSPingFunc        DeviceSendAPNSPingFunc
 	DeviceSendAPNSPingFuncInvoked bool
+
+	InstallSelfServiceConfigurationProfileFunc        InstallSelfServiceConfigurationProfileFunc
+	InstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	UninstallSelfServiceConfigurationProfileFunc        UninstallSelfServiceConfigurationProfileFunc
+	UninstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	DeviceInstallSelfServiceConfigurationProfileFunc        DeviceInstallSelfServiceConfigurationProfileFunc
+	DeviceInstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	DeviceUninstallSelfServiceConfigurationProfileFunc        DeviceUninstallSelfServiceConfigurationProfileFunc
+	DeviceUninstallSelfServiceConfigurationProfileFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6071,4 +6091,32 @@ func (s *Service) DeviceSendAPNSPing(ctx context.Context, host *fleet.Host) erro
 	s.DeviceSendAPNSPingFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeviceSendAPNSPingFunc(ctx, host)
+}
+
+func (s *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	s.mu.Lock()
+	s.InstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallSelfServiceConfigurationProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	s.mu.Lock()
+	s.UninstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UninstallSelfServiceConfigurationProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	s.mu.Lock()
+	s.DeviceInstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceInstallSelfServiceConfigurationProfileFunc(ctx, host, profileUUID)
+}
+
+func (s *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	s.mu.Lock()
+	s.DeviceUninstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceUninstallSelfServiceConfigurationProfileFunc(ctx, host, profileUUID)
 }
