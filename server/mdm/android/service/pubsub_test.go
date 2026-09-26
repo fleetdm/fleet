@@ -2046,11 +2046,15 @@ func TestAndroidStorageExtraction(t *testing.T) {
 	})
 
 	t.Run("re-enrollment without MEASURED events keeps the stored storage", func(t *testing.T) {
+		const esid = "REENROLL-TEST-ESID"
 		existing := &fleet.AndroidHost{
 			Host:   &fleet.Host{ID: 42, UUID: "reenroll-uuid", Platform: "android"},
-			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-test"), HostID: 42},
+			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-test"), HostID: 42, EnterpriseSpecificID: new(esid)},
 		}
 		mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+			if enterpriseSpecificID != esid {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
 			return existing, nil
 		}
 		var updatedHost *fleet.AndroidHost
@@ -2068,6 +2072,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		enrollmentMessage := createEnrollmentMessageWithoutMemoryEvents(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("reenroll-test"),
 			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			HardwareInfo:        &androidmanagement.HardwareInfo{EnterpriseSpecificId: esid},
 		})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -2082,11 +2087,15 @@ func TestAndroidStorageExtraction(t *testing.T) {
 	})
 
 	t.Run("re-enrollment with MEASURED events still updates storage", func(t *testing.T) {
+		const esid = "REENROLL-MEASURED-ESID"
 		existing := &fleet.AndroidHost{
 			Host:   &fleet.Host{ID: 43, UUID: "reenroll-measured-uuid", Platform: "android"},
-			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-measured"), HostID: 43},
+			Device: &android.Device{DeviceID: createAndroidDeviceId("reenroll-measured"), HostID: 43, EnterpriseSpecificID: new(esid)},
 		}
 		mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+			if enterpriseSpecificID != esid {
+				return nil, common_mysql.NotFound("android host lite mock")
+			}
 			return existing, nil
 		}
 		var updatedHost *fleet.AndroidHost
@@ -2103,6 +2112,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
 			Name:                createAndroidDeviceId("reenroll-measured"),
 			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+			HardwareInfo:        &androidmanagement.HardwareInfo{EnterpriseSpecificId: esid},
 		})
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -2141,6 +2151,10 @@ func TestAndroidStorageExtraction(t *testing.T) {
 }
 
 func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	var esid string
+	if deviceInfo.HardwareInfo != nil {
+		esid = deviceInfo.HardwareInfo.EnterpriseSpecificId
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		Brand:    "TestBrand",
 		Model:    "TestModel",
@@ -2154,7 +2168,10 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 		deviceInfo.HardwareInfo.SerialNumber = "test-serial"
 	}
 	if deviceInfo.Ownership == DeviceOwnershipPersonallyOwned {
-		deviceInfo.HardwareInfo.EnterpriseSpecificId = strings.ToUpper(uuid.New().String())
+		if esid == "" {
+			esid = strings.ToUpper(uuid.New().String())
+		}
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = esid
 		deviceInfo.HardwareInfo.SerialNumber = deviceInfo.HardwareInfo.EnterpriseSpecificId
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
@@ -2240,8 +2257,12 @@ func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo andro
 // createEnrollmentMessageWithoutMemoryEvents builds the payload AMAPI sends on enrollment:
 // memory info but no memory events, which only arrive on status reports.
 func createEnrollmentMessageWithoutMemoryEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	esid := strings.ToUpper(uuid.New().String())
+	if deviceInfo.HardwareInfo != nil && deviceInfo.HardwareInfo.EnterpriseSpecificId != "" {
+		esid = deviceInfo.HardwareInfo.EnterpriseSpecificId
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
-		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+		EnterpriseSpecificId: esid,
 		Brand:                "TestBrand",
 		Model:                "TestModel",
 		SerialNumber:         "test-serial",
