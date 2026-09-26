@@ -33,8 +33,8 @@ jobs:
       - name: Checkout this repository
         uses: actions/checkout@v6
 
-      - name: Make github action script executable
-        run: chmod +x ./.github/fleet-gitops/gitops.sh
+      - name: Make github action scripts executable
+        run: chmod +x ./.github/fleet-gitops/gitops.sh ./.github/fleet-gitops/check-app-store-apps.sh
 
       - name: Apply latest configuration to Fleet
         uses: ./.github/fleet-gitops
