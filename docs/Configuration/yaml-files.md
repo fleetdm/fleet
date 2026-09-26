@@ -142,7 +142,7 @@ A patch policy's `query` automatically updates. Hosts will fail this policy if t
 
 To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 
-To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`.
+To automatically patch the app when this policy fails and app is not open, set `install_software` to `true` and `patch_when_closed` to `true`. [Soon](https://github.com/fleetdm/fleet/issues/53275), Fleet will make it so you only need to set `patch_when_closed` to `true`.
 
 To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
