@@ -163,3 +163,8 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';
   label_membership_type: dynamic
   platform: darwin
+- name: Macs with Canva installed
+  description: macOS hosts with Canva installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';
+  label_membership_type: dynamic
+  platform: darwin
