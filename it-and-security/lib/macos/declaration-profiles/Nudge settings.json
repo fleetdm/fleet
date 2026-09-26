@@ -1,0 +1,7 @@
+{
+    "Type": "com.apple.configuration.legacy",
+    "Identifier": "com.fleetdm.config.nudge.legacy",
+    "Payload": {
+        "ProfileURL": "https://raw.githubusercontent.com/fleetdm/fleet/57ffa204e7f59ff245f71195db9ae477c7b04e0f/it-and-security/lib/macos/configuration-profiles/nudge-preferences.mobileconfig"
+    }
+}
