@@ -163,6 +163,12 @@ start
     return n
   }
 
+// Alternate start rule for input with no statement at all (empty, whitespace,
+// or comments only), which `start` rejects. Lets callers tell "nothing typed
+// yet" apart from a syntax error.
+no_stmt
+  = __
+
 crud_stmt
   = union_stmt
   / empty_stmt
