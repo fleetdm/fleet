@@ -742,6 +742,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		InstallAt:             installAt,
 		Status:                status,
 		ScriptExecutionID:     outcome.ExecutionID,
+		ExitCode:              &outcome.ExitCode,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for patch notification")
 	}
