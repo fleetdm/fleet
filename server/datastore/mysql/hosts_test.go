@@ -13691,6 +13691,29 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
+	// A second CVE on the same software must not duplicate it in the response.
+	inserted, err = ds.InsertSoftwareVulnerability(t.Context(), fleet.SoftwareVulnerability{
+		SoftwareID: soft1.ID,
+		CVE:        "cve-456-456-456",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	var soft2 fleet.HostSoftwareEntry
+	for _, item := range h.Software {
+		if item.Name == "baz" {
+			soft2 = item
+			break
+		}
+	}
+	require.NotZero(t, soft2.ID)
+	inserted, err = ds.InsertSoftwareVulnerability(t.Context(), fleet.SoftwareVulnerability{
+		SoftwareID: soft2.ID,
+		CVE:        "cve-789-789-789",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
 	hh, err := ds.GetHostHealth(context.Background(), h.ID)
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
@@ -13700,8 +13723,10 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
 	require.Len(t, hh.FailingPolicies, 1)
 	require.Equal(t, failingPolicy.ID, hh.FailingPolicies[0].ID)
-	require.Len(t, hh.VulnerableSoftware, 1)
-	require.Equal(t, soft1.ID, hh.VulnerableSoftware[0].ID)
+	require.ElementsMatch(t, []fleet.HostHealthVulnerableSoftware{
+		{ID: soft1.ID, Name: "bar", Version: "0.0.3"},
+		{ID: soft2.ID, Name: "baz", Version: "0.0.4"},
+	}, hh.VulnerableSoftware)
 
 	// Validate a host with no software or policies or team
 	_, err = ds.NewHost(context.Background(), &fleet.Host{
