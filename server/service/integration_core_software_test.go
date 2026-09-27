@@ -1024,6 +1024,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	// Valid CVE in "no team" scope
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "team_id", "0")
+	// Free tier has no NVD metadata to tell whether NVD published the CVE, so it always links to NVD.
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1246", gResp.Vulnerability.DetailsLink)
 
 	// Valid CVE not in "no team" scope
 	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-12345", nil, http.StatusNoContent, "team_id", "0")

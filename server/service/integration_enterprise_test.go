@@ -7117,6 +7117,42 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
 	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
 	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+
+	// A matched CVE without cve_meta (e.g. published by MSRC before NVD) still resolves,
+	// linking to CVE.org since NVD has no page for it yet.
+	_, err = s.ds.InsertOSVulnerability(t.Context(), fleet.OSVulnerability{
+		OSID: os.ID,
+		CVE:  "CVE-2021-1236",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+	err = s.ds.UpdateVulnerabilityHostCounts(t.Context(), 5)
+	require.NoError(t, err)
+
+	gResp = getVulnerabilityResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusOK, &gResp)
+	require.NoError(t, gResp.Err)
+	require.Equal(t, fleet.CVE{
+		CVE:         "CVE-2021-1236",
+		DetailsLink: "https://www.cve.org/CVERecord?id=CVE-2021-1236",
+	}, gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+
+	// Known to Fleet via its match, but no hosts in "No team".
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNoContent, "team_id", "0")
+
+	// EPSS and CISA feeds create cve_meta rows for CVEs that NVD hasn't published.
+	require.NoError(t, s.ds.InsertCVEMeta(t.Context(), []fleet.CVEMeta{{CVE: "CVE-2021-1236", EPSSProbability: new(0.25)}}))
+	gResp = getVulnerabilityResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusOK, &gResp)
+	require.Equal(t, new(new(0.25)), gResp.Vulnerability.EPSSProbability)
+	require.Equal(t, "https://www.cve.org/CVERecord?id=CVE-2021-1236", gResp.Vulnerability.DetailsLink)
+
+	require.NoError(t, s.ds.InsertCVEMeta(t.Context(), []fleet.CVEMeta{{CVE: "CVE-2021-1236", EPSSProbability: new(0.25), Published: new(mockTime)}}))
+	gResp = getVulnerabilityResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusOK, &gResp)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1236", gResp.Vulnerability.DetailsLink)
 }
 
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {
