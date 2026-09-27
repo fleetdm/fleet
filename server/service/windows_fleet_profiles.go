@@ -102,16 +102,16 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
 func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) {
 	logger := svc.logger.With("enrollment_id", enrolledDevice.ID, "host_uuid", enrolledDevice.HostUUID)
 
-	pending, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
+	// A device whose fleetd is gone for good keeps checking in, so the push must not repeat for every session. Only a new
+	// secret gets pushed: while the enrollment holds an unconsumed one, the device was already sent it.
+	live, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed to load pending windows mdm commands", "err", err)
+		logger.ErrorContext(ctx, "failed to load the live one-time enroll secret", "err", err)
 		ctxerr.Handle(ctx, err)
 		return
 	}
-	for _, cmd := range pending {
-		if cmd.TargetLocURI == windowsEnrollSecretPolicyURI {
-			return
-		}
+	if live != "" {
+		return
 	}
 
 	syncML, err := windowsEnrollSecretProfileSyncML()
@@ -128,18 +128,16 @@ func (svc *Service) pushEnrollSecretToOrphanedEnrollment(ctx context.Context, en
 	}
 	cmd.TargetLocURI = windowsEnrollSecretPolicyURI
 
-	if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
-		logger.ErrorContext(ctx, "failed to mint a one-time enroll secret for an orphaned windows mdm enrollment", "err", err)
+	queued, err := svc.ds.QueueWindowsMDMEnrollSecretPush(ctx, enrolledDevice.ID, enrolledDevice.MDMDeviceID, cmd)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to queue a one-time enroll secret push", "err", err)
 		ctxerr.Handle(ctx, err)
 		return
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, cmd); err != nil {
-		logger.ErrorContext(ctx, "failed to queue the enroll secret push", "err", err)
-		ctxerr.Handle(ctx, err)
-		return
+	if queued {
+		logger.InfoContext(ctx, "queued a one-time enroll secret for a windows mdm enrollment whose host was deleted",
+			"command_uuid", cmd.CommandUUID)
 	}
-	logger.InfoContext(ctx, "queued a one-time enroll secret for a windows mdm enrollment whose host was deleted",
-		"command_uuid", cmd.CommandUUID)
 }
 
 // ensureFleetWindowsProfiles keeps the Fleet-managed Windows profiles in step with the server configuration, the way

@@ -2072,6 +2072,8 @@ type GetLiveWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollme
 
 type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
 
+type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error)
+
 type CreateCustomHostVitalFunc func(ctx context.Context, name string) (fleet.CustomHostVital, error)
 
 type ListCustomHostVitalsFunc func(ctx context.Context, opt fleet.ListOptions) (customHostVitals []fleet.CustomHostVital, meta *fleet.PaginationMetadata, count int, err error)
@@ -5566,6 +5568,9 @@ type DataStore struct {
 
 	MintWindowsMDMOneTimeEnrollSecretFunc        MintWindowsMDMOneTimeEnrollSecretFunc
 	MintWindowsMDMOneTimeEnrollSecretFuncInvoked bool
+
+	QueueWindowsMDMEnrollSecretPushFunc        QueueWindowsMDMEnrollSecretPushFunc
+	QueueWindowsMDMEnrollSecretPushFuncInvoked bool
 
 	CreateCustomHostVitalFunc        CreateCustomHostVitalFunc
 	CreateCustomHostVitalFuncInvoked bool
@@ -13369,6 +13374,13 @@ func (s *DataStore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrol
 	s.MintWindowsMDMOneTimeEnrollSecretFuncInvoked = true
 	s.mu.Unlock()
 	return s.MintWindowsMDMOneTimeEnrollSecretFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) QueueWindowsMDMEnrollSecretPush(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error) {
+	s.mu.Lock()
+	s.QueueWindowsMDMEnrollSecretPushFuncInvoked = true
+	s.mu.Unlock()
+	return s.QueueWindowsMDMEnrollSecretPushFunc(ctx, enrollmentID, mdmDeviceID, cmd)
 }
 
 func (s *DataStore) CreateCustomHostVital(ctx context.Context, name string) (fleet.CustomHostVital, error) {

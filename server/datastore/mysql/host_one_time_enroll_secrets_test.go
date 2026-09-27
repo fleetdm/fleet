@@ -448,12 +448,13 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	})
 
-	t.Run("a deleted Fleet MDM Windows host cannot be recreated with a shared secret", func(t *testing.T) {
-		// The enrollment survives the delete and is linked by UUID, so a new host with that UUID would inherit it. The presented
-		// platform is not trusted, so claiming another one does not help.
+	t.Run("a deleted Fleet MDM Windows host that checked in since cannot be recreated with a shared secret", func(t *testing.T) {
+		// A session after the delete pushed the device a one-time secret, so it has its own way back. The presented platform is
+		// not trusted, so claiming another one does not help.
 		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		device := insertWindowsEnrollment(t, ds, "hw-"+h.UUID, h.UUID)
 		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 
 		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
@@ -466,12 +467,17 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		_, err = ds.HostLiteByIdentifier(ctx, h.UUID)
 		require.True(t, fleet.IsNotFound(err), "no host may be created for the refused enrollments")
 
-		// The way back is the one-time secret Fleet pushes to the enrollment.
-		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		// The way back is the pushed secret.
 		row := liveWindowsSecret(t, ds, device.ID)
 		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
 		require.Equal(t, h.UUID, recreated.UUID)
+
+		// Deleted again and never checked in since, as when re-imaged: no push is waiting, so the shared secret is the way back.
+		require.NoError(t, ds.DeleteHost(ctx, recreated.ID))
+		reimaged, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
+		require.NoError(t, err)
+		require.NotEqual(t, recreated.ID, reimaged.ID)
 	})
 
 	t.Run("a new Windows host no enrollment claims enrolls with a shared secret", func(t *testing.T) {
@@ -719,6 +725,23 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 		return err
 	}))
 	require.Equal(t, windowsOneTimeEnrollSecretMintResult{found: 2, inserted: 1}, result, "device already had a live secret")
+
+	// The deleted-host push queues only alongside a secret it mints, and a failed queue leaves no secret behind for later
+	// sessions to mistake for one already sent.
+	pushCmd := func(commandUUID string) *fleet.MDMWindowsCommand {
+		return &fleet.MDMWindowsCommand{CommandUUID: commandUUID, RawCommand: []byte("<Replace/>"), TargetLocURI: "./Device/qa"}
+	}
+	pushed := insertWindowsEnrollment(t, ds, "hw-mint-pushed", "")
+	queued, err := ds.QueueWindowsMDMEnrollSecretPush(ctx, pushed.ID, pushed.MDMDeviceID, pushCmd("push-1"))
+	require.NoError(t, err)
+	require.True(t, queued)
+	queued, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, pushed.ID, pushed.MDMDeviceID, pushCmd("push-2"))
+	require.NoError(t, err)
+	require.False(t, queued, "the device was already sent the live secret")
+	failed := insertWindowsEnrollment(t, ds, "hw-mint-failed", "")
+	_, err = ds.QueueWindowsMDMEnrollSecretPush(ctx, failed.ID, failed.MDMDeviceID, pushCmd("push-1"))
+	require.Error(t, err, "the command UUID is taken")
+	require.Zero(t, countWindowsOneTimeEnrollSecrets(t, ds, failed.ID))
 
 	// Re-enrollment deletes the enrollment row, and the foreign key cascade is what invalidates the secret minted for it.
 	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)

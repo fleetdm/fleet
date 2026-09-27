@@ -208,26 +208,20 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 	orphaned := &fleet.MDMWindowsEnrolledDevice{ID: 17, MDMDeviceID: "device-17", HostUUID: "host-uuid", MDMEnrollUserID: "not-a-upn"}
 
 	type state struct {
-		minted bool
 		pushed *fleet.MDMWindowsCommand
 	}
-	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool, pending []*fleet.MDMWindowsCommand) (*Service, *mock.Store, *state) {
+	newService := func(t *testing.T, windowsOneTimeEnrollSecrets bool, liveSecret string) (*Service, *mock.Store, *state) {
 		st := &state{}
 		ds := new(mock.Store)
-		ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
 			require.Equal(t, orphaned.ID, enrollmentID)
-			return pending, nil
+			return liveSecret, nil
 		}
-		ds.MintWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) error {
+		ds.QueueWindowsMDMEnrollSecretPushFunc = func(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error) {
 			require.Equal(t, orphaned.ID, enrollmentID)
-			st.minted = true
-			return nil
-		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
-			require.True(t, st.minted, "the secret must exist before the command that resolves it is queued")
-			require.Equal(t, []string{orphaned.MDMDeviceID}, deviceIDs)
+			require.Equal(t, orphaned.MDMDeviceID, mdmDeviceID)
 			st.pushed = cmd
-			return nil
+			return true, nil
 		}
 		cfg := config.TestConfig()
 		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
@@ -239,7 +233,7 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 	}
 
 	t.Run("a deleted host's enrollment is pushed a secret through the profile's own SyncML", func(t *testing.T) {
-		svc, _, st := newService(t, true, nil)
+		svc, _, st := newService(t, true, "")
 		session(t, svc, orphaned)
 
 		require.NotNil(t, st.pushed)
@@ -256,20 +250,19 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 		name                        string
 		windowsOneTimeEnrollSecrets bool
 		device                      *fleet.MDMWindowsEnrolledDevice
-		pending                     []*fleet.MDMWindowsCommand
+		liveSecret                  string
 	}{
 		{name: "windows one-time enroll secrets disabled", device: orphaned},
 		{name: "enrollment never linked to a host", windowsOneTimeEnrollSecrets: true, device: &unlinked},
 		{name: "host exists", windowsOneTimeEnrollSecrets: true, device: &withHost},
-		{name: "a push is already queued", windowsOneTimeEnrollSecrets: true, device: orphaned,
-			pending: []*fleet.MDMWindowsCommand{{TargetLocURI: windowsEnrollSecretPolicyURI}}},
+		{name: "the enrollment holds an unconsumed secret", windowsOneTimeEnrollSecrets: true, device: orphaned, liveSecret: "already-sent"},
 	} {
 		t.Run("nothing is pushed: "+tc.name, func(t *testing.T) {
-			svc, ds, st := newService(t, tc.windowsOneTimeEnrollSecrets, tc.pending)
+			svc, ds, st := newService(t, tc.windowsOneTimeEnrollSecrets, tc.liveSecret)
 			session(t, svc, tc.device)
-			require.False(t, st.minted)
-			if tc.pending == nil {
-				require.False(t, ds.MDMWindowsGetPendingCommandsFuncInvoked, "a session that needs no push costs no query")
+			require.Nil(t, st.pushed)
+			if tc.liveSecret == "" {
+				require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked, "a session that needs no push costs no query")
 			}
 		})
 	}

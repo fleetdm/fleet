@@ -198,6 +198,31 @@ func (ds *Datastore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enro
 	})
 }
 
+func (ds *Datastore) QueueWindowsMDMEnrollSecretPush(
+	ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand,
+) (bool, error) {
+	var queued bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		queued = false
+		minted, err := mintWindowsMDMOneTimeEnrollSecretsDB(ctx, tx, []uint{enrollmentID})
+		if err != nil {
+			return err
+		}
+		if minted.found == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"), "minting one-time enroll secret for push")
+		}
+		if minted.inserted == 0 {
+			return nil
+		}
+		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{mdmDeviceID}, cmd); err != nil {
+			return err
+		}
+		queued = true
+		return nil
+	})
+	return queued, err
+}
+
 type windowsOneTimeEnrollSecretMintResult struct {
 	// found is how many of the requested enrollments exist.
 	found int
@@ -441,20 +466,27 @@ func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
 }
 
 // rejectSharedSecretForMDMLinkedWindowsUUID refuses a shared enroll secret that would insert a host with the UUID of a Windows
-// MDM enrollment Fleet has linked, typically one whose host was deleted. The real device recovers through the one-time secret
-// Fleet pushes to its enrollment.
+// MDM enrollment Fleet has linked, but only while that enrollment holds an unconsumed one-time secret. A linked enrollment
+// without a host always means the host was deleted, since enrollments are only ever linked to existing hosts, and deleting a
+// host deletes its secrets. So an unconsumed secret there was pushed at an MDM session after the delete: the device is alive,
+// already has its own way back, and a shared-secret enrollment for its UUID is more likely another machine. Without one, the
+// device has not checked in since the delete (typically re-imaged), and the shared secret is its way back.
 func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtContext, hardwareUUID string) error {
 	if hardwareUUID == "" {
 		return nil
 	}
-	var linked bool
-	if err := sqlx.GetContext(ctx, tx, &linked,
-		`SELECT EXISTS (SELECT 1 FROM mdm_windows_enrollments WHERE host_uuid = ?)`, hardwareUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "check windows mdm enrollment linked to enrolling uuid")
+	var pushed bool
+	if err := sqlx.GetContext(ctx, tx, &pushed, `
+		SELECT EXISTS (
+			SELECT 1 FROM mdm_windows_enrollments mwe
+			JOIN host_one_time_enroll_secrets s ON s.mdm_windows_enrollment_id = mwe.id AND s.consumed_at IS NULL
+			WHERE mwe.host_uuid = ?
+		)`, hardwareUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "check pushed one-time enroll secret for enrolling uuid")
 	}
-	if linked {
+	if pushed {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
-			"shared enroll secret presented for the uuid of a windows mdm enrollment")
+			"shared enroll secret presented for the uuid of a windows mdm enrollment awaiting its pushed one-time secret")
 	}
 	return nil
 }
