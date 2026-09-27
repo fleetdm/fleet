@@ -218,7 +218,18 @@ compound_op
   / KW_EXCEPT { return 'except' }
 
 union_stmt
-  = head:select_core tail:(__ compound_op __ select_core)* __ ob: order_by_clause? __ l:limit_clause? {
+  = head:select_core tail:(__ (op:compound_op { return { op, loc: location() } }) __ select_core)* __ ob: order_by_clause? __ l:limit_clause? {
+      // select_stmt_nake parses ORDER BY and LIMIT on every member, but SQLite
+      // only allows them after the last one.
+      const members = [head, ...tail.map(t => t[3])]
+      for (let i = 0; i < tail.length; i++) {
+        const clause = members[i].orderby ? 'ORDER BY' : members[i].limit ? 'LIMIT' : null
+        if (clause) {
+          const { op, loc } = tail[i][1]
+          error(`${clause} clause should come after ${op.toUpperCase()} not before`, loc)
+        }
+        tail[i][1] = tail[i][1].op
+      }
       let cur = head
       for (let i = 0; i < tail.length; i++) {
         cur._next = tail[i][3]
