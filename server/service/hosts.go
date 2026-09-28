@@ -4163,6 +4163,10 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted archived host disk encryption key", "host_id", host.ID)
 
 			// We successfully decrypted the archived key so we'll use it in place of the current key.
+			var rotationCommandUUID *string
+			if key != nil {
+				rotationCommandUUID = key.RotationCommandUUID
+			}
 			key = &fleet.HostDiskEncryptionKey{
 				HostID:              host.ID,
 				Base64Encrypted:     archivedKey.Base64Encrypted,
@@ -4171,6 +4175,8 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 				Decryptable:         ptr.Bool(true),
 				DecryptedValue:      decrypted,
 				UpdatedAt:           archivedKey.CreatedAt,
+				RotationCommandUUID: rotationCommandUUID,
+				RotationPending:     rotationCommandUUID != nil,
 			}
 		}
 	}

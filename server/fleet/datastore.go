@@ -1479,6 +1479,9 @@ type Datastore interface {
 	// ClearHostDiskEncryptionKeyRotationCommand clears the pending rotation only if it still points at cmdUUID, so
 	// a late result for a superseded command is a no-op.
 	ClearHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) error
+	// ClearStaleHostDiskEncryptionKeyRotationCommand clears the pending rotation cmdUUID only if it was requested
+	// more than olderThan ago. It returns false when nothing was cleared.
+	ClearStaleHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error)
 	// FailHostDiskEncryptionKeyRotation clears the pending rotation cmdUUID and marks the stored key as not
 	// decryptable, which prompts the end user to regenerate it through Escrow Buddy. It returns false when cmdUUID
 	// is not the host's pending rotation.
@@ -1486,9 +1489,10 @@ type Datastore interface {
 	// GetHostByDiskEncryptionKeyRotationCommand returns the host whose pending FileVault key rotation is cmdUUID,
 	// or a not found error.
 	GetHostByDiskEncryptionKeyRotationCommand(ctx context.Context, cmdUUID string) (*Host, error)
-	// ReplaceHostDiskEncryptionKeyBlob swaps the stored ciphertext for another encryption of the same key. It
-	// leaves decryptable and updated_at unchanged and does not archive the blob.
-	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, base64Encrypted string) error
+	// ReplaceHostDiskEncryptionKeyBlob swaps the stored ciphertext for another encryption of the same key, only if
+	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged and does
+	// not archive the blob.
+	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
 	// IsAppleMDMCommandPending reports whether the command is still queued for the host with no terminal result.
 	IsAppleMDMCommandPending(ctx context.Context, hostUUID, cmdUUID string) (bool, error)
 	// GetHostEscrowState reports whether a LUKS escrow request is queued and how long ago the agent

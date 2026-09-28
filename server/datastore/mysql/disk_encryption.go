@@ -402,7 +402,7 @@ func (ds *Datastore) IsHostDiskEncryptionKeyArchived(ctx context.Context, hostID
 func (ds *Datastore) SetHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys
-SET rotation_command_uuid = ?, updated_at = updated_at
+SET rotation_command_uuid = ?, rotation_requested_at = NOW(6), updated_at = updated_at
 WHERE host_id = ? AND rotation_command_uuid IS NULL`, cmdUUID, hostID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "set host disk encryption key rotation command")
@@ -417,16 +417,33 @@ WHERE host_id = ? AND rotation_command_uuid IS NULL`, cmdUUID, hostID)
 func (ds *Datastore) ClearHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys
-SET rotation_command_uuid = NULL, updated_at = updated_at
+SET rotation_command_uuid = NULL, rotation_requested_at = NULL, updated_at = updated_at
 WHERE host_id = ? AND rotation_command_uuid = ?`, hostID, cmdUUID)
 	return ctxerr.Wrap(ctx, err, "clear host disk encryption key rotation command")
+}
+
+func (ds *Datastore) ClearStaleHostDiskEncryptionKeyRotationCommand(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys
+SET rotation_command_uuid = NULL, rotation_requested_at = NULL, updated_at = updated_at
+WHERE host_id = ? AND rotation_command_uuid = ?
+	AND (rotation_requested_at IS NULL OR rotation_requested_at < NOW(6) - INTERVAL ? MICROSECOND)`,
+		hostID, cmdUUID, olderThan.Microseconds())
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "clear stale host disk encryption key rotation command")
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected clearing stale host disk encryption key rotation command")
+	}
+	return affected == 1, nil
 }
 
 func clearHostDiskEncryptionKeyRotationByHostUUIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	_, err := tx.ExecContext(ctx, `
 UPDATE host_disk_encryption_keys hdek
 JOIN hosts h ON h.id = hdek.host_id
-SET hdek.rotation_command_uuid = NULL, hdek.updated_at = hdek.updated_at
+SET hdek.rotation_command_uuid = NULL, hdek.rotation_requested_at = NULL, hdek.updated_at = hdek.updated_at
 WHERE h.uuid = ? AND hdek.rotation_command_uuid IS NOT NULL`, hostUUID)
 	return ctxerr.Wrap(ctx, err, "clear host disk encryption key rotation by host uuid")
 }
@@ -434,7 +451,7 @@ WHERE h.uuid = ? AND hdek.rotation_command_uuid IS NOT NULL`, hostUUID)
 func (ds *Datastore) FailHostDiskEncryptionKeyRotation(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys
-SET rotation_command_uuid = NULL, decryptable = FALSE, updated_at = updated_at
+SET rotation_command_uuid = NULL, rotation_requested_at = NULL, decryptable = FALSE, updated_at = updated_at
 WHERE host_id = ? AND rotation_command_uuid = ?`, hostID, cmdUUID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "fail host disk encryption key rotation")
@@ -463,11 +480,11 @@ func (ds *Datastore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Conte
 	return host, nil
 }
 
-func (ds *Datastore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, base64Encrypted string) error {
+func (ds *Datastore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys
 SET base64_encrypted = ?, updated_at = updated_at
-WHERE host_id = ?`, base64Encrypted, hostID)
+WHERE host_id = ? AND base64_encrypted = ?`, newBase64Encrypted, hostID, currentBase64Encrypted)
 	return ctxerr.Wrap(ctx, err, "replace host disk encryption key blob")
 }
 

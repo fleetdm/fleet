@@ -268,6 +268,7 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		escrow    bool
 		marker    *string
 		pending   bool
+		stale     bool
 		acts      []fleet.ActivityDetails
 	}
 	setup := func(t *testing.T) *env {
@@ -313,6 +314,14 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 				e.marker = nil
 			}
 			return nil
+		}
+		e.ds.ClearStaleHostDiskEncryptionKeyRotationCommandFunc = func(ctx context.Context, hostID uint, cmdUUID string, olderThan time.Duration) (bool, error) {
+			require.Equal(t, time.Minute, olderThan)
+			if !e.stale || e.marker == nil || *e.marker != cmdUUID {
+				return false, nil
+			}
+			e.marker = nil
+			return true, nil
 		}
 		e.ds.SetHostDiskEncryptionKeyRotationCommandFunc = func(ctx context.Context, hostID uint, cmdUUID string) (bool, error) {
 			if e.marker != nil {
@@ -421,10 +430,21 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 
 	t.Run("stale marker is replaced", func(t *testing.T) {
 		e := setup(t)
-		e.marker = new("stale")
+		e.marker, e.stale = new("stale"), true
 		require.NoError(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1))
 		require.Len(t, e.commander.calls, 1)
 		require.Equal(t, e.commander.calls[0], *e.marker)
+	})
+
+	// Before its command is enqueued, or before its result is handled, a fresh
+	// marker has no pending queue row; it must not be taken for a stale one.
+	t.Run("recent marker without a pending command conflicts", func(t *testing.T) {
+		e := setup(t)
+		e.marker = new("in-flight")
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), &conflict)
+		require.Empty(t, e.commander.calls)
+		require.Equal(t, "in-flight", *e.marker)
 	})
 
 	t.Run("enqueue failure clears the marker", func(t *testing.T) {

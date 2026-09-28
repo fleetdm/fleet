@@ -640,7 +640,8 @@ func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUU
 
 func (ds *Datastore) getHostDiskEncryptionKeyDecrypted(ctx context.Context, hostUUID string) (string, error) {
 	var encrypted string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &encrypted, `
+	// Primary, so the device is sent the key as it is now rather than as a lagging replica has it.
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &encrypted, `
 SELECT hdek.base64_encrypted
 FROM host_disk_encryption_keys hdek
 JOIN hosts h ON h.id = hdek.host_id

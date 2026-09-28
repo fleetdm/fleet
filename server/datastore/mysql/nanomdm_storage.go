@@ -419,13 +419,19 @@ func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
 		if err := s.ds.ClearMDMUpcomingActivitiesDB(r.Context, tx, r.ID); err != nil {
 			return err
 		}
-		return clearHostDiskEncryptionKeyRotationByHostUUIDDB(r.Context, tx, r.ID)
+		return nil
 	}, s.logger)
 	if err != nil {
 		return err
 	}
 
-	return s.MySQLStorage.ClearQueue(r)
+	if err := s.MySQLStorage.ClearQueue(r); err != nil {
+		return err
+	}
+	// Cleared only once the queue is: a marker left behind points at a command that
+	// is no longer queued, which the next rotation request treats as stale, whereas
+	// a cleared marker with its command still queued would allow a second rotation.
+	return clearHostDiskEncryptionKeyRotationByHostUUIDDB(r.Context, s.db, r.ID)
 }
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore

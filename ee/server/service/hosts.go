@@ -731,6 +731,10 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	return nil
 }
 
+// staleDiskEncryptionKeyRotationAfter is how long a pending rotation whose command
+// is no longer queued must sit before another request may replace it.
+const staleDiskEncryptionKeyRotationAfter = time.Minute
+
 func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
@@ -792,8 +796,14 @@ func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) er
 			return alreadyInProgressErr
 		}
 		// The command is gone or finished without its result clearing the marker.
-		if err := svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, *key.RotationCommandUUID); err != nil {
+		// A just-set marker looks the same before its command is enqueued, and
+		// before the result handler clears it, so only an old one is stale.
+		cleared, err := svc.ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, *key.RotationCommandUUID, staleDiskEncryptionKeyRotationAfter)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clear stale disk encryption key rotation")
+		}
+		if !cleared {
+			return alreadyInProgressErr
 		}
 	}
 

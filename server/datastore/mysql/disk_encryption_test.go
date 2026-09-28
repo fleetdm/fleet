@@ -587,11 +587,42 @@ func testDiskEncryptionKeyRotation(t *testing.T, ds *Datastore) {
 	require.Equal(t, new(false), key.Decryptable)
 
 	archived := archiveRows(t)
-	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-2"))
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-2"))
 	key = requireUnchanged(t)
 	require.Equal(t, "blob-2", key.Base64Encrypted)
 	require.Equal(t, new(false), key.Decryptable)
 	require.Equal(t, archived, archiveRows(t))
+
+	// the stored key changed since it was compared, so the swap doesn't apply
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-3"))
+	require.Equal(t, "blob-2", requireUnchanged(t).Base64Encrypted)
+
+	requestedAt := func(t *testing.T) *time.Time {
+		var at *time.Time
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &at,
+			`SELECT rotation_requested_at FROM host_disk_encryption_keys WHERE host_id = ?`, host.ID))
+		return at
+	}
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NotNil(t, requestedAt(t))
+	cleared, err := ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale", time.Minute)
+	require.NoError(t, err)
+	require.False(t, cleared, "a just-requested rotation is not stale")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at WHERE host_id = ?`, host.ID)
+		return err
+	})
+	cleared, err = ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "other-cmd", time.Minute)
+	require.NoError(t, err)
+	require.False(t, cleared, "only the named command is cleared")
+	cleared, err = ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale", time.Minute)
+	require.NoError(t, err)
+	require.True(t, cleared)
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+	require.Nil(t, requestedAt(t))
 
 	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-4")
 	require.NoError(t, err)
