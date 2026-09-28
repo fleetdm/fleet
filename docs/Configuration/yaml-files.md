@@ -140,15 +140,13 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
 
-To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`.
+To silently patch the app when this policy fails and app is not open, set both `install_software` and `patch_when_closed to `true`. 
 
-To notify the end user before the app is patched, set `notify_before_patching` to `true`. Fleet shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+To notify the end user before the app is patched, set `install_software` and `notify_before_patching` to `true`. Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
-Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. 
-
-The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
+Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
