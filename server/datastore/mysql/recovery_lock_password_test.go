@@ -620,7 +620,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 		test.WithPlatform("darwin"), test.WithTeamID(teamPersonal.ID))
 	setHostCPUType(hostPersonal.ID, "arm64e")
 	nanoEnroll(t, ds, hostPersonal, false)
-	err = ds.SetOrUpdateMDMData(ctx, hostPersonal.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true)
+	err = ds.SetOrUpdateMDMData(ctx, hostPersonal.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile)
 	require.NoError(t, err)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
@@ -654,7 +654,7 @@ func testGetHostsForRecoveryLockAction(t *testing.T, ds *Datastore) {
 	setHostCPUType(hostUnenrolled.ID, "arm64e")
 	nanoEnroll(t, ds, hostUnenrolled, false)
 	// Set host_mdm with enrolled = false (simulates MDM turn off)
-	err = ds.SetOrUpdateMDMData(ctx, hostUnenrolled.ID, false, false, "", false, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, hostUnenrolled.ID, false, false, "", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
@@ -902,7 +902,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
 		setHostCPUType(t, host.ID, "arm64")
 		nanoEnroll(t, ds, host, false)
-		err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true)
+		err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile)
 		require.NoError(t, err)
 
 		// Give it a verified password record that would otherwise be claimed for clear.
@@ -2265,7 +2265,7 @@ func testMDMTurnOffSoftDeletesRecoveryLockPassword(t *testing.T, ds *Datastore) 
 		t.Helper()
 		host := test.NewHost(t, ds, name, "1.2.9."+uuid[:3], name+"key", uuid, time.Now())
 		nanoEnroll(t, ds, host, false)
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", fleet.PersonalEnrollmentTypeNone))
 		return host
 	}
 
@@ -2358,7 +2358,7 @@ func testMDMTurnOffSoftDeletesMDMCertificates(t *testing.T, ds *Datastore) {
 
 	host := test.NewHost(t, ds, "turnoff-certs", "1.2.3.45", "turnoffcertskey", "turnoffcertsuuid", time.Now())
 	nanoEnroll(t, ds, host, false)
-	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", fleet.PersonalEnrollmentTypeNone))
 
 	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
 		[]*fleet.HostCertificateRecord{mkCert(host.ID, "osquery.example.com")}, fleet.HostCertificateOriginOsquery, nil))

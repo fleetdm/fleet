@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260923183241, Down_20260923183241)
+	MigrationClient.AddMigration(Up_20260925182107, Down_20260925182107)
 }
 
-func Up_20260923183241(tx *sql.Tx) error {
+func Up_20260925182107(tx *sql.Tx) error {
 	// The retention sweep deletes oldest-first by created_at; without an index
 	// the steady-state "nothing left" case scans the whole table every hour.
 	// Both columns are monotonic, so the index only grows at its right edge.
@@ -38,6 +38,6 @@ func Up_20260923183241(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260923183241(tx *sql.Tx) error {
+func Down_20260925182107(tx *sql.Tx) error {
 	return nil
 }

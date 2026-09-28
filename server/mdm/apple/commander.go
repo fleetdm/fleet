@@ -359,6 +359,14 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 
 	// Send primary account info if we have an SSO account, and no adminAccount config or the primary account type is not "none"
 	if ssoAccount != nil && (adminAccount == nil || adminAccount.PrimaryAccountType != fleet.PrimaryAccountTypeNone) {
+		fullName, err := mobileconfig.XMLEscapeString(ssoAccount.FullName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping primary account full name")
+		}
+		userName, err := mobileconfig.XMLEscapeString(ssoAccount.UserName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping primary account user name")
+		}
 		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
@@ -366,7 +374,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
       <%t />
-`, ssoAccount.FullName, ssoAccount.UserName, ssoAccount.LockPrimaryAccountInfo)
+`, fullName, userName, ssoAccount.LockPrimaryAccountInfo)
 	}
 
 	if adminAccount != nil {
@@ -385,6 +393,14 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 			// no-op for admin account type as that is default
 		}
 
+		shortName, err := mobileconfig.XMLEscapeString(adminAccount.ShortName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping admin account short name")
+		}
+		fullName, err := mobileconfig.XMLEscapeString(adminAccount.FullName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "escaping admin account full name")
+		}
 		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
 		payload += fmt.Sprintf(`
       <key>AutoSetupAdminAccounts</key>
@@ -400,7 +416,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
           <string>%s</string>
         </dict>
       </array>
-`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+`, adminAccount.Hidden, passwordHashEncoded, shortName, fullName)
 	}
 
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -883,6 +899,10 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 //
 // See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
 func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	escapedGUID, err := mobileconfig.XMLEscapeString(guid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping account GUID")
+	}
 	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -900,7 +920,7 @@ func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, guid, passwordHashEncoded, cmdUUID)
+</plist>`, escapedGUID, passwordHashEncoded, cmdUUID)
 
 	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
