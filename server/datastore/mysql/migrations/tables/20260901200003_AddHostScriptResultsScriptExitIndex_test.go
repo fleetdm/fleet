@@ -30,7 +30,7 @@ func TestUp_20260901200003(t *testing.T) {
 	require.Equal(t, []string{"pending-exec"}, execIDs)
 }
 
-func TestUp_20260928135615_AlreadyApplied(t *testing.T) {
+func TestUp_20260901200003_AlreadyApplied(t *testing.T) {
 	db := applyUpToPrev(t)
 	execNoErr(t, db, `ALTER TABLE host_script_results ADD INDEX idx_host_script_results_script_exit (script_id, exit_code)`)
 
