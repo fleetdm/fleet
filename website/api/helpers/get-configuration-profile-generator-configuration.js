@@ -347,12 +347,12 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
             schemaReference: "TODO",
           },
           {...}
-        ]
+        ],
         "profileFilename": "TODO",
         "configurationProfile": "TODO",
         // Things the admin must do or decide that are not visible in the profile itself.
         // Empty string when there is nothing exceptional, which is the common case.
-        "deliveryNotes": "",
+        "deliveryNotes": ""
       }
 
       If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
@@ -365,18 +365,18 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
     } else {
       RESPONSE_SHAPE = `Respond in JSON with this data shape:
       {
-        "configurationProfile": "TODO",
-        "profileFilename": "TODO",
-        // Things the admin must do or decide that are not visible in the profile itself.
-        // Empty string when there is nothing exceptional, which is the common case.
-        "deliveryNotes": "",
         "settingsEnforced": [// For each setting enforced by the configuration profile.
           {
             name: "TODO",
             value: "TODO",
           },
           {...}
-        ]
+        ],
+        "configurationProfile": "TODO",
+        "profileFilename": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": ""
       }
 
       If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
