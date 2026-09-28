@@ -806,6 +806,7 @@ CREATE TABLE `host_disk_encryption_keys` (
   `client_error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `escrow_sent_at` timestamp(6) NULL DEFAULT NULL,
   `rotation_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rotation_requested_at` timestamp(6) NULL DEFAULT NULL,
   PRIMARY KEY (`host_id`),
   KEY `idx_host_disk_encryption_keys_decryptable` (`decryptable`),
   KEY `idx_hdek_rotation_command_uuid` (`rotation_command_uuid`)
