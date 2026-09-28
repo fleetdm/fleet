@@ -410,10 +410,10 @@ request_certificate() {
         --data-binary "@${WORK_DIR}/request.json")"
 
     [[ "${http_code}" == "200" ]] \
-        || fail "certificate request failed (HTTP ${http_code}): $(cat "${response}")"
+        || fail "certificate request failed (HTTP ${http_code})"
 
     jq -re .certificate "${response}" >"${cert_file}.tmp" \
-        || fail "no certificate in Fleet response: $(cat "${response}")"
+        || fail "certificate request response does not contain a certificate"
     mv "${cert_file}.tmp" "${cert_file}"
     chmod 644 "${cert_file}"
     log "certificate written to ${cert_file}"
