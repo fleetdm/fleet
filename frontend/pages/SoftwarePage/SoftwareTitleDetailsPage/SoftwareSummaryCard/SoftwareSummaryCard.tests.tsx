@@ -381,6 +381,27 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Versions");
     });
 
+    it("hides the Actions dropdown on 'All fleets' for a VPP title", () => {
+      // `teamId` is undefined when viewing "All fleets" — none of the per-fleet
+      // Actions items can act (no team scope), and leaving the dropdown open
+      // stashes `show*Modal` state that pops the modal on team change.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            software_package: null,
+          })}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+    });
+
     it("hides Versions option for observers without manage permission", async () => {
       const observerRender = createCustomRenderer({
         context: {
@@ -706,6 +727,60 @@ describe("Software Summary Card", () => {
       );
     });
 
+    it("does not resurrect an open modal after a fleet-scope round trip", async () => {
+      // Command palette can switch fleets while a modal is open. The modal
+      // unmounts on the way to All fleets (softwareInstallerOnTeam flips
+      // false), but its show*Modal state must reset — otherwise it remounts
+      // when the user returns to a specific fleet.
+      const softwareTitle = createMockSoftwareTitle({
+        software_package: createMockSoftwarePackage({
+          fleet_maintained_app_id: 7,
+          automatic_install_policies: [
+            { id: 1, name: "Policy A", type: "dynamic" },
+            { id: 2, name: "Policy B", type: "dynamic" },
+          ],
+        }),
+      });
+      const { user, rerender } = render(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Auto install"));
+      expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
+
+      // Palette-driven switch to "All fleets": chip and modal unmount.
+      rerender(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+      expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
+
+      // Palette-driven switch back to the same fleet: modal must stay closed.
+      rerender(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+      expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
+    });
+
     it("opens the Policies modal when more than one policy is linked", async () => {
       const { user } = render(
         <SoftwareSummaryCard
@@ -816,6 +891,33 @@ describe("Software Summary Card", () => {
       // Actions dropdown item of the same text is only in the DOM when opened;
       // asserting on the modal's title text is unambiguous here.
       expect(screen.getByText("Schedule auto updates")).toBeInTheDocument();
+    });
+
+    it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets'", () => {
+      // Every pill derives from `app_store_app` / `software_package`, which
+      // the backend fills from an arbitrary team on nil teamID; we hide the
+      // row rather than mislabel one team's data as an "All fleets" fact.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos({ self_service: true }),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("App Store (VPP)")).not.toBeInTheDocument();
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto updates")).not.toBeInTheDocument();
     });
 
     it("does not render the pills row when there is no installer", () => {
