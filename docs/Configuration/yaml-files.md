@@ -193,6 +193,7 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    hidden: false
     labels_include_any:
       - Engineering
       - Customer Support
@@ -211,6 +212,7 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
+  hidden: false
   resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
