@@ -1409,6 +1409,9 @@ type ActivityTypeNotifiedEndUserBeforePatching struct {
 	InstallAt             *time.Time `json:"install_at"`
 	Status                string     `json:"status"`
 	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+	// Notification script exit code. Lets the activities table render the failure
+	// reason (e.g. screen locked) without a per-row fetch of the script result.
+	ExitCode *int64 `json:"exit_code,omitempty"`
 }
 
 func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {

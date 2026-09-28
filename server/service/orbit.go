@@ -1355,7 +1355,18 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		var failureMessage string
 		// a notification's script is Fleet's own, and carries only its URL variable
 		if isNotificationScript(script) {
-			expanded, failureMessage = svc.expandNotificationURL(ctx, host, script)
+			var notificationUUID string
+			notificationUUID, err = svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", script.ExecutionID, "err", err)
+				failureMessage = "Fleet couldn't find the notification this script belongs to."
+			}
+			if failureMessage == "" {
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+			}
+			if failureMessage == "" {
+				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
+			}
 		} else {
 			expanded, failureMessage, err = svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
 			if err != nil {
