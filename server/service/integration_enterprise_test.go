@@ -1527,9 +1527,16 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
 		Type:                 new("patch"),
 		PatchSoftwareTitleID: &dummyTitleID,
+		Hidden:               true,
 	}, http.StatusOK, &patchPolicy)
 	require.NotNil(t, patchPolicy.Policy.PatchSoftware)
 	require.Equal(t, fleet.PolicyTypePatch, patchPolicy.Policy.Type)
+	// Patch policies can be hidden from end users like any other policy.
+	require.True(t, patchPolicy.Policy.Hidden)
+	unhiddenPatch := fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID),
+		json.RawMessage(`{"hidden": false}`), http.StatusOK, &unhiddenPatch)
+	require.False(t, unhiddenPatch.Policy.Hidden)
 
 	// List all policies (no filter) - should return all 3
 	listResp := fleet.ListTeamPoliciesResponse{}
@@ -5019,6 +5026,18 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
 
+	// add a hidden policy to the team, failing on the host
+	hiddenResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name:     "TestQueryEnterpriseHiddenTeamPolicy",
+		Query:    "select * from osquery;",
+		Platform: "darwin",
+		Hidden:   true,
+	}, http.StatusOK, &hiddenResp)
+	require.True(t, hiddenResp.Policy.Hidden)
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{hiddenResp.Policy.ID: new(false)}, time.Now(), false, nil)))
+
 	// try with invalid token
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
 	err = res.Body.Close()
@@ -5045,8 +5064,12 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, err)
 	err = json.Unmarshal(rawBody, &listDevicePoliciesResp)
 	require.NoError(t, err)
+	// hidden policies are left out by default
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+	for _, p := range listDevicePoliciesResp.Policies {
+		require.NotEqual(t, hiddenResp.Policy.ID, p.ID)
+	}
 	// the response must not leak the policy author's identity nor the raw SQL query
 	var rawPoliciesResp struct {
 		Policies []map[string]any `json:"policies"`
@@ -5057,6 +5080,15 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	for _, policy := range rawPoliciesResp.Policies {
 		assertDeviceSafePolicy(policy)
 	}
+
+	// GET `/api/_version_/fleet/device/{token}/policies?include_hidden_policies=true`
+	listDevicePoliciesResp = listDevicePoliciesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies?include_hidden_policies=true", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, listDevicePoliciesResp.Policies, 3)
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
@@ -5072,7 +5104,14 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
+	// hidden policies are left out by default, but still counted
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+	for _, p := range *getDeviceHostResp.Host.Policies {
+		require.NotEqual(t, hiddenResp.Policy.ID, p.ID)
+	}
+	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+	require.NotNil(t, getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
 	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 	// the host's policies must not leak the policy author's identity nor the
 	// raw SQL query
@@ -5088,6 +5127,22 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		assertDeviceSafePolicy(policy)
 	}
 
+	// GET `/api/_version_/fleet/device/{token}?include_hidden_policies=true`
+	getDeviceHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, *getDeviceHostResp.Host.Policies, 3)
+	var sawHidden bool
+	for _, p := range *getDeviceHostResp.Host.Policies {
+		sawHidden = sawHidden || p.ID == hiddenResp.Policy.ID
+	}
+	require.True(t, sawHidden)
+	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
@@ -5096,7 +5151,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = res.Body.Close()
 	require.NoError(t, err)
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
+	require.Equal(t, uint(2), *getDesktopResp.FailingPolicies)
+	require.Equal(t, uint(1), *getDesktopResp.FailingUnhiddenPolicies)
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 
 	// update the team to enable software inventory
@@ -5109,6 +5165,39 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
 	require.NoError(t, err)
 	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
+
+	// Transferring the host drops the old team's hidden failure from both device
+	// endpoints right away; only the global failure remains.
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2-policies"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID})))
+
+	checkCounts := func(wantPolicies int, wantTotal, wantUnhidden uint64) {
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDeviceHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Len(t, *getDeviceHostResp.Host.Policies, wantPolicies)
+		require.Equal(t, wantTotal, getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+		require.Equal(t, wantUnhidden, *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, uint(wantTotal), *getDesktopResp.FailingPolicies)
+		require.Equal(t, uint(wantUnhidden), *getDesktopResp.FailingUnhiddenPolicies)
+	}
+	checkCounts(1, 1, 1)
+
+	// A hidden policy on the new team counts once the host reports a result for it.
+	team2Hidden, err := s.ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name: "TestQueryEnterpriseTeam2HiddenPolicy", Query: "select 1;", Hidden: true,
+	})
+	require.NoError(t, err)
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{team2Hidden.ID: new(false)}, time.Now(), false, nil)))
+	checkCounts(2, 2, 1)
 }
 
 // TestDeviceHostConditionalAccessFeatures tests the EnableConditionalAccess and
@@ -7380,7 +7469,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled", "Hidden"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -7398,6 +7487,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Platform:              "linux",
 		Critical:              true,
 		CalendarEventsEnabled: true,
+		Hidden:                true,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
@@ -7433,6 +7523,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 			Platform:              new("windows"),
 			Critical:              new(false),
 			CalendarEventsEnabled: new(false),
+			Hidden:                new(false),
 		},
 	}
 	patchPol1 := &fleet.ModifyTeamPolicyResponse{}
@@ -7448,6 +7539,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 			Platform:              new("windows"),
 			Critical:              new(true),
 			CalendarEventsEnabled: new(true),
+			Hidden:                new(true),
 		},
 	}
 	patchPol2 := &fleet.ModifyTeamPolicyResponse{}
@@ -7467,6 +7559,42 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	getPol2 := &fleet.GetPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+
+	// A patch that omits hidden leaves it untouched.
+	patchPol2 = &fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID),
+		json.RawMessage(`{"name": "newName2b"}`), http.StatusOK, patchPol2)
+	s.Require().True(patchPol2.Policy.Hidden)
+
+	// hidden and conditional_access_enabled are mutually exclusive, on create and on either side of a patch.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), &fleet.TeamPolicyRequest{
+		Query: "query", Name: "hidden-ca", Platform: "darwin", Hidden: true, ConditionalAccessEnabled: true,
+	}, http.StatusBadRequest)
+	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
+
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID),
+		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusBadRequest)
+	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
+
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusOK)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
+	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
+
+	// "All fleets" policies can be hidden too.
+	gpResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name: "hidden global", Query: "SELECT 1;", Hidden: true,
+	}, http.StatusOK, &gpResp)
+	s.Require().True(gpResp.Policy.Hidden)
+	modGP := &fleet.ModifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID),
+		json.RawMessage(`{"hidden": false}`), http.StatusOK, modGP)
+	s.Require().False(modGP.Policy.Hidden)
+	getGP := &fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), nil, http.StatusOK, getGP)
+	s.Require().False(getGP.Policy.Hidden)
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
@@ -7647,17 +7775,24 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NoError(t, err)
 
 	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "fooextensionid"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
+		// A Go binary carries its toolchain version in release and its module path in
+		// extension_id, which is suppressed for this source only.
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 
-	bar := host.Software[0]
-	if bar.Name != "bar" {
-		bar = host.Software[1]
+	var bar fleet.HostSoftwareEntry
+	for _, sw := range host.Software {
+		if sw.Name == "bar" {
+			bar = sw
+			break
+		}
 	}
+	require.NotZero(t, bar.ID)
 
 	inserted, err := s.ds.InsertSoftwareVulnerability(
 		ctx, fleet.SoftwareVulnerability{
@@ -7684,13 +7819,15 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
 	require.NotNil(t, resp)
 
-	var fooPayload, barPayload fleet.Software
+	var fooPayload, barPayload, airPayload fleet.Software
 	for _, s := range resp.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7706,17 +7843,26 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
 	require.NotNil(t, resp)
 
-	for _, s := range resp.Software {
+	// Reset so a payload missing from this response can't be satisfied by the value the
+	// software-list loop above left behind.
+	fooPayload, barPayload, airPayload = fleet.Software{}, fleet.Software{}, fleet.Software{}
+	for _, s := range respVersions.Software {
 		switch s.Name {
 		case "foo":
 			fooPayload = s
 		case "bar":
 			barPayload = s
+		case "air":
+			airPayload = s
 		default:
 			require.Failf(t, "unrecognized software %s", s.Name)
 
@@ -7732,6 +7878,10 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
 	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
+
+	require.Equal(t, "go1.26.1", airPayload.Release)
+	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
+	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
 
 	// vulnerable param required when using vulnerability filters
 	respVersions = listSoftwareVersionsResponse{}
@@ -20522,7 +20672,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"source": "apps",
 		"policy_id": %d,
 		"policy_name": "%s",
-		"from_setup_experience": false
+		"from_setup_experience": false,
+		"patch_when_closed": false
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1InstallerHash, host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	var activityCount int
@@ -31188,6 +31339,96 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		listPolResp = fleet.ListTeamPoliciesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		checkPolicies(listPolResp.Policies, "1.0")
+	})
+
+	t.Run("notify_before_patching", func(t *testing.T) {
+		resp := teamResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
+			Name: new("notify_before_patching_team"),
+		}, http.StatusOK, &resp)
+		teamID := resp.Team.ID
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        &teamID,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+		// Own Fleet-maintained app rather than the one an earlier subtest inserts, so this doesn't
+		// depend on subtest order or on what the batch subtests leave behind.
+		fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             "DummyApp",
+			Slug:             "notify-dummy/darwin",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.example.dummy",
+		})
+		require.NoError(t, err)
+		updateInstallerFMAID(fma.ID, teamID, titleID)
+
+		policyPath := func(policyID uint) string {
+			return fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", teamID, policyID)
+		}
+
+		// Creating with the flag forces continuous automations on without the request saying so.
+		policyResp := fleet.TeamPolicyResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), fleet.TeamPolicyRequest{
+			Type:                         new("patch"),
+			PatchSoftwareTitleID:         &titleID,
+			NotifyBeforePatching:         true,
+			ContinuousAutomationsEnabled: true,
+		}, http.StatusOK, &policyResp)
+		policyID := policyResp.Policy.ID
+		require.True(t, policyResp.Policy.NotifyBeforePatching)
+		require.False(t, policyResp.Policy.PatchWhenClosed)
+		require.True(t, policyResp.Policy.ContinuousAutomationsEnabled)
+
+		// The flag survives a round trip through the wire, not just the create response.
+		getPolicyResp := fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
+
+		// The title reports the flag and shows Fleet's managed app open query read-only, which is
+		// what the End user experience dropdown reads back on load.
+		titleResp := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(teamID))
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy)
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.NotifyBeforePatching)
+
+		// A modify payload carries only the delta, so the stored flag still conflicts.
+		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		res.Body.Close()
+
+		// An explicit continuous_automations_enabled false is rejected while the flag is on.
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`)
+		res.Body.Close()
+
+		// Omitting continuous automations on modify still auto-sets it.
+		s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false, "notify_before_patching": false}, http.StatusOK).Body.Close()
+		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusOK).Body.Close()
+
+		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
+		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+
+		// The flag is only for patch policies.
+		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), map[string]any{
+			"name":                           "dynamic-notify",
+			"query":                          "SELECT 1;",
+			"notify_before_patching":         true,
+			"continuous_automations_enabled": true,
+		}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `"notify_before_patching" is only supported for patch policies`)
+		res.Body.Close()
 	})
 }
 

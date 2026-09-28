@@ -341,10 +341,19 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
   } = config;
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  return (
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isGlobalTechnician ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isTeamTechnician
+  );
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {

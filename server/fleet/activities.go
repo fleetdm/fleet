@@ -502,6 +502,12 @@ func (a ActivityTypeHostEnrollmentRejected) HostIDs() []uint {
 	return []uint{*a.HostID}
 }
 
+// WasFromAutomation marks the activity as Fleet-initiated: enrollment is
+// refused by the server, never by a user.
+func (a ActivityTypeHostEnrollmentRejected) WasFromAutomation() bool {
+	return true
+}
+
 type ActivityTypeMDMEnrolled struct {
 	// HostID is omitted when zero, which only happens for activities recorded before it was added to this struct.
 	// Windows Entra automatic enrollments know neither the host nor its serial at enrollment time, so their activity
@@ -1358,7 +1364,8 @@ type ActivityTypeInstalledSoftware struct {
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
 	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
-	SkippedInstall bool `json:"skipped_install,omitempty"`
+	SkippedInstall  bool `json:"skipped_install,omitempty"`
+	PatchWhenClosed bool `json:"patch_when_closed"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1390,6 +1397,33 @@ func (a ActivityTypeInstalledSoftware) MustActivateNextUpcomingActivity() bool {
 
 func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint, string) {
 	return a.HostID, a.CommandUUID
+}
+
+type ActivityTypeNotifiedEndUserBeforePatching struct {
+	HostID                uint       `json:"host_id"`
+	HostDisplayName       string     `json:"host_display_name"`
+	PatchNotificationUUID string     `json:"patch_notification_uuid"`
+	SoftwareTitles        []string   `json:"software_titles"`
+	PolicyIDs             []uint     `json:"policy_ids"`
+	TimeBefore            int        `json:"time_before"`
+	InstallAt             *time.Time `json:"install_at"`
+	Status                string     `json:"status"`
+	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+	// Notification script exit code. Lets the activities table render the failure
+	// reason (e.g. screen locked) without a per-row fetch of the script result.
+	ExitCode *int64 `json:"exit_code,omitempty"`
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) ActivityName() string {
+	return "notified_end_user_before_patching"
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeNotifiedEndUserBeforePatching) WasFromAutomation() bool {
+	return len(a.PolicyIDs) > 0
 }
 
 type ActivityTypeUninstalledSoftware struct {

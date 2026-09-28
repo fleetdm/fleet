@@ -119,7 +119,7 @@ const TicketDestinations = (): JSX.Element => {
       };
 
       setTestingConnection(true);
-      configAPI
+      return configAPI
         .update({ integrations: destination() })
         .then(() => {
           notify.success(

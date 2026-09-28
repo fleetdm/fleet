@@ -209,6 +209,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy
+  hidden: false
   install_software:
     hash_sha256: software-package-hash ___GITOPS_COMMENT_1___
   labels_include_any:
@@ -225,6 +226,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy with include_all scope
+  hidden: false
   labels_exclude_all:
   - Label E
   labels_include_all:

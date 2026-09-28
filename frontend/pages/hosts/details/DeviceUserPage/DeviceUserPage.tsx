@@ -90,6 +90,7 @@ import {
   isIPad,
   isRecentlyEnrolled,
   isMismatchedSSOUserError,
+  toEndUserIssues,
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
@@ -166,6 +167,8 @@ const DeviceUserPage = ({
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
+  /** Whether the Create PIN modal is still owed an answer about a PIN it handed to Fleet. */
+  const [isAwaitingPINOutcome, setIsAwaitingPINOutcome] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
@@ -173,6 +176,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showHiddenPolicies, setShowHiddenPolicies] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -294,25 +298,30 @@ const DeviceUserPage = ({
 
   const {
     data: dupDetails,
+    dataUpdatedAt: dupDetailsUpdatedAt,
     isLoading: isLoadingDupDetails,
+    isPreviousData: isDupDetailsPreviousData,
     error: dupDetailsError,
     refetch: refetchDupDetails,
   } = useQuery<IDUPDetails, AxiosError>(
-    ["host", deviceAuthToken],
+    ["host", deviceAuthToken, showHiddenPolicies],
     () =>
       deviceUserAPI.loadHostDetails({
         token: deviceAuthToken,
         exclude_software: true,
+        include_hidden_policies: showHiddenPolicies,
       }),
     {
       enabled: !!deviceAuthToken,
+      keepPreviousData: true,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
       // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
+      // A modal still owed an answer keeps polling on its own account. The modal gives up after a deadline, which is what bounds this.
       refetchInterval: (data) =>
-        !showBitLockerPINModal && hasPINRequestInFlight(data)
+        isAwaitingPINOutcome || hasPINRequestInFlight(data)
           ? BITLOCKER_PIN_POLL_INTERVAL
           : false,
       onSuccess: ({ host: responseHost }) => {
@@ -430,14 +439,6 @@ const DeviceUserPage = ({
     );
   }, [host, needsBitLockerPIN, location, router]);
 
-  const pollHostDetails = useCallback(async () => {
-    // A failed refetch resolves rather than rejects, and leaves the last good data in place.
-    const { data, error } = await refetchDupDetails();
-    if (error) {
-      throw error;
-    }
-    return data;
-  }, [refetchDupDetails]);
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
@@ -466,6 +467,10 @@ const DeviceUserPage = ({
   );
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
+
+  const deviceSummaryData = host?.issues
+    ? { ...summaryData, issues: toEndUserIssues(host.issues) }
+    : summaryData;
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
@@ -690,7 +695,15 @@ const DeviceUserPage = ({
   );
 
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    // While the toggle's refetch is in flight the cached list is for the other
+    // toggle state, so blank the card instead of showing the wrong rows.
+    const displayedPolicies = isDupDetailsPreviousData
+      ? []
+      : host?.policies || [];
+    // Counted from the list the tab shows, so it follows the hidden-policies toggle.
+    const failingPoliciesCount = displayedPolicies.filter(
+      (p) => p.response === "fail"
+    ).length;
 
     const failedControlsCount = countFailedControls(controls);
 
@@ -918,7 +931,7 @@ const DeviceUserPage = ({
               <TabPanel className={`${baseClass}__details-panel`}>
                 <HostSummaryCard
                   className={fullWidthCardClass}
-                  summaryData={summaryData}
+                  summaryData={deviceSummaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
                 />
@@ -986,9 +999,13 @@ const DeviceUserPage = ({
               {isPremiumTier && (
                 <TabPanel>
                   <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingDupDetails}
+                    policies={displayedPolicies}
+                    isLoading={isDupDetailsPreviousData}
                     deviceUser
+                    showHiddenPolicies={showHiddenPolicies}
+                    onToggleShowHiddenPolicies={() =>
+                      setShowHiddenPolicies((current) => !current)
+                    }
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
@@ -1010,8 +1027,20 @@ const DeviceUserPage = ({
             (diskEncryptionSetting?.fleetd_can_set_pin ? (
               <BitLockerPinModal
                 deviceAuthToken={deviceAuthToken}
-                onPollHost={pollHostDetails}
-                onExit={() => setShowBitLockerPINModal(false)}
+                diskEncryption={diskEncryptionSetting}
+                dataUpdatedAt={dupDetailsUpdatedAt}
+                onWaitingChange={(isWaiting) => {
+                  setIsAwaitingPINOutcome(isWaiting);
+                  // A request already in flight would answer from before the submit, and react-query hands it back
+                  // rather than starting a second one unless it is cancelled.
+                  if (isWaiting) {
+                    refetchDupDetails({ cancelRefetch: true });
+                  }
+                }}
+                onExit={() => {
+                  setIsAwaitingPINOutcome(false);
+                  setShowBitLockerPINModal(false);
+                }}
               />
             ) : (
               <BitLockerPinInstructionsModal

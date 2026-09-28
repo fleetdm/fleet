@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.2",
+      "version": "6.3.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'BCUninstaller %' AND publisher = 'Marcin Szeniak';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'BCUninstaller %' AND publisher = 'Marcin Szeniak' AND version_compare(version, '6.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'BCUninstaller %' AND publisher = 'Marcin Szeniak' AND version_compare(version, '6.3.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bulk crap uninstaller.exe');"
       },
-      "installer_url": "https://github.com/BCUninstaller/Bulk-Crap-Uninstaller/releases/download/v6.2/BCUninstaller_6.2.0_setup.exe",
+      "installer_url": "https://github.com/BCUninstaller/Bulk-Crap-Uninstaller/releases/download/v6.3/BCUninstaller_6.3.0_setup.exe",
       "install_script_ref": "68191524",
       "uninstall_script_ref": "4a98d0ea",
-      "sha256": "f0a28736925efb89146a1259ecdd08904a92d2d8ee42a3aed1f9b3ccbf0cd28a",
+      "sha256": "d89c81f4dd029b4862fc6261262a4a9851a6948827af3e55d54e9a8c53b13d88",
       "default_categories": [
         "Utilities"
       ]

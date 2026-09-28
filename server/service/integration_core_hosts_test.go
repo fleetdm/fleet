@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -927,7 +928,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	require.Len(t, hostSoftware.CurrInstalled(), 1)
 
 	// Add installed paths and signature information
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "abc123hash"
 	testExecHash := "def456hash"
 	testExecPath := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -946,7 +947,7 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, eHash, fleet.SoftwareFieldSeparator, ePath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1904,25 +1905,32 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		Source:           "apps",
 	}
 	ghCli := fleet.Software{
-		Name:   "gh",
-		Source: "homebrew_packages",
+		Name:    "gh",
+		Version: "2.55.0",
+		Source:  "homebrew_packages",
+	}
+	axiosPackage := fleet.Software{
+		Name:    "axios",
+		Version: "1.7.7",
+		Source:  "npm_packages",
 	}
 
 	// Update the host's software.
 	software := []fleet.Software{
-		safariApp, googleChromeApp, ghCli,
+		safariApp, googleChromeApp, ghCli, axiosPackage,
 	}
 	hostSoftware, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
-	require.Len(t, hostSoftware.CurrInstalled(), 3)
+	require.Len(t, hostSoftware.CurrInstalled(), 4)
 
 	// Update the host's software installed paths for the software above.
 	// Google Chrome.app will have two installed paths one with team identifier set
 	// the other one set to empty.
-	swPaths := map[string]struct{}{}
+	swPaths := map[string]fleet.ExecutableHashes{}
 	testCdHash := "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecHash := "f5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"
 	testExecPath := "/some/path/Google Chrome.app/Contents/MacOS/Google Chrome"
+	ghKegPath := "/opt/homebrew/Cellar/gh"
 	for _, s := range software {
 		pathItems := [][5]string{{fmt.Sprintf("/some/path/%s", s.Name), "", "", "", ""}}
 		if s.Name == "Safari.app" {
@@ -1936,6 +1944,10 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				{fmt.Sprintf("/some/other/path/%s", s.Name), "", "", "", ""},
 			}
 		}
+		if s.Name == "gh" {
+			// A Homebrew keg is one row carrying the executables it installs.
+			pathItems = [][5]string{{ghKegPath, "", "", "", ""}}
+		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
@@ -1946,7 +1958,15 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 				"%s%s%s%s%s%s%s%s%s%s%s",
 				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, execHash, fleet.SoftwareFieldSeparator, execPath, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
-			swPaths[key] = struct{}{}
+			swPaths[key] = nil
+			if path == ghKegPath {
+				// gh-deferred is a file fleetd found but has not hashed yet.
+				swPaths[key] = fleet.ExecutableHashes{
+					"2.55.0/bin/gh":          "1111",
+					"2.55.0/bin/gh-helper":   "2222",
+					"2.55.0/bin/gh-deferred": "",
+				}
+			}
 		}
 	}
 	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, hostSoftware)
@@ -1962,7 +1982,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 		nil, http.StatusOK, &getHostSoftwareResp,
 		"per_page", "5", "page", "0", "order_key", "name", "order_direction", "desc",
 	)
-	require.Len(t, getHostSoftwareResp.Software, 3)
+	require.Len(t, getHostSoftwareResp.Software, 4)
 	require.Equal(t, "Safari.app", getHostSoftwareResp.Software[0].Name)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].InstalledPaths, 1)
@@ -1995,11 +2015,31 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
+	// The Homebrew keg lists its path once, and expands its executables into one signature
+	// information entry each. The one fleetd has not hashed yet is left out.
 	require.Equal(t, "gh", getHostSoftwareResp.Software[2].Name)
 	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions, 1)
-	require.Len(t, getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths, 1)
-	require.Equal(t, "/some/path/gh", getHostSoftwareResp.Software[2].InstalledVersions[0].InstalledPaths[0])
-	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
+	ghVersion := getHostSoftwareResp.Software[2].InstalledVersions[0]
+	require.Equal(t, []string{ghKegPath}, ghVersion.InstalledPaths)
+	require.Len(t, ghVersion.SignatureInformation, 2)
+	sort.Slice(ghVersion.SignatureInformation, func(i, j int) bool {
+		return *ghVersion.SignatureInformation[i].ExecutablePath < *ghVersion.SignatureInformation[j].ExecutablePath
+	})
+	for i, binary := range []string{"gh", "gh-helper"} {
+		sigInfo := ghVersion.SignatureInformation[i]
+		require.Equal(t, ghKegPath, sigInfo.InstalledPath)
+		require.Empty(t, sigInfo.TeamIdentifier)
+		require.Nil(t, sigInfo.CDHashSHA256)
+		require.Equal(t, ghKegPath+"/2.55.0/bin/"+binary, *sigInfo.ExecutablePath)
+	}
+	require.Equal(t, "1111", *ghVersion.SignatureInformation[0].ExecutableSHA256)
+	require.Equal(t, "2222", *ghVersion.SignatureInformation[1].ExecutableSHA256)
+
+	// Sources that report no hashes keep an empty signature information list.
+	require.Equal(t, "axios", getHostSoftwareResp.Software[3].Name)
+	require.Len(t, getHostSoftwareResp.Software[3].InstalledVersions, 1)
+	require.Equal(t, []string{"/some/path/axios"}, getHostSoftwareResp.Software[3].InstalledVersions[0].InstalledPaths)
+	require.Nil(t, getHostSoftwareResp.Software[3].InstalledVersions[0].SignatureInformation)
 }
 
 func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
@@ -2186,4 +2226,51 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
+}
+func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
+	t := s.T()
+
+	hostID := createAndroidHostForTest(t, s.ds, nil, false)
+
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	// Nothing ever clears refetch_requested for an Android host, so a request that
+	// will never be acted on must not set it.
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+
+	// The device-authenticated route is rejected too. GET /hosts/:id/device_url no
+	// longer mints a token for Android (#48439), but one issued by an earlier version
+	// still reaches this route.
+	const androidDeviceToken = "android-refetch-device-token" //nolint:gosec // G101 false positive, test fixture value
+	createDeviceTokenForHost(t, s.ds, hostID, androidDeviceToken)
+
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/refetch", androidDeviceToken), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Refetch is not supported for Android hosts")
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.False(t, hostResp.Host.RefetchRequested)
+}
+
+func (s *integrationTestSuite) TestChartsLinuxPlatformFilter() {
+	t := s.T()
+	s.createHosts(t, "ubuntu", "rhel", "debian", "linux", "darwin")
+
+	var resp chart_api.Response
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "linux")
+	assert.Equal(t, 4, resp.TotalHosts)
+	assert.Equal(t, []string{"linux"}, resp.Filters.Platforms)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "ubuntu")
+	assert.Equal(t, 1, resp.TotalHosts)
+
+	resp = chart_api.Response{}
+	s.DoJSON("GET", "/api/latest/fleet/charts/uptime", nil, http.StatusOK, &resp, "days", "7", "platforms", "darwin")
+	assert.Equal(t, 1, resp.TotalHosts)
 }

@@ -140,7 +140,7 @@ const UpdatesCard = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader
           header="Updates"

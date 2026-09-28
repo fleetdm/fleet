@@ -516,6 +516,7 @@ const SoftwareTitleDetailsPage = ({
         <TitleVersionsTable
           router={router}
           data={title.versions ?? []}
+          source={title.source}
           isLoading={isSoftwareTitleLoading}
           teamIdForApi={teamIdForApi}
           isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}

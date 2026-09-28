@@ -98,13 +98,13 @@ export const hostSelectStatuses = (isPremiumTier: boolean) => {
       disabled: false,
       label: "Online hosts",
       value: "online",
-      helpText: "Hosts that will respond to a live report.",
+      helpText: "Hosts that have recently checked into Fleet.",
     },
     {
       disabled: false,
       label: "Offline hosts",
       value: "offline",
-      helpText: "Hosts that won't respond to a live report.",
+      helpText: "Hosts that haven't recently checked into Fleet.",
     },
     {
       disabled: false,

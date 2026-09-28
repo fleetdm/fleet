@@ -675,6 +675,10 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profAVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profANone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
+	// Reconcile OS status rollup to a known baseline before the resend.
+	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), readWindowsProfilesStatusRollup(t, ds)[winHost.UUID])
+
 	// DDM declaration referencing the vital, delivered (verifying) to the mac host.
 	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
 	declVital, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
@@ -700,6 +704,9 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	assertHostProfileStatus(t, ds, winHost.UUID,
 		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	// Resetting the Windows profile moved the host into the pending bucket, so the rollup has to follow on the same transaction.
+	require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[winHost.UUID])
 	assertHostProfileStatus(t, ds, androidHost.UUID,
 		hostProfileStatus{profAVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profANone.ProfileUUID, fleet.MDMDeliveryVerifying})

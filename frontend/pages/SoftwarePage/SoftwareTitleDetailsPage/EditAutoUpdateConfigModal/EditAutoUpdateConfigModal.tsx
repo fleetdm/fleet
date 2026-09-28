@@ -199,7 +199,7 @@ const EditAutoUpdateConfigModal = ({
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
       <div className={formClassNames}>
         <div className={`${formClass}__form-frame`}>
-          <Card paddingSize="medium" borderRadiusSize="medium">
+          <Card paddingSize="medium">
             <div className={`${formClass}__auto-update-config`}>
               <div className={`form-field`}>
                 <div className="form-field__label">Auto updates</div>
@@ -267,7 +267,7 @@ const EditAutoUpdateConfigModal = ({
               )}
             </div>
           </Card>
-          <Card paddingSize="medium" borderRadiusSize="medium">
+          <Card paddingSize="medium">
             <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}

@@ -33,6 +33,7 @@ export interface IGetDeviceSoftwareResponse {
 interface IGetDeviceDetailsApiParams {
   token: string;
   exclude_software?: boolean;
+  include_hidden_policies?: boolean;
 }
 
 export interface IGetDeviceCertificatesResponse {
@@ -71,12 +72,16 @@ export default {
   loadHostDetails: ({
     token,
     exclude_software,
+    include_hidden_policies,
   }: IGetDeviceDetailsApiParams): Promise<IDUPDetails> => {
     const { DEVICE_USER_DETAILS } = endpoints;
-    let path = `${DEVICE_USER_DETAILS}/${token}`;
-    if (exclude_software) {
-      path += "?exclude_software=true";
-    }
+    const queryString = buildQueryStringFromParams({
+      exclude_software: exclude_software || undefined,
+      include_hidden_policies: include_hidden_policies || undefined,
+    });
+    const path = `${DEVICE_USER_DETAILS}/${token}${
+      queryString ? `?${queryString}` : ""
+    }`;
     return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (

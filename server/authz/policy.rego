@@ -17,6 +17,7 @@ create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 transfer_host := "transfer_host"
+delete_host := "delete_host"
 clear_passcode := "clear_passcode"
 resend := "resend" # only for profiles, and to a single host
 read_secrets := "read_secrets"
@@ -361,6 +362,13 @@ allow {
 	action == transfer_host
 }
 
+# Global admin, maintainers, technicians, and gitops can delete hosts.
+allow {
+	object.type == "host"
+	subject.global_role == [admin, maintainer, technician, gitops][_]
+	action == delete_host
+}
+
 # Global admin and maintainers can cancel activities on a host.
 allow {
 	object.type == "host"
@@ -406,6 +414,13 @@ allow {
 	object.type == "host"
 	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
 	action == transfer_host
+}
+
+# Team admins, maintainers, technicians, and gitops can delete hosts of their own team.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	action == delete_host
 }
 
 # Team admins and maintainers can cancel activities on a host of their own team.

@@ -4,6 +4,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import { IDeviceDiskEncryptionSetting } from "interfaces/host";
 import {
   isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
@@ -14,6 +15,7 @@ import { INITIAL_FLEET_DATE } from "utilities/constants";
 const baseClass = "device-user-banners";
 
 interface IDeviceUserBannersProps extends IHostBannersBaseProps {
+  diskEncryptionOSSetting?: IDeviceDiskEncryptionSetting;
   mdmEnabledAndConfigured: boolean;
   mdmManualEnrolmentUrl?: string;
   onClickCreatePIN: () => void;
