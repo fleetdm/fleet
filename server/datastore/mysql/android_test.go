@@ -3773,12 +3773,13 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
 
 	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
+	isCompanyOwned := func(i int) bool { return i%2 == 0 }
 	var androidHostUUIDs []string
 	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
-		companyOwned := i%2 == 0
+		companyOwned := isCompanyOwned(i)
 		res, err := ds.NewAndroidHost(testCtx(), h, companyOwned)
 		require.NoError(t, err)
 		androidHostIDs = append(androidHostIDs, res.Host.ID)
@@ -3814,6 +3815,12 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	err = ds.MDMAppleUpsertHost(testCtx(), macHost, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
+	// Make the macOS host DEP-assigned so the bulk update's platform scoping is exercised.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(testCtx(), `UPDATE host_mdm SET installed_from_dep = 1 WHERE host_id = ?`, macHost.ID)
+		return err
+	})
+
 	// Initial sanity check
 	enrolledCount := 0
 	androidHostProfileCount := 0
@@ -3829,7 +3836,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &fromDepCount, `SELECT COUNT(*) FROM host_mdm WHERE installed_from_dep = 1`)
 	})
-	require.Equal(t, 3, fromDepCount) // 3 company-owned android hosts
+	require.Equal(t, 4, fromDepCount) // 3 company-owned android hosts + 1 macOS
 	macHostMDMBefore, err := ds.GetHostMDM(testCtx(), macHost.ID)
 	require.NoError(t, err)
 	// Verify each android host has a certificate template record.
@@ -3847,12 +3854,19 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, enrolledCount)
 
 	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
-	for _, hostID := range androidHostIDs {
+	for i, hostID := range androidHostIDs {
 		hostMDM, err := ds.GetHostMDM(testCtx(), hostID)
 		require.NoError(t, err)
 		assert.False(t, hostMDM.Enrolled)
 		assert.False(t, hostMDM.InstalledFromDep)
+		assert.Equal(t, !isCompanyOwned(i), hostMDM.IsPersonalEnrollment)
 		assert.Equal(t, fleet.MDMEnrollmentStatusOff, hostMDM.EnrollmentStatus())
+
+		var dbStatus string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(testCtx(), q, &dbStatus, `SELECT enrollment_status FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		assert.Equal(t, fleet.MDMEnrollmentStatusOff, dbStatus)
 	}
 	macHostMDMAfter, err := ds.GetHostMDM(testCtx(), macHost.ID)
 	require.NoError(t, err)
