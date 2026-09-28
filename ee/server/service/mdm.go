@@ -1313,16 +1313,15 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		entityID = session.RequestData.EntityID
 	}
 	// A session started against a fleet connection carries that connection's
-	// entity ID. Otherwise fall back to the org-wide settings, including for
-	// sessions created before connections existed.
+	// entity ID. Otherwise fall back to the legacy org-wide settings. Do not
+	// substitute another connection's entity ID: an empty audience would accept
+	// an assertion that was not issued for this session.
+	if entityID == "" && !appConfig.MDM.EndUserAuthentication.IsEmpty() {
+		entityID = appConfig.MDM.EndUserAuthentication.EntityID
+	}
 	if entityID == "" {
-		if appConfig.MDM.EndUserAuthentication.IsEmpty() && len(appConfig.MDM.IdentityProviders) == 0 {
-			err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
-		}
-		if !appConfig.MDM.EndUserAuthentication.IsEmpty() {
-			entityID = appConfig.MDM.EndUserAuthentication.EntityID
-		}
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 	if sessionErr != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, sessionErr, "validate request in session")

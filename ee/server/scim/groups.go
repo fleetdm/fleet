@@ -63,6 +63,9 @@ func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttribute
 		g.logger.ErrorContext(r.Context(), "failed to create group from attributes", displayNameAttr, displayName, "err", err)
 		return scim.Resource{}, err
 	}
+	if err := g.verifyMembersExist(r.Context(), group.ScimUsers, group.ChildGroups); err != nil {
+		return scim.Resource{}, err
+	}
 	group.ID, err = g.ds.CreateScimGroup(r.Context(), group)
 	if err != nil {
 		return scim.Resource{}, err
@@ -280,6 +283,9 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 		g.logger.InfoContext(r.Context(), "group already exists with this displayName", displayNameAttr, group.DisplayName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 		// Otherwise, we assume that we are replacing the displayName with this operation.
+	}
+	if err := g.verifyMembersExist(r.Context(), group.ScimUsers, group.ChildGroups); err != nil {
+		return scim.Resource{}, err
 	}
 
 	err = g.ds.ReplaceScimGroup(r.Context(), group)

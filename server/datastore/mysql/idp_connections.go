@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -107,14 +108,46 @@ func (ds *Datastore) SyncIDPConnections(ctx context.Context, providers []fleet.M
 		if syntheticID == namedID {
 			return nil
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE scim_users SET idp_connection_id = ? WHERE idp_connection_id = ?`, namedID, syntheticID); err != nil {
+		// Only the untouched synthetic directory is moved. A later change of the
+		// named default leaves each connection's users where they are.
+		if err := rejectSCIMDirectoryMoveConflict(ctx, tx, "scim_users", "user_name", "user", syntheticID, namedID, defaultName); err != nil {
+			return err
+		}
+		if err := rejectSCIMDirectoryMoveConflict(ctx, tx, "scim_groups", "display_name", "group", syntheticID, namedID, defaultName); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE scim_users SET idp_connection_id = ?, updated_at = updated_at WHERE idp_connection_id = ?`, namedID, syntheticID); err != nil {
 			return ctxerr.Wrap(ctx, err, "move scim users to the default identity provider")
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE scim_groups SET idp_connection_id = ? WHERE idp_connection_id = ?`, namedID, syntheticID); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE scim_groups SET idp_connection_id = ?, updated_at = updated_at WHERE idp_connection_id = ?`, namedID, syntheticID); err != nil {
 			return ctxerr.Wrap(ctx, err, "move scim groups to the default identity provider")
 		}
 		return nil
 	})
+}
+
+// rejectSCIMDirectoryMoveConflict reports a validation error when a row on the
+// synthetic directory uses a name that already exists on the destination.
+// table and column are fixed identifiers, not request input.
+func rejectSCIMDirectoryMoveConflict(ctx context.Context, tx sqlx.ExtContext, table, column, kind string, fromID, toID uint, destinationName string) error {
+	var conflict string
+	query := fmt.Sprintf(`
+		SELECT src.%s
+		FROM %s src
+		INNER JOIN %s dst ON dst.idp_connection_id = ? AND dst.%s = src.%s
+		WHERE src.idp_connection_id = ?
+		LIMIT 1`, column, table, table, column, column)
+	err := sqlx.GetContext(ctx, tx, &conflict, query, toID, fromID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check scim directory move conflict")
+	}
+	return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("identity_providers", fmt.Sprintf(
+		"SCIM %s %q already exists on identity provider %q, so the organization default directory cannot be moved",
+		kind, conflict, destinationName,
+	)))
 }
 
 // IDPConnectionBySCIMTokenHash returns the connection whose bearer token matches.

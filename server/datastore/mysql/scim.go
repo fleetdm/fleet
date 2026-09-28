@@ -1106,13 +1106,18 @@ func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, err
 	// Create a set to track which IDs we've found
 	foundIDs := make(map[uint]struct{}, len(ids))
 
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return false, err
+	}
+
 	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+	err = common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
 		query, args, err := sqlx.In(`
 			SELECT id
 			FROM scim_groups
-			WHERE id IN (?)
-		`, batchIDs)
+			WHERE idp_connection_id = ? AND id IN (?)
+		`, connectionID, batchIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
 		}
@@ -1272,9 +1277,13 @@ type scimGroupAttributes struct {
 // loadScimGroupAttributes reads a SCIM group's scalar attributes, so a caller can
 // tell what the update would change.
 func loadScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, groupID uint) (scimGroupAttributes, error) {
+	connectionID, err := idpConnectionID(ctx, tx)
+	if err != nil {
+		return scimGroupAttributes{}, err
+	}
 	var existing scimGroupAttributes
-	err := sqlx.GetContext(ctx, tx, &existing,
-		`SELECT external_id, display_name FROM scim_groups WHERE id = ?`, groupID)
+	err = sqlx.GetContext(ctx, tx, &existing,
+		`SELECT external_id, display_name FROM scim_groups WHERE id = ? AND idp_connection_id = ?`, groupID, connectionID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return existing, notFound("scim group").WithID(groupID)
@@ -1286,17 +1295,22 @@ func loadScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, groupID ui
 
 // updateScimGroupAttributes writes a SCIM group's scalar attributes.
 func updateScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, group *fleet.ScimGroup) error {
+	connectionID, err := idpConnectionID(ctx, tx)
+	if err != nil {
+		return err
+	}
 	const updateGroupQuery = `
 		UPDATE scim_groups SET
 			external_id = ?,
 			display_name = ?
-		WHERE id = ?`
+		WHERE id = ? AND idp_connection_id = ?`
 	result, err := tx.ExecContext(
 		ctx,
 		updateGroupQuery,
 		group.ExternalID,
 		group.DisplayName,
 		group.ID,
+		connectionID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update scim group")
@@ -2412,13 +2426,18 @@ func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, erro
 	// Create a map to track which IDs we've found
 	foundIDs := make(map[uint]bool, len(ids))
 
+	connectionID, err := idpConnectionID(ctx, ds.reader(ctx))
+	if err != nil {
+		return false, err
+	}
+
 	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+	err = common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
 		query, args, err := sqlx.In(`
 			SELECT id
 			FROM scim_users
-			WHERE id IN (?)
-		`, batchIDs)
+			WHERE idp_connection_id = ? AND id IN (?)
+		`, connectionID, batchIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
 		}
