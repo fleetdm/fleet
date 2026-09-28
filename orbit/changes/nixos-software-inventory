@@ -1,0 +1,1 @@
+* Added the `fleetd_nix_packages` table to report packages installed in the NixOS system profile and users' Nix and Home Manager profiles, including their runtime dependencies.

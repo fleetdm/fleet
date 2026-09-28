@@ -258,6 +258,7 @@ describe("formatSoftwareType", () => {
       "rpm_packages",
       "yum_sources",
       "pacman_packages",
+      "nix_packages",
       "npm_packages",
       "atom_packages",
       "python_packages",
