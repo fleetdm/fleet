@@ -3772,13 +3772,16 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
 	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
 
-	// Create 5 android hosts
+	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
 	var androidHostUUIDs []string
+	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
-		res, err := ds.NewAndroidHost(testCtx(), h, false)
+		companyOwned := i%2 == 0
+		res, err := ds.NewAndroidHost(testCtx(), h, companyOwned)
 		require.NoError(t, err)
+		androidHostIDs = append(androidHostIDs, res.Host.ID)
 
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
@@ -3822,6 +3825,13 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, 10, androidHostProfileCount)
 	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+	var fromDepCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &fromDepCount, `SELECT COUNT(*) FROM host_mdm WHERE installed_from_dep = 1`)
+	})
+	require.Equal(t, 3, fromDepCount) // 3 company-owned android hosts
+	macHostMDMBefore, err := ds.GetHostMDM(testCtx(), macHost.ID)
+	require.NoError(t, err)
 	// Verify each android host has a certificate template record.
 	for _, hostUUID := range androidHostUUIDs {
 		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
@@ -3835,6 +3845,18 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
 	})
 	require.Equal(t, 1, enrolledCount)
+
+	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
+	for _, hostID := range androidHostIDs {
+		hostMDM, err := ds.GetHostMDM(testCtx(), hostID)
+		require.NoError(t, err)
+		assert.False(t, hostMDM.Enrolled)
+		assert.False(t, hostMDM.InstalledFromDep)
+		assert.Equal(t, fleet.MDMEnrollmentStatusOff, hostMDM.EnrollmentStatus())
+	}
+	macHostMDMAfter, err := ds.GetHostMDM(testCtx(), macHost.ID)
+	require.NoError(t, err)
+	assert.Equal(t, macHostMDMBefore, macHostMDMAfter)
 
 	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
