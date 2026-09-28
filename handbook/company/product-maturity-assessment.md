@@ -60,7 +60,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 | Setup experience (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
-| Configuration profiles (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Configuration profiles (macOS) | 🐥 | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Configuration profiles (iOS/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Configuration profiles (tvOS/visionOS/watchOS) | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Configuration profiles (Windows) | 🐣 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
@@ -171,7 +171,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Platform | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| macOS | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| macOS | 🐥 | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Windows | 🐥 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (Ubuntu) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Linux (RHEL) | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
