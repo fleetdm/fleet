@@ -1131,7 +1131,7 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 		key := fmt.Sprintf("mdm-stats-%d", i)
 		h := test.NewHost(t, ds, key, "", key, key, time.Now(), test.WithPlatform(c.platform))
 		if c.mdmName != "" {
-			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", false), c.name)
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", fleet.PersonalEnrollmentTypeNone), c.name)
 		}
 	}
 

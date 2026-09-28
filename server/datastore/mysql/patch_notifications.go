@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -127,6 +128,21 @@ WHERE notification_uuid = ? AND software_title_id IN (?)
 	return nil
 }
 
+func (ds *Datastore) GetPatchNotification(ctx context.Context, notificationUUID string) (*fleet.PatchNotification, error) {
+	const selectStmt = `SELECT notification_uuid, install_at FROM patch_notifications WHERE notification_uuid = ?`
+
+	var patchNotification fleet.PatchNotification
+	// reads the primary because the display that sets the deadline can be seconds old
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &patchNotification, selectStmt, notificationUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
+	}
+	return &patchNotification, nil
+}
+
 func (ds *Datastore) SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error) {
 	// GREATEST means the deadline only ever moves later, so every notice the end user actually sees
 	// gets its full lead time even when the toast takes a while to reach the screen.
@@ -157,26 +173,31 @@ ON DUPLICATE KEY UPDATE install_at = GREATEST(COALESCE(install_at, VALUES(instal
 }
 
 func (ds *Datastore) ListPatchNotificationsDue(ctx context.Context, cutoff time.Time, limit int) ([]fleet.PatchNotificationDue, error) {
-	const selectStmt = `
+	// host_online matches the online status on the host list: the shorter check-in interval, plus a grace period for a late check-in
+	selectStmt := fmt.Sprintf(`
 SELECT
 	pn.notification_uuid,
 	pn.install_at,
 	neu.host_id,
 	neu.status,
 	neu.payload,
-	neu.displayed_at
+	neu.displayed_at,
+	DATE_ADD(
+		COALESCE(hst.seen_time, h.created_at),
+		INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+	) > NOW(6) AS host_online
 FROM
 	patch_notifications pn
 	JOIN notifications_end_user neu ON neu.uuid = pn.notification_uuid
--- a notification with no deadline was never displayed, so nothing is due for it yet
+	JOIN hosts h ON h.id = neu.host_id
+	LEFT JOIN host_seen_times hst ON hst.host_id = h.id
 WHERE
 	pn.install_at IS NOT NULL
 	AND pn.install_at <= ?
-	-- failed and expired notifications will never be patched
 	AND (
 		-- still being delivered
 		neu.status IN (?, ?)
-		-- or acted on and left with an app whose install never queued
+		-- status is acted (user clicked update now) and left with an app whose install never queued
 		OR (
 			neu.status = ?
 			AND EXISTS (
@@ -186,12 +207,12 @@ WHERE
 			)
 		)
 	)
-	-- the reminder needs a displayed first notice and the install needs a displayed reminder, so a
-	-- null displayed_at rules out both
+	-- For 5 minute reminder: 1 hour notification was displayed
+	-- For force installs: 5 minute reminder was displayed
 	AND neu.displayed_at IS NOT NULL
 ORDER BY pn.install_at
 LIMIT ?
-`
+`, fleet.OnlineIntervalBuffer)
 
 	var due []fleet.PatchNotificationDue
 	// reads the primary because the display that sets the deadline can be seconds old

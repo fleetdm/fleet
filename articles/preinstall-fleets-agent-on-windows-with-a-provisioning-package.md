@@ -16,11 +16,15 @@ This guide is for devices that don't join Microsoft Entra ID during setup. If yo
 
 ## Build fleetd
 
-On the **Hosts** page, select the fleet, select **Add hosts**, then select the **Windows** tab. Leave **Type** set to **Workstation**, copy the command, and run it. It looks like this:
+On the **Hosts** page, select the fleet, select **Add hosts**, then select the **Windows** tab. Leave **Type** set to **Workstation** and copy the command. Add `--disable-setup-experience` and `--bypass-end-user-auth` to it, then run it:
 
 ```bash
-fleetctl package --type=msi --enable-scripts --fleet-desktop --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
+fleetctl package --type=msi --enable-scripts --fleet-desktop --disable-setup-experience --bypass-end-user-auth --fleet-url=https://fleet.example.com --enroll-secret=YOUR_ENROLL_SECRET
 ```
+
+No web browser is available while Windows applies the package, so fleetd can't open web pages during setup. `--disable-setup-experience` stops fleetd from opening the setup experience page, and `--bypass-end-user-auth` lets it enroll without the end user authentication page.
+
+> **Note:** `--bypass-end-user-auth` works when the Fleet server's [`mdm.allow_orbit_end_user_auth_bypass`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) option is `true`, the default.
 
 `fleetctl` writes `fleet-osquery.msi` to the current directory. Copy it to the Windows computer that runs Windows Configuration Designer, into an otherwise empty folder.
 
@@ -61,31 +65,36 @@ fleetctl package --type=msi --enable-scripts --fleet-desktop --fleet-url=https:/
 Do this for each new device:
 
 1. Power on the device and stop at the first setup screen. If the device has moved past it, reset the device and start again.
-2. Connect the device to your network with Ethernet so fleetd can enroll before you ship. If you only have Wi-Fi, apply the package first, then continue to the network screen and connect there.
+2. To verify enrollment before you ship, connect the device to your network with Ethernet. If you only have Wi-Fi, apply the package first, then continue to the network screen and connect there.
 3. Insert the USB drive. If nothing happens, press the Windows key five times.
 4. When prompted, enter the package password and confirm that you trust the package.
 5. When you see "You can remove your removable media now!", remove the USB drive. Windows finishes applying the package and installs fleetd.
-6. Wait for the host to appear in Fleet (see [Verify](#verify)).
+6. If you have access to Fleet, wait 2-3 minutes after the package finishes installing. Then confirm the host has enrolled and completed a refetch (see [Verify](#verify)).
 7. Shut down the device without creating a user account. Do either of the following:
    - Press Shift+F10 to open a command prompt (Fn+Shift+F10 on some laptops) and run `shutdown /s /t 0`.
    - Hold the power button until the device turns off. A quick press may put the device to sleep instead.
 
 The device is ready to ship. When the end user powers it on, they finish Windows setup as usual, and fleetd is already installed.
 
-> **Note:** If the fleet [requires end users to authenticate](https://fleetdm.com/guides/windows-linux-setup-experience#require-idp-authentication) with your identity provider (IdP), fleetd can't enroll until someone signs in to Windows, so the host won't appear in Fleet before you ship. After the end user signs in, fleetd opens a browser to your IdP sign-in page, and the host enrolls once they authenticate.
+> **Note:** If you can't verify enrollment before you ship, for example because you don't have access to Fleet, the device still enrolls on its own. As soon as the end user connects it to Wi-Fi, fleetd checks in and completes enrollment, and anything you've set to install or configure automatically starts then.
 
 > **Note:** Windows MDM [turns on after an end user signs in](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment). Until then, the host reports MDM as "Off", and configuration profiles stay queued.
 
 ## Verify
 
-Before you ship the first device, confirm that the package works:
+If you have access to Fleet, confirm that fleetd is running and the host has enrolled before you shut down each device:
 
 1. On the device, press Shift+F10 at the setup screen and run `sc query "Fleet osquery"`. The service's `STATE` should be `RUNNING`.
-2. In Fleet, go to **Hosts**, select the fleet, and search for the device's serial number. The host appears within a few minutes of fleetd starting.
+2. In Fleet, go to **Hosts**, select the fleet, and search for the device's serial number.
+3. Select the host and confirm its details, such as the operating system, have loaded. If the **Refetch** button shows **Fetching fresh vitals...this may take a moment**, wait for it to finish.
 
 A Hyper-V virtual machine is a fast way to repeat these steps while you test, without resetting real hardware.
 
 ## Troubleshoot
+
+**"Get an app to open this 'https' link" appears during setup**
+
+fleetd tried to open a web page, and no browser is available yet. Build fleetd again with `--disable-setup-experience` and `--bypass-end-user-auth` (see [Build fleetd](#build-fleetd)), build a new package, and apply it again.
 
 **Nothing happens when you insert the USB drive**
 
@@ -103,7 +112,7 @@ The most common cause is a **CommandLine** that doesn't match the MSI's file nam
 
 **fleetd is running, but the host doesn't appear in Fleet**
 
-Check that the device can reach your Fleet server, and that the MSI was built with the enroll secret for the fleet you expect. From another computer, `fleetctl debug connection https://fleet.example.com` tests the TLS connection fleetd uses. If the fleet requires IdP authentication, the host won't enroll until the end user signs in.
+Check that the device can reach your Fleet server, and that the MSI was built with the enroll secret for the fleet you expect. From another computer, `fleetctl debug connection https://fleet.example.com` tests the TLS connection fleetd uses. If the fleet requires end user authentication, check that you built fleetd with `--bypass-end-user-auth` and that the server's `mdm.allow_orbit_end_user_auth_bypass` option is `true`.
 
 ## Further reading
 
