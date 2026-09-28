@@ -517,6 +517,14 @@ func TruncateTables(t testing.TB, ds *mysql.Datastore, tables ...string) {
 		"DELETE FROM software_categories WHERE team_id != 0")
 	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.TestWriter(context.Background()), ds.TestLogger(), nonEmptyTables, tables...)
+	if len(tables) == 0 {
+		// Keep the schema-seeded default connection and drop rows tests created.
+		writer := ds.TestWriter(context.Background())
+		_, err = writer.ExecContext(context.Background(), `DELETE FROM idp_connections WHERE name != ?`, fleet.DefaultIDPConnectionName)
+		require.NoError(t, err)
+		_, err = writer.ExecContext(context.Background(), `UPDATE idp_connections SET is_default = 1 WHERE name = ?`, fleet.DefaultIDPConnectionName)
+		require.NoError(t, err)
+	}
 }
 
 // DumpTable prints all rows in the given table for debugging.
