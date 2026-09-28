@@ -3501,11 +3501,13 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		unlinked    bool          // enrollment not yet linked to a host
 		noVersion   bool          // host_orbit_info has an empty version
 		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
+		usedByOrbit bool          // orbit enrolled with a one-time secret minted for the enrollment
 		wantPresent bool
 	}{
 		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
 		{name: "UPN not yet linked to a host", unlinked: true, wantPresent: false},
 		{name: "UPN with empty orbit version", noVersion: true, seenOffset: time.Minute, wantPresent: false},
+		{name: "UPN with empty orbit version, one-time secret used by orbit", noVersion: true, usedByOrbit: true, wantPresent: true},
 		{name: "UPN stale check-in before enrollment (wipe)", seenOffset: -20 * 24 * time.Hour, wantPresent: false},
 		{name: "UPN fresh check-in after enrollment", seenOffset: time.Minute, wantPresent: true},
 		{name: "UPN check-in within grace before enrollment", seenOffset: -fleetdPresenceGracePeriod / 2, wantPresent: true},
@@ -3538,6 +3540,9 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			}
 			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
 				return &fleet.HostOrbitInfo{Version: version}, nil
+			}
+			ds.WindowsMDMEnrollSecretUsedByOrbitFunc = func(context.Context, uint) (bool, error) {
+				return tc.usedByOrbit, nil
 			}
 			svc := &Service{ds: ds}
 

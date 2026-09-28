@@ -3804,6 +3804,10 @@ type Datastore interface {
 	// enrollment rather than by host UUID, because the host may not exist yet when the secret is minted.
 	GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) (string, error)
 
+	// WindowsMDMEnrollSecretUsedByOrbit reports whether orbit has enrolled with a one-time enroll secret minted for the Windows MDM
+	// enrollment, which means fleetd is installed on the device.
+	WindowsMDMEnrollSecretUsedByOrbit(ctx context.Context, enrollmentID uint) (bool, error)
+
 	// MintWindowsMDMOneTimeEnrollSecret makes sure the Windows MDM enrollment has a live one-time enroll secret, reusing an
 	// unconsumed one. Called when Fleet is about to install fleetd on the device. Returns a NotFound error for an unknown enrollment.
 	MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error

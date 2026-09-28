@@ -2070,6 +2070,8 @@ type ExpandHostSecretsFunc func(ctx context.Context, document string, enrollment
 
 type GetLiveWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) (string, error)
 
+type WindowsMDMEnrollSecretUsedByOrbitFunc func(ctx context.Context, enrollmentID uint) (bool, error)
+
 type MintWindowsMDMOneTimeEnrollSecretFunc func(ctx context.Context, enrollmentID uint) error
 
 type QueueWindowsMDMEnrollSecretPushFunc func(ctx context.Context, enrollmentID uint, mdmDeviceID string, cmd *fleet.MDMWindowsCommand) (bool, error)
@@ -5565,6 +5567,9 @@ type DataStore struct {
 
 	GetLiveWindowsMDMOneTimeEnrollSecretFunc        GetLiveWindowsMDMOneTimeEnrollSecretFunc
 	GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked bool
+
+	WindowsMDMEnrollSecretUsedByOrbitFunc        WindowsMDMEnrollSecretUsedByOrbitFunc
+	WindowsMDMEnrollSecretUsedByOrbitFuncInvoked bool
 
 	MintWindowsMDMOneTimeEnrollSecretFunc        MintWindowsMDMOneTimeEnrollSecretFunc
 	MintWindowsMDMOneTimeEnrollSecretFuncInvoked bool
@@ -13367,6 +13372,13 @@ func (s *DataStore) GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, en
 	s.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLiveWindowsMDMOneTimeEnrollSecretFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) WindowsMDMEnrollSecretUsedByOrbit(ctx context.Context, enrollmentID uint) (bool, error) {
+	s.mu.Lock()
+	s.WindowsMDMEnrollSecretUsedByOrbitFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsMDMEnrollSecretUsedByOrbitFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) MintWindowsMDMOneTimeEnrollSecret(ctx context.Context, enrollmentID uint) error {

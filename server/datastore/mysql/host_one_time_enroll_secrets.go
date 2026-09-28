@@ -415,6 +415,17 @@ func (ds *Datastore) GetLiveWindowsMDMOneTimeEnrollSecret(ctx context.Context, e
 	return secrets[0], nil
 }
 
+func (ds *Datastore) WindowsMDMEnrollSecretUsedByOrbit(ctx context.Context, enrollmentID uint) (bool, error) {
+	var used bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &used, `
+		SELECT EXISTS (
+			SELECT 1 FROM host_one_time_enroll_secrets WHERE mdm_windows_enrollment_id = ? AND orbit_used_at IS NOT NULL
+		)`, enrollmentID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check windows one-time enroll secret used by orbit")
+	}
+	return used, nil
+}
+
 // isWindowsEnrollSecretProfileDB reports whether the profile is the Fleet-managed Fleetd enroll secret profile. The name is
 // reserved, so a user cannot author one that passes this check.
 func isWindowsEnrollSecretProfileDB(ctx context.Context, tx sqlx.ExtContext, profileUUID string) (bool, error) {

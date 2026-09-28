@@ -1478,6 +1478,15 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 				}
 			}
 		}
+		if !isPresent {
+			// The orbit version arrives with osquery's first detail ingestion, which can lag orbit's enrollment by minutes. orbit
+			// using this enrollment's one-time secret already proves fleetd is installed, and a reinstall would mint another.
+			usedByOrbit, err := svc.ds.WindowsMDMEnrollSecretUsedByOrbit(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "check one-time enroll secret used by orbit")
+			}
+			isPresent = usedByOrbit
+		}
 		return isPresent, nil
 	}
 
