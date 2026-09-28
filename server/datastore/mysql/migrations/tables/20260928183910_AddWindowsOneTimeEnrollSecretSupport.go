@@ -8,16 +8,16 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260925185221, Down_20260925185221)
+	MigrationClient.AddMigration(Up_20260928183910, Down_20260928183910)
 }
 
-// Up_20260925185221 migration: Bind one-time enroll secrets to the Windows MDM enrollment they were minted for,
+// Up_20260928183910 migration: Bind one-time enroll secrets to the Windows MDM enrollment they were minted for,
 // and clear the profile name this release reserves.
 //
 // Windows MDM mints a one-time enroll secret before a hosts row exists: the automatic enrollment flows carry no Fleet host UUID
 // (authBinarySecurityToken returns an empty one), so the enrollment is inserted unlinked and only acquires host_uuid later. The
 // secret therefore binds to the MDM enrollment rather than to a host, and host_id stays NULL until the agent enrolls with it.
-func Up_20260925185221(tx *sql.Tx) error {
+func Up_20260928183910(tx *sql.Tx) error {
 	const table = "host_one_time_enroll_secrets"
 
 	if !columnExists(tx, table, "mdm_windows_enrollment_id") {
@@ -113,6 +113,6 @@ func renameConflictingWindowsEnrollSecretProfiles(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260925185221(tx *sql.Tx) error {
+func Down_20260928183910(tx *sql.Tx) error {
 	return nil
 }
