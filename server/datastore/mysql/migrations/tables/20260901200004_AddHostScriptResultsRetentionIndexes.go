@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260925185029, Down_20260925185029)
+	MigrationClient.AddMigration(Up_20260901200004, Down_20260901200004)
 }
 
-func Up_20260925185029(tx *sql.Tx) error {
+func Up_20260901200004(tx *sql.Tx) error {
 	// Without this index the sweep's steady-state "nothing left" case scans the
 	// whole table every hour. created_at is stamped once on insert, so the
 	// index only grows at its right edge.
@@ -23,6 +23,6 @@ func Up_20260925185029(tx *sql.Tx) error {
 		indexDef{"idx_bahr_host_execution_id", "host_execution_id"})
 }
 
-func Down_20260925185029(tx *sql.Tx) error {
+func Down_20260901200004(tx *sql.Tx) error {
 	return nil
 }
