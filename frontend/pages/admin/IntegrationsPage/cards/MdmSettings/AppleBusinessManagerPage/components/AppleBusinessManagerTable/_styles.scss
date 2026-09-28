@@ -26,21 +26,21 @@
   // least commonly used assignment. This is achieved by using the max-width
   // media query with the breakpoint values taken from when the table content
   // starts to overflow.
-  @media (max-width: 1280px) {
+  @media (max-width: $break-lg) {
     .ipados_team__header,
     .ipados_team__cell {
       display: none;
     }
   }
 
-  @media (max-width: 1140px) {
+  @media (max-width: 1230px) {
     .byod_team__header,
     .byod_team__cell {
       display: none;
     }
   }
 
-  @media (max-width: 930px) {
+  @media (max-width: $break-md) {
     .ios_team__header,
     .ios_team__cell {
       display: none;
