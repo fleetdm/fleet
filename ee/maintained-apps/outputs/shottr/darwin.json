@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "1.9.3b",
+      "version": "1.9.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cc.ffitch.shottr';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.ffitch.shottr' AND version_compare(bundle_short_version, '1.9.3b') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.ffitch.shottr' AND version_compare(bundle_short_version, '1.9.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'cc.ffitch.shottr' AND a.bundle_executable != '');"
       },
       "installer_url": "https://shottr.cc/dl/Shottr-1.9.3b.dmg",
