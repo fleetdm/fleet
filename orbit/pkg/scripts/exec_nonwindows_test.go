@@ -331,6 +331,8 @@ func TestWithPathDir(t *testing.T) {
 	require.Equal(t, []string{"A=1", "PATH=/a" + sep + "/sw"}, withPathDir([]string{"A=1", "PATH=/a"}, "/sw"))
 	require.Equal(t, []string{"PATH=/sw" + sep + "/a"}, withPathDir([]string{"PATH=/sw" + sep + "/a"}, "/sw"))
 	require.Equal(t, []string{"A=1", "PATH=/sw"}, withPathDir([]string{"A=1"}, "/sw"))
+	// exec.Cmd honors the last duplicate, so that is the one to extend
+	require.Equal(t, []string{"PATH=/a", "PATH=/b" + sep + "/sw"}, withPathDir([]string{"PATH=/a", "PATH=/b"}, "/sw"))
 	orig := []string{"PATH=/a"}
 	_ = withPathDir(orig, "/sw")
 	require.Equal(t, []string{"PATH=/a"}, orig, "input must not be mutated")

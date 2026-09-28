@@ -100,19 +100,23 @@ func isNixOS() bool {
 }
 
 // withPathDir returns env with dir appended to PATH unless already present.
+// exec.Cmd uses the last duplicate key, so the last PATH entry is the one that counts.
 func withPathDir(env []string, dir string) []string {
+	last := -1
 	for i, kv := range env {
-		if !strings.HasPrefix(kv, "PATH=") {
-			continue
+		if strings.HasPrefix(kv, "PATH=") {
+			last = i
 		}
-		if slices.Contains(filepath.SplitList(strings.TrimPrefix(kv, "PATH=")), dir) {
-			return env
-		}
-		out := slices.Clone(env)
-		out[i] = kv + string(os.PathListSeparator) + dir
-		return out
 	}
-	return append(slices.Clone(env), "PATH="+dir)
+	if last == -1 {
+		return append(slices.Clone(env), "PATH="+dir)
+	}
+	if slices.Contains(filepath.SplitList(strings.TrimPrefix(env[last], "PATH=")), dir) {
+		return env
+	}
+	out := slices.Clone(env)
+	out[last] += string(os.PathListSeparator) + dir
+	return out
 }
 
 // shebangInterpreter returns the interpreter path from the script's shebang
