@@ -1,3 +1,12 @@
+## Fleet 4.92.1 (Sep 25, 2026)
+
+### Bug fixes
+
+- Fixed GitOps re-downloading Fleet-maintained apps whose manifest carries no hash, such as 1Password, Google Chrome, Slack, Webex, and Zoom, on every run.
+- Fixed software with an invisible reported name rendering as a blank row in Host details > Software, the Software page, and My device > Software. Some macOS system apps (e.g. MediaRemoteUI on macOS 27) hide themselves by setting their display name to a single zero-width character, which is neither empty nor trimmable; Fleet now falls back to the bundle identifier for these.
+- Fixed the GitOps starter's CI jobs failing when the `FLEET_URL` secret ended in a slash.
+- Fixed macOS hosts losing their IdP username, full name, groups, and department (and dropping out of IdP-group labels) after an MDM certificate renewal or re-enrollment when the IdP user had been set manually.
+
 ## Fleet 4.92.0 (Sep 21, 2026)
 
 ### IT Admins

@@ -17,7 +17,7 @@ import {
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 import { baseUrl } from "test/test-utils";
 
-const createDefaultDeviceResponse = (): IDUPDetails => ({
+export const createDefaultDeviceResponse = (): IDUPDetails => ({
   host: { ...createMockHost(), dep_assigned_to_fleet: false },
   license: createMockLicense(),
   org_logo_url: "",

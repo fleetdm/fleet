@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.1.14",
+      "version": "1.1.70",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services' AND version_compare(version, '1.1.14') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services' AND version_compare(version, '1.1.70') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'kiro.exe');"
       },
-      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/win32-x64/signed/1.1.14/kiro-ide-1.1.14-stable-win32-x64.exe",
+      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/win32-x64/signed/1.1.70/kiro-ide-1.1.70-stable-win32-x64.exe",
       "install_script_ref": "042635ce",
       "uninstall_script_ref": "dafa682f",
-      "sha256": "a77a555d6bd1cebc22996b9de3d0322336dde4e638707e80b0d02f0ebbe7004c",
+      "sha256": "4df592f58b5fc4a411e303c7972262294ed47541576ff55b481cb76c32f4a395",
       "default_categories": [
         "Developer tools"
       ]

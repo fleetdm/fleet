@@ -182,6 +182,7 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 			var invalid *fleet.InvalidArgumentError
 			require.ErrorAs(t, err, &invalid)
 			require.Contains(t, fmt.Sprintf("%+v", invalid.Errors), "host_expiry_settings.host_expiry_window")
+			require.ErrorContains(t, err, "When enabling host expiry, host expiry window must be a positive number.")
 			require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
 		})
 	}
