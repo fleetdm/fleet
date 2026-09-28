@@ -24,7 +24,9 @@ func Up_20260928170000(tx *sql.Tx) error {
 		return fmt.Errorf("create idp_connections: %w", err)
 	}
 
-	if _, err := tx.Exec(`INSERT IGNORE INTO idp_connections (name, is_default) VALUES ('default', 1)`); err != nil {
+	// Fixed timestamps keep schema.sql stable. mysqldump includes this row, and a
+	// live created_at would change the dump on every regeneration.
+	if _, err := tx.Exec(`INSERT IGNORE INTO idp_connections (name, is_default, created_at, updated_at) VALUES ('default', 1, '2020-01-01 01:01:01.000000', '2020-01-01 01:01:01.000000')`); err != nil {
 		return fmt.Errorf("insert default idp connection: %w", err)
 	}
 

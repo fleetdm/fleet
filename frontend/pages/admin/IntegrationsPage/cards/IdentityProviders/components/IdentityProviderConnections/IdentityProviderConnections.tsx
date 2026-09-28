@@ -9,8 +9,8 @@ import { notify } from "components/ToastNotification";
 import { IConfig, IIdentityProvider } from "interfaces/config";
 import { expandErrorReasonRequired } from "interfaces/errors";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import configAPI from "services/entities/config";
 import { sendRequest } from "services";
+import configAPI from "services/entities/config";
 
 const baseClass = "identity-provider-connections";
 
@@ -47,10 +47,14 @@ const IdentityProviderConnections = ({
     try {
       const response = (await sendRequest(
         "POST",
-        `/latest/fleet/identity_providers/${encodeURIComponent(name)}/scim_token`
+        `/latest/fleet/identity_providers/${encodeURIComponent(
+          name
+        )}/scim_token`
       )) as { token: string };
       setIssuedToken({ name, token: response.token });
-      notify.success(`SCIM token created for ${name}. Copy it now; it is not shown again.`);
+      notify.success(
+        `SCIM token created for ${name}. Copy it now; it is not shown again.`
+      );
     } catch (err) {
       notify.error("Couldn't create a SCIM token. Please try again.", {
         response: err,
@@ -84,7 +88,7 @@ const IdentityProviderConnections = ({
     }
   };
 
-  const addProvider = () => {
+  const addProvider = async () => {
     const name = draft.name.trim();
     if (
       !name ||
@@ -148,7 +152,9 @@ const IdentityProviderConnections = ({
                       disabled={disableChildren || isUpdating}
                       onClick={() =>
                         save(
-                          providers.filter((item) => item.name !== provider.name)
+                          providers.filter(
+                            (item) => item.name !== provider.name
+                          )
                         )
                       }
                     >
