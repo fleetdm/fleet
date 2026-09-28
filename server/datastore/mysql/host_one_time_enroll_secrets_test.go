@@ -733,9 +733,15 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 
 	// A consumed secret is not handed out again, so redelivering the profile afterwards, on a team transfer say, writes nothing.
 	// A fresh secret is minted only by a new decision.
+	usedByOrbit, err := ds.WindowsMDMEnrollSecretUsedByOrbit(ctx, device.ID)
+	require.NoError(t, err)
+	require.False(t, usedByOrbit)
 	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
 	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(stored.ID))...)
 	require.NoError(t, err)
+	usedByOrbit, err = ds.WindowsMDMEnrollSecretUsedByOrbit(ctx, device.ID)
+	require.NoError(t, err)
+	require.True(t, usedByOrbit, "orbit enrolling with the enrollment's secret means fleetd is installed")
 	secret, err = ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctx, device.ID)
 	require.NoError(t, err)
 	require.Empty(t, secret)
@@ -942,6 +948,16 @@ func testOneTimeEnrollSecretWindowsResendMints(t *testing.T, ds *Datastore) {
 	require.Len(t, byName, 1)
 	require.Equal(t, secretProfileUUID, byName[0].ProfileUUID)
 	require.Nil(t, byName[0].TeamID, "no team is stored as 0 and reported as nil")
+
+	// The host's profile list shows it, since resending it from the host is the recovery action.
+	listedHostUUID := uuid.NewString()
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+		ProfileUUID: secretProfileUUID, ProfileName: fleetmdm.FleetWindowsEnrollSecretProfileName, HostUUID: listedHostUUID,
+		CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("checksum"),
+	}}))
+	listed, err := ds.GetHostMDMWindowsProfiles(ctx, listedHostUUID)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
 
 	otherProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name: "Custom settings", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Custom</LocURI></Target></Item></Replace>`),

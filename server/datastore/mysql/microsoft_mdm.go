@@ -3820,7 +3820,8 @@ hmwp.host_uuid = ? AND hmwp.profile_name NOT IN(?) AND NOT (hmwp.operation_type 
 		fleet.MDMDeliveryVerified,
 	)
 
-	stmt, args, err := sqlx.In(stmt, hostUUID, mdm.ListFleetReservedWindowsProfileNames())
+	// The Fleetd enroll secret profile stays listed, because resending it from the host is how an admin recovers the host.
+	stmt, args, err := sqlx.In(stmt, hostUUID, []string{mdm.FleetWindowsOSUpdatesProfileName})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}
