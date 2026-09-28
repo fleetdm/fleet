@@ -17,7 +17,7 @@ It also embeds the **Fleet Platform SSO (PSSO) extension** (`FleetPSSOExtension.
 - **File download support** for `.mobileconfig` profiles and other files served by Fleet
 - **Dark/light mode** respects the user's system appearance
 - **`fleet://` URL scheme** for deep linking to Self-service, Policies, triggering refetches, and Update/Install all
-- **MDM required** — both the app and installer enforce MDM enrollment
+- **MDM required** — the app enforces MDM enrollment, and the installer warns when the Mac isn't enrolled
 - **Code signed and notarized** for secure distribution via `.pkg` installer
 
 ## Requirements
@@ -34,7 +34,7 @@ The signed, notarized `.pkg` is produced by CI (see [CI/CD](#cicd)) and uploaded
 - **Via Fleet (Software):** upload the `.pkg` to Fleet as a software installer. Fleet Desktop will appear in the software catalog for deployment.
 - **Manually:** double-click the `.pkg` and follow the installer.
 
-The installer requires an MDM-enabled Mac. It checks for the Fleet managed preferences profile before proceeding — if the profile is not found, the installer displays an error and aborts. The app is placed in `/Applications` with `root:admin` ownership and `755` permissions. On upgrades, the installer gracefully quits Fleet Desktop before installing and automatically relaunches it afterward.
+Fleet Desktop requires an MDM-enabled Mac. The installer checks for the Fleet managed preferences profile — if the profile is not found, the installer shows a warning (command-line installs log it and continue), and the app displays an error at launch until the profile is installed. The app is placed in `/Applications` with `root:admin` ownership and `755` permissions. On upgrades, the installer gracefully quits Fleet Desktop before installing and automatically relaunches it afterward.
 
 Installing the app into `/Applications` is also what registers the bundled `FleetPSSOExtension.appex` with the system so it becomes selectable by a `com.apple.extensiblesso` configuration profile.
 
@@ -170,7 +170,7 @@ To test end to end locally (a dev-signed app/extension against your local Fleet 
 | `/Library/Managed Preferences/com.fleetdm.fleetd.config.plist` | `FleetURL` | Fleet server URL (delivered via MDM profile) |
 | `/opt/orbit/identifier` | — | Device authentication token (rotates hourly) |
 
-> **Note:** Fleet Desktop only supports MDM-enabled Macs. If the managed preferences file is not present, the app displays an error and the installer refuses to proceed.
+> **Note:** Fleet Desktop only supports MDM-enabled Macs. If the managed preferences file is not present, the app displays an error and the installer shows a warning.
 
 ### URL Scheme
 
