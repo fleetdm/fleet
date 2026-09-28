@@ -366,7 +366,7 @@ const ChartFilterModal = ({
   };
 
   const handleTabChange = (index: number) => {
-    const mode = index === 0 ? "exclude" : "include";
+    const mode = index === 0 ? "include" : "exclude";
     setHostFilterMode(mode);
   };
 
@@ -387,7 +387,7 @@ const ChartFilterModal = ({
     : hasActiveHostFilters(draft);
 
   // Inner host include/exclude tab.
-  const tabIndex = hostFilterMode === "include" ? 1 : 0;
+  const tabIndex = hostFilterMode === "include" ? 0 : 1;
 
   const renderHostSearch = () => (
     <div className={`${baseClass}__host-search`}>
@@ -485,10 +485,10 @@ const ChartFilterModal = ({
         <Tabs selectedIndex={tabIndex} onSelect={handleTabChange}>
           <TabList>
             <Tab>
-              <TabText>Exclude hosts</TabText>
+              <TabText>Specific hosts</TabText>
             </Tab>
             <Tab>
-              <TabText>Specific hosts</TabText>
+              <TabText>Exclude hosts</TabText>
             </Tab>
           </TabList>
           {/* Only render the active tab to avoid two parallel host lists
