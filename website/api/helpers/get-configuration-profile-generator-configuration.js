@@ -28,6 +28,13 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to request less information back with the generated profile.'
+    },
+
+    useApplePayloadTypeLookup: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
+      extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
     }
   },
 
@@ -41,7 +48,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
 
     let path = require('path');
 
@@ -51,11 +58,15 @@ module.exports = {
     // not picking the wrong real one -- and they had already drifted, still listing VPPType after Apple
     // removed it.
     //
-    // The whole schema goes in.  That is the difference from the Windows reference below, which has to
-    // look up the areas a request needs because its table is 155KB: these render to ~13k and ~6k tokens,
-    // so narrowing them would only remove context the model can already see, and add a lookup that can
-    // pick wrong.
+    // The DDM schema goes in whole: it renders to ~6k tokens.  The .mobileconfig one is looked up first,
+    // the way the Windows reference below is.  Whole, it rendered to ~13k tokens of mostly bare key names,
+    // and the model still picked keys by what their names suggested -- AutomaticallyInstallAppUpdates
+    // under com.apple.appstore, a `position` key read off position-immutable -- because nothing next to a
+    // name said what the key does.  Narrowed to the few payload types a request needs, every key can carry
+    // Apple's description of it.
     let appleSchema;
+    let appleSchemaDescription;
+    let applePayloadTypesProvided = [];
     if(profileType === 'mobileconfig' || profileType === 'ddm') {
 
       let filename = profileType === 'ddm' ? 'apple-ddm-declarations.json' : 'apple-payload-manifests.json';
@@ -150,30 +161,173 @@ module.exports = {
       // list, a numeric range, or a sentence of Apple's own prose about what its values mean.  That keeps
       // the cost where it buys something -- SHOWFULLNAME earns a line because false shows a list of
       // users, while allowCamera does not earn one.
-      let appleSchemaLines = [];
-      for (let entry of schemaFile.entries) {
-        appleSchemaLines.push(entry.name);
+      //
+      // With describeKeys, which is only affordable once the payload types have been narrowed, every key
+      // gets a line and Apple's description of it.  A gloss wins over the description where there is one,
+      // since glosses are kept longer precisely because the constraint is in their second sentence.
+      let renderEntries = (entries, {describeKeys})=>{
+        let lines = [];
+        for (let entry of entries) {
+          lines.push(entry.name);
 
-        let plainKeys = [];
-        let keysWithTheirOwnLine = [];
-        for (let key of entry.keys) {
-          let renderedKey = renderKey(key, 0);
-          if(key.subkeys && key.subkeys.length > 0) {
-            plainKeys.push(renderedKey.inlineText);
-          } else if(renderedKey.constraint) {
-            keysWithTheirOwnLine.push(`    ${renderedKey.labelText}  ${renderedKey.constraint}`);
-          } else {
-            plainKeys.push(renderedKey.labelText);
+          let plainKeys = [];
+          let keysWithTheirOwnLine = [];
+          for (let key of entry.keys) {
+            let renderedKey = renderKey(key, 0);
+            let hasSubkeys = key.subkeys && key.subkeys.length > 0;
+            if(describeKeys) {
+              let valueConstraint = renderedKey.constraint !== key.gloss ? renderedKey.constraint : undefined;
+              keysWithTheirOwnLine.push('    ' + _.compact([
+                hasSubkeys ? renderedKey.inlineText : renderedKey.labelText,
+                valueConstraint,
+                key.gloss || key.description,
+              ]).join('  '));
+            } else if(hasSubkeys) {
+              plainKeys.push(renderedKey.inlineText);
+            } else if(renderedKey.constraint) {
+              keysWithTheirOwnLine.push(`    ${renderedKey.labelText}  ${renderedKey.constraint}`);
+            } else {
+              plainKeys.push(renderedKey.labelText);
+            }
+          }
+
+          if(plainKeys.length > 0) {
+            lines.push('    ' + plainKeys.join(', '));
+          }
+          lines = lines.concat(keysWithTheirOwnLine);
+        }
+        return lines.join('\n');
+      };
+
+      let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
+      if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
+
+        // Key names are in the index, not just titles and descriptions, for the reason the Windows lookup
+        // gives: picking from names and descriptions alone means recalling Apple's taxonomy, which is the
+        // failure this exists to remove.  Asked about App Store app updates, a description-only index
+        // offers com.apple.appstore ("configures macOS App Store restrictions") and nothing pointing at
+        // com.apple.SoftwareUpdate, which is where AutomaticallyInstallAppUpdates is.  The index is ~35KB
+        // and identical on every request, so it wants to be a cached prompt prefix.
+        let payloadTypeIndex = _.map(_.reject(schemaFile.entries, (entry)=>{ return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name); }), (entry)=>{
+          let about = _.compact([entry.title].concat(entry.platforms || [])).join('; ');
+          return `${entry.name} (${about}): ${entry.description || ''} Keys: ${_.pluck(entry.keys, 'key').join(' ')}`;
+        }).join('\n');
+
+        // The small model on purpose: this is a lookup rather than a judgement, and it sits in front of the
+        // generation, so every second it takes is a second added to the request.
+        let picked = await sails.helpers.ai.prompt.with({
+          systemPrompt:
+`Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not
+include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
+
+Below is every payload type Apple publishes a .mobileconfig manifest for: its name, its title and the
+platforms it applies to, Apple's description of it, and the top-level keys it accepts.  An IT admin has
+asked for a configuration profile, and another model is about to write it -- but it will only be shown
+the payload types you name, so your job is to say which those should be.
+
+Find the keys that would actually satisfy the request and name the payload types that list them.  Read
+the key lists to do it: a payload type whose name matches the topic of the request is often not the one
+holding the key, and the one that does can sound unrelated.
+
+Name one to four payload types.  This is a shortlist, not an answer -- the model that writes the profile
+picks keys out of what you send, so a second candidate costs it little, while naming only the payload
+type you thought of first is how the right one gets left out.  Every name must appear verbatim below; do
+not invent one.
+
+Return an empty array when no payload type below could satisfy the request -- a third-party application's
+settings, for one.  An empty array is a real answer here, not a failure.
+
+${payloadTypeIndex}
+
+Respond in JSON with this data shape:
+{
+  "payloadTypes": ["TODO"]
+}`,
+          prompt: `Here are the instructions from an IT admin:
+\`\`\`
+${naturalLanguageInstructions}
+\`\`\``,
+          baseModel: 'claude-haiku-4-5',
+          expectJson: true,
+        })
+        .tolerate((err)=>{
+          // Not fatal: the full schema below is what the generator used before this lookup existed.
+          sails.log.warn(`When trying to work out which Apple payload types a request needs, an error occurred.  The profile will be generated from the full schema.  Full error: ${require('util').inspect(err, {depth: 2})}`);
+          return undefined;
+        });
+
+        // Filtered against the real names rather than trusted, as the Windows lookup is.
+        if(picked && _.isArray(picked.payloadTypes)) {
+          let realEntryNames = _.uniq(_.pluck(schemaFile.entries, 'name'));
+          for (let candidate of picked.payloadTypes) {
+            let matched = _.find(realEntryNames, (entryName)=>{ return entryName.toLowerCase() === String(candidate).toLowerCase(); });
+            if(matched && !_.contains(ALWAYS_PROVIDED_ENTRY_NAMES, matched) && !_.contains(applePayloadTypesProvided, matched)) {
+              applePayloadTypesProvided.push(matched);
+            }
           }
         }
 
-        if(plainKeys.length > 0) {
-          appleSchemaLines.push('    ' + plainKeys.join(', '));
+        // Restrictions is Apple's catch-all -- 210 keys under a title and description that match almost no
+        // request -- so the lookup passes it over for payloads whose titles sound closer (Content Caching
+        // Service over allowContentCaching, Time Server over forceAutomaticDateAndTime).  Added only when
+        // the lookup found something, so a request it found nothing for still falls back to the full schema.
+        if(applePayloadTypesProvided.length > 0) {
+          applePayloadTypesProvided = _.union(applePayloadTypesProvided, ['com.apple.applicationaccess']);
         }
-        appleSchemaLines = appleSchemaLines.concat(keysWithTheirOwnLine);
+
+
+        // sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
       }
 
-      appleSchema = appleSchemaLines.join('\n');
+      if(applePayloadTypesProvided.length > 0) {
+        // Every entry with a picked name, since six payloads share com.apple.MCX.
+        let entriesToRender = _.filter(schemaFile.entries, (entry)=>{
+          return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name) || _.contains(applePayloadTypesProvided, entry.name);
+        });
+        appleSchema = `${renderEntries(entriesToRender, {describeKeys: true})}\n\nAll payload types: ${_.uniq(_.pluck(schemaFile.entries, 'name')).sort().join(' ')}`;
+        appleSchemaDescription =
+`Provided context: the payload types this request looks like it needs, and every key each one accepts,
+taken from Apple's own manifests.  Format is a payload type followed by one key per line: the key, what
+constrains its value where anything does -- \`(a|b|c)\` the values it accepts, \`(min-max)\` the range, \`d=\`
+the default -- and Apple's description of the key.  \`*\` marks a required key, \`{}\` is a dictionary, \`[]\` is
+an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an array whose
+elements are dictionaries with those keys.  CommonPayloadKeys and TopLevel are not payload types: the
+first gives the keys every dict inside PayloadContent may carry, and the second the keys that belong on
+the root dict and nowhere else.
+
+Choose keys by their descriptions, not their names.  Apple's description decides what a key does and what
+its values mean -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the
+opposite -- and a key whose name resembles the setting you want can describe something else entirely.
+
+For each payload type below this is complete: a key not listed under it does not exist in it.  It is not
+every payload type -- the rest are named, without their keys, after the detail.  If the setting belongs to
+one of those, return the "couldNotGenerateProfile" shape and name it, rather than recalling its keys.  A
+domain in neither list is an Apple preference domain with no MDM manifest, or a third-party domain from
+the ProfileManifests reference.  Fall back to one of those only when nothing listed covers the setting,
+and if you cannot recall its keys, return the "couldNotGenerateProfile" shape rather than guessing.`;
+      } else {
+        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false});
+        appleSchemaDescription =
+`Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
+from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
+dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an
+array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
+constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
+TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
+the keys that belong on the root dict and nowhere else.
+
+Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
+carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
+and a sentence is Apple's own description of what its values mean.  Where such a sentence is given, it decides the
+value -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the opposite.
+
+For a listed payload type this is complete: a key not listed under it does not exist in it.  Absence of a payload type
+is not proof a domain is unusable -- Apple preference domains with no MDM manifest are managed as preference domains
+and are not listed, and neither are third-party domains, which come from the ProfileManifests reference.  What absence
+does rule out is a first-party payload type of your own invention.  When a listed payload type covers the setting, use
+it, and fall back to an unlisted preference domain only when nothing listed does.  If you cannot recall the keys of an
+unlisted preference domain, return the "couldNotGenerateProfile" shape rather than guessing.`;
+      }
     }
 
 
@@ -183,11 +337,6 @@ module.exports = {
 
       RESPONSE_SHAPE = `Respond in JSON with this data shape:
       {
-        "configurationProfile": "TODO",
-        "profileFilename": "TODO",
-        // Things the admin must do or decide that are not visible in the profile itself.
-        // Empty string when there is nothing exceptional, which is the common case.
-        "deliveryNotes": "",
         "settingsEnforced": [// For each setting enforced by the configuration profile.
           {
             // The name (key) of the setting that is enforced. e.g., LoginwindowText
@@ -196,17 +345,14 @@ module.exports = {
             value: "TODO",
             // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
             schemaReference: "TODO",
-            // The documented range, enum, or type this setting accepts, including the declared format.
-            allowedValues: "TODO",
-            // What the value above actually does, in words. e.g., "0 = a password is required"
-            valueMeaning: "TODO",
-            // The Apple or Microsoft reference page for this setting.
-            documentationUrl: "TODO",
-            // Applicability, dependencies, and any condition under which this setting deploys but does nothing. Empty string if there are none.
-            caveats: "TODO"
           },
           {...}
         ]
+        "profileFilename": "TODO",
+        "configurationProfile": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
       }
 
       If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
@@ -304,25 +450,7 @@ module.exports = {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
         firstPartySettingDescription: 'a key in an Apple-published payload',
         providedSchema: appleSchema,
-        providedSchemaDescription: `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
-from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
-dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an
-array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
-constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
-TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
-the keys that belong on the root dict and nowhere else.
-
-Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
-carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
-and a sentence is Apple's own description of what its values mean.  Where such a sentence is given, it decides the
-value -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the opposite.
-
-For a listed payload type this is complete: a key not listed under it does not exist in it.  Absence of a payload type
-is not proof a domain is unusable -- Apple preference domains with no MDM manifest are managed as preference domains
-and are not listed, and neither are third-party domains, which come from the ProfileManifests reference.  What absence
-does rule out is a first-party payload type of your own invention.  When a listed payload type covers the setting, use
-it, and fall back to an unlisted preference domain only when nothing listed does.  If you cannot recall the keys of an
-unlisted preference domain, return the "couldNotGenerateProfile" shape rather than guessing.`,
+        providedSchemaDescription: appleSchemaDescription,
         references: [
           'First-party Apple payloads: the payload types and their top-level keys are provided below -- https://github.com/apple/device-management/tree/release/mdm/profiles is where a human can check them.',
           'Third-party Apple payloads: https://github.com/ProfileManifests/ProfileManifests',
@@ -337,6 +465,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Key fidelity.
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
+          'Choose the payload type by finding the key, not by the payload type\'s name.  Locate the key that does what was asked in the provided list, then use the payload type it is listed under -- even when another payload type\'s name sounds closer to the request.  App Store app updates are AutomaticallyInstallAppUpdates in com.apple.SoftwareUpdate, not anything in com.apple.appstore.  Before returning, confirm every key in each PayloadContent dict is listed under that dict\'s PayloadType.',
           'When more than one key in a payload could plausibly satisfy the request, choose by documented meaning, say what the chosen value actually does in valueMeaning, and return couldNotGenerateProfile rather than guessing between them.',
           'When the payload type you need appears in the provided list, copy it and its keys character for character, casing included, and use no key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
           'Where the provided list describes what a key\'s values mean, that description decides the value and your own reading of the key name does not.  Several of these keys are named in a way that implies the opposite of what they do.',
@@ -629,7 +758,9 @@ ${uuidsToUse}
     // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
     // written from the right areas badly -- the two look identical in the generated profile, and the first
     // is a lookup problem while the second is a prompt problem.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided };
+    // applePayloadTypesProvided for the same reason: empty means the lookup was off, failed, or found
+    // nothing, and the full schema went in.
+    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided };
 
   }
 
