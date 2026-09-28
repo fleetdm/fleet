@@ -195,7 +195,7 @@ The ADMX file content goes inside a CDATA block in the `<Data>` element. Here's 
 </Replace>
 ```
 
-> Paste the entire ADMX file, starting with its `<?xml ...?>` declaration. Keep the declaration on the same line as `<![CDATA[`, with no line break or spaces in between. If there's a line break, the device rejects the ADMX and the profile fails with `status 500`.
+> Paste the entire ADMX file, starting with its `<?xml ...?>` declaration. Keep the declaration on the same line as `<![CDATA[`, with no line break or spaces in between.
 
 > The ADMX file can be large (Edge's is thousands of lines). That's expected — you're uploading the entire policy definition file so the device knows how to interpret the policies you'll configure in step 3.
 
