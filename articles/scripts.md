@@ -126,6 +126,7 @@ Write-Host "Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL"
 - $FLEET_VAR_HOST_HARDWARE_SERIAL
 - $FLEET_VAR_HOST_UUID
 - $FLEET_VAR_HOST_PLATFORM
+- $FLEET_VAR_NDES_SCEP_CHALLENGE
 
 See the full list in the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
 

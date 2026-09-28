@@ -1250,6 +1250,8 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant), [custom EST](#custom-est-proxy), and [NDES and Okta](#ndes-scep-proxy) (Okta uses NDES under the hood) CAs. Google CA [coming soon](https://github.com/fleetdm/fleet/issues/52623)
 
+For NDES and Okta CAs, the CSR must include a one-time challenge in its `challengePassword` attribute. To get one in a script, use the [`$FLEET_VAR_NDES_SCEP_CHALLENGE`](https://fleetdm.com/guides/fleet-variables) variable.
+
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
 As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
