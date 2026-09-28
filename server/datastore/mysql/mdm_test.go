@@ -1963,7 +1963,6 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	opts := fleet.ListOptions{OrderKey: "name"}
 
-	// create one profile of each type with a description
 	apple, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
 		Name:         "apple",
 		Identifier:   "com.example.apple",
@@ -1993,7 +1992,6 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "android desc", android.Description)
 
-	// get and list return the description for every type
 	gotApple, err := ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, "apple desc", gotApple.Description)

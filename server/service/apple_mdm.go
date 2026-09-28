@@ -1209,7 +1209,6 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		}
 		decl.LabelsExcludeAny = excludeLabels
 	}
-	// Not settable through this endpoint yet, so carry the stored value.
 	decl.Description = existing.Description
 
 	// Three states: an edit that doesn't mention the activation keeps the stored
@@ -1936,7 +1935,6 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		cp.LabelsExcludeAny = excludeLabels
 	}
 	cp.ProfileUUID = profileUUID
-	// Not settable through this endpoint yet, so carry the stored value.
 	cp.Description = existing.Description
 
 	if _, err := svc.ds.UpdateMDMAppleConfigProfile(ctx, *cp, varNames); err != nil {
