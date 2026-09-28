@@ -8099,6 +8099,8 @@ Deletes the label specified by ID.
 - [Get or download configuration profile](#get-or-download-configuration-profile)
 - [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
+- [Autofill configuration profile name and description](#autofill-configuration-profile-name-and-description)
+- [Autofill configuration profile content](#autofill-configuration-profile-content)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
 - [Create Apple asset declaration](#create-apple-asset-declaration)
 - [List Apple asset declarations](#list-apple-asset-declarations)
@@ -8422,6 +8424,63 @@ Update a configuration profile to target hosts with specific labels.
 
 `Status: 200`
 
+---
+
+### Autofill configuration profile name and description
+
+_Available in Fleet Free_
+
+Generates a name and description for a configuration profile using AI.
+
+`POST /api/v1/fleet/autofill/configuration_profile/name_description`
+
+#### Parameters
+
+| Name                          | Type   | In   | Description                                         |
+| ----------------------------- | ------ | --   | --------------------------------------------------- |
+| natural_language_instructions | string | body | **Required.** What the profile should enforce.      |
+| platform                      | string | body | **Required.** One of `macos`, `windows`, `android`. |
+
+#### Example response
+
+`Status: 200`
+
+```json
+{
+  "name": "Passcode Settings",
+  "description": "Enforces a passcode on macOS devices."
+}
+```
+
+---
+
+### Autofill configuration profile content
+
+_Available in Fleet Free_
+
+Generates configuration profile content using AI.
+
+`POST /api/v1/fleet/autofill/configuration_profile/content`
+
+#### Parameters
+
+| Name                          | Type   | In   | Description                                         |
+| ----------------------------- | ------ | --   | --------------------------------------------------- |
+| natural_language_instructions | string | body | **Required.** What the profile should enforce.      |
+| platform                      | string | body | **Required.** One of `macos`, `windows`, `android`. |
+
+#### Example response
+
+`Status: 200`
+
+```json
+{
+  "content": "<base64-encoded profile>"
+}
+```
+
+---
+
 ### Resend configuration profile
 
 Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
@@ -8430,10 +8489,10 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 #### Parameters
 
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The host's ID. |
-| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
+| Name           | Type    | In   | Description                                                                |
+| -------------- | ------- | ---- | -------------------------------------------------------------------------- |
+| id             | integer | path | **Required.** The host's ID.                                               |
+| profile_uuid   | string  | path | **Required.** The UUID of the configuration profile to resend to the host. |
 
 #### Example
 
@@ -8442,6 +8501,8 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 ##### Default response
 
 `Status: 202`
+
+---
 
 ### Batch-update configuration profiles
 
