@@ -2088,6 +2088,20 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apple renamed", renamedApple.Name)
 	require.Equal(t, gotApple.UploadedAt, renamedApple.UploadedAt)
 	require.Equal(t, gotApple.Checksum, renamedApple.Checksum)
+	// so is a rename that resends identical contents
+	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		ProfileUUID:  apple.ProfileUUID,
+		Identifier:   apple.Identifier,
+		Name:         "apple renamed again",
+		Description:  "apple desc 2",
+		Mobileconfig: apple.Mobileconfig,
+		Scope:        fleet.PayloadScopeSystem,
+	}, nil)
+	require.NoError(t, err)
+	renamedApple, err = ds.GetMDMAppleConfigProfile(ctx, apple.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "apple renamed again", renamedApple.Name)
+	require.Equal(t, gotApple.UploadedAt, renamedApple.UploadedAt)
 	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
 		ProfileUUID: apple.ProfileUUID,
 		Identifier:  apple.Identifier,
@@ -2106,6 +2120,17 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	renamedWin, err := ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, "windows renamed", renamedWin.Name)
+	require.Equal(t, gotWin.UploadedAt, renamedWin.UploadedAt)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: win.ProfileUUID,
+		Name:        "windows renamed again",
+		Description: "windows desc 2",
+		SyncML:      win.SyncML,
+	}, nil)
+	require.NoError(t, err)
+	renamedWin, err = ds.GetMDMWindowsConfigProfile(ctx, win.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "windows renamed again", renamedWin.Name)
 	require.Equal(t, gotWin.UploadedAt, renamedWin.UploadedAt)
 	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		ProfileUUID: win.ProfileUUID,
@@ -2137,8 +2162,8 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	renamedDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
 	require.Equal(t, "decl renamed", renamedDecl.Name)
-	// the declaration upsert counts a rename as an upload, like the batch
-	// path; the token (what drives delivery) is unchanged
+	// uploaded_at orders the hosts' DDM token, so a rename must not move it
+	require.Equal(t, gotDecl.UploadedAt, renamedDecl.UploadedAt)
 	require.Equal(t, gotDecl.Token, renamedDecl.Token)
 	otherDecl := declForTest("other decl", "other", "other")
 	otherDecl, err = ds.NewMDMAppleDeclaration(ctx, otherDecl, nil)
@@ -2148,7 +2173,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &existsErr)
 	// ...and onto another platform's name, which the INSERT's NOT EXISTS
 	// clauses don't cover on the update side of the upsert
-	for _, taken := range []string{"windows renamed", "android renamed", "apple renamed"} {
+	for _, taken := range []string{"windows renamed again", "android renamed", "apple renamed again"} {
 		gotDecl.Name = taken
 		_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, gotDecl, nil, fleet.MDMAppleActivationKeep)
 		require.ErrorAs(t, err, &existsErr, taken)

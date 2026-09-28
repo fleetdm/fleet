@@ -2841,7 +2841,7 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	})
 	beforeRename, err := ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
-	// identical content, so only the rename can move uploaded_at
+	// identical content, and a rename alone isn't resent, so uploaded_at stays
 	renamed, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		ProfileUUID: initial.ProfileUUID,
 		Name:        "A Different Name",
@@ -2850,7 +2850,7 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, initial.ProfileUUID, renamed.ProfileUUID)
 	require.Equal(t, "A Different Name", renamed.Name)
-	require.True(t, renamed.UploadedAt.After(beforeRename.UploadedAt))
+	require.True(t, renamed.UploadedAt.Equal(beforeRename.UploadedAt))
 
 	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)

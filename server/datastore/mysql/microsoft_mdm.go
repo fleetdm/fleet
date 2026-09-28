@@ -3329,8 +3329,7 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				}
 			}
 
-			// A rename is a fresh upload even when the bytes are identical, so
-			// uploaded_at survives only a true no-op (as in the batch path).
+			// Only new contents count as a fresh upload; a rename isn't resent.
 			const setClause = `UPDATE mdm_windows_configuration_profiles
 SET syncml = ?, name = ?, description = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at)
 WHERE profile_uuid = ?`
@@ -3340,7 +3339,7 @@ WHERE profile_uuid = ?`
 			// rather than a preceding SELECT so check and write are atomic, as
 			// NewMDMWindowsConfigProfile does on insert.
 			stmt := setClause
-			args := []any{cp.SyncML, cp.Name, cp.Description, contentChanged || nameChanged, cp.ProfileUUID}
+			args := []any{cp.SyncML, cp.Name, cp.Description, contentChanged, cp.ProfileUUID}
 			if nameChanged {
 				stmt += `
 	AND NOT EXISTS (SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?)

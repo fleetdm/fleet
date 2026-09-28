@@ -29388,7 +29388,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMCommandCleanup() {
 
 func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -29573,5 +29573,24 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	// a name of only whitespace is rejected rather than derived
 	batch([]fleet.BatchModifyMDMConfigProfilePayload{
 		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "   "},
+	}, http.StatusUnprocessableEntity)
+
+	// display_name alone doesn't rename a .mobileconfig, but it still has to
+	// agree with name when both are given
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest("Payload Alias", "com.test.batch.alias"), DisplayName: "Ignored"},
+	}, http.StatusNoContent)
+	listed = list()
+	require.Len(t, listed, 1)
+	for _, p := range listed {
+		require.Equal(t, "Payload Alias", p.Name)
+	}
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest("Payload Alias", "com.test.batch.alias"), Name: "A", DisplayName: "B"},
+	}, http.StatusUnprocessableEntity)
+
+	// a PayloadDisplayName is held to the same length limit as a given name
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest(strings.Repeat("p", fleet.MaxProfileNameLength+1), "com.test.batch.long")},
 	}, http.StatusUnprocessableEntity)
 }

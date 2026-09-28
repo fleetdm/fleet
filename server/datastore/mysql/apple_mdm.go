@@ -356,15 +356,15 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 				return ctxerr.Wrap(ctx, err, "verifying payload scope on update")
 			}
 
-			// Preserve uploaded_at on a no-op edit (matching the batch upsert)
-			// so it doesn't read as a fresh upload; the IF sees the pre-update
+			// Preserve uploaded_at unless the contents change, as the batch
+			// upsert does: a rename isn't resent. The IF sees the pre-update
 			// values since SET evaluates left to right.
 			stmt := `
 UPDATE mdm_apple_configuration_profiles
-SET uploaded_at = IF(checksum = UNHEX(MD5(?)) AND name = ?, uploaded_at, CURRENT_TIMESTAMP()),
+SET uploaded_at = IF(checksum = UNHEX(MD5(?)), uploaded_at, CURRENT_TIMESTAMP()),
 	mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, description = ?, secrets_updated_at = ?
 WHERE profile_uuid = ? AND identifier = ?` + nameGuard
-			args := append([]any{cp.Mobileconfig, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.Description, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier}, nameGuardArgs...)
+			args := append([]any{cp.Mobileconfig, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.Description, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier}, nameGuardArgs...)
 			res, err := tx.ExecContext(ctx, stmt, args...)
 			if err != nil {
 				switch {
@@ -5266,7 +5266,7 @@ VALUES (
 	?,?,?,?,?,?,?,NOW(6),?
 )
 ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
+  uploaded_at = IF(raw_json = VALUES(raw_json) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   name = VALUES(name),
   description = VALUES(description),
@@ -5460,7 +5460,7 @@ ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
 	description = VALUES(description),
 	scope = VALUES(scope),
-	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
+	uploaded_at = IF(raw_json = VALUES(raw_json) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	name = VALUES(name),
 	raw_json = VALUES(raw_json)`
 
@@ -5523,15 +5523,6 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			}
 		}
 
-		var prevName string
-		err := sqlx.GetContext(ctx, tx, &prevName,
-			`SELECT name FROM mdm_apple_declarations WHERE identifier = ? AND team_id = ?`,
-			declaration.Identifier, tmID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return ctxerr.Wrap(ctx, err, "get existing apple mdm declaration name")
-		}
-		renamed := err == nil && prevName != declaration.Name
-
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.Description, declaration.RawJSON,
 			scope, declaration.SecretsUpdatedAt,
@@ -5558,17 +5549,6 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 		// declaration must use the reloaded UUID, not the one generated above.
 		if err := sqlx.GetContext(ctx, tx, &declUUID, reloadStmt, declaration.Identifier, tmID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
-		}
-
-		// The host rows carry a copy of the name; keep it current after a
-		// rename, as the batch path does. Only on a rename: the table has no
-		// index on declaration_uuid.
-		if renamed {
-			if _, err := tx.ExecContext(ctx,
-				`UPDATE host_mdm_apple_declarations SET declaration_name = ? WHERE declaration_uuid = ?`,
-				declaration.Name, declUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "update host declaration names")
-			}
 		}
 
 		if _, err := setMDMAppleDeclarationAssetReferencesDB(ctx, tx, declUUID, declaration.AssetReferenceUUIDs); err != nil {

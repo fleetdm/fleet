@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
@@ -2736,17 +2737,16 @@ func (svc *Service) BatchSetMDMProfiles(
 	// endpoint; both are accepted as long as they agree. Resolved here, after
 	// authz, so a conflict is a 4xx rather than an unauthorized early return.
 	for i := range profiles {
-		// display_name is documented as ignored for a .mobileconfig; only name
-		// renames one.
-		if profiles[i].DisplayName != "" && isMobileconfigContents(profiles[i].Contents) {
-			profiles[i].DisplayName = ""
-		}
 		if profiles[i].DisplayName != "" {
 			if profiles[i].Name != "" && profiles[i].Name != profiles[i].DisplayName {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("display_name",
 					`Couldn't edit configuration_profiles. "display_name" is deprecated, use "name" instead (both were provided with different values).`))
 			}
-			profiles[i].Name = profiles[i].DisplayName
+			// display_name is documented as ignored for a .mobileconfig; only
+			// name renames one.
+			if !isMobileconfigContents(profiles[i].Contents) {
+				profiles[i].Name = profiles[i].DisplayName
+			}
 			profiles[i].DisplayName = ""
 		}
 
@@ -3361,6 +3361,11 @@ func getAppleProfiles(
 		// rename a profile stored untrimmed. Limits were checked earlier.
 		if prof.Name != "" && prof.Name != strings.TrimSpace(mdmProf.Name) {
 			mdmProf.Name = prof.Name
+		}
+		// An explicit name was checked earlier; a PayloadDisplayName wasn't.
+		if utf8.RuneCountInString(mdmProf.Name) > fleet.MaxProfileNameLength {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(prof.Name,
+				"Couldn't edit configuration_profiles. "+fleet.MaxProfileNameLengthErrMsg+"."))
 		}
 
 		if _, ok := byName[mdmProf.Name]; ok {
