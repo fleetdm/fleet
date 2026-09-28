@@ -141,6 +141,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
+				'software_display_name', stdn.display_name,
 				'software_package', COALESCE(si.filename, ua.payload->>'$.installer_filename', ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
@@ -166,6 +167,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'software_install'
@@ -184,6 +191,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
+				'software_display_name', stdn.display_name,
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'self_service', COALESCE(ua.payload->'$.self_service', FALSE) IS TRUE,
@@ -208,6 +216,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			activity_type = 'software_uninstall'
@@ -226,6 +240,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
+				'software_display_name', stdn.display_name,
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
@@ -249,6 +264,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
 		LEFT OUTER JOIN
 			software_titles st ON st.id = vpa.title_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'vpp_app_install'
@@ -267,6 +286,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
+				'software_display_name', stdn.display_name,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
@@ -284,6 +304,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
 			software_titles st ON st.id = ihua.software_title_id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
+		LEFT OUTER JOIN
+			software_title_display_names stdn
+				ON stdn.software_title_id = st.id
+				AND stdn.team_id = COALESCE(h.team_id, 0)
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'in_house_app_install'

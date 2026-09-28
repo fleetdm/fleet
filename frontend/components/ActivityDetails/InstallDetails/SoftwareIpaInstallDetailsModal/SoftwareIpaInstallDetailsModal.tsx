@@ -77,7 +77,7 @@ export const getStatusMessage = ({
   fleetInitiated,
   selfService,
 }: IGetStatusMessageProps) => {
-  const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
+  const formattedHost = hostDisplayName ? <strong>{hostDisplayName}</strong> : "the host";
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
@@ -101,7 +101,7 @@ export const getStatusMessage = ({
   if (overrideFailureWithInstalled) {
     return (
       <>
-        <b>{appName}</b> is installed.
+        <strong>{appName}</strong> is installed.
       </>
     );
   }
@@ -112,7 +112,7 @@ export const getStatusMessage = ({
   if (displayStatus === "installed" && !commandUpdatedAt) {
     return (
       <>
-        <b>{appName}</b> is installed.
+        <strong>{appName}</strong> is installed.
       </>
     );
   }
@@ -121,7 +121,7 @@ export const getStatusMessage = ({
   if (isMDMStatusNotNow) {
     return (
       <>
-        Fleet tried to install <b>{appName}</b>
+        Fleet tried to install <strong>{appName}</strong>
         {!isMyDevicePage && (
           <>
             {" "}
@@ -138,9 +138,9 @@ export const getStatusMessage = ({
   if (isPendingInstall && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
+        The MDM command (request) to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
-        installation has not been verified. To re-check, select <b>Refetch</b>
+        installation has not been verified. To re-check, select <strong>Refetch</strong>
         {!isMyDevicePage && " for this host"}.
       </>
     );
@@ -161,7 +161,7 @@ export const getStatusMessage = ({
     }
     return (
       <>
-        <b>{actor}</b> failed to install <b>{appName}</b>
+        <strong>{actor}</strong> failed to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>}
         {displayTimestamp && <> {displayTimestamp}</>}.
       </>
@@ -172,7 +172,7 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
+        The MDM command (request) to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. Please re-attempt this installation.
       </>
@@ -183,7 +183,7 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install") {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
+        The MDM command (request) to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>} failed
         {displayTimestamp && <> {displayTimestamp}</>}. Please re-attempt this
         installation.
@@ -207,7 +207,7 @@ export const getStatusMessage = ({
   // Create predicate and subordinate for other statuses
   return (
     <>
-      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <b>{appName}</b>
+      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <strong>{appName}</strong>
       {renderSuffix()}.
     </>
   );

@@ -1763,18 +1763,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title: swTitle,
+      software_display_name,
+      platform: swPlatform,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(swTitle, software_display_name);
     return (
       <>
         {" "}
-        edited <b>{swTitle}</b>{" "}
+        edited <strong>{title}</strong>{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <strong>{activity.details?.team_name}</strong> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1783,18 +1787,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title: swTitle,
+      software_display_name,
+      platform: swPlatform,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(swTitle, software_display_name);
     return (
       <>
         {" "}
-        deleted <b>{swTitle}</b>{" "}
+        deleted <strong>{title}</strong>{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <strong>{activity.details?.team_name}</strong> fleet.
           </>
         ) : (
           `unassigned.`

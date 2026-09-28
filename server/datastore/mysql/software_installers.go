@@ -2295,6 +2295,7 @@ SELECT
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
 	COALESCE(st.name, hsi.software_title_name) AS software_title,
+	stdn.display_name AS software_display_name,
 	hsi.software_title_id,
 	hsi.software_installer_id,
 	si.storage_id AS hash_sha256,
@@ -2317,6 +2318,10 @@ FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN hosts h ON h.id = hsi.host_id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = hsi.software_title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND
@@ -2331,6 +2336,7 @@ SELECT
 	NULL AS install_script_output,
 	ua.host_id AS host_id,
 	COALESCE(st.name, ua.payload->>'$.software_title_name') AS software_title,
+	stdn.display_name AS software_display_name,
 	siua.software_title_id,
 	siua.software_installer_id,
 	si.storage_id AS hash_sha256,
@@ -2359,6 +2365,10 @@ FROM
 		ON siua.software_installer_id = si.id
 	LEFT JOIN policies p
 		ON siua.policy_id = p.id
+	LEFT JOIN hosts h ON h.id = ua.host_id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = siua.software_title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 WHERE
 	ua.execution_id = :execution_id AND
 	ua.activity_type = 'software_install' AND

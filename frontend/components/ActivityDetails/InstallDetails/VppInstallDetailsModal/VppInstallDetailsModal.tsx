@@ -89,7 +89,7 @@ export const getStatusMessage = ({
   fleetInitiated,
   selfService,
 }: IGetStatusMessageProps) => {
-  const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
+  const formattedHost = hostDisplayName ? <strong>{hostDisplayName}</strong> : "the host";
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
@@ -114,7 +114,7 @@ export const getStatusMessage = ({
   if (overrideFailureWithInstalled) {
     return (
       <>
-        <b>{appName}</b> is installed.
+        <strong>{appName}</strong> is installed.
       </>
     );
   }
@@ -124,7 +124,7 @@ export const getStatusMessage = ({
   if (displayStatus === "installed" && !commandUpdatedAt) {
     return (
       <>
-        <b>{appName}</b> is installed.
+        <strong>{appName}</strong> is installed.
       </>
     );
   }
@@ -133,7 +133,7 @@ export const getStatusMessage = ({
   if (isMDMStatusNotNow) {
     return (
       <>
-        Fleet tried to install <b>{appName}</b>
+        Fleet tried to install <strong>{appName}</strong>
         {!isMyDevicePage && (
           <>
             {" "}
@@ -150,9 +150,9 @@ export const getStatusMessage = ({
   if (isPendingInstall && isMDMStatusAcknowledged) {
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
+        The MDM command (request) to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
-        installation has not been verified. To re-check, select <b>Refetch</b>
+        installation has not been verified. To re-check, select <strong>Refetch</strong>
         {!isMyDevicePage && " for this host"}.
       </>
     );
@@ -174,7 +174,7 @@ export const getStatusMessage = ({
     }
     return (
       <>
-        <b>{actor}</b> failed to install <b>{appName}</b>
+        <strong>{actor}</strong> failed to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>}
         {displayTimestamp && <> {displayTimestamp}</>}.
       </>
@@ -187,7 +187,7 @@ export const getStatusMessage = ({
       return (
         <>
           <div>
-            The host acknowledged the MDM command to install <b>{appName}</b>
+            The host acknowledged the MDM command to install <strong>{appName}</strong>
             {!isMyDevicePage && <> on {formattedHost}</>}, but the install took
             longer than {formattedVerifyTimeout}, so Fleet marked it as failed.
           </div>
@@ -212,7 +212,7 @@ export const getStatusMessage = ({
     // platform value safely.
     return (
       <>
-        The MDM command (request) to install <b>{appName}</b>
+        The MDM command (request) to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. Please re-attempt this installation.
       </>
@@ -223,7 +223,7 @@ export const getStatusMessage = ({
   if (displayStatus === "failed_install" && isAppleDevice(platform)) {
     return (
       <>
-        The MDM command to install <b>{appName}</b>
+        The MDM command to install <strong>{appName}</strong>
         {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try again.
       </>
     );
@@ -233,15 +233,15 @@ export const getStatusMessage = ({
     if (isMyDevicePage) {
       return (
         <>
-          Fleet failed to install <b>{appName}</b>
+          Fleet failed to install <strong>{appName}</strong>
           {displayTimestamp && <> {displayTimestamp}</>}. Retry via the Google
-          Play Store in your work profile, or select <b>Retry</b> below.
+          Play Store in your work profile, or select <strong>Retry</strong> below.
         </>
       );
     }
     return (
       <>
-        Fleet failed to install <b>{appName}</b> on {formattedHost}
+        Fleet failed to install <strong>{appName}</strong> on {formattedHost}
         {displayTimestamp && <> {displayTimestamp}</>}. The end user can retry
         via the Google Play Store in their work profile.
       </>
@@ -264,7 +264,7 @@ export const getStatusMessage = ({
   // Create predicate and subordinate for other statuses
   return (
     <>
-      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <b>{appName}</b>
+      Fleet {getInstallDetailsStatusPredicate(displayStatus)} <strong>{appName}</strong>
       {renderSuffix()}.
     </>
   );
