@@ -145,7 +145,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Windows device onboarding (Autopilot)
 - Windows setup experience
 - Certificate Authorities (CAs)
-- Certificate delivery & renewal
+- Certificate delivery & renewal (Apple delivery stays with Apple @ Work)
 - Windows configuration profiles
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
