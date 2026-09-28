@@ -107,8 +107,8 @@ const TEST_CASES = [
     profileType: 'csp',
     instructions: 'Show "Authorized users only" as a message on the sign-in screen.',
     expect: {
-      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn', 'Authorized users only'],
-      mustContainElement: [['Format', 'chr']]
+      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn'],
+      mustContainElement: [['Format', 'chr'], ['Data', 'Authorized users only']]
     }
   },
   {
@@ -149,6 +149,58 @@ const TEST_CASES = [
       mustContain: ['/Vendor/MSFT/Policy/Config/WindowsAI/DisableAIDataAnalysis'],
       mustContainElement: [['Format', 'int'], ['Data', '1']],
       mustNotContainElement: [['Data', '0'], ['Format', 'bool'], ['Format', 'chr']],
+    }
+  },
+  {
+    id: 'csp-disable-guest-account',
+    profileType: 'csp',
+    instructions: 'Disable the built-in Guest account.',
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus'],
+      mustContainElement: [['Format', 'int'], ['Data', '0']],
+      mustNotContainElement: [['Data', '1'], ['Format', 'bool']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-disable-onedrive',
+    profileType: 'csp',
+    instructions: 'Prevent OneDrive from syncing files.',
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync'],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Data', '0'], ['Format', 'bool']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-machine-inactivity-limit',
+    profileType: 'csp',
+    instructions: 'Set the interactive logon machine inactivity limit to 15 minutes.',
+    // The node takes seconds, so 15 minutes is 900.  A model that copies the number from the
+    // instructions writes <Data>15</Data>.
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit'],
+      mustContainElement: [['Format', 'int'], ['Data', '900']],
+      mustNotContainElement: [['Data', '15']],
+      mustNotContain: ['<SyncML', '<?xml'],
+    }
+  },
+  {
+    id: 'csp-defender-protections',
+    profileType: 'csp',
+    instructions: 'Turn on Microsoft Defender real-time protection, cloud-delivered protection, behavior monitoring, and script scanning, and send safe samples automatically.',
+    // SubmitSamplesConsent is an enum, not a toggle: 1 is "send safe samples", 2 is "never send", 3 is
+    // "send all".
+    readByEye: 'Five Items, one per node, each with <Data>1</Data>.',
+    expect: {
+      mustContain: [
+        'Defender/AllowRealtimeMonitoring', 'Defender/AllowCloudProtection', 'Defender/AllowBehaviorMonitoring',
+        'Defender/AllowScriptScanning', 'Defender/SubmitSamplesConsent'
+      ],
+      mustContainElement: [['Format', 'int'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '0'], ['Data', '2'], ['Data', '3']],
+      mustNotContain: ['<SyncML', '<?xml'],
     }
   },
 
@@ -196,7 +248,8 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Show "Authorized use only" on the login window.',
     expect: {
-      mustContain: ['LoginwindowText', 'Authorized use only']
+      mustContain: ['<key>LoginwindowText</key><string>Authorized use only</string>'],
+      mustContainElement: [['string', 'Authorized use only']]
     }
   },
   {
@@ -204,7 +257,8 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Show the "Flurry" screensaver after 10 minutes of inactivity and require a password immediately.',
     expect: {
-      mustContain: ['idleTime', 'askForPassword', 'moduleName', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
+      mustContain: ['<key>moduleName</key><string>Flurry</string>', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
+      mustContainElement: [['string', 'Flurry']]
     }
   },
   {
@@ -236,12 +290,11 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-dock-lowercase-keys',
     profileType: 'mobileconfig',
-    instructions: 'Set the Dock to auto-hide and pin it to the left side of the screen.',
+    instructions: 'Lock the Dock to the left side of the screen and set it to auto-hide.',
     // All-lowercase keys -- fails if the model PascalCases.
     expect: {
-      mustContain: ['com.apple.dock'],
-      mustContainElement: [['key', 'autohide'], ['key', 'orientation']],
-      mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation']]
+      mustContain: ['com.apple.dock', '<key>orientation</key><string>left</string>', '<key>autohide</key><true/>', '<key>position-immutable</key><true/>'],
+      mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation'], ['key', 'position']]
     }
   },
   {
@@ -264,6 +317,81 @@ const TEST_CASES = [
       mustContain: ['com.apple.applicationaccess', '<key>allowBookstore</key><true/>'],
       mustNotContain: ['allowBookstoreErotica', '<false/>'],
       mustNotContainElement: [['key', 'AllowBookstore'], ['string', 'true']]
+    }
+  },
+  {
+    id: 'mobileconfig-disable-guest-account',
+    profileType: 'mobileconfig',
+    instructions: 'Disable the guest account on the Mac.',
+    // com.apple.MCX has both EnableGuestAccount and DisableGuestAccount, so the pair pins the
+    // key to its value rather than accepting either spelling of "off".
+    expect: {
+      mustContain: ['com.apple.MCX', '<key>DisableGuestAccount</key><true/>'],
+      mustNotContain: ['<key>EnableGuestAccount</key><true/>'],
+      mustNotContainElement: [['string', 'true']]
+    }
+  },
+  {
+    id: 'mobileconfig-gatekeeper',
+    profileType: 'mobileconfig',
+    instructions: 'Turn on Gatekeeper and allow apps from the App Store and identified developers.',
+    expect: {
+      mustContain: ['com.apple.systempolicy.control', '<key>EnableAssessment</key><true/>', '<key>AllowIdentifiedDevelopers</key><true/>']
+    }
+  },
+  {
+    id: 'mobileconfig-limit-ad-tracking',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off personalized ads and limit ad tracking.',
+    // Two keys with opposite polarity in one payload: allow* false, force* true.  Apple documents both in
+    // Restrictions; the it-and-security profile uses com.apple.AdLib, a preference domain with no manifest.
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>allowApplePersonalizedAdvertising</key><false/>', '<key>forceLimitAdTracking</key><true/>']
+    }
+  },
+  {
+    id: 'mobileconfig-disable-content-caching',
+    profileType: 'mobileconfig',
+    instructions: 'Disable content caching.',
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>allowContentCaching</key><false/>'],
+      mustNotContainElement: [['key', 'AllowContentCaching']]
+    }
+  },
+  {
+    id: 'mobileconfig-automatic-date-time',
+    profileType: 'mobileconfig',
+    instructions: 'Force the date and time to be set automatically.',
+    expect: {
+      mustContain: ['com.apple.applicationaccess', '<key>forceAutomaticDateAndTime</key><true/>']
+    }
+  },
+  {
+    id: 'mobileconfig-app-store-auto-updates',
+    profileType: 'mobileconfig',
+    instructions: 'Automatically install App Store app updates.',
+    expect: {
+      mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallAppUpdates</key><true/>'],
+      mustNotContain: ['AutomaticallyInstallMacOSUpdates']
+    }
+  },
+  {
+    id: 'mobileconfig-screen-lock-grace-period',
+    profileType: 'mobileconfig',
+    instructions: 'Start the screen saver after 15 minutes of inactivity and require a password within one minute after it starts.',
+    // Both values are seconds; copying the numbers from the instructions gives 15 and 1.
+    expect: {
+      mustContain: ['com.apple.screensaver', '<key>idleTime</key><integer>900</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>60</integer>']
+    }
+  },
+  {
+    id: 'mobileconfig-lock-screen-message',
+    profileType: 'mobileconfig',
+    instructions: 'Show "This device is property of Fleet Device Management Inc." on the lock screen of iPhones and iPads.',
+    expect: {
+      mustContain: ['com.apple.shareddeviceconfiguration', '<key>LockScreenFootnote</key><string>This device is property of Fleet Device Management Inc.</string>'],
+      mustContainElement: [['string', 'This device is property of Fleet Device Management Inc.']],
+      mustNotContainElement: [['key', 'IfLostReturnToMessage']]
     }
   },
 
@@ -362,6 +490,50 @@ const TEST_CASES = [
     instructions: 'Install a mobileconfig profile hosted at https://www.example.com/profiles/passcode.mobileconfig',
     expect: {
       mustContain: ['configuration.legacy', '"ProfileURL":"https://www.example.com/profiles/passcode.mobileconfig"'],
+    }
+  },
+  {
+    id: 'ddm-external-storage-read-only',
+    profileType: 'ddm',
+    instructions: 'Make external storage read-only.',
+    expect: {
+      mustContain: ['com.apple.configuration.diskmanagement.settings', '"Restrictions"', '"ExternalStorage":"ReadOnly"'],
+      mustNotContain: ['"Disallowed"', 'NetworkStorage']
+    }
+  },
+  {
+    id: 'ddm-passcode-complex-inactivity',
+    profileType: 'ddm',
+    instructions: 'Require a complex passcode of at least 6 characters and lock the device after 5 minutes of inactivity.',
+    expect: {
+      mustContain: ['com.apple.configuration.passcode.settings', '"RequireComplexPasscode":true', '"MinimumLength":6', '"MaximumInactivityInMinutes":5'],
+      mustNotContain: ['forcePIN', 'minLength', 'maxInactivity']
+    }
+  },
+  {
+    id: 'ddm-passcode-grace-period',
+    profileType: 'ddm',
+    instructions: 'Require an alphanumeric passcode of at least 10 characters with at least 1 special character, allow a 1-minute grace period before the passcode is required, and lock the screen after 15 minutes of inactivity.',
+    // MaximumInactivityInMinutes tops out at 15 on macOS, so 15 is the edge of the range and must
+    // not be clamped.
+    expect: {
+      mustContain: [
+        'com.apple.configuration.passcode.settings', '"RequireAlphanumericPasscode":true', '"MinimumLength":10',
+        '"MinimumComplexCharacters":1', '"MaximumGracePeriodInMinutes":1', '"MaximumInactivityInMinutes":15'
+      ]
+    }
+  },
+  {
+    id: 'ddm-rapid-security-response',
+    profileType: 'ddm',
+    instructions: 'Automatically download updates, always install security updates, let users choose when to install OS updates, and turn on Rapid Security Responses.',
+    // The sub-key is "Enable", not "Enabled" -- the latter is an easy slip and is silently ignored.
+    expect: {
+      mustContain: [
+        'softwareupdate.settings', '"Download":"AlwaysOn"', '"InstallSecurityUpdate":"AlwaysOn"',
+        '"InstallOSUpdates":"Allowed"', '"RapidSecurityResponse"', '"Enable":true'
+      ],
+      mustNotContain: ['"Enabled"', '"InstallOSUpdates":"AlwaysOn"']
     }
   },
 
