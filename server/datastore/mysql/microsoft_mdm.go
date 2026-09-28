@@ -3406,7 +3406,8 @@ WHERE profile_uuid = ?`
 			}
 		} else {
 			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at. The row is known to exist from the SELECT above.
+			// touching uploaded_at. Zero affected rows only means it was unchanged:
+			// the SELECT above already confirmed the profile exists.
 			if _, err := tx.ExecContext(ctx,
 				`UPDATE mdm_windows_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
 				cp.Description, cp.ProfileUUID); err != nil {
