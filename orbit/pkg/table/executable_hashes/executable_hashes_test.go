@@ -537,7 +537,7 @@ func TestGenerateSkipsUnreadableFile(t *testing.T) {
 	require.Equal(t, sha256Hex(content), rows[0][colExecHash])
 	require.Equal(t, hashStateHashed, rows[0][colHashState])
 
-	require.NoError(t, os.Chmod(unreadablePath, 0o644))
+	require.NoError(t, os.Chmod(unreadablePath, 0o600))
 	nextRun(t)
 	require.Len(t, generateLike(t, filepath.Join(dir, "%")), 2)
 }

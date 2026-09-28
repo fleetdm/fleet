@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260925182345, Down_20260925182345)
+	MigrationClient.AddMigration(Up_20260928151511, Down_20260928151511)
 }
 
-func Up_20260925182345(tx *sql.Tx) error {
+func Up_20260928151511(tx *sql.Tx) error {
 	for _, table := range []string{
 		"mdm_apple_configuration_profiles",
 		"mdm_apple_declarations",
@@ -29,6 +29,6 @@ func Up_20260925182345(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260925182345(tx *sql.Tx) error {
+func Down_20260928151511(tx *sql.Tx) error {
 	return nil
 }
