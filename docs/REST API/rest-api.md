@@ -1705,6 +1705,8 @@ Returns all information about the Fleet's configuration.
 
 The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin and GitOps users with global access (see the [Role-based access guide](https://fleetdm.com/guides/role-based-access)).
 
+`auth` is read-only. `auth.mdm_apple_one_time_enroll_secrets` reports the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration and is only returned when that setting is enabled.
+
 `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` only include the settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list the settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
 
 `GET /api/v1/fleet/config`
@@ -2064,7 +2066,10 @@ None.
     "periodicity": 3600000000000,
     "recent_vulnerability_max_age": 2592000000000000
   },
-  "max_software_package_size": 10737418240
+  "max_software_package_size": 10737418240,
+  "auth": {
+    "mdm_apple_one_time_enroll_secrets": true
+  }
 }
 ```
 
@@ -4944,7 +4949,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 > Note: 
-> - `signature_information` is only set for macOS (.app) applications. 
+> - `signature_information` is set for macOS apps (`source: apps`) and Homebrew formulae (`source: homebrew_packages`). Apps get one entry per bundle. Homebrew formulae get one entry per Mach-O executable in the formula's `bin` and `sbin` directories, with `executable_path` and `executable_sha256`. For those entries, `team_identifier` is empty and `hash_sha256` is `null`. Homebrew hashes require fleetd 1.63.0.
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
@@ -6585,7 +6590,11 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+`signature_information` is returned for macOS software from the `apps` and `homebrew_packages` sources.
+
+For `apps`, `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign) of the bundle.
+
+For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the formula's `bin` and `sbin` directories. Each entry has the executable's `executable_path` and its `executable_sha256`. `team_identifier` is empty and `hash_sha256` is `null`. Scripts and helpers under `libexec` aren't hashed, so a formula that installs only scripts, such as a Python or Ruby based tool, has one entry with no hashes. A formula's `installed_paths` lists its Cellar directory once, even when it has several entries. Homebrew hashes require fleetd 1.63.0.
 
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
@@ -6669,6 +6678,44 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         ]
       },
       "app_store_app": null
+    },
+    {
+      "id": 1042,
+      "name": "git",
+      "icon_url": null,
+      "source": "homebrew_packages",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "2.46.0",
+          "bundle_identifier": "",
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/opt/homebrew/Cellar/git"
+          ],
+          "signature_information": [
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git"
+            },
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell"
+            }
+          ],
+          "last_opened_at": ""
+        }
+      ],
+      "display_name": "",
+      "software_package": null,
+      "app_store_app": null
     }
   ],
   "meta": {
@@ -6703,7 +6750,11 @@ On macOS hosts, `last_opened_at` is supported for software from the `apps` sourc
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
-Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+`signature_information` is returned for macOS software from the `apps` and `homebrew_packages` sources.
+
+For `apps`, `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign) of the bundle.
+
+For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the formula's `bin` and `sbin` directories. Each entry has the executable's `executable_path` and its `executable_sha256`. `team_identifier` is empty and `hash_sha256` is `null`. Scripts and helpers under `libexec` aren't hashed, so a formula that installs only scripts, such as a Python or Ruby based tool, has one entry with no hashes. A formula's `installed_paths` lists its Cellar directory once, even when it has several entries. Homebrew hashes require fleetd 1.63.0.
 
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
@@ -6786,6 +6837,44 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
           "Browsers"
         ]
       },
+      "app_store_app": null
+    },
+    {
+      "id": 1042,
+      "name": "git",
+      "icon_url": null,
+      "source": "homebrew_packages",
+      "extension_for": "",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "2.46.0",
+          "bundle_identifier": "",
+          "vulnerabilities": null,
+          "installed_paths": [
+            "/opt/homebrew/Cellar/git"
+          ],
+          "signature_information": [
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git"
+            },
+            {
+              "installed_path": "/opt/homebrew/Cellar/git",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": "fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9",
+              "executable_path": "/opt/homebrew/Cellar/git/2.46.0/bin/git-shell"
+            }
+          ],
+          "last_opened_at": ""
+        }
+      ],
+      "display_name": "",
+      "software_package": null,
       "app_store_app": null
     }
   ],
@@ -11923,7 +12012,6 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
-| notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | hidden | boolean | body | _Available in Fleet Premium_. Whether to hide this policy from the **Policies** page in Fleet Desktop. Only one of `hidden` and `conditional_access_enabled` can be `true`. |
@@ -11938,7 +12026,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
-> `patch_when_closed` and `notify_before_patching` are only supported for patch policies tied to a Fleet-maintained app (`patch_software_title_id` refers to a title added via [Add Fleet-maintained app](#add-fleet-maintained-app)). Enabling these options overrides any `pre_install_query` previously set on that software title — see [Update package](#update-package). When this is enabled, Fleet won't retry software install when pre-install condition fails.
+> `patch_when_closed` is only supported for patch policies tied to a Fleet-maintained app (`patch_software_title_id` refers to a title added via [Add Fleet-maintained app](#add-fleet-maintained-app)). Enabling it overrides any `pre_install_query` previously set on that software title — see [Update package](#update-package). When this is enabled, Fleet won't retry software install when pre-install condition fails.
 
 Either `query` or `query_id` must be provided.
 
@@ -12174,7 +12262,6 @@ _Available in Fleet Premium_
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`). If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
-| notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
@@ -12184,7 +12271,7 @@ Either `query` or `query_id` must be provided.
 
 Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
-Setting `patch_when_closed` or `notify_before_patching` to `false` after it was `true` removes the read-only pre-install condition Fleet added. `pre_install_query` becomes editable again on the software title.
+Setting `patch_when_closed` to `false` after it was `true` removes the read-only pre-install condition Fleet added; `pre_install_query` becomes editable again on the software title.
 
 #### Example
 
@@ -15204,7 +15291,6 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | automatic_install | boolean | body | Enables or disables "Force install": a policy that triggers a software install only on hosts missing the software (doesn't check version). Set to `false` to remove the policy. |
 | patch | boolean | body | _Available for Fleet-maintained apps only._ Enables or disables "Patch": a policy that triggers a software install when the installed version is outdated. Set to `false` to remove the policy (and its managed `pre_install_query`, if `patch_when_closed` was enabled). |
 | patch_when_closed | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
-| notify_before_patching | boolean | body |_Available for Fleet-maintained apps only. Only applies when `patch` is `true`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
 | version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
 
 > `patch` and `patch_when_closed` are only available for Fleet-maintained apps.
@@ -15706,7 +15792,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
-To keep this app patched to the latest version, create a [patch policy](#create-fleet-level-policy) with `patch_software_title_id` set to the `software_title_id` returned below. `automatic_install` and a patch policy can both be added for the same app.
+To keep this app patched to the latest version ("Patch"), create a [patch policy](#create-fleet-level-policy) with `patch_software_title_id` set to the `software_title_id` returned below. `automatic_install` and a patch policy can both be added for the same app.
 
 #### Example
 
@@ -15886,7 +15972,7 @@ To get the results of an Apple App Store app install, use the [List MDM commands
 | ----            | ------- | ---- | --------------------------------------------     |
 | install_uuid | string | path | **Required**. The software installation UUID.|
 
-When an install attempt was skipped because a patch policy has `patch_when_closed` or `notify_before_patching` enabled, and the app was open, `status` will be `failed_install`, and `pre_install_query_output` will be `"The app was open\nInstall stopped"` or `"The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch is forced."`. In this case, Fleet will try again on the next policy run.
+When install attempt was skipped because a patch policy has `patch_when_closed` enabled (the app was open). `status` will be `failed_install`, and `pre_install_query_output` will be `"The app was open\nInstall stopped"`. Fleet won't retry when 3 times in this case. It will try again on the next policy run.
 
 #### Example
 
@@ -15925,6 +16011,7 @@ Deletes software that's available for install. This won't uninstall the software
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
+| installer_id | integer | query | Deletes only the specified package. If omitted, all of the title's packages on the fleet are deleted. |
 
 #### Example
 

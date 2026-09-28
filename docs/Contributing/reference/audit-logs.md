@@ -688,6 +688,36 @@ This activity contains the following fields:
 }
 ```
 
+## host_enrollment_rejected
+
+Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+
+This activity contains the following fields:
+- "host_id": ID of the host the attempt targeted, or null if the host is unknown.
+- "host_display_name": Display name of the host, if known.
+- "host_serial": Serial number the enrolling device presented.
+- "host_uuid": Hardware UUID the enrolling device presented.
+- "platform": Platform the enrolling device presented.
+- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "reason": Why the attempt was refused. One of:
+  - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile to issue a new one.
+  - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
+  - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_serial": "C02ABC123DEF",
+	"host_uuid": "5F0F24C3-1F58-4C2B-9E7B-1F0E6C2B4D6A",
+	"platform": "darwin",
+	"enrollment_plane": "orbit",
+	"reason": "one_time_secret_spent"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
@@ -1781,37 +1811,6 @@ This activity contains the following fields:
   "self_service_category_id": 12,
   "self_service_category_name": "🌎 Browsers",
   "software_titles_count": 3
-}
-```
-
-## notified_end_user_before_patching
-
-Generated when Fleet shows an end user a notification before patching.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
-- "status": Whether notification is displayed or failed.
-- "software_titles": Names of the software titles included in the notification.
-- "policy_ids": IDs of the patch policies included in the notification.
-- "time_before": Either 1 hour or 5 minutes before patch is forced.
-- "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
-- "script_execution_id": Execution ID of the script run that displayed the notification to the end user.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
-  "software_titles": ["1Password", "Slack"],
-  "status": "success",
-  "policy_ids": [1337, 1338],
-  "time_before": 3600,
-  "install_at": "2026-08-06T14:00:00Z",
-  "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be"
 }
 ```
 
