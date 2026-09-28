@@ -295,10 +295,8 @@ const FleetMaintainedAppDetailsPage = ({
 
   return (
     <SidePanelPage>
-      <>
-        <MainContent className={baseClass}>
-          <>{renderContent()}</>
-        </MainContent>
+      <MainContent className={baseClass}>
+        <>{renderContent()}</>
         {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
         {showAppDetailsModal && fleetApp && (
           <FleetAppDetailsModal
@@ -310,7 +308,7 @@ const FleetMaintainedAppDetailsPage = ({
             onCancel={() => setShowAppDetailsModal(false)}
           />
         )}
-      </>
+      </MainContent>
     </SidePanelPage>
   );
 };
