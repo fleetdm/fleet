@@ -2,6 +2,7 @@ package android
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"google.golang.org/api/androidmanagement/v1"
@@ -115,8 +116,7 @@ type EnrollmentTokenResponse struct {
 }
 
 type ZeroTouchConfigurationResponse struct {
-	DPCExtras string `json:"dpc_extras"`
-	ExpiresAt string `json:"expires_at"`
-	Warning   string `json:"warning,omitempty"`
+	DPCExtras json.RawMessage `json:"dpc_extras"`
+	Warning   string          `json:"warning,omitempty"`
 	DefaultResponse
 }

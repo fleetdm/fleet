@@ -58,6 +58,7 @@ func TestScripts(t *testing.T) {
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
 		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
+		{"CleanupHostScriptResults", testCleanupHostScriptResults},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3444,4 +3445,132 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 	upcomingForHost3, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, upcomingForHost3, 2)
+}
+
+func testCleanupHostScriptResults(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	recent := now.Add(-2 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	host := test.NewHost(t, ds, "script-retention", "10.0.0.1", "srkey", uuid.NewString(), now)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "retention.sh", ScriptContents: "echo retention"})
+	require.NoError(t, err)
+
+	// The insert paths stamp both with NOW() and the sweep bounds both.
+	// updatedAt is when the host reported, so never older than createdAt.
+	seedAt := func(createdAt, updatedAt time.Time, exitCode *int, canceled bool) string {
+		execID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_script_results (host_id, execution_id, output, exit_code, canceled, created_at, updated_at)
+				VALUES (?, ?, '', ?, ?, ?, ?)`, host.ID, execID, exitCode, canceled, createdAt, updatedAt)
+			return err
+		})
+		return execID
+	}
+	seed := func(createdAt time.Time, exitCode *int, canceled bool) string {
+		return seedAt(createdAt, createdAt, exitCode, canceled)
+	}
+	exists := func(execID string) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM host_script_results WHERE execution_id = ?`, execID)
+		})
+		return n == 1
+	}
+	exec := func(stmt string, args ...any) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	oldDone := seed(old, new(0), false)
+	oldCanceled := seed(old, nil, true)
+	recentDone := seed(recent, new(0), false)
+	oldPending := seed(old, nil, false)
+	// Handed to the host before the cutoff, answered after it.
+	lateReport := seedAt(old, recent, new(0), false)
+	lockRef := seed(old, new(0), false)
+	unlockRef := seed(old, new(0), false)
+	wipeRef := seed(old, new(0), false)
+	setupRef := seed(old, new(0), false)
+	uninstallRef := seed(old, new(0), false)
+	batchRef := seed(old, new(0), false)
+
+	exec(`INSERT INTO host_mdm_actions (host_id, lock_ref, unlock_ref, wipe_ref) VALUES (?, ?, ?, ?)`,
+		host.ID, lockRef, unlockRef, wipeRef)
+	exec(`INSERT INTO setup_experience_status_results (host_uuid, name, status, script_execution_id) VALUES (?, ?, 'success', ?)`,
+		host.UUID, script.Name, setupRef)
+	exec(`INSERT INTO host_software_installs (host_id, execution_id, uninstall) VALUES (?, ?, 1)`, host.ID, uninstallRef)
+	batchExecID := uuid.NewString()
+	exec(`INSERT INTO batch_activities (script_id, execution_id) VALUES (?, ?)`, script.ID, batchExecID)
+	exec(`INSERT INTO batch_activity_host_results (batch_execution_id, host_id, host_execution_id) VALUES (?, ?, ?)`,
+		batchExecID, host.ID, batchRef)
+
+	deleted, err := ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted, "oldDone and oldCanceled")
+
+	assert.False(t, exists(oldDone))
+	assert.False(t, exists(oldCanceled))
+	assert.True(t, exists(recentDone))
+	assert.True(t, exists(oldPending))
+	assert.True(t, exists(lateReport))
+	assert.True(t, exists(lockRef))
+	assert.True(t, exists(unlockRef))
+	assert.True(t, exists(wipeRef))
+	assert.True(t, exists(setupRef))
+	assert.True(t, exists(uninstallRef))
+	assert.True(t, exists(batchRef))
+
+	// A second pass finds nothing.
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+
+	// The cap stops a run partway and the next one drains the rest.
+	stale := make([]string, 0, 3)
+	for range 3 {
+		stale = append(stale, seed(old, new(0), false))
+	}
+	deleted, err = cleanupHostScriptResultsDB(ctx, ds, cutoff, 1, 1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+
+	deleted, err = cleanupHostScriptResultsDB(ctx, ds, cutoff, 1, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted)
+	for _, execID := range stale {
+		assert.False(t, exists(execID))
+	}
+
+	// A row referenced between select and delete is saved by the re-check on
+	// the primary.
+	raced := seed(old, new(0), false)
+	var racedID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &racedID, `SELECT id FROM host_script_results WHERE execution_id = ?`, raced)
+	})
+	lateBatchExecID := uuid.NewString()
+	exec(`INSERT INTO batch_activities (script_id, execution_id) VALUES (?, ?)`, script.ID, lateBatchExecID)
+	exec(`INSERT INTO batch_activity_host_results (batch_execution_id, host_id, host_execution_id) VALUES (?, ?, ?)`,
+		lateBatchExecID, host.ID, raced)
+
+	n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), []uint{racedID}, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.True(t, exists(raced))
+
+	// Deleting a host soft-deletes its results, and that write refreshes
+	// updated_at, so they outlive the window by one retention period.
+	deletedHost := seed(old, new(0), false)
+	exec(`UPDATE host_script_results SET host_deleted_at = NOW() WHERE execution_id = ?`, deletedHost)
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+	assert.True(t, exists(deletedHost))
 }
