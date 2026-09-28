@@ -64,6 +64,7 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
 export const MDM_ENROLLMENT_STATUSES = [
   "On (manual)",
   "On (automatic)",
+  "On (personal)",
   "On (manual - personal)",
   "On (company-owned)",
   "Off",
@@ -101,6 +102,10 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     // "On (automatic)" for backwards compatibility.
     displayName: "On (company-owned)",
     filterValue: "automatic",
+  },
+  "On (personal)": {
+    displayName: "On (personal)",
+    filterValue: "personal",
   },
   "On (manual - personal)": {
     displayName: "On (manual - personal)",

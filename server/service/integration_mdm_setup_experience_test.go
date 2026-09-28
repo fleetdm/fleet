@@ -5442,7 +5442,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 		if h.UUID == mdmDevice.EnrollmentID() {
 			enrolledHostID = h.ID
 			require.NotNil(t, h.MDM.EnrollmentStatus)
-			require.Equal(t, "On (manual - personal)", *h.MDM.EnrollmentStatus)
+			require.Equal(t, fleet.MDMEnrollmentStatusPersonal, *h.MDM.EnrollmentStatus)
 			break
 		}
 	}
