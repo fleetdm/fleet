@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260925090542, Down_20260925090542)
+	MigrationClient.AddMigration(Up_20260928054420, Down_20260928054420)
 }
 
-func Up_20260925090542(tx *sql.Tx) error {
+func Up_20260928054420(tx *sql.Tx) error {
 	if !columnExists(tx, "host_mdm", "personal_enrollment_type") {
 		if _, err := tx.Exec(`
 ALTER TABLE host_mdm
@@ -103,6 +103,6 @@ WHERE hm.is_personal_enrollment = 1
 	return nil
 }
 
-func Down_20260925090542(tx *sql.Tx) error {
+func Down_20260928054420(tx *sql.Tx) error {
 	return nil
 }
