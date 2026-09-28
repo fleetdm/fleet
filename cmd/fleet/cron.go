@@ -1559,6 +1559,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
 			return ds.CleanupWindowsMDMCommandQueue(ctx)
 		}),
+		schedule.WithJob("cleanup_host_script_results", func(ctx context.Context) error {
+			return cleanupHostScriptResultsCronJob(ctx, ds, logger, config.Server.ScriptResultsRetention)
+		}),
 		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
 			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
 			// version installed, so the content survives exactly as long as some host could still need its <Delete>.
@@ -1624,6 +1627,25 @@ func newCleanupsAndAggregationSchedule(
 	)
 
 	return s, nil
+}
+
+// cleanupHostScriptResultsCronJob is disabled by a non-positive retention, the
+// documented off switch for server.script_results_retention.
+func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostScriptResults(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host script results failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
+	}
+	return nil
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart
