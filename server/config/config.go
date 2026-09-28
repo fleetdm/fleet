@@ -143,6 +143,8 @@ type ServerConfig struct {
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
 	VPPInstallReapTimeout            time.Duration `yaml:"vpp_install_reap_timeout"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
+	ScriptResultsRetention           time.Duration `yaml:"script_results_retention"`
+	SoftwareInstallResultsRetention  time.Duration `yaml:"software_install_results_retention"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
@@ -250,7 +252,6 @@ type AuthConfig struct {
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
-	UseOneTimeEnrollSecrets     bool          `yaml:"use_one_time_enroll_secrets"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1138,6 +1139,11 @@ type MDMConfig struct {
 	// all Orbit enrollments on every platform.
 	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
 
+	// AppleOneTimeEnrollSecrets delivers one-time, device-scoped enroll secrets
+	// to macOS MDM hosts in the fleetd configuration profile and rejects shared
+	// enroll secrets for hosts enrolled in Fleet MDM or assigned in ABM.
+	AppleOneTimeEnrollSecrets bool `yaml:"apple_one_time_enroll_secrets"`
+
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
@@ -1681,6 +1687,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
 		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
+	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
+	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
@@ -1706,8 +1714,6 @@ func (man Manager) addConfigs() {
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
-	man.addConfigBool("auth.use_one_time_enroll_secrets", false,
-		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -2106,6 +2112,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
+	man.addConfigBool("mdm.apple_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2250,6 +2258,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 			VPPInstallReapTimeout:            man.getConfigDuration("server.vpp_install_reap_timeout"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
+			ScriptResultsRetention:           man.getConfigDuration("server.script_results_retention"),
+			SoftwareInstallResultsRetention:  man.getConfigDuration("server.software_install_results_retention"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
@@ -2265,7 +2275,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
-			UseOneTimeEnrollSecrets:     man.getConfigBool("auth.use_one_time_enroll_secrets"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2494,6 +2503,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
+			AppleOneTimeEnrollSecrets:         man.getConfigBool("mdm.apple_one_time_enroll_secrets"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
