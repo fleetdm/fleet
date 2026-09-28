@@ -467,6 +467,21 @@ When resetting a device that was previously enrolled in Fleet via Autopilot, fol
 If the device skips Autopilot on the first boot, restart it and try again. 
 The Autopilot service may need a few minutes to sync after the device record cleanup.
 
+## One-time enroll secrets
+
+By default, when Fleet installs fleetd on a Windows host that turns on MDM, the install command carries your global or fleet-level enroll secret. Anyone who can read that command or the MSI log on the device can use the secret to enroll other devices. To give each device its own single-use enroll secret instead, enable the [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) server setting.
+
+With the setting enabled:
+
+- Fleet delivers each host's secret through the "Fleetd enroll secret" configuration profile. You'll see it in the host's **Host details > OS settings**.
+- If a host has to enroll again, for example after its node key was deleted, select **Resend** on the "Fleetd enroll secret" profile. The host enrolls again as the same host at its next MDM check-in.
+- If you delete a Windows host in Fleet, Fleet sends it a new secret at its next MDM check-in, and the host enrolls again on its own.
+- fleetd packages built with a global or fleet-level enroll secret can't enroll a host that is enrolled in Fleet MDM or registered in Windows Autopilot.
+
+To re-image a device that isn't registered in Autopilot and then install fleetd on it with a package, re-image the device first, then delete its host in Fleet, then install fleetd. If you delete the host while the device still checks in with Fleet MDM, Fleet sends the device a new secret, and the package can't enroll it after the re-image. The same applies after running the script in [Turn off Windows MDM](#turn-off-windows-mdm): the script turns off MDM on the device, but Fleet isn't notified, so the host still counts as enrolled in Fleet MDM until you delete it. Autopilot devices enroll again through Autopilot.
+
+If you turn the setting off, hosts that enrolled with a one-time enroll secret can't enroll again until you turn it back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
+
 ## Turn off Windows MDM
 
 1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-fleetd-windows.ps1) from Fleet on all your Windows hosts. Note that this script will also remove fleetd from the hosts.
