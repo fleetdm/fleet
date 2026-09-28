@@ -35,6 +35,8 @@ Key benefits:
 
 > Currently, there's a bug in which **Patch when app is closed** can install an update while the app is still open. Follow [fleetdm/fleet#53919](https://github.com/fleetdm/fleet/issues/53919) for updates.
 
+> Currently, skipped activities on the **Policy details** page are displayed when "Failed" filter is enabled. We will [improve this soon](https://github.com/fleetdm/fleet/issues/54055), and add [filters to host activity](https://github.com/fleetdm/fleet/issues/54051) feed.
+
 ### In the Fleet UI
 
 1. Navigate to **Software** and select your fleet.
