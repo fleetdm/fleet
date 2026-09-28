@@ -11,7 +11,7 @@ cask "fleet-desktop" do
     skip "Manually versioned upon release"
   end
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   pkg "fleet_desktop-v#{version}.pkg"
 

@@ -11,8 +11,6 @@ cask "zoom-rooms" do
     skip "Zoom does not expose a parseable Zoom Rooms version feed; bump manually"
   end
 
-  depends_on macos: ">= :catalina"
-
   pkg "ZoomRooms.pkg"
 
   # The product is branded "Zoom Rooms" but the installer drops the app at

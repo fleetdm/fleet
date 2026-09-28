@@ -61,13 +61,7 @@
   ],
   "caveats": null,
   "caveats_rosetta": null,
-  "depends_on": {
-    "macos": {
-      ">=": [
-        "10.15"
-      ]
-    }
-  },
+  "depends_on": {},
   "conflicts_with": null,
   "container": null,
   "rename": [],
@@ -87,6 +81,6 @@
   "languages": [],
   "ruby_source_path": "Casks/zoom-rooms.rb",
   "ruby_source_checksum": {
-    "sha256": "46e1496c9934141db3d58e5425edbefda42a635cab0be9a471ba3674aa13568b"
+    "sha256": "2d0cb324811c8e8ae3e5644e69aed6d2875dafb810cbf0aeb969a0577635b94e"
   }
 }
