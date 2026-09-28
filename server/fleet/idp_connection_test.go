@@ -8,26 +8,22 @@ import (
 
 func TestEndUserSSOSettingsResolution(t *testing.T) {
 	okta := MDMIdentityProvider{
-		Name: "Okta",
-		SSOProviderSettings: SSOProviderSettings{
-			EntityID:    "https://okta.example",
-			MetadataURL: "https://okta.example/metadata",
-		},
-		Default: true,
+		Name:        "Okta",
+		EntityID:    "https://okta.example",
+		MetadataURL: "https://okta.example/metadata",
+		Default:     true,
 	}
 	entra := MDMIdentityProvider{
-		Name: "Entra",
-		SSOProviderSettings: SSOProviderSettings{
-			EntityID:    "https://entra.example",
-			IDPName:     "Entra ID",
-			MetadataURL: "https://entra.example/metadata",
-		},
+		Name:        "Entra",
+		EntityID:    "https://entra.example",
+		IDPName:     "Entra ID",
+		MetadataURL: "https://entra.example/metadata",
 	}
 	mdm := MDM{
 		IdentityProviders: []MDMIdentityProvider{okta, entra},
-		EndUserAuthentication: MDMEndUserAuthentication{SSOProviderSettings: SSOProviderSettings{
+		EndUserAuthentication: MDMEndUserAuthentication{
 			EntityID: "legacy", IDPName: "Legacy", Metadata: "<xml/>",
-		}},
+		},
 	}
 
 	t.Run("fleet name selects that connection", func(t *testing.T) {
@@ -69,12 +65,10 @@ func TestEndUserSSOSettingsResolution(t *testing.T) {
 func TestNormalizeAndValidateIdentityProviders(t *testing.T) {
 	t.Run("fills idp name and accepts one default", func(t *testing.T) {
 		mdm := MDM{IdentityProviders: []MDMIdentityProvider{{
-			Name:    " Okta ",
-			Default: true,
-			SSOProviderSettings: SSOProviderSettings{
-				EntityID:    " https://okta.example ",
-				MetadataURL: "https://okta.example/metadata",
-			},
+			Name:        " Okta ",
+			Default:     true,
+			EntityID:    " https://okta.example ",
+			MetadataURL: "https://okta.example/metadata",
 		}}}
 		invalid := &InvalidArgumentError{}
 		mdm.NormalizeAndValidateIdentityProviders(invalid)
@@ -86,8 +80,8 @@ func TestNormalizeAndValidateIdentityProviders(t *testing.T) {
 
 	t.Run("rejects two defaults and a duplicate name", func(t *testing.T) {
 		mdm := MDM{IdentityProviders: []MDMIdentityProvider{
-			{Name: "Okta", Default: true, SSOProviderSettings: SSOProviderSettings{EntityID: "a", MetadataURL: "https://a.example"}},
-			{Name: "Okta", Default: true, SSOProviderSettings: SSOProviderSettings{EntityID: "b", MetadataURL: "https://b.example"}},
+			{Name: "Okta", Default: true, EntityID: "a", MetadataURL: "https://a.example"},
+			{Name: "Okta", Default: true, EntityID: "b", MetadataURL: "https://b.example"},
 		}}
 		invalid := &InvalidArgumentError{}
 		mdm.NormalizeAndValidateIdentityProviders(invalid)

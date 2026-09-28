@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	fleetotel "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
@@ -306,7 +305,7 @@ func scimConnectionMiddleware(ds fleet.Datastore, next http.Handler) http.Handle
 			id, err := lookup.IDPConnectionBySCIMTokenHash(r.Context(), fleet.HashSCIMToken(bearer))
 			if err == nil {
 				ctx := fleet.NewContextWithIDPConnection(r.Context(), id)
-				ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+				ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}

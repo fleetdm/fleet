@@ -63,11 +63,11 @@ func newSCIMTokenHandler(ds fleet.Datastore, svc fleet.Service, authorizer *auth
 
 func identityProviderNameFromPath(path string) string {
 	const marker = "/identity_providers/"
-	start := strings.Index(path, marker)
-	if start < 0 {
+	_, rest, ok := strings.Cut(path, marker)
+	if !ok {
 		return ""
 	}
-	rest := strings.Trim(path[start+len(marker):], "/")
+	rest = strings.Trim(rest, "/")
 	name, _, _ := strings.Cut(rest, "/")
 	return name
 }

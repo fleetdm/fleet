@@ -3,6 +3,7 @@ import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import Button from "components/buttons/Button";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";

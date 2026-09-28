@@ -220,7 +220,8 @@ func ParseSSOFleetRef(secret, ref string) (uint, bool) {
 	if !ok || sig == "" || id == "" {
 		return 0, false
 	}
-	teamID, err := strconv.ParseUint(id, 10, 64)
+	// Bit size matches uint so the conversion below cannot truncate.
+	teamID, err := strconv.ParseUint(id, 10, strconv.IntSize)
 	if err != nil {
 		return 0, false
 	}
