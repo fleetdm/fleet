@@ -17217,7 +17217,19 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 					}
 				}
 			}`), http.StatusOK, &acResp)
+
+			var specResp applyTeamSpecsResponse
+			teamSecret := "team_secret"
+			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
+			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+			teamID := specResp.TeamIDsByName["newteam"]
 			t.Cleanup(func() {
+				// Drop the fleet before clearing the IdP. App config validation
+				// rejects removing the IdP while a fleet still requires it.
+				if teamID != 0 {
+					var delResp deleteTeamResponse
+					s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), nil, http.StatusOK, &delResp)
+				}
 				s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 					"mdm": {
 						"end_user_authentication": {
@@ -17229,11 +17241,6 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 					}
 				}`), http.StatusOK, &acResp)
 			})
-
-			var specResp applyTeamSpecsResponse
-			teamSecret := "team_secret"
-			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
-			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
 
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
