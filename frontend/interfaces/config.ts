@@ -28,6 +28,15 @@ export interface IEndUserAuthentication {
   metadata_url: string;
 }
 
+export interface IIdentityProvider {
+  name: string;
+  entity_id: string;
+  idp_name: string;
+  metadata: string;
+  metadata_url: string;
+  default: boolean;
+}
+
 export interface IMacOsMigrationSettings {
   enable: boolean;
   mode: "voluntary" | "forced" | "";
@@ -81,6 +90,7 @@ export interface IMdmConfig {
   android_enabled_and_configured: boolean;
   apple_require_hardware_attestation: boolean;
   end_user_authentication: IEndUserAuthentication;
+  identity_providers?: IIdentityProvider[];
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
   ipados_updates: IAppleDeviceUpdates;

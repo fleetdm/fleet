@@ -1,4 +1,4 @@
-import { IConfig } from "interfaces/config";
+import { IConfig, IIdentityProvider } from "interfaces/config";
 import { IUser } from "interfaces/user";
 
 export const isSandboxMode = (config: IConfig): boolean => {
@@ -25,11 +25,48 @@ export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
   return Boolean(config.mdm.android_enabled_and_configured);
 };
 
-export const isEndUserIdPConfigured = (config: IConfig): boolean => {
+export const identityProviderConfigured = (
+  provider?: IIdentityProvider
+): boolean => {
+  if (!provider) {
+    return false;
+  }
+  const name = provider.idp_name || provider.name;
+  return (
+    !!provider.entity_id &&
+    !!name &&
+    !!(provider.metadata_url || provider.metadata)
+  );
+};
+
+// resolvedEndUserIdPConfigured reports whether a fleet can turn on end-user
+// authentication. An empty fleet provider name uses the default connection,
+// then the legacy end_user_authentication settings.
+export const resolvedEndUserIdPConfigured = (
+  config: IConfig,
+  fleetProviderName?: string
+): boolean => {
+  const providers = config.mdm.identity_providers ?? [];
+  if (fleetProviderName) {
+    return identityProviderConfigured(
+      providers.find((provider) => provider.name === fleetProviderName)
+    );
+  }
+  const orgDefault = providers.find((provider) => provider.default);
+  if (orgDefault) {
+    return identityProviderConfigured(orgDefault);
+  }
   const idp = config.mdm.end_user_authentication;
   return (
     !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
   );
+};
+
+export const isEndUserIdPConfigured = (config: IConfig): boolean => {
+  if (resolvedEndUserIdPConfigured(config)) {
+    return true;
+  }
+  return (config.mdm.identity_providers ?? []).some(identityProviderConfigured);
 };
 
 export const isGlobalAdmin = (user: IUser | null): boolean => {

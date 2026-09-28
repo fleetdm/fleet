@@ -59,6 +59,7 @@ export interface IUpdateTeamFormData {
       deadline_days: number | null;
       grace_period_days: number | null;
     };
+    identity_provider?: string;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;

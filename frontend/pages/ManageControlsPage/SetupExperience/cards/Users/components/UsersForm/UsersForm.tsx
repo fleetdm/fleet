@@ -3,16 +3,19 @@ import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import Button from "components/buttons/Button";
+import Dropdown from "components/forms/fields/Dropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
 import teamsAPI from "services/entities/teams";
+import { resolvedEndUserIdPConfigured } from "utilities/permissions/permissions";
 
 import EndUserAuthSection from "./components/EndUserAuthSection";
 import LocalAccountSection, {
@@ -28,6 +31,7 @@ export interface IUsersFormData {
   enableManagedLocalAccount: boolean;
   localAccountType: EndUserLocalAccountType;
   enableManagedLocalAccountWindows: boolean;
+  identityProvider: string;
 }
 
 interface IUsersFormProps {
@@ -40,6 +44,8 @@ interface IUsersFormProps {
   defaultLocalAccountType?: EndUserLocalAccountType;
   defaultEnableManagedLocalAccountWindows: boolean;
   isIdPConfigured: boolean;
+  globalConfig?: IConfig;
+  defaultIdentityProvider?: string;
 }
 
 const UsersForm = ({
@@ -50,6 +56,8 @@ const UsersForm = ({
   defaultLocalAccountType = EndUserLocalAccountType.ADMIN,
   defaultEnableManagedLocalAccountWindows,
   isIdPConfigured,
+  globalConfig,
+  defaultIdentityProvider = "",
 }: IUsersFormProps) => {
   const {
     config,
@@ -65,6 +73,7 @@ const UsersForm = ({
     enableManagedLocalAccount: defaultEnableManagedLocalAccount,
     localAccountType: defaultLocalAccountType,
     enableManagedLocalAccountWindows: defaultEnableManagedLocalAccountWindows,
+    identityProvider: defaultIdentityProvider,
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -78,6 +87,7 @@ const UsersForm = ({
       enableManagedLocalAccount: defaultEnableManagedLocalAccount,
       localAccountType: defaultLocalAccountType,
       enableManagedLocalAccountWindows: defaultEnableManagedLocalAccountWindows,
+      identityProvider: defaultIdentityProvider,
     });
   }, [
     defaultIsEndUserAuthEnabled,
@@ -85,7 +95,21 @@ const UsersForm = ({
     defaultEnableManagedLocalAccount,
     defaultLocalAccountType,
     defaultEnableManagedLocalAccountWindows,
+    defaultIdentityProvider,
   ]);
+
+  const orgDefaultValue = "__org_default__";
+  const identityProviders = globalConfig?.mdm.identity_providers ?? [];
+  const showIdentityProvider =
+    currentTeamId !== APP_CONTEXT_NO_TEAM_ID && identityProviders.length > 0;
+  const idpReady = globalConfig
+    ? resolvedEndUserIdPConfigured(
+        globalConfig,
+        currentTeamId === APP_CONTEXT_NO_TEAM_ID
+          ? ""
+          : formData.identityProvider
+      )
+    : isIdPConfigured;
 
   const onEndUserAuthChange = (value: boolean) => {
     // Sync lock end user info with EUA only when Apple MDM is configured.
@@ -127,6 +151,13 @@ const UsersForm = ({
       formData.endUserAuthEnabled && formData.lockEndUserInfo;
 
     try {
+      if (showIdentityProvider) {
+        await teamsAPI.updateConfig(
+          { mdm: { identity_provider: formData.identityProvider } },
+          currentTeamId
+        );
+      }
+
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
         enable_end_user_authentication: formData.endUserAuthEnabled,
@@ -179,12 +210,37 @@ const UsersForm = ({
   return (
     <div className={baseClass}>
       <form onSubmit={onSubmit}>
+        {showIdentityProvider && (
+          <Dropdown
+            label="Identity provider"
+            name="identity-provider"
+            options={[
+              { label: "Organization default", value: orgDefaultValue },
+              ...identityProviders.map((provider) => ({
+                label: provider.default
+                  ? `${provider.name} (organization default)`
+                  : provider.name,
+                value: provider.name,
+              })),
+            ]}
+            value={formData.identityProvider || orgDefaultValue}
+            onChange={(value: string) =>
+              setFormData((prev) => ({
+                ...prev,
+                identityProvider:
+                  !value || value === orgDefaultValue ? "" : value,
+              }))
+            }
+            disabled={gitOpsModeEnabled}
+            helpText="This fleet uses the selected identity provider for end-user sign-in. Organization default uses the connection marked default, or the legacy end-user authentication settings."
+          />
+        )}
         <EndUserAuthSection
           endUserAuthEnabled={formData.endUserAuthEnabled}
           lockEndUserInfo={formData.lockEndUserInfo}
           onEndUserAuthChange={onEndUserAuthChange}
           onLockEndUserInfoChange={onLockEndUserInfoChange}
-          isIdPConfigured={isIdPConfigured}
+          isIdPConfigured={idpReady}
           isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />

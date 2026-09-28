@@ -4322,6 +4322,7 @@ type initiateMDMSSORequest struct {
 	Initiator      string `json:"initiator,omitempty"`       // optional, passed by the UI during account-driven enrollment, or by Orbit for non-Apple IdP auth.
 	UserIdentifier string `json:"user_identifier,omitempty"` // optional, passed by Apple for account-driven enrollment
 	HostUUID       string `json:"host_uuid,omitempty"`       // optional, passed by Orbit for non-Apple IdP auth
+	FleetRef       string `json:"fleet_ref,omitempty"`       // signed fleet id from the enrollment profile
 }
 
 type initiateMDMSSOResponse struct {
@@ -4340,7 +4341,7 @@ func (r initiateMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWri
 
 func initiateMDMSSOEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateMDMSSORequest)
-	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMSSO(ctx, req.Initiator, "", req.HostUUID)
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMSSO(ctx, req.Initiator, "", req.HostUUID, req.FleetRef)
 	if err != nil {
 		return initiateMDMSSOResponse{Err: err}, nil
 	}
@@ -4352,7 +4353,7 @@ func initiateMDMSSOEndpoint(ctx context.Context, request any, svc fleet.Service)
 	}, nil
 }
 
-func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL, hostUUID, fleetRef string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)

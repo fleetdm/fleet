@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	strconv "strconv"
 	"strings"
 
@@ -692,6 +693,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Features = newAppConfig.Features
 		appConfig.SSOSettings = newAppConfig.SSOSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
+		appConfig.MDM.IdentityProviders = newAppConfig.MDM.IdentityProviders
 		appConfig.FleetDesktop.SSOEnabled = newAppConfig.FleetDesktop.SSOEnabled
 	}
 
@@ -1331,6 +1333,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
+	if syncer, ok := svc.ds.(interface {
+		SyncIDPConnections(ctx context.Context, providers []fleet.MDMIdentityProvider) error
+	}); ok && !slices.Equal(oldAppConfig.MDM.IdentityProviders, appConfig.MDM.IdentityProviders) {
+		if err := syncer.SyncIDPConnections(ctx, appConfig.MDM.IdentityProviders); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "sync identity provider connections")
+		}
+	}
 
 	if aapChanged {
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
@@ -1854,6 +1863,7 @@ func (svc *Service) processSavedAppConfigChanges(
 
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	identityProvidersChanged := !slices.Equal(oldAppConfig.MDM.IdentityProviders, appConfig.MDM.IdentityProviders)
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
 	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
 
@@ -1876,7 +1886,7 @@ func (svc *Service) processSavedAppConfigChanges(
 		}
 	}
 
-	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || identityProvidersChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
@@ -2506,32 +2516,69 @@ func (svc *Service) validateMDM(
 		validateSSOProviderSettings(&mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
-	// MacOSSetup validation
-	if mdm.EndUserAuthentication.IsEmpty() && !oldMdm.EndUserAuthentication.IsEmpty() {
-		// IdP is being cleared: block if global EUA will still be enabled after this update
-		// (mdm.MacOSSetup.EnableEndUserAuthentication reflects the incoming request's value),
-		// or if any team has EUA enabled. We only look at non-zero team IDs since global (id=0)
-		// is covered by the incoming request value.
+	identityProvidersChanged := !slices.Equal(oldMdm.IdentityProviders, mdm.IdentityProviders)
+	if identityProvidersChanged && len(mdm.IdentityProviders) > 0 && !lic.IsPremium() {
+		invalid.Append("identity_providers", ErrMissingLicense.Error())
+		return nil
+	}
+	mdm.NormalizeAndValidateIdentityProviders(invalid)
+
+	// MacOSSetup validation. Losing the org-level IdP (legacy settings or the
+	// default connection) blocks while end-user auth stays on. A fleet that names
+	// its own connection is unaffected. GitOps validates that case in fleetctl
+	// because app config is applied before fleet files.
+	if oldMdm.EndUserAuthAvailable("") && !mdm.EndUserAuthAvailable("") {
 		teamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking teams with EUA enabled")
 		}
 		anyTeamEUAEnabled := false
+		namedConnections := len(mdm.IdentityProviders) > 0 || len(oldMdm.IdentityProviders) > 0
 		for _, id := range teamIDs {
-			if id != 0 {
-				anyTeamEUAEnabled = true
-				break
+			if id == 0 {
+				continue
 			}
+			if namedConnections {
+				tm, err := svc.ds.TeamLite(ctx, id)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "loading fleet for end user authentication")
+				}
+				if mdm.EndUserAuthAvailable(tm.Config.MDM.IdentityProvider) {
+					continue
+				}
+			}
+			anyTeamEUAEnabled = true
+			break
 		}
 		if anyTeamEUAEnabled || mdm.MacOSSetup.EnableEndUserAuthentication {
 			invalid.Append("end_user_authentication",
 				`End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again`)
 		}
-	} else if mdm.MacOSSetup.EnableEndUserAuthentication && mdm.EndUserAuthentication.IsEmpty() {
-		// TODO: update this error message to include steps to resolve the issue once docs for IdP
-		// config are available
+	} else if mdm.MacOSSetup.EnableEndUserAuthentication && !mdm.EndUserAuthAvailable("") {
 		invalid.Append("setup_experience.enable_end_user_authentication",
 			`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`)
+	}
+	// A UI or API edit can remove a connection a fleet still names. GitOps applies
+	// fleets after org settings, so fleetctl checks that case instead.
+	if !overwrite && identityProvidersChanged {
+		teamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking teams with EUA enabled")
+		}
+		for _, id := range teamIDs {
+			if id == 0 {
+				continue
+			}
+			tm, err := svc.ds.TeamLite(ctx, id)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "loading fleet for end user authentication")
+			}
+			if tm.Config.MDM.IdentityProvider != "" && !mdm.EndUserAuthAvailable(tm.Config.MDM.IdentityProvider) {
+				invalid.Append("identity_providers",
+					fmt.Sprintf("fleet %q still uses identity provider %q", tm.Name, tm.Config.MDM.IdentityProvider))
+				break
+			}
+		}
 	}
 
 	if mdm.MacOSSetup.LockEndUserInfo.Value && !mdm.MacOSSetup.EnableEndUserAuthentication {

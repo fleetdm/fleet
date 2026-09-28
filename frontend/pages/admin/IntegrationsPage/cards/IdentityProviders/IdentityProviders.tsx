@@ -5,6 +5,7 @@ import { IConfig } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
 import GoogleWorkspaceSection from "./components/GoogleWorkspaceSection";
+import IdentityProviderConnections from "./components/IdentityProviderConnections";
 import IdentityProviderSection from "./components/IdentityProviderSection";
 
 const baseClass = "identity-providers";
@@ -34,6 +35,7 @@ const IdentityProviders = ({
   return (
     <div className={baseClass}>
       <IdentityProviderSection />
+      <IdentityProviderConnections appConfig={appConfig} />
       <GoogleWorkspaceSection appConfig={appConfig} />
     </div>
   );
