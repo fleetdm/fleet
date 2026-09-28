@@ -174,7 +174,7 @@ describe("SoftwareFilters", () => {
 
     await user.click(screen.getByRole("button", { name: /Advanced options/i }));
 
-    const pill = screen.getByRole("button", { name: /CVE-2025-0001/i });
+    const pill = screen.getByRole("button", { name: /Remove CVE-2025-0001/i });
     expect(pill).toBeInTheDocument();
 
     await user.click(pill);
