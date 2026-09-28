@@ -94,7 +94,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := slog.New(slog.DiscardHandler)
-	syncFn := appleMDMDEPSyncerJob(ds, depStorage, logger)
+	syncFn := appleMDMDEPSyncerJob(ds, depStorage, logger, "")
 	err = syncFn(ctx)
 	require.NoError(t, err)
 

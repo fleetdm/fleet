@@ -409,9 +409,15 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	}
 
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
-		if ac.MDM.EndUserAuthentication.IsEmpty() {
-			// TODO: update this error message to include steps to resolve the issue once docs for IdP
-			// config are available
+		providerName := ""
+		if payload.TeamID != nil && *payload.TeamID > 0 {
+			tm, err := svc.ds.TeamLite(ctx, *payload.TeamID)
+			if err != nil {
+				return err
+			}
+			providerName = tm.Config.MDM.IdentityProvider
+		}
+		if !ac.MDM.EndUserAuthAvailable(providerName) {
 			return fleet.NewInvalidArgumentError("enable_end_user_authentication",
 				`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`)
 		}
@@ -892,7 +898,80 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+// fleetIdentityProviderName resolves which named connection a sign-in uses.
+// With no identity_providers configured, the name is empty and the legacy
+// end_user_authentication settings apply, so this does not touch the datastore.
+func (svc *Service) fleetIdentityProviderName(ctx context.Context, appConfig *fleet.AppConfig, fleetRef, initiator, customOriginalURL, hostUUID string) (string, error) {
+	if appConfig == nil || len(appConfig.MDM.IdentityProviders) == 0 {
+		return "", nil
+	}
+	teamID, ok, err := svc.fleetIDForEndUserSSO(ctx, fleetRef, initiator, customOriginalURL, hostUUID)
+	if err != nil || !ok || teamID == 0 {
+		return "", err
+	}
+	tm, err := svc.ds.TeamLite(ctx, teamID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "load fleet for end user authentication")
+	}
+	return tm.Config.MDM.IdentityProvider, nil
+}
+
+// fleetIDForEndUserSSO reports the fleet a sign-in belongs to. ok is false when
+// the request does not identify a fleet, which uses the org default.
+func (svc *Service) fleetIDForEndUserSSO(ctx context.Context, fleetRef, initiator, customOriginalURL, hostUUID string) (teamID uint, ok bool, err error) {
+	if fleetRef != "" {
+		id, valid := fleet.ParseSSOFleetRef(svc.config.Server.PrivateKey, fleetRef)
+		if !valid {
+			return 0, false, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "invalid fleet_ref"}, "end user authentication")
+		}
+		return id, true, nil
+	}
+	if initiator == fleet.SSOInitiatorOTAEnroll && customOriginalURL != "" {
+		u, parseErr := url.Parse(customOriginalURL)
+		if parseErr != nil {
+			return 0, false, ctxerr.Wrap(ctx, parseErr, "parse enroll url")
+		}
+		secret := u.Query().Get("enroll_secret")
+		if secret == "" {
+			return 0, false, nil
+		}
+		enrollSecret, verifyErr := svc.ds.VerifyEnrollSecret(ctx, secret)
+		if verifyErr != nil {
+			return 0, false, ctxerr.Wrap(ctx, verifyErr, "verify enroll secret")
+		}
+		if enrollSecret.TeamID == nil {
+			return 0, true, nil
+		}
+		return *enrollSecret.TeamID, true, nil
+	}
+	if initiator == fleet.SSOInitiatorOrbitSetupExperience && hostUUID != "" {
+		host, hostErr := svc.ds.HostByIdentifier(ctx, hostUUID)
+		if hostErr != nil {
+			return 0, false, ctxerr.Wrap(ctx, hostErr, "load host for end user authentication")
+		}
+		if host.TeamID == nil {
+			return 0, true, nil
+		}
+		return *host.TeamID, true, nil
+	}
+	if unique, found := strings.CutPrefix(initiator, fleet.SSOInitiatorAccountDrivenEnroll+":"); found && unique != "" {
+		token, tokenErr := svc.ds.GetABMTokenByUniqueToken(ctx, unique)
+		if tokenErr != nil {
+			return 0, false, ctxerr.Wrap(ctx, tokenErr, "load ABM token for end user authentication")
+		}
+		switch {
+		case token.BYODDefaultTeamID != nil:
+			return *token.BYODDefaultTeamID, true, nil
+		case token.MacOSDefaultTeamID != nil:
+			return *token.MacOSDefaultTeamID, true, nil
+		default:
+			return 0, true, nil
+		}
+	}
+	return 0, false, nil
+}
+
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL, hostUUID, fleetRef string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate MDM SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -918,15 +997,13 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-
-	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	//
-	// Note: enable_end_user_authentication is a team-specific setting,
-	// this means some teams may not use SSO even if it is configured.
-	if mdmSSOSettings.IsEmpty() {
-		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+	providerName, err := svc.fleetIdentityProviderName(ctx, appConfig, fleetRef, initiator, customOriginalURL, hostUUID)
+	if err != nil {
+		return "", 0, "", err
+	}
+	mdmSSOSettings, err := appConfig.MDM.EndUserSSOSettings(providerName)
+	if err != nil {
+		return "", 0, "", ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "initiate mdm sso")
 	}
 
 	serverURL := appConfig.MDMUrl()
@@ -981,6 +1058,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 		sso.SSORequestData{
 			HostUUID:  hostUUID,
 			Initiator: initiator,
+			EntityID:  mdmSSOSettings.EntityID,
 		},
 	)
 	if err != nil {
@@ -1229,25 +1307,30 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	// URL was configured with the prefix.
 	acsURL := sso.CallbackURL(parsedServerURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
-	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-
-	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	//
-	// Note: enable_end_user_authentication is a team-specific setting,
-	// this means some teams may not use SSO even if it is configured.
-	if mdmSSOSettings.IsEmpty() {
+	session, sessionErr := svc.ssoSessionStore.Fullfill(sessionID)
+	entityID := ""
+	if session != nil {
+		entityID = session.RequestData.EntityID
+	}
+	// A session started against a fleet connection carries that connection's
+	// entity ID. Otherwise fall back to the legacy org-wide settings. Do not
+	// substitute another connection's entity ID: an empty audience would accept
+	// an assertion that was not issued for this session.
+	if entityID == "" && !appConfig.MDM.EndUserAuthentication.IsEmpty() {
+		entityID = appConfig.MDM.EndUserAuthentication.EntityID
+	}
+	if entityID == "" {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
+	if sessionErr != nil {
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, sessionErr, "validate request in session")
+	}
 
 	expectedAudiences := []string{
-		mdmSSOSettings.EntityID,
+		entityID,
 		serverURL,
 		acsURL.String(),
-	}
-	session, err := svc.ssoSessionStore.Fullfill(sessionID)
-	if err != nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
 	var auth fleet.Auth
@@ -1268,7 +1351,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		)
 
 		samlProvider, requestID, authOriginalURL, authSSORequestData, err := sso.SAMLProviderFromSession(
-			ctx, session, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+			ctx, session, acsURL, entityID, expectedAudiences,
 		)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
@@ -1289,7 +1372,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 
 	if auth == nil {
 		samlProvider, requestID, authOriginalURL, authSSORequestData, err := sso.SAMLProviderFromSession(
-			ctx, session, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+			ctx, session, acsURL, entityID, expectedAudiences,
 		)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")

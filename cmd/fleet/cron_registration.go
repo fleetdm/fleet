@@ -214,7 +214,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
-		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc)
+		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc, deps.config.Server.PrivateKey)
 	})
 }
 
@@ -229,7 +229,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register apple_mdm_dep_profile_assigner schedule", func() (fleet.CronSchedule, error) {
-		return newAppleMDMDEPProfileAssigner(ctx, deps.instanceID, deps.config.MDM.AppleDEPSyncPeriodicity, deps.ds, deps.depStorage, deps.logger)
+		return newAppleMDMDEPProfileAssigner(ctx, deps.instanceID, deps.config.MDM.AppleDEPSyncPeriodicity, deps.ds, deps.depStorage, deps.logger, deps.config.Server.PrivateKey)
 	})
 
 	deps.register("failed to register mdm_apple_service_discovery schedule", func() (fleet.CronSchedule, error) {

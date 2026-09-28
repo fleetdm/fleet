@@ -452,6 +452,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
 		"app_config_json":                  true,
+		"idp_connections":                  true,
 		"fleet_variables":                  true,
 		"mdm_apple_declaration_categories": true,
 		"mdm_delivery_status":              true,
@@ -465,6 +466,14 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"DELETE FROM software_categories WHERE team_id != 0")
 	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
+	if len(tables) == 0 {
+		// Keep the schema-seeded default connection and drop rows tests created.
+		writer := ds.writer(context.Background())
+		_, err = writer.ExecContext(context.Background(), `DELETE FROM idp_connections WHERE name != ?`, fleet.DefaultIDPConnectionName)
+		require.NoError(t, err)
+		_, err = writer.ExecContext(context.Background(), `UPDATE idp_connections SET is_default = 1 WHERE name = ?`, fleet.DefaultIDPConnectionName)
+		require.NoError(t, err)
+	}
 	// Clear the in-process Windows Fleet-maintained app cache, which would
 	// otherwise leak across test cases that share a Datastore.
 	ds.clearWindowsFMAMatchesCache()

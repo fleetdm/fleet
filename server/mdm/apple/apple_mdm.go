@@ -181,10 +181,20 @@ func ResolveAppleACMEDirectoryURL(serverURL string, acmeIdent string) (string, e
 // to users, please make sure the caller is enforcing the right authorization
 // checks.
 type DEPService struct {
-	ds         fleet.Datastore
-	depStorage nanodep_storage.AllDEPStorage
-	depClient  *godep.Client
-	logger     *slog.Logger
+	ds             fleet.Datastore
+	depStorage     nanodep_storage.AllDEPStorage
+	depClient      *godep.Client
+	logger         *slog.Logger
+	ssoFleetSecret string
+}
+
+// SetSSOFleetSecret sets the key used to sign the fleet id on the MDM SSO URL.
+// An empty secret leaves the URL as /mdm/sso.
+func (d *DEPService) SetSSOFleetSecret(secret string) {
+	if d == nil {
+		return
+	}
+	d.ssoFleetSecret = secret
 }
 
 // GetDefaultProfile returns a godep.Profile with default values set.
@@ -244,6 +254,23 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 			mdmSSOURL, err := commonmdm.ResolveURL(appCfg.MDMUrl(), "/mdm/sso", false)
 			if err != nil {
 				return nil, fmt.Errorf("resolve MDM SSO URL: %w", err)
+			}
+			// Named connections need the fleet id in the URL so setup assistant
+			// starts SAML against that fleet's IdP. The id is signed so it cannot
+			// be swapped for another fleet.
+			if len(appCfg.MDM.IdentityProviders) > 0 && d.ssoFleetSecret != "" {
+				var teamID uint
+				if team != nil {
+					teamID = team.ID
+				}
+				parsed, err := url.Parse(mdmSSOURL)
+				if err != nil {
+					return nil, fmt.Errorf("parse MDM SSO URL: %w", err)
+				}
+				q := parsed.Query()
+				q.Set("fleet_ref", fleet.SSOFleetRef(d.ssoFleetSecret, teamID))
+				parsed.RawQuery = q.Encode()
+				mdmSSOURL = parsed.String()
 			}
 			jsonProf.ConfigurationWebURL = mdmSSOURL
 		}

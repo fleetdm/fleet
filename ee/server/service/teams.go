@@ -244,6 +244,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		linuxSettingsChanged            bool
 		recoveryLockPasswordUpdated     bool
 		macOSEnableEndUserAuthUpdated   bool
+		identityProviderUpdated         bool
 		macOSManagedLocalAccountUpdated bool
 		conditionalAccessUpdated        bool
 		nameTemplateUpdated             bool
@@ -469,11 +470,24 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.MDM.HostNameTemplate = nameTemplate
 		}
 
+		if payload.MDM.IdentityProvider.Set {
+			providerName := strings.TrimSpace(payload.MDM.IdentityProvider.Value)
+			if providerName != "" {
+				if _, ok := appCfg.MDM.IdentityProviderByName(providerName); !ok {
+					return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("identity_provider",
+						fmt.Sprintf("identity provider %q is not configured", providerName)))
+				}
+			}
+			if team.Config.MDM.IdentityProvider != providerName {
+				identityProviderUpdated = true
+				team.Config.MDM.IdentityProvider = providerName
+			}
+		}
+
 		if payload.MDM.MacOSSetup != nil {
 			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
-				// TODO: update this error message to include steps to resolve the issue once docs for IdP
-				// config are available
+			providerName := team.Config.MDM.IdentityProvider
+			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && !appCfg.MDM.EndUserAuthAvailable(providerName) {
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
 					`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`))
 			}
@@ -796,6 +810,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if macOSEnableEndUserAuthUpdated {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
+		}
+	} else if identityProviderUpdated {
+		// The enrollment profile URL carries the fleet id when named connections exist.
+		if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, &team.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "queue macos setup assistant profile update for identity provider")
 		}
 	}
 	if macOSManagedLocalAccountUpdated {
@@ -1770,6 +1789,21 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`))
 	}
 
+	identityProviderName := ""
+	if spec.MDM.IdentityProvider.Set {
+		identityProviderName = strings.TrimSpace(spec.MDM.IdentityProvider.Value)
+		if identityProviderName != "" {
+			if _, ok := appCfg.MDM.IdentityProviderByName(identityProviderName); !ok {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("identity_provider",
+					fmt.Sprintf("identity provider %q is not configured", identityProviderName)))
+			}
+		}
+	}
+	if !dryRun && macOSSetup.EnableEndUserAuthentication && !appCfg.MDM.EndUserAuthAvailable(identityProviderName) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
+			`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`))
+	}
+
 	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
 			`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
@@ -1936,6 +1970,7 @@ func (svc *Service) createTeamFromSpec(
 				AndroidSettings:            spec.MDM.AndroidSettings,
 				LinuxSettings:              linuxSettings,
 				HostNameTemplate:           nameTemplate,
+				IdentityProvider:           identityProviderName,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -2282,13 +2317,24 @@ func (svc *Service) editTeamFromSpec(
 			`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 
+	didUpdateIdentityProvider := false
+	if spec.MDM.IdentityProvider.Set {
+		providerName := strings.TrimSpace(spec.MDM.IdentityProvider.Value)
+		if providerName != "" {
+			if _, ok := appCfg.MDM.IdentityProviderByName(providerName); !ok {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("identity_provider",
+					fmt.Sprintf("identity provider %q is not configured", providerName)))
+			}
+		}
+		didUpdateIdentityProvider = team.Config.MDM.IdentityProvider != providerName
+		team.Config.MDM.IdentityProvider = providerName
+	}
+
 	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
 	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
 		// Skip the precondition during dry-run that end-user auth SSO must be configured,
 		// since we can't tell here if the GitOps run is also doing that configuration.
-		if !opts.DryRun && appCfg.MDM.EndUserAuthentication.IsEmpty() {
-			// TODO: update this error message to include steps to resolve the issue once docs for IdP
-			// config are available
+		if !opts.DryRun && !appCfg.MDM.EndUserAuthAvailable(team.Config.MDM.IdentityProvider) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
 				`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`))
 		}
@@ -2571,6 +2617,10 @@ func (svc *Service) editTeamFromSpec(
 			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
 		); err != nil {
 			return err
+		}
+	} else if didUpdateIdentityProvider {
+		if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, &team.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile update for identity provider")
 		}
 	}
 

@@ -588,8 +588,16 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 		return nil, ctxerr.Wrap(ctx, err, "initiate device sso")
 	}
 
-	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-	if mdmSSOSettings.IsEmpty() {
+	providerName := ""
+	if len(appConfig.MDM.IdentityProviders) > 0 && host.TeamID != nil {
+		tm, teamErr := svc.ds.TeamLite(ctx, *host.TeamID)
+		if teamErr != nil {
+			return nil, ctxerr.Wrap(ctx, teamErr, "load fleet for device sso")
+		}
+		providerName = tm.Config.MDM.IdentityProvider
+	}
+	mdmSSOSettings, settingsErr := appConfig.MDM.EndUserSSOSettings(providerName)
+	if settingsErr != nil {
 		err := &fleet.BadRequestError{Message: "Couldn't initiate single sign-on for Fleet Desktop because no IdP is configured for end user authentication."}
 		return nil, ctxerr.Wrap(ctx, err, "initiate device sso")
 	}
@@ -635,6 +643,7 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 		sso.SSORequestData{
 			HostUUID:  host.UUID,
 			Initiator: fleet.SSOInitiatorFleetDesktop,
+			EntityID:  mdmSSOSettings.EntityID,
 		},
 	)
 	if err != nil {

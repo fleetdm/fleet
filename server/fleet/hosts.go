@@ -595,7 +595,7 @@ var hostForeignVitalGroups = map[string]HostForeignVitalGroup{
 						JOIN scim_group_group gg ON gg.child_group_id = e.group_id
 					) SELECT scim_user_id, group_id FROM scim_user_group_expanded
 				) scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id)
-				 LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id)`,
+				 LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id AND scim_groups.idp_connection_id = scim_users.idp_connection_id)`,
 	},
 }
 

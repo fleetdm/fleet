@@ -64,6 +64,7 @@ export interface ITeam extends ITeamSummary {
       enable_disk_encryption: boolean;
       enable_escrow_disk_encryption_key?: boolean;
     };
+    identity_provider?: string;
     setup_experience: {
       macos_bootstrap_package: string | null;
       enable_end_user_authentication: boolean;

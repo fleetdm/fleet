@@ -110,6 +110,8 @@ type TeamPayloadMDM struct {
 
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
+	// IdentityProvider names an org identity_providers connection. Set and empty clears it.
+	IdentityProvider optjson.String `json:"identity_provider"`
 
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
@@ -477,6 +479,9 @@ type TeamMDM struct {
 	// HostNameTemplate is the template used to compute a host's display name from
 	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
 	HostNameTemplate string `json:"name_template"`
+	// IdentityProvider is the name of an org identity_providers connection.
+	// Empty uses the org default, or end_user_authentication when none is marked default.
+	IdentityProvider string `json:"identity_provider,omitempty"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -639,6 +644,8 @@ type TeamSpecMDM struct {
 	AndroidSettings  AndroidSettings `json:"android_settings"`
 	LinuxSettings    LinuxSettings   `json:"linux_settings"`
 	HostNameTemplate optjson.String  `json:"name_template"`
+	// IdentityProvider names an org identity_providers connection. Set and empty clears it.
+	IdentityProvider optjson.String `json:"identity_provider"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }

@@ -1532,6 +1532,34 @@ org_settings:
       metadata_url: ""
 ```
 
+#### identity_providers
+
+`identity_providers` defines named SAML connections for end-user authentication. A fleet uses one connection. Several fleets can name the same connection. Fleets that omit `controls.identity_provider` use the connection with `default: true`. When no connection is the default, they use `end_user_authentication` above. Fleet console sign-in stays on `sso_settings`.
+
+Each connection has its own SCIM directory. The same username can exist in more than one. Host linking, identity-provider labels, and `$FLEET_VAR_HOST_END_USER_*` use the directory for the host's fleet. `POST /api/latest/fleet/identity_providers/{name}/scim_token` issues a bearer token for that directory. Send it to `/api/latest/fleet/scim`. A Fleet API token writes only the organization default directory.
+
+On a fleet file:
+
+```yaml
+controls:
+  identity_provider: Entra
+  setup_experience:
+    enable_end_user_authentication: true
+```
+
+```yaml
+org_settings:
+  mdm:
+    identity_providers:
+      - name: Okta
+        entity_id: https://example.okta.com
+        metadata_url: https://example.okta.com/app/metadata
+        default: true
+      - name: Entra
+        entity_id: https://customer.example
+        metadata_url: https://login.microsoftonline.com/metadata
+```
+
 ##### end_user_license_agreement
 
 You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.

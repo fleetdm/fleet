@@ -828,10 +828,7 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 	// global file is in this run, its incoming org_settings override stored
 	// state (overwrite mode), so an empty/incomplete/missing block leaves the
 	// IdP incomplete.
-	idpName := appCfg.MDM.EndUserAuthentication.IDPName
-	entityID := appCfg.MDM.EndUserAuthentication.EntityID
-	metadata := appCfg.MDM.EndUserAuthentication.Metadata
-	metadataURL := appCfg.MDM.EndUserAuthentication.MetadataURL
+	effective := appCfg.MDM
 	globalInRun := false
 	for _, cf := range configs {
 		if !cf.IsGlobalConfig {
@@ -839,23 +836,31 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 		}
 		globalInRun = true
 		mdm, _ := cf.Config.OrgSettings["mdm"].(map[string]any)
-		eua, _ := mdm["end_user_authentication"].(map[string]any)
-		idpName, _ = eua["idp_name"].(string)
-		entityID, _ = eua["entity_id"].(string)
-		metadata, _ = eua["metadata"].(string)
-		metadataURL, _ = eua["metadata_url"].(string)
+		// Overwrite mode: a missing block clears the stored settings.
+		effective.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+		effective.IdentityProviders = nil
+		if eua, _ := mdm["end_user_authentication"].(map[string]any); eua != nil {
+			raw, err := json.Marshal(eua)
+			if err != nil {
+				return fmt.Errorf("reading org_settings.mdm.end_user_authentication: %w", err)
+			}
+			if err := json.Unmarshal(raw, &effective.EndUserAuthentication); err != nil {
+				return fmt.Errorf("reading org_settings.mdm.end_user_authentication: %w", err)
+			}
+		}
+		if rawProviders, ok := mdm["identity_providers"]; ok && rawProviders != nil {
+			raw, err := json.Marshal(rawProviders)
+			if err != nil {
+				return fmt.Errorf("reading org_settings.mdm.identity_providers: %w", err)
+			}
+			if err := json.Unmarshal(raw, &effective.IdentityProviders); err != nil {
+				return fmt.Errorf("reading org_settings.mdm.identity_providers: %w", err)
+			}
+		}
 		break
 	}
 
-	// An IdP is complete only when idp_name, entity_id, and one of
-	// metadata/metadata_url are all set (mirrors the server-side complete-IdP
-	// predicate). If the effective IdP is complete, EUA may be enabled anywhere.
-	idpComplete := idpName != "" && entityID != "" && (metadata != "" || metadataURL != "")
-	if idpComplete {
-		return nil
-	}
-
-	const idpHint = "Set org_settings.mdm.end_user_authentication idp_name, entity_id, and metadata or metadata_url in your global config, or configure a complete IdP on the server first"
+	const idpHint = "Set org_settings.mdm.end_user_authentication or org_settings.mdm.identity_providers (name, entity_id, and metadata or metadata_url), or configure a complete IdP on the server first"
 
 	// The effective IdP is incomplete: EUA must not be enabled at any effective
 	// post-apply scope. First, any file in this run that enables it. Track the
@@ -873,10 +878,16 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 			!cf.Config.Controls.MacOSSetup.EnableEndUserAuthentication {
 			continue
 		}
-		return fmt.Errorf(
-			"%s: controls.setup_experience.enable_end_user_authentication is true but the IdP is not fully configured. %s.",
-			cf.Filename, idpHint,
-		)
+		providerName := ""
+		if cf.Config.TeamName != nil && !cf.Config.IsNoTeam() {
+			providerName = cf.Config.Controls.IdentityProvider
+		}
+		if !effective.EndUserAuthConfigured(providerName) {
+			return fmt.Errorf(
+				"%s: controls.setup_experience.enable_end_user_authentication is true but the IdP is not fully configured. %s.",
+				cf.Filename, idpHint,
+			)
+		}
 	}
 
 	// Then any stored team NOT present in this run that still has EUA enabled —
@@ -903,7 +914,7 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 			if _, ok := teamsInRun[key]; ok {
 				continue
 			}
-			if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
+			if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication && !effective.EndUserAuthConfigured(tm.Config.MDM.IdentityProvider) {
 				return fmt.Errorf(
 					"fleet %q has end user authentication enabled but the IdP is not fully configured. %s, or disable end user authentication for that fleet.",
 					tm.Name, idpHint,
@@ -915,7 +926,7 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 	// Finally, the stored no-team/global EUA flag survives only when no global
 	// file is in this run (a global file in the run authoritatively redefines
 	// no-team state in overwrite mode, and is covered by the file loop above).
-	if !globalInRun && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication {
+	if !globalInRun && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication && !effective.EndUserAuthConfigured("") {
 		return fmt.Errorf(
 			"end user authentication is enabled in Unassigned but the IdP is not fully configured. %s.",
 			idpHint,

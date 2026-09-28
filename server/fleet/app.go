@@ -285,6 +285,10 @@ type MDM struct {
 	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
+	// IdentityProviders are named SAML connections. Fleets reference one by name.
+	// A single default, or end_user_authentication when no default is set, is the
+	// organization-wide IdP.
+	IdentityProviders []MDMIdentityProvider `json:"identity_providers,omitempty"`
 
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.
@@ -1335,6 +1339,10 @@ func (c *AppConfig) Copy() *AppConfig {
 	// 	copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
 	// 	clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
 	// }
+
+	if c.MDM.IdentityProviders != nil {
+		clone.MDM.IdentityProviders = slices.Clone(c.MDM.IdentityProviders)
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
