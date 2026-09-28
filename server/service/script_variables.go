@@ -175,14 +175,7 @@ func isNotificationScript(script *fleet.HostScriptResult) bool {
 // expandNotificationURL resolves $FLEET_VAR_PATCH_NOTIFICATION_URL to the
 // notification's device page URL. It resolves here rather than when the script
 // is queued so script_contents never holds a live credential.
-func (svc *Service) expandNotificationURL(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult) (expanded string, failureMessage string) {
-	notificationUUID, err := svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
-	if err != nil {
-		svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to",
-			"execution_id", script.ExecutionID, "err", err)
-		return "", "Fleet couldn't find the notification this script belongs to."
-	}
-
+func (svc *Service) expandNotificationURL(ctx context.Context, host *fleet.Host, script *fleet.HostScriptResult, notificationUUID string) (expanded string, failureMessage string) {
 	// orbit generates this token and sends it on check-in, so Fleet waits for one
 	// rather than minting it here
 	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)

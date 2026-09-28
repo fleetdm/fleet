@@ -641,6 +641,7 @@ const HostSoftwareLibrary = ({
           hostDisplayName={hostDisplayName}
           software={selectedSoftwareUpdates}
           onUpdate={onClickInstallAction}
+          disableUpdate={!userHasSWWritePermission}
           onExit={() => setSelectedSoftwareUpdates(null)}
         />
       )}

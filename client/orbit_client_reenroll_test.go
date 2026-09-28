@@ -220,6 +220,10 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		defer srv.Close()
 
 		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+		// A refresher that finds only the secret orbit already holds must not restart it.
+		oc.SetEnrollSecretRefresher(func() string { return "secret" })
+		var restarts int
+		oc.receiverUpdateCancelFunc = func() { restarts++ }
 
 		// First request: 401 -> re-enroll armed, but the existing key is NOT deleted yet.
 		err := oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
@@ -241,6 +245,65 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		require.GreaterOrEqual(t, gotEnrollCalls, 1)
 		require.False(t, oc.reenrollForced(), "re-enroll state should be cleared after success")
 		requireNodeKey(t, nodeKeyPath, "new-key")
+		require.Zero(t, restarts)
+	})
+
+	t.Run("re-enroll rejected with a spent secret picks up a resent one and restarts", func(t *testing.T) {
+		setReenrollGracePeriod(t, 0)
+		t.Setenv("FLEETD_ENROLL_RETRY_INTERVAL", "1ms")
+		_, nodeKeyPath := newNodeKeyFile(t, "existing-key")
+
+		// The enroll endpoint accepts only the secret an administrator resent, as the server does for a host whose one-time
+		// secret was used. The authenticated endpoint rejects the node key until orbit has re-enrolled.
+		var mu sync.Mutex
+		var presented []string
+		reenrolled := false
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			if strings.HasSuffix(r.URL.Path, "/orbit/enroll") {
+				var req fleet.EnrollOrbitRequest
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+				presented = append(presented, req.EnrollSecret)
+				if req.EnrollSecret != "resent" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				reenrolled = true
+				writeEnrollResponse(t, w, "new-key")
+				return
+			}
+			if !reenrolled {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(fleet.OrbitConfig{}))
+		}))
+		defer srv.Close()
+
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+		var refreshes, rejections, restarts int
+		oc.SetEnrollSecretRefresher(func() string {
+			refreshes++
+			if refreshes == 1 {
+				return "" // the resend lands between the first rejected attempt and the retry
+			}
+			return "resent"
+		})
+		oc.SetOnEnrollRejected(func() { rejections++ })
+		oc.receiverUpdateCancelFunc = func() { restarts++ }
+
+		err := oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
+		require.ErrorIs(t, err, ErrUnauthenticated)
+
+		err = oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
+		require.NoError(t, err)
+		requireNodeKey(t, nodeKeyPath, "new-key")
+		mu.Lock()
+		require.Equal(t, []string{"secret", "resent"}, presented)
+		mu.Unlock()
+		require.Equal(t, 1, rejections)
+		require.Equal(t, 1, restarts, "osquery holds the old secret until orbit restarts")
 	})
 
 	t.Run("host identity cert is removed only after the grace period, not on the first 401", func(t *testing.T) {

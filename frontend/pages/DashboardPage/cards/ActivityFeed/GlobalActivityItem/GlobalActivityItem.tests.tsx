@@ -3067,4 +3067,40 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
   });
+
+  describe.each([
+    ActivityType.InstalledSoftware,
+    ActivityType.UninstalledSoftware,
+    ActivityType.InstalledAppStoreApp,
+  ])("premium-only install-details gating for %s", (type) => {
+    it("hides Show details on Fleet Free", () => {
+      const activity = createMockActivity({
+        type,
+        details: {
+          software_title: "Foo Software",
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+      expect(
+        screen.queryByRole("button", { name: /show info/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows Show details on Fleet Premium", () => {
+      const activity = createMockActivity({
+        type,
+        details: {
+          software_title: "Foo Software",
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByRole("button", { name: /show info/i })
+      ).toBeInTheDocument();
+    });
+  });
 });

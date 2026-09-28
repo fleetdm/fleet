@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -18,6 +19,8 @@ type CreateNotificationFunc func(ctx context.Context, notification *notification
 type NotificationAwaitingDisplayFunc func(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error)
 
 type SetNotificationStatusFunc func(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+
+type SetNotificationPayloadFunc func(ctx context.Context, notificationUUID string, payload json.RawMessage) error
 
 type FailNotificationsForHostFunc func(ctx context.Context, hostID uint, reason string) error
 
@@ -50,6 +53,9 @@ type MockNotificationsService struct {
 
 	SetNotificationStatusFunc        SetNotificationStatusFunc
 	SetNotificationStatusFuncInvoked bool
+
+	SetNotificationPayloadFunc        SetNotificationPayloadFunc
+	SetNotificationPayloadFuncInvoked bool
 
 	FailNotificationsForHostFunc        FailNotificationsForHostFunc
 	FailNotificationsForHostFuncInvoked bool
@@ -109,6 +115,16 @@ func (m *MockNotificationsService) SetNotificationStatus(ctx context.Context, no
 		return nil
 	}
 	return m.SetNotificationStatusFunc(ctx, notificationUUID, status, reason, whereStatusIn)
+}
+
+func (m *MockNotificationsService) SetNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	m.mu.Lock()
+	m.SetNotificationPayloadFuncInvoked = true
+	m.mu.Unlock()
+	if m.SetNotificationPayloadFunc == nil {
+		return nil
+	}
+	return m.SetNotificationPayloadFunc(ctx, notificationUUID, payload)
 }
 
 func (m *MockNotificationsService) FailNotificationsForHost(ctx context.Context, hostID uint, reason string) error {

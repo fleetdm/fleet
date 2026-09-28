@@ -78,10 +78,36 @@ describe("HostPolicies", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders the show hidden policies toggle for device users only", async () => {
+    const onToggleShowHiddenPolicies = jest.fn();
+    const { user } = createCustomRenderer()(
+      <HostPolicies
+        {...baseProps}
+        deviceUser
+        showHiddenPolicies={false}
+        onToggleShowHiddenPolicies={onToggleShowHiddenPolicies}
+      />
+    );
+
+    expect(screen.getByText("Show hidden policies")).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", { name: "Show hidden policies" });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    expect(onToggleShowHiddenPolicies).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the show hidden policies toggle on the admin host page", () => {
+    renderWithContext({ canManagePolicies: true, onManagePolicies: noop });
+
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByText("Show hidden policies")).not.toBeInTheDocument();
+  });
+
   it("renders device user copy when deviceUser is true", () => {
     renderWithContext({
       deviceUser: true,
-      canManagePolicies: false,
+      showHiddenPolicies: false,
+      onToggleShowHiddenPolicies: noop,
     });
 
     expect(

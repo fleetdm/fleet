@@ -273,7 +273,7 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
-type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error)
+type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error)
 
 type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -3427,11 +3427,11 @@ func (s *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, e
 	return s.HostLiteByIDFunc(ctx, id)
 }
 
-func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	s.mu.Lock()
 	s.ListDevicePoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListDevicePoliciesFunc(ctx, host)
+	return s.ListDevicePoliciesFunc(ctx, host, includeHidden)
 }
 
 func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
