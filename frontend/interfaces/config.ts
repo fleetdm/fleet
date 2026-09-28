@@ -284,7 +284,7 @@ interface IFleetPartnerships {
 }
 
 interface IAuthSettings {
-  use_one_time_enroll_secrets: boolean;
+  mdm_apple_one_time_enroll_secrets: boolean;
 }
 
 export interface IAppleAccountProvisioning {

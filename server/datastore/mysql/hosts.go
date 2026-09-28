@@ -2572,7 +2572,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", hostInfo.OsqueryIdentifier))
 			}
 
-			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForMDMHosts {
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}
@@ -2849,7 +2849,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
 			}
 
-			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForMDMHosts {
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
 				if err := rejectSharedSecretForMDMManagedAppleHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}

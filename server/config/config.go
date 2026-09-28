@@ -250,7 +250,6 @@ type AuthConfig struct {
 	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
 	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
-	UseOneTimeEnrollSecrets     bool          `yaml:"use_one_time_enroll_secrets"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1137,6 +1136,11 @@ type MDMConfig struct {
 	// end user authentication for all Orbit enrollments.
 	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
 
+	// AppleOneTimeEnrollSecrets delivers one-time, device-scoped enroll secrets
+	// to macOS MDM hosts in the fleetd configuration profile and rejects shared
+	// enroll secrets for hosts enrolled in Fleet MDM or assigned in ABM.
+	AppleOneTimeEnrollSecrets bool `yaml:"apple_one_time_enroll_secrets"`
+
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
@@ -1705,8 +1709,6 @@ func (man Manager) addConfigs() {
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
-	man.addConfigBool("auth.use_one_time_enroll_secrets", false,
-		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -2105,6 +2107,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigBool("mdm.allow_custom_activations", false, "Allows custom activations to be uploaded for Apple declaration (DDM) profiles")
+	man.addConfigBool("mdm.apple_one_time_enroll_secrets", false,
+		"Deliver one-time, device-scoped enroll secrets to macOS MDM hosts instead of shared enroll secrets")
 	man.addConfigBool("mdm.allow_orbit_end_user_auth_bypass", true, "Allow Orbit hosts that do not complete end user authentication to enroll into teams that require it; set to false to strictly enforce end user authentication for Orbit enrollments")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -2264,7 +2268,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
 			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
-			UseOneTimeEnrollSecrets:     man.getConfigBool("auth.use_one_time_enroll_secrets"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2493,6 +2496,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AllowCustomActivations:            man.getConfigBool("mdm.allow_custom_activations"),
 			AllowOrbitEndUserAuthBypass:       man.getConfigBool("mdm.allow_orbit_end_user_auth_bypass"),
+			AppleOneTimeEnrollSecrets:         man.getConfigBool("mdm.apple_one_time_enroll_secrets"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),

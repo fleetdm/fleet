@@ -25,7 +25,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"Mint", testOneTimeEnrollSecretMint},
 		{"EnrollBothPlanes", testOneTimeEnrollSecretEnrollBothPlanes},
 		{"EnrollRules", testOneTimeEnrollSecretEnrollRules},
-		{"RejectSharedSecretForMDMHosts", testOneTimeEnrollSecretRejectShared},
+		{"RejectSharedSecretForAppleMDMHosts", testOneTimeEnrollSecretRejectShared},
 		{"ResetTurnOffAndDelete", testOneTimeEnrollSecretResetAndDelete},
 		{"Cleanup", testOneTimeEnrollSecretCleanup},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
@@ -309,8 +309,8 @@ func testOneTimeEnrollSecretEnrollRules(t *testing.T, ds *Datastore) {
 
 func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	reject := fleet.WithEnrollOrbitRejectSharedSecretForMDMHosts(true)
-	rejectOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForMDMHosts(true)
+	reject := fleet.WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(true)
+	rejectOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(true)
 
 	t.Run("Fleet MDM enrolled Mac", func(t *testing.T) {
 		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
