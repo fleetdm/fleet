@@ -1,0 +1,1 @@
+* Fixed the Default Folder X Fleet-maintained app for macOS never being detected as installed, because it used the wrong bundle identifier (`com.stclairsoft.DefaultFolderX6` instead of `com.stclairsoft.DefaultFolderX5`).
