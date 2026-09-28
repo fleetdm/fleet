@@ -276,13 +276,14 @@ func NewInstalledApplicationListResultsHandler(
 				// was queued and the row is removed again, but it stays when
 				// only the APNs notification failed since the command is
 				// durably queued.
-				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}
+				cmdUUID := fleet.RefetchAppsCommandUUID()
+				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix, CommandUUID: cmdUUID}
 				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "add host mdm commands")
 				}
 
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), isBYOD)
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, cmdUUID, isBYOD)
 				if err != nil {
 					if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 						if rmErr := ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {

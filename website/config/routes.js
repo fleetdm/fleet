@@ -301,7 +301,6 @@ module.exports.routes = {
     }
   },// handles /engineering/foo
 
-
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
@@ -994,6 +993,7 @@ module.exports.routes = {
       return res.redirect('/software-catalog/' + req.param('appIdentifier'));
     }
   },
+  'GET /pdfs/fleet-leave-behind-deck.pdf': '/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf',
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
   'GET /releases/fleet-3.12.0': '/releases/fleet-3-12-0',
@@ -1222,6 +1222,7 @@ module.exports.routes = {
   'GET /gitops-workshops': '/workshops',
   'GET /guides/seamless-mdm-migration': '/support',
   'GET /visibility-and-reporting': '/endpoint-governance',
+  'GET /guides/software-inventory': '/guides/software-inventory-reference',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1402,6 +1403,7 @@ module.exports.routes = {
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
+  'GET /learn-more-about/connect-microsoft-graph': '/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/configuration-profiles-user-channel': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
@@ -1546,6 +1548,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
   'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
+  'POST /api/v1/admin/deliver-newsletter-emails': { action: 'admin/deliver-newsletter-emails' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

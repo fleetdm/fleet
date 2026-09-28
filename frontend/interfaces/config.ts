@@ -273,11 +273,18 @@ export interface IConfig {
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  /** Read-only, sourced from the fleet server configuration. Omitted when
+   * nothing in it is enabled. */
+  auth?: IAuthSettings;
   max_software_package_size: number;
 }
 
 interface IFleetPartnerships {
   enable_primo: boolean;
+}
+
+interface IAuthSettings {
+  use_one_time_enroll_secrets: boolean;
 }
 
 export interface IAppleAccountProvisioning {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -587,4 +588,65 @@ func TestRequireDeviceSSOSessionStoreFailure(t *testing.T) {
 	require.ErrorContains(t, err, "redis is down")
 	var ssoRequired *fleet.DeviceSSORequiredError
 	require.NotErrorAs(t, err, &ssoRequired, "a broken session store must not read as a prompt to sign in")
+}
+
+func TestHostNeedsBitLockerPINPrompt(t *testing.T) {
+	createPIN := new(fleet.ActionRequiredCreatePIN)
+	for _, tc := range []struct {
+		name              string
+		windowsEnabled    bool
+		pinRequired       bool
+		teamRequiresPIN   bool
+		pinSet            bool
+		capable           bool
+		actionRequired    *fleet.ActionRequiredState
+		wantPrompt        bool
+		wantStateQueried  bool
+		wantStatusQueried bool
+	}{
+		{name: "fleet does not require a PIN: no host queries", windowsEnabled: true},
+		{name: "disk encryption off: no host queries", pinRequired: true},
+		{name: "PIN already set: no host queries", windowsEnabled: true, pinRequired: true, pinSet: true},
+		{name: "fleetd cannot apply a PIN: status not queried", windowsEnabled: true, pinRequired: true, wantStateQueried: true},
+		{
+			name: "host needs a PIN: prompt", windowsEnabled: true, pinRequired: true, capable: true, actionRequired: createPIN,
+			wantPrompt: true, wantStateQueried: true, wantStatusQueried: true,
+		},
+		{
+			// The global settings don't require a PIN, so a prompt proves the host's team settings were used.
+			name: "team requires a PIN and the host needs one: prompt", teamRequiresPIN: true, capable: true, actionRequired: createPIN,
+			wantPrompt: true, wantStateQueried: true, wantStatusQueried: true,
+		},
+		{
+			name: "host is not asked for a PIN: no prompt", windowsEnabled: true, pinRequired: true, capable: true,
+			wantStateQueried: true, wantStatusQueried: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, _ := newTestServiceWithMock(t, ds)
+			ds.TeamMDMConfigFunc = func(context.Context, uint) (*fleet.TeamMDM, error) {
+				return &fleet.TeamMDM{WindowsSettings: fleet.WindowsSettings{EnableDiskEncryption: optjson.SetBool(true)}, RequireBitLockerPIN: true}, nil
+			}
+			ds.GetMDMWindowsHostConfigStateFunc = func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
+				return &fleet.MDMWindowsHostConfigState{FleetdBitLockerPINCapable: tc.capable}, nil
+			}
+			ds.GetMDMWindowsBitLockerStatusFunc = func(context.Context, *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+				return &fleet.HostMDMDiskEncryption{ActionRequired: tc.actionRequired}, nil
+			}
+			appCfg := &fleet.AppConfig{}
+			appCfg.MDM.WindowsSettings.EnableDiskEncryption = optjson.SetBool(tc.windowsEnabled)
+			appCfg.MDM.RequireBitLockerPIN = optjson.SetBool(tc.pinRequired)
+			host := &fleet.Host{ID: 1, UUID: "win-uuid", Platform: "windows", TPMPINSet: tc.pinSet}
+			if tc.teamRequiresPIN {
+				host.TeamID = new(uint(7))
+			}
+
+			needsPIN, err := svc.hostNeedsBitLockerPINPrompt(t.Context(), host, appCfg)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantPrompt, needsPIN)
+			require.Equal(t, tc.wantStateQueried, ds.GetMDMWindowsHostConfigStateFuncInvoked, "enrollment row queried")
+			require.Equal(t, tc.wantStatusQueried, ds.GetMDMWindowsBitLockerStatusFuncInvoked, "bitlocker status queried")
+		})
+	}
 }

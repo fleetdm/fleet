@@ -231,11 +231,7 @@ const UpdateSoftwareItem = ({
   onShowInstallerDetails,
 }: IUpdateSoftwareItemProps) => {
   return (
-    <Card
-      borderRadiusSize="large"
-      paddingSize="medium"
-      className={`${baseClass}__item`}
-    >
+    <Card paddingSize="medium" className={`${baseClass}__item`}>
       <div className={`${baseClass}__item-content`}>
         <InstallerInfo software={software} />
         <InstallerStatusAction

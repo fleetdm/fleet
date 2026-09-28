@@ -4,7 +4,9 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
@@ -75,4 +77,51 @@ func blockWaitForStopEvent(channelId string) error {
 func trayIconExists() bool {
 	log.Debug().Msg("tray icon checker is not implemented for this platform")
 	return true
+}
+
+var procWTSQuerySessionInformationW = windows.NewLazySystemDLL("wtsapi32.dll").NewProc("WTSQuerySessionInformationW")
+
+// wtsInfo mirrors WTSINFOW.
+type wtsInfo struct {
+	State                   uint32
+	SessionID               uint32
+	IncomingBytes           uint32
+	OutgoingBytes           uint32
+	IncomingFrames          uint32
+	OutgoingFrames          uint32
+	IncomingCompressedBytes uint32
+	OutgoingCompressedBytes uint32
+	WinStationName          [32]uint16
+	Domain                  [17]uint16
+	UserName                [21]uint16
+	ConnectTime             int64
+	DisconnectTime          int64
+	LastInputTime           int64
+	LogonTime               int64
+	CurrentTime             int64
+}
+
+// currentLoginID identifies the Windows login Fleet Desktop runs in by its session and logon time. Rebooting, or logging off
+// and on again, changes it. Orbit restarting Fleet Desktop, or the user reconnecting to the same session, does not.
+func currentLoginID() (string, error) {
+	const (
+		wtsCurrentServerHandle = 0
+		wtsCurrentSession      = 0xFFFFFFFF
+		wtsSessionInfo         = 24
+	)
+	var info *wtsInfo
+	var size uint32
+	r, _, err := syscall.SyscallN(procWTSQuerySessionInformationW.Addr(), wtsCurrentServerHandle, wtsCurrentSession, wtsSessionInfo,
+		uintptr(unsafe.Pointer(&info)), uintptr(unsafe.Pointer(&size)))
+	if r == 0 {
+		return "", fmt.Errorf("WTSQuerySessionInformationW: %w", err)
+	}
+	if info == nil {
+		return "", errors.New("WTSQuerySessionInformationW returned no session information")
+	}
+	defer windows.WTSFreeMemory(uintptr(unsafe.Pointer(info)))
+	if size < uint32(unsafe.Sizeof(wtsInfo{})) || info.LogonTime == 0 {
+		return "", fmt.Errorf("WTSQuerySessionInformationW returned no logon time (%d bytes)", size)
+	}
+	return fmt.Sprintf("%d:%d", info.SessionID, info.LogonTime), nil
 }

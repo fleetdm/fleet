@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "153.1.95.101",
+      "version": "154.1.96.59",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser' AND version_compare(bundle_short_version, '153.1.95.101') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brave.Browser' AND version_compare(bundle_short_version, '154.1.96.59') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.brave.Browser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/195.101/Brave-Browser-arm64.dmg",
+      "installer_url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/196.59/Brave-Browser-arm64.dmg",
       "install_script_ref": "32bb30f2",
       "uninstall_script_ref": "9a376609",
-      "sha256": "2deaed060d24f0809bb87332a4d75c7dd140bd38d0915b9e63791917eee3898f",
+      "sha256": "57690cf24e5ce5e15768b220d46621e575e0caabd3d651bdad5afc2b184f118a",
       "default_categories": [
         "Browsers"
       ]

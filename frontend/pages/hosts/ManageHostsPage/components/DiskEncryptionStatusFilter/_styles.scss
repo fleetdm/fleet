@@ -12,18 +12,7 @@
 
       .Select-menu {
         max-height: none;
-
-        .dropdown__option {
-          font-size: $small !important;
-        }
       }
-    }
-
-    // The leading filter glyph is the themeable `filter-alt` SVG (via the
-    // Dropdown `iconName` prop), so it adapts to light/dark mode via the base
-    // Dropdown styles (#47581).
-    .dropdown__custom-value-label {
-      font-size: $small;
     }
   }
 }

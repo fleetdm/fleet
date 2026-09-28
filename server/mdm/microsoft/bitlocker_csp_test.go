@@ -1,6 +1,8 @@
 package microsoft_mdm
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -25,6 +27,14 @@ func TestSystemDriveRequiresStartupAuthSpec_validate(t *testing.T) {
 				CmdUUID:                "test-uuid",
 				Enabled:                false,
 				ConfigureTPMStartupKey: ptr.Uint(PolicyOptDropdownRequired),
+			},
+			wantErr: "enabled must be true if any other field is set",
+		},
+		{
+			name: "PIN policies set but not enabled",
+			spec: SystemDriveRequiresStartupAuthSpec{
+				CmdUUID:              "test-uuid",
+				ConfigurePINPolicies: true,
 			},
 			wantErr: "enabled must be true if any other field is set",
 		},
@@ -191,4 +201,36 @@ func TestSystemDriveRequiresStartupAuthCmd_Template(t *testing.T) {
 			require.Equal(t, "./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication", cmd.TargetLocURI)
 		})
 	}
+}
+
+func TestSystemDriveRequiresStartupAuthCmd_PINPolicies(t *testing.T) {
+	rawCommand := func(configurePINPolicies bool) string {
+		cmd, err := SystemDriveRequiresStartupAuthCmd(SystemDriveRequiresStartupAuthSpec{
+			CmdUUID: "uuid-456", Enabled: true, ConfigurePINPolicies: configurePINPolicies,
+		})
+		require.NoError(t, err)
+		return string(cmd.RawCommand)
+	}
+
+	raw := rawCommand(true)
+	for node, payload := range map[string]string{
+		"SystemDrivesMinimumPINLength": fmt.Sprintf(`<enabled/><data id="MinPINLength" value="%d"/>`, BitLockerPINMinLength),
+		"SystemDrivesEnhancedPIN":      "<enabled/>",
+		// Phrased as a prohibition, so disabling it is what lets standard users change their PIN.
+		"SystemDrivesDisallowStandardUsersCanChangePIN": "<disabled/>",
+	} {
+		pattern := regexp.QuoteMeta("<LocURI>./Device/Vendor/MSFT/BitLocker/"+node+"</LocURI>") +
+			`\s*</Target>\s*<Data>` + regexp.QuoteMeta("<![CDATA["+payload+"]]>")
+		require.Regexp(t, pattern, raw, node)
+	}
+
+	// One Atomic with the startup policy and the three PIN policies, each with its own CmdID.
+	cmdIDs := map[string]struct{}{}
+	for _, match := range regexp.MustCompile(`<CmdID>([^<]+)</CmdID>`).FindAllStringSubmatch(raw, -1) {
+		cmdIDs[match[1]] = struct{}{}
+	}
+	require.Len(t, cmdIDs, 5)
+	require.Equal(t, 1, strings.Count(raw, "<Atomic>"))
+
+	require.NotContains(t, rawCommand(false), "SystemDrivesMinimumPINLength")
 }

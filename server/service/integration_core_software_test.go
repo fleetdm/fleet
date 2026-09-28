@@ -56,7 +56,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "abc", ExtensionFor: "edge"},
 		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionID: "xyz", ExtensionFor: "chrome"},
-		{Name: "baz", Version: "0.0.4", Source: "apps"},
+		// A Go binary reports its toolchain version in release, and its module path in
+		// extension_id, which is suppressed for this source only.
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
 	}
 	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
@@ -107,6 +109,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 				assert.Equal(t, s.Source, contains.Source)
 				assert.Equal(t, s.ExtensionID, contains.ExtensionID)
 				assert.Equal(t, s.ExtensionFor, contains.ExtensionFor)
+				assert.Equal(t, s.Release, contains.Release)
 				assert.Equal(t, s.GenerateCPE, contains.GenerateCPE)
 				assert.Len(t, contains.Vulnerabilities, len(s.Vulnerabilities))
 				for i, vuln := range s.Vulnerabilities {
@@ -145,8 +148,19 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		Vulnerabilities: nil,
 	}
 
+	// The module path stored in extension_id is not exposed for go_binaries; the other
+	// sources above keep theirs.
+	expectedSoftGo := &fleet.Software{
+		Name:        "air",
+		Version:     "v1.48.0",
+		Source:      "go_binaries",
+		ExtensionID: "",
+		Release:     "go1.26.1",
+	}
+
 	assertSoftware(t, hostResponse.Host.Software, expectedSoft1)
 	assertSoftware(t, hostResponse.Host.Software, expectedSoft2)
+	assertSoftware(t, hostResponse.Host.Software, expectedSoftGo)
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse

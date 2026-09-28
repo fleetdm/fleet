@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,10 +23,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list policies for host")
+	}
+	if !includeHidden {
+		policies = slices.DeleteFunc(policies, func(p *fleet.HostPolicy) bool { return p.Hidden })
 	}
 	// return the device-safe representation of the policies, which excludes
 	// the policy author's identity and the raw SQL query.
@@ -172,11 +176,12 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 	sum.SelfService = &hasSelfService
 
-	r, err := svc.ds.FailingPoliciesCount(ctx, host)
+	total, unhidden, err := svc.ds.FailingPoliciesCount(ctx, host)
 	if err != nil {
 		return sum, ctxerr.Wrap(ctx, err, "retrieving failing policies")
 	}
-	sum.FailingPolicies = &r
+	sum.FailingPolicies = &total
+	sum.FailingUnhiddenPolicies = &unhidden
 
 	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
@@ -211,6 +216,16 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	}
 
+	// Fleet Desktop prompts the end user to create a BitLocker startup PIN, but only when this host's fleetd can
+	// actually apply one.
+	if host.FleetPlatform() == "windows" {
+		needsPIN, err := svc.hostNeedsBitLockerPINPrompt(ctx, host, appCfg)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "checking whether to prompt for a bitlocker pin")
+		}
+		sum.Notifications.NeedsBitLockerPIN = needsPIN
+	}
+
 	// organization information
 	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
 	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
@@ -225,6 +240,33 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.AlternativeBrowserHost = appCfg.FleetDesktop.AlternativeBrowserHost
 
 	return sum, nil
+}
+
+// hostNeedsBitLockerPINPrompt reports whether Fleet Desktop should prompt this Windows host's end user to create a
+// BitLocker startup PIN.
+func (svc *Service) hostNeedsBitLockerPINPrompt(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (bool, error) {
+	cfg := appCfg.MDM.DiskEncryptionConfig()
+	if host.TeamID != nil && *host.TeamID > 0 {
+		teamMDM, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get team mdm config for bitlocker pin prompt")
+		}
+		cfg = teamMDM.DiskEncryptionConfig()
+	}
+	if !cfg.WindowsEnabled || !cfg.BitLockerPINRequired || host.TPMPINSet {
+		return false, nil
+	}
+
+	agent, err := svc.bitLockerPINAgent(ctx, host)
+	if err != nil || agent != bitLockerPINAgentCapable {
+		return false, err
+	}
+
+	diskEncryption, err := svc.ds.GetMDMWindowsBitLockerStatus(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get bitlocker status for pin prompt")
+	}
+	return diskEncryption.NeedsBitLockerPIN(), nil
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {

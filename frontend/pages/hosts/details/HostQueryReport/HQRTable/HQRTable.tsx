@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { Row } from "react-table";
 
 import Button from "components/buttons/Button";
+import Card from "components/Card";
 import EmptyState from "components/EmptyState";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Spinner from "components/Spinner";
@@ -137,7 +138,7 @@ const HQRTable = ({
         <EmptyState
           className={`${baseClass}__report-clipped`}
           header="Report clipped"
-          info="This report has paused reporting in Fleet, and no results were saved for this host."
+          info="This report is full, so no results were saved for this host."
         />
       );
     }
@@ -192,7 +193,7 @@ const HQRTable = ({
     return <Spinner />;
   }
   return (
-    <div className={`${baseClass} section`}>
+    <Card paddingSize="xxlarge" includeShadow className={baseClass}>
       {renderTableInfo()}
       {rows.length === 0 ? (
         renderEmptyState()
@@ -216,7 +217,7 @@ const HQRTable = ({
           getRowId={(_row, index) => String(index)}
         />
       )}
-    </div>
+    </Card>
   );
 };
 

@@ -174,6 +174,7 @@ const renderRole = (cellProps: ICellProps) => {
       value={cellProps.cell.value}
       grey={greyCell(cellProps.cell.value)}
       italic={greyCell(cellProps.cell.value)}
+      className="permissions-text"
     />
   );
 };

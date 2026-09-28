@@ -6,7 +6,7 @@ In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hos
 
 For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
-For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+For Android hosts, you can enforce OS updates using a configuration profile. See [Android](#android) below for which management types support this.
 
 ## Fleet-managed OS updates vs. custom profiles
 
@@ -149,6 +149,17 @@ Upload a custom Windows XML profile targeting the [Update CSP](https://learn.mic
 ```
 
 See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
+
+### Android
+
+Upload a custom Android configuration profile using the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+
+Support depends on how the Android host is managed:
+
+- **Company-owned (fully-managed) hosts**: supported. `systemUpdate` controls the whole device, and Android only exposes it on fully-managed hosts.
+- **Persona (BYOD) hosts**: not supported. Android has no work profile equivalent of `systemUpdate`, since the setting applies to the whole device rather than just the work profile.
+- **OEMConfig hosts (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't support [OEMConfig](https://support.google.com/work/android/answer/9388447?hl=en).
+- **[Android Open Source (AOSP)](https://source.android.com/) hosts**: not supported. Fleet's Android MDM runs on the [Android Management API](https://developers.google.com/android/management), which requires Google Mobile Services. Hosts without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
 
 ## Apple (macOS, iOS, and iPadOS) end user experience
 

@@ -10,10 +10,14 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import IconStatusMessage from "components/IconStatusMessage";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
 import FailedEnrollmentProfileModal, {
   IFailedEnrollmentProfileModalProps,
 } from "components/modals/FailedEnrollmentProfileModal";
@@ -151,6 +155,12 @@ const ActivityFeed = ({
     enrollmentProfileFailedDetails,
     setEnrollmentProfileFailedDetails,
   ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
   const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
     host_uuid?: string;
     command_uuid: string;
@@ -158,6 +168,10 @@ const ActivityFeed = ({
     host_display_name?: string;
     request_type?: string;
   } | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -252,6 +266,7 @@ const ActivityFeed = ({
   const handleDetailsClick = ({
     type,
     details,
+    created_at,
     actor_full_name,
     fleet_initiated,
   }: IShowActivityDetailsData) => {
@@ -324,6 +339,17 @@ const ActivityFeed = ({
           command: {
             command_uuid: details?.command_uuid || "",
           },
+        });
+        break;
+      case ActivityType.NotifiedEndUserBeforePatching:
+        setNotifyBeforePatchingDetails({ ...details });
+        break;
+      case ActivityType.HostEnrollmentRejected:
+        setEnrollmentRejectedDetails({
+          hostDisplayName: details?.host_display_name,
+          hostSerial: details?.host_serial,
+          reason: details?.reason,
+          createdAt: created_at,
         });
         break;
       case ActivityType.RanCustomMdmCommand: {
@@ -432,6 +458,12 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
+      {notifyBeforePatchingDetails && (
+        <NotifyBeforePatchingDetailsModal
+          details={notifyBeforePatchingDetails}
+          onCancel={() => setNotifyBeforePatchingDetails(null)}
+        />
+      )}
       {scriptPackageDetails && (
         <SoftwareScriptDetailsModal
           details={scriptPackageDetails}
@@ -506,6 +538,14 @@ const ActivityFeed = ({
         <FailedEnrollmentProfileModal
           command={enrollmentProfileFailedDetails.command}
           onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {enrollmentRejectedDetails && (
+        <EnrollmentAttemptDetailsModal
+          hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+          reason={enrollmentRejectedDetails.reason}
+          createdAt={enrollmentRejectedDetails.createdAt}
+          onDone={() => setEnrollmentRejectedDetails(null)}
         />
       )}
       {!!mdmCommandActivityDetails && (

@@ -282,3 +282,14 @@ func (svc *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships
 		EnablePrimo: svc.config.Partnerships.EnablePrimo,
 	}, nil
 }
+
+func (svc *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	if !svc.config.Auth.UseOneTimeEnrollSecrets {
+		// Like Partnerships, omit the whole object while nothing in it is enabled.
+		return nil, nil
+	}
+	return &fleet.AuthSettings{UseOneTimeEnrollSecrets: true}, nil
+}
