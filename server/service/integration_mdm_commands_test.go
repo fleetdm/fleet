@@ -410,7 +410,7 @@ func (s *integrationMDMTestSuite) TestWipeWindowsCancelsUpcomingActivities() {
 	s.setSkipWorkerJobs(t)
 
 	host, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// enqueue two upcoming script-run activities
@@ -788,7 +788,7 @@ func (s *integrationMDMTestSuite) TestCancelHostMDMCommandIOS() {
 	}
 
 	// emulate DEP enrollment so the host can be locked
-	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, true, s.server.URL, true, t.Name(), "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*host}, abmTok.ID, nil))
 
 	readLockRef := func() string {
@@ -936,8 +936,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}
 
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
-	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
-	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iPadOSHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", fleet.PersonalEnrollmentTypeNone))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iPadOSHost.ID, false, true, s.server.URL, true, t.Name(), "", fleet.PersonalEnrollmentTypeNone))
 	s.Require().NoError(s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*iosHost, *iPadOSHost}, abmTok.ID, nil))
 
 	for _, tc := range []struct {
@@ -1215,7 +1215,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 	// create an MDM-enrolled Windows host
 	winHost, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// set its MDM data so it shows as MDM-enrolled in the backend
-	err := s.ds.SetOrUpdateMDMData(ctx, winHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	err := s.ds.SetOrUpdateMDMData(ctx, winHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	linuxHost := createOrbitEnrolledHost(t, "linux", "lock_unlock_linux", s.ds)
 

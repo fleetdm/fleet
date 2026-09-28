@@ -1,6 +1,6 @@
 cask "fleet-desktop" do
-  version "1.4.0"
-  sha256 "c920b983524df5296c10e4b15c5789df2dacacddd5b1423562b57bb1cc6d9d71"
+  version "1.5.1"
+  sha256 "dd2679974588344fe641d15a662a0e8caabf264d5f7d3fb94f62fcf3418e4b5e"
 
   url "https://download.fleetdm.com/fleet-desktop-macos/v#{version}/fleet_desktop-v#{version}.pkg"
   name "Fleet Desktop"

@@ -55,8 +55,8 @@ variable "otel_bearer_token" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  customer       = "fleet-dogfood"
-  fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
+  customer    = "fleet-dogfood"
+  fleet_image = var.fleet_image # Set this to the version of fleet to be deployed
   # Tag component for the geolite2 image. Handle both ":tag" and "@sha256:digest" refs
   # so deploying a digest-pinned image (e.g. from main) yields a clean tag, not a 64-char hex.
   # For tag refs, take the last ":" segment so registries with a port (host:5000/repo:tag) still resolve to the tag.
@@ -89,11 +89,11 @@ locals {
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
     # https://github.com/fleetdm/fleet/issues/38366
-    FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
-    FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS = "true"
-    FLEET_WEBSOCKET_TRANSPORT_ENABLED = "true"
-    FLEET_OSQUERY_CONFIG_ETAGS = "true"
-    FLEET_OSQUERY_REDIS_CONFIG_ETAGS = "true"
+    FLEET_MDM_ALLOW_ALL_DECLARATIONS     = "true"
+    FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS   = "true"
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
+    FLEET_OSQUERY_CONFIG_ETAGS           = "true"
+    FLEET_OSQUERY_REDIS_CONFIG_ETAGS     = "true"
     FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE = "true"
 
     # Load TLS Certificate for RDS Authentication
@@ -157,7 +157,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.30.0"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.31.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name                                            = local.customer
@@ -188,6 +188,9 @@ module "main" {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     name                         = "${local.customer}-1"
     engine_version               = "8.0.mysql_aurora.3.10.3"
+    instance_class               = "db.t4g.medium"
+    replicas                     = 2
+
     restore_to_point_in_time = {
       source_cluster_identifier = local.customer
       restore_to_time           = "2026-03-09T22:40:59Z"

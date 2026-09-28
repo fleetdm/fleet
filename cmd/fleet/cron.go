@@ -1600,13 +1600,10 @@ func newCleanupsAndAggregationSchedule(
 			return cleanupUnusedSoftwareInstallersCronJob(ctx, ds, softwareInstallStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
-			return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedSoftwareTitleIconsCronJob(ctx, ds, softwareTitleIconStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
-			// remove only those unused created more than a minute ago to avoid a
-			// race where we delete those created after the mysql query to get those
-			// in use.
-			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedBootstrapPackagesCronJob(ctx, ds, bootstrapPackageStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
@@ -1794,6 +1791,23 @@ func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datast
 	// race where we delete those created after the mysql query to get those
 	// in use.
 	return ds.CleanupUnusedSoftwareInstallers(workCtx, softwareInstallStore, time.Now().Add(-time.Minute))
+}
+
+func cleanupUnusedSoftwareTitleIconsCronJob(ctx context.Context, ds fleet.Datastore, softwareTitleIconStore fleet.SoftwareTitleIconStore, maxRunTime time.Duration) error {
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	return ds.CleanupUnusedSoftwareTitleIcons(workCtx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+}
+
+func cleanupUnusedBootstrapPackagesCronJob(ctx context.Context, ds fleet.Datastore, bootstrapPackageStore fleet.MDMBootstrapPackageStore, maxRunTime time.Duration) error {
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	// remove only those unused created more than a minute ago to avoid a
+	// race where we delete those created after the mysql query to get those
+	// in use.
+	return ds.CleanupUnusedBootstrapPackages(workCtx, bootstrapPackageStore, time.Now().Add(-time.Minute))
 }
 
 // buildChartScopeResolver returns a per-dataset scope resolver for the chart

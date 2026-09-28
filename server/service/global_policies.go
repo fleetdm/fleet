@@ -174,15 +174,15 @@ func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc 
 // DeleteGlobalPolicies deletes the given policies from the database.
 // It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	policiesByID, err := svc.ds.PoliciesByID(ctx, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-		return nil, err
 	}
 	for _, policy := range policiesByID {
 		if policy.PolicyData.TeamID != nil {

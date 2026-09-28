@@ -63,7 +63,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.31.0"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.32.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -75,6 +75,8 @@ module "free" {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     name                         = local.customer_free
     engine_version               = "8.0.mysql_aurora.3.10.3"
+    instance_class               = "db.t4g.medium"
+    replicas                     = 2
     snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
