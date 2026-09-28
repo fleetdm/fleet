@@ -10,6 +10,11 @@ interface IGetAndroidEnterpriseResponse {
   android_enterprise_id: boolean;
 }
 
+export interface IGetZeroTouchConfigurationResponse {
+  dpc_extras: string;
+  expires_at: string;
+}
+
 export default {
   getSignupUrl: (): Promise<IGetAndroidSignupUrlResponse> => {
     const { MDM_ANDROID_SIGNUP_URL } = endpoints;
@@ -19,6 +24,11 @@ export default {
   getAndroidEnterprise: (): Promise<IGetAndroidEnterpriseResponse> => {
     const { MDM_ANDROID_ENTERPRISE } = endpoints;
     return sendRequest("GET", MDM_ANDROID_ENTERPRISE);
+  },
+
+  getZeroTouchConfiguration: (): Promise<IGetZeroTouchConfigurationResponse> => {
+    const { MDM_ANDROID_ZERO_TOUCH_CONFIGURATION } = endpoints;
+    return sendRequest("GET", MDM_ANDROID_ZERO_TOUCH_CONFIGURATION);
   },
 
   turnOffAndroidMdm: (): Promise<void> => {

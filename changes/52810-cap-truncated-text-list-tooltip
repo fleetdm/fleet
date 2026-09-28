@@ -1,0 +1,1 @@
+- Fixed the software details modal so that hovering the vulnerabilities list shows the first 10 CVEs and a count of the rest, instead of a tooltip that runs off the screen when software has many CVEs.

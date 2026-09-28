@@ -97,3 +97,11 @@ func GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap map[HostProf
 	}
 	return profile, ok
 }
+
+// MDMProfileOptInChanges is the opt-in intent delta computed alongside
+// install/remove deltas. Add rows are adoptions on team transfer; Purge rows
+// are opt-ins whose profile is no longer desired on the host.
+type MDMProfileOptInChanges struct {
+	Add   []HostProfileUUID
+	Purge []HostProfileUUID
+}

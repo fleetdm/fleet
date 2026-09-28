@@ -339,31 +339,72 @@ func TestHostDisplayName(t *testing.T) {
 
 func TestMDMEnrollmentStatus(t *testing.T) {
 	for _, tc := range []struct {
+		name     string
 		hostMDM  HostMDM
 		expected string
 	}{
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true, IsPersonalEnrollment: false},
-			expected: "On (automatic)",
+			name:     "ADE",
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true},
+			expected: MDMEnrollmentStatusAutomatic,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: false},
-			expected: "On (manual)",
+			name:     "manual company-owned",
+			hostMDM:  HostMDM{Enrolled: true},
+			expected: MDMEnrollmentStatusManual,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
-			expected: "On (manual - personal)",
+			name:     "manual BYOD",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeManualProfile},
+			expected: MDMEnrollmentStatusManualPersonal,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
-			expected: "Pending",
+			name:     "account-driven user enrollment",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeAccountDriven},
+			expected: MDMEnrollmentStatusPersonal,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: false},
-			expected: "Off",
+			name:     "android work profile",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeWorkProfile},
+			expected: MDMEnrollmentStatusPersonal,
+		},
+		{
+			name:     "unclassified personal",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true},
+			expected: MDMEnrollmentStatusPersonal,
+		},
+		{
+			name:     "manual profile type without personal flag",
+			hostMDM:  HostMDM{Enrolled: true, PersonalEnrollmentType: PersonalEnrollmentTypeManualProfile},
+			expected: MDMEnrollmentStatusManual,
+		},
+		{
+			name:     "pending",
+			hostMDM:  HostMDM{InstalledFromDep: true},
+			expected: MDMEnrollmentStatusPending,
+		},
+		{
+			name:     "unenrolled BYOD",
+			hostMDM:  HostMDM{IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeManualProfile},
+			expected: MDMEnrollmentStatusOff,
+		},
+		{
+			name:     "off",
+			hostMDM:  HostMDM{},
+			expected: MDMEnrollmentStatusOff,
 		},
 	} {
-		require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
+		})
+	}
+}
+
+func TestIsPersonalEnrollmentStatus(t *testing.T) {
+	require.True(t, IsPersonalEnrollmentStatus(MDMEnrollmentStatusPersonal))
+	require.True(t, IsPersonalEnrollmentStatus(MDMEnrollmentStatusManualPersonal))
+	for _, status := range []string{MDMEnrollmentStatusManual, MDMEnrollmentStatusAutomatic, MDMEnrollmentStatusPending, MDMEnrollmentStatusOff, ""} {
+		require.False(t, IsPersonalEnrollmentStatus(status), status)
 	}
 }
 

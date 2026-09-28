@@ -4,6 +4,7 @@ import { Row } from "react-table";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
+import Slider from "components/forms/fields/Slider";
 import IconStatusMessage from "components/IconStatusMessage";
 import InfoBanner from "components/InfoBanner";
 import TableContainer from "components/TableContainer";
@@ -20,37 +21,56 @@ import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 
 const baseClass = "host-policies-card";
 
-interface IPoliciesProps {
+interface IPoliciesBaseProps {
   policies: IHostPolicy[];
   isLoading: boolean;
-  deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
   closePolicyDetailsModal: () => void;
   hostPlatform: string;
-  currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
+}
+
+interface IHostDetailsPoliciesProps extends IPoliciesBaseProps {
+  deviceUser?: false;
+  currentTeamId?: number;
   canManagePolicies?: boolean;
   onManagePolicies?: () => void;
 }
+
+interface IMyDevicePoliciesProps extends IPoliciesBaseProps {
+  deviceUser: true;
+  /** Hidden policies are excluded from `policies` until toggled on. */
+  showHiddenPolicies: boolean;
+  onToggleShowHiddenPolicies: () => void;
+}
+
+type IPoliciesProps = IHostDetailsPoliciesProps | IMyDevicePoliciesProps;
+
+const HIDDEN_POLICIES_TOOLTIP =
+  "Some policies running on this device have been hidden by your IT admin. These include auto-remediated compliance checks, and other issues that don't require action from you.";
 
 interface IHostPoliciesRowProps extends Row {
   original: IHostPolicy;
 }
 
-const Policies = ({
-  policies,
-  isLoading,
-  deviceUser,
-  togglePolicyDetailsModal,
-  closePolicyDetailsModal,
-  hostPlatform,
-  currentTeamId,
-  conditionalAccessEnabled,
-  conditionalAccessBypassed,
-  canManagePolicies,
-  onManagePolicies,
-}: IPoliciesProps): JSX.Element => {
+const Policies = (props: IPoliciesProps): JSX.Element => {
+  const {
+    policies,
+    isLoading,
+    deviceUser,
+    togglePolicyDetailsModal,
+    closePolicyDetailsModal,
+    hostPlatform,
+    conditionalAccessEnabled,
+    conditionalAccessBypassed,
+  } = props;
+  const currentTeamId = props.deviceUser ? undefined : props.currentTeamId;
+  const canManagePolicies = !props.deviceUser && !!props.canManagePolicies;
+  const onManagePolicies = props.deviceUser
+    ? undefined
+    : props.onManagePolicies;
+
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
     // Remove view all hosts link
@@ -107,6 +127,23 @@ const Policies = ({
         policyList={policies}
         deviceUser={deviceUser}
         conditionalAccessEnabled={conditionalAccessEnabled}
+      />
+    );
+  };
+
+  const renderShowHiddenToggle = () => {
+    if (!props.deviceUser) {
+      return null;
+    }
+    return (
+      <Slider
+        className={`${baseClass}__show-hidden-toggle`}
+        value={props.showHiddenPolicies}
+        onChange={props.onToggleShowHiddenPolicies}
+        activeText="Show hidden policies"
+        inactiveText="Show hidden policies"
+        ariaLabel="Show hidden policies"
+        labelTooltip={HIDDEN_POLICIES_TOOLTIP}
       />
     );
   };
@@ -171,6 +208,7 @@ const Policies = ({
           renderCount={() => (
             <TableCount name="policies" count={policies.length} />
           )}
+          customControl={renderShowHiddenToggle}
           disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
           onClickRow={onClickRow}
