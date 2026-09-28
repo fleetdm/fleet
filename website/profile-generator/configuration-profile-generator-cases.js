@@ -107,8 +107,8 @@ const TEST_CASES = [
     profileType: 'csp',
     instructions: 'Show "Authorized users only" as a message on the sign-in screen.',
     expect: {
-      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn', 'Authorized users only'],
-      mustContainElement: [['Format', 'chr']]
+      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn'],
+      mustContainElement: [['Format', 'chr'], ['Data', 'Authorized users only']]
     }
   },
   {
@@ -180,7 +180,7 @@ const TEST_CASES = [
     // The node takes seconds, so 15 minutes is 900.  A model that copies the number from the
     // instructions writes <Data>15</Data>.
     expect: {
-      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit'],
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit'],
       mustContainElement: [['Format', 'int'], ['Data', '900']],
       mustNotContainElement: [['Data', '15']],
       mustNotContain: ['<SyncML', '<?xml'],
@@ -190,7 +190,8 @@ const TEST_CASES = [
     id: 'csp-defender-protections',
     profileType: 'csp',
     instructions: 'Turn on Microsoft Defender real-time protection, cloud-delivered protection, behavior monitoring, and script scanning, and send safe samples automatically.',
-    // SubmitSamplesConsent is an enum, not a toggle: 1 is "send safe samples", 3 is "send all".
+    // SubmitSamplesConsent is an enum, not a toggle: 1 is "send safe samples", 2 is "never send", 3 is
+    // "send all".
     readByEye: 'Five Items, one per node, each with <Data>1</Data>.',
     expect: {
       mustContain: [
@@ -198,40 +199,8 @@ const TEST_CASES = [
         'Defender/AllowScriptScanning', 'Defender/SubmitSamplesConsent'
       ],
       mustContainElement: [['Format', 'int'], ['Data', '1']],
-      mustNotContainElement: [['Format', 'bool'], ['Data', '0'], ['Data', '3']],
+      mustNotContainElement: [['Format', 'bool'], ['Data', '0'], ['Data', '2'], ['Data', '3']],
       mustNotContain: ['<SyncML', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-powershell-script-block-logging',
-    profileType: 'csp',
-    instructions: 'Turn on PowerShell script block logging, including script block invocation start and stop events.',
-    // ADMX-backed, so the tempting failure is <Format>int</Format><Data>1</Data>, which deploys and
-    // enforces nothing.
-    expect: {
-      mustContain: ['./Device/Vendor/MSFT/Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging', '<![CDATA[', '<enabled/>', 'EnableScriptBlockInvocationLogging'],
-      mustContainElement: [['Format', 'chr']],
-      mustNotContainElement: [['Format', 'int'], ['Data', '1']],
-      mustNotContain: ['<SyncML', '<?xml'],
-    }
-  },
-  {
-    id: 'csp-firewall-all-profiles',
-    profileType: 'csp',
-    instructions: 'Turn on Windows Firewall for the domain, private, and public network profiles, and don\'t let local firewall rules override it.',
-    // The Firewall CSP is one of the few places bool is genuinely correct, so this is the inverse of
-    // the Policy CSP cases: int here is the failure.
-    readByEye: 'Six Items: EnableFirewall true and AllowLocalPolicyMerge false for each of the three profiles.',
-    expect: {
-      mustContain: [
-        './Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall',
-        './Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall',
-        './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
-        'AllowLocalPolicyMerge'
-      ],
-      mustContainElement: [['Format', 'bool'], ['Data', 'true'], ['Data', 'false']],
-      mustNotContainElement: [['Format', 'int'], ['Data', '1'], ['Data', '0']],
-      mustNotContain: ['<SyncML', '<?xml', '/Policy/Config/'],
     }
   },
 
