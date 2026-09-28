@@ -28,6 +28,13 @@ the camera.  So the criteria are narrow by design: allowed-value lists and numer
 documented in prose, and the handful of booleans whose two branches do different things rather than one
 being the absence of the other.  See gloss() below.
 
+Every key and every payload also carries a short description, which is a different thing from a gloss.  The
+.mobileconfig generator no longer shows the model the whole schema: a fast lookup picks the payload types
+a request needs from an index of payload titles, descriptions and key names, and only those go in, with
+each key described.  At that size the description Apple writes for every key is affordable, and it is what
+tells orientation ("The orientation of the Dock") apart from position-immutable ("locks the position").
+Glosses remain for the full-schema rendering the generator falls back to when that lookup fails.
+
 Run this when Apple publishes new payloads or declarations, and read the diff before committing.`,
 
 
@@ -140,11 +147,16 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
           if(!doc || !_.isArray(doc.payloadkeys)) {
             return;// Not every file in these directories describes a payload -- skip quietly.
           }
-          entries.push({
+          entries.push(_.omit({
             name: schemaToBuild.nameFrom(doc, filename),
             sourceFile: `${schemaToBuild.directory}/${filename}`,
+            // What the payload-type lookup reads.  The title separates the six com.apple.MCX payloads from
+            // one another, which their shared name cannot.
+            title: doc.title,
+            description: doc.description ? squash(doc.description, 200) : undefined,
+            platforms: supportedPlatforms(doc),
             keys: extractKeys(doc.payloadkeys, 0, []),
-          });
+          }, _.isUndefined));
         });
       }
 
@@ -253,6 +265,9 @@ function extractKeys(payloadKeys, depth, alreadyVisited) {
       max: range.max,
       default: payloadKey.default,
       gloss: gloss(payloadKey),
+      // Capped well short of a gloss: com.apple.applicationaccess alone has ~250 keys, and at this length
+      // it still renders to ~25KB.
+      description: payloadKey.content ? squash(payloadKey.content, 100) : undefined,
     };
     let nested = extractKeys(payloadKey.subkeys, depth + 1, alreadyVisited);
     if(nested.length > 0) {
@@ -261,6 +276,32 @@ function extractKeys(payloadKeys, depth, alreadyVisited) {
     keys.push(_.omit(extracted, _.isUndefined));
   }
   return keys;
+}
+
+
+/**
+ * List the platforms a payload is published for, noting when Apple has deprecated or removed it there.
+ *
+ * Apple marks a platform a payload does not apply to with `introduced: n/a` rather than leaving it out.
+ *
+ * @param  {Dictionary} doc
+ * @returns {Array|undefined}  e.g. ['macOS (deprecated 26.0, removed 27.0)', 'iOS']
+ */
+function supportedPlatforms(doc) {
+  let supportedOS = (doc.payload && doc.payload.supportedOS) || {};
+  let platforms = [];
+  for (let platformName of Object.keys(supportedOS)) {
+    let support = supportedOS[platformName] || {};
+    if(!support.introduced || support.introduced === 'n/a') {
+      continue;
+    }
+    let lifecycle = _.compact([
+      support.deprecated ? `deprecated ${support.deprecated}` : undefined,
+      support.removed ? `removed ${support.removed}` : undefined,
+    ]);
+    platforms.push(lifecycle.length > 0 ? `${platformName} (${lifecycle.join(', ')})` : platformName);
+  }
+  return platforms.length > 0 ? platforms : undefined;
 }
 
 

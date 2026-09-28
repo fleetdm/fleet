@@ -139,7 +139,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	require.Empty(t, hosts)
 }
 
-func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
+func TestCleanupUnusedS3FilesCronJobsSetDeadline(t *testing.T) {
 	ds := new(mock.Store)
 
 	const budget = time.Minute
@@ -147,6 +147,18 @@ func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
 	var hasDeadline bool
 	ds.CleanupUnusedSoftwareInstallersFunc = func(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
 		deadline, hasDeadline = ctx.Deadline()
+		return nil
+	}
+	var iconDeadline time.Time
+	var iconHasDeadline bool
+	ds.CleanupUnusedSoftwareTitleIconsFunc = func(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error {
+		iconDeadline, iconHasDeadline = ctx.Deadline()
+		return nil
+	}
+	var bootstrapDeadline time.Time
+	var bootstrapHasDeadline bool
+	ds.CleanupUnusedBootstrapPackagesFunc = func(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error {
+		bootstrapDeadline, bootstrapHasDeadline = ctx.Deadline()
 		return nil
 	}
 
@@ -157,6 +169,22 @@ func TestCleanupUnusedSoftwareInstallersCronJob(t *testing.T) {
 	require.True(t, hasDeadline, "the S3 calls must inherit the job time budget")
 	require.Positive(t, time.Until(deadline))
 	require.LessOrEqual(t, time.Until(deadline), budget)
+
+	// Run the title icon cleanup with a context that has no deadline, the S3 calls should get the job time budget.
+	err = cleanupUnusedSoftwareTitleIconsCronJob(context.Background(), ds, nil, budget)
+	require.NoError(t, err)
+	require.True(t, ds.CleanupUnusedSoftwareTitleIconsFuncInvoked)
+	require.True(t, iconHasDeadline, "the S3 calls must inherit the job time budget")
+	require.Positive(t, time.Until(iconDeadline))
+	require.LessOrEqual(t, time.Until(iconDeadline), budget)
+
+	// Run the bootstrap package cleanup with a context that has no deadline, the S3 calls should get the job time budget.
+	err = cleanupUnusedBootstrapPackagesCronJob(context.Background(), ds, nil, budget)
+	require.NoError(t, err)
+	require.True(t, ds.CleanupUnusedBootstrapPackagesFuncInvoked)
+	require.True(t, bootstrapHasDeadline, "the S3 calls must inherit the job time budget")
+	require.Positive(t, time.Until(bootstrapDeadline))
+	require.LessOrEqual(t, time.Until(bootstrapDeadline), budget)
 }
 
 func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
