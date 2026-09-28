@@ -27,6 +27,18 @@ See an example Android command, like rebooting a host, in the [MDM commands guid
 
 GitHub issues: [#23232](https://github.com/fleetdm/fleet/issues/23232), [#33158](https://github.com/fleetdm/fleet/issues/33158)
 
+### Android: scope self-service software
+
+_Available in Fleet Premium_
+
+IT admins deploying software to Android hosts' managed Google Play Store can target hosts using labels, the same targeting options already available for macOS, Windows, and Linux software. This makes it possible to make an app available in self-service on a more specific set of Android hosts instead of every host in a fleet. 
+
+Currently, you can only scope Android apps after you add the app to your library. Specifying labels during the "add software" workflow is supported in the [API](https://fleetdm.com/docs/rest-api/rest-api#add-app-store-app), [coming soon](https://github.com/fleetdm/fleet/issues/33062) for the UI.
+
+Learn how to [add an Android app](https://fleetdm.com/guides/install-app-store-apps#google-play-android).
+
+Scoping an different Android app configuration to specifc hosts is [coming soon](https://github.com/fleetdm/fleet/issues/47904).
+
 ### Fleet assignment for Windows Autopilot hosts before enrollment
 
 _Available in Fleet Premium_
