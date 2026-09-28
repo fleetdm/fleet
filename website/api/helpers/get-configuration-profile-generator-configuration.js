@@ -28,6 +28,13 @@ module.exports = {
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to request less information back with the generated profile.'
+    },
+
+    useApplePayloadTypeLookup: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
+      extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
     }
   },
 
@@ -41,7 +48,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
 
     let path = require('path');
 
@@ -193,7 +200,7 @@ module.exports = {
       };
 
       let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
-      if(profileType === 'mobileconfig') {
+      if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
 
         // Key names are in the index, not just titles and descriptions, for the reason the Windows lookup
         // gives: picking from names and descriptions alone means recalling Apple's taxonomy, which is the
@@ -750,8 +757,8 @@ ${uuidsToUse}
     // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
     // written from the right areas badly -- the two look identical in the generated profile, and the first
     // is a lookup problem while the second is a prompt problem.
-    // applePayloadTypesProvided for the same reason: empty means the lookup failed or found nothing and
-    // the full schema went in.
+    // applePayloadTypesProvided for the same reason: empty means the lookup was off, failed, or found
+    // nothing, and the full schema went in.
     return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided };
 
   }
