@@ -65,8 +65,8 @@ columns:
     type: bigint
     description: Flags word the appraiser records for the driver. The bits confirmed by measurement
       on the reference hives are 0x2 kernel mode, 0x4 user mode, 0x8 signed, 0x10 inbox, 0x20
-      self-signed and 0x40000 AMD64, and the first three agree with kernel_mode, signed and inbox on
-      every record observed. Further bits are set on real records whose meaning is not established
+    self-signed and 0x40000 AMD64, and the 0x2, 0x8 and 0x10 bits agree with kernel_mode, signed
+    and inbox on every record observed. Further bits are set on real records whose meaning is not established
       here, so treat an unlisted bit as unknown rather than as unset.
     required: false
   - name: driver_version
