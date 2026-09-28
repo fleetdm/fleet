@@ -1571,7 +1571,7 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -1580,7 +1580,7 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
@@ -1609,7 +1609,7 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 		Platform:        "linux",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -1619,7 +1619,7 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
 		Platform:       "darwin",
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 2)
@@ -1679,7 +1679,7 @@ func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
 		HardwareSerial: testSerial,
 		HardwareModel:  "MacBookPro18,1",
 		Platform:       "darwin",
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
@@ -1727,7 +1727,7 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
@@ -1747,7 +1747,7 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
 		HardwareModel:  testModel,
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
@@ -1781,7 +1781,7 @@ func testIngestMDMAppleCheckinMultipleIngest(t *testing.T, ds *Datastore) {
 	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
@@ -1792,7 +1792,7 @@ func testIngestMDMAppleCheckinMultipleIngest(t *testing.T, ds *Datastore) {
 	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
@@ -1808,7 +1808,7 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 		UUID:           testUUID,
 		HardwareSerial: testSerial,
 		Platform:       "darwin",
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	profiles := []*fleet.MDMAppleConfigProfile{
@@ -2445,7 +2445,7 @@ func nanoEnrollAndSetHostMDMData(t *testing.T, ds *Datastore, host *fleet.Host, 
 	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, withUser)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 }
 
@@ -2456,7 +2456,7 @@ func nanoEnrollUserDeviceAndSetHostMDMData(t *testing.T, ds *Datastore, host *fl
 	expectedMDMServerURL, err := apple_mdm.ResolveAppleEnrollMDMURL(ac.ServerSettings.ServerURL)
 	require.NoError(t, err)
 	nanoEnrollUserDevice(t, ds, host)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 }
 
@@ -5527,7 +5527,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		// enrollment status changes to "On (automatic)"
@@ -5575,7 +5575,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query reflecting re-enrollment to MDM
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		// host MDM row is re-created when osquery reports MDM detail query
@@ -5596,7 +5596,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
 		// from MDM)
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "", "", false)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		// host MDM row is reset to defaults when osquery reports MDM detail query with empty server URL
@@ -5688,7 +5688,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		// enrollment status changes to "On (automatic)"
@@ -5745,7 +5745,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.True(t, *h.DEPAssignedToFleet)
 
 		// simulate osquery report of MDM detail query reflecting re-enrollment to MDM
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		// host MDM row is re-created when osquery reports MDM detail query
@@ -5766,7 +5766,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		// simulate osquery report of MDM detail query with empty server URL (signals unenrollment
 		// from MDM)
-		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "", "", false)
+		err = ds.SetOrUpdateMDMData(ctx, testHost.ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		// host MDM row is reset to defaults when osquery reports MDM detail query with empty server URL
@@ -5801,7 +5801,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		manualOrbitNodeKey := "manual-orbit-node-key"
 		manualDeviceToken := "manual-device-token"
 
-		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{HardwareSerial: manualSerial, UUID: manualUUID}, false)
+		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{HardwareSerial: manualSerial, UUID: manualUUID}, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 
 		var manualHostID uint
@@ -6007,7 +6007,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	cmd, err := ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Equal(t, "command-uuid", cmd)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "foo.mdm.example.com", true, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "foo.mdm.example.com", true, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, uint(0))
@@ -7229,7 +7229,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host1.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host1.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host1, true)
 
@@ -7575,7 +7575,7 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, true)
 
@@ -8107,7 +8107,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			require.Equal(t, depHostID, h.ID)
 
 			// simulate osquery report of MDM detail query
-			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", false)
+			err = ds.SetOrUpdateMDMData(ctx, depHostID, false, true, expectedMDMServerURL, true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 			require.NoError(t, err)
 
 			// enrollment status changes to "On (automatic)"
@@ -8506,7 +8506,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		HardwareModel:  "iPhone14,6",
 		Platform:       "ios",
 		OsqueryHostID:  ptr.String("iOS0_OSQUERY_HOST_ID"),
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	iOS0, err := ds.HostByIdentifier(ctx, "iOS0_SERIAL")
 	require.NoError(t, err)
@@ -8517,7 +8517,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		HardwareModel:  "iPad13,18",
 		Platform:       "ipados",
 		OsqueryHostID:  ptr.String("iPadOS0_OSQUERY_HOST_ID"),
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	iPadOS0, err := ds.HostByIdentifier(ctx, "iPadOS0_SERIAL")
 	require.NoError(t, err)
@@ -8529,7 +8529,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		HardwareModel:  "iPod 7",
 		Platform:       "ios",
 		OsqueryHostID:  ptr.String("iPod_OSQUERY_HOST_ID"),
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	iPod, err := ds.HostByIdentifier(ctx, "iPod_SERIAL")
 	require.NoError(t, err)
@@ -8639,7 +8639,7 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 			HardwareSerial: fmt.Sprintf("test-serial-%d", i),
 			HardwareModel:  "test-hw-model",
 			Platform:       platform,
-		}, false)
+		}, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		h, err := ds.HostByIdentifier(ctx, fmt.Sprintf("test-uuid-%d", i))
 		require.NoError(t, err)
@@ -8669,7 +8669,7 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 			HardwareSerial: fmt.Sprintf("test-serial-%d", i),
 			HardwareModel:  "test-hw-model-2",
 			Platform:       platform,
-		}, false)
+		}, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		h, err = ds.HostByIdentifier(ctx, fmt.Sprintf("test-uuid-%d", i))
 		require.NoError(t, err)
@@ -8698,7 +8698,7 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 		HardwareSerial: "test-serial-2",
 		HardwareModel:  "test-hw-model",
 		Platform:       "darwin",
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	h, err := ds.HostByIdentifier(ctx, "test-uuid-2")
 	require.NoError(t, err)
@@ -8736,7 +8736,7 @@ func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
 			HardwareSerial: "serial-" + uuid,
 			HardwareModel:  "iPad13,1",
 			Platform:       "ipados",
-		}, personal)
+		}, manualProfileIf(personal))
 		require.NoError(t, err)
 		h, err := ds.HostByIdentifier(ctx, uuid)
 		require.NoError(t, err)
@@ -8780,7 +8780,7 @@ func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals(t *testing.T, ds 
 			HardwareSerial: "serial-" + hostUUID,
 			HardwareModel:  "iPad13,1",
 			Platform:       "ipados",
-		}, personal)
+		}, manualProfileIf(personal))
 		require.NoError(t, err)
 	}
 
@@ -8865,7 +8865,7 @@ func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange(t *test
 		HardwareSerial: serial,
 		HardwareModel:  "iPad13,1",
 		Platform:       "ipados",
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// Simulate a company-owned refetch populating PII that must not survive
@@ -8885,7 +8885,7 @@ func testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange(t *test
 		HardwareSerial: serial,
 		HardwareModel:  "iPad13,1",
 		Platform:       "ipados",
-	}, true)
+	}, fleet.PersonalEnrollmentTypeManualProfile)
 	require.NoError(t, err)
 
 	require.Equal(t, 0, countRows("host_mdm_apple_device_vitals", oldUUID),
@@ -8938,7 +8938,7 @@ func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datast
 			HardwareSerial: serial,
 			HardwareModel:  "iPhone14,2",
 			Platform:       "ios",
-		}, personal))
+		}, manualProfileIf(personal)))
 		h, err := ds.HostByIdentifier(ctx, hostUUID)
 		require.NoError(t, err)
 		return h.ID
@@ -9014,7 +9014,7 @@ func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datast
 		// Re-enrolls as BYOD while the ABM assignment is still live. Personal
 		// wins over the DEP assignment.
 		require.Equal(t, hostID, checkin(t, serial, "uuid-ade-to-personal", true))
-		requireEnrollment(t, hostID, false, true, fleet.MDMEnrollmentStatusPersonal)
+		requireEnrollment(t, hostID, false, true, fleet.MDMEnrollmentStatusManualPersonal)
 	})
 
 	t.Run("ADE check-in lands before the AB sync records the assignment", func(t *testing.T) {
@@ -9069,8 +9069,8 @@ func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datast
 			"https://test.jamfcloud.com/mdm",
 			false, // installedFromDep
 			fleet.WellKnownMDMJamf,
-			"",    // fleetEnrollmentRef
-			false, // isPersonalEnrollment
+			"",                               // fleetEnrollmentRef
+			fleet.PersonalEnrollmentTypeNone, // isPersonalEnrollment
 		))
 
 		assignInABM(t, host.ID, serial)
@@ -9158,7 +9158,7 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 		HardwareModel:  "iPhone14,6",
 		Platform:       "ios",
 		OsqueryHostID:  ptr.String("iOS0_OSQUERY_HOST_ID"),
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	iOS0, err := ds.HostByIdentifier(ctx, "iOS0_UUID")
 	require.NoError(t, err)
@@ -9169,7 +9169,7 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 		HardwareModel:  "iPad13,18",
 		Platform:       "ipados",
 		OsqueryHostID:  ptr.String("iPadOS0_OSQUERY_HOST_ID"),
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	iPadOS0, err := ds.HostByIdentifier(ctx, "iPadOS0_UUID")
 	require.NoError(t, err)
@@ -9180,7 +9180,7 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 		HardwareModel:  "iPod 7",
 		Platform:       "ios",
 		OsqueryHostID:  ptr.String("iPod_OSQUERY_HOST_ID"),
-	}, false)
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	iPod, err := ds.HostByIdentifier(ctx, "iPod_UUID")
 	require.NoError(t, err)
@@ -9222,7 +9222,7 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 	hLow := test.NewHost(t, ds, "dup-low", "1.1.1.1", "dup-key-low", sharedUUID, now)
 	hHigh := test.NewHost(t, ds, "dup-high", "1.1.1.2", "dup-key-high", sharedUUID, now)
 	require.Greater(t, hHigh.ID, hLow.ID)
-	err := ds.SetOrUpdateMDMData(ctx, hHigh.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	err := ds.SetOrUpdateMDMData(ctx, hHigh.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	nanoEnroll(t, ds, hHigh, false)
 
@@ -11725,8 +11725,8 @@ func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) 
 			HardwareSerial:  fmt.Sprintf("byod_uuid_%d", i),
 			Platform:        platform,
 		})
-		nanoEnrollUserDeviceAndSetHostMDMData(t, ds, host)
 		require.NoError(t, err)
+		nanoEnrollUserDeviceAndSetHostMDMData(t, ds, host)
 
 		hosts = append(hosts, host)
 	}
@@ -12236,7 +12236,7 @@ func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datast
 		nanoEnroll(t, ds, host2, false)
 
 		for _, h := range []*fleet.Host{host1, host2} {
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 			require.NoError(t, err)
 		}
 
@@ -12305,7 +12305,7 @@ func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
 		nanoEnroll(t, ds, host1, false)
 		nanoEnroll(t, ds, host2, false)
 		for _, h := range []*fleet.Host{host1, host2} {
-			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 			require.NoError(t, err)
 		}
 
@@ -13888,4 +13888,11 @@ func testHostMDMProfileOptIns(t *testing.T, ds *Datastore) {
 	got, err = ds.BulkGetHostMDMProfileOptIns(ctx, []string{"host-B"})
 	require.NoError(t, err)
 	require.Equal(t, map[string]map[string]struct{}{"host-B": set("a1")}, got)
+}
+
+func manualProfileIf(personal bool) fleet.PersonalEnrollmentType {
+	if personal {
+		return fleet.PersonalEnrollmentTypeManualProfile
+	}
+	return fleet.PersonalEnrollmentTypeNone
 }
