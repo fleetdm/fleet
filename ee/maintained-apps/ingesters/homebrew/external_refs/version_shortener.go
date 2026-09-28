@@ -3,6 +3,7 @@ package externalrefs
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
@@ -135,5 +136,24 @@ func RaspberryPiImagerVersionTransformer(app *maintained_apps.FMAManifestApp) (*
 		return app, nil
 	}
 	app.Version = "v" + app.Version
+	return app, nil
+}
+
+// shottrLetterSuffixPattern matches a Shottr cask version with a trailing
+// letter suffix (e.g. "1.9.3b").
+var shottrLetterSuffixPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)[a-zA-Z]+$`)
+
+// ShottrVersionTransformer strips the trailing letter suffix Shottr's cask
+// version sometimes carries (e.g. "1.9.3b" → "1.9.3"). The app's
+// CFBundleShortVersionString omits the suffix, so without this the validator
+// can't find the installed version and osquery's version_compare treats the
+// installed "1.9.3" as older than "1.9.3b", breaking patch policy detection.
+func ShottrVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Shottr")
+	}
+	if m := shottrLetterSuffixPattern.FindStringSubmatch(app.Version); m != nil {
+		app.Version = m[1]
+	}
 	return app, nil
 }
