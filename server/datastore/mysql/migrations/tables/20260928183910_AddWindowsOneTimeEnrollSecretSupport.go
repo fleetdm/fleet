@@ -53,61 +53,80 @@ func Up_20260928183910(tx *sql.Tx) error {
 // deletes by that name. Nothing stopped a customer authoring their own Windows profile under it before now, and that profile
 // would be silently overwritten, or deleted off every host it is on, the first time the reconciler ran. Renaming theirs out of
 // the way first is what makes the name safe to claim.
+//
+// Apple, declaration, and Android profiles are renamed too: profile names are unique across platforms within a team, so one of
+// those under the name would block the reconciler from creating the Windows profile in that team.
 func renameConflictingWindowsEnrollSecretProfiles(tx *sql.Tx) error {
-	const selectConflicting = `
-		SELECT profile_uuid
-		FROM mdm_windows_configuration_profiles
-		WHERE name = 'Fleetd enroll secret'`
+	for _, t := range []struct {
+		profiles, uuidColumn, hostProfiles, hostNameColumn string
+	}{
+		{"mdm_windows_configuration_profiles", "profile_uuid", "host_mdm_windows_profiles", "profile_name"},
+		{"mdm_apple_configuration_profiles", "profile_uuid", "host_mdm_apple_profiles", "profile_name"},
+		{"mdm_apple_declarations", "declaration_uuid", "host_mdm_apple_declarations", "declaration_name"},
+		{"mdm_android_configuration_profiles", "profile_uuid", "host_mdm_android_profiles", "profile_name"},
+	} {
+		if err := renameConflictingEnrollSecretProfilesIn(tx, t.profiles, t.uuidColumn, t.hostProfiles, t.hostNameColumn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	var profileUUIDs []string
+func renameConflictingEnrollSecretProfilesIn(tx *sql.Tx, profiles, uuidColumn, hostProfiles, hostNameColumn string) error {
+	//nolint:gosec // table and column names are constants from the list above, never user input
+	selectConflicting := fmt.Sprintf(`SELECT %s FROM %s WHERE name = 'Fleetd enroll secret'`, uuidColumn, profiles)
+
+	var uuids []string
 	rows, err := tx.Query(selectConflicting)
 	if err != nil {
-		return fmt.Errorf("selecting conflicting windows enroll secret profiles: %w", err)
+		return fmt.Errorf("selecting conflicting enroll secret profiles in %s: %w", profiles, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var profileUUID string
-		if err := rows.Scan(&profileUUID); err != nil {
-			return fmt.Errorf("scanning conflicting windows enroll secret profile: %w", err)
+		var uuid string
+		if err := rows.Scan(&uuid); err != nil {
+			return fmt.Errorf("scanning conflicting enroll secret profile in %s: %w", profiles, err)
 		}
-		profileUUIDs = append(profileUUIDs, profileUUID)
+		uuids = append(uuids, uuid)
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("reading conflicting windows enroll secret profiles: %w", err)
+		return fmt.Errorf("reading conflicting enroll secret profiles in %s: %w", profiles, err)
 	}
 
 	// The overwhelmingly common case.
-	if len(profileUUIDs) == 0 {
+	if len(uuids) == 0 {
 		return nil
 	}
 
-	// The whole profile_uuid goes in the name, not a fragment of it. profile_uuid is the primary key, so the result cannot
-	// collide with another row under the (team_id, name) unique key, and needs no probing for a free name.
+	// The whole UUID goes in the name, not a fragment of it. The UUID is the primary key, so the result cannot collide with
+	// another row under the (team_id, name) unique key, and needs no probing for a free name.
 	renamed := func(alias string) string {
-		return `CONCAT('Fleetd enroll secret (renamed ', ` + alias + `profile_uuid, ')')`
+		return `CONCAT('Fleetd enroll secret (renamed ', ` + alias + uuidColumn + `, ')')`
 	}
 
-	stmt, args, err := sqlx.In(`
-		UPDATE host_mdm_windows_profiles hmwp
-		JOIN mdm_windows_configuration_profiles p ON p.profile_uuid = hmwp.profile_uuid
-		SET hmwp.profile_name = `+renamed("p.")+`
-		WHERE hmwp.profile_uuid IN (?)`, profileUUIDs)
+	//nolint:gosec // table and column names are constants from the list above, never user input
+	stmt, args, err := sqlx.In(fmt.Sprintf(`
+		UPDATE %s h
+		JOIN %s p ON p.%s = h.%s
+		SET h.%s = %s
+		WHERE h.%s IN (?)`, hostProfiles, profiles, uuidColumn, uuidColumn, hostNameColumn, renamed("p."), uuidColumn), uuids)
 	if err != nil {
-		return fmt.Errorf("building host profile rename: %w", err)
+		return fmt.Errorf("building host profile rename for %s: %w", hostProfiles, err)
 	}
 	if _, err := tx.Exec(stmt, args...); err != nil {
-		return fmt.Errorf("renaming host windows enroll secret profiles: %w", err)
+		return fmt.Errorf("renaming host enroll secret profiles in %s: %w", hostProfiles, err)
 	}
 
-	stmt, args, err = sqlx.In(`
-		UPDATE mdm_windows_configuration_profiles
-		SET name = `+renamed("")+`
-		WHERE profile_uuid IN (?)`, profileUUIDs)
+	//nolint:gosec // table and column names are constants from the list above, never user input
+	stmt, args, err = sqlx.In(fmt.Sprintf(`
+		UPDATE %s
+		SET name = %s
+		WHERE %s IN (?)`, profiles, renamed(""), uuidColumn), uuids)
 	if err != nil {
-		return fmt.Errorf("building profile rename: %w", err)
+		return fmt.Errorf("building profile rename for %s: %w", profiles, err)
 	}
 	if _, err := tx.Exec(stmt, args...); err != nil {
-		return fmt.Errorf("renaming windows enroll secret profiles: %w", err)
+		return fmt.Errorf("renaming enroll secret profiles in %s: %w", profiles, err)
 	}
 
 	return nil

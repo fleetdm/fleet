@@ -2666,7 +2666,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
-				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+				if err := rejectOrReleaseMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
 					return err
 				}
 			}
@@ -2840,7 +2840,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 					osqueryHostID, *enrollConfig.IdentityCert.HostID))
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
-				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
+				if err := rejectOrReleaseMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
 					return err
 				}
 			}

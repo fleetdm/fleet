@@ -480,6 +480,13 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		reimaged, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows)...)
 		require.NoError(t, err)
 		require.NotEqual(t, recreated.ID, reimaged.ID)
+
+		// The stale enrollment is gone rather than relinked, so the new host isn't MDM-managed and its next enrollment with a
+		// shared secret is accepted too.
+		_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.True(t, fleet.IsNotFound(err))
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery)...)
+		require.NoError(t, err)
 	})
 
 	t.Run("a new Windows host no enrollment claims enrolls with a shared secret", func(t *testing.T) {

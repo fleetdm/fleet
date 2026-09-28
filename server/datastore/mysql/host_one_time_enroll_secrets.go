@@ -476,13 +476,15 @@ func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
 	return enrollmentIDs, nil
 }
 
-// rejectSharedSecretForMDMLinkedWindowsUUID refuses a shared enroll secret that would insert a host with the UUID of a Windows
-// MDM enrollment Fleet has linked, but only while that enrollment holds an unconsumed one-time secret. A linked enrollment
-// without a host always means the host was deleted, since enrollments are only ever linked to existing hosts, and deleting a
-// host deletes its secrets. So an unconsumed secret there was pushed at an MDM session after the delete: the device is alive,
-// already has its own way back, and a shared-secret enrollment for its UUID is more likely another machine. Without one, the
-// device has not checked in since the delete (typically re-imaged), and the shared secret is its way back.
-func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtContext, hardwareUUID string) error {
+// rejectOrReleaseMDMLinkedWindowsUUID handles a shared enroll secret that would insert a host with the UUID of a Windows MDM
+// enrollment Fleet has linked. A linked enrollment without a host always means the host was deleted, since enrollments are only
+// ever linked to existing hosts, and deleting a host deletes its secrets.
+//
+// While the enrollment holds an unconsumed one-time secret, the secret is refused: that secret was pushed at an MDM session after
+// the delete, so the device is alive, already has its own way back, and a shared-secret enrollment for its UUID is more likely
+// another machine. Without one, the device has not checked in since the delete (typically re-imaged), so its enrollments are
+// stale: they are deleted here, or the new host would relink to them and count as MDM-managed with no way to recover.
+func rejectOrReleaseMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtContext, hardwareUUID string) error {
 	if hardwareUUID == "" {
 		return nil
 	}
@@ -498,6 +500,9 @@ func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtC
 	if pushed {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
 			"shared enroll secret presented for the uuid of a windows mdm enrollment awaiting its pushed one-time secret")
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_enrollments WHERE host_uuid = ?`, hardwareUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete stale windows mdm enrollments for enrolling uuid")
 	}
 	return nil
 }
@@ -611,7 +616,7 @@ func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtCo
 // so that another machine cannot take the host over by presenting its identifiers. Such a host gets a one-time secret through the
 // Fleetd enroll secret profile, which an admin resends when fleetd has to enroll again. An enrollment row linked to the host is the
 // signal: an unenroll alert or a re-enrollment of the device deletes it. A host that would be inserted instead is checked by
-// rejectSharedSecretForMDMLinkedWindowsUUID.
+// rejectOrReleaseMDMLinkedWindowsUUID.
 func rejectSharedSecretForMDMManagedWindowsHost(
 	ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string, plane fleet.EnrollmentPlane,
 ) error {
