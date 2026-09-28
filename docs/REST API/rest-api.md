@@ -11191,6 +11191,7 @@ None.
 - [Update policy](#update-policy)
 - [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
+- [Autofill policy](#autofill-policy)
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -12063,6 +12064,8 @@ Setting `patch_when_closed` to `false` after it was `true` removes the read-only
 }
 ```
 
+---
+
 ### Reset policy automations
 
 Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fleet/automations#webhooks-and-tickets) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
@@ -12097,6 +12100,33 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 
 ```json
 {}
+```
+
+---
+
+### Autofill policy
+
+_Available in Fleet Premium_
+
+Generates a human-readable description and resolution for a policy query using AI. 
+
+`POST /api/v1/fleet/autofill/policy`
+
+#### Parameters
+
+| Name | Type   | In   | Description                           |
+| ---- | ------ | ---- | ------------------------------------- |
+| sql  | string | body | **Required.** The policy's SQL query. |
+
+#### Example response
+
+`Status: 200`
+
+```json
+{
+  "description": "Checks that FileVault is enabled on macOS devices.",
+  "resolution": "Turn on FileVault in System Settings > Privacy & Security."
+}
 ```
 
 ---
