@@ -401,11 +401,14 @@ request_certificate() {
         >"${WORK_DIR}/request.json"
 
     local http_code
-    http_code="$(curl -sS -o "${response}" -w '%{http_code}' \
+    local curl_config="${WORK_DIR}/curl.cfg"
+    printf 'header = "authorization: Bearer %s"\n' "${FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN}" > "${curl_config}"
+    chmod 600 "${curl_config}"
+
+    http_code="$(curl -sS -o "${response}" -w '%{http_code}' --config "${curl_config}" \
         "${FLEET_URL}/api/latest/fleet/certificate_authorities/${CA_ID}/request_certificate" \
         -X POST \
         -H 'accept: application/json, text/plain, */*' \
-        -H "authorization: Bearer ${FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN}" \
         -H 'content-type: application/json' \
         --data-binary "@${WORK_DIR}/request.json")"
 
