@@ -7,7 +7,7 @@
   }
 
   &__premium-feature-message {
-    margin-top: 80px;
+    margin-top: $gap-page-component; // Matches the Premium tab content offset above
   }
 
   &__target-container {

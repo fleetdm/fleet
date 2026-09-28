@@ -2,8 +2,6 @@
   @include vertical-page-tab-panel-layout;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
-
-
   .list-item {
     &__actions {
       // opacity/pointer-events (not display:none) so action buttons stay in

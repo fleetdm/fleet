@@ -1,18 +1,27 @@
 .premium-feature-message-container {
-  // Default variant (Option B) — empty-state style for pages/sections
+  // Scoped (not global) so these don't overwrite EmptyState's variables in the
+  // shared bundle. Same values as EmptyState so both ghost tables match.
+  $ghost-table-height: 270px;
+  $ghost-row-height: 40px;
+  $ghost-skeleton-height: 12px;
+  $ghost-skeleton-radius: 4px;
+
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  height: 270px;
+  height: $ghost-table-height;
   box-sizing: border-box;
 
   &__ghost-table {
-    display: flex;
-    flex-direction: column;
+    position: absolute;
+    inset: 0;
+    // Block (not flex) so rows keep their full height and the last one is
+    // clipped by overflow, like EmptyState, instead of every row shrinking.
     // border-box so the 1px border doesn't push the layer past the container
     // (Fleet has no global box-sizing reset).
     box-sizing: border-box;
-    width: 100%;
-    height: 100%;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-large;
     overflow: hidden;
@@ -31,7 +40,7 @@
   &__ghost-header {
     display: flex;
     align-items: center;
-    height: 40px;
+    height: $ghost-row-height;
     padding: 0 $pad-large;
     background-color: $ui-off-white;
     border-bottom: 1px solid $ui-fleet-black-10;
@@ -41,7 +50,7 @@
   &__ghost-cell {
     display: flex;
     align-items: center;
-    height: 40px;
+    height: $ghost-row-height;
     padding: 0 $pad-large;
     border-bottom: 1px solid $ui-fleet-black-10;
     box-sizing: border-box;
@@ -52,23 +61,22 @@
   }
 
   &__ghost-skeleton {
-    height: 12px;
-    border-radius: 4px;
+    height: $ghost-skeleton-height;
+    border-radius: $ghost-skeleton-radius;
     background-color: $ui-fleet-black-10;
   }
 
   &__content {
-    position: absolute;
-    inset: 0;
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: $pad-medium; // 16px per Figma
+    gap: $pad-medium;
     text-align: center;
-    padding: $pad-xlarge 4rem; // 32px 64px per Figma
+    padding: $pad-xlarge;
 
-    // Radial glow for legibility over ghost rows; color-mix keeps dark mode correct
+    // Same glow as EmptyState: sized to the content box so the ghost rows stay
+    // visible around it. color-mix keeps it correct in dark mode.
     background: radial-gradient(
       ellipse at center,
       var(--core-fleet-white) 0%,
@@ -77,22 +85,22 @@
   }
 
   &__title {
-    font-size: $small; // 16px per Figma
+    font-size: $small;
     font-weight: $bold;
     line-height: $line-height;
     color: $core-fleet-black;
     margin: 0;
   }
 
-  // Compact variant (Option A) — left-aligned bordered card for modals
   &--compact {
     position: static;
+    display: block;
     width: auto;
     height: auto;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-large;
     background-color: $ui-off-white;
-    padding: $pad-medium $pad-large; // 16px 24px per Figma
+    padding: $pad-medium; // Matches InfoBanner
 
     .premium-feature-message {
       display: flex;

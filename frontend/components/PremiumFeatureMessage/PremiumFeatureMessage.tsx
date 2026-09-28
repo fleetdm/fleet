@@ -6,14 +6,14 @@ import Icon from "components/Icon";
 
 interface IPremiumFeatureMessage {
   className?: string;
-  /** "default" renders Option B: empty-state style with ghost table (pages/sections).
-   *  "compact" renders Option A: left-aligned bordered card (modals). */
+  /** "default": empty-state style for pages and settings sections.
+   *  "compact": left-aligned bordered card for modals. */
   variant?: "default" | "compact";
 }
 
 const baseClass = "premium-feature-message-container";
 
-// Deterministic skeleton widths matching Figma Option B wireframe
+// Fixed widths so skeleton rows don't align vertically and render the same every time
 const GHOST_SKELETON_WIDTHS = [294, 272, 302, 276, 298, 268];
 
 const PremiumFeatureMessage = ({
@@ -58,7 +58,7 @@ const PremiumFeatureMessage = ({
       </div>
       <div className={`${baseClass}__content`}>
         <Icon name="premium-feature" />
-        <p className={`${baseClass}__title`}>Included in Fleet Premium</p>
+        <h3 className={`${baseClass}__title`}>Included in Fleet Premium</h3>
         <CustomLink
           url="https://fleetdm.com/upgrade"
           text="Learn more"
