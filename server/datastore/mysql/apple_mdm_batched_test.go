@@ -65,7 +65,7 @@ func TestGetAppleProfileReconcileSnapshotIncludesOptIns(t *testing.T) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, h, false)
-	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, ds.ApplyHostMDMProfileOptInChanges(ctx, &fleet.MDMProfileOptInChanges{
 		Add: []fleet.HostProfileUUID{{HostUUID: h.UUID, ProfileUUID: "a1"}, {HostUUID: "uuid-not-in-window", ProfileUUID: "a2"}},
 	}))
