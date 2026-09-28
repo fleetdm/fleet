@@ -108,6 +108,7 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery", testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery},
 		{"ApplyPolicySpecsNotifyBeforePatchingRejectsWindows", testApplyPolicySpecsNotifyBeforePatchingRejectsWindows},
 		{"ApplyPolicySpecsRenamePatchPolicyRegression43687", testApplyPolicySpecsRenamePatchPolicyRegression43687},
+		{"PoliciesHidden", testPoliciesHidden},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
@@ -9395,8 +9396,10 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	p3, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Type:                 fleet.PolicyTypePatch,
 		PatchSoftwareTitleID: &titleID,
+		Hidden:               true,
 	})
 	require.NoError(t, err)
+	require.True(t, p3.Hidden)
 	require.Equal(t, "macOS - Maintained1 up to date", p3.Name)
 	require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", p3.Description)
 	require.Equal(t, "Install the latest version from self-service.", *p3.Resolution)
@@ -10836,4 +10839,65 @@ func testApplyPolicySpecPinnedInstaller(t *testing.T, ds *Datastore) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not belong to software_title_id")
 	})
+}
+
+func testPoliciesHidden(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team hidden"})
+	require.NoError(t, err)
+
+	p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Name: "hidden", Query: "SELECT 1;", Hidden: true})
+	require.NoError(t, err)
+	require.True(t, p.Hidden)
+	got, err := ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.True(t, got.Hidden)
+
+	got.Hidden = false
+	require.NoError(t, ds.SavePolicy(ctx, got, false, false))
+	got, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.False(t, got.Hidden)
+
+	spec := &fleet.PolicySpec{Name: "hidden", Team: team.Name, Query: "SELECT 1;", Hidden: true}
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+	got, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.True(t, got.Hidden)
+
+	spec.Hidden = false
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+	got, err = ds.Policy(ctx, p.ID)
+	require.NoError(t, err)
+	require.False(t, got.Hidden)
+
+	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	require.False(t, teamPolicies[0].Hidden)
+
+	// Hidden policies are still listed for a host; only the device endpoints filter them out.
+	host := test.NewHost(t, ds, "host-hidden", "1.1.1.1", "hidden-key", "hidden-uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	spec.Hidden = true
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Len(t, hostPolicies, 1)
+	require.True(t, hostPolicies[0].Hidden)
+
+	// Global ("All fleets") policies can be hidden too, via create and GitOps.
+	gp, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{Name: "hidden global", Query: "SELECT 1;", Hidden: true})
+	require.NoError(t, err)
+	require.True(t, gp.Hidden)
+	got, err = ds.Policy(ctx, gp.ID)
+	require.NoError(t, err)
+	require.True(t, got.Hidden)
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{Name: "hidden global", Query: "SELECT 1;", Hidden: false},
+	}))
+	got, err = ds.Policy(ctx, gp.ID)
+	require.NoError(t, err)
+	require.False(t, got.Hidden)
 }

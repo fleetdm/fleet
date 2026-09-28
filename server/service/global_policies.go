@@ -35,6 +35,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Resolution:       req.Resolution,
 		Platform:         req.Platform,
 		Critical:         req.Critical,
+		Hidden:           req.Hidden,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
@@ -517,6 +518,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// PatchWhenClosed is premium-only.
 		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		if policy.Hidden && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

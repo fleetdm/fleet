@@ -62,6 +62,7 @@ const QueryEditor = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     policyTeamId,
     setLastEditedQueryDescription,
@@ -163,6 +164,7 @@ const QueryEditor = ({
       };
       if (isPremiumTier) {
         payload.critical = formData.critical;
+        payload.hidden = formData.hidden;
         payload.team_id = formData.team_id;
       }
 
@@ -216,6 +218,7 @@ const QueryEditor = ({
       lastEditedQueryBody,
       lastEditedQueryResolution,
       lastEditedQueryCritical,
+      lastEditedQueryHidden,
       lastEditedQueryPlatform,
     });
 

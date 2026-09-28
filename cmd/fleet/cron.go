@@ -1681,9 +1681,6 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_apple_mdm_commands", func(ctx context.Context) error {
 			return cleanupAppleMDMCommandsJob(ctx, ds, cleanupStateStore, config.MDM, logger)
 		}),
-		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
-			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
-		}),
 		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
 			return chartSvc.CleanupData(ctx, 30)
 		}),
