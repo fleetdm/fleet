@@ -2279,6 +2279,55 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
   });
 
+  it("shows software_display_name over software_title for installed_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("shows software_display_name over software_title for uninstalled_software", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UninstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+        status: "uninstalled",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
+  it("falls back to software_title when software_display_name is absent", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        host_display_name: "Foo Host",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Firefox")).toBeInTheDocument();
+  });
+
   it("renders script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,

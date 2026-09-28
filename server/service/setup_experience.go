@@ -366,11 +366,20 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if newActivityFn != nil {
 		for _, s := range statuses {
 			if s.Status == fleet.SetupExperienceStatusFailure && s.IsForSoftware() {
+				var softwareDisplayName *string
+				if s.SoftwareTitleID != nil {
+					dn, dnErr := ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *s.SoftwareTitleID)
+					if dnErr != nil {
+						return ctxerr.Wrap(ctx, dnErr, "look up software display name for canceled setup experience activity")
+					}
+					softwareDisplayName = dn
+				}
 				if err := newActivityFn(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-					HostID:          host.ID,
-					HostDisplayName: host.DisplayName(),
-					SoftwareTitle:   s.Name,
-					SoftwareTitleID: ptr.ValOrZero(s.SoftwareTitleID),
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       s.Name,
+					SoftwareDisplayName: softwareDisplayName,
+					SoftwareTitleID:     ptr.ValOrZero(s.SoftwareTitleID),
 				}); err != nil {
 					return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
 				}

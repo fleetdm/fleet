@@ -4071,36 +4071,51 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	return hasInstallers, nil
 }
 
-func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
+func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, *string, bool, error) {
 	stmt := `
-	SELECT COALESCE(st.name, hsi.software_title_name) name, hsi.self_service
+	SELECT
+		COALESCE(st.name, hsi.software_title_name) name,
+		stdn.display_name AS display_name,
+		hsi.self_service
 	FROM software_titles st
 	INNER JOIN software_installers si ON si.title_id = st.id
 	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
+	LEFT JOIN hosts h ON h.id = hsi.host_id
+	LEFT JOIN software_title_display_names stdn
+		ON stdn.software_title_id = st.id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE hsi.execution_id = ? AND hsi.uninstall = TRUE
 
 	UNION
 
-	SELECT st.name, COALESCE(ua.payload->'$.self_service', FALSE) self_service
+	SELECT
+		st.name,
+		stdn.display_name AS display_name,
+		COALESCE(ua.payload->'$.self_service', FALSE) self_service
 	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id
 		INNER JOIN software_install_upcoming_activities siua
 			ON siua.software_installer_id = si.id
 		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN hosts h ON h.id = ua.host_id
+		LEFT JOIN software_title_display_names stdn
+			ON stdn.software_title_id = st.id
+			AND stdn.team_id = COALESCE(h.team_id, 0)
 	WHERE
 		ua.execution_id = ? AND
 		ua.activity_type = 'software_uninstall'
 	`
 	var result struct {
-		Name        string `db:"name"`
-		SelfService bool   `db:"self_service"`
+		Name        string  `db:"name"`
+		DisplayName *string `db:"display_name"`
+		SelfService bool    `db:"self_service"`
 	}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, executionID, executionID)
 	if err != nil {
-		return "", false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
+		return "", nil, false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
 	}
-	return result.Name, result.SelfService, nil
+	return result.Name, result.DisplayName, result.SelfService, nil
 }
 
 func (ds *Datastore) GetSoftwareInstallersPendingUninstallScriptPopulation(ctx context.Context) (map[uint]string, error) {

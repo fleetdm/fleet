@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -86,4 +87,29 @@ func (ds *Datastore) getSoftwareTitleDisplayName(ctx context.Context, teamID uin
 	}
 
 	return displayName, nil
+}
+
+// GetSoftwareTitleDisplayName returns the per-team "Software name" override
+// for a software title. Returns nil (not an error) when no override exists,
+// so callers can pass the result straight through to an activity struct.
+func (ds *Datastore) GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	if titleID == 0 {
+		return nil, nil
+	}
+	// Overrides are stored with team_id=0 for no-team, matching updateSoftwareTitleDisplayName.
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if displayName == "" {
+		return nil, nil
+	}
+	return &displayName, nil
 }

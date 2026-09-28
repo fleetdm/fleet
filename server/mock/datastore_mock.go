@@ -546,6 +546,8 @@ type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFi
 
 type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name string, displayName string, err error)
 
+type GetSoftwareTitleDisplayNameFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
+
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
 type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
@@ -556,7 +558,7 @@ type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, sof
 
 type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
 
-type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, bool, error)
+type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, *string, bool, error)
 
 type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
@@ -3269,6 +3271,9 @@ type DataStore struct {
 
 	SoftwareTitleNameForHostFilterFunc        SoftwareTitleNameForHostFilterFunc
 	SoftwareTitleNameForHostFilterFuncInvoked bool
+
+	GetSoftwareTitleDisplayNameFunc        GetSoftwareTitleDisplayNameFunc
+	GetSoftwareTitleDisplayNameFuncInvoked bool
 
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
@@ -8010,6 +8015,13 @@ func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint,
 	return s.SoftwareTitleNameForHostFilterFunc(ctx, id, teamID, tmFilter)
 }
 
+func (s *DataStore) GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	s.mu.Lock()
+	s.GetSoftwareTitleDisplayNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareTitleDisplayNameFunc(ctx, teamID, titleID)
+}
+
 func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error {
 	s.mu.Lock()
 	s.UpdateSoftwareTitleNameFuncInvoked = true
@@ -8045,7 +8057,7 @@ func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executio
 	return s.InsertSoftwareUninstallRequestFunc(ctx, executionID, hostID, softwareInstallerID, selfService)
 }
 
-func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
+func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, *string, bool, error) {
 	s.mu.Lock()
 	s.GetDetailsForUninstallFromExecutionIDFuncInvoked = true
 	s.mu.Unlock()

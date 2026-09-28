@@ -27,6 +27,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   formatMdmCommandNameForActivityItem,
   PREMIUM_ONLY_DETAIL_ACTIVITIES,
@@ -1587,13 +1588,18 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       status,
       source,
       self_service,
       from_setup_experience,
       skipped_install,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
 
     const showSoftwarePackage =
       !!details.software_package &&
@@ -1648,9 +1654,14 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       self_service,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     const status =
       details.status === "failed" ? "failed_uninstall" : details.status;
 
@@ -1907,10 +1918,15 @@ const TAGGED_TEMPLATES = {
   },
   canceledInstallSoftware: (activity: IActivity) => {
     const {
-      software_title: title,
+      software_title,
+      software_display_name,
       host_display_name: hostName,
       from_setup_experience: fromSetupExperience,
     } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1923,8 +1939,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledSetupExperience: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1934,8 +1957,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledUninstallSoftware: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
