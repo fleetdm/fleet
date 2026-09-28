@@ -78,4 +78,19 @@ describe("InstalledSoftwareActivityItem", () => {
     expect(screen.getByText("Fleet")).toBeInTheDocument();
     expect(screen.queryByText("Some Admin")).not.toBeInTheDocument();
   });
+
+  it("hides the Show details button when hideShowDetails is true", () => {
+    render(
+      <InstalledSoftwareActivityItem
+        activity={createInstallActivity()}
+        tab="past"
+        onShowDetails={noop}
+        hideShowDetails
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /show info/i })
+    ).not.toBeInTheDocument();
+  });
 });

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.40.2",
+      "version": "1.41.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'me.proton.pass.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.proton.pass.electron' AND version_compare(bundle_short_version, '1.40.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.proton.pass.electron' AND version_compare(bundle_short_version, '1.41.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'me.proton.pass.electron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://proton.me/download/pass/macos/ProtonPass_1.40.2.dmg",
+      "installer_url": "https://proton.me/download/pass/macos/ProtonPass_1.41.1.dmg",
       "install_script_ref": "60d13e0d",
       "uninstall_script_ref": "5f684be7",
-      "sha256": "fb7dde5dcf7cf25797db60725c6493f70f6fb1472b0fe3cff1e51aa07b560ca2",
+      "sha256": "9545148fac1b59da3777fc18459f03b70c4060ca8ce28242ddca5f35b17f83a3",
       "default_categories": [
         "Productivity"
       ]

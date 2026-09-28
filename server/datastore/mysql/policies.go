@@ -43,7 +43,7 @@ const policyCols = `
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
 	p.patch_software_title_id, p.continuous_automations_enabled, p.patch_when_closed,
 	p.notify_before_patching,
-	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid
+	p.resend_apple_profile_uuid, p.resend_windows_profile_uuid, p.hidden
 `
 
 const (
@@ -122,10 +122,10 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, hidden, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
-		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical, args.Hidden,
 	)
 	switch {
 	case err == nil:
@@ -484,7 +484,7 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
 			conditional_access_enabled = ?, continuous_automations_enabled = ?, patch_when_closed = ?,
 			notify_before_patching = ?,
-			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?,
+			resend_apple_profile_uuid = ?, resend_windows_profile_uuid = ?, hidden = ?,
 			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
@@ -493,7 +493,7 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 		p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID,
 		p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled,
 		p.PatchWhenClosed, p.NotifyBeforePatching,
-		p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID,
+		p.ResendAppleProfileUUID, p.ResendWindowsProfileUUID, p.Hidden,
 		p.ID,
 	)
 	if err != nil {
@@ -1587,15 +1587,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
 				type, patch_software_title_id, continuous_automations_enabled, patch_when_closed,
 				notify_before_patching,
-				resend_apple_profile_uuid, resend_windows_profile_uuid
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?)`,
+				resend_apple_profile_uuid, resend_windows_profile_uuid, hidden
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
 		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled, args.PatchWhenClosed,
 		args.NotifyBeforePatching,
-		resendProf.AppleUUID, resendProf.WindowsUUID,
+		resendProf.AppleUUID, resendProf.WindowsUUID, args.Hidden,
 	)
 	switch {
 	case err == nil:
@@ -1944,8 +1944,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			patch_when_closed,
 			notify_before_patching,
 			resend_apple_profile_uuid,
-			resend_windows_profile_uuid
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?)
+			resend_windows_profile_uuid,
+			hidden
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1964,7 +1965,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			patch_when_closed = VALUES(patch_when_closed),
 			notify_before_patching = VALUES(notify_before_patching),
 			resend_apple_profile_uuid = VALUES(resend_apple_profile_uuid),
-			resend_windows_profile_uuid = VALUES(resend_windows_profile_uuid)
+			resend_windows_profile_uuid = VALUES(resend_windows_profile_uuid),
+			hidden = VALUES(hidden)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -2098,7 +2100,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
 					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled, spec.PatchWhenClosed,
 					spec.NotifyBeforePatching,
-					resendProf.AppleUUID, resendProf.WindowsUUID,
+					resendProf.AppleUUID, resendProf.WindowsUUID, spec.Hidden,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")

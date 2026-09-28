@@ -169,6 +169,7 @@ module.exports.custom = {
     'handbook/company/product-maturity-assessment.md': 'allenhouchins',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
     'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/company/legal': 'mikermcneil',
     'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',

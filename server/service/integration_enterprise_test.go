@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -66,6 +67,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1527,9 +1529,16 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
 		Type:                 new("patch"),
 		PatchSoftwareTitleID: &dummyTitleID,
+		Hidden:               true,
 	}, http.StatusOK, &patchPolicy)
 	require.NotNil(t, patchPolicy.Policy.PatchSoftware)
 	require.Equal(t, fleet.PolicyTypePatch, patchPolicy.Policy.Type)
+	// Patch policies can be hidden from end users like any other policy.
+	require.True(t, patchPolicy.Policy.Hidden)
+	unhiddenPatch := fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID),
+		json.RawMessage(`{"hidden": false}`), http.StatusOK, &unhiddenPatch)
+	require.False(t, unhiddenPatch.Policy.Hidden)
 
 	// List all policies (no filter) - should return all 3
 	listResp := fleet.ListTeamPoliciesResponse{}
@@ -5019,6 +5028,18 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	tpResp := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
 
+	// add a hidden policy to the team, failing on the host
+	hiddenResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Name:     "TestQueryEnterpriseHiddenTeamPolicy",
+		Query:    "select * from osquery;",
+		Platform: "darwin",
+		Hidden:   true,
+	}, http.StatusOK, &hiddenResp)
+	require.True(t, hiddenResp.Policy.Hidden)
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{hiddenResp.Policy.ID: new(false)}, time.Now(), false, nil)))
+
 	// try with invalid token
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
 	err = res.Body.Close()
@@ -5045,8 +5066,12 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, err)
 	err = json.Unmarshal(rawBody, &listDevicePoliciesResp)
 	require.NoError(t, err)
+	// hidden policies are left out by default
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+	for _, p := range listDevicePoliciesResp.Policies {
+		require.NotEqual(t, hiddenResp.Policy.ID, p.ID)
+	}
 	// the response must not leak the policy author's identity nor the raw SQL query
 	var rawPoliciesResp struct {
 		Policies []map[string]any `json:"policies"`
@@ -5057,6 +5082,15 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	for _, policy := range rawPoliciesResp.Policies {
 		assertDeviceSafePolicy(policy)
 	}
+
+	// GET `/api/_version_/fleet/device/{token}/policies?include_hidden_policies=true`
+	listDevicePoliciesResp = listDevicePoliciesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies?include_hidden_policies=true", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, listDevicePoliciesResp.Policies, 3)
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
@@ -5072,7 +5106,14 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
+	// hidden policies are left out by default, but still counted
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+	for _, p := range *getDeviceHostResp.Host.Policies {
+		require.NotEqual(t, hiddenResp.Policy.ID, p.ID)
+	}
+	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+	require.NotNil(t, getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
 	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 	// the host's policies must not leak the policy author's identity nor the
 	// raw SQL query
@@ -5088,6 +5129,22 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		assertDeviceSafePolicy(policy)
 	}
 
+	// GET `/api/_version_/fleet/device/{token}?include_hidden_policies=true`
+	getDeviceHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusOK)
+	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	require.NoError(t, err)
+	err = res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, *getDeviceHostResp.Host.Policies, 3)
+	var sawHidden bool
+	for _, p := range *getDeviceHostResp.Host.Policies {
+		sawHidden = sawHidden || p.ID == hiddenResp.Policy.ID
+	}
+	require.True(t, sawHidden)
+	require.Equal(t, uint64(2), getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+	require.Equal(t, uint64(1), *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
@@ -5096,7 +5153,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = res.Body.Close()
 	require.NoError(t, err)
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, *getDesktopResp.FailingPolicies, uint(1))
+	require.Equal(t, uint(2), *getDesktopResp.FailingPolicies)
+	require.Equal(t, uint(1), *getDesktopResp.FailingUnhiddenPolicies)
 	require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 
 	// update the team to enable software inventory
@@ -5109,6 +5167,39 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
 	require.NoError(t, err)
 	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
+
+	// Transferring the host drops the old team's hidden failure from both device
+	// endpoints right away; only the global failure remains.
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team2-policies"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID})))
+
+	checkCounts := func(wantPolicies int, wantTotal, wantUnhidden uint64) {
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDeviceHostResp))
+		require.NoError(t, res.Body.Close())
+		require.Len(t, *getDeviceHostResp.Host.Policies, wantPolicies)
+		require.Equal(t, wantTotal, getDeviceHostResp.Host.HostIssues.FailingPoliciesCount)
+		require.Equal(t, wantUnhidden, *getDeviceHostResp.Host.HostIssues.FailingUnhiddenPoliciesCount)
+
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.Equal(t, uint(wantTotal), *getDesktopResp.FailingPolicies)
+		require.Equal(t, uint(wantUnhidden), *getDesktopResp.FailingUnhiddenPolicies)
+	}
+	checkCounts(1, 1, 1)
+
+	// A hidden policy on the new team counts once the host reports a result for it.
+	team2Hidden, err := s.ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name: "TestQueryEnterpriseTeam2HiddenPolicy", Query: "select 1;", Hidden: true,
+	})
+	require.NoError(t, err)
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{team2Hidden.ID: new(false)}, time.Now(), false, nil)))
+	checkCounts(2, 2, 1)
 }
 
 // TestDeviceHostConditionalAccessFeatures tests the EnableConditionalAccess and
@@ -7380,7 +7471,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled", "Hidden"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -7398,6 +7489,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Platform:              "linux",
 		Critical:              true,
 		CalendarEventsEnabled: true,
+		Hidden:                true,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
@@ -7433,6 +7525,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 			Platform:              new("windows"),
 			Critical:              new(false),
 			CalendarEventsEnabled: new(false),
+			Hidden:                new(false),
 		},
 	}
 	patchPol1 := &fleet.ModifyTeamPolicyResponse{}
@@ -7448,6 +7541,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 			Platform:              new("windows"),
 			Critical:              new(true),
 			CalendarEventsEnabled: new(true),
+			Hidden:                new(true),
 		},
 	}
 	patchPol2 := &fleet.ModifyTeamPolicyResponse{}
@@ -7467,6 +7561,42 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	getPol2 := &fleet.GetPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+
+	// A patch that omits hidden leaves it untouched.
+	patchPol2 = &fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID),
+		json.RawMessage(`{"name": "newName2b"}`), http.StatusOK, patchPol2)
+	s.Require().True(patchPol2.Policy.Hidden)
+
+	// hidden and conditional_access_enabled are mutually exclusive, on create and on either side of a patch.
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), &fleet.TeamPolicyRequest{
+		Query: "query", Name: "hidden-ca", Platform: "darwin", Hidden: true, ConditionalAccessEnabled: true,
+	}, http.StatusBadRequest)
+	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
+
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID),
+		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusBadRequest)
+	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
+
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+		json.RawMessage(`{"conditional_access_enabled": true}`), http.StatusOK)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID),
+		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
+	s.Require().Contains(extractServerErrorText(res.Body), `"hidden" and "conditional_access_enabled" cannot both be set`)
+
+	// "All fleets" policies can be hidden too.
+	gpResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name: "hidden global", Query: "SELECT 1;", Hidden: true,
+	}, http.StatusOK, &gpResp)
+	s.Require().True(gpResp.Policy.Hidden)
+	modGP := &fleet.ModifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID),
+		json.RawMessage(`{"hidden": false}`), http.StatusOK, modGP)
+	s.Require().False(modGP.Policy.Hidden)
+	getGP := &fleet.GetPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), nil, http.StatusOK, getGP)
+	s.Require().False(getGP.Policy.Hidden)
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
@@ -25050,7 +25180,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	// Enroll macOS host to MDM to update managed status.
 	err = s.ds.SetOrUpdateMDMData(ctx,
 		h1.ID, false, true /* enrolled */, s.server.URL, false, /* installedFromDEP */
-		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, false, /* isPersonalEnrollment */
+		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, fleet.PersonalEnrollmentTypeNone, /* isPersonalEnrollment */
 	)
 	require.NoError(t, err)
 
@@ -25085,7 +25215,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	// Enroll Windows host to MDM to update managed status.
 	err = s.ds.SetOrUpdateMDMData(ctx,
 		windowsHost1.ID, false, true /* enrolled */, s.server.URL, false, /* installedFromDEP */
-		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, false, /* isPersonalEnrollment */
+		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, fleet.PersonalEnrollmentTypeNone, /* isPersonalEnrollment */
 	)
 	require.NoError(t, err)
 
@@ -25245,7 +25375,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	// Enroll to MDM to update managed status.
 	err = s.ds.SetOrUpdateMDMData(ctx,
 		h2.ID, false, true /* enrolled */, s.server.URL, false, /* installedFromDEP */
-		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, false, /* isPersonalEnrollment */
+		"Fleet" /* MDM name */, "" /* fleetEnrollmentRef */, fleet.PersonalEnrollmentTypeNone, /* isPersonalEnrollment */
 	)
 	require.NoError(t, err)
 
@@ -34871,7 +35001,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 //     END_USER_AUTH_REQUIRED.
 //  2. Orbit opens a browser, the user authenticates, and the SSO callback
 //     in ee/server/service/mdm.go writes the mdm_idp_accounts +
-//     host_mdm_idp_accounts rows via the bare AssociateHostMDMIdPAccountDB
+//     host_mdm_idp_accounts rows via AssociateHostMDMIdPAccountFromSSO
 //     (the hosts row does not exist yet at this point — only the IdP-side
 //     tables are populated). We simulate that callback by inserting the
 //     same rows directly.
@@ -34882,6 +35012,12 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 // Pre-fix behavior: host_emails stayed empty, so ListHostDeviceMapping
 // returned nothing and the hosts list endpoint returned device_mapping=null
 // even though the single-host endpoint showed the IdP user via SCIM.
+//
+// Steps 1 and 3 also settle the end-user-auth marker that gates the
+// unauthenticated setup experience SSO flow. Unit tests drive those branches
+// against an injected store; this is the only place the store is the one the
+// running server built for itself, so it is what proves the marker is wired at
+// all.
 func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMapping() {
 	t := s.T()
 	ctx := t.Context()
@@ -34954,6 +35090,13 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 
+		// The 401 also records the marker, without which the setup experience
+		// SSO flow below would refuse to start for this host UUID.
+		kv := redis_key_value.New(s.redisPool)
+		pending, err := shared_mdm.HasEndUserAuthPrompt(ctx, kv, hostUUID, time.Now())
+		require.NoError(t, err)
+		require.True(t, pending)
+
 		// Step 2: Simulate the Orbit Setup Experience SSO callback writing the
 		// IdP account and linking it to the host UUID. This matches what
 		// ee/server/service/mdm.go's mdmSSOHandleCallbackAuth does after the
@@ -34968,10 +35111,10 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		idpAcct, err := s.ds.GetMDMIdPAccountByEmail(ctx, idpEmail)
 		require.NoError(t, err)
 		require.NotNil(t, idpAcct)
-		// Use the bare DB variant — this is the function the SSO callback
-		// uses, and the hosts row does not exist yet so the reconciling
-		// variant would error on the host-id lookup.
-		require.NoError(t, s.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, idpAcct.UUID))
+		// This is the function the SSO callback uses; the hosts row does not
+		// exist yet so the reconciling variant would error on the host-id lookup.
+		_, err = s.ds.AssociateHostMDMIdPAccountFromSSO(ctx, hostUUID, idpAcct.UUID, true)
+		require.NoError(t, err)
 
 		// host_mdm_idp_accounts is now populated, but host_emails is not.
 		var preCount int
@@ -34989,6 +35132,12 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
 		res.Body.Close()
 		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		// Enrolling ends the prompt, so a sign-in completing later can no longer
+		// take this host's IdP binding over.
+		pending, err = shared_mdm.HasEndUserAuthPrompt(ctx, kv, hostUUID, time.Now())
+		require.NoError(t, err)
+		require.False(t, pending)
 
 		// Step 4: Verify host_emails got populated — this is what fixes the
 		// hosts list endpoint returning device_mapping=null (issue #45066).

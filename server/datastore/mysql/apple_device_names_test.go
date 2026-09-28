@@ -59,7 +59,7 @@ func enrollAppleHostForDeviceName(t *testing.T, ds *Datastore, name, platform st
 	require.NoError(t, err)
 
 	nanoEnroll(t, ds, host, false)
-	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, serverURL, true, fleet.WellKnownMDMFleet, "", personal))
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, serverURL, true, fleet.WellKnownMDMFleet, "", manualProfileIf(personal)))
 	return host
 }
 

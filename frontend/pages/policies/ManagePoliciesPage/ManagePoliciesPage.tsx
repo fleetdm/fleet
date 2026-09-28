@@ -146,6 +146,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
     setLastEditedQueryBody,
     setLastEditedQueryId,
@@ -526,6 +527,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
+    setLastEditedQueryHidden(false);
     setPolicyTeamId(
       currentTeamId === API_ALL_TEAMS_ID
         ? APP_CONTEXT_ALL_TEAMS_ID
