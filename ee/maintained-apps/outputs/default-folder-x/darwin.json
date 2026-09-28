@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.3",
+      "version": "6.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.stclairsoft.DefaultFolderX6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stclairsoft.DefaultFolderX6' AND version_compare(bundle_short_version, '6.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stclairsoft.DefaultFolderX6' AND version_compare(bundle_short_version, '6.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.stclairsoft.DefaultFolderX6' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.stclairsoft.com/download/DefaultFolderX-6.3.dmg",
+      "installer_url": "https://www.stclairsoft.com/download/DefaultFolderX-6.3.1.dmg",
       "install_script_ref": "fbe562a3",
       "uninstall_script_ref": "486f6e6a",
-      "sha256": "bda792c1ecc95d13fc73a3d5124d54a0b21c3b251362125d278e50f91145e395",
+      "sha256": "2a8b9390677f172f6dab34a8857228849dc9777b72808cd60be788cf8c2f5d57",
       "default_categories": [
         "Utilities"
       ]

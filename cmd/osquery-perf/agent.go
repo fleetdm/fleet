@@ -2855,7 +2855,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 
 	// Use database software 80% of the time if available; otherwise use legacy vulnerable software.
 	var realSoftware []map[string]string
-	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
 		// Initialize cached indices on first call, then mutate on subsequent calls
 		if a.cachedSoftwareIndices == nil {
 			// Select a random count between min-max, then pick that many random indices
@@ -3927,7 +3927,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		}
 		if ss == fleet.StatusOK {
 			// Use database software 80% of the time if available, otherwise use embedded data
-			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
 				// Initialize cached indices on first call, then mutate on subsequent calls
 				if a.cachedSoftwareIndices == nil {
 					// Select a random count between min-max, then pick that many random indices
@@ -4032,7 +4032,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			switch a.os {
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
-				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
 					// Initialize cached indices on first call, then mutate on subsequent calls
 					if a.cachedSoftwareIndices == nil {
 						// Select a random count between min-max, then pick that many random indices
@@ -4820,7 +4820,7 @@ func main() {
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
 				supplementalOSVersionExtra: supplementalOSVersionExtra,
-				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, // nolint:gosec,G404 // load testing, not security-sensitive
+				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, //nolint:gosec // G404: load testing, not security-sensitive
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,
