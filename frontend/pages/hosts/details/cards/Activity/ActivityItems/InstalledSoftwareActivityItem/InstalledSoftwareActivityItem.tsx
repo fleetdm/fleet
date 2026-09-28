@@ -17,6 +17,7 @@ const InstalledSoftwareActivityItem = ({
   onShowDetails,
   onCancel,
   hideCancel,
+  hideShowDetails,
   isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
@@ -37,6 +38,7 @@ const InstalledSoftwareActivityItem = ({
         className={baseClass}
         activity={activity}
         hideCancel={hideCancel}
+        hideShowDetails={hideShowDetails}
         onShowDetails={onShowDetails}
         onCancel={onCancel}
         isSoloActivity={isSoloActivity}
@@ -61,6 +63,7 @@ const InstalledSoftwareActivityItem = ({
         className={baseClass}
         activity={activity}
         hideCancel={hideCancel}
+        hideShowDetails={hideShowDetails}
         onShowDetails={onShowDetails}
         onCancel={onCancel}
         isSoloActivity={isSoloActivity}
@@ -94,6 +97,7 @@ const InstalledSoftwareActivityItem = ({
       className={baseClass}
       activity={activity}
       hideCancel={hideCancel}
+      hideShowDetails={hideShowDetails}
       onShowDetails={onShowDetails}
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}

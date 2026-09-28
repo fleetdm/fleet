@@ -5,7 +5,7 @@ import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { expectedSelectErr } from "components/forms/validators/validate_query";
 import { ILabelSummary } from "interfaces/label";
@@ -137,6 +137,130 @@ describe("PolicyForm - component", () => {
   describe("in premium tier", () => {
     beforeEach(() => {
       mockServer.use(labelSummariesHandler);
+    });
+
+    const renderEditForm = (
+      storedPolicy: ReturnType<typeof createMockPolicy>,
+      lastEditedQueryHidden: boolean,
+      extraProps: Partial<React.ComponentProps<typeof PolicyForm>> = {}
+    ) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: storedPolicy.team_id ?? undefined,
+            lastEditedQueryId: storedPolicy.id,
+            lastEditedQueryName: storedPolicy.name,
+            lastEditedQueryDescription: storedPolicy.description,
+            lastEditedQueryBody: storedPolicy.query,
+            lastEditedQueryResolution: storedPolicy.resolution,
+            lastEditedQueryCritical: storedPolicy.critical,
+            lastEditedQueryHidden,
+            lastEditedQueryPlatform: storedPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryHidden: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalAdmin: true,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            config: createMockConfig(),
+          },
+        },
+      });
+      return render(
+        <PolicyForm
+          {...defaultProps}
+          teamIdForApi={storedPolicy.team_id ?? undefined}
+          policyIdForEdit={storedPolicy.id}
+          storedPolicy={storedPolicy}
+          {...extraProps}
+        />
+      );
+    };
+
+    it("shows Hide from end user checked for a hidden fleet policy", async () => {
+      renderEditForm(createMockPolicy({ team_id: 2, hidden: true }), true);
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toBeChecked();
+      expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "false");
+    });
+
+    it("disables Hide from end user when the policy uses conditional access", async () => {
+      renderEditForm(
+        createMockPolicy({ team_id: 2, conditional_access_enabled: true }),
+        false
+      );
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "true");
+      expect(hiddenCheckbox).not.toBeChecked();
+    });
+
+    it("sends the conditional access disable together with hidden in the core update", async () => {
+      // The core PATCH runs before the automations PATCH; without carrying the
+      // disable along, the backend rejects hidden against the stored value.
+      // The team response carries `integrations` at the top level, which the
+      // ITeam type doesn't declare, so build the mock as a plain object.
+      jest.spyOn(teamsAPI, "load").mockResolvedValue({
+        team: {
+          ...createMockTeam({ id: 2 }),
+          integrations: {
+            jira: [],
+            zendesk: [],
+            conditional_access_enabled: true,
+          },
+        },
+      } as never);
+      jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+      const onUpdate = jest.fn().mockResolvedValue({});
+
+      const { user } = renderEditForm(
+        createMockPolicy({
+          team_id: 2,
+          platform: "darwin",
+          conditional_access_enabled: true,
+        }),
+        true,
+        { onUpdate }
+      );
+
+      const conditionalAccess = await screen.findByRole("checkbox", {
+        name: "conditional_access",
+      });
+      expect(conditionalAccess).toBeChecked();
+      await user.click(conditionalAccess);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+      expect(onUpdate.mock.calls[0][0]).toMatchObject({
+        hidden: true,
+        conditional_access_enabled: false,
+      });
+    });
+
+    it("offers Hide from end user for an All fleets policy", async () => {
+      renderEditForm(createMockPolicy({ team_id: null, hidden: true }), true);
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toBeChecked();
     });
 
     it("disables save button for missing policy name", async () => {
@@ -802,6 +926,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryBody: patchPolicy.query,
             lastEditedQueryResolution: patchPolicy.resolution,
             lastEditedQueryCritical: patchPolicy.critical,
+            lastEditedQueryHidden: true,
             lastEditedQueryPlatform: patchPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
             lastEditedQueryLabelsIncludeAll: [],
@@ -812,6 +937,7 @@ describe("PolicyForm - component", () => {
             setLastEditedQueryBody: jest.fn(),
             setLastEditedQueryResolution: jest.fn(),
             setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryHidden: jest.fn(),
             setLastEditedQueryPlatform: jest.fn(),
           },
         },
@@ -1032,6 +1158,57 @@ describe("PolicyForm - component", () => {
         ).toBeChecked();
       });
 
+      it("offers Hide from end user for patch policies", async () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+
+        const hiddenCheckbox = await screen.findByRole("checkbox", {
+          name: "hidden-policy",
+        });
+        expect(hiddenCheckbox).toBeChecked();
+        expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "false");
+      });
+
+      it("sends the conditional access disable together with hidden for a patch policy", async () => {
+        jest.spyOn(teamsAPI, "load").mockResolvedValue({
+          team: {
+            ...createMockTeam({ id: 2 }),
+            integrations: {
+              jira: [],
+              zendesk: [],
+              conditional_access_enabled: true,
+            },
+          },
+        } as never);
+        jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+        const onUpdate = jest.fn().mockResolvedValue({});
+
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            teamIdForApi={2}
+            storedPolicy={{
+              ...patchPolicy,
+              team_id: 2,
+              conditional_access_enabled: true,
+            }}
+            onUpdate={onUpdate}
+          />
+        );
+
+        const conditionalAccess = await screen.findByRole("checkbox", {
+          name: "conditional_access",
+        });
+        expect(conditionalAccess).toBeChecked();
+        await user.click(conditionalAccess);
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+        expect(onUpdate.mock.calls[0][0]).toMatchObject({
+          hidden: true,
+          conditional_access_enabled: false,
+        });
+      });
+
       it("submits only editable fields on save", async () => {
         const onUpdate = jest.fn();
         renderPatchPolicy(
@@ -1047,6 +1224,7 @@ describe("PolicyForm - component", () => {
         expect(payload).toHaveProperty("description");
         expect(payload).toHaveProperty("resolution");
         expect(payload).toHaveProperty("critical");
+        expect(payload).toHaveProperty("hidden", true);
         expect(payload).not.toHaveProperty("query");
         expect(payload).not.toHaveProperty("platform");
         expect(payload).not.toHaveProperty("labels_include_any");
