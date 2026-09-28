@@ -108,32 +108,14 @@ const generateInviteStatus = (invite: IInvite): string =>
 const renderRole = (cellProps: ICellProps) => {
   if (cellProps.cell.value === "GitOps") {
     return (
-      <TooltipWrapper
-        tipContent={
-          <>
-            The GitOps role is only available for API-only
-            <br />
-            users. This user has no access to the UI.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="The GitOps role is only available for API-only users. This user has no access to the UI.">
         GitOps
       </TooltipWrapper>
     );
   }
   if (cellProps.cell.value === "Observer+") {
     return (
-      <TooltipWrapper
-        tipContent={
-          <>
-            Users with the Observer+ role have access to all of
-            <br />
-            the same functions as an Observer, with the added
-            <br />
-            ability to run any live report against all hosts.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="Users with the Observer+ role have access to all of the same functions as an Observer, with the added ability to run any livereport against all hosts.">
         {cellProps.cell.value}
       </TooltipWrapper>
     );

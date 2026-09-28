@@ -76,17 +76,7 @@ export interface ITeamUsersTableData {
 const renderRole = (cellProps: IPermissionsCellProps) => {
   if (cellProps.cell.value === "GitOps") {
     return (
-      <TooltipWrapper
-        tipContent={
-          <>
-            The GitOps role is only available on the command-line
-            <br />
-            when creating an API-only user. This user has no
-            <br />
-            access to the UI.
-          </>
-        }
-      >
+      <TooltipWrapper tipContent="The GitOps role is only available for API-only users. This user has no access to the UI.">
         GitOps
       </TooltipWrapper>
     );
@@ -96,11 +86,9 @@ const renderRole = (cellProps: IPermissionsCellProps) => {
       <TooltipWrapper
         tipContent={
           <>
-            Users with the Observer+ role have access to all of
-            <br />
-            the same functions as an Observer, with the added
-            <br />
-            ability to run any live report against all hosts.
+            Users with the Observer+ role have access to all of the same
+            functions as an Observer, with the added ability to run any live
+            report against all hosts.
           </>
         }
       >
