@@ -17206,6 +17206,30 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		})
 
 		t.Run("if idp uuid is required but not set", func(t *testing.T) {
+			// End-user authentication can only be enabled when an IdP is configured.
+			var acResp appConfigResponse
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"mdm": {
+					"end_user_authentication": {
+						"entity_id": "https://localhost:8080",
+						"idp_name": "SimpleSAML",
+						"metadata": "<xml></xml>"
+					}
+				}
+			}`), http.StatusOK, &acResp)
+			t.Cleanup(func() {
+				s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+					"mdm": {
+						"end_user_authentication": {
+							"entity_id": "",
+							"idp_name": "",
+							"metadata": "",
+							"metadata_url": ""
+						}
+					}
+				}`), http.StatusOK, &acResp)
+			})
+
 			var specResp applyTeamSpecsResponse
 			teamSecret := "team_secret"
 			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}

@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
-	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -164,12 +163,4 @@ func (ds *Datastore) EnsureIDPConnection(ctx context.Context, name string) error
 		return ctxerr.Wrap(ctx, err, "ensure identity provider connection")
 	}
 	return nil
-}
-
-func scimConnectionPredicate(ctx context.Context, q sqlx.QueryerContext, column string) (string, uint, error) {
-	id, err := idpConnectionID(ctx, q)
-	if err != nil {
-		return "", 0, err
-	}
-	return fmt.Sprintf(" AND %s = ?", column), id, nil
 }

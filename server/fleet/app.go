@@ -288,7 +288,7 @@ type MDM struct {
 	// IdentityProviders are named SAML connections. Fleets reference one by name.
 	// A single default, or end_user_authentication when no default is set, is the
 	// organization-wide IdP.
-	IdentityProviders []MDMIdentityProvider `json:"identity_providers"`
+	IdentityProviders []MDMIdentityProvider `json:"identity_providers,omitempty"`
 
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.

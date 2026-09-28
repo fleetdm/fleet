@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -111,7 +112,7 @@ func (m MDM) EndUserSSOSettings(providerName string) (SSOProviderSettings, error
 		return s, nil
 	}
 	if m.EndUserAuthentication.IsEmpty() {
-		return SSOProviderSettings{}, fmt.Errorf("organization not configured to use sso")
+		return SSOProviderSettings{}, errors.New("organization not configured to use sso")
 	}
 	return m.EndUserAuthentication.SSOProviderSettings, nil
 }
