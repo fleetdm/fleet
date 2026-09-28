@@ -5089,7 +5089,7 @@ func testUnknownGroupMembers(t *testing.T, s *Suite) {
 
 	t.Run("PUT skips unknown members and stores the valid ones", func(t *testing.T) {
 		var resp map[string]any
-		s.DoJSON(t, "PUT", scimPath("/Groups/"+groupID), groupPayload("Unknown members PATCH", otherUserID, unknownUserID),
+		s.DoJSON(t, "PUT", scimPath("/Groups/"+groupID), groupPayload("Unknown members PUT", otherUserID, unknownUserID),
 			http.StatusOK, &resp)
 		require.Equal(t, []string{otherUserID}, memberValues(resp))
 		require.Equal(t, []string{otherUserID}, memberValues(getGroup(t, s, groupID)))
