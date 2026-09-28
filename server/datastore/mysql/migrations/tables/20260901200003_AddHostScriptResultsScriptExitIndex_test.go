@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260928135615(t *testing.T) {
+func TestUp_20260901200003(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO script_contents (id, md5_checksum, contents) VALUES (1, UNHEX(MD5('echo hi')), 'echo hi')`)
