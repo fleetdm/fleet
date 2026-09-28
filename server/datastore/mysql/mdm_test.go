@@ -2185,7 +2185,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.Equal(t, otherDecl.Identifier, stillOther.Identifier)
 
 	// the batch path writes the description too, and a description-only
-	// change there is not reported as an update to the profiles' content
+	// change there leaves uploaded_at alone, so nothing is re-delivered
 	bApple := generateAppleCP("batch-apple", "com.example.batch-apple", 0)
 	bApple.Description = "batch apple"
 	bDecl := declForTest("batch-decl", "batch-decl", "batch-decl")
