@@ -2748,10 +2748,11 @@ func openBrowserWindow(browserURL string) error {
 			return errors.New("no user logged in")
 		}
 
-		browserBin := "/usr/bin/xdg-open"
-		firefoxBin := "/usr/bin/firefox"
-		if _, err := os.Stat(firefoxBin); err == nil {
-			browserBin = firefoxBin
+		// Bare names are resolved by the user's login shell (execuser runs
+		// `sudo -i`), which also covers non-FHS layouts such as NixOS.
+		browserBin := "xdg-open"
+		if _, err := exec.LookPath("firefox"); err == nil {
+			browserBin = "firefox"
 		}
 
 		var opts []execuser.Option

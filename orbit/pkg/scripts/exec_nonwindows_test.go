@@ -266,7 +266,7 @@ func TestExecCmdMissingInterpreterFallsBackToSystemProfile(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(pathDir, "python3.99"), []byte("#!/bin/sh\necho from-path\n"), 0o700)) // nolint:gosec // G306
 	t.Setenv("PATH", pathDir)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	for _, tc := range []struct {
@@ -301,6 +301,19 @@ func TestExecCmdMissingInterpreterFallsBackToSystemProfile(t *testing.T) {
 		require.Equal(t, -1, exitCode)
 	})
 
+	// "#!/usr/bin/env python3" exists on disk so no fallback happens, but env
+	// must still find python3 via the system profile appended to PATH.
+	t.Run("env shebang resolves via system profile", func(t *testing.T) {
+		scriptPath, err := writeTestScript("#!/usr/bin/env python3\nprint(1)\n")
+		require.NoError(t, err)
+		defer os.Remove(scriptPath)
+
+		output, exitCode, err := ExecCmd(ctx, scriptPath, nil)
+		require.NoError(t, err)
+		require.Equal(t, 0, exitCode)
+		require.True(t, strings.HasPrefix(string(output), "fake python3 "), string(output))
+	})
+
 	t.Run("not NixOS", func(t *testing.T) {
 		nixosMarkerFile = filepath.Join(binDir, "no-such-marker")
 		scriptPath, err := writeTestScript("#!/nonexistent/fleet-test/python3\nprint(1)\n")
@@ -311,4 +324,14 @@ func TestExecCmdMissingInterpreterFallsBackToSystemProfile(t *testing.T) {
 		require.ErrorIs(t, err, fs.ErrNotExist)
 		require.Equal(t, -1, exitCode)
 	})
+}
+
+func TestWithPathDir(t *testing.T) {
+	sep := string(os.PathListSeparator)
+	require.Equal(t, []string{"A=1", "PATH=/a" + sep + "/sw"}, withPathDir([]string{"A=1", "PATH=/a"}, "/sw"))
+	require.Equal(t, []string{"PATH=/sw" + sep + "/a"}, withPathDir([]string{"PATH=/sw" + sep + "/a"}, "/sw"))
+	require.Equal(t, []string{"A=1", "PATH=/sw"}, withPathDir([]string{"A=1"}, "/sw"))
+	orig := []string{"PATH=/a"}
+	_ = withPathDir(orig, "/sw")
+	require.Equal(t, []string{"PATH=/a"}, orig, "input must not be mutated")
 }

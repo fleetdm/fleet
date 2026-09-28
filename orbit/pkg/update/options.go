@@ -2,9 +2,7 @@ package update
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
@@ -107,7 +105,6 @@ var (
 		ExtractedExecSubPath: []string{"fleet-desktop", constant.DesktopAppExecName},
 		CustomCheckExec: func(execPath string) error {
 			cmd := exec.Command(execPath, "--help")
-			cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(execPath), os.ExpandEnv("$LD_LIBRARY_PATH")))
 			if out, err := cmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("exec new version: %s: %w", string(out), err)
 			}

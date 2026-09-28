@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 	}
 
 	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
+	nixOS := isNixOS()
 
 	if directExecute {
 		err = os.Chmod(scriptPath, 0o700) // nolint:gosec // G302
@@ -41,7 +43,7 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 		// NixOS has no /bin/bash or /usr/bin/python3; run the script with the
 		// same-named interpreter from the system profile when the shebang's path
 		// is missing. PATH is deliberately not consulted since this runs as root.
-		if isNixOS() {
+		if nixOS {
 			interp, arg := shebangInterpreter(string(contents))
 			if interp == "" {
 				// unreachable: ValidateShebang only allows direct execution with an interpreter
@@ -63,6 +65,14 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 
 	if env != nil {
 		cmd.Env = env
+	}
+	if nixOS {
+		// NixOS services get a minimal PATH without the system profile, which
+		// breaks "#!/usr/bin/env bash" and any command the script itself runs.
+		if cmd.Env == nil {
+			cmd.Env = os.Environ()
+		}
+		cmd.Env = withPathDir(cmd.Env, nixosSystemBinDir)
 	}
 
 	cmd.Dir = filepath.Dir(scriptPath)
@@ -87,6 +97,22 @@ var (
 func isNixOS() bool {
 	_, err := os.Stat(nixosMarkerFile)
 	return err == nil
+}
+
+// withPathDir returns env with dir appended to PATH unless already present.
+func withPathDir(env []string, dir string) []string {
+	for i, kv := range env {
+		if !strings.HasPrefix(kv, "PATH=") {
+			continue
+		}
+		if slices.Contains(filepath.SplitList(strings.TrimPrefix(kv, "PATH=")), dir) {
+			return env
+		}
+		out := slices.Clone(env)
+		out[i] = kv + string(os.PathListSeparator) + dir
+		return out
+	}
+	return append(slices.Clone(env), "PATH="+dir)
 }
 
 // shebangInterpreter returns the interpreter path from the script's shebang
