@@ -2167,20 +2167,15 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	// Test filtering by personal enrollment status - should return Android personal hosts
-	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal}, 3)
-	require.Len(t, hosts, 3, "Should have 2 Android personal hosts + 1 darwin personal host")
-
-	// Count Android personal hosts
-	androidPersonalCount := 0
+	// Work-profile Android hosts are "personal"; the manual-profile darwin host is "manual-personal".
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal}, 2)
 	for _, h := range hosts {
-		if h.Platform == "android" {
-			androidPersonalCount++
-			// Verify these are the personal enrollment hosts
-			assert.Contains(t, []string{"android-personal-1.android.local", "android-personal-2.android.local"}, h.Hostname)
-		}
+		assert.Equal(t, "android", h.Platform)
+		assert.Contains(t, []string{"android-personal-1.android.local", "android-personal-2.android.local"}, h.Hostname)
 	}
-	assert.Equal(t, 2, androidPersonalCount, "Should have exactly 2 Android personal hosts")
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManualPersonal}, 1)
+	assert.Equal(t, darwinHost.ID, hosts[0].ID)
 
 	// Test filtering by automatic enrollment - should return Android company hosts
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic}, 2)
@@ -2208,11 +2203,14 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 5, "All hosts are enrolled with Fleet MDM")
 
 	// Test combination of personal enrollment and Fleet MDM
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
 		MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal,
-		MDMNameFilter:             ptr.String(fleet.WellKnownMDMFleet),
-	}, 3)
-	require.Len(t, hosts, 3, "Should have 2 Android + 1 darwin personal hosts with Fleet MDM")
+		MDMNameFilter:             new(fleet.WellKnownMDMFleet),
+	}, 2)
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManualPersonal,
+		MDMNameFilter:             new(fleet.WellKnownMDMFleet),
+	}, 1)
 }
 
 // is_personal_enrollment rides along in the hostMDMSelect JSON object, so it has to hold
@@ -9104,7 +9102,8 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, status.PendingHostsCount)
 	assert.Equal(t, 3, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
-	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 1, status.EnrolledManualPersonalHostsCount)
 
 	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.NoError(t, err)
@@ -9163,7 +9162,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h5.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h6.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h7.ID, false, true, "https://fleet.example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeManualProfile))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h7.ID, false, true, "https://fleet.example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeAccountDriven))
 
 	// Add a server, this will be ignored in lists and aggregated data.
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
@@ -9220,7 +9219,8 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, status.UnenrolledHostsCount)
 	assert.Equal(t, 5, status.EnrolledManualHostsCount)
 	assert.Equal(t, 3, status.EnrolledAutomatedHostsCount)
-	assert.Equal(t, 2, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 1, status.EnrolledManualPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "")
 	require.NoError(t, err)
@@ -9229,6 +9229,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.True(t, updatedAt.After(firstUpdatedAt))
@@ -9258,6 +9259,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "darwin")
 	require.True(t, updatedAt.After(firstUpdatedAt))
@@ -9271,6 +9273,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "ios")
 	require.NoError(t, err)
@@ -9279,6 +9282,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "ios")
 	require.NoError(t, err)
@@ -9287,6 +9291,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 1, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "ipados")
 	require.NoError(t, err)
@@ -9295,6 +9300,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "ipados")
 	require.NoError(t, err)
@@ -9303,6 +9309,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
 	assert.Equal(t, 0, status.EnrolledPersonalHostsCount)
+	assert.Equal(t, 0, status.EnrolledManualPersonalHostsCount)
 
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "windows")
 	require.True(t, updatedAt.After(firstUpdatedAt))
