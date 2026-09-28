@@ -1,4 +1,4 @@
-# Binary authorization on macOS 27: allow and deny lists with Fleet
+# Binary authorization on macOS 27: allow and deny lists with native Apple features
 
 Binary allowlisting on the Mac has, in practice, meant buying something extra or deploying Santa. macOS has plenty of built-in application security. Gatekeeper, for example, checks whether code is signed and notarized, but not whether IT approved it to run in your environment. macOS 27 adds binary allow and deny lists to a new declarative configuration, `com.apple.configuration.app.settings`. Enforcement runs on the Endpoint Security framework and decides which binaries are allowed to execute. It covers standalone binaries as well as binaries embedded in app bundles. A tool a user downloads and runs from Terminal is subject to the same policy as a double-clicked app.
 
@@ -255,7 +255,7 @@ Some PPPC services are deprecated in macOS 27. In `com.apple.TCC.configuration-p
 - [Configuration profiles](https://fleetdm.com/guides/custom-os-settings) (Fleet)
 - [Declarative device management: a primer](https://fleetdm.com/articles/declarative-device-management-a-primer) (Fleet)
 
-<meta name="articleTitle" value="Binary authorization on macOS 27: allow and deny lists with Fleet">
+<meta name="articleTitle" value="Binary authorization on macOS 27: allow and deny lists with native Apple features">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="publishedOn" value="2026-09-28">
