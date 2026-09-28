@@ -472,6 +472,8 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		recreated, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
 		require.Equal(t, h.UUID, recreated.UUID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &recreated.ID)
 
 		// Deleted again and never checked in since, as when re-imaged: no push is waiting, so the shared secret is the way back.
 		require.NoError(t, ds.DeleteHost(ctx, recreated.ID))
@@ -482,8 +484,34 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 
 	t.Run("a new Windows host no enrollment claims enrolls with a shared secret", func(t *testing.T) {
 		fresh := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), HardwareSerial: "SERIAL-FRESH", Platform: "windows"}
-		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(fresh, nil, rejectWindows)...)
+		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(fresh, nil, rejectWindows)...)
 		require.NoError(t, err)
+
+		// orbit enrolls the device in MDM within seconds, and osquery's first enrollment with the same shared secret still lands.
+		insertWindowsEnrollment(t, ds, "hw-"+fresh.UUID, fresh.UUID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(fresh, nil, rejectWindowsOsquery)...)
+		require.NoError(t, err)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(fresh, nil, rejectWindowsOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &enrolled.ID)
+	})
+
+	t.Run("a Windows Autopilot host is only matched with a one-time secret", func(t *testing.T) {
+		serial := "SERIAL-AP-" + uuid.NewString()[:8]
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+			{AutopilotDeviceID: uuid.NewString(), HardwareSerial: serial, TenantID: "tenant"},
+		}))
+		device := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), HardwareSerial: serial, Platform: "windows"}
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(device, nil, rejectWindows)...)
+		var rejected *fleet.EnrollmentRejectedError
+		require.ErrorAs(t, err, &rejected)
+		require.Equal(t, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, rejected.Reason)
+
+		enrollment := insertWindowsEnrollment(t, ds, "hw-"+device.UUID, "")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrollment.ID))
+		claimed, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(device, nil, rejectWindows,
+			fleet.WithEnrollOrbitOneTimeEnrollSecret(liveWindowsSecret(t, ds, enrollment.ID).ID))...)
+		require.NoError(t, err)
+		require.Equal(t, *rejected.HostID, claimed.ID, "the one-time secret claims the pending host")
 	})
 
 	t.Run("hosts outside Fleet MDM are unaffected", func(t *testing.T) {

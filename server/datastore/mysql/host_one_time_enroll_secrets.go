@@ -601,19 +601,33 @@ func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtCo
 // Fleetd enroll secret profile, which an admin resends when fleetd has to enroll again. An enrollment row linked to the host is the
 // signal: an unenroll alert or a re-enrollment of the device deletes it. A host that would be inserted instead is checked by
 // rejectSharedSecretForMDMLinkedWindowsUUID.
-func rejectSharedSecretForMDMManagedWindowsHost(ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string) error {
+func rejectSharedSecretForMDMManagedWindowsHost(
+	ctx context.Context, tx sqlx.ExtContext, hostID uint, platform string, plane fleet.EnrollmentPlane,
+) error {
 	if platform != "windows" {
 		return nil
 	}
-	var managed bool
-	err := sqlx.GetContext(ctx, tx, &managed, `
-		SELECT EXISTS (
-			SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid WHERE h.id = ? AND h.uuid != ''
-		)`, hostID)
+	// A host registered in Windows Autopilot is an MDM host from the start, so it is only matched with a one-time
+	// secret. An exception is the osquery first enrollment of a host whose orbit enrolled with a shared secret. orbit
+	// enrolls the device in MDM within seconds, so there is a race between MDM and osquery.
+	var s struct {
+		Autopilot              bool `db:"autopilot"`
+		Linked                 bool `db:"linked"`
+		FirstOsqueryAfterOrbit bool `db:"first_osquery_after_shared_orbit"`
+	}
+	err := sqlx.GetContext(ctx, tx, &s, `
+		SELECT
+			EXISTS (SELECT 1 FROM host_autopilot_devices had WHERE had.host_id = h.id AND had.deleted_at IS NULL) AS autopilot,
+			EXISTS (SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid AND h.uuid != '') AS linked,
+			(h.orbit_node_key IS NOT NULL AND (h.node_key IS NULL OR h.node_key = h.orbit_node_key) AND NOT EXISTS (
+				SELECT 1 FROM host_one_time_enroll_secrets s WHERE s.host_id = h.id AND s.orbit_used_at IS NOT NULL
+			)) AS first_osquery_after_shared_orbit
+		FROM hosts h WHERE h.id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check Windows MDM management of matched host")
 	}
-	if managed {
+	firstOsqueryEnrollment := plane == fleet.EnrollmentPlaneOsquery && s.FirstOsqueryAfterOrbit
+	if s.Autopilot || (s.Linked && !firstOsqueryEnrollment) {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
 			"shared enroll secret presented for MDM-managed Windows host")
 	}
