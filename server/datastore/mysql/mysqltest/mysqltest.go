@@ -504,6 +504,7 @@ func EncryptWithPrivateKey(tb testing.TB, ds *mysql.Datastore, data []byte) ([]b
 func TruncateTables(t testing.TB, ds *mysql.Datastore, tables ...string) {
 	nonEmptyTables := map[string]bool{
 		"app_config_json":                  true,
+		"idp_connections":                  true,
 		"fleet_variables":                  true,
 		"mdm_apple_declaration_categories": true,
 		"mdm_delivery_status":              true,

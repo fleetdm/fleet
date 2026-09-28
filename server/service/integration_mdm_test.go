@@ -17387,6 +17387,17 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		})
 
 		t.Run("ota enrollment with a used idp session is refused where authentication is required", func(t *testing.T) {
+			var acResp appConfigResponse
+			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"mdm": {
+					"end_user_authentication": {
+						"entity_id": "https://localhost:8080",
+						"idp_name": "SimpleSAML",
+						"metadata": "<xml></xml>"
+					}
+				}
+			}`), http.StatusOK, &acResp)
+
 			idpEmail := "used@example.com"
 			err := s.ds.InsertMDMIdPAccount(context.Background(), &fleet.MDMIdPAccount{
 				Username: "used",
@@ -17402,6 +17413,23 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			teamSecret := "team_secret_used_session"
 			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
 			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+			teamID := specResp.TeamIDsByName["team used session"]
+			t.Cleanup(func() {
+				if teamID != 0 {
+					var delResp deleteTeamResponse
+					s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), nil, http.StatusOK, &delResp)
+				}
+				s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+					"mdm": {
+						"end_user_authentication": {
+							"entity_id": "",
+							"idp_name": "",
+							"metadata": "",
+							"metadata_url": ""
+						}
+					}
+				}`), http.StatusOK, &acResp)
+			})
 
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,

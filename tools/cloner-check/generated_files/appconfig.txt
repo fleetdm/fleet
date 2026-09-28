@@ -198,6 +198,10 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsMigrationEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
+github.com/fleetdm/fleet/v4/server/fleet/MDM	IdentityProviders	[]fleet.MDMIdentityProvider
+github.com/fleetdm/fleet/v4/server/fleet/MDMIdentityProvider	Name	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMIdentityProvider	SSOProviderSettings	fleet.SSOProviderSettings
+github.com/fleetdm/fleet/v4/server/fleet/MDMIdentityProvider	Default	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleRequireHardwareAttestation	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	OnlyAllowAppleBusinessEnrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice[string]
