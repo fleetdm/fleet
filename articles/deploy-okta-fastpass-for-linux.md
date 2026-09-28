@@ -37,6 +37,8 @@ See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us
 
 Okta Verify needs a device certificate from your Okta CA to unlock FastPass. Deploy it with a script-only software package that requests the certificate from Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) and writes it where Okta Verify expects it, so it runs alongside Okta Verify during setup experience.
 
+Okta requires a one-time SCEP challenge in each certificate request. The script puts `$FLEET_VAR_NDES_SCEP_CHALLENGE` in the CSR's `challengePassword`. Each time the script runs, Fleet gets a new challenge from Okta and replaces the variable with it. If Fleet can't get a challenge, the script fails and the error appears in the script's output.
+
 1. Create an API-only user with the global maintainer role. Learn how in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user). For least privilege, restrict the user to only the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) endpoint by passing its `id` in `api_endpoints` when you create the user. Find the `id` with [`GET /rest_api`](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions).
 2. In Fleet, head to **Controls > Variables** and create a variable called `REQUEST_CERTIFICATE_API_TOKEN` with the API-only user's API token as its value. The script below reads it as `$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN`.
 3. In your text editor, copy the script below, then replace `<Fleet-server-URL>` and `<Okta-CA-ID>` (the CA `id` from Step 3) with your own values.
@@ -58,13 +60,27 @@ mkdir -p "$CERT_DIR"
 openssl genpkey -algorithm RSA -out "$KEY_PATH" -pkeyopt rsa_keygen_bits:2048
 chmod 600 "$KEY_PATH"
 
-openssl req -new -sha256 -key "$KEY_PATH" -out /tmp/okta-verify.csr -subj "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME Okta FastPass"
+# Fleet replaces $FLEET_VAR_NDES_SCEP_CHALLENGE with a one-time challenge from Okta.
+openssl req -new -sha256 -key "$KEY_PATH" -out /tmp/okta-verify.csr -config <(cat <<EOF
+[req]
+prompt = no
+distinguished_name = dn
+attributes = attrs
+
+[dn]
+CN = $FLEET_VAR_HOST_END_USER_IDP_USERNAME Okta FastPass
+
+[attrs]
+challengePassword = $FLEET_VAR_NDES_SCEP_CHALLENGE
+EOF
+)
 
 # Escape the CSR for the JSON request body.
 CSR=$(sed 's/$/\\n/' /tmp/okta-verify.csr | tr -d '\n')
 REQUEST='{ "csr": "'"${CSR}"'", "return_pem_certificate": true }'
 
 curl "${FLEET_URL}/api/latest/fleet/certificate_authorities/${CA_ID}/request_certificate" \
+  --fail --silent --show-error \
   -X 'POST' \
   -H 'accept: application/json, text/plain, */*' \
   -H 'authorization: Bearer '"$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN" \
