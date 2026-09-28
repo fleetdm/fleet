@@ -477,29 +477,39 @@ func (ds *Datastore) windowsEnrollSecretBatchResendTargetsDB(
 }
 
 // rejectOrReleaseMDMLinkedWindowsUUID handles a shared enroll secret that would insert a host with the UUID of a Windows MDM
-// enrollment Fleet has linked. A linked enrollment without a host always means the host was deleted, since enrollments are only
-// ever linked to existing hosts, and deleting a host deletes its secrets.
+// enrollment Fleet has linked. Enrollment matches hosts by osquery identifier, not by UUID, so a host with this UUID can still
+// exist (for example, osquery's instance identifier changed). That host keeps its enrollment and the secret is refused.
 //
-// While the enrollment holds an unconsumed one-time secret, the secret is refused: that secret was pushed at an MDM session after
-// the delete, so the device is alive, already has its own way back, and a shared-secret enrollment for its UUID is more likely
-// another machine. Without one, the device has not checked in since the delete (typically re-imaged), so its enrollments are
+// Otherwise the linked host was deleted, which also deleted its secrets. While the enrollment holds an unconsumed one-time
+// secret, the secret is refused: that secret was pushed at an MDM session after the delete, so the device is alive and already
+// has its own way back. Without one, the device has not checked in since the delete (typically re-imaged), so its enrollments are
 // stale: they are deleted here, or the new host would relink to them and count as MDM-managed with no way to recover.
 func rejectOrReleaseMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtContext, hardwareUUID string) error {
 	if hardwareUUID == "" {
 		return nil
 	}
-	var pushed bool
-	if err := sqlx.GetContext(ctx, tx, &pushed, `
-		SELECT EXISTS (
-			SELECT 1 FROM mdm_windows_enrollments mwe
-			JOIN host_one_time_enroll_secrets s ON s.mdm_windows_enrollment_id = mwe.id AND s.consumed_at IS NULL
-			WHERE mwe.host_uuid = ?
-		)`, hardwareUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "check pushed one-time enroll secret for enrolling uuid")
+	var s struct {
+		Linked   bool `db:"linked"`
+		HostLive bool `db:"host_live"`
+		Pushed   bool `db:"pushed"`
 	}
-	if pushed {
+	if err := sqlx.GetContext(ctx, tx, &s, `
+		SELECT
+			EXISTS (SELECT 1 FROM mdm_windows_enrollments WHERE host_uuid = ?) AS linked,
+			EXISTS (SELECT 1 FROM hosts WHERE uuid = ?) AS host_live,
+			EXISTS (
+				SELECT 1 FROM mdm_windows_enrollments mwe
+				JOIN host_one_time_enroll_secrets s ON s.mdm_windows_enrollment_id = mwe.id AND s.consumed_at IS NULL
+				WHERE mwe.host_uuid = ?
+			) AS pushed`, hardwareUUID, hardwareUUID, hardwareUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "check windows mdm enrollment linked to enrolling uuid")
+	}
+	if !s.Linked {
+		return nil
+	}
+	if s.HostLive || s.Pushed {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
-			"shared enroll secret presented for the uuid of a windows mdm enrollment awaiting its pushed one-time secret")
+			"shared enroll secret presented for the uuid of a windows mdm enrollment")
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_enrollments WHERE host_uuid = ?`, hardwareUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete stale windows mdm enrollments for enrolling uuid")

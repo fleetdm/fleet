@@ -426,6 +426,13 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		row := liveWindowsSecret(t, ds, device.ID)
 		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, rejectWindows, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
+
+		// A new osquery identifier misses the host, but the hardware UUID is still the host's, so the shared secret is refused and
+		// the host keeps its enrollment.
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectWindowsOsquery, fleet.WithEnrollOsqueryHostID("new-instance-"+h.UUID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
 	})
 
 	t.Run("Windows host without a linked enrollment", func(t *testing.T) {
