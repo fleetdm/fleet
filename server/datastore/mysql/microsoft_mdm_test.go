@@ -93,6 +93,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestCleanupStaleMDMWindowsEnrollments", testCleanupStaleMDMWindowsEnrollments},
+		{"TestCleanupStaleMDMWindowsEnrollmentsAfterHostDelete", testCleanupStaleMDMWindowsEnrollmentsAfterHostDelete},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestMDMWindowsConflictingEnrollmentHardwareID", testMDMWindowsConflictingEnrollmentHardwareID},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
@@ -7704,6 +7705,70 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Zero(t, deleted)
 	assert.True(t, enrollmentExists(older.ID), "newer enrollment removed between select and delete")
+}
+
+func testCleanupStaleMDMWindowsEnrollmentsAfterHostDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC()
+	old := now.Add(-90 * 24 * time.Hour)
+	cutoff := now.Add(-30 * 24 * time.Hour)
+
+	enrollIdle := func(name string) (*fleet.Host, uint) {
+		h := test.NewHost(t, ds, name, "10.0.0.1", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
+		windowsEnroll(t, ds, h)
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &id, `SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ?`, h.UUID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET created_at = ?, updated_at = ? WHERE id = ?`, old, old, id)
+			return err
+		})
+		return h, id
+	}
+	exists := func(id uint) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM mdm_windows_enrollments WHERE id = ?`, id)
+		})
+		return n == 1
+	}
+
+	// An idle enrollment whose host was just deleted must get the full
+	// retention window, whichever deletion path removed the host.
+	single, singleID := enrollIdle("win-single-delete")
+	batch, batchID := enrollIdle("win-batch-delete")
+	require.NoError(t, ds.DeleteHost(ctx, single.ID))
+	require.NoError(t, ds.DeleteHosts(ctx, []uint{batch.ID}))
+
+	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, exists(singleID), "host deleted with DeleteHost")
+	assert.True(t, exists(batchID), "host deleted with DeleteHosts")
+
+	// Incoming-host cleanup deletes hosts without deleteHosts, so it needs its
+	// own coverage. Such a host has no hostname, osquery version or serial.
+	incoming, incomingID := enrollIdle("win-incoming")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET hostname = '', osquery_version = '', hardware_serial = '',
+			created_at = ? WHERE id = ?`, now.Add(-time.Hour), incoming.ID)
+		return err
+	})
+	removed, err := ds.CleanupIncomingHosts(ctx, now)
+	require.NoError(t, err)
+	require.Contains(t, removed, incoming.ID)
+
+	deleted, err = ds.CleanupStaleMDMWindowsEnrollments(ctx, cutoff)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	assert.True(t, exists(incomingID), "host removed by incoming-host cleanup")
+
+	// Once the retention window has passed since deletion, all are reaped. The
+	// generous cutoff absorbs clock drift between Go and the MySQL server.
+	deleted, err = ds.CleanupStaleMDMWindowsEnrollments(ctx, now.Add(24*time.Hour))
+	require.NoError(t, err)
+	require.EqualValues(t, 3, deleted)
 }
 
 // readWindowsHostProfile returns a host profile's status, detail and retry count straight from the table.
