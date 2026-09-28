@@ -57,7 +57,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| Setup experience (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Setup experience (macOS) | 🐥 | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Setup experience (Windows) | 🐣 | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Setup experience (Linux) | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Configuration profiles (macOS) | 🐥 | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 |
@@ -118,13 +118,13 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 | Category | Current | Q3 2026 | Q4 2026 | Q1 2027 | Q2 2027 | Q3 2027 | Q4 2027 |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
-| OS update management (macOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| OS update management (macOS) | 🐥 | 🐥 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 |
 | OS update management (iPhone/iPadOS) | 🐥 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | OS update management (tvOS/visionOS/watchOS) | 🥚 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | OS update management (Windows) | 🐣 | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
 | OS update management (Linux) | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 | 🥚 |
 | [OS update management (Android)](https://fleetdm.com/guides/enforce-os-updates#android) | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 | 🐣 |
-| Patch management (macOS) | 🐣 | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
+| Patch management (macOS) | 🐣 | 🐣 | 🦆 | 🦢 | 🦢 | 🦢 | 🦢 |
 | Patch management (iPhone/iPadOS) | 🐣 | 🐣 | 🦆 | 🦆 | 🦆 | 🦆 | 🦆 |
 | Patch management (tvOS/visionOS/watchOS) | 🐣 | 🐣 | 🐥 | 🐥 | 🐥 | 🐥 | 🐥 |
 | Patch management (Windows) | 🐣 | 🐣 | 🐥 | 🦆 | 🦆 | 🦆 | 🦆 |
