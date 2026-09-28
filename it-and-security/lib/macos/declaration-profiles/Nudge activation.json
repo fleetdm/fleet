@@ -1,0 +1,10 @@
+{
+    "Type": "com.apple.activation.simple",
+    "Identifier": "com.fleetdm.activation.nudge",
+    "Payload": {
+        "StandardConfigurations": [
+            "com.fleetdm.config.nudge.legacy"
+        ],
+        "Predicate": "@status(softwareupdate.install-state) == 'prepared'"
+    }
+}

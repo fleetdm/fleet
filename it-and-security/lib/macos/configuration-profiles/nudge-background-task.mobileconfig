@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDescription</key>
+			<string>Allows the Nudge launch agent to run at login without prompting the user.</string>
+			<key>PayloadDisplayName</key>
+			<string>Allow Nudge background tasks</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.nudge-background-task.servicemanagement</string>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>B7ED4624-D67E-4B9C-8109-6BC70C022744</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>BundleIdentifier</string>
+					<key>RuleValue</key>
+					<string>com.github.macadmins.Nudge</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Configures managed Login and Background items for Nudge.</string>
+	<key>PayloadDisplayName</key>
+	<string>Nudge background task</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.profile.nudge-background-task</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>567752F4-D00C-41E8-B734-0EF5B04545F2</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
