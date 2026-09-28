@@ -248,7 +248,8 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Show "Authorized use only" on the login window.',
     expect: {
-      mustContain: ['LoginwindowText', 'Authorized use only']
+      mustContain: ['<key>LoginwindowText</key><string>Authorized use only</string>'],
+      mustContainElement: [['string', 'Authorized use only']]
     }
   },
   {
@@ -256,7 +257,8 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Show the "Flurry" screensaver after 10 minutes of inactivity and require a password immediately.',
     expect: {
-      mustContain: ['idleTime', 'askForPassword', 'moduleName', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
+      mustContain: ['<key>moduleName</key><string>Flurry</string>', '<key>idleTime</key><integer>600</integer>', '<key>askForPassword</key><true/>', '<key>askForPasswordDelay</key><integer>0</integer>'],
+      mustContainElement: [['string', 'Flurry']]
     }
   },
   {
@@ -291,9 +293,8 @@ const TEST_CASES = [
     instructions: 'Lock the Dock to the left side of the screen and set it to auto-hide.',
     // All-lowercase keys -- fails if the model PascalCases.
     expect: {
-      mustContain: ['com.apple.dock'],
-      mustContainElement: [['key', 'autohide'], ['key', 'orientation']],
-      mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation']]
+      mustContain: ['com.apple.dock', '<key>orientation</key><string>left</string>', '<key>autohide</key><true/>', '<key>position-immutable</key><true/>'],
+      mustNotContainElement: [['key', 'Autohide'], ['key', 'Orientation'], ['key', 'position']]
     }
   },
   {
@@ -388,8 +389,9 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Show "This device is property of Fleet Device Management Inc." on the lock screen of iPhones and iPads.',
     expect: {
-      mustContain: ['com.apple.shareddeviceconfiguration', 'This device is property of Fleet Device Management Inc.'],
-      mustContainElement: [['key', 'LockScreenFootnote']]
+      mustContain: ['com.apple.shareddeviceconfiguration', '<key>LockScreenFootnote</key><string>This device is property of Fleet Device Management Inc.</string>'],
+      mustContainElement: [['string', 'This device is property of Fleet Device Management Inc.']],
+      mustNotContainElement: [['key', 'IfLostReturnToMessage']]
     }
   },
 
