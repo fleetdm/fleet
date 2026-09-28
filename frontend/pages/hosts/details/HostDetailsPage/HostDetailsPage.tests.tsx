@@ -385,3 +385,30 @@ describe("HostDetailsPage - Show MDM commands toggle", () => {
     expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
 });
+
+describe("HostDetailsPage - software library", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("shows the library as unsupported on NixOS hosts", async () => {
+    const host = createMockHost({ platform: "nixos", status: "online" });
+    stubQueries(host);
+
+    renderHostDetails({
+      location: { ...mockLocation, pathname: "/hosts/1/software/library" },
+    });
+
+    expect(
+      await screen.findByText(
+        "Software library is currently not supported on this host"
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Fleet doesn't support installing software on NixOS hosts."
+      )
+    ).toBeInTheDocument();
+    expect(hostAPI.getHostSoftware).not.toHaveBeenCalled();
+  });
+});
