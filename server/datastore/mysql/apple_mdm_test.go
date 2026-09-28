@@ -59,6 +59,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
+		{"TestDeleteMDMAppleConfigProfileCleansUpOptIns", testDeleteMDMAppleConfigProfileCleansUpOptIns},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
@@ -70,6 +71,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
 		{"TestMDMAppleHostsDiskEncryption", testMDMAppleHostsDiskEncryption},
 		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
+		{"TestAssociateHostMDMIdPAccountFromSSO", testAssociateHostMDMIdPAccountFromSSO},
 		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
@@ -1108,6 +1110,27 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{hosts[1].UUID, userEnrollmentIDs[1]}, ids)
+}
+
+func testDeleteMDMAppleConfigProfileCleansUpOptIns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
+
+	// Simulate an opt-in for the profile
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "INSERT INTO host_mdm_profile_opt_ins (profile_uuid, host_uuid) VALUES (?, ?), (?, ?)", initialCP.ProfileUUID, "dummy-host-uuid", uuid.NewString(), "dummy-host-uuid")
+		return err
+	})
+
+	err := ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	require.NoError(t, err)
+
+	// The opt-in should also be deleted
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM host_mdm_profile_opt_ins")
+	})
+	require.Equal(t, 1, count, "it should only touch the profile uuid linked row")
 }
 
 func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
@@ -3269,6 +3292,62 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, idpAccount)
 	require.Equal(t, *acc1, *idpAccount)
+}
+
+func testAssociateHostMDMIdPAccountFromSSO(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	acc1 := &fleet.MDMIdPAccount{Username: "sso1@example.com", Email: "sso1@example.com", Fullname: "One"}
+	acc2 := &fleet.MDMIdPAccount{Username: "sso2@example.com", Email: "sso2@example.com", Fullname: "Two"}
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, acc1))
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, acc2))
+	acc1, err := ds.GetMDMIdPAccountByEmail(ctx, acc1.Email)
+	require.NoError(t, err)
+	acc2, err = ds.GetMDMIdPAccountByEmail(ctx, acc2.Email)
+	require.NoError(t, err)
+
+	host := newTestHostWithPlatform(t, ds, "sso-binding-host", "ubuntu", nil)
+
+	// First binding: nothing to report as replaced.
+	previous, err := ds.AssociateHostMDMIdPAccountFromSSO(ctx, host.UUID, acc1.UUID, true)
+	require.NoError(t, err)
+	require.Empty(t, previous)
+
+	bound, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc1.UUID, bound.UUID)
+
+	// Insert-if-absent leaves the existing binding alone and reports it.
+	previous, err = ds.AssociateHostMDMIdPAccountFromSSO(ctx, host.UUID, acc2.UUID, false)
+	require.NoError(t, err)
+	require.Equal(t, acc1.UUID, previous)
+
+	bound, err = ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc1.UUID, bound.UUID)
+
+	// Replacing does overwrite, and still reports what it replaced.
+	previous, err = ds.AssociateHostMDMIdPAccountFromSSO(ctx, host.UUID, acc2.UUID, true)
+	require.NoError(t, err)
+	require.Equal(t, acc1.UUID, previous)
+
+	bound, err = ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc2.UUID, bound.UUID)
+
+	// Insert-if-absent on a host with no binding still writes one.
+	other := newTestHostWithPlatform(t, ds, "sso-binding-host-2", "ubuntu", nil)
+	previous, err = ds.AssociateHostMDMIdPAccountFromSSO(ctx, other.UUID, acc1.UUID, false)
+	require.NoError(t, err)
+	require.Empty(t, previous)
+
+	bound, err = ds.GetMDMIdPAccountByHostUUID(ctx, other.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, bound)
+	require.Equal(t, acc1.UUID, bound.UUID)
 }
 
 func testDoNotIgnoreMDMClientError(t *testing.T, ds *Datastore) {
@@ -5937,6 +6016,13 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Pending)
 	require.EqualValues(t, 1, sum.Installed)
 
+	// Add an opt in profile record
+	_, err = ds.writer(ctx).Exec(`
+		INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
+		VALUES (?, ?)
+	`, host.UUID, "profile-uuid")
+	require.NoError(t, err)
+
 	// reset the enrollment
 	err = ds.MDMResetEnrollment(ctx, host.UUID, false)
 	require.NoError(t, err)
@@ -5964,6 +6050,11 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, details.HardwareAttested)
+
+	var optInCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &optInCount,
+		`SELECT COUNT(*) FROM host_mdm_profile_opt_ins WHERE host_uuid = ?`, host.UUID))
+	require.Zero(t, optInCount)
 }
 
 func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
