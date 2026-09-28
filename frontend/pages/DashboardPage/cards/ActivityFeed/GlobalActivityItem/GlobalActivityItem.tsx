@@ -1763,17 +1763,14 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppStoreApp: (activity: IActivity) => {
-    const {
-      software_title: swTitle,
-      software_display_name,
-      platform: swPlatform,
-    } = activity.details || {};
-    const title = getDisplayedSoftwareName(swTitle, software_display_name);
+    const { software_title, software_display_name, platform } =
+      activity.details || {};
+    const title = getDisplayedSoftwareName(software_title, software_display_name);
     return (
       <>
         {" "}
         edited <b>{title}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
           <>
@@ -1787,17 +1784,14 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
-    const {
-      software_title: swTitle,
-      software_display_name,
-      platform: swPlatform,
-    } = activity.details || {};
-    const title = getDisplayedSoftwareName(swTitle, software_display_name);
+    const { software_title, software_display_name, platform } =
+      activity.details || {};
+    const title = getDisplayedSoftwareName(software_title, software_display_name);
     return (
       <>
         {" "}
         deleted <b>{title}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (
           <>
