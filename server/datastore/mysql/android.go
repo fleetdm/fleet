@@ -1002,8 +1002,8 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 			}
 		} else {
 			// Description is not part of the checksum, so it is written without
-			// touching uploaded_at. Zero affected rows only means it was unchanged:
-			// the SELECT above already confirmed the profile exists.
+			// touching uploaded_at. Zero affected rows only means it was
+			// unchanged: the SELECT above already confirmed the profile exists.
 			if _, err := tx.ExecContext(ctx,
 				`UPDATE mdm_android_configuration_profiles SET description = ? WHERE profile_uuid = ?`,
 				cp.Description, cp.ProfileUUID); err != nil {
