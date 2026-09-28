@@ -1031,6 +1031,18 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		})
 	})
 
+	t.Run("fails if Windows MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "wsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Windows MDM isn't turned on.")
+	})
+
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
 		testCases := []struct {
 			name             string

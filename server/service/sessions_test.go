@@ -319,6 +319,10 @@ func (a *testAuth) RawResponse() []byte {
 	return nil
 }
 
+func (a *testAuth) AssertionID() string { return "" }
+
+func (a *testAuth) AssertionNotOnOrAfter() time.Time { return time.Time{} }
+
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
 	opts := &TestServerOpts{

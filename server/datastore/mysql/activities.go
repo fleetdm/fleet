@@ -1512,7 +1512,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, patch_when_closed, installer_filename, version, software_title_id, software_title_name, attempt_number)
+		policy_id, patch_when_closed, installer_filename, version, software_title_id, software_title_name, override_pre_install_query, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1528,6 +1528,9 @@ SELECT
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
 	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Activities queued before the payload carried this key fall back to the
+	-- policy flags so an in-flight patch install keeps its app-open gate.
+	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching, 0),
 	-- Compute the attempt number for this activation. Each retry creates a
 	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
 	-- new activity activates, COUNT(*) of previous completed attempts gives
@@ -2075,6 +2078,19 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 		// script output to surface.
 		statusCols: statusOutputCols{
 			status: "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
+			output: "NULL",
+		},
+	},
+	{
+		activityType: "notified_end_user_before_patching",
+		joins: `
+            INNER JOIN patch_notification_apps pna
+                ON  pna.notification_uuid = ap.details->>'$.patch_notification_uuid'
+                AND pna.policy_id         = ?`,
+		errorCond:   "ap.details->>'$.status' = 'failed'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed')",
+		statusCols: statusOutputCols{
+			status: "IF(ap.details->>'$.status' = 'failed', 'error', 'success')",
 			output: "NULL",
 		},
 	},

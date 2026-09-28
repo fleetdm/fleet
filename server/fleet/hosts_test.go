@@ -339,31 +339,72 @@ func TestHostDisplayName(t *testing.T) {
 
 func TestMDMEnrollmentStatus(t *testing.T) {
 	for _, tc := range []struct {
+		name     string
 		hostMDM  HostMDM
 		expected string
 	}{
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true, IsPersonalEnrollment: false},
-			expected: "On (automatic)",
+			name:     "ADE",
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true},
+			expected: MDMEnrollmentStatusAutomatic,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: false},
-			expected: "On (manual)",
+			name:     "manual company-owned",
+			hostMDM:  HostMDM{Enrolled: true},
+			expected: MDMEnrollmentStatusManual,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false, IsPersonalEnrollment: true},
-			expected: "On (manual - personal)",
+			name:     "manual BYOD",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeManualProfile},
+			expected: MDMEnrollmentStatusManualPersonal,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
-			expected: "Pending",
+			name:     "account-driven user enrollment",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeAccountDriven},
+			expected: MDMEnrollmentStatusPersonal,
 		},
 		{
-			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: false},
-			expected: "Off",
+			name:     "android work profile",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeWorkProfile},
+			expected: MDMEnrollmentStatusPersonal,
+		},
+		{
+			name:     "unclassified personal",
+			hostMDM:  HostMDM{Enrolled: true, IsPersonalEnrollment: true},
+			expected: MDMEnrollmentStatusPersonal,
+		},
+		{
+			name:     "manual profile type without personal flag",
+			hostMDM:  HostMDM{Enrolled: true, PersonalEnrollmentType: PersonalEnrollmentTypeManualProfile},
+			expected: MDMEnrollmentStatusManual,
+		},
+		{
+			name:     "pending",
+			hostMDM:  HostMDM{InstalledFromDep: true},
+			expected: MDMEnrollmentStatusPending,
+		},
+		{
+			name:     "unenrolled BYOD",
+			hostMDM:  HostMDM{IsPersonalEnrollment: true, PersonalEnrollmentType: PersonalEnrollmentTypeManualProfile},
+			expected: MDMEnrollmentStatusOff,
+		},
+		{
+			name:     "off",
+			hostMDM:  HostMDM{},
+			expected: MDMEnrollmentStatusOff,
 		},
 	} {
-		require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
+		})
+	}
+}
+
+func TestIsPersonalEnrollmentStatus(t *testing.T) {
+	require.True(t, IsPersonalEnrollmentStatus(MDMEnrollmentStatusPersonal))
+	require.True(t, IsPersonalEnrollmentStatus(MDMEnrollmentStatusManualPersonal))
+	for _, status := range []string{MDMEnrollmentStatusManual, MDMEnrollmentStatusAutomatic, MDMEnrollmentStatusPending, MDMEnrollmentStatusOff, ""} {
+		require.False(t, IsPersonalEnrollmentStatus(status), status)
 	}
 }
 
@@ -850,4 +891,100 @@ func TestHostMDMDiskEncryptionNeedsBitLockerPIN(t *testing.T) {
 			require.Equal(t, tc.want, tc.de.NeedsBitLockerPIN())
 		})
 	}
+}
+
+func TestHostSoftwareInstalledPathKey(t *testing.T) {
+	t.Run("round trips every field", func(t *testing.T) {
+		key := HostSoftwareInstalledPathKey{
+			InstalledPath:     "/opt/homebrew/Cellar/git",
+			TeamIdentifier:    "TEAM123456",
+			CDHashSHA256:      "cdhash",
+			ExecutableSHA256:  "exechash",
+			ExecutablePath:    "/opt/homebrew/Cellar/git/2.46.0/bin/git",
+			SoftwareUniqueStr: Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}.ToUniqueStr(),
+		}
+
+		parsed, ok := ParseHostSoftwareInstalledPathKey(key.String())
+		require.True(t, ok)
+		require.Equal(t, key, parsed)
+	})
+
+	t.Run("round trips a unique string holding separators", func(t *testing.T) {
+		// ToUniqueStr joins with the same separator the key does, so the software unique string
+		// is only recoverable because it is the last field.
+		unqStr := Software{
+			Name: "Foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.foo",
+			Vendor: "Example", ExtensionID: "ext", UpgradeCode: new("code"),
+		}.ToUniqueStr()
+		require.Contains(t, unqStr, SoftwareFieldSeparator)
+
+		key := HostSoftwareInstalledPathKey{InstalledPath: "/Applications/Foo.app", SoftwareUniqueStr: unqStr}
+		parsed, ok := ParseHostSoftwareInstalledPathKey(key.String())
+		require.True(t, ok)
+		require.Equal(t, unqStr, parsed.SoftwareUniqueStr)
+		require.Equal(t, key, parsed)
+	})
+
+	t.Run("rejects a key with too few fields", func(t *testing.T) {
+		_, ok := ParseHostSoftwareInstalledPathKey("/Applications/Foo.app" + SoftwareFieldSeparator + "TEAM123456")
+		require.False(t, ok)
+	})
+
+	t.Run("empty fields are preserved", func(t *testing.T) {
+		key := HostSoftwareInstalledPathKey{
+			InstalledPath:     "/usr/local/Cellar/fortune",
+			SoftwareUniqueStr: Software{Name: "fortune", Version: "9708", Source: "homebrew_packages"}.ToUniqueStr(),
+		}
+		parsed, ok := ParseHostSoftwareInstalledPathKey(key.String())
+		require.True(t, ok)
+		require.Equal(t, key, parsed)
+		require.Empty(t, parsed.ExecutablePath)
+	})
+}
+
+func TestExecutableHashes(t *testing.T) {
+	t.Run("an empty document is stored as NULL", func(t *testing.T) {
+		for _, execs := range []ExecutableHashes{nil, {}} {
+			v, err := execs.Value()
+			require.NoError(t, err)
+			require.Nil(t, v)
+		}
+	})
+
+	t.Run("round trips through a driver value", func(t *testing.T) {
+		execs := ExecutableHashes{
+			"2.46.0/bin/git":           "9a881b9b",
+			"2.46.0/bin/git-cvsserver": "",
+		}
+		v, err := execs.Value()
+		require.NoError(t, err)
+
+		var got ExecutableHashes
+		require.NoError(t, got.Scan(v))
+		require.Equal(t, execs, got)
+
+		// MySQL hands back bytes.
+		got = nil
+		require.NoError(t, got.Scan([]byte(v.(string))))
+		require.Equal(t, execs, got)
+	})
+
+	t.Run("keys are serialized in a stable order", func(t *testing.T) {
+		execs := ExecutableHashes{"b": "2", "a": "1", "c": "3"}
+		v, err := execs.Value()
+		require.NoError(t, err)
+		// Not JSONEq: the point is the key order, which an equality of documents ignores.
+		require.Equal(t, `{"a":"1","b":"2","c":"3"}`, v) //nolint:testifylint
+	})
+
+	t.Run("a NULL column scans to a nil document", func(t *testing.T) {
+		got := ExecutableHashes{"stale": "value"}
+		require.NoError(t, got.Scan(nil))
+		require.Nil(t, got)
+	})
+
+	t.Run("an unsupported type is rejected", func(t *testing.T) {
+		var got ExecutableHashes
+		require.Error(t, got.Scan(42))
+	})
 }

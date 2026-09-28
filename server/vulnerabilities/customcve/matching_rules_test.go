@@ -3,6 +3,7 @@ package customcve
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -157,8 +158,8 @@ func TestMatchFilters(t *testing.T) {
 				CVEs:              []string{"CVE-2024-001", "CVE-2024-002"},
 			},
 			expectedFilter: fleet.VulnSoftwareFilter{
-				Name:   "Microsoft 365",
-				Source: "programs",
+				Name:    "Microsoft 365",
+				Sources: []string{"programs"},
 			},
 		},
 		{
@@ -327,13 +328,13 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 
 	t.Run("New Vulns return all inserted", func(t *testing.T) {
 		ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
-			if filter.Name == "Microsoft 365" && filter.Source == "programs" {
+			if filter.Name == "Microsoft 365" && slices.Contains(filter.Sources, "programs") {
 				return []fleet.Software{sw[0], sw[1], sw[2], sw[3], sw[6]}, nil
 			}
-			if filter.Name == "git-gui" && filter.Source == "homebrew_packages" {
+			if filter.Name == "git-gui" && slices.Contains(filter.Sources, "homebrew_packages") {
 				return []fleet.Software{sw[4], sw[5]}, nil
 			}
-			if filter.Name == "Microsoft.WindowsNotepad" && filter.Source == "programs" {
+			if filter.Name == "Microsoft.WindowsNotepad" && slices.Contains(filter.Sources, "programs") {
 				return []fleet.Software{sw[7], sw[8]}, nil
 			}
 			return nil, nil
@@ -556,13 +557,13 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ds.DeleteOutOfDateVulnerabilitiesFuncInvoked = false
 
 		ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
-			if filter.Name == "Microsoft 365" && filter.Source == "programs" {
+			if filter.Name == "Microsoft 365" && slices.Contains(filter.Sources, "programs") {
 				return []fleet.Software{sw[0], sw[1], sw[2], sw[3], sw[6]}, nil
 			}
-			if filter.Name == "git-gui" && filter.Source == "homebrew_packages" {
+			if filter.Name == "git-gui" && slices.Contains(filter.Sources, "homebrew_packages") {
 				return []fleet.Software{sw[4], sw[5]}, nil
 			}
-			if filter.Name == "Microsoft.WindowsNotepad" && filter.Source == "programs" {
+			if filter.Name == "Microsoft.WindowsNotepad" && slices.Contains(filter.Sources, "programs") {
 				return []fleet.Software{sw[7], sw[8]}, nil
 			}
 			return nil, nil

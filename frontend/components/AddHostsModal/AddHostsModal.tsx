@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
-import DataError from "components/DataError";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
@@ -56,19 +55,30 @@ const AddHostsModal = ({
     }
     if (!enrollSecret) {
       return (
-        <DataError>
-          <span className="info__data">
-            You have no enroll secrets.{" "}
-            {openEnrollSecretModal ? (
-              <Button variant="link" onClick={onManageEnrollSecretsClick}>
-                Manage enroll secrets
-              </Button>
+        <>
+          <p>You have no enroll secrets.</p>
+          <p>
+            {config?.auth?.use_one_time_enroll_secrets ? (
+              <>
+                Only Apple hosts that automatically enroll via Automated Device
+                Enrollment (ADE) can enroll to <b>{teamDisplayName}</b>. Add an
+                enroll secret to enroll other hosts.
+              </>
             ) : (
-              "Manage enroll secrets"
-            )}{" "}
-            to enroll hosts to <b>{teamDisplayName}</b>.
-          </span>
-        </DataError>
+              <>
+                New hosts will not enroll until an enroll secret is added to{" "}
+                <b>{teamDisplayName}</b>.
+              </>
+            )}
+          </p>
+          {openEnrollSecretModal && (
+            <div className="modal-cta-wrap">
+              <Button onClick={onManageEnrollSecretsClick}>
+                Add enroll secret
+              </Button>
+            </div>
+          )}
+        </>
       );
     }
 

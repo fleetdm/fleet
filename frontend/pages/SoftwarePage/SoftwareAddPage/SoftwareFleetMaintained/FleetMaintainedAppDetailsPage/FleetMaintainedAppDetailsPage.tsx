@@ -66,10 +66,7 @@ const FleetAppSummary = ({
   }
 
   return (
-    <Card
-      className={`${baseClass}__fleet-app-summary`}
-      borderRadiusSize="medium"
-    >
+    <Card className={`${baseClass}__fleet-app-summary`}>
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
         <div className={`${baseClass}__fleet-app-summary--details`}>
@@ -216,7 +213,10 @@ const FleetMaintainedAppDetailsPage = ({
           ...(formData.patchOption !== "manual" && {
             software_title_id: addedSoftwareTitleId,
           }),
-          ...getPatchPolicyFlags(formData.patchOption),
+          ...getPatchPolicyFlags(
+            formData.patchOption,
+            formData.endUserExperience
+          ),
         });
       }
 
@@ -283,6 +283,7 @@ const FleetMaintainedAppDetailsPage = ({
               onCancel={onCancel}
               onSubmit={onSubmit}
               softwareTitleId={fleetApp.software_title_id}
+              platform={fleetApp.platform}
             />
           </div>
         </>
