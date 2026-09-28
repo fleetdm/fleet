@@ -1619,6 +1619,11 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_windows_mdm_command_history", func(ctx context.Context) error {
 			return cleanupWindowsMDMCommandHistoryCronJob(ctx, ds, logger, config.MDM.WindowsCommandRetention)
 		}),
+		// Before the script results sweep, so a script result this one orphans is
+		// collected in the same tick rather than an hour later.
+		schedule.WithJob("cleanup_host_software_installs", func(ctx context.Context) error {
+			return cleanupHostSoftwareInstallsCronJob(ctx, ds, logger, config.Server.SoftwareInstallResultsRetention)
+		}),
 		schedule.WithJob("cleanup_host_script_results", func(ctx context.Context) error {
 			return cleanupHostScriptResultsCronJob(ctx, ds, logger, config.Server.ScriptResultsRetention)
 		}),
@@ -1756,6 +1761,25 @@ func cleanupWindowsMDMCommandHistoryCronJob(ctx context.Context, ds fleet.Datast
 	if counts.Total() > 0 {
 		logger.InfoContext(ctx, "cleaned up windows mdm command history",
 			"responses", counts.Responses, "results", counts.Results, "commands", counts.Commands)
+	}
+	return nil
+}
+
+// cleanupHostSoftwareInstallsCronJob is disabled by a non-positive retention,
+// the documented off switch for server.software_install_results_retention.
+func cleanupHostSoftwareInstallsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostSoftwareInstalls(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host software installs failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host software installs", "deleted", deleted)
 	}
 	return nil
 }
