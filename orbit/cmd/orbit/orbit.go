@@ -2185,7 +2185,7 @@ func (d *desktopRunner) Execute() error {
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
 			if lastLogs, err := execuser.Run(d.desktopPath, opts...); err != nil {
-				log.Debug().Err(err).Msg("execuser.Run")
+				log.Warn().Err(err).Msg("failed to start fleet-desktop, will retry")
 				d.processLog(lastLogs)
 				return true
 			}

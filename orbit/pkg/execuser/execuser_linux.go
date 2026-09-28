@@ -18,6 +18,23 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// NixOS keeps the setuid sudo outside the store, in a directory that is not on
+// the minimal PATH systemd gives services, so it is resolved by its fixed path.
+var (
+	nixosMarkerFile = "/etc/NIXOS"
+	nixosSudoPath   = "/run/wrappers/bin/sudo"
+)
+
+func sudoCommand() string {
+	if _, err := os.Stat(nixosMarkerFile); err != nil {
+		return "sudo"
+	}
+	if _, err := os.Stat(nixosSudoPath); err != nil {
+		return "sudo"
+	}
+	return nixosSudoPath
+}
+
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	if opts.user == "" {
@@ -52,7 +69,7 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 	args = append(args, cmdArgs...)
 
 	// Use sudo to run the command as the login user.
-	args = append([]string{"sudo"}, args...)
+	args = append([]string{sudoCommand()}, args...)
 
 	// If a timeout is set, prefix the command with "timeout".
 	if opts.timeout > 0 {
