@@ -109,8 +109,8 @@
 #   then activates the new key+certificate together, retaining
 #   network-key.tss2.pem.prev / certificate.pem.prev rollback copies.
 #
-# Prerequisites on the host: openssl (>= 3.0), tpm2-openssl, curl, jq
-#   apt-get install -y tpm2-openssl jq curl
+# Prerequisites on the host: openssl (>= 3.0), tpm2-openssl, tpm2-tools, tpm2-abrmd, libtss2-tcti-tabrmd0, curl, jq
+#   apt-get install -y tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0 jq curl
 #
 # Fleet-side prerequisites (unchanged from the guide):
 #   - API-only user with global maintainer role
@@ -154,7 +154,7 @@ WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
 # ---------------------------------------------------------------------------
-# Preflight: require a TPM 2.0 and the OpenSSL tpm2 provider. No fallback.
+# Preflight: require a TPM 2.0 and a working tpm2-abrmd TCTI for the tpm2 provider.
 # ---------------------------------------------------------------------------
 
 preflight() {
@@ -172,10 +172,14 @@ preflight() {
         *) fail "OpenSSL 3.x is required for provider support; found: $(openssl version)" ;;
     esac
 
+    # Configure the TPM2OPENSSL_TCTI for tabrmd
+    export TPM2OPENSSL_TCTI="tabrmd:0"
+
     # The tpm2 provider is what lets openssl (and later wpa_supplicant / VPN
     # clients) talk to the TPM. Ubuntu package: tpm2-openssl.
+    # We require a working tpm2-abrmd TCTI.
     if ! openssl list -providers -provider tpm2 -provider default >/dev/null 2>&1; then
-        fail "OpenSSL tpm2 provider is not available. Install it with: apt-get install -y tpm2-openssl"
+        fail "tpm2-abrmd daemon or configured TCTI (tabrmd) is unavailable. Install it with: apt-get install -y tpm2-openssl tpm2-tools tpm2-abrmd libtss2-tcti-tabrmd0"
     fi
 
     [[ -f "${USERINFO_FILE}" ]] || fail "end user info file ${USERINFO_FILE} not found"
