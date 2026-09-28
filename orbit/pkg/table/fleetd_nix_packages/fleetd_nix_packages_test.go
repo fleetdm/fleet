@@ -158,7 +158,7 @@ func TestGenerate(t *testing.T) {
 	require.NoError(t, os.Symlink(systemPath, filepath.Join(toplevel, "sw")))
 	// Pretend nix-store is installed in the system profile.
 	require.NoError(t, os.MkdirAll(filepath.Join(systemPath, "bin"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(systemPath, "bin/nix-store"), nil, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(systemPath, "bin/nix-store"), nil, 0o600))
 
 	// alice installs ripgrep with nix profile, reachable through two links.
 	aliceProfile := f.store("profile")
