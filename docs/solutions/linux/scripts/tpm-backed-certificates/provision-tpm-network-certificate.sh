@@ -405,15 +405,20 @@ request_certificate() {
     printf 'header = "authorization: Bearer %s"\n' "${FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN}" > "${curl_config}"
     chmod 600 "${curl_config}"
 
-    http_code="$(curl -sS -o "${response}" -w '%{http_code}' --config "${curl_config}" \
+    http_code="$(curl --connect-timeout 15 --max-time 60 -sS -o "${response}" -w '%{http_code}' --config "${curl_config}" \
         "${FLEET_URL}/api/latest/fleet/certificate_authorities/${CA_ID}/request_certificate" \
         -X POST \
         -H 'accept: application/json, text/plain, */*' \
         -H 'content-type: application/json' \
         --data-binary "@${WORK_DIR}/request.json")"
 
-    [[ "${http_code}" == "200" ]] \
-        || fail "certificate request failed (HTTP ${http_code})"
+    if [[ "${http_code}" == "200" ]]; then
+        :
+    elif [[ "${http_code}" == "0" ]]; then
+        fail "certificate request failed: network error or timeout (HTTP 0)"
+    else
+        fail "certificate request failed (HTTP ${http_code})"
+    fi
 
     jq -re .certificate "${response}" >"${cert_file}.tmp" \
         || fail "certificate request response does not contain a certificate"
