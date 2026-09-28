@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260924182658(t *testing.T) {
+func TestUp_20260928155250(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	updatedAt := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
@@ -36,6 +36,6 @@ func TestUp_20260924182658(t *testing.T) {
 
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	require.NoError(t, Up_20260924182658(tx))
+	require.NoError(t, Up_20260928155250(tx))
 	require.NoError(t, tx.Commit())
 }

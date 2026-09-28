@@ -367,6 +367,7 @@ export interface IHostIssues {
   total_issues_count: number;
   critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
+  failing_unhidden_policies_count?: number; // Premium
 }
 export interface IHostEndUser {
   idp_id?: string;

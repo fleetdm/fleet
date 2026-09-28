@@ -444,7 +444,7 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 // otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
 	if host.FleetPlatform() == "android" &&
-		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal &&
+		host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) &&
 		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
 		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
 		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
@@ -1853,7 +1853,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	// BYOD/personal enrollments never receive the device vitals fields (see
 	// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
 	// there's nothing to load.
-	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal
+	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)
 	if fleet.IsAppleMobilePlatform(host.Platform) && !isPersonalEnrollment {
 		if err := svc.ds.LoadHostMDMAppleDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm apple device vitals")
@@ -1933,15 +1933,29 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	// Calculate the number of failing policies for the host based on the returned policies to
 	// avoid discrepancies due to read replica delay.
-	var failingPolicies uint64
+	var failingPolicies, failingUnhiddenPolicies uint64
 	if policies != nil {
+		visible := make([]*fleet.HostPolicy, 0, len(*policies))
 		for _, p := range *policies {
-			if p != nil && p.Response == "fail" {
+			if p == nil {
+				continue
+			}
+			if p.Response == "fail" {
 				failingPolicies++
+				if !p.Hidden {
+					failingUnhiddenPolicies++
+				}
+			}
+			if !opts.ExcludeHiddenPolicies || !p.Hidden {
+				visible = append(visible, p)
 			}
 		}
+		policies = &visible
 	}
 	host.HostIssues.FailingPoliciesCount = failingPolicies
+	if license.IsPremium(ctx) {
+		host.HostIssues.FailingUnhiddenPoliciesCount = &failingUnhiddenPolicies
+	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
 	// disk encryption status, and macOS setup details for non-linux hosts.
@@ -2185,7 +2199,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if fleet.IsApplePlatform(host.Platform) &&
 		host.MDM.EnrollmentStatus != nil &&
 		(*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual ||
-			*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal) {
+			fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)) {
 		perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")

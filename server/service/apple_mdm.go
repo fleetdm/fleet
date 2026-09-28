@@ -4863,6 +4863,9 @@ type MDMAppleCheckinAndCommandService struct {
 	// notificationsSvc is only needed to fail a wiped host's end user notifications.
 	notificationsSvc fleet.NotificationsWriteService
 	isPremium        bool
+	// refetchCleanupRetention is how far back the per-ack refetch cleanup
+	// reaches, see refetchCleanupRetentionOrDefault.
+	refetchCleanupRetention time.Duration
 	// deferFleetInitiatedActivation mirrors
 	// activity.fleet_initiated_release_per_minute > 0: fleet-initiated
 	// activities (scheduled app updates) are enqueued without inline
@@ -4880,6 +4883,7 @@ func NewMDMAppleCheckinAndCommandService(
 	newActivityFn mdmlifecycle.NewActivityFunc,
 	deferFleetInitiatedActivation bool,
 	notificationsSvc fleet.NotificationsWriteService,
+	refetchCleanupRetention time.Duration,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
 	return &MDMAppleCheckinAndCommandService{
@@ -4895,7 +4899,18 @@ func NewMDMAppleCheckinAndCommandService(
 		notificationsSvc: notificationsSvc,
 
 		deferFleetInitiatedActivation: deferFleetInitiatedActivation,
+		refetchCleanupRetention:       refetchCleanupRetentionOrDefault(refetchCleanupRetention),
 	}
+}
+
+// refetchCleanupRetentionOrDefault maps the short retention window onto the
+// per-ack refetch cleanup: with the tier disabled it keeps the previous fixed
+// 30 days, so refetch chatter stays bounded either way.
+func refetchCleanupRetentionOrDefault(shortRetention time.Duration) time.Duration {
+	if shortRetention > 0 {
+		return shortRetention
+	}
+	return 30 * 24 * time.Hour
 }
 
 func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.MDMCommandResultsHandler) {
@@ -5001,17 +5016,21 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	// AddPersonalEnrollmentToFleetURL bakes "byod=1" into the ServerURL when
 	// the end user chose "Personal (BYOD)" on the /enroll page; nanomdm surfaces it here.
 	isPersonal := r.Params != nil && r.Params[apple_mdm.FleetPersonalEnrollmentKey] == "1"
+	personalType := fleet.PersonalEnrollmentTypeNone
+	if isPersonal {
+		personalType = fleet.PersonalEnrollmentTypeManualProfile
+	}
 
 	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
-		Action:                mdmlifecycle.HostActionReset,
-		Platform:              platform,
-		UUID:                  m.UDID,
-		HardwareSerial:        m.SerialNumber,
-		HardwareModel:         m.Model,
-		SCEPRenewalInProgress: scepRenewalInProgress,
-		UserEnrollmentID:      m.EnrollmentID,
-		TeamID:                byodTeamID,
-		IsPersonalEnrollment:  isPersonal,
+		Action:                 mdmlifecycle.HostActionReset,
+		Platform:               platform,
+		UUID:                   m.UDID,
+		HardwareSerial:         m.SerialNumber,
+		HardwareModel:          m.Model,
+		SCEPRenewalInProgress:  scepRenewalInProgress,
+		UserEnrollmentID:       m.EnrollmentID,
+		TeamID:                 byodTeamID,
+		PersonalEnrollmentType: personalType,
 	}); err != nil {
 		svc.logger.WarnContext(r.Context, "could not reset Apple mdm information", "UDID", m.UDID, "EnrollmentID", m.EnrollmentID, "err", err)
 		return err
@@ -6058,7 +6077,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 	}
 
 	// Best-effort cleanup of stale refetch commands of the same type.
-	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchAppsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchAppsCommandUUIDPrefix, cmdResult.CommandUUID, svc.refetchCleanupRetention); err != nil {
 		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch apps commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchAppsCommandUUIDPrefix)
 	}
 
@@ -6689,7 +6708,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 	}
 
 	// Best-effort cleanup of stale refetch commands of the same type.
-	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchCertsCommandUUIDPrefix, cmdResult.CommandUUID, svc.refetchCleanupRetention); err != nil {
 		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch certs commands", "err", err, "enrollment_id", enrollmentID, "command_prefix", fleet.RefetchCertsCommandUUIDPrefix)
 	}
 
@@ -7063,7 +7082,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	}
 
 	// Best-effort cleanup of stale refetch commands of the same type.
-	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchDeviceCommandUUIDPrefix, cmdResult.CommandUUID); err != nil {
+	if err := svc.ds.CleanupStaleNanoRefetchCommands(ctx, host.UUID, fleet.RefetchDeviceCommandUUIDPrefix, cmdResult.CommandUUID, svc.refetchCleanupRetention); err != nil {
 		svc.logger.ErrorContext(ctx, "cleanup stale nano refetch device commands", "err", err, "host_uuid", host.UUID, "command_prefix", fleet.RefetchDeviceCommandUUIDPrefix)
 	}
 

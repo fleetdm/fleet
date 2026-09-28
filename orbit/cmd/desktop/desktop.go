@@ -415,7 +415,7 @@ func main() {
 				}
 
 				menuManager.SetConnected(&sum.DesktopSummary, false)
-				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
+				menuManager.UpdateFailingPolicies(trayFailingPoliciesCount(sum.DesktopSummary))
 
 				if runtime.GOOS == "windows" {
 					// Comparing the link on every summary also re-posts the toast after the device token rotates.
@@ -618,6 +618,15 @@ func (m *mdmMigrationHandler) ShowInstructions() error {
 		return err
 	}
 	return nil
+}
+
+// Servers older than the hidden-policies feature don't report the unhidden
+// count, so fall back to the total to keep the pre-upgrade behavior.
+func trayFailingPoliciesCount(sum fleet.DesktopSummary) *uint {
+	if sum.FailingUnhiddenPolicies != nil {
+		return sum.FailingUnhiddenPolicies
+	}
+	return sum.FailingPolicies
 }
 
 // getLockfile checks for the fleet desktop lock file, and returns an error if it can't secure it.

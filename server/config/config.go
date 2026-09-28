@@ -1097,10 +1097,10 @@ type MDMConfig struct {
 	// WindowsWSTEPIdentityKey is the content of the private key used to sign
 	// WSTEP responses.
 	WindowsWSTEPIdentityKeyBytes string `yaml:"windows_wstep_identity_key_bytes"`
-	// WindowsEnrollmentRetention is the minimum time since an orphaned or
-	// superseded Windows MDM enrollment row was last updated before the hourly
-	// cleanup deletes it. It is measured from the row's updated_at, not from
-	// when it became orphaned. Zero or negative disables the cleanup.
+	// WindowsEnrollmentRetention is how long an orphaned or superseded Windows
+	// MDM enrollment is kept after its host was deleted or it was last
+	// updated, whichever is later, before the hourly cleanup deletes it. Zero
+	// or negative disables the cleanup.
 	WindowsEnrollmentRetention time.Duration `yaml:"windows_enrollment_retention"`
 	// WindowsCommandRetention is the minimum age of Windows MDM command history
 	// (raw responses, results and commands) before the hourly cleanup deletes
@@ -1132,9 +1132,10 @@ type MDMConfig struct {
 	// AllowOrbitEndUserAuthBypass controls whether an Orbit/fleetd host that does
 	// not complete end user authentication is allowed to enroll into a team that
 	// requires it. Defaults to true so that agents predating end user
-	// authentication (and installers built with `fleetctl package
-	// --bypass-end-user-auth`) can still enroll. Set to false to strictly enforce
-	// end user authentication for all Orbit enrollments.
+	// authentication, installers built with `fleetctl package
+	// --bypass-end-user-auth`, and macOS hosts enrolling fleetd before MDM can
+	// still enroll. Set to false to strictly enforce end user authentication for
+	// all Orbit enrollments on every platform.
 	AllowOrbitEndUserAuthBypass bool `yaml:"allow_orbit_end_user_auth_bypass"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
@@ -2096,7 +2097,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
-	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "Minimum time since an orphaned or superseded Windows MDM enrollment was last updated before the hourly cleanup deletes it (0 disables the cleanup)")
+	man.addConfigDuration("mdm.windows_enrollment_retention", 30*24*time.Hour, "How long an orphaned or superseded Windows MDM enrollment is kept after its host was deleted or it was last updated, before the hourly cleanup deletes it (0 disables the cleanup)")
 	man.addConfigDuration("mdm.windows_command_retention", 30*24*time.Hour, "Minimum time since Windows MDM command history (responses, results, commands) was recorded or last updated before the hourly cleanup deletes it (0 disables the cleanup)")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")

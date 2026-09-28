@@ -26,6 +26,23 @@ export const astify = (sql: string): unknown => {
   return result.ast;
 };
 
+/**
+ * Whether the input contains no statement at all: empty, whitespace, or
+ * comments only. astify rejects such input; this lets callers treat it as
+ * "nothing typed yet" instead of a syntax error.
+ */
+export const hasNoStatement = (sql: string): boolean => {
+  try {
+    parse(sql, { startRule: "no_stmt" });
+    return true;
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      return false;
+    }
+    throw err;
+  }
+};
+
 export { SyntaxError };
 export type {
   ParserExpectation,

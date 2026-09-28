@@ -527,6 +527,7 @@ type AppleProfileForReconcile struct {
 	IncludeMode       AppleProfileIncludeMode
 	IncludeLabels     []AppleProfileLabelRef
 	ExcludeLabels     []AppleProfileLabelRef
+	SelfService       bool
 }
 
 // AppleLabeledEntity implementation.

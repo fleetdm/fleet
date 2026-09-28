@@ -479,3 +479,26 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		}
 	})
 }
+
+func TestLockWipeRejectPersonalAppleHosts(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, _ := newTestServiceWithMock(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	for _, platform := range []string{"darwin", "ios", "ipados"} {
+		for _, status := range []string{fleet.MDMEnrollmentStatusPersonal, fleet.MDMEnrollmentStatusManualPersonal} {
+			t.Run(platform+" "+status, func(t *testing.T) {
+				ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: id, Platform: platform, MDM: fleet.MDMHostData{EnrollmentStatus: new(status)}}, nil
+				}
+
+				_, err := svc.LockHost(ctx, 1, false)
+				require.ErrorContains(t, err, fleet.CantLockPersonalHostsMessage)
+
+				err = svc.WipeHost(ctx, 1, nil)
+				require.ErrorContains(t, err, fleet.CantWipePersonalHostsMessage)
+			})
+		}
+	}
+}
