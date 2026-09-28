@@ -1772,13 +1772,13 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited <strong>{title}</strong>{" "}
+        edited <b>{title}</b>{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <strong>{activity.details?.team_name}</strong> fleet.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1796,13 +1796,13 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted <strong>{title}</strong>{" "}
+        deleted <b>{title}</b>{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <strong>{activity.details?.team_name}</strong> fleet.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
           `unassigned.`

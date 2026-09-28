@@ -47,7 +47,7 @@ export const StatusMessage = ({
   isMyDevicePage,
   contactUrl,
 }: IUninstallStatusMessage) => {
-  const formattedHost = hostDisplayName ? <strong>{hostDisplayName}</strong> : "the host";
+  const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
 
   const isPending = isPendingStatus(status);
   const displayTimeStamp =
@@ -61,7 +61,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <strong>{softwareName}</strong>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{softwareName}</b>
       </>
     );
     let suffix = null;

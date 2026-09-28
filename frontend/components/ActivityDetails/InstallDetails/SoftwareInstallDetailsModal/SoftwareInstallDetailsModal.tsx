@@ -98,7 +98,7 @@ export const StatusMessage = ({
         iconName="success"
         message={
           <span>
-            <strong>{softwareName}</strong> is installed.
+            <b>{softwareName}</b> is installed.
           </span>
         }
       />
@@ -120,7 +120,7 @@ export const StatusMessage = ({
   );
 
   const formattedHost = host_display_name ? (
-    <strong>{host_display_name}</strong>
+    <b>{host_display_name}</b>
   ) : (
     "the host"
   );
@@ -167,7 +167,7 @@ export const StatusMessage = ({
         iconColor="ui-fleet-black-50"
         message={
           <span>
-            Fleet skipped install of <strong>{displayedTitle}</strong> ({software_package}
+            Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
             ) on {formattedHost}
             {displayTimeStamp}.{" "}
             {isNotifyVariant
@@ -193,7 +193,7 @@ export const StatusMessage = ({
         iconName="success"
         message={
           <span>
-            <strong>{softwareName}</strong> is installed.
+            <b>{softwareName}</b> is installed.
           </span>
         }
       />
@@ -203,7 +203,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <strong>{displayedTitle}</strong>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 

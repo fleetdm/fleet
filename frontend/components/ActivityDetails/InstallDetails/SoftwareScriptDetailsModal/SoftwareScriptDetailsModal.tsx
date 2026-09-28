@@ -84,7 +84,7 @@ export const StatusMessage = ({
   );
 
   const formattedHost = host_display_name ? (
-    <strong>{host_display_name}</strong>
+    <b>{host_display_name}</b>
   ) : (
     "the host"
   );
@@ -101,7 +101,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getScriptDetailsStatusPredicate(status)} <strong>{displayedTitle}</strong>
+        Fleet {getScriptDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
