@@ -85,7 +85,7 @@ Fleet allows you to schedule reports to run at a set interval. By default, repor
 
 To create a scheduled report, set the interval to a value other than "Never" when [creating a report](#create-a-report). If the report has already been created, select the report and then select **Edit report** to set the interval.
 
-The interval counts time that osquery runs on the host, not calendar time. When osquery starts (at boot, or when fleetd restarts or updates it), it lines up the schedule with the clock. After that, the schedule only moves forward while the host is awake.
+The interval counts time that Fleet's agent (fleetd) runs on the host, not calendar time, meaning the interval only moves forward while the host is awake.
 
 Right after osquery starts, an hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
 
