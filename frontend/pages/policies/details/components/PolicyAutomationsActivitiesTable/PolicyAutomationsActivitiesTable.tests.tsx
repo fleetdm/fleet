@@ -370,6 +370,25 @@ describe("getDetailOutputText for notify rows", () => {
       )
     ).toMatch(/end user wasn't logged in/i);
   });
+
+  it("returns the 'scripts are disabled' sentence for a notify failure with exit code -2", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          output: "Scripts are disabled",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: -2,
+          },
+        })
+      )
+    ).toMatch(/scripts are disabled on the host/i);
+  });
 });
 
 describe("getDetailOutputText", () => {

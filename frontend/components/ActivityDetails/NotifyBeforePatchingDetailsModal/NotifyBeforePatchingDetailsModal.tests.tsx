@@ -176,6 +176,21 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the 'scripts are disabled' sentence for exit code -2", async () => {
+    useScriptResultHandler({
+      exit_code: -2,
+      output: "Scripts are disabled",
+    });
+    renderModal({ status: "failed" });
+
+    expect(
+      await screen.findByText(/Scripts are disabled on the host\./)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fleet will try again later\./)
+    ).toBeInTheDocument();
+  });
+
   it("renders the deferred sentence when script_execution_id is absent, no fetch fired", async () => {
     // Fail loudly if the handler fires — no execution id means no fetch.
     const shouldNotFireHandler = jest.fn();
