@@ -173,7 +173,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		secretOpts   []fleet.DatastoreEnrollOsqueryOption
 	)
 	var oneTime *fleet.HostOneTimeEnrollSecret
-	if svc.config.Auth.UseOneTimeEnrollSecrets {
+	if svc.config.MDM.AppleOneTimeEnrollSecrets {
 		var err error
 		oneTime, err = svc.lookupOneTimeEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -195,7 +195,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 			return "", newOsqueryErrorWithInvalidNode("enroll failed")
 		}
 		enrollTeamID = secret.TeamID
-		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForMDMHosts(svc.config.Auth.UseOneTimeEnrollSecrets))
+		secretOpts = append(secretOpts, fleet.WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(svc.config.MDM.AppleOneTimeEnrollSecrets))
 	}
 
 	identityCert, err := svc.ds.GetHostIdentityCertByName(ctx, hostIdentifier)
