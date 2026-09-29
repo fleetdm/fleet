@@ -13,7 +13,7 @@ on:
   # server). The PR's config is checked out separately below as data only.
   pull_request_target:
       branches:
-      - main
+        - main
     paths:
       - "**"
   workflow_dispatch: # allows manual triggering
