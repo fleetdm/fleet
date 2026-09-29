@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script template used in this guide: https://fleetdm.com/guides/require-fleet-managed-hosts-in-pingfederate
+# Script template used in this guide: https://fleetdm.com/guides/pingfederate-conditional-access-integration
 # Imports a device certificate into each user's Chrome and Firefox certificate stores (NSS) so browsers can present it.
 # Needs openssl and certutil/pk12util (libnss3-tools on Debian/Ubuntu, nss-tools on RHEL). Run as root.
 set -euo pipefail
