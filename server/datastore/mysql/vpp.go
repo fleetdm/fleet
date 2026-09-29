@@ -1348,6 +1348,8 @@ func (ds *Datastore) MapAdamIDsQueuedInstalls(ctx context.Context, hostID uint) 
 }
 
 func (ds *Datastore) GetPastActivityDataForAndroidVPPAppInstall(ctx context.Context, cmdUUID string, status fleet.SoftwareInstallerStatus) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	// See GetPastActivityDataForVPPAppInstall — same write-time-freeze rationale.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	return ds.getPastActivityDataForAndroidVPPAppInstallDB(ctx, ds.reader(ctx), cmdUUID, status)
 }
 
@@ -1360,6 +1362,11 @@ func (ds *Datastore) getPastActivityDataForAndroidVPPAppInstallDB(ctx context.Co
 }
 
 func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	// Called at activity-write time to snapshot the software display name
+	// override (and adjacent fields) into the activity JSON blob. Reading from
+	// a lagging replica could miss a rename an admin committed to the primary
+	// moments before the install ack landed, defeating the write-time freeze.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	return ds.getPastActivityDataForVPPAppInstallDB(ctx, ds.reader(ctx), commandResults)
 }
 
