@@ -8435,6 +8435,88 @@ func (ds *Datastore) CleanupExpiredADUEEnrollmentChallenges(ctx context.Context)
 	return nil
 }
 
+func (ds *Datastore) InsertMDMAppleDEPEnrollmentChallenge(ctx context.Context, idpAccountUUID, hardwareSerial, hostUUID string, expiration time.Duration) (string, error) {
+	if expiration <= 0 {
+		return "", ctxerr.New(ctx, "challenge expiration must be greater than zero")
+	}
+	if idpAccountUUID == "" || hardwareSerial == "" || hostUUID == "" {
+		return "", ctxerr.New(ctx, "idp account uuid, hardware serial and host uuid are required")
+	}
+
+	challengeBytes, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating automatic enrollment challenge")
+	}
+	challenge := string(challengeBytes)
+
+	const stmt = `
+INSERT INTO mdm_apple_dep_enrollment_challenges
+	(challenge, idp_account_uuid, hardware_serial, host_uuid, expires_at)
+VALUES
+	(?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, challenge, idpAccountUUID, hardwareSerial, hostUUID, expiration.Microseconds()); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "inserting automatic enrollment challenge")
+	}
+	return challenge, nil
+}
+
+func (ds *Datastore) GetMDMAppleDEPEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
+	return getMDMAppleDEPEnrollmentChallengeDB(ctx, ds.reader(ctx), challenge)
+}
+
+func getMDMAppleDEPEnrollmentChallengeDB(ctx context.Context, q sqlx.QueryerContext, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
+	const stmt = `
+SELECT id, idp_account_uuid, hardware_serial, host_uuid, expires_at, used_at
+FROM mdm_apple_dep_enrollment_challenges
+WHERE challenge = ?`
+	var chal fleet.MDMAppleDEPEnrollmentChallenge
+	if err := sqlx.GetContext(ctx, q, &chal, stmt, challenge); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleDEPEnrollmentChallenge"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get automatic enrollment challenge")
+	}
+	return &chal, nil
+}
+
+func (ds *Datastore) ConsumeMDMAppleDEPEnrollmentChallenge(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
+	// A single conditional UPDATE decides which of several concurrent
+	// redemptions gets the challenge.
+	const stmt = `
+UPDATE mdm_apple_dep_enrollment_challenges
+SET used_at = NOW(6)
+WHERE challenge = ? AND used_at IS NULL AND expires_at > NOW(6)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, challenge)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "consume automatic enrollment challenge")
+	}
+	consumed, err := res.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "consume automatic enrollment challenge rows affected")
+	}
+
+	chal, err := getMDMAppleDEPEnrollmentChallengeDB(ctx, ds.writer(ctx), challenge)
+	if err != nil {
+		return nil, err
+	}
+	if consumed == 0 {
+		reason := "expired"
+		if chal.UsedAt != nil {
+			reason = "already used"
+		}
+		return nil, ctxerr.Wrap(ctx, notFound("MDMAppleDEPEnrollmentChallenge"), "automatic enrollment challenge "+reason)
+	}
+	return chal, nil
+}
+
+func (ds *Datastore) CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx context.Context) error {
+	const stmt = `DELETE FROM mdm_apple_dep_enrollment_challenges WHERE expires_at < NOW(6) - INTERVAL 24 HOUR`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx context.Context, teamID *uint) ([]string, error) {
 	if teamID == nil {
 		// This should never be called with a nil teamID, as its primary purpose is to handle cleaning up team references

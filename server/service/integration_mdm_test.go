@@ -7152,7 +7152,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
-	res := s.LoginMDMSSOUser("sso_user", "user123#")
+	res := s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
@@ -7176,7 +7176,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	// the profile token is a one-time token, not the static automatic enrollment token
+	staticProf, err := s.ds.GetMDMAppleEnrollmentProfileByType(t.Context(), fleet.MDMAppleEnrollmentTypeAutomatic)
+	require.NoError(t, err)
+	require.NotEqual(t, staticProf.Token, q.Get("profile_token"))
+	s.checkOneTimeDEPEnrollmentToken(t, di, user1EnrollRef, q.Get("profile_token"), staticProf.Token)
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
@@ -7200,7 +7206,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
@@ -7214,7 +7220,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	pdfName := "eula.pdf"
 	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	res = s.LoginMDMSSOUser("sso_user", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
@@ -7442,7 +7448,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dm[0].Source)
 
 	// enrolling a different user works without problems
-	res = s.LoginMDMSSOUser("sso_user2", "user123#")
+	res = s.LoginMDMSSOUser("sso_user2", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
@@ -7888,7 +7894,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	})
 	require.NoError(t, err)
 
-	res := s.LoginMDMSSOUser("sso_user_no_displayname", "user123#")
+	res := s.LoginMDMSSOUser("sso_user_no_displayname", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
@@ -8210,7 +8216,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	checkEndUser()
 
 	// renew the mdm enrollment profile with a user that isn't in SCIM
-	res = s.LoginMDMSSOUser("sso_user2", "user123#")
+	res = s.LoginMDMSSOUser("sso_user2", "user123#", di)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
@@ -8419,6 +8425,70 @@ type enrollmentPayload struct {
 type enrollmentProfile struct {
 	PayloadIdentifier string
 	PayloadContent    []enrollmentPayload
+}
+
+// checkOneTimeDEPEnrollmentToken checks that usedToken, a one-time token
+// already redeemed by the device that presented deviceInfo, can't be redeemed
+// again, and that fresh one-time tokens are refused for the wrong device, the
+// wrong IdP account, or after they expire. It also checks that the static
+// token is refused with an enrollment reference.
+func (s *integrationMDMTestSuite) checkOneTimeDEPEnrollmentToken(t *testing.T, deviceInfo, idpAccountUUID, usedToken, staticToken string) {
+	requireEnrollStatus := func(token, ref, di string, wantStatus int) {
+		t.Helper()
+		params := []string{"token", token, "deviceinfo", di}
+		if ref != "" {
+			params = append(params, "enrollment_reference", ref)
+		}
+		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, wantStatus, params...)
+		if wantStatus == http.StatusUnauthorized {
+			require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
+		}
+	}
+	newToken := func() (token, ref string) {
+		t.Helper()
+		res := s.LoginMDMSSOUser("sso_user", "user123#", deviceInfo)
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
+		u, err := url.Parse(res.Header.Get("Location"))
+		require.NoError(t, err)
+		return u.Query().Get("profile_token"), u.Query().Get("enrollment_reference")
+	}
+	parsed, _, err := apple_mdm.ParseDeviceinfo(deviceInfo)
+	require.NoError(t, err)
+	otherDeviceInfo, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: "OTHER" + parsed.Serial,
+		UDID:   "other-" + parsed.UDID,
+	})
+	require.NoError(t, err)
+
+	// reused
+	requireEnrollStatus(usedToken, idpAccountUUID, deviceInfo, http.StatusUnauthorized)
+
+	// redeemed by another device, which uses it up for the right device too
+	token, ref := newToken()
+	requireEnrollStatus(token, ref, otherDeviceInfo, http.StatusUnauthorized)
+	requireEnrollStatus(token, ref, deviceInfo, http.StatusUnauthorized)
+
+	// with another IdP account's reference
+	token, _ = newToken()
+	requireEnrollStatus(token, uuid.NewString(), deviceInfo, http.StatusUnauthorized)
+
+	// expired
+	token, ref = newToken()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE mdm_apple_dep_enrollment_challenges SET expires_at = NOW(6) - INTERVAL 1 SECOND WHERE challenge = ?`, token)
+		return err
+	})
+	requireEnrollStatus(token, ref, deviceInfo, http.StatusUnauthorized)
+
+	// static token with an enrollment reference
+	requireEnrollStatus(staticToken, idpAccountUUID, deviceInfo, http.StatusUnauthorized)
+
+	// without a reference, a fresh one-time token still works
+	token, _ = newToken()
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: deviceInfo})
+
+	// initiating the flow requires the device's deviceinfo
+	s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso", []byte(`{"initiator": "mdm_sso"}`), http.StatusBadRequest)
 }
 
 type optsDownloadEnrollProf struct {

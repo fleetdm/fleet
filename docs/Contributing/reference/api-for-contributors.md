@@ -1140,9 +1140,12 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
+| initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `mdm_sso` for automatic enrollment (DEP). Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
 | user_identifier | string | body | Passed by Apple for account-driven enrollment.
 | host_uuid | string | body | The hardware UUID of the device to enroll when using the `setup_experience` value for `initiator`.
+| deviceinfo | string | body | **Required** when `initiator` is `mdm_sso`. The base64-encoded `x-apple-aspen-deviceinfo` header Setup Assistant sent to `/mdm/sso`. The `profile_token` returned by the callback only works for this device. Ignored for other initiators. |
+
+Returns `400` when `initiator` is `mdm_sso` and `deviceinfo` is missing, can't be parsed, or (when `mdm.apple_machineinfo_verify` is on) its signature can't be verified.
 
 #### Example
 
@@ -1199,12 +1202,12 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 `Status: 302`
 
-If the credentials are valid and no value was passed for the `initiator` parameter during initiation
+If the credentials are valid and `mdm_sso` was passed for the `initiator` parameter during initiation
 of SSO, the server redirects the client to the Fleet UI. The URL contains the
 following query parameters that can be used to complete the DEP enrollment flow:
 
-- `enrollment_reference` a reference that must be passed along with `profile_token` to the endpoint to download an enrollment profile.
-- `profile_token` is a token that can be used to download an enrollment profile (.mobileconfig).
+- `enrollment_reference` a reference to the IdP account that signed in. It can be passed along with `profile_token` to the endpoint to download an enrollment profile. If it's passed, it must be this value.
+- `profile_token` is a one-time token that can be used to download an enrollment profile (.mobileconfig) from `/api/mdm/apple/enroll`. It only works for the device whose `deviceinfo` was passed during initiation, expires 1 hour after the callback, and is used up by the first request that presents it, even if that request fails. Every refused token gets the same `401` response.
 - `eula_token` (optional) if an EULA was uploaded, this contains a token that can be used to view the EULA document.
 
 If the credentials are valid and `account_driven_enroll` was passed for the `initiator` parameter
