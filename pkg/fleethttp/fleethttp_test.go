@@ -8,8 +8,10 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -560,5 +562,93 @@ func TestClientTimeoutBehavior(t *testing.T) {
 			t.Fatalf("request should still be in flight, got %v", err)
 		case <-time.After(300 * time.Millisecond):
 		}
+	})
+}
+
+func TestNewGithubClientAuthorization(t *testing.T) {
+	var mu sync.Mutex
+	gotAuth := map[string]string{}
+	record := func(name string, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotAuth[name] = r.Header.Get("Authorization")
+	}
+
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("mirror", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(mirror.Close)
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/redirect" {
+			record("api redirect", r)
+			http.Redirect(w, r, mirror.URL+"/asset", http.StatusFound)
+			return
+		}
+		record("api", r)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(api.Close)
+
+	// Stand the test server in for api.github.com.
+	apiURL, err := url.Parse(api.URL)
+	require.NoError(t, err)
+	origHost := githubAPIHost
+	githubAPIHost = apiURL.Host
+	t.Cleanup(func() { githubAPIHost = origHost })
+
+	cases := []struct {
+		name         string
+		testToken    string
+		fleetToken   string
+		expectedAuth string
+	}{
+		{name: "no token", expectedAuth: ""},
+		{name: "test token", testToken: "test-tok", expectedAuth: "Bearer test-tok"},
+		{name: "fleet token", fleetToken: "fleet-tok", expectedAuth: "Bearer fleet-tok"},
+		{name: "test token wins", testToken: "test-tok", fleetToken: "fleet-tok", expectedAuth: "Bearer test-tok"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("NETWORK_TEST_GITHUB_TOKEN", c.testToken)
+			t.Setenv("FLEET_VULNERABILITIES_GITHUB_TOKEN", c.fleetToken)
+			// Ambient GitHub variables must never be picked up.
+			t.Setenv("GITHUB_TOKEN", "ambient-github-token")
+			t.Setenv("GH_TOKEN", "ambient-gh-token")
+			mu.Lock()
+			clear(gotAuth)
+			mu.Unlock()
+
+			cli := NewGithubClient()
+			for _, u := range []string{api.URL, mirror.URL, api.URL + "/redirect"} {
+				resp, err := cli.Get(u)
+				require.NoError(t, err)
+				require.NoError(t, resp.Body.Close())
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			require.Equal(t, map[string]string{
+				"api":          c.expectedAuth,
+				"api redirect": c.expectedAuth,
+				// The token must never leave the GitHub API host, directly or via a redirect.
+				"mirror": "",
+			}, gotAuth)
+		})
+	}
+
+	t.Run("request without headers", func(t *testing.T) {
+		var gotAuth string
+		base := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotAuth = r.Header.Get("Authorization")
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: r}, nil
+		})
+		req := &http.Request{Method: http.MethodGet, URL: &url.URL{Scheme: "http", Host: githubAPIHost, Path: "/"}}
+
+		resp, err := (&githubTokenTransport{token: "tok", base: base}).RoundTrip(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, "Bearer tok", gotAuth)
+		require.Nil(t, req.Header, "the caller's request must not be modified")
 	})
 }
