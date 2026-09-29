@@ -179,11 +179,31 @@ In the Google Admin console:
 
 > The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
+## One-time enroll secrets
+
+> Applies only to Fleet Premium
+
+When the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration is enabled, Fleet delivers a one-time, device-scoped enroll secret to each Apple host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number, so it can't be used to enroll any other device. Orbit and osquery can each use it once.
+
+This applies to all Apple hosts with MDM turned on: hosts that automatically enroll via Apple Business (AB) and hosts that enroll with a manual enrollment profile.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a host that is enrolled in Fleet MDM or assigned to Fleet in AB. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+### Best practice: monitor devices
+
+Because each secret is single-use, a host whose secret was spent can't re-enroll until it gets a new one. To monitor devices:
+
+1. Watch for `host_enrollment_rejected` activities. Fleet records at most one per host and reason per 12 hours.
+
+2. To issue a new secret, resend the "Fleetd configuration" profile from the host's **Controls** tab, then restart fleetd. Only admins can resend this profile. End users can't resend it from the **My device** page when this setting is enabled.
+
 ## Delete a host
 
 Deleting a host removes it from Fleet. It does not unenroll the device or change anything in Apple Business (AB). The MDM enrollment and the management profile stay on the device. The device also stays assigned to Fleet in AB.
 
 Because that assignment is still in place, deleting a host assigned to Fleet in AB brings it straight back as a **Pending** host. To remove it for good, release or reassign the device in AB first, then delete the host in Fleet. If Fleet can't reach AB to check the assignment, the delete fails. Retry once AB is reachable.
+
+If one-time enroll secrets are enabled, deleting a host also clears its one-time enroll secret. A deleted AB host shows up as a **Pending** host, but it won't re-enroll on its own. Wipe the host or run `sudo profiles renew -type enrollment` to re-enroll it. Fleet can't tell a genuinely pending host from a deleted host that can't re-enroll, so review **Pending** hosts that never check in.
 
 Deleting a host also cancels its upcoming activities and removes Fleet's record of the MDM commands it has already sent. Delete a host while a wipe or another command is still in flight, and Fleet can no longer report whether that command completed.
 
@@ -196,6 +216,16 @@ To decommission a host:
 ## Debugging
 
 If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. See our [troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) for more info.
+
+### One-time enroll secrets
+
+If a host fails to enroll or re-enroll, check its activities for `host_enrollment_rejected`:
+
+- `one_time_secret_spent`: the secret was already used. Resend the "Fleetd configuration" profile from the host's **Controls** tab to issue a new one, then restart fleetd.
+- `one_time_secret_identifier_mismatch`: the secret was presented by different hardware than it was issued for.
+- `shared_secret_for_mdm_managed_host`: a global or fleet-level enroll secret was used for a host enrolled in Fleet MDM or assigned to Fleet in AB.
+
+For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 
 
 ## Advanced
