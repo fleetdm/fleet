@@ -390,6 +390,12 @@ const LazyAndroidMdmPage = lazyPage(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage"
     )
 );
+const LazyAndroidZeroTouchPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidZeroTouchPage"
+    )
+);
 const LazyWindowsEnrollmentPage = lazyPage(
   () =>
     import(
@@ -566,6 +572,10 @@ const routes = (
             <Route
               path="integrations/mdm/android"
               component={LazyAndroidMdmPage}
+            />
+            <Route
+              path="integrations/mdm/android-zero-touch"
+              component={LazyAndroidZeroTouchPage}
             />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect

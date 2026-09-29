@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ func TestQueryResults(t *testing.T) {
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 		{"OverwriteRespectsCap", testOverwriteQueryResultRowsRespectsCap},
 		{"ListOptions", testQueryResultRowsListOptions},
+		{"LargeRows", testQueryResultRowsLargeRows},
 		{"QueryResultRows", testQueryResultRows},
 		{"QueryResultRowsFilter", testQueryResultRowsTeamFilter},
 		{"CleanupQueryResultRows", testCleanupQueryResultRows},
@@ -1610,4 +1612,72 @@ func resultCountForQuery(t *testing.T, ds *Datastore, queryID uint) int {
 	counts, err := ds.ResultCountsForQueries(context.Background(), []uint{queryID})
 	require.NoError(t, err)
 	return counts[queryID]
+}
+
+// Rows larger than MySQL's default 256 KiB sort_buffer_size must not break
+// sorted report or host report listings.
+func testQueryResultRowsLargeRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Large Rows Query", "SELECT 1", user.ID, true)
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hostA := test.NewHost(t, ds, "alpha.local", "192.168.1.1", "11111", "UI8XB1221", time.Now())
+	hostB := test.NewHost(t, ds, "bravo.local", "192.168.1.2", "22222", "UI8XB1222", time.Now())
+
+	big := strings.Repeat("x", 400_000)
+	base := time.Now().UTC().Truncate(time.Second)
+	_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+		QueryID: query.ID, HostID: hostA.ID, LastFetched: base,
+		Data: new(json.RawMessage(`{"name": "a", "big": "` + big + `"}`)),
+	}}, fleet.DefaultMaxQueryReportRows, 0)
+	require.NoError(t, err)
+	_, err = ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+		QueryID: query.ID, HostID: hostB.ID, LastFetched: base.Add(-time.Hour),
+		Data: new(json.RawMessage(`{"name": "b", "big": ""}`)),
+	}}, fleet.DefaultMaxQueryReportRows, 0)
+	require.NoError(t, err)
+
+	names := func(rows []*fleet.ScheduledQueryResultRow) []string {
+		var out []string
+		for _, r := range rows {
+			var m map[string]string
+			require.NoError(t, json.Unmarshal(*r.Data, &m))
+			out = append(out, m["name"])
+		}
+		return out
+	}
+
+	for _, tc := range []struct {
+		name string
+		opts fleet.ListOptions
+		want []string
+	}{
+		{"default", fleet.ListOptions{}, []string{"a", "b"}},
+		{"paginated", fleet.ListOptions{PerPage: 1, IncludeMetadata: true}, []string{"a"}},
+		{"second page", fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true}, []string{"b"}},
+		{"host_name desc", fleet.ListOptions{OrderKey: "host_name", OrderDirection: fleet.OrderDescending}, []string{"b", "a"}},
+		{"result column", fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending}, []string{"b", "a"}},
+		{"large result column", fleet.ListOptions{OrderKey: "big", OrderDirection: fleet.OrderDescending}, []string{"a", "b"}},
+		{"match query", fleet.ListOptions{MatchQuery: "alpha", OrderKey: "last_fetched"}, []string{"a"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, count, _, err := ds.QueryResultRows(ctx, query.ID, filter, tc.opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, names(rows))
+			if tc.opts.MatchQuery == "" {
+				assert.Equal(t, 2, count)
+			}
+			for _, r := range rows {
+				assert.Equal(t, query.ID, r.QueryID)
+				assert.True(t, r.Hostname.Valid)
+			}
+		})
+	}
+
+	reports, _, _, err := ds.ListHostReports(ctx, hostA.ID, nil, "", fleet.ListHostReportsOptions{OrderKey: "name"})
+	require.NoError(t, err)
+	require.Len(t, reports, 1)
+	assert.Equal(t, 1, reports[0].NHostResults)
+	assert.Equal(t, big, reports[0].FirstResult["big"])
 }

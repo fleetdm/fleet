@@ -670,6 +670,87 @@ describe("VPP Install Details Modal", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the Single App Mode copy when an iPadOS install fails with Error 1407", async () => {
+    const errorResult = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>ErrorChain</key>
+  <array>
+    <dict>
+      <key>ErrorCode</key>
+      <integer>1407</integer>
+      <key>ErrorDomain</key>
+      <string>DeviceManagement.error</string>
+      <key>LocalizedDescription</key>
+      <string>The user is already being prompted.</string>
+    </dict>
+  </array>
+  <key>Status</key>
+  <string>Error</string>
+</dict>
+</plist>`;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Error",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "iPad-kiosk-1334",
+              payload: btoa("<Command />"),
+              result: btoa(errorResult),
+            },
+          ],
+        });
+      })
+    );
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "iPad-kiosk-1334",
+          appName: "Zoom",
+          commandUuid: "error-1407-uuid",
+          platform: "ipados",
+          fleetInitiated: true,
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    // load the 1407 command result, the status line should name Fleet, the app and the host
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "SPAN" &&
+            element.textContent ===
+              "Fleet failed to install Zoom on iPad-kiosk-1334."
+        )
+      ).toBeInTheDocument();
+    });
+    // check the guidance line, it should tell the admin to disable Single App Mode
+    expect(
+      screen.getByText(
+        "For hosts in Single App Mode, temporarily disable that mode to install the update."
+      )
+    ).toBeInTheDocument();
+    // check the generic Apple failure copy, it should not render
+    expect(
+      screen.queryByText(/The MDM command to install/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Details/i })
+    ).toBeInTheDocument();
+  });
+
   it("does not retry the command results request when the API returns 404", async () => {
     let requestCount = 0;
     mockServer.use(

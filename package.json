@@ -8,7 +8,7 @@
   },
   "private": true,
   "scripts": {
-    "generate:osquery-sql-parser": "peggy --format es -o frontend/utilities/osquery_sql_parser/osquery_sql_parser.generated.js frontend/utilities/osquery_sql_parser/osquery_sql.pegjs",
+    "generate:osquery-sql-parser": "peggy --format es --allowed-start-rules start,no_stmt -o frontend/utilities/osquery_sql_parser/osquery_sql_parser.generated.js frontend/utilities/osquery_sql_parser/osquery_sql.pegjs",
     "prelint": "yarn generate:osquery-sql-parser",
     "lint": "eslint frontend --ext .js,.jsx,.ts,.tsx",
     "lint:icons": "node tools/software/icons/check-icons.js",

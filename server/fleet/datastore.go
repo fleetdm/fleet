@@ -466,8 +466,9 @@ type Datastore interface {
 	// upsert. Returns a NotFoundError if no row owns the token.
 	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
-	// FailingPoliciesCount returns the number of failling policies for 'host'
-	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
+	// FailingPoliciesCount returns the number of failing policies for 'host', in total and
+	// excluding hidden policies.
+	FailingPoliciesCount(ctx context.Context, host *Host) (total uint, unhidden uint, err error)
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -519,6 +520,11 @@ type Datastore interface {
 	// results and responses rows cascade. Returns the number deleted, which
 	// on error is the count deleted before the failure.
 	CleanupStaleMDMWindowsEnrollments(ctx context.Context, olderThan time.Time) (int64, error)
+	// CleanupMDMWindowsCommandHistory deletes Windows MDM responses, command
+	// results and commands recorded before olderThan and not updated since,
+	// except queued commands and the wipe behind a host's wipe_ref. Counts are
+	// what was deleted before any failure.
+	CleanupMDMWindowsCommandHistory(ctx context.Context, olderThan time.Time) (MDMWindowsCommandHistoryCleanupCounts, error)
 	// CleanupWindowsMDMProfilePriorContent garbage-collects retained prior Windows profile content (used to build <Delete> commands for
 	// deleted and edited profiles) once no host still has the prior version installed.
 	CleanupWindowsMDMProfilePriorContent(ctx context.Context) error
@@ -531,13 +537,9 @@ type Datastore interface {
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
 	// their corresponding nano_command_results entries for the given enrollment ID
-	// and REFETCH command prefix type that were sent and acknowledged/errored at
-	// least 30 days ago. The current command UUID is excluded from deletion.
-	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
-
-	// CleanupOrphanedNanoRefetchCommands deletes up to 100 REFETCH-prefixed nano_commands
-	// older than 30 days that have no remaining references in nano_enrollment_queue.
-	CleanupOrphanedNanoRefetchCommands(ctx context.Context) error
+	// and REFETCH command prefix type that were sent and acknowledged/errored
+	// more than olderThan ago. The current command UUID is excluded from deletion.
+	CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, olderThan time.Duration) error
 
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
@@ -850,6 +852,8 @@ type Datastore interface {
 	// DeletePatchNotificationApps drops apps from a notification, so the reminder
 	// stops naming an app the end user already updated.
 	DeletePatchNotificationApps(ctx context.Context, notificationUUID string, softwareTitleIDs []uint) error
+	// GetPatchNotification returns a notification's patch row, or nil when it has none.
+	GetPatchNotification(ctx context.Context, notificationUUID string) (*PatchNotification, error)
 	// SetPatchNotificationInstallAt moves when the patch is forced out to installAt,
 	// never earlier, and returns the deadline in effect.
 	SetPatchNotificationInstallAt(ctx context.Context, notificationUUID string, installAt time.Time) (time.Time, error)
@@ -1399,7 +1403,7 @@ type Datastore interface {
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
-	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string, isPersonalEnrollment bool) error
+	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string, personalType PersonalEnrollmentType) error
 	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
 	// UpdateMDMInstalledFromDEP updates the `installed_from_dep` field of the host with the given ID.
@@ -1805,7 +1809,7 @@ type Datastore interface {
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
-	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, fromPersonalEnrollment bool) error
+	MDMAppleUpsertHost(ctx context.Context, mdmHost *Host, personalType PersonalEnrollmentType) error
 
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
@@ -1922,8 +1926,11 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
-	// AssociateHostMDMIdPAccountDB associates a host with an MDM IdP account
-	AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error
+	// AssociateHostMDMIdPAccountFromSSO associates a host with an MDM IdP account
+	// on behalf of an MDM SSO callback, and reports the account UUID the host was
+	// bound to beforehand (empty when it had no binding). When replaceExisting is
+	// false an existing binding is kept and the call is a no-op.
+	AssociateHostMDMIdPAccountFromSSO(ctx context.Context, hostUUID string, acctUUID string, replaceExisting bool) (previousAcctUUID string, err error)
 
 	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
@@ -2906,8 +2913,8 @@ type Datastore interface {
 	// state needed by the batched Apple profile reconciler: the bounded host
 	// window (afterHostUUID, batchSize), every Apple profile with its label
 	// assignments, host↔label memberships for labels referenced by those
-	// profiles, and current host_mdm_apple_profiles rows for the host window.
-	// All reads run inside a single read-only MySQL transaction so they
+	// profiles, current host_mdm_apple_profiles rows and profile opt-ins for
+	// the host window. All reads run inside a single read-only MySQL transaction so they
 	// observe one snapshot. If the host window is empty the remaining slices
 	// and maps are nil. pageFull reports whether the underlying host page hit
 	// batchSize before same-UUID rows were deduplicated; cursor-paginating
@@ -2922,6 +2929,7 @@ type Datastore interface {
 		allProfiles []*AppleProfileForReconcile,
 		hostLabels map[uint]map[uint]struct{},
 		currentByHost map[string][]*MDMAppleProfilePayload,
+		optInsByHost map[string]map[string]struct{},
 		pageFull bool,
 		err error,
 	)
@@ -2945,6 +2953,15 @@ type Datastore interface {
 	// SetMDMAppleAPNsSweepState persists the APNs sweep cron's pass state.
 	// A nil state resets it (pass complete).
 	SetMDMAppleAPNsSweepState(ctx context.Context, state *MDMAppleAPNsSweepState) error
+
+	// CleanupNanoCommands runs the Apple MDM command cleanup sweeps: it deletes
+	// inactive queue rows (and their results) older than the short retention
+	// window, then completed command pairs older than their class's window,
+	// then the nano_commands rows that no longer have any reference, within
+	// the per-run deletion caps. state carries the retention scans' cursors
+	// between runs (nil starts every scan from the oldest rows); the returned
+	// state is what the caller should persist.
+	CleanupNanoCommands(ctx context.Context, opts MDMAppleCommandCleanupOptions, state *MDMAppleCommandCleanupState) (*MDMAppleCommandCleanupState, MDMAppleCommandCleanupStats, error)
 
 	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
 	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
@@ -3183,6 +3200,11 @@ type Datastore interface {
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
 	CleanupUnusedScriptContents(ctx context.Context) error
+	// CleanupHostScriptResults deletes script runs whose result was recorded
+	// before olderThan, except those a host lock, wipe, unlock, setup
+	// experience, software uninstall or batch run still refers to. The count is
+	// what was deleted before any failure.
+	CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error)
 	// CleanupExpiredLiveQueries cleans up unsaved queries older than the given expiration window (in days),
 	// orphaned distributed query campaigns that reference non-existing queries, and orphaned campaign targets that reference non-existing campaigns.
 	CleanupExpiredLiveQueries(ctx context.Context, expiryWindowDays int) error
@@ -3441,6 +3463,11 @@ type Datastore interface {
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
+	// CleanupHostSoftwareInstalls deletes installs and uninstalls that finished
+	// before olderThan, except those a host is still working on, those setup
+	// experience refers to, and the newest one per host and installer in each
+	// direction. The count is what was deleted before any failure.
+	CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error)
 
 	// SaveInHouseAppUpdates persists new values to an existing in house app.
 	SaveInHouseAppUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
@@ -3927,12 +3954,10 @@ type Datastore interface {
 	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
 	// ScimUserByHostID retrieves a SCIM user associated with a host ID
 	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
-	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-	// If the slice is empty, it returns true
-	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
-	// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore
-	// If the slice is empty, it returns true
-	ScimGroupsExist(ctx context.Context, ids []uint) (bool, error)
+	// ExistingScimUserIDs returns the subset of the provided SCIM user IDs that exist.
+	ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error)
+	// ExistingScimGroupIDs returns the subset of the provided SCIM group IDs that exist.
+	ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
@@ -4273,6 +4298,12 @@ type Datastore interface {
 	ClearABMTokenDefault(ctx context.Context) error
 	// SetABMTokenServerUUID stores Apple's server_uuid for the token.
 	SetABMTokenServerUUID(ctx context.Context, tokenID uint, serverUUID string) error
+	// ApplyHostMDMProfileOptInChanges runs Add then Purge in one transaction.
+	ApplyHostMDMProfileOptInChanges(ctx context.Context, changes *MDMProfileOptInChanges) error
+
+	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
+	// host UUID -> profile UUID set.
+	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
 }
 
 type AndroidDatastore interface {

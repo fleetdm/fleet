@@ -75,7 +75,7 @@ const Controls = ({
   // server refuses the device-token resend of this profile anyway; the
   // isDeviceUser check just keeps that explicit here.
   const canResendFleetdWhileVerifying =
-    !isDeviceUser && !!config?.auth?.use_one_time_enroll_secrets;
+    !isDeviceUser && !!config?.auth?.mdm_apple_one_time_enroll_secrets;
 
   const tableConfig = useMemo(
     () =>

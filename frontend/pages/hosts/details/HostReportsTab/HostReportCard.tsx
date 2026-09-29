@@ -12,7 +12,7 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
-import { humanLastSeen } from "utilities/helpers";
+import { humanLastSeen, internallyTruncateText } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
@@ -103,7 +103,14 @@ const HostReportCard = ({
           <DataSet
             key={key}
             title={key}
-            value={<TooltipTruncatedText value={value} />}
+            value={
+              <TooltipTruncatedText
+                value={value}
+                tooltip={
+                  value.length > 300 ? internallyTruncateText(value) : undefined
+                }
+              />
+            }
             textOnly
           />
         ))}

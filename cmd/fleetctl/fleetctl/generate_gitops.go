@@ -1415,13 +1415,15 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
 				}
 			}
-			assets, err := cmd.generateAssets(teamId, teamName)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
-				return nil, err
-			}
-			if len(assets) > 0 {
-				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+			if cmd.AppConfig.License.IsPremium() {
+				assets, err := cmd.generateAssets(teamId, teamName)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
+					return nil, err
+				}
+				if len(assets) > 0 {
+					macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+				}
 			}
 
 		}
@@ -1825,6 +1827,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+			jsonFieldName(t, "Hidden"):                       policy.Hidden,
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {

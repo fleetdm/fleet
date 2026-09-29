@@ -1,6 +1,6 @@
 //go:build darwin && cgo
 
-// nolint:govet,unsafeptr // Reason: audited unsafe.Pointer usage required for C APIs
+//nolint:govet // unsafeptr: audited unsafe.Pointer usage required for C APIs
 package keystore
 
 /*

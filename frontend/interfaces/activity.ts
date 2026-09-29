@@ -170,6 +170,8 @@ export enum ActivityType {
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedDiskEncryptionPIN = "created_disk_encryption_pin",
+  BoundHostToIdpAccount = "bound_host_to_idp_account",
+  RefusedHostIdpAccountChange = "refused_host_idp_account_change",
   CreatedCustomVariable = "created_custom_variable",
   UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
@@ -378,6 +380,9 @@ export interface IActivityDetails {
   request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
+  /** Notification script exit code on notify-before-patching activities; keys
+   *  into COPY_BY_EXIT_CODE for the failure reason shown in the details column. */
+  exit_code?: number;
   script_name?: string;
   self_service?: boolean;
   self_service_category_id?: number | null;
@@ -385,6 +390,9 @@ export interface IActivityDetails {
   /** Set on a patch-when-closed skip (the app was open); `status` is then
    * `failed_install`. */
   skipped_install?: boolean;
+  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
+   * because notify before patching did not ship until then. */
+  patch_when_closed?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
@@ -431,6 +439,9 @@ export interface IActivityDetails {
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
+  idp_email?: string;
+  replaced_idp_email?: string;
+  existing_idp_email?: string;
   tenant_id?: string;
   client_id?: string;
   certificate_name?: string;
@@ -608,6 +619,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   [ActivityType.CreatedDiskEncryptionPIN]: "Created disk encryption PIN",
+  bound_host_to_idp_account: "Bound host to IdP account",
+  refused_host_idp_account_change: "Refused host IdP account change",
   created_custom_variable: "Created custom variable",
   updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
