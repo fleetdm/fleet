@@ -135,12 +135,13 @@ func IsPlaceholderHardwareSerial(serial string) bool {
 type MDMEnrollStatus string
 
 const (
-	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
-	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
-	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
-	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
-	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual", "automatic" and "personal"
-	MDMEnrollStatusPersonal   = MDMEnrollStatus("personal")
+	MDMEnrollStatusManual         = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic      = MDMEnrollStatus("automatic")
+	MDMEnrollStatusPending        = MDMEnrollStatus("pending")
+	MDMEnrollStatusUnenrolled     = MDMEnrollStatus("unenrolled")
+	MDMEnrollStatusEnrolled       = MDMEnrollStatus("enrolled") // combination of "manual", "automatic", "personal" and "manual-personal"
+	MDMEnrollStatusPersonal       = MDMEnrollStatus("personal")
+	MDMEnrollStatusManualPersonal = MDMEnrollStatus("manual-personal")
 )
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
@@ -1921,12 +1922,13 @@ type AggregatedMunkiIssue struct {
 }
 
 type AggregatedMDMStatus struct {
-	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
-	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
-	EnrolledPersonalHostsCount  int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
-	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
-	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
-	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+	EnrolledManualHostsCount         int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount      int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	EnrolledPersonalHostsCount       int `json:"enrolled_personal_hosts_count" db:"enrolled_personal_hosts_count"`
+	EnrolledManualPersonalHostsCount int `json:"enrolled_manual_personal_hosts_count" db:"enrolled_manual_personal_hosts_count"`
+	PendingHostsCount                int `json:"pending_hosts_count" db:"pending_hosts_count"`
+	UnenrolledHostsCount             int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                       int `json:"hosts_count" db:"hosts_count"`
 }
 
 // AggregatedMDMData contains aggregated data from mdm installations.
