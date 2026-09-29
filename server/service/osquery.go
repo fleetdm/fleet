@@ -314,7 +314,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	if save {
 		if appConfig.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(ctx, host)
+			go func() { _ = svc.serialUpdateHost(ctx, host) }()
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				return "", enrollError(ctx, err, "save host in enroll agent")
@@ -327,7 +327,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 var counter = int64(0)
 
-func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
+func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	newVal := atomic.AddInt64(&counter, 1)
 	defer func() {
 		atomic.AddInt64(&counter, -1)
@@ -341,6 +341,7 @@ func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "serial update host background error", "err", err)
 	}
+	return err
 }
 
 func getHostIdentifier(ctx context.Context, logger *slog.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
@@ -2205,11 +2206,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if ac.ServerSettings.DeferredSaveHost {
 			hostUUID, computerName, report := host.UUID, host.ComputerName, reportDeviceName
 			go func() {
-				svc.serialUpdateHost(ctx, host)
 				// The device-name cron compares the template against the saved
-				// computer_name, so drift must only be re-queued once the deferred save
-				// has landed; otherwise the cron can see the old, matching name and mark
-				// the host verified without renaming it.
+				// computer_name, so drift must only be re-queued once the host save has
+				// landed; otherwise the cron can see the old, matching name and mark the
+				// host verified without renaming it.
+				if err := svc.serialUpdateHost(ctx, host); err != nil {
+					return
+				}
 				if report {
 					reportCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 					defer cancel()
@@ -2220,6 +2223,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				logging.WithErr(ctx, err)
+				reportDeviceName = false
 			}
 		}
 	}

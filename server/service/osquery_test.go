@@ -7310,57 +7310,87 @@ func TestQueryReportCapReadsMissingHostCountFromDB(t *testing.T) {
 	require.Equal(t, 3, serv.queryReportCap(ctx, settings))
 }
 
-func TestSubmitDistributedQueryResultsDeferredSaveReportsDeviceNameAfterSave(t *testing.T) {
-	ds := new(mock.Store)
-	lq := live_query_mock.New(t)
-	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, clock.NewMockClock())
-
-	host := &fleet.Host{ID: 1, UUID: "mac-uuid", Platform: "darwin", OsqueryHostID: new("mac")}
-	ctx = hostctx.NewContext(ctx, host)
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		ac := &fleet.AppConfig{}
-		ac.ServerSettings.DeferredSaveHost = true
-		ac.MDM.EnabledAndConfigured = true
-		return ac, nil
+func TestSubmitDistributedQueryResultsReportsDeviceNameAfterSave(t *testing.T) {
+	cases := []struct {
+		name       string
+		deferred   bool
+		saveErr    error
+		wantReport bool
+	}{
+		{"deferred save succeeds", true, nil, true},
+		{"deferred save fails", true, errors.New("boom"), false},
+		{"synchronous save fails", false, errors.New("boom"), false},
 	}
-	saved := make(chan struct{})
-	ds.SerialUpdateHostFunc = func(ctx context.Context, h *fleet.Host) error {
-		assert.Equal(t, "Renamed by user", h.ComputerName)
-		close(saved)
-		return nil
-	}
-	reported := make(chan string, 1)
-	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
-		select {
-		case <-saved:
-		default:
-			t.Error("device name reported before the deferred host save landed")
-		}
-		assert.Equal(t, "mac-uuid", hostUUID)
-		reported <- reportedName
-		return fleet.DeviceNameRetried, nil
-	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			lq := live_query_mock.New(t)
+			svc, ctx := newTestServiceWithClock(t, ds, nil, lq, clock.NewMockClock())
 
-	results := map[string][]map[string]string{
-		"fleet_detail_query_system_info": {{
-			"computer_name":      "Renamed by user",
-			"hostname":           "Renamed by user",
-			"uuid":               "mac-uuid",
-			"hardware_serial":    "SERIAL1",
-			"hardware_model":     "MacBookPro16,1",
-			"physical_memory":    "16000000000",
-			"cpu_physical_cores": "8",
-			"cpu_logical_cores":  "8",
-		}},
-	}
-	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results,
-		map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0}, map[string]string{}, map[string]*fleet.Stats{}))
+			host := &fleet.Host{ID: 1, UUID: "mac-uuid", Platform: "darwin", OsqueryHostID: new("mac")}
+			ctx = hostctx.NewContext(ctx, host)
 
-	select {
-	case name := <-reported:
-		require.Equal(t, "Renamed by user", name)
-	case <-time.After(5 * time.Second):
-		t.Fatal("device name was never reported after the deferred host save")
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{}
+				ac.ServerSettings.DeferredSaveHost = c.deferred
+				ac.MDM.EnabledAndConfigured = true
+				return ac, nil
+			}
+			saved := make(chan struct{})
+			save := func(h *fleet.Host) error {
+				assert.Equal(t, "Renamed by user", h.ComputerName)
+				close(saved)
+				return c.saveErr
+			}
+			ds.SerialUpdateHostFunc = func(ctx context.Context, h *fleet.Host) error { return save(h) }
+			ds.UpdateHostFunc = func(ctx context.Context, h *fleet.Host) error { return save(h) }
+			reported := make(chan string, 1)
+			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+				select {
+				case <-saved:
+				default:
+					t.Error("device name reported before the host save landed")
+				}
+				assert.Equal(t, "mac-uuid", hostUUID)
+				reported <- reportedName
+				return fleet.DeviceNameRetried, nil
+			}
+
+			results := map[string][]map[string]string{
+				"fleet_detail_query_system_info": {{
+					"computer_name":      "Renamed by user",
+					"hostname":           "Renamed by user",
+					"uuid":               "mac-uuid",
+					"hardware_serial":    "SERIAL1",
+					"hardware_model":     "MacBookPro16,1",
+					"physical_memory":    "16000000000",
+					"cpu_physical_cores": "8",
+					"cpu_logical_cores":  "8",
+				}},
+			}
+			require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results,
+				map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0}, map[string]string{}, map[string]*fleet.Stats{}))
+
+			select {
+			case <-saved:
+			case <-time.After(5 * time.Second):
+				t.Fatal("host was never saved")
+			}
+			if !c.wantReport {
+				// Give a deferred report (if any) time to run before asserting it didn't.
+				select {
+				case name := <-reported:
+					t.Fatalf("device name %q reported after a failed host save", name)
+				case <-time.After(200 * time.Millisecond):
+				}
+				return
+			}
+			select {
+			case name := <-reported:
+				require.Equal(t, "Renamed by user", name)
+			case <-time.After(5 * time.Second):
+				t.Fatal("device name was never reported after the host save")
+			}
+		})
 	}
 }
