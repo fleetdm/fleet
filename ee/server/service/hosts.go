@@ -740,10 +740,10 @@ func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) er
 		return ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	// Same access as other MDM commands, masked as not-found so host IDs outside
-	// the caller's visibility can't be probed.
+	// Masked as not-found when the caller can't read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate disk encryption key")
-	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionRotateDiskEncryptionKey, notFoundErr); err != nil {
 		return err
 	}
 
