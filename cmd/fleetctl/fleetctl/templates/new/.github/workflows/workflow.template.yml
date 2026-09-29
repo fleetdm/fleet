@@ -43,13 +43,13 @@ jobs:
       # On pull_request_target this checks out the default branch, so the
       # fleet-gitops action and gitops.sh below run trusted code.
       - name: Checkout this repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The PR's config is data for fleetctl gitops --dry-run; nothing under
       # this path is executed.
       - name: Checkout pull request configuration
         if: github.event_name == 'pull_request_target'
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           path: untrusted-pr
