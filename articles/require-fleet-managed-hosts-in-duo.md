@@ -47,7 +47,30 @@ SELECT data AS machine_guid FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTW
 1. Download [`export-fleet-hosts-for-duo.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/api-scripts/export-fleet-hosts-for-duo.sh) and set your Fleet URL and the report ID from Step 3.
 2. Run it with `FLEET_API_TOKEN` set to the token from Step 1. It writes `macos.csv`, `windows.csv`, and `linux.csv`.
 3. Upload each file with the matching integration's sync script, for example `python device_cache_sync.py --infile macos.csv`.
-4. Schedule these steps to run every 5 minutes. Each sync replaces the previous list, so a host's access changes on the next sync after its policy results change. To update a host sooner, select **Refetch** on its **Host details** page.
+4. Schedule these steps to run every 5 minutes. The best practice is a [GitHub Actions](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule) workflow in your GitOps repository, with `FLEET_API_TOKEN` stored as a repository secret:
+
+```yaml
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "duo-client>=4.3.0"
+      - run: |
+          ./export-fleet-hosts-for-duo.sh
+          for os in macos windows linux; do python duo/$os/device_cache_sync.py --infile $os.csv; done
+        env:
+          FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
+```
+
+Each sync replaces the previous list, so a host can sign in after the next sync once it's passing all policies. To check a host's policies right away, the end user can select **Refetch** on their **My device** page. Then they can sign in after the next sync.
 
 ## Step 6: Turn on the policy
 
