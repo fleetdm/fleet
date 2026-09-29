@@ -11209,16 +11209,20 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| query                 | string | query | Search query keywords. Searchable fields include `name`.  |
+| platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
+| fleet_id                 | integer | query  | _Available in Fleet Premium._ The ID of the fleet for the policies to be listed. When omitted, returns global policies.
+| merge_inherited     | boolean | query | _Available in Fleet Premium._ If `true` will include inherited ("All fleets") policies in the count when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
+| automation_type       | string | query | _Available in Fleet Premium._ Filters by automation type when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
+| page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
 | order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
-| platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
-`GET /api/v1/fleet/global/policies`
+`GET /api/v1/fleet/fleets/1/policies?fleet_id=1&merge_inherited=true`
 
 ##### Default response
 
@@ -11227,253 +11231,51 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 ```json
 {
   "policies": [
-    {
-      "id": 1,
-      "name": "Gatekeeper enabled",
-      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-      "description": "Checks if gatekeeper is enabled on macOS devices",
+   {
+      "id": 57975,
+      "name": "No 1Password emergency kit stored in desktop, documents, or downloads folders",
+      "query": "SELECT 1 WHERE NOT EXISTS ( SELECT 1 FROM file WHERE filename LIKE '%Emergency Kit%.pdf' AND (path LIKE '/Users/%/Desktop/%' OR path LIKE '/Users/%/Documents/%' OR path LIKE '/Users/%/Downloads/%' OR path LIKE '/Users/Shared/%') );",
       "critical": false,
-      "author_id": 42,
-      "author_name": "John",
-      "author_email": "john@example.com",
-      "team_id": null,
-      "resolution": "Resolution steps",
+      "description": "Looks for PDF files with file names typically used by 1Password for emergency recovery kits. To protect the performance of your devices, the search is one level deep and limited to the Desktop, Documents, Downloads, and Shared folders.",
+      "author_id": 123,
+      "author_name": "Anna Chao",
+      "author_email": "anna.chao@example.com",
+      "resolution": "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.",
       "platform": "darwin",
-      "created_at": "2021-12-15T15:23:57Z",
-      "updated_at": "2021-12-15T15:23:57Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "labels_include_any": ["Macs on Sonoma"]
-    },
-    {
-      "id": 2,
-      "name": "Windows machines with encrypted hard disks",
-      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
-      "description": "Checks if the hard disk is encrypted on Windows devices",
-      "critical": true,
-      "author_id": 43,
-      "author_name": "Alice",
-      "author_email": "alice@example.com",
-      "team_id": null,
-      "resolution": "Resolution steps",
-      "platform": "windows",
-      "created_at": "2021-12-31T14:52:27Z",
-      "updated_at": "2022-02-10T20:59:35Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"]
-    }
-  ]
-}
-```
-
----
-
-### List fleet-level policies
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/fleets/:id/policies`
-
-#### Parameters
-
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id                 | integer | path  | **Required.** Defines what fleet ID to operate on                                                                            |
-| merge_inherited  | boolean | query | If `true`, will return both fleet policies **and** inherited ("All fleets") policies in the `policies` list, and will not return a separate `inherited_policies` list. |
-| query                 | string | query | Search query keywords. Searchable fields include `name`. |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page. |
-| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
-| automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
-| platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
-
-
-#### Example (default usage)
-
-`GET /api/v1/fleet/fleets/1/policies`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policies": [
-    {
-      "id": 1,
-      "name": "Gatekeeper enabled",
-      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-      "description": "Checks if gatekeeper is enabled on macOS devices",
       "type": "dynamic",
-      "critical": true,
-      "author_id": 42,
-      "author_name": "John",
-      "author_email": "john@example.com",
-      "team_id": 1,
-      "resolution": "Resolution steps",
-      "platform": "darwin",
-      "created_at": "2021-12-16T14:37:37Z",
-      "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true,
-      "conditional_access_enabled": true,
-      "labels_include_any": ["Macs on Sonoma"]
-    },
-    {
-      "id": 2,
-      "name": "Windows machines with encrypted hard disks",
-      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
-      "description": "Checks if the hard disk is encrypted on Windows devices",
-      "critical": false,
-      "type": "dynamic",
-      "author_id": 43,
-      "author_name": "Alice",
-      "author_email": "alice@example.com",
-      "team_id": 1,
-      "resolution": "Resolution steps",
-      "platform": "windows",
-      "created_at": "2021-12-16T14:37:37Z",
-      "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false,
-      "conditional_access_enabled": false,
-      "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
-      "run_script": {
-        "name": "Encrypt Windows disk with BitLocker",
-        "id": 234
-      }
-    },
-    {
-      "id": 3,
-      "name": "macOS - Adobe Acrobat up to date",
-      "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
-      "description": "Checks if the hard disk is encrypted on Windows devices",
-      "critical": false,
-      "type": "patch",
-      "author_id": 43,
-      "author_name": "Alice",
-      "author_email": "alice@example.com",
-      "team_id": 1,
-      "resolution": "Resolution steps",
-      "platform": "darwin",
-      "created_at": "2021-12-16T14:37:37Z",
-      "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 3,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false,
-      "conditional_access_enabled": false,
-      "install_software": {
-        "name": "Adobe Acrobat",
-        "software_title_id": 1234,
-        "patch_when_closed": true
-      }
-    }
-  ],
-  "inherited_policies": [
-    {
-      "id": 136,
-      "name": "Arbitrary Test Policy (all platforms) (all fleets)",
-      "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
-      "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
-      "critical": true,
-      "author_id": 77,
-      "author_name": "Test Admin",
-      "author_email": "test@admin.com",
-      "team_id": null,
-      "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
-      "platform": "darwin,windows,linux",
-      "created_at": "2022-08-04T19:30:18Z",
-      "updated_at": "2022-08-30T15:08:26Z",
-      "passing_host_count": 10,
-      "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
-    }
-  ]
-}
-```
-
-#### Example (returns single list)
-
-`GET /api/v1/fleet/fleets/1/policies?merge_inherited=true`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policies": [
-    {
-      "id": 1,
-      "name": "Gatekeeper enabled",
-      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-      "description": "Checks if gatekeeper is enabled on macOS devices",
-      "critical": true,
-      "author_id": 42,
-      "author_name": "John",
-      "author_email": "john@example.com",
-      "team_id": 1,
-      "resolution": "Resolution steps",
-      "platform": "darwin",
-      "created_at": "2021-12-16T14:37:37Z",
-      "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false,
-      "conditional_access_enabled": false,
-      "fleet_maintained": false,
-      "labels_include_any": ["Macs on Sonoma"]
-    },
-    {
-      "id": 2,
-      "name": "Windows machines with encrypted hard disks",
-      "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
-      "description": "Checks if the hard disk is encrypted on Windows devices",
-      "critical": false,
-      "author_id": 43,
-      "author_name": "Alice",
-      "author_email": "alice@example.com",
-      "team_id": 1,
-      "resolution": "Resolution steps",
-      "platform": "windows",
-      "created_at": "2021-12-16T14:37:37Z",
-      "updated_at": "2021-12-16T16:39:00Z",
-      "passing_host_count": 2300,
-      "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": false,
-      "conditional_access_enabled": false,
-      "fleet_maintained": false
+      "automation": "",
+      "continuous_automations_enabled": false,
+      "patch_when_closed": false,
+      "notify_before_patching": false,
+      "created_at": "2026-08-07T02:39:37Z",
+      "updated_at": "2026-08-07T02:39:37Z",
+      "passing_host_count": 62,
+      "failing_host_count": 7,
+      "host_count_updated_at": "2026-09-29T21:18:23Z",
+      "fleet_id": 123,
+      "labels_include_any": [
+        { 
+          "id": 123,
+          "name": "Macs on Sonoma"
+        }
+      ]
     },
     {
       "id": 136,
       "name": "Arbitrary Test Policy (all platforms) (all fleets)",
       "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
-      "critical": true,
-      "author_id": 77,
-      "author_name": "Test Admin",
-      "author_email": "test@admin.com",
-      "team_id": null,
-      "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
-      "platform": "darwin,windows,linux",
-      "created_at": "2022-08-04T19:30:18Z",
-      "updated_at": "2022-08-30T15:08:26Z",
-      "passing_host_count": 10,
-      "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_maintained": false
+      "platform": "darwin,linux,windows",
+      "automation": "",
+      "type": "dynamic",
+      "patch_when_closed": false,
+      "notify_before_patching": false,
+      "created_at": "2026-05-13T16:16:42Z",
+      "updated_at": "2026-05-19T16:17:53Z",
+      "passing_host_count": 55,
+      "failing_host_count": 0,
+      "host_count_updated_at": "2026-09-29T21:18:23Z",
+      "fleet_id": null
     }
   ]
 }
