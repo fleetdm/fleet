@@ -52,7 +52,7 @@ SELECT data AS machine_guid FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTW
 ```yaml
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *" # Every 5 minutes, avoiding the top of the hour when GitHub is busiest
   workflow_dispatch:
 jobs:
   sync:
