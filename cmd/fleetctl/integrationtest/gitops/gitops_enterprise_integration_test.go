@@ -4251,6 +4251,114 @@ reports:
 	require.Equal(t, []applied{{Slug: slugA, SelfService: false}}, installers(team.ID))
 }
 
+// TestGitOpsAppStoreAppFileReferences is the App Store counterpart to
+// TestGitOpsFleetMaintainedAppFileReferences. Adam IDs 1 and 2 are the assets
+// StartAndServeVPPServer licenses.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsAppStoreAppFileReferences() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+	testing_utils.StartAndServeVPPServer(t)
+	teamName := uuid.NewString()
+
+	globalConfig := fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        fleets:
+          - %s
+policies:
+reports:
+`, teamName)
+
+	baseDir := t.TempDir()
+	globalFile := filepath.Join(baseDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+
+	libDir := filepath.Join(baseDir, "lib")
+	require.NoError(t, os.MkdirAll(libDir, 0o755))
+	writeLib := func(name, body string) {
+		require.NoError(t, os.WriteFile(filepath.Join(libDir, name), []byte(body), 0o644))
+	}
+	writeLib("a.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: true\n")
+	writeLib("b.yml", "- app_store_id: \"2\"\n  platform: ios\n")
+	writeLib("dup1.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: true\n")
+	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
+
+	teamFile := filepath.Join(baseDir, "team.yml")
+	apply := func(softwareBody string) {
+		cfg := fmt.Sprintf(`
+controls:
+software:
+  app_store_apps:
+%s
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, softwareBody, teamName)
+		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
+		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		}), "gitops succeeded")
+	}
+
+	type applied struct {
+		AdamID      string `db:"adam_id"`
+		Platform    string `db:"platform"`
+		SelfService bool   `db:"self_service"`
+	}
+	assigned := func(teamID uint) []applied {
+		var out []applied
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &out,
+				`SELECT adam_id, platform, self_service FROM vpp_apps_teams
+				 WHERE global_or_team_id = ? ORDER BY adam_id, platform`, teamID)
+		})
+		return out
+	}
+
+	apply(`    - path: lib/a.yml`)
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, []applied{{AdamID: "1", Platform: "darwin", SelfService: true}}, assigned(team.ID))
+
+	apply(`    - paths: "lib/[ab].yml"`)
+	require.ElementsMatch(t, []applied{
+		{AdamID: "1", Platform: "darwin", SelfService: true},
+		{AdamID: "2", Platform: "ios"},
+	}, assigned(team.ID))
+
+	// Duplicates through references must land the same way as duplicates declared
+	// inline. Each run starts from empty so the comparison isn't reading stale state.
+	apply("")
+	require.Empty(t, assigned(team.ID))
+	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	viaReferences := assigned(team.ID)
+
+	apply("")
+	require.Empty(t, assigned(team.ID))
+	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
+	require.Len(t, viaReferences, 1)
+}
+
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
 // are properly applied via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsVPPAppAutoUpdate() {
