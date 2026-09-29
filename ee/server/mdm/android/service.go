@@ -167,7 +167,6 @@ func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchCon
 			EnrollmentToken: token.TokenValue,
 		},
 	})
-
 	return &android.ZeroTouchConfigurationResponse{
 		DPCExtras: raw,
 	}
