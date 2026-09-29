@@ -26,6 +26,10 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
 
 Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. 
 
+The sign-in page only works for a host that Fleet is currently waiting on. If the end user signs in with the wrong account, they can sign in again with the right one until the host finishes enrolling. Enrollment completes within about 30 seconds of a successful sign-in. After that, signing in again from the same page won't change the account linked to the host.
+
+Fleet records every link between a host and an IdP account in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs#bound_host_to_idp_account), including any account it replaced, and records a separate [audit log entry](https://fleetdm.com/docs/using-fleet/audit-logs#refused_host_idp_account_change) when a sign-in that arrives after enrollment is not applied.
+
 If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
 
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
@@ -43,6 +47,9 @@ fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_e
 ```
 
 This flag only works if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to false.
+
+On Windows hosts joined to Microsoft Entra ID and not enrolled in Fleet MDM, Fleet populates the IdP host vitals without end user authentication. Learn more in the [IdP host vitals guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#entra-joined-windows-hosts).
+
 ## Install software
 
 ### End user experience
@@ -156,6 +163,21 @@ reported the password back.
 ### View the password
 
 Go to **Host details** > **Actions** > **Show managed account**. The password is unique per host and is stored encrypted in Fleet.
+
+### Rotate the password
+
+Go to **Host details** > **Actions** > **Show managed account**, then press **Rotate password**. Fleet also rotates the password
+automatically about an hour after someone views it.
+
+Fleet asks the host to generate a new password, set it, and report it back, so a rotation finishes on the host's next check-in
+rather than immediately. Fleet keeps showing the current password until the new one arrives.
+
+If the host can't set the new password, the managed account modal says the rotation failed, and Fleet keeps showing the last
+password it received. The reason the host reported is on the failed rotation entry in **Host details** > **Activity**.
+
+Fleet does not try again on its own. The request is cleared and the automatic rotation timer is turned off, so nothing changes
+until someone presses **Rotate password** again. Fix the cause first: see [Troubleshoot the managed local account](#Troubleshoot the managed local account) for the
+failures a host can report.
 
 ### Sign in as the managed account
 

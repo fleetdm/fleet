@@ -14,6 +14,8 @@ Fleet automatically collects IdP host vitals when an [end user authenticates](ht
 - Automatic enrollment for [Apple](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) (macOS, iOS, iPadOS) and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 - Manual enrollment for Apple (macOS, iOS, iPadOS), Android, Windows, and Linux hosts.
 
+Fleet also collects IdP host vitals on Windows hosts that are joined to Microsoft Entra ID and enrolled with Fleet's agent (fleetd) only, for example hosts managed by Intune. These hosts don't go through end user authentication. Learn more in [Entra-joined Windows hosts](#entra-joined-windows-hosts).
+
 You can also manually add/update a host's IdP username on the Host details page. Fleet will then automatically map the username to other IdP vitals.
 
 ## Okta
@@ -119,6 +121,21 @@ Fleet supports nested groups in Entra (added in Fleet 4.91.0). When a user belon
 If you configured SCIM in Entra before upgrading to Fleet 4.91.0, select **Restart provisioning** on the app's **Overview** page after the upgrade. This tells Entra to resend all users and groups to Fleet, including nested groups.
 
 It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To speed this up, you can use the "Provision on demand" option in Microsoft Entra ID.
+
+### Entra-joined Windows hosts
+
+Windows hosts joined to Entra ID that enroll to Fleet with fleetd only (no Fleet MDM) get IdP host vitals without an end user authentication prompt. Fleet reads the user who joined the device to Entra ID from the device and maps it to the matching user provisioned by SCIM.
+
+This requires Fleet Premium and Entra ID connected to Fleet with SCIM, as described in the steps above. The user who joined the device must be assigned to the Fleet application in Entra ID, otherwise no user is shown on the host.
+
+Keep in mind:
+
+- Fleet shows the user who joined the device, not the user currently signed in. If a different user signs in, the host keeps showing the join user until the device is joined again.
+- Vitals appear on the host's next detail refresh, up to one hour after enrollment. Select **Refetch** on the Host details page to update them right away.
+- If the device leaves Entra ID, or the join user is removed from the Fleet application in Entra ID, the vitals are removed on the next detail refresh. A user that is only deactivated (unassigned in Entra ID) keeps showing until Entra ID deletes it, which happens about 30 days later.
+- An IdP username set manually on the Host details page takes precedence. Clearing it brings the join user back on the next detail refresh.
+- Hosts enrolled in Fleet MDM don't get vitals from the join user. Their user comes from the MDM enrollment or end user authentication. A join user recorded before the host enrolled is removed on the next detail refresh.
+- The join user comes from the device and isn't verified against Entra ID. This is the same level of trust as the Google Chrome profiles that Fleet collects. Use these vitals for labels, not as proof of identity.
 
 ## Google Workspace
 
