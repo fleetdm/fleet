@@ -12,9 +12,11 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
@@ -225,6 +227,83 @@ func TestEnrollmentClientGetCertificate(t *testing.T) {
 				}
 			})
 		}
+	})
+
+	// countingCACert serves the CA certificate and counts GetCACert requests.
+	countingCACert := func(count *atomic.Int64) func() ([]byte, int) {
+		return func() ([]byte, int) {
+			count.Add(1)
+			return caCert.Raw, 1
+		}
+	}
+
+	t.Run("CA certificates are fetched once per SCEP URL until the cache expires", func(t *testing.T) {
+		var fetchesA, fetchesB atomic.Int64
+		urlA := newServerWithCACert(t, countingCACert(&fetchesA), succeed)
+		urlB := newServerWithCACert(t, countingCACert(&fetchesB), succeed)
+		c := newClient()
+		mockClock := clock.NewMockClock()
+		c.clock = mockClock
+
+		for range 3 {
+			_, err := c.GetCertificate(t.Context(), urlA, csr)
+			require.NoError(t, err)
+		}
+		require.EqualValues(t, 1, fetchesA.Load())
+
+		_, err := c.GetCertificate(t.Context(), urlB, csr)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, fetchesB.Load())
+
+		mockClock.AddTime(caCertsCacheTTL + time.Second)
+		_, err = c.GetCertificate(t.Context(), urlA, csr)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, fetchesA.Load())
+	})
+
+	t.Run("a failed enrollment drops the cached CA certificates", func(t *testing.T) {
+		var fetches atomic.Int64
+		var reject atomic.Bool
+		reject.Store(true)
+		url := newServerWithCACert(t, countingCACert(&fetches), func(req *smallstepscep.PKIMessage) ([]byte, error) {
+			if reject.Load() {
+				rep, err := req.Fail(caCert, caKey, smallstepscep.BadRequest)
+				if err != nil {
+					return nil, err
+				}
+				return rep.Raw, nil
+			}
+			return succeed(req)
+		})
+		c := newClient()
+
+		_, err := c.GetCertificate(t.Context(), url, csr)
+		require.Error(t, err)
+		reject.Store(false)
+		_, err = c.GetCertificate(t.Context(), url, csr)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, fetches.Load())
+	})
+
+	t.Run("a failed GetCACert is not cached", func(t *testing.T) {
+		var fetches atomic.Int64
+		var broken atomic.Bool
+		broken.Store(true)
+		url := newServerWithCACert(t, func() ([]byte, int) {
+			fetches.Add(1)
+			if broken.Load() {
+				return []byte("not a certificate"), 1
+			}
+			return caCert.Raw, 1
+		}, succeed)
+		c := newClient()
+
+		_, err := c.GetCertificate(t.Context(), url, csr)
+		require.ErrorContains(t, err, "parsing CA certificates from SCEP URL")
+		broken.Store(false)
+		_, err = c.GetCertificate(t.Context(), url, csr)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, fetches.Load())
 	})
 
 	t.Run("GetCACert body that is neither is an error", func(t *testing.T) {
