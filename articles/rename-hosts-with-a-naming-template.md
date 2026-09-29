@@ -11,7 +11,7 @@ This applies to Apple hosts (macOS, iOS, iPadOS) only. Windows and Android hosts
 - Fleet Premium.
 - Fleet's MDM [turned on](https://fleetdm.com/guides/macos-mdm-setup).
 - Hosts enrolled in Fleet's MDM. Personally enrolled (BYOD) hosts are skipped and never renamed.
-- iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads; unsupervised hosts receive the command once and land on **Failed**.
+- iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads. Unsupervised hosts reject the command, and after 3 automatic retries they land on **Failed**.
 
 ## Set a name template
 
@@ -63,6 +63,14 @@ The deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable also isn't supporte
 
 Fleet keeps host names in sync with their variables. When a host's IdP data changes (for example, the end user's department is updated) or a custom variable's value changes, Fleet resolves the template again and renames the hosts that use that variable.
 
+### Renaming when a host is renamed on the device
+
+If an end user renames a host on the device, Fleet renames it back. Fleet detects the change the next time the host reports its name, about every hour. Fleet also tries again when a device rejects the rename command.
+
+Fleet tries up to 3 times. After that, the host lands on **Failed** until you select **Resend** or change the template, which restores the 3 retries.
+
+> **Note:** On macOS, Fleet detects a rename through fleetd. If fleetd isn't installed and running on a host, Fleet doesn't notice when that host is renamed.
+
 ## Set a name template with GitOps
 
 Add `name_template` under `controls` in a fleet's YAML, or in `no_team.yml` or `default.yml` controls to apply it to "Unassigned" hosts:
@@ -93,7 +101,7 @@ Controls > OS settings also rolls host name statuses into the **Verified**, **Ve
 
 ## Troubleshoot
 
-**A host's Host name row shows Failed.** The status is Failed when the device rejected the command, the resolved name was too long, the host is missing IdP data a variable in the template needs, a custom variable in the template is no longer defined, or an end user renamed the device off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
+**A host's Host name row shows Failed.** The status is Failed when the resolved name was too long, the host is missing IdP data a variable in the template needs, a custom variable in the template is no longer defined, or Fleet used up its 3 automatic retries because the device kept rejecting the command or kept being renamed off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
 
 **An iPhone or iPad shows Failed with a supervision error.** Apple only applies MDM name changes to supervised iOS and iPadOS hosts. Supervise the host (for example, by enrolling it through Apple Business Manager), then select **Resend**.
 
