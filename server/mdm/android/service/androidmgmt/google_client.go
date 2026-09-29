@@ -187,11 +187,8 @@ var policyFieldMask = generatePolicyFieldMask()
 func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 	call := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
 
-	switch {
-	case opts.ExcludeApps:
-		call = call.UpdateMask(policyFieldMask)
-	case opts.OnlyUpdateApps:
-		call = call.UpdateMask("applications")
+	if mask := opts.updateMask(); mask != "" {
+		call = call.UpdateMask(mask)
 	}
 
 	ret, err := call.Do()

@@ -1661,12 +1661,24 @@ func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string
 func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
 ) (skip bool, err error) {
+	return svc.patchPolicy(ctx, policyID, policyName, policy, metadata, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
+}
+
+func (svc *Service) PatchPolicyStatusReporting(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy,
+) (skip bool, err error) {
+	return svc.patchPolicy(ctx, policyID, policyName, policy, nil, androidmgmt.PoliciesPatchOpts{OnlyUpdateStatusReporting: true})
+}
+
+func (svc *Service) patchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string, opts androidmgmt.PoliciesPatchOpts,
+) (skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
+	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, opts)
 	if apiErr != nil {
 		var gerr *googleapi.Error
 		if errors.As(apiErr, &gerr) {
