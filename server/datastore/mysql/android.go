@@ -343,8 +343,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 // AndroidResetOnReenrollment clears the state a re-enrolling Android host no longer
 // has: dynamic label membership, pending MDM commands and their host_mdm_actions refs,
-// and pending software installs. Past host activities are only cleared when
-// preserveHostActivities is false.
+// pending software installs, and the delivery state of its configuration profiles.
+// Past host activities are only cleared when preserveHostActivities is false.
 //
 // Note that it deliberately does not clear the host's vitals (host_disks,
 // host_operating_system) the way appleHostRefsForMDMReset does. The enrollment
@@ -421,6 +421,31 @@ func (ds *Datastore) AndroidResetOnReenrollment(ctx context.Context, hostID uint
 		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail pending android software installs on reenroll")
+		}
+
+		// The re-enrolled device has none of the previous enrollment's profile settings
+		// applied, and its host-specific policy may no longer hold them either. Without a
+		// reset the rows keep their old status and checksum, so the reconciler never
+		// re-sends them and the host keeps reporting them as verified. Remove rows are
+		// dropped since the fresh device never had those profiles.
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_mdm_android_profiles
+			SET
+				status = NULL,
+				detail = '',
+				policy_request_uuid = NULL,
+				device_request_uuid = NULL,
+				request_fail_count = 0,
+				included_in_policy_version = NULL,
+				can_reverify = 0
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset android profile installs on reenroll")
+		}
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM host_mdm_android_profiles WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeRemove); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear android profile removals on reenroll")
 		}
 
 		if !preserveHostActivities {

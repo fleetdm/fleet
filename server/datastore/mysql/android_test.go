@@ -4282,6 +4282,17 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
+	profile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Reenroll Profile",
+		RawJSON: []byte(`{"cameraDisabled": true}`),
+	}, nil)
+	require.NoError(t, err)
+	var profileChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profileChecksum,
+			`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profile.ProfileUUID)
+	})
+
 	// installKinds are seeded for both hosts; only "pending" may be failed by the reset.
 	installKinds := []string{"pending", "removed", "canceled", "verified", "verification-failed"}
 
@@ -4352,6 +4363,30 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 			})
 		}
 
+		// A delivered, verified install of the applicable profile and a pending removal
+		// of one that no longer applies: neither needs sending before the reset.
+		require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+			{
+				HostUUID:                host.Host.UUID,
+				ProfileUUID:             profile.ProfileUUID,
+				ProfileName:             profile.Name,
+				Status:                  &fleet.MDMDeliveryVerified,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Detail:                  "stale detail",
+				RequestFailCount:        1,
+				IncludedInPolicyVersion: ptr.Int(5),
+				Checksum:                profileChecksum,
+				CanReverify:             true,
+			},
+			{
+				HostUUID:      host.Host.UUID,
+				ProfileUUID:   fleet.MDMAndroidProfileUUIDPrefix + "removed-" + esid,
+				ProfileName:   "Removed Profile",
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		}))
+
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			res, err := q.ExecContext(ctx,
 				`INSERT INTO activity_past (user_name, activity_type, details) VALUES ('admin', 'ran_script', '{}')`)
@@ -4406,12 +4441,29 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		pending, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostUUID, 100)
 		require.NoError(t, err)
 		require.Len(t, pending, 3, "pending, removed and canceled installs all still await verification")
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_mdm_android_profiles
+			WHERE host_uuid = ? AND operation_type = 'install' AND status = 'verified' AND included_in_policy_version = 5`, hostUUID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_mdm_android_profiles
+			WHERE host_uuid = ? AND operation_type = 'remove'`, hostUUID))
+	}
+	hostsWithProfilesToSend := func() []string {
+		toInstall, toRemove, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+		require.NoError(t, err)
+		var hostUUIDs []string
+		for _, p := range append(toInstall, toRemove...) {
+			if !slices.Contains(hostUUIDs, p.HostUUID) {
+				hostUUIDs = append(hostUUIDs, p.HostUUID)
+			}
+		}
+		return hostUUIDs
 	}
 
 	hostA := seedHost("esid-reset-a")
 	hostB := seedHost("esid-reset-b")
 	requireSeededState(t, hostA)
 	requireSeededState(t, hostB)
+
+	require.Empty(t, hostsWithProfilesToSend(), "seeded profile state is already fully delivered")
 
 	// Reset host A, preserving its activities.
 	users, activities, err := ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, true)
@@ -4482,6 +4534,41 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 		// idempotency contract of the shared helper.
 		require.Len(t, activities, 2)
 		require.Len(t, users, len(activities))
+	})
+
+	t.Run("resets profile installs for redelivery and drops removals", func(t *testing.T) {
+		var row struct {
+			Status                  *string `db:"status"`
+			Detail                  string  `db:"detail"`
+			PolicyRequestUUID       *string `db:"policy_request_uuid"`
+			RequestFailCount        int     `db:"request_fail_count"`
+			IncludedInPolicyVersion *int    `db:"included_in_policy_version"`
+			CanReverify             bool    `db:"can_reverify"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT status, detail, policy_request_uuid, request_fail_count, included_in_policy_version, can_reverify
+				FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+				hostA.Host.UUID, profile.ProfileUUID)
+		})
+		assert.Nil(t, row.Status)
+		assert.Empty(t, row.Detail)
+		assert.Nil(t, row.PolicyRequestUUID)
+		assert.Zero(t, row.RequestFailCount)
+		assert.Nil(t, row.IncludedInPolicyVersion)
+		assert.False(t, row.CanReverify)
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_mdm_android_profiles
+			WHERE host_uuid = ? AND operation_type = 'remove'`, hostA.Host.UUID))
+
+		// The reconciler now picks up host A (and only host A) to re-send its policy.
+		require.Equal(t, []string{hostA.Host.UUID}, hostsWithProfilesToSend())
+
+		// The reset host shows the profile as pending, not verified.
+		hostProfiles, err := ds.GetHostMDMAndroidProfiles(ctx, hostA.Host.UUID)
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 1)
+		require.NotNil(t, hostProfiles[0].Status)
+		assert.Equal(t, fleet.MDMDeliveryPending, *hostProfiles[0].Status)
 	})
 
 	t.Run("preserves past activities when asked to", func(t *testing.T) {
