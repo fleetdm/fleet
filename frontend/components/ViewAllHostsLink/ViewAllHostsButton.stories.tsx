@@ -38,17 +38,22 @@ export const CustomText: Story = {
 };
 
 export const RowHover: Story = {
-  name: "Row-hover reveal (hover the container)",
+  // The reveal rule lives at `.table-container tr:hover .row-hover-button`, so
+  // the row + container are required for this story to actually demo the effect.
+  name: "Row-hover reveal (hover the row)",
   args: { rowHover: true },
   render: (args) => (
-    <div
-      style={{
-        padding: 12,
-        border: "1px dashed var(--ui-fleet-black-25)",
-        borderRadius: 4,
-      }}
-    >
-      <ViewAllHostsButton {...args} />
+    <div className="table-container">
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <tbody>
+          <tr>
+            <td style={{ padding: 12 }}>rachels-macbook.local</td>
+            <td style={{ padding: 12, textAlign: "right" }}>
+              <ViewAllHostsButton {...args} />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   ),
 };

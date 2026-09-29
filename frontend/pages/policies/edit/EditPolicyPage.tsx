@@ -66,6 +66,7 @@ const PolicyPage = ({
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
     setLastEditedQueryLabelsIncludeAll,
@@ -132,6 +133,7 @@ const PolicyPage = ({
     // cleanup when component unmounts
     return () => {
       setLastEditedQueryCritical(false);
+      setLastEditedQueryHidden(false);
       setLastEditedQueryPlatform(null);
     };
   }, []);
@@ -163,6 +165,7 @@ const PolicyPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryCritical(returnedQuery.critical);
+        setLastEditedQueryHidden(returnedQuery.hidden ?? false);
         setLastEditedQueryPlatform(returnedQuery.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedQuery.labels_include_any || []

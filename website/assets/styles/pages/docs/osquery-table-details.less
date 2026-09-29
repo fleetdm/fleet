@@ -331,7 +331,7 @@
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
         }
-        .hljs-attr { // For table and column names
+        .hljs-attr { // For table names
           .hljs-keyword {
             color: #FFF;
           }
@@ -345,6 +345,9 @@
           vertical-align: baseline;
           span {
             padding: 0;
+          }
+          .hljs-attr-column { // For recognized column names inside of table names.
+            color: #FFF;
           }
         }
         .hljs-number {

@@ -2636,6 +2636,8 @@ Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
 
 Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
 
+> Fleet doesn't validate `splunk_url` or `splunk_token` at startup. If either is wrong, errors appear in the Fleet server logs when Fleet tries to send logs to Splunk.
+
 ### splunk_url
 
 This flag only has effect if one of the following is true:
@@ -3828,6 +3830,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
+### mdm.windows_enrollment_retention
+
+How long Fleet keeps a Windows MDM enrollment that is orphaned or superseded before the hourly cleanup deletes it, along with its queued commands, command results, and stored responses. An enrollment is orphaned when its host has been deleted from Fleet and the device hasn't re-enrolled, and superseded when the same host has a newer enrollment. The window starts when the host is deleted or the enrollment was last updated, whichever is later.
+
+Enrollments are kept after a host is deleted so that a device that's still online relinks to a new host record when fleetd re-enrolls it. If you use host expiry, a device that stays offline for longer than the expiry window plus this value has to be unenrolled and re-enrolled manually. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_ENROLLMENT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_enrollment_retention: 336h
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
@@ -3935,9 +3951,11 @@ You can remove an activation you already added, whether or not this setting is t
 
 ### mdm.allow_orbit_end_user_auth_bypass
 
-When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Linux and Windows Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, and installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it.
+When a fleet requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it, and on macOS end user authentication normally happens during automatic (ADE) MDM enrollment rather than during `fleetd` enrollment.
 
-By default (`true`), Fleet allows those hosts to enroll into a team that requires end user authentication without completing it. Set this to `false` to strictly enforce end user authentication for all Orbit enrollments — hosts that do not complete end user authentication (including `--bypass-end-user-auth` installers and pre-end-user-auth agents) are then blocked.
+By default (`true`), Fleet allows those hosts to enroll into a fleet that requires end user authentication without completing it. Because the enrollment request's platform and capabilities are supplied by the client, anyone holding an enroll secret can craft a request that enrolls a host without end user authentication while this setting is `true`.
+
+Set this to `false` to strictly enforce end user authentication for all Orbit enrollments on every platform. A host is then only enrolled if Fleet has a record that end user authentication was completed for it (for example, the IdP account linked during macOS ADE enrollment or the Windows end-user-auth token), or if it previously enrolled. Hosts that do not complete end user authentication, including `--bypass-end-user-auth` installers, pre-end-user-auth agents, and macOS hosts that install `fleetd` before turning on MDM, are blocked with `END_USER_AUTH_REQUIRED`. On Linux and Windows, `fleetd` prompts the end user to sign in with the IdP. On macOS, `fleetd` doesn't support IdP sign-in, so the host can't enroll until it enrolls in MDM through automatic enrollment (ADE) or manual enrollment, which require IdP sign-in.
 
 Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
 
@@ -3947,6 +3965,24 @@ Hosts that already enrolled before end user authentication was enabled are alway
   ```yaml
   mdm:
     allow_orbit_end_user_auth_bypass: false
+  ```
+
+### mdm.apple_one_time_enroll_secrets
+
+When enabled, Fleet delivers a one-time, device-scoped enroll secret to each macOS host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number. Orbit and osquery can each use it once.
+
+A host that needs to re-enroll, for example after its node key has been deleted or its local orbit installation corrupted, needs a new one-time enroll secret. To issue one, resend the "Fleetd configuration" profile from the host's **Controls** tab. End users can't resend this profile from the **My device** page when this setting is enabled.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a macOS host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed by Fleet MDM, so it reads the enroll secret from the "Fleetd configuration" profile. Macs running a fleetd package built with a global or fleet-level enroll secret won't be able to re-enroll.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_APPLE_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_one_time_enroll_secrets: true
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

@@ -65,6 +65,8 @@ export interface IHostActivityItemComponentPropsWithShowDetails
   extends IHostActivityItemComponentProps {
   onShowDetails: ShowActivityDetailsHandler;
   onCancel?: () => void;
+  /** @default false */
+  hideShowDetails?: boolean;
 }
 
 export const pastActivityComponentMap: Record<
