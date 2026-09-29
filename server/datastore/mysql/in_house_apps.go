@@ -434,7 +434,7 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 
 	for _, in := range installs {
 		_, err := ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
-		// Skip installs whose upcoming activity is already deleted, the install finished or was canceled after the list was read
+		// Ignore the not found error for installs that finished or were canceled since the select above, their upcoming activity is already deleted
 		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}

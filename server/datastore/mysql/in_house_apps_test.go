@@ -2325,7 +2325,7 @@ func testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity(
 	})
 	require.NoError(t, err)
 
-	// store an Error result for host1's install without setting its row, its upcoming activity should be deleted while the install is still unverified
+	// queue an install on host1 and store an Error result without setting verification_failed_at, the upcoming activity should be deleted and the install row should still read as pending
 	cmdUUID1 := createInHouseAppInstallRequest(t, ds, host1.ID, installerID, titleID, user1)
 	createInHouseAppInstallResult(t, ds, host1, cmdUUID1, "Error")
 	var host1UpcomingCount int
@@ -2337,7 +2337,7 @@ func testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity(
 	// queue the install on host2, it should be pending
 	cmdUUID2 := createInHouseAppInstallRequest(t, ds, host2.ID, installerID, titleID, user1)
 
-	// remove the pending installs, the install on host1 should be skipped and the install on host2 should be canceled
+	// remove the pending installs, the call should succeed, host1's install row should be left unchanged and host2's install should be canceled
 	err = ds.RemovePendingInHouseAppInstalls(ctx, installerID)
 	require.NoError(t, err)
 
