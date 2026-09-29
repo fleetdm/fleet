@@ -272,29 +272,58 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 const deviceNameVerifyGracePeriod = 60 * time.Second
 
 func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+	// This runs on every name report from every MDM Apple host, and most reports need
+	// no change (no row, or a verified row that still matches), so read first and only
+	// write on a real transition. The primary is read because replica lag right after an
+	// acknowledgment could hide the verifying state and delay verification to the next
+	// report. Each UPDATE below keeps its full guard, so a row that changes between the
+	// read and the write is left alone and the next report re-evaluates it.
+	var row struct {
+		Status             *fleet.MDMDeliveryStatus `db:"status"`
+		ExpectedDeviceName *string                  `db:"expected_device_name"`
+		Retries            uint                     `db:"retries"`
+		InGracePeriod      bool                     `db:"in_grace_period"`
+	}
+	graceSeconds := int(deviceNameVerifyGracePeriod.Seconds())
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &row, `
+		SELECT status, expected_device_name, retries,
+			updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND) AS in_grace_period
+		FROM host_mdm_apple_device_names
+		WHERE host_uuid = ?`, graceSeconds, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fleet.DeviceNameNotRetried, nil
+		}
+		return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "get host device name row for report")
+	}
+
 	// Only rows already awaiting or past verification are reconciled against the
-	// device-reported name. The statements have disjoint predicates, so they need
-	// no transaction; they're split so each affected-row count tells the caller
-	// which outcome applied.
-	//
-	// When nothing changes, MySQL skips the row write, preserving updated_at (the
-	// grace anchor below).
-	const verifyStmt = `
-		UPDATE host_mdm_apple_device_names
-		SET status = ?, detail = ''
-		WHERE host_uuid = ?
-			AND status IN (?, ?)
-			AND expected_device_name = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, verifyStmt,
-		fleet.MDMDeliveryVerified, hostUUID,
-		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified,
-		reportedName,
-	); err != nil {
-		return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "verify host device name from report")
+	// device-reported name.
+	if row.Status == nil || (*row.Status != fleet.MDMDeliveryVerifying && *row.Status != fleet.MDMDeliveryVerified) {
+		return fleet.DeviceNameNotRetried, nil
+	}
+
+	if row.ExpectedDeviceName != nil && *row.ExpectedDeviceName == reportedName {
+		if *row.Status == fleet.MDMDeliveryVerified {
+			return fleet.DeviceNameNotRetried, nil
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_apple_device_names
+			SET status = ?, detail = ''
+			WHERE host_uuid = ?
+				AND status = ?
+				AND expected_device_name = ?`,
+			fleet.MDMDeliveryVerified, hostUUID, fleet.MDMDeliveryVerifying, reportedName,
+		); err != nil {
+			return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "verify host device name from report")
+		}
+		return fleet.DeviceNameNotRetried, nil
 	}
 
 	// A mismatch is drift. A mismatch on a row acknowledged within the last
 	// deviceNameVerifyGracePeriod is skipped as a stale pre-rename report.
+	if *row.Status == fleet.MDMDeliveryVerifying && row.InGracePeriod {
+		return fleet.DeviceNameNotRetried, nil
+	}
 	const driftWhere = `
 		WHERE host_uuid = ?
 			AND status IN (?, ?)
@@ -304,28 +333,32 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, h
 		hostUUID,
 		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified,
 		reportedName,
-		fleet.MDMDeliveryVerifying, int(deviceNameVerifyGracePeriod.Seconds()),
+		fleet.MDMDeliveryVerifying, graceSeconds,
 	}
 
-	// While retries remain, re-queue the row exactly like ResendHostDeviceName so
-	// the cron re-enforces the template.
-	res, err := ds.writer(ctx).ExecContext(ctx, `
-		UPDATE host_mdm_apple_device_names
-		SET status = NULL, command_uuid = NULL, retries = retries + 1`+driftWhere+`
-			AND retries < ?`,
-		append(driftArgs, mdm.MaxAppleDeviceNameRetries)...)
-	if err != nil {
-		return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "re-queue drifted host device name from report")
-	}
-	if rows, _ := res.RowsAffected(); rows > 0 {
-		return fleet.DeviceNameRetried, nil
+	if row.Retries < mdm.MaxAppleDeviceNameRetries {
+		// Re-queue the row exactly like ResendHostDeviceName so the cron re-enforces the
+		// template.
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_apple_device_names
+			SET status = NULL, command_uuid = NULL, retries = retries + 1`+driftWhere+`
+				AND retries < ?`,
+			append(driftArgs, mdm.MaxAppleDeviceNameRetries)...)
+		if err != nil {
+			return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "re-queue drifted host device name from report")
+		}
+		if rows, _ := res.RowsAffected(); rows > 0 {
+			return fleet.DeviceNameRetried, nil
+		}
+		return fleet.DeviceNameNotRetried, nil
 	}
 
 	const driftDetail = "Host was renamed on the device and no longer matches the fleet's naming template."
-	res, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_mdm_apple_device_names
-		SET status = ?, detail = ?`+driftWhere,
-		append([]any{fleet.MDMDeliveryFailed, driftDetail}, driftArgs...)...)
+		SET status = ?, detail = ?`+driftWhere+`
+			AND retries >= ?`,
+		append(append([]any{fleet.MDMDeliveryFailed, driftDetail}, driftArgs...), mdm.MaxAppleDeviceNameRetries)...)
 	if err != nil {
 		return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "fail drifted host device name from report")
 	}
