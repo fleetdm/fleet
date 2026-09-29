@@ -87,7 +87,7 @@ To create a scheduled report, set the interval to a value other than "Never" whe
 
 The interval counts time that Fleet's agent (fleetd) runs on the host, not calendar time, meaning the interval only moves forward while the host is awake.
 
-Right after osquery starts, an hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
+An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
 
 While a host sleeps, its schedule pauses. The schedule falls behind the clock by however long the host slept, and it stays behind until osquery restarts. For example, a laptop that's awake 8 hours a day and asleep the rest may run an "Every day" report only every 3 days.
 
