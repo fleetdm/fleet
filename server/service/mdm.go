@@ -792,7 +792,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 				}, nil
 			}
 			// push failed for all hosts
-			err := fleet.NewBadGatewayError("Apple push notificiation service", err)
+			err := fleet.NewBadGatewayError("Apple push notification service", err)
 			return nil, ctxerr.Wrap(ctx, err, "enqueue command")
 
 		} else if errors.As(err, &mysqlErr) {
@@ -1648,7 +1648,8 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: prof.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm windows config profile")
 	}
 
@@ -1721,7 +1722,8 @@ func (svc *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: prof.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm android config profile")
 	}
 
@@ -2272,7 +2274,8 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: newCP.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm android config profile")
 	}
 
@@ -2359,6 +2362,10 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+		return err
+	}
+
 	existing, err := svc.ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -2437,7 +2444,8 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: cp.Name,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm android config profile")
 	}
 
@@ -2904,7 +2912,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 		}
 	}
@@ -2913,7 +2922,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited windows profile")
 		}
 	}
@@ -2922,7 +2932,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
 		}
 	}
@@ -2931,7 +2942,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
 				TeamID:   tmID,
 				TeamName: tmName,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited android profile")
 		}
 	}
@@ -3439,7 +3451,8 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 			// error messages to the user. However, we're validating again here just
 			// in case the client is not working as expected.
 			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(
-				"%s is not a valid macOS, Windows, or Android configuration profile. ", profile.Name)+
+				"%s is not a valid macOS, Windows, or Android configuration profile. ", profile.Name,
+			)+
 				"macOS profiles must be valid .mobileconfig or .json files. "+
 				"Windows configuration profiles can only have <Replace> or <Add> top level elements. "+
 				"Android profiles must be valid .json files.")
@@ -3791,6 +3804,14 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 		return err
 	}
 
+	// With one-time enroll secrets, resending the fleetd profile mints a new
+	// enrollment credential for the device, which is an admin decision.
+	if svc.config.MDM.AppleOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName) {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
+			"The Fleetd configuration profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.").
+			WithStatus(http.StatusForbidden), "check fleetd profile device resend")
+	}
+
 	err = nil
 	// A user asked for this resend, so everything goes back to them, rejection or not.
 	onError := func(innerErr error, _ bool) {
@@ -3819,11 +3840,17 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 		onError(ctxerr.Wrap(ctx, err, "getting host mdm profile status"), false)
 		return
 	}
-	if status == fleet.MDMDeliveryPending || status == fleet.MDMDeliveryVerifying {
+	// If orbit/osquery are broken but MDM communications are still operational, the
+	// fleetd profile may be terminally in the "verifying" state because it has been
+	// acknowledged by MDM but osquery will never report back for verification, so allow
+	// resending it to allow an admin to repair the host's orbit/osquery installation
+	deliversOneTimeSecret := svc.config.MDM.AppleOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
+	verifyingAllowed := deliversOneTimeSecret && status == fleet.MDMDeliveryVerifying
+	if status == fleet.MDMDeliveryPending || (status == fleet.MDMDeliveryVerifying && !verifyingAllowed) {
 		onError(ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status"), true)
 		return
 	}
-	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified {
+	if status != fleet.MDMDeliveryFailed && status != fleet.MDMDeliveryVerified && !verifyingAllowed {
 		// this should never happen, but just in case
 		onError(ctxerr.Errorf(ctx, "unrecognized profile status %s", status), false)
 		return
@@ -3847,7 +3874,8 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 	}
 
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), details); err != nil {
+		ctx, authz.UserFromContext(ctx), details,
+	); err != nil {
 		onError(ctxerr.Wrap(ctx, err, "logging activity for resend config profile"), false)
 		return
 	}
@@ -4375,7 +4403,8 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 				ProfileName: profileName,
 				ProfileUUID: profileUUID,
 				HostCount:   count,
-			}); err != nil {
+			},
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")
 		}
 	}
@@ -4593,7 +4622,8 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 			HostDisplayName:  host.DisplayName(),
 			InstalledFromDEP: installedFromDEP,
 			Platform:         host.Platform,
-		}); err != nil {
+		},
+	); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 	return nil

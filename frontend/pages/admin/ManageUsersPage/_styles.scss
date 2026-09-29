@@ -148,6 +148,10 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+
+    .permissions-text {
+      min-width: auto;
+    }
   }
 }
 

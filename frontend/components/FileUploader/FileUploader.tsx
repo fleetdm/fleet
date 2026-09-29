@@ -292,6 +292,7 @@ export const FileUploader = ({
             accept={accept}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            disabled={disabled}
           />
         ) : (
           renderFileUploader()

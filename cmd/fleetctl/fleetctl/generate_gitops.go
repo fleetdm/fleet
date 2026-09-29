@@ -1415,13 +1415,15 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
 				}
 			}
-			assets, err := cmd.generateAssets(teamId, teamName)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
-				return nil, err
-			}
-			if len(assets) > 0 {
-				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+			if cmd.AppConfig.License.IsPremium() {
+				assets, err := cmd.generateAssets(teamId, teamName)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
+					return nil, err
+				}
+				if len(assets) > 0 {
+					macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+				}
 			}
 
 		}
@@ -1825,6 +1827,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+			jsonFieldName(t, "Hidden"):                       policy.Hidden,
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {
@@ -1843,6 +1846,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
 			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
+			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
@@ -2367,9 +2371,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				// With patch_when_closed on, this holds Fleet's managed app open query, which gitops rejects.
+				// With patch_when_closed or notify_before_patching on, this holds Fleet's managed app
+				// open query, which gitops rejects.
 				patchPolicy := softwareTitle.SoftwarePackage.PatchPolicy
-				if softwareTitle.SoftwarePackage.PreInstallQuery != "" && (patchPolicy == nil || !patchPolicy.PatchWhenClosed) {
+				if softwareTitle.SoftwarePackage.PreInstallQuery != "" &&
+					(patchPolicy == nil || (!patchPolicy.PatchWhenClosed && !patchPolicy.NotifyBeforePatching)) {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
 					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)

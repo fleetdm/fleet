@@ -8,14 +8,16 @@
           width: initial; // Allows name to take up as much space on table as it can before truncating
         }
 
-        .role__header {
-          width: $col-sm;
+        .permissions__header {
+          width: $col-md;
         }
       }
 
       tbody {
-        .role__cell {
-          max-width: $col-sm;
+        // Wide enough for the role plus the API endpoint count tag on one line
+        .permissions__cell {
+          max-width: $col-md;
+          white-space: nowrap;
         }
 
         .email__cell {
@@ -32,6 +34,16 @@
           width: auto;
         }
       }
+    }
+  }
+
+  &__permissions-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .permissions-text {
+      min-width: auto;
     }
   }
 }

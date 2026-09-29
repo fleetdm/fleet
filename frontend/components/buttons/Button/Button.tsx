@@ -60,6 +60,8 @@ export interface IButtonProps {
           | React.KeyboardEvent<HTMLButtonElement>
       ) => void);
   isLoading?: boolean;
+  /** Label to who beside the spinner. */
+  loadingText?: React.ReactNode;
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
   ariaHasPopup?:
     | boolean
@@ -149,6 +151,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       title,
       variant,
       isLoading,
+      loadingText,
       customOnKeyDown,
       ariaHasPopup,
       ariaExpanded,
@@ -245,14 +248,26 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       >
         <div
           className={classnames("children-wrapper", {
-            "transparent-text": isLoading,
+            "transparent-text": isLoading && !loadingText,
+            "children-wrapper--loading-text": isLoading && !!loadingText,
           })}
         >
-          {iconPosition === "left" && iconElement}
-          {children}
-          {iconPosition === "right" && iconElement}
+          {isLoading && loadingText ? (
+            <>
+              <Spinner size="x-small" centered={false} delay={0} />
+              {loadingText}
+            </>
+          ) : (
+            <>
+              {iconPosition === "left" && iconElement}
+              {children}
+              {iconPosition === "right" && iconElement}
+            </>
+          )}
         </div>
-        {isLoading && <Spinner small button white={hasWhiteText} delay={0} />}
+        {isLoading && !loadingText && (
+          <Spinner small button white={hasWhiteText} delay={0} />
+        )}
       </button>
     );
   }

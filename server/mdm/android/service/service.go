@@ -75,7 +75,7 @@ func NewService(
 	androidAgentConfig config.AndroidAgentConfig,
 	keyValueStore fleet.KeyValueStore,
 ) (android.Service, error) {
-	client := newAMAPIClient(ctx, logger, licenseKey)
+	client := NewAMAPIClient(ctx, logger, licenseKey)
 	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig, WithKeyValueStore(keyValueStore))
 }
 
@@ -136,7 +136,8 @@ func NewServiceWithClient(
 	return svc, nil
 }
 
-func newAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string) androidmgmt.Client {
+// NewAMAPIClient creates the appropriate AMAPI client based on environment configuration.
+func NewAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	getEnv := dev_mode.Env
 	if getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
@@ -472,6 +473,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		}
 	}
 
+	err = svc.ds.DeleteZeroTouchEnrollmentTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting zero-touch enrollment tokens")
+	}
+
 	err = svc.ds.DeleteAllEnterprises(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
@@ -595,9 +601,16 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
-	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
-	if err != nil {
-		return nil, err
+
+	// Verify the enroll secret before anything that could reveal server
+	// configuration state, so callers without a valid secret always get the
+	// same response.
+	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil, fleet.NewAuthFailedError("invalid secret")
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
 	var idpUUID string
@@ -613,12 +626,8 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		}
 	}
 
-	_, err = svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
-	switch {
-	case fleet.IsNotFound(err):
-		return nil, fleet.NewAuthFailedError("invalid secret")
-	case err != nil:
-		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
+	if _, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict); err != nil {
+		return nil, err
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
@@ -886,6 +895,11 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 		svc.logger.WarnContext(ctx, "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
 	}
 
+	// Delete zero-touch enrollment tokens (they reference the enterprise being deleted)
+	if deleteErr := svc.ds.DeleteZeroTouchEnrollmentTokens(ctx); deleteErr != nil {
+		svc.logger.ErrorContext(ctx, "failed to delete zero-touch enrollment tokens after enterprise deletion", "err", deleteErr)
+	}
+
 	// Delete local enterprise records
 	if deleteErr := svc.ds.DeleteAllEnterprises(ctx); deleteErr != nil {
 		svc.logger.ErrorContext(ctx, "failed to delete local enterprise records after deletion", "err", deleteErr)
@@ -1033,6 +1047,21 @@ func marshalRawCommand(cmd *androidmanagement.Command) sql.Null[string] {
 }
 
 var sensitiveMetadataKeyRe = regexp.MustCompile(`"(?:\\u[0-9a-fA-F]{4}|n)ewPassword"\s*:\s*"[^"]*"\s*,?\s*`)
+
+func redactAndroidCommandJSON(rawJSON []byte) []byte {
+	var m map[string]any
+	if err := json.Unmarshal(rawJSON, &m); err != nil {
+		return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
+	}
+	if _, ok := m["newPassword"]; !ok {
+		return rawJSON
+	}
+	delete(m, "newPassword")
+	if b, err := json.Marshal(m); err == nil {
+		return b
+	}
+	return sensitiveMetadataKeyRe.ReplaceAll(rawJSON, nil)
+}
 
 // redactOperationSensitiveFields strips sensitive fields (e.g. newPassword) from
 // the AMAPI Operation metadata before the Operation is persisted as raw_result.
@@ -1333,21 +1362,32 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
 			return nil, fleetErr
 		}
+		if ae, ok := errors.AsType[*googleapi.Error](err); ok && ae.Code == http.StatusInternalServerError {
+			msg := ae.Message
+			if msg == "" {
+				msg = ae.Body
+			}
+			if msg == "" {
+				msg = http.StatusText(ae.Code)
+			}
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("Android Management API rejected the command: %s", msg),
+				InternalErr: err,
+			}
+		}
 		return nil, ctxerr.Wrap(ctx, err, "amapi issue custom command")
 	}
 
-	cmdType := androidCustomCommandType(&amapiCmd)
+	cmdType := strings.ToUpper(androidCustomCommandType(&amapiCmd))
 
-	// Redact sensitive fields before persisting. The original rawJSON (with any
-	// password) was already sent to AMAPI above; only the stored copy is sanitized.
-	amapiCmd.NewPassword = ""
+	storedPayload := redactAndroidCommandJSON(rawJSON)
 
 	cmd := &android.MDMAndroidCommand{
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   cmdType,
-		RawCommand:    marshalRawCommand(&amapiCmd),
+		RawCommand:    sql.Null[string]{V: string(storedPayload), Valid: true},
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.InsertMDMAndroidCommand(ctx, cmd); err != nil {

@@ -59,6 +59,8 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
+	// Auth is loaded from the server configuration and is read-only.
+	Auth *fleet.AuthSettings `json:"auth,omitempty"`
 	// Maximum software package size is loaded from the service.
 	MaxSoftwarePackageSize int64 `json:"max_software_package_size"`
 }
@@ -137,6 +139,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 	partnerships, err := svc.PartnershipsConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	authSettings, err := svc.AuthSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +249,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Email:                  emailConfig,
 			SandboxEnabled:         svc.SandboxEnabled(),
 			Partnerships:           partnerships,
+			Auth:                   authSettings,
 			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
 		},
 	}
@@ -1041,7 +1048,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
-		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+		invalid.Append("host_expiry_settings.host_expiry_window", "When enabling host expiry, host expiry window must be a positive number.")
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {

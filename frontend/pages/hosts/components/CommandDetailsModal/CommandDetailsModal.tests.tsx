@@ -13,6 +13,14 @@ import CommandResultsModal, {
   ModalContent,
 } from "./CommandDetailsModal";
 
+const APPLE_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>RequestType</key>
+	<string>DeviceInformation</string>
+</dict>
+</plist>`;
+
 describe("getIconName", () => {
   it("returns error for Apple Error status", () => {
     expect(getIconName("Error")).toEqual("error");
@@ -192,6 +200,62 @@ describe("ModalContent", () => {
     expect(screen.getByText(/Response from/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Device is unlocked")).toBeInTheDocument();
   });
+
+  it("pretty-prints minified Android JSON in both boxes", () => {
+    const { container } = render(
+      <ModalContent
+        data={decodeCommandResults({
+          results: [
+            createMockAppleMdmCommandResult({
+              request_type: "WIPE",
+              hostname: "Samsung SM-S906U1",
+              payload: btoa('{"type":"WIPE","wipeParams":{}}'),
+              result: btoa('{"done":true,"response":{"errorCode":"NONE"}}'),
+            }),
+          ],
+        })}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    const [payload, result] = container.querySelectorAll("textarea");
+    expect(payload).toHaveValue(`{
+  "type": "WIPE",
+  "wipeParams": {}
+}`);
+    expect(result).toHaveValue(`{
+  "done": true,
+  "response": {
+    "errorCode": "NONE"
+  }
+}`);
+  });
+
+  it("renders an Apple plist payload and result unchanged", () => {
+    const resultPlist = APPLE_PLIST.replace(
+      "DeviceInformation",
+      "DeviceInformationResponse"
+    );
+    const { container } = render(
+      <ModalContent
+        data={decodeCommandResults({
+          results: [
+            createMockAppleMdmCommandResult({
+              payload: btoa(APPLE_PLIST),
+              result: btoa(resultPlist),
+            }),
+          ],
+        })}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    const [payload, result] = container.querySelectorAll("textarea");
+    expect(payload).toHaveValue(APPLE_PLIST);
+    expect(result).toHaveValue(resultPlist);
+  });
 });
 
 describe("CommandResultsModal", () => {
@@ -266,6 +330,10 @@ describe("CommandResultsModal", () => {
       expect(screen.getByText(/Response from/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByDisplayValue('{"eid":"89049032"}')).toBeInTheDocument();
+    // getByDisplayValue collapses whitespace, so assert on the element itself
+    const [, result] = document.querySelectorAll("textarea");
+    expect(result).toHaveValue(`{
+  "eid": "89049032"
+}`);
   });
 });

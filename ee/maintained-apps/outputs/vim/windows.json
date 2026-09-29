@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.2.1116",
+      "version": "9.2.1122",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Vim %' AND publisher = 'The Vim Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Vim %' AND publisher = 'The Vim Project' AND version_compare(version, '9.2.1116') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Vim %' AND publisher = 'The Vim Project' AND version_compare(version, '9.2.1122') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('gvim.exe','vim.exe','evim.exe','gview.exe','gvimdiff.exe','view.exe','vimdiff.exe'));"
       },
-      "installer_url": "https://github.com/vim/vim-win32-installer/releases/download/v9.2.1116/gvim_9.2.1116_x64.exe",
+      "installer_url": "https://github.com/vim/vim-win32-installer/releases/download/v9.2.1122/gvim_9.2.1122_x64.exe",
       "install_script_ref": "6234c09e",
       "uninstall_script_ref": "5b23726a",
-      "sha256": "2ff35c3515334fd23df7ac7cb13bec552cb2c73d1957a4ad2d44a6a5e85ae0e9",
+      "sha256": "dacfb331c8cc4424f45dc248eb3e29ffacc3de944904d0d27f043e27ae84edc6",
       "default_categories": [
         "Developer tools"
       ]

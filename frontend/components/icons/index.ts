@@ -28,6 +28,7 @@ import Error from "./Error";
 import ErrorOutline from "./ErrorOutline";
 import ExternalLink from "./ExternalLink";
 import Eye from "./Eye";
+import EyeSlash from "./EyeSlash";
 import Filter from "./Filter";
 import FilterAlt from "./FilterAlt";
 import FilterFunnel from "./FilterFunnel";
@@ -108,6 +109,7 @@ export const ICON_MAP = {
   query: Query,
   copy: Copy,
   eye: Eye,
+  "eye-slash": EyeSlash,
   pencil: Pencil,
   search: Search,
   sparkles: Sparkles,

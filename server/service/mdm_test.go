@@ -2034,6 +2034,15 @@ func TestUpdateMDMConfigProfileDispatch(t *testing.T) {
 		require.Equal(t, declUUID, puid)
 		return nil, errors.New("simulated declaration lookup error")
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
 
 	err := svc.UpdateMDMConfigProfile(ctx, declUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
 	require.ErrorContains(t, err, "simulated declaration lookup error")
@@ -4581,6 +4590,17 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
+	t.Run("fails if Android MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AndroidEnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "gsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{})
+		require.ErrorContains(t, err, "Android MDM isn't turned on.")
+	})
+
 	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
 		testCases := []struct {
 			name             string
@@ -5562,6 +5582,70 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
 		require.NoError(t, err)
 		assert.False(t, ds.HostFuncInvoked, "only WIPE should pay for the extra host load")
+	})
+
+	t.Run("lowercase command type is normalized to uppercase", func(t *testing.T) {
+		ds := setupDS(t)
+		var capturedJSON []byte
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, rawJSON []byte) (*android.MDMAndroidCommand, error) {
+				capturedJSON = rawJSON
+				return &android.MDMAndroidCommand{
+					CommandUUID: "cmd-uuid-lower",
+					CommandType: "REBOOT",
+				}, nil
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"reboot"}`))
+		result, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.NoError(t, err)
+		assert.Equal(t, "REBOOT", result.RequestType)
+		assert.Contains(t, string(capturedJSON), `"type":"reboot"`, "original JSON should be passed to IssueCustomCommand")
+	})
+
+	t.Run("lowercase lock is premium gated", func(t *testing.T) {
+		ds := setupDS(t)
+		opts := &TestServerOpts{SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"lock"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("AMAPI error surfaces as bad request not 500", func(t *testing.T) {
+		ds := setupDS(t)
+		androidMock := &mockAndroidService{
+			IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+				return nil, &fleet.BadRequestError{Message: "Android Management API rejected the command: Internal Server Error"}
+			},
+		}
+		opts := &TestServerOpts{
+			SkipCreateTestUsers: true,
+			AndroidModule:       androidMock,
+		}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"NOT_A_REAL_COMMAND"}`))
+		_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		assert.Contains(t, badReq.Message, "rejected the command")
 	})
 }
 
