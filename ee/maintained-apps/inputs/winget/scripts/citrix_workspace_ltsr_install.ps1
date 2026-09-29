@@ -62,9 +62,7 @@ if ($exitCode -eq 40008) {
 }
 if ($exitCode -eq 40032) {
   Write-Host "This version of Citrix Workspace is already installed"
-  # This version only ships as LTSR, but an install made without
-  # /AutoUpdateStream=LTSR has no track marker. It's added only under Citrix's
-  # own AutoUpdate key so that uninstalling removes it.
+  # Mark an install made without /AutoUpdateStream=LTSR; uninstall removes Citrix's AutoUpdate key.
   if (-not (Get-LtsrOnlyValues)) {
     foreach ($k in $autoUpdateKeys | Where-Object { Test-Path $_ }) {
       if (-not (Test-Path "$k\Commandline Policy")) { New-Item -Path "$k\Commandline Policy" | Out-Null }
