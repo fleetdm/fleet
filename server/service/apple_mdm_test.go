@@ -10526,7 +10526,7 @@ func assertACMEProfile(t *testing.T, content []byte, deviceSerial string) {
 }
 
 func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
-	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	machineInfo := &fleet.MDMAppleMachineInfo{Serial: "DEPSERIAL", UDID: "dep-udid", Product: "Mac15,7"}
 	const idpAccountUUID = "idp-account-uuid"
@@ -10548,9 +10548,12 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 			HostUUID:       machineInfo.UDID,
 		}, nil
 	}
+	const abmTokenID, euaTeamID, otherTeamID = uint(5), uint(10), uint(20)
 	assigned := func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
-		return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
+		return []*fleet.HostDEPAssignment{{HostID: 1, ABMTokenID: new(abmTokenID)}}, nil
 	}
+	var hostTeamID *uint
+	var rejections []fleet.ActivityTypeHostEnrollmentRejected
 	resetMocks := func() {
 		ds.GetMDMAppleEnrollmentProfileByTokenFunc = validToken
 		ds.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = false
@@ -10558,6 +10561,21 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked = false
 		ds.GetHostDEPAssignmentsBySerialFunc = assigned
 		ds.GetHostDEPAssignmentsBySerialFuncInvoked = false
+		hostTeamID = new(otherTeamID)
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id, TeamID: hostTeamID, Platform: "darwin"}, nil
+		}
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{0, euaTeamID}, nil
+		}
+		ds.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked = false
+		rejections = nil
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			if act, ok := a.(fleet.ActivityTypeHostEnrollmentRejected); ok {
+				rejections = append(rejections, act)
+			}
+			return nil
+		}
 	}
 	requireAuthFailed := func(t *testing.T, err error) {
 		t.Helper()
@@ -10655,6 +10673,96 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 			require.True(t, ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked)
 			require.False(t, ds.GetHostDEPAssignmentsBySerialFuncInvoked)
 		}
+	})
+
+	t.Run("static token refused for a host in a fleet with end user authentication", func(t *testing.T) {
+		for _, teamID := range []*uint{new(euaTeamID), nil} {
+			resetMocks()
+			hostTeamID = teamID
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+			requireAuthFailed(t, err)
+			require.Equal(t, []fleet.ActivityTypeHostEnrollmentRejected{{
+				HostID:          new(uint(1)),
+				HostSerial:      machineInfo.Serial,
+				HostUUID:        machineInfo.UDID,
+				Platform:        "darwin",
+				EnrollmentPlane: "apple_mdm",
+				Reason:          "end_user_authentication_required",
+			}}, rejections)
+		}
+	})
+
+	t.Run("one-time challenge accepted for a host in a fleet with end user authentication", func(t *testing.T) {
+		resetMocks()
+		hostTeamID = new(euaTeamID)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", "", machineInfo)
+		require.NoError(t, err)
+		require.False(t, ds.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("refusals before the fleet check record no activity", func(t *testing.T) {
+		resetMocks()
+		hostTeamID = new(euaTeamID)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "unknown-token", "", machineInfo)
+		requireAuthFailed(t, err)
+		ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+			return nil, nil
+		}
+		_, err = svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+		requireAuthFailed(t, err)
+		require.False(t, ds.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("without a host, the AB token's default fleet for the platform decides", func(t *testing.T) {
+		for _, tc := range []struct {
+			product string
+			tok     fleet.ABMToken
+		}{
+			{"Mac15,7", fleet.ABMToken{MacOSDefaultTeamID: new(euaTeamID), IOSDefaultTeamID: new(otherTeamID), IPadOSDefaultTeamID: new(otherTeamID)}},
+			{"iPhone15,2", fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID), IOSDefaultTeamID: new(euaTeamID), IPadOSDefaultTeamID: new(otherTeamID)}},
+			{"iPad13,1", fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID), IOSDefaultTeamID: new(otherTeamID), IPadOSDefaultTeamID: new(euaTeamID)}},
+			{"iPad13,1", fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID), IOSDefaultTeamID: new(otherTeamID)}}, // "No team"
+		} {
+			resetMocks()
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return nil, newNotFoundError()
+			}
+			ds.GetABMTokenByIDFunc = func(ctx context.Context, id uint) (*fleet.ABMToken, error) {
+				require.Equal(t, abmTokenID, id)
+				return &tc.tok, nil
+			}
+			mi := *machineInfo
+			mi.Product = tc.product
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", &mi)
+			requireAuthFailed(t, err)
+			require.Len(t, rejections, 1, tc.product)
+			require.Nil(t, rejections[0].HostID)
+			require.Equal(t, platformFromAppleProduct(tc.product), rejections[0].Platform)
+		}
+
+		resetMocks()
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		}
+		ds.GetABMTokenByIDFunc = func(ctx context.Context, id uint) (*fleet.ABMToken, error) {
+			return &fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID)}, nil
+		}
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+		require.NoError(t, err)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("datastore error reading fleets with end user authentication is returned", func(t *testing.T) {
+		resetMocks()
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return nil, errors.New("boom")
+		}
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", "", machineInfo)
+		require.ErrorContains(t, err, "get fleets that require end user authentication")
+		var authErr *fleet.AuthFailedError
+		require.NotErrorAs(t, err, &authErr)
 	})
 
 	t.Run("datastore error consuming the challenge is returned", func(t *testing.T) {

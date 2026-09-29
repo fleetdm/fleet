@@ -2981,7 +2981,96 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 		return "", fleet.NewAuthFailedError("device is not DEP-assigned to Fleet")
 	}
 
+	if idpAccountUUID == "" {
+		if err := svc.checkAutomaticEnrollmentTokenAllowed(ctx, machineInfo, assignments); err != nil {
+			return "", err
+		}
+	}
+
 	return idpAccountUUID, nil
+}
+
+// checkAutomaticEnrollmentTokenAllowed refuses the automatic enrollment token
+// for a device whose host is in a fleet that requires end user authentication,
+// and records a host_enrollment_rejected activity. That fleet's DEP profile
+// never contains the token, so the device got its enrollment configuration
+// before its fleet required end user authentication.
+func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, assignments []*fleet.HostDEPAssignment) error {
+	platform := platformFromAppleProduct(machineInfo.Product)
+	host, teamID, err := svc.depAssignedHostAndTeam(ctx, platform, assignments)
+	if err != nil {
+		return err
+	}
+
+	euaTeamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get fleets that require end user authentication")
+	}
+	// TeamIDsWithSetupExperienceIdPEnabled uses 0 for "No team".
+	if !slices.Contains(euaTeamIDs, ptr.ValOrZero(teamID)) {
+		return nil
+	}
+
+	var hostID *uint
+	if host != nil {
+		hostID = &host.ID
+		if host.Platform != "" {
+			platform = host.Platform
+		}
+	}
+	svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedEndUserAuthenticationRequired, hostID, enrollmentAttempt{
+		plane:          fleet.EnrollmentPlaneAppleMDM,
+		platform:       platform,
+		hardwareUUID:   machineInfo.UDID,
+		hardwareSerial: machineInfo.Serial,
+	})
+	return fleet.NewAuthFailedError("automatic enrollment token presented for a host in a fleet that requires end user authentication")
+}
+
+// depAssignedHostAndTeam returns the host that the serial's active DEP
+// assignments point at, and its fleet. If none of them resolves to a host, it
+// returns the AB token's default fleet for the platform, which is where Fleet
+// restores a deleted pending host.
+func (svc *Service) depAssignedHostAndTeam(ctx context.Context, platform string, assignments []*fleet.HostDEPAssignment) (*fleet.Host, *uint, error) {
+	for _, a := range assignments {
+		host, err := svc.ds.HostLite(ctx, a.HostID)
+		switch {
+		case err == nil:
+			return host, host.TeamID, nil
+		case !fleet.IsNotFound(err):
+			return nil, nil, ctxerr.Wrap(ctx, err, "get DEP-assigned host")
+		}
+	}
+
+	for _, a := range assignments {
+		if a.ABMTokenID == nil {
+			continue
+		}
+		tok, err := svc.ds.GetABMTokenByID(ctx, *a.ABMTokenID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get AB token of DEP assignment")
+		}
+		switch platform {
+		case "ios":
+			return nil, tok.IOSDefaultTeamID, nil
+		case "ipados":
+			return nil, tok.IPadOSDefaultTeamID, nil
+		default:
+			return nil, tok.MacOSDefaultTeamID, nil
+		}
+	}
+	return nil, nil, nil
+}
+
+func platformFromAppleProduct(product string) string {
+	switch {
+	case strings.HasPrefix(product, "iPhone"), strings.HasPrefix(product, "iPod"):
+		return "ios"
+	case strings.HasPrefix(product, "iPad"):
+		return "ipados"
+	default:
+		return "darwin"
+	}
 }
 
 // authenticateMDMAppleDEPEnrollmentToken checks the token is the automatic
