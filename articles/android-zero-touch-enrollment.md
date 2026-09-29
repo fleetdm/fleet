@@ -9,7 +9,7 @@ Connect Fleet to the Android zero-touch portal so that company-owned Android dev
 ## Copy DPC extras
 
 1. In Fleet, head to **Settings > Integrations > Mobile device management (MDM)**.
-2. Under **Android zero-touch**, select **Manage**.
+2. Under **Android zero-touch**, select **Setup**.
 3. Copy the **DPC extras** JSON.
 
 ## Create a configuration
