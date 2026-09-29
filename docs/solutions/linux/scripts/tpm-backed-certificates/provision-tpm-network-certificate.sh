@@ -24,21 +24,62 @@
 #     in host memory.
 #
 # ---------------------------------------------------------------------------
-# Test Results (Manual Verification)
+# Ubuntu/NetworkManager Integration Guide
 # ---------------------------------------------------------------------------
-# Target Client: Cisco AnyConnect (Linux)
-# Result: SUCCESSFUL. Verified that AnyConnect can use the TSS2-wrapped key
-#         when the tpm2-openssl provider is configured.
-# Configuration:
-#   - OpenSSL 3.x with tpm2-openssl provider enabled.
-#   - TPM2-Abrmd/Tabrmd running as a service.
-# Supported Algorithms: ECDSA (P-256, P-384).
-# Proof of TPM Signing: Verified via 'openssl pkey -provider tpm2 -in <key> -noout -text'
-#                       which showed the key as a TSS2-wrapped blob.
-# Limitations:
-#   - Any VPN client relying on legacy OpenSSL Engine API (e.g. older versions)
-#     cannot use this integration.
-#   - Only works on systems with a functional TPM 2.0 and working TSS2/TPM2 drivers.
+# This guide describes how to use the TPM-backed credentials provisioned by
+# this script for EAP-TLS authentication via NetworkManager/wpa_supplicant.
+#
+# Prerequisites:
+#   - Ubuntu 22.04+ (with OpenSSL 3.x)
+#   - Packages: tpm2-openssl, tpm2-tools, tpm2-abrmd, libtss2-tcti-tabrmd0
+#
+# 1. Service Configuration:
+#    Ensure the TPM2 Access Resource Manager Daemon (abrmd) is running:
+#    sudo systemctl enable --now tpm2-abrmd
+#
+# 2. OpenSSL Provider Configuration:
+#    The tpm2-openssl provider must be available to the client software.
+#    For NetworkManager/wpa_supplicant, ensure the provider is configured 
+#    in the system's /etc/ssl/openssl.cnf or via the TPM2OPENSSL_TCTI 
+#    environment variable.
+#
+# 3. NetworkManager EAP-TLS Profile (via nmcli):
+#    Replace <SSID>, <CA_CERT_PATH> with your actual values.
+#    The private key is specified as the TSS2-wrapped file.
+#
+#    sudo nmcli connection add \
+#        type wifi \
+#        ifname <INTERFACE> \
+#        con-name <SSID_PROFILE> \
+#        ssid <SSID> \
+#        wifi-sec security-flags 2 \
+#        802-8021x.eap tls \
+#        802-8021x.identity <USERNAME> \
+#        802-8021x.ca-cert <CA_CERT_PATH> \
+#        802-8021x.client-cert <CERT_FILE> \
+#        802-8021x.client-key <KEY_FILE>
+#
+# 4. Key/Certificate Paths (Default):
+#    - Certificate: /opt/company/certificate.pem
+#    - Private Key: /opt/company/network-key.tss2.pem
+#
+# 5. Permissions:
+#    - Ensure the user/service running NetworkManager has read access to 
+#      /opt/company/ and /dev/tpmrm0.
+#    - Typically, adding the user/service to the 'tss' group is required.
+#
+# 6. Validation:
+#    - Verify key load: 
+#      openssl pkey -provider tpm2 -in /opt/company/network-key.tss2.pem -noout -text
+#    - Monitor connections:
+#      journalctl -u NetworkManager
+#
+# 7. Limitations and Test Results:
+#    - Successful test: Cisco AnyConnect (Linux) using tpm2-openssl provider.
+#    - Real association (Wi-Fi connection success) has not yet been 
+#      demonstrated with this specific PoC on Ubuntu/NetworkManager.
+#    - Any VPN client relying on legacy OpenSSL Engine API cannot use this.
+#    - Requires a functional TPM 2.0 and working TSS2/TPM2 drivers.
 # ---------------------------------------------------------------------------
 #
 # Instead of go-tpm, this script uses OpenSSL 3's tpm2 provider
