@@ -198,7 +198,7 @@ will be disabled and/or hidden in the UI.
                 type: 1,
                 interval: 60,
                 points: [{ timestamp: timestampInSeconds, value: entry.count }],
-                tags: [`android_enterprise_id:${entry.enterpriseId}`, `fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`, `request_type:${entry.requestType}`],
+                tags: [`dyno:${thisDyno}`, `android_enterprise_id:${entry.enterpriseId}`, `fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`, `request_type:${entry.requestType}`],
               };
             });
             metricsToSendToDatadog = metricsToSendToDatadog.concat(perRequestTypeMetrics);
