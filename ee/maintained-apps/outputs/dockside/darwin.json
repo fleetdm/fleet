@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.9.33",
+      "version": "2.9.34",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hachipoo.Dockside';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hachipoo.Dockside' AND version_compare(bundle_short_version, '2.9.33') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hachipoo.Dockside' AND version_compare(bundle_short_version, '2.9.34') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hachipoo.Dockside' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/PrajwalSD/Dockside/releases/download/v2.9.33/Dockside.dmg",
+      "installer_url": "https://github.com/PrajwalSD/Dockside/releases/download/v2.9.34/Dockside.dmg",
       "install_script_ref": "bb2b7871",
       "uninstall_script_ref": "b1324861",
-      "sha256": "bced2b413b4004925ed2ddd174799be8f41770ce074edf7cc0e08b45230a093f",
+      "sha256": "0caf26111c40adcd10b7b026ab894c00d5c4f7d6ae6e65072cc76c5d0b4d1170",
       "default_categories": [
         "Developer tools"
       ]

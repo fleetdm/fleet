@@ -1827,6 +1827,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
 			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+			jsonFieldName(t, "Hidden"):                       policy.Hidden,
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {

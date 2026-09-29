@@ -166,10 +166,11 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 		Checksum          []byte             `db:"checksum"`
 		SecretsUpdatedAt  sql.NullTime       `db:"secrets_updated_at"`
 		Scope             fleet.PayloadScope `db:"scope"`
+		SelfService       bool               `db:"self_service"`
 	}
 
 	profStmt := `
-		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope
+		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope, self_service
 		FROM mdm_apple_configuration_profiles
 	`
 	var profArgs []any
@@ -201,6 +202,7 @@ func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Contex
 			TeamID:            r.TeamID,
 			Checksum:          r.Checksum,
 			Scope:             r.Scope,
+			SelfService:       r.SelfService,
 		}
 		if r.SecretsUpdatedAt.Valid {
 			t := r.SecretsUpdatedAt.Time
@@ -425,6 +427,7 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 	allProfiles []*fleet.AppleProfileForReconcile,
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
+	optInsByHost map[string]map[string]struct{},
 	pageFull bool,
 	err error,
 ) {
@@ -474,12 +477,17 @@ func (ds *Datastore) GetAppleProfileReconcileSnapshot(
 		}
 
 		currentByHost, inner = ds.bulkGetHostMDMAppleProfilesByUUIDsTransaction(ctx, tx, hostUUIDs)
+		if inner != nil {
+			return inner
+		}
+
+		optInsByHost, inner = ds.bulkGetHostMDMProfileOptInsTransaction(ctx, tx, hostUUIDs)
 		return inner
 	})
 	if err != nil {
-		return nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
+		return nil, nil, nil, nil, nil, false, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
 	}
-	return hosts, allProfiles, hostLabels, currentByHost, pageFull, nil
+	return hosts, allProfiles, hostLabels, currentByHost, optInsByHost, pageFull, nil
 }
 
 // GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used by
@@ -1037,7 +1045,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 				scope = fleet.PayloadScopeSystem
 			}
 			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-			args = append(args,
+			args = append(
+				args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
 				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt,
 				r.ActivationUpdatedAt, scope,

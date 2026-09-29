@@ -217,3 +217,30 @@ func TestLensVersionTransformer(t *testing.T) {
 		})
 	}
 }
+
+func TestShottrVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "letter suffix", version: "1.9.3b", expected: "1.9.3"},
+		{name: "no suffix", version: "1.9.2", expected: "1.9.2"},
+		{name: "two segments", version: "1.9", expected: "1.9"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "shottr"}
+			result, err := ShottrVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}

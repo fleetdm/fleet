@@ -182,6 +182,7 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 			var invalid *fleet.InvalidArgumentError
 			require.ErrorAs(t, err, &invalid)
 			require.Contains(t, fmt.Sprintf("%+v", invalid.Errors), "host_expiry_settings.host_expiry_window")
+			require.ErrorContains(t, err, "When enabling host expiry, host expiry window must be a positive number.")
 			require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
 		})
 	}
@@ -4219,7 +4220,7 @@ func TestAuthSettings(t *testing.T) {
 	newSvc := func(t *testing.T, useOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		cfg.MDM.AppleOneTimeEnrollSecrets = useOneTimeEnrollSecrets
 		return newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	}
 
@@ -4236,7 +4237,7 @@ func TestAuthSettings(t *testing.T) {
 			settings, err := svc.AuthSettings(test.UserContext(ctx, user))
 			require.NoError(t, err)
 			require.NotNil(t, settings)
-			require.True(t, settings.UseOneTimeEnrollSecrets)
+			require.True(t, settings.MDMAppleOneTimeEnrollSecrets)
 		}
 	})
 

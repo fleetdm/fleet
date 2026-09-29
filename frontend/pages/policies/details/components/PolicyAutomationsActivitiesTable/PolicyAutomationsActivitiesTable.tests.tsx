@@ -299,7 +299,41 @@ describe("getDetailOutputText for notify rows", () => {
     expect(text).toMatch(/patches it after 1 hour/);
   });
 
-  it("falls through to activity.output for a notify failure row", () => {
+  it("renders the exit-code reason for a screen-locked notify failure (#53769)", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 41,
+          },
+        })
+      )
+    ).toMatch(/screen was locked/i);
+  });
+
+  it("renders the deferred sentence for a notify failure with no script execution id", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+          },
+        })
+      )
+    ).toMatch(/Another notification was displayed/);
+  });
+
+  it("falls through to activity.output for a notify failure with an unmapped exit code", () => {
     expect(
       getDetailOutputText(
         mockActivity({
@@ -310,6 +344,8 @@ describe("getDetailOutputText for notify rows", () => {
             policy_id: 123,
             software_title: "1Password",
             time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 99,
           },
         })
       )
@@ -523,7 +559,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(await screen.findByText("No automation runs")).toBeInTheDocument();
   });
 
-  it("calls the reset endpoint when the reset is confirmed", async () => {
+  it("resets the whole policy from the header button", async () => {
     (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
       mockResponse([mockActivity()], 1)
     );
@@ -540,6 +576,68 @@ describe("PolicyAutomationsActivitiesTable", () => {
     await user.click(screen.getByRole("button", { name: "Reset policy" }));
     await user.click(screen.getByRole("button", { name: "Reset" }));
 
-    await waitFor(() => expect(policiesAPI.reset).toHaveBeenCalledWith(123));
+    await waitFor(() =>
+      expect(policiesAPI.reset).toHaveBeenCalledWith(123, undefined)
+    );
+  });
+
+  it("resets the policy only for the run's host when opened from a run", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+    (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        currentAutomatedPolicies={[]}
+        canResetPolicy
+      />
+    );
+
+    await user.click(await screen.findByText("Software installed (1Password)"));
+    // The header also has a "Reset policy" button; the run's modal renders last.
+    const resetButtons = screen.getAllByRole("button", {
+      name: "Reset policy",
+    });
+    await user.click(resetButtons[resetButtons.length - 1]);
+    expect(
+      screen.getByText("Anna's MacBook Pro", { selector: "b" })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.reset).toHaveBeenCalledWith(123, 42)
+    );
+  });
+
+  it("keeps a host-scoped reset when the run's host has no display name", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity({ host_display_name: "" })], 1)
+    );
+    (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        currentAutomatedPolicies={[]}
+        canResetPolicy
+      />
+    );
+
+    await user.click(await screen.findByText("Software installed (1Password)"));
+    const resetButtons = screen.getAllByRole("button", {
+      name: "Reset policy",
+    });
+    await user.click(resetButtons[resetButtons.length - 1]);
+    expect(
+      screen.getByText(/this host until its next check in/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/all hosts/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.reset).toHaveBeenCalledWith(123, 42)
+    );
   });
 });
