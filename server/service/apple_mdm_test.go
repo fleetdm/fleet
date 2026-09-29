@@ -182,7 +182,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 		}, nil
 	}
 	ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
-		return nil, nil
+		return &fleet.MDMAppleEnrollmentProfile{ID: 1, Token: token, Type: fleet.MDMAppleEnrollmentTypeAutomatic}, nil
 	}
 	ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
 		return nil, nil
@@ -10823,7 +10823,7 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 		return &fleet.MDMAppleEnrollmentProfile{
 			ID:    1,
 			Token: "valid-token",
-			// Type:  fleet.MDMAppleEnrollmentTypeManual,
+			Type:  fleet.MDMAppleEnrollmentTypeAutomatic,
 			// other fields are not relevant for this test
 		}, nil
 	}
@@ -11112,9 +11112,11 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 						return nil, newNotFoundError()
 					}
 					usedAt := time.Now()
+					expiresAt := time.Now().Add(time.Hour)
 					for _, chal := range []fleet.MDMAppleDEPEnrollmentChallenge{
-						{HardwareSerial: "OTHERSERIAL", HostUUID: machineInfo.UDID, UsedAt: &usedAt},
-						{HardwareSerial: machineInfo.Serial, HostUUID: machineInfo.UDID},
+						{HardwareSerial: "OTHERSERIAL", HostUUID: machineInfo.UDID, UsedAt: &usedAt, ExpiresAt: expiresAt},
+						{HardwareSerial: machineInfo.Serial, HostUUID: machineInfo.UDID, ExpiresAt: expiresAt},
+						{HardwareSerial: machineInfo.Serial, HostUUID: machineInfo.UDID, UsedAt: &usedAt, ExpiresAt: time.Now().Add(-time.Second)},
 					} {
 						ds.GetMDMAppleDEPEnrollmentChallengeFunc = func(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
 							return &chal, nil
@@ -11125,13 +11127,23 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 					}
 
 					ds.GetMDMAppleDEPEnrollmentChallengeFunc = func(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
-						return &fleet.MDMAppleDEPEnrollmentChallenge{HardwareSerial: machineInfo.Serial, HostUUID: machineInfo.UDID, UsedAt: &usedAt}, nil
+						return &fleet.MDMAppleDEPEnrollmentChallenge{HardwareSerial: machineInfo.Serial, HostUUID: machineInfo.UDID, UsedAt: &usedAt, ExpiresAt: expiresAt}, nil
 					}
 					ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
 						return nil, nil
 					}
 					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "challenge", "", &machineInfo)
 					require.NoError(t, err)
+					// restore the happy path for subsequent tests
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
+				})
+				t.Run("manual enrollment profile token returns auth failed error", func(t *testing.T) {
+					ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
+						return &fleet.MDMAppleEnrollmentProfile{ID: 2, Token: token, Type: fleet.MDMAppleEnrollmentTypeManual}, nil
+					}
+					_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "manual-token", "", &machineInfo)
+					var authErr *fleet.AuthFailedError
+					require.ErrorAs(t, err, &authErr)
 					// restore the happy path for subsequent tests
 					ds.GetMDMAppleEnrollmentProfileByTokenFunc = foundProfileFunc
 				})

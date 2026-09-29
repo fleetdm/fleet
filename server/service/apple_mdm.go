@@ -3034,12 +3034,16 @@ func depEnrollmentChallengeIssuedTo(chal *fleet.MDMAppleDEPEnrollmentChallenge, 
 }
 
 // checkMDMAppleDEPEnrollmentToken checks that the token is the automatic
-// enrollment profile's token, or a one-time challenge that was issued to this
-// device and already used up by AuthenticateMDMAppleDEPEnrollment.
+// enrollment profile's token, or an unexpired one-time challenge that was
+// issued to this device and already used up by
+// AuthenticateMDMAppleDEPEnrollment.
 func (svc *Service) checkMDMAppleDEPEnrollmentToken(ctx context.Context, token string, machineInfo *fleet.MDMAppleMachineInfo) error {
-	_, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
+	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByToken(ctx, token)
 	switch {
 	case err == nil:
+		if profile.Type != fleet.MDMAppleEnrollmentTypeAutomatic {
+			return fleet.NewAuthFailedError("enrollment profile is not for automatic enrollment")
+		}
 		return nil
 	case !fleet.IsNotFound(err):
 		return ctxerr.Wrap(ctx, err, "get enrollment profile")
@@ -3052,7 +3056,7 @@ func (svc *Service) checkMDMAppleDEPEnrollmentToken(ctx context.Context, token s
 		}
 		return ctxerr.Wrap(ctx, err, "get automatic enrollment challenge")
 	}
-	if chal.UsedAt == nil || !depEnrollmentChallengeIssuedTo(chal, machineInfo) {
+	if chal.UsedAt == nil || time.Now().After(chal.ExpiresAt) || !depEnrollmentChallengeIssuedTo(chal, machineInfo) {
 		return fleet.NewAuthFailedError("automatic enrollment challenge was not redeemed by this device")
 	}
 	return nil
