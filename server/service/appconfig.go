@@ -1330,19 +1330,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	// Sync before saving so a directory conflict rejects the config change.
-	// Always sync: the previous attempt may have saved the config and then
-	// failed here, and a retry would otherwise see an unchanged list and skip.
+	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
+		return nil, err
+	}
+	// Sync after the config is stored so a failed save does not leave SCIM
+	// rows moved onto a default the server did not keep. Always sync: a
+	// previous attempt may have saved the config and then failed here.
+	// Moving users off the synthetic default directory is one-way.
 	if syncer, ok := svc.ds.(interface {
 		SyncIDPConnections(ctx context.Context, providers []fleet.MDMIdentityProvider) error
 	}); ok {
 		if err := syncer.SyncIDPConnections(ctx, appConfig.MDM.IdentityProviders); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync identity provider connections")
 		}
-	}
-
-	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
-		return nil, err
 	}
 
 	if aapChanged {

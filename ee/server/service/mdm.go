@@ -1312,6 +1312,13 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	if session != nil {
 		entityID = session.RequestData.EntityID
 	}
+	// When SSO is configured, a missing session is an expired handshake. When
+	// nothing is configured, keep the generic configuration error so the
+	// callback page does not claim the handshake expired.
+	ssoConfigured := !appConfig.MDM.EndUserAuthentication.IsEmpty() || len(appConfig.MDM.IdentityProviders) > 0
+	if sessionErr != nil && ssoConfigured {
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, sessionErr, "validate request in session")
+	}
 	// A session started against a fleet connection carries that connection's
 	// entity ID. Otherwise fall back to the legacy org-wide settings. Do not
 	// substitute another connection's entity ID: an empty audience would accept

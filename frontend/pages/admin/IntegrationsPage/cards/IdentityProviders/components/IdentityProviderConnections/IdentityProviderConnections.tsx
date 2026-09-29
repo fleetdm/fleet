@@ -109,11 +109,13 @@ const IdentityProviderConnections = ({
       idp_name: draft.idp_name.trim() || name,
       default: draft.default,
     };
-    const next = providers
-      .filter((existing) => existing.name !== name)
-      .map((existing) =>
-        provider.default ? { ...existing, default: false } : existing
-      );
+    if (providers.some((existing) => existing.name === name)) {
+      notify.error(`An identity provider named "${name}" already exists.`);
+      return;
+    }
+    const next = providers.map((existing) =>
+      provider.default ? { ...existing, default: false } : existing
+    );
     if (await save([...next, provider])) {
       setDraft(emptyProvider());
     }
