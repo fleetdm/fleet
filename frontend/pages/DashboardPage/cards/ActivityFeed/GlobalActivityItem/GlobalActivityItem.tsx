@@ -1765,7 +1765,10 @@ const TAGGED_TEMPLATES = {
   editedAppStoreApp: (activity: IActivity) => {
     const { software_title, software_display_name, platform } =
       activity.details || {};
-    const title = getDisplayedSoftwareName(software_title, software_display_name);
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1786,7 +1789,10 @@ const TAGGED_TEMPLATES = {
   deletedAppStoreApp: (activity: IActivity) => {
     const { software_title, software_display_name, platform } =
       activity.details || {};
-    const title = getDisplayedSoftwareName(software_title, software_display_name);
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
