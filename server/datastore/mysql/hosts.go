@@ -1723,7 +1723,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		case fleet.MDMEnrollStatusPersonal:
 			// IS NULL mirrors the enrollment_status column's fall-through for unclassified personal hosts.
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1` +
-				` AND (hmdm.personal_enrollment_type IS NULL OR hmdm.personal_enrollment_type <> 'manual_profile')`
+				` AND (hmdm.personal_enrollment_type IS NULL OR hmdm.personal_enrollment_type != 'manual_profile')`
 		case fleet.MDMEnrollStatusManualPersonal:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 AND hmdm.is_personal_enrollment = 1` +
 				` AND hmdm.personal_enrollment_type = 'manual_profile'`
@@ -6171,7 +6171,7 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND NOT is_personal_enrollment THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment
-					AND (personal_enrollment_type IS NULL OR personal_enrollment_type <> 'manual_profile') THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count,
+					AND (personal_enrollment_type IS NULL OR personal_enrollment_type != 'manual_profile') THEN 1 ELSE 0 END), 0) as enrolled_personal_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep AND is_personal_enrollment
 					AND personal_enrollment_type = 'manual_profile' THEN 1 ELSE 0 END), 0) as enrolled_manual_personal_hosts_count
 			 FROM host_mdm hm
