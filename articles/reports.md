@@ -89,7 +89,7 @@ The interval counts time that Fleet's agent (fleetd) runs on the host, not calen
 
 An hourly report's target moments are on the hour, UTC (11:00, 12:00, 1:00, and so on). A weekly report's target moment is Thursday at midnight UTC (Wednesday 4pm Pacific, Wednesday 7pm Eastern, or Thursday 9am in Tokyo).
 
-While a host sleeps, its schedule pauses. The schedule falls behind the clock by however long the host slept, and it stays behind until osquery restarts. For example, a laptop that's awake 8 hours a day and asleep the rest may run an "Every day" report only every 3 days.
+While a host sleeps, its report schedule pauses. This means a laptop that's only awake 8 hours a day will run an "Every day" report every 3 days.
 
 A host also has to be awake and running Fleet at a target moment to report in. A host that is usually off at its target moment, like a desktop shut down for the evening in a less-compatible timezone, can go a long time without new results.
 
