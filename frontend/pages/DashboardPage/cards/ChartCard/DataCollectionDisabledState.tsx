@@ -4,6 +4,7 @@ import { browserHistory } from "react-router";
 import Button from "components/buttons/Button";
 import { AppContext } from "context/app";
 import paths from "router/paths";
+import permissions from "utilities/permissions";
 
 const baseClass = "data-collection-disabled-state";
 
@@ -16,9 +17,12 @@ const DataCollectionDisabledState = ({
   datasetLabel,
   currentTeamId,
 }: IDataCollectionDisabledStateProps): JSX.Element => {
-  const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
+  const { currentUser, isGlobalAdmin } = useContext(AppContext);
+  // Resolve team-admin against the fleet we're rendering for, not the app's
+  // currently selected fleet. When a host detail page is opened by URL, the
+  // app context's `currentTeam` isn't set to the host's fleet.
   const canAccessSettings = currentTeamId
-    ? !!(isGlobalAdmin || isTeamAdmin)
+    ? !!(isGlobalAdmin || permissions.isTeamAdmin(currentUser, currentTeamId))
     : !!isGlobalAdmin;
 
   const scopeText = currentTeamId ? "this fleet" : "all fleets";
