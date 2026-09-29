@@ -216,6 +216,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"1Password":                         "LIKE '1password%'",
 	"7-zip":                             "IN ('7zfm.exe','7zg.exe')",
 	"Adobe Acrobat Pro":                 "= 'acrobat.exe'",
+	"Adobe Acrobat Reader":              "= 'acrobat.exe'",
 	"Amazon Chime":                      "IN ('amazon chime.exe','chime.exe')",
 	"Android Studio":                    "= 'studio64.exe'",
 	"Audacity":                          "IN ('audacity.exe','audacity4.exe')",
