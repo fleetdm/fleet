@@ -1,12 +1,14 @@
 #!/bin/bash
 # Script template used in this guide: https://fleetdm.com/guides/require-fleet-managed-hosts-in-duo
 # Writes macos.csv, windows.csv, and linux.csv for Duo's device_cache_sync.py, with the
-# device IDs of Fleet hosts that are passing all policies. Needs curl and jq.
+# device IDs of Fleet hosts. Set REQUIRE_PASSING_POLICIES=true to only include hosts that
+# are passing all policies. Needs curl and jq.
 set -euo pipefail
 
 FLEET_URL="https://fleet.example.com"
 FLEET_API_TOKEN="${FLEET_API_TOKEN:?Set FLEET_API_TOKEN}"
 WINDOWS_REPORT_ID="<Windows-MachineGuid-report-ID>"
+REQUIRE_PASSING_POLICIES="${REQUIRE_PASSING_POLICIES:-false}"
 
 api() {
   curl -fsS -H "Authorization: Bearer $FLEET_API_TOKEN" "$FLEET_URL/api/v1/fleet/$1"
@@ -20,16 +22,16 @@ while :; do
   hosts=$(jq -s 'add' <(echo "$hosts") <(echo "$batch"))
   page=$((page + 1))
 done
-passing=$(jq '[.[] | select(.issues.failing_policies_count == 0)]' <<<"$hosts")
+trusted=$(jq --argjson require "$REQUIRE_PASSING_POLICIES" '[.[] | select(($require | not) or .issues.failing_policies_count == 0)]' <<<"$hosts")
 
 # Duo identifies macOS and Linux hosts by hardware UUID, the same as Fleet's host UUID.
-jq -r '"device_id", (.[] | select(.platform == "darwin") | .uuid)' <<<"$passing" >macos.csv
-jq -r '"device_id", (.[] | select(.platform as $p | ["darwin", "windows", "ios", "ipados", "android", "chrome"] | index($p) | not) | .uuid)' <<<"$passing" >linux.csv
+jq -r '"device_id", (.[] | select(.platform == "darwin") | .uuid)' <<<"$trusted" >macos.csv
+jq -r '"device_id", (.[] | select(.platform as $p | ["darwin", "windows", "ios", "ipados", "android", "chrome"] | index($p) | not) | .uuid)' <<<"$trusted" >linux.csv
 
 # Duo identifies Windows hosts by MachineGuid, collected by the Fleet report.
 api "reports/$WINDOWS_REPORT_ID/report" |
-  jq -r --argjson passing "$passing" '
-    ($passing | map(select(.platform == "windows") | .id)) as $ids |
+  jq -r --argjson trusted "$trusted" '
+    ($trusted | map(select(.platform == "windows") | .id)) as $ids |
     "device_id", ([.results[] | select(.host_id as $h | $ids | index($h)) | .columns.machine_guid] | unique[])
   ' >windows.csv
 

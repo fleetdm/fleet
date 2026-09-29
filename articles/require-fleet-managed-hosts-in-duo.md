@@ -1,14 +1,16 @@
 # Require Fleet-managed hosts in Duo
 
-This guide shows how to block Duo sign-in from hosts that aren't managed by Fleet, or that are failing Fleet policies. It works on macOS, Windows, and Linux.
+This guide shows how to block Duo sign-in from hosts that aren't managed by Fleet. It works on macOS, Windows, and Linux.
 
 How it works:
 
 1. Duo Desktop on each host reports the host's device ID to Duo at sign-in.
-2. Every few minutes, a script exports the device IDs of Fleet hosts that are passing all policies, and Duo's sync script uploads them to Duo.
+2. Every few minutes, a script exports the device IDs of your Fleet hosts, and Duo's sync script uploads them to Duo.
 3. Duo's [Trusted Endpoints](https://duo.com/docs/trusted-endpoints-generic-duo-desktop) policy blocks sign-in from hosts that aren't on the list.
 
 Unlike [PingFederate](https://fleetdm.com/guides/require-fleet-managed-hosts-in-pingfederate), Duo doesn't need a certificate on the host.
+
+> **Note:** Blocking hosts that are failing Fleet policies is coming soon. Fleet will add an activity when a host refetches ([macOS, iOS, and iPadOS](https://github.com/fleetdm/fleet/issues/50576), [Windows](https://github.com/fleetdm/fleet/issues/50577), [Linux](https://github.com/fleetdm/fleet/issues/50578)), so the sync can run as soon as an end user fixes an issue and selects **Refetch**. Until then, the best practice is to trust every host in Fleet. If you also block failing hosts today, an end user who fixes the issue can't sign in until the next sync, up to 5 minutes later. To block failing hosts anyway, set `REQUIRE_PASSING_POLICIES=true` when you run the export script.
 
 ## Prerequisites
 
@@ -70,7 +72,7 @@ jobs:
           FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
 ```
 
-Each sync replaces the previous list, so a host can sign in after the next sync once it's passing all policies. To check a host's policies right away, the end user can select **Refetch** on their **My device** page. Then they can sign in after the next sync.
+Each sync replaces the previous list, so a newly enrolled host can sign in after the next sync.
 
 ## Step 6: Turn on the policy
 
@@ -82,13 +84,12 @@ Each sync replaces the previous list, so a host can sign in after the next sync 
 
 | Host | Expected result |
 |---|---|
-| Managed, passing policies | Sign-in succeeds |
+| In Fleet | Sign-in succeeds |
 | Not in Fleet | Sign-in denied |
-| Managed, failing a policy | Sign-in denied after refetch and the next sync |
 
 ## Troubleshooting
 
-- **Sign-in denied for a managed host**: Check that Duo Desktop is installed and running, the host is passing all policies, and the last sync included it.
+- **Sign-in denied for a managed host**: Check that Duo Desktop is installed and running, and that the last sync included the host.
 - **Windows host missing from `windows.csv`**: Check that the Step 3 report has results for the host.
 
 <meta name="articleTitle" value="Require Fleet-managed hosts in Duo">
@@ -96,4 +97,4 @@ Each sync replaces the previous list, so a host can sign in after the next sync 
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-09-29">
-<meta name="description" value="Block Duo sign-in from hosts that aren't managed by Fleet or are failing policies.">
+<meta name="description" value="Block Duo sign-in from hosts that aren't managed by Fleet.">
