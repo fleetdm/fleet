@@ -219,6 +219,8 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Android Studio":                    "= 'studio64.exe'",
 	"Audacity":                          "IN ('audacity.exe','audacity4.exe')",
 	"Beyond Compare":                    "= 'bcompare.exe'",
+	"Citrix Workspace":                  "= 'wfica32.exe'", // HDX Engine runs only while a session is connected; Receiver.exe, SelfService*.exe stay resident after login
+	"Citrix Workspace LTSR":             "= 'wfica32.exe'",
 	"CLion":                             "IN ('clion.exe','clion64.exe')",
 	"Connect Fonts":                     "= 'monotype connect.exe'",
 	"DataGrip":                          "IN ('datagrip.exe','datagrip64.exe')",
