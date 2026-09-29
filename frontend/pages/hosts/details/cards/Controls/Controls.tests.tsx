@@ -8,6 +8,9 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import Controls from "./Controls";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
+// The details cell renders its text again inside the (hidden) truncation tooltip.
+const DETAIL_CELL_TEXT = ".data-table__tooltip-truncated-text";
+
 const control = (
   overrides: Partial<IHostMdmProfileWithAddedStatus>
 ): IHostMdmProfileWithAddedStatus =>
@@ -131,7 +134,9 @@ describe("Controls card", () => {
       });
 
       expect(
-        screen.getByText("Error.ConfigurationCannotBeApplied")
+        screen.getByText("Error.ConfigurationCannotBeApplied", {
+          selector: DETAIL_CELL_TEXT,
+        })
       ).toBeInTheDocument();
     });
 
@@ -148,7 +153,12 @@ describe("Controls card", () => {
       });
 
       expect(
-        screen.getByText("Waiting for certificate to be installed on the host.")
+        screen.getByText(
+          "Waiting for certificate to be installed on the host.",
+          {
+            selector: DETAIL_CELL_TEXT,
+          }
+        )
       ).toBeInTheDocument();
     });
 
@@ -159,7 +169,9 @@ describe("Controls card", () => {
         ],
       });
 
-      expect(screen.getByText("---")).toBeInTheDocument();
+      expect(
+        screen.getByText("---", { selector: DETAIL_CELL_TEXT })
+      ).toBeInTheDocument();
     });
   });
 
