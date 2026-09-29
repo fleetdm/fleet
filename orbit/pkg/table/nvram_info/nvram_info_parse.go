@@ -15,14 +15,12 @@ func amfiEnabledFromNVRAM(nvramOutput string) string {
 			continue
 		}
 		for arg := range strings.FieldsSeq(bootArgs) {
-			key, val, hasVal := strings.Cut(arg, "=")
+			key, val, _ := strings.Cut(arg, "=")
 			if key != "amfi_get_out_of_my_way" {
 				continue
 			}
-			if !hasVal {
-				return "0"
-			}
-			// Unparseable values are treated as disabling AMFI so the CIS check fails closed.
+			// A bare flag (empty val) and an unparseable value both fail to parse;
+			// treat them as disabling AMFI so the CIS check fails closed.
 			if n, err := strconv.ParseUint(val, 0, 64); err != nil || n != 0 {
 				return "0"
 			}
