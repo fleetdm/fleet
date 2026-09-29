@@ -127,7 +127,8 @@ cred="${cred//\\/\\\\}"
 cred="${cred//\"/\\\"}"
 printf 'user = "%s"\n' "$cred" | curl --config - "$CHALLENGE_URL" \
   --anyauth --fail --silent --show-error --location \
-  -o "$WORK_DIR/challenge.html"
+  -o "$WORK_DIR/challenge.html" \
+  || die "Couldn't get a challenge from Okta. Check SCEP_USERNAME and the OKTA_SCEP_PASSWORD variable."
 unset cred
 
 # NDES returns UTF-16 HTML. Dropping NUL bytes decodes it and leaves the tags
