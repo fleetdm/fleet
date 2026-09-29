@@ -140,7 +140,8 @@ umask 077
 # ---------------------------------------------------------------------------
 
 COMPANY_DIR="/opt/company"
-USERINFO_FILE="${COMPANY_DIR}/userinfo"
+LOCK_FILE="${COMPANY_DIR}/provision.lock"
+mkdir -p "${COMPANY_DIR}"
 
 # The TSS2 keyfile. Contains only the TPM-wrapped key blob -- useless without
 # the TPM that created it. Consumers (wpa_supplicant / NetworkManager / VPN
@@ -163,7 +164,7 @@ CURVES=("P-384" "P-256")
 log()  { echo "[tpm-network-cert] $*"; }
 fail() { echo "[tpm-network-cert] ERROR: $*" >&2; exit 1; }
 
-WORK_DIR="$(mktemp -d)"
+WORK_DIR="$(mktemp -d -p "${COMPANY_DIR}")"
 trap 'rm -rf "${WORK_DIR}"' EXIT
 
 # ---------------------------------------------------------------------------
@@ -501,23 +502,24 @@ for arg in "$@"; do
 done
 
 preflight
-mkdir -p "${COMPANY_DIR}"
-
-if [[ "${ROTATE_KEY}" == "1" ]]; then
-    if [[ -f "${KEY_FILE}" ]]; then
-        log "rotating installed key+certificate pair"
+(
+    flock -x 200 || fail "could not acquire lock on ${LOCK_FILE}"
+    if [[ "${ROTATE_KEY}" == "1" ]]; then
+        if [[ -f "${KEY_FILE}" ]]; then
+            log "rotating installed key+certificate pair"
+        else
+            log "no installed key found; nothing to rotate -- provisioning a fresh key+certificate pair"
+        fi
+        rotate_key_and_certificate
     else
-        log "no installed key found; nothing to rotate -- provisioning a fresh key+certificate pair"
+        ensure_key
+        # Stage the freshly issued certificate at a temporary path and validate
+        # it against the key before it replaces the installed certificate.
+        candidate_cert="${WORK_DIR}/candidate-certificate.pem"
+        request_certificate "${KEY_FILE}" "${candidate_cert}"
+        verify_certificate "${candidate_cert}" "${KEY_FILE}"
+        install_certificate "${candidate_cert}"
     fi
-    rotate_key_and_certificate
-else
-    ensure_key
-    # Stage the freshly issued certificate at a temporary path and validate
-    # it against the key before it replaces the installed certificate.
-    candidate_cert="${WORK_DIR}/candidate-certificate.pem"
-    request_certificate "${KEY_FILE}" "${candidate_cert}"
-    verify_certificate "${candidate_cert}" "${KEY_FILE}"
-    install_certificate "${candidate_cert}"
-fi
+) 200>"${LOCK_FILE}"
 
 log "done. Private key never existed outside the TPM; only the wrapped TSS2 blob is on disk."
