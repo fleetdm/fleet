@@ -1,0 +1,805 @@
+{
+  "metadata": {
+    "workspace": "494nanoclean15k",
+    "collected_at": "2026-09-29T11:56:57Z",
+    "region": "us-east-2",
+    "interval": "45m",
+    "time_window": {
+      "start": "2026-09-29T11:01:00Z",
+      "end": "2026-09-29T11:46:00Z"
+    },
+    "note": "runcap build (45-min cap, caps 500000) run #1 11:00-11:46Z, triggered; purge only, cut at cap; 61k inactive pairs deleted; device traffic + per-ack refetch deletes contend"
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 19.63,
+      "Minimum": 17.22,
+      "Maximum": 22.85,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 4.01,
+      "Minimum": 3.4,
+      "Maximum": 5.14,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 10,
+      "desiredCount": 10
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 1.61,
+      "Minimum": 1.45,
+      "Maximum": 1.75,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 4.67,
+      "Minimum": 4.59,
+      "Maximum": 4.89,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 10,
+      "desiredCount": 10
+    }
+  },
+  "apns_mock": {
+    "service": "fleet-494nanoclean15k-apple-apns-mock",
+    "cpu_utilization": {
+      "Average": 0.84,
+      "Minimum": 0.62,
+      "Maximum": 1.04,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 3.84,
+      "Minimum": 3.46,
+      "Maximum": 4.47,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "per_task": {
+      "cpu": {
+        "avg_pct": 0.84,
+        "max_pct": 2.43,
+        "spread_pct": 1.6
+      },
+      "memory": {
+        "avg_pct": 3.84,
+        "max_pct": 4.74,
+        "spread_pct": 0.89
+      }
+    },
+    "network": {
+      "network_rx_bytes": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 38379.5667,
+        "Sum": 3454161,
+        "Unit": "Bytes/Second",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "network_tx_bytes": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 41077.6111,
+        "Sum": 3696985,
+        "Unit": "Bytes/Second",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    },
+    "task_counts": {
+      "runningCount": 2,
+      "desiredCount": 2
+    },
+    "container_health": {
+      "abnormal_stops": 0,
+      "running_tasks": 2,
+      "start_spread_min": 0.79,
+      "start_spread_alert": false,
+      "tasks": [
+        {
+          "task_id": "f87c2405e3e846fda0f78f5725d1f9f0",
+          "started_at": "2026-09-29T16:22:29.413000+05:30",
+          "uptime_min": -276.48
+        },
+        {
+          "task_id": "1f3ceb7a5a19412ea006135f5b5a12f5",
+          "started_at": "2026-09-29T16:23:16.847000+05:30",
+          "uptime_min": -277.27
+        }
+      ]
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 71.0359,
+      "Minimum": 27.5167,
+      "Maximum": 96.1083,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "database_connections": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 102.2889,
+      "Minimum": 95,
+      "Maximum": 105,
+      "Unit": "Count",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "read_iops": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 816.8129,
+      "Maximum": 2432.5581,
+      "Unit": "Count/Second",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "write_iops": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 605.7296,
+      "Maximum": 1230.0577,
+      "Unit": "Count/Second",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "deadlocks": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 0.003,
+      "Sum": 0.1332,
+      "Maximum": 0.0833,
+      "Unit": "Count/Second",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 74.9047,
+        "Minimum": 43.0167,
+        "Maximum": 99.5833,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "database_connections": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 103.9333,
+        "Minimum": 100,
+        "Maximum": 105,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "read_iops": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 399.7964,
+        "Maximum": 2238.0691,
+        "Unit": "Count/Second",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "write_iops": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0,
+        "Maximum": 0,
+        "Unit": "Count/Second",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "rds_performance_insights": {
+    "writer": [
+      {
+        "rank": 1,
+        "sql": "DELETE FROM `nano_enrollment_queue` WHERE `id` = ? AND `command_uuid` IN (...) ",
+        "load_avg": 7.04
+      },
+      {
+        "rank": 2,
+        "sql": "SELECT `c` . `command_uuid` , `c` . `request_type` , `c` . `command` , `c` . `subtype` FROM `nano_enrollment_queue` AS `q` INNER JOIN `nano_commands` AS `c` ON `q` . `command_uuid` = `c` . `command_uuid` LEFT JOIN `nano_command_results` `r` ON `r` . `command_uuid` = `q` . `command_uuid` AND `r` . `id` = `q` . `id` AND ( `r` . STATUS != ? OR FALSE ) WHERE `q` . `id` = ? AND `q` . `active` = ? AND `r` . STATUS IS NULL ORDER BY `q` . `priority` DESC , `q` . `created_at` LIMIT ? ",
+        "load_avg": 3
+      },
+      {
+        "rank": 3,
+        "sql": "COMMIT",
+        "load_avg": 1
+      },
+      {
+        "rank": 4,
+        "sql": "INSERT INTO `host_seen_times` ( `host_id` , `seen_time` ) VALUES (...) /* , ... */ , ( ?, ... ",
+        "load_avg": 0.43
+      },
+      {
+        "rank": 5,
+        "sql": "DELETE FROM `nano_enrollment_queue` WHERE ( `id` , `command_uuid` ) IN ( (...) /* , ... */ , ( ?, ... ",
+        "load_avg": 0.43
+      }
+    ],
+    "readers": [
+      {
+        "instance": "reader-1",
+        "top_sql": [
+          {
+            "rank": 1,
+            "sql": "SELECT `c` . `command_uuid` , `c` . `request_type` , `c` . `command` , `c` . `subtype` FROM `nano_enrollment_queue` AS `q` INNER JOIN `nano_commands` AS `c` ON `q` . `command_uuid` = `c` . `command_uuid` LEFT JOIN `nano_command_results` `r` ON `r` . `command_uuid` = `q` . `command_uuid` AND `r` . `id` = `q` . `id` AND ( `r` . STATUS != ? OR FALSE ) WHERE `q` . `id` = ? AND `q` . `active` = ? AND `r` . STATUS IS NULL ORDER BY `q` . `priority` DESC , `q` . `created_at` LIMIT ? ",
+            "load_avg": 5.12
+          },
+          {
+            "rank": 2,
+            "sql": "SELECT `h` . `id` , `h` . `osquery_host_id` , `h` . `created_at` , `h` . `updated_at` , `h` . `detail_updated_at` , `h` . `node_key` , `h` . `hostname` , `h` . `uuid` , `h` . `platform` , `h` . `osquery_version` , `h` . `os_version` , `h` . `build` , `h` . `platform_like` , `h` . `code_name` , `h` . `uptime` , `h` . MEMORY , `h` . `cpu_type` , `h` . `cpu_subtype` , `h` . `cpu_brand` , `h` . `cpu_physical_cores` , `h` . `cpu_logical_cores` , `h` . `hardware_vendor` , `h` . `hardware_model` , `h` ",
+            "load_avg": 4.77
+          },
+          {
+            "rank": 3,
+            "sql": "SELECT DISTINCTROW `packs` . * FROM ( ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` JOIN `label_membership` `lm` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . `target_id` = `lm` . `label_id` AND `pt` . TYPE = ? ) WHERE `lm` . `host_id` = ? AND NOT `p` . `disabled` AND `p` . `pack_type` IS NULL ) UNION ALL ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . TYPE = ? AND `pt` . `target_id` = ? ) WHERE NOT `p` . `disabled` AND `p` . ",
+            "load_avg": 0.76
+          },
+          {
+            "rank": 4,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` IS NULL AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` .",
+            "load_avg": 0.74
+          },
+          {
+            "rank": 5,
+            "sql": "( SELECT `id` , NAME , `instance` , `stats_type` , STATUS , `created_at` , `updated_at` FROM `cron_stats` WHERE NAME = ? AND `stats_type` = ? AND ( STATUS = ? OR STATUS = ? ) ORDER BY `created_at` DESC LIMIT ? ) UNION ( SELECT `id` , NAME , `instance` , `stats_type` , STATUS , `created_at` , `updated_at` FROM `cron_stats` WHERE NAME = ? AND `stats_type` = ? AND ( STATUS = ? OR STATUS = ? OR STATUS = ? ) ORDER BY `created_at` DESC LIMIT ? ) ",
+            "load_avg": 0.57
+          }
+        ]
+      }
+    ]
+  },
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 4.3137,
+        "Minimum": 3.7,
+        "Maximum": 5.3527,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.3459,
+        "Minimum": 0.3351,
+        "Maximum": 0.3505,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.7386,
+        "Minimum": 0.4333,
+        "Maximum": 1.25,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.3373,
+        "Minimum": 0.3242,
+        "Maximum": 0.3407,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-3",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.739,
+        "Minimum": 0.4163,
+        "Maximum": 1.1305,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.3371,
+        "Minimum": 0.3236,
+        "Maximum": 0.3404,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "apns_mock_redis": [
+    {
+      "node": "apns-redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.3467,
+        "Minimum": 0.2661,
+        "Maximum": 0.8668,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 0.8848,
+        "Minimum": 0.8806,
+        "Maximum": 0.9213,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "curr_connections": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 17.2667,
+        "Maximum": 23,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "curr_items": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 6.3333,
+        "Maximum": 11,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "string_based_cmds": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 898.0889,
+        "Sum": 40414,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "pubsub_based_cmds": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 437.3333,
+        "Sum": 19680,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "network_bytes_out": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 956241.8667,
+        "Sum": 43030884,
+        "Unit": "Bytes",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "alb": {
+    "target_response_time": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 0.6018,
+      "Minimum": 0.0001,
+      "Maximum": 44.9968,
+      "Unit": "Seconds",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "target_response_time_percentiles": {
+      "p99": 18.5535,
+      "p95": 2.2386
+    },
+    "http_5xx_count": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Sum": 5618,
+      "Unit": "Count",
+      "data_points": 4,
+      "max_points": 9,
+      "data_coverage": 0.44
+    },
+    "http_elb_5xx_count": {
+      "Sum": 0,
+      "Unit": "Count",
+      "no_datapoints": true
+    },
+    "request_count": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Sum": 3679516,
+      "Unit": "Count",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "processed_bytes": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Sum": 5739465132,
+      "Unit": "Bytes",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    }
+  },
+  "fleet_server_errors": {
+    "error_count": 6185.0,
+    "sample_messages": [
+      "{\"ts\":\"2026-09-29T11:45:59Z\",\"level\":\"error\",\"msg\":\"running job\",\"cron\":\"cleanups_then_aggregation\",\"schedule\":\"cleanups_then_aggregation\",\"instanceID\":\"<redacted>\",\"err\":\"cleanup apple mdm commands: delete nano enrollment queue rows: context deadline exceeded\",\"jobID\":\"cleanup_apple_mdm_commands\"}",
+      "{\"ts\":\"2026-09-29T11:29:56Z\",\"level\":\"error\",\"msg\":\"cleanup stale nano refetch device commands\",\"err\":\"delete stale nano enrollment queue entries: Error 1205 (HY000): Lock wait timeout exceeded; try restarting transaction\",\"host_uuid\":\"9H8U48BJ-89KMGB077ZH3PTFB\",\"command_prefix\":\"REFETCH-DEVICE-\"}",
+      "{\"ts\":\"2026-09-29T11:29:56Z\",\"level\":\"error\",\"msg\":\"cleanup stale nano refetch apps commands\",\"err\":\"delete stale nano enrollment queue entries: Error 1205 (HY000): Lock wait timeout exceeded; try restarting transaction\",\"host_uuid\":\"BS69KJ8F-73JMJ8SWEZ2WF21A\",\"command_prefix\":\"REFETCH-APPS-\"}",
+      "{\"ts\":\"2026-09-29T11:29:54Z\",\"level\":\"error\",\"msg\":\"cleanup stale nano refetch certs commands\",\"err\":\"delete stale nano enrollment queue entries: Error 1205 (HY000): Lock wait timeout exceeded; try restarting transaction\",\"enrollment_id\":\"B7S1UVJC-AXBD426TN0SYDH12\",\"command_prefix\":\"REFETCH-CERTS-\"}",
+      "{\"ts\":\"2026-09-29T11:29:42Z\",\"level\":\"error\",\"msg\":\"cleanup stale nano refetch device commands\",\"err\":\"delete stale nano enrollment queue entries: Error 1205 (HY000): Lock wait timeout exceeded; try restarting transaction\",\"host_uuid\":\"1597H9DA-QXKGD3XAWTNST2VN\",\"command_prefix\":\"REFETCH-DEVICE-\"}",
+      "{\"ts\":\"2026-09-29T11:28:51Z\",\"level\":\"error\",\"component\":\"http\",\"method\":\"POST\",\"uri\":\"/api/v1/osquery/distributed/write\",\"took\":\"29.800502236s\",\"host_id\":13323,\"ip_addr\":\"10.12.3.35\",\"x_for_ip_addr\":\"10.12.3.35\",\"ingestion-err\":\"ingesting query disk_space_darwin: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query <redacted>: getting expected profiles for host in team 1: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query mdm: get id from reader: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query os_unix_like: directIngestOSUnixLike update host operating system: check host operating system: dial tcp 10.12.22.146:3306: connect: connection refused\",\"err\":\"error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion\",\"uuid\":\"<redacted>\"}",
+      "{\"ts\":\"2026-09-29T11:28:48Z\",\"level\":\"error\",\"component\":\"http\",\"method\":\"POST\",\"uri\":\"/api/v1/osquery/distributed/write\",\"took\":\"26.749985459s\",\"host_id\":14017,\"ip_addr\":\"10.12.2.62\",\"x_for_ip_addr\":\"10.12.2.62\",\"ingestion-err\":\"ingesting query <redacted>: getting expected profiles for host in team 1: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query software_macos: update host software: loading current software for host: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query disk_space_darwin: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query disk_space_darwin_legacy: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query certificates_darwin: list host certificates for update: selecting host certificates: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query munki_info: read host_munki_issues counts: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query os_unix_like: directIngestOSUnixLike update host operating system: check host operating system: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query mdm: get id from reader: dial tcp 10.12.22.146:3306: connect: connection refused\",\"err\":\"error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion\",\"uuid\":\"<redacted>\"}",
+      "{\"ts\":\"2026-09-29T11:28:47Z\",\"level\":\"error\",\"component\":\"http\",\"method\":\"POST\",\"uri\":\"/api/v1/osquery/distributed/write\",\"took\":\"26.972084709s\",\"host_id\":11977,\"ip_addr\":\"10.12.1.131\",\"x_for_ip_addr\":\"10.12.1.131\",\"ingestion-err\":\"ingesting query software_macos: update host software: loading current software for host: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query <redacted>: getting expected profiles for host in team 1: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query os_unix_like: directIngestOSUnixLike update host operating system: check host operating system: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query disk_space_darwin: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"err\":\"error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion\",\"uuid\":\"<redacted>\"}",
+      "{\"ts\":\"2026-09-29T11:28:44Z\",\"level\":\"error\",\"component\":\"http\",\"method\":\"POST\",\"uri\":\"/api/v1/osquery/distributed/write\",\"took\":\"29.429535267s\",\"host_id\":12692,\"ip_addr\":\"10.12.3.115\",\"x_for_ip_addr\":\"10.12.3.115\",\"ingestion-err\":\"ingesting query <redacted>: getting expected profiles for host in team 1: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query munki_info: read host_munki_issues counts: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query disk_space_darwin: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"err\":\"error in query ingestion || error in query ingestion || error in query ingestion\",\"uuid\":\"<redacted>\"}",
+      "{\"ts\":\"2026-09-29T11:28:44Z\",\"level\":\"error\",\"component\":\"http\",\"method\":\"POST\",\"uri\":\"/api/v1/osquery/distributed/write\",\"took\":\"24.623271986s\",\"host_id\":23379,\"ip_addr\":\"10.12.2.21\",\"x_for_ip_addr\":\"10.12.2.21\",\"ingestion-err\":\"ingesting query disk_space_darwin_legacy: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query mdm: get id from reader: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query <redacted>: getting expected profiles for host in team 1: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query users: getting nano user enrollment username and uuid: getting username from nano_users for device id <redacted>: dial tcp 10.12.22.146:3306: connect: connection refused\",\"ingestion-err\":\"ingesting query disk_space_darwin: select host_disks: dial tcp 10.12.22.146:3306: connect: connection refused\",\"err\":\"error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion || error in query ingestion\",\"uuid\":\"<redacted>\"}"
+    ]
+  },
+  "apns_mock_errors": {
+    "error_count": 2065.0,
+    "sample_messages": [
+      "time=2026-09-29T11:33:25.358Z level=ERROR msg=\"store pending push\" token=746f6b656e5858584542464855534a524e error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.362Z level=ERROR msg=\"store pending push\" token=746f6b656e414e3030434a46534d435541 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.358Z level=ERROR msg=\"store pending push\" token=746f6b656e423155344d384634594e3748 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.359Z level=ERROR msg=\"store pending push\" token=746f6b656e38425132424e59474d473550 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.353Z level=ERROR msg=\"store pending push\" token=746f6b656e464a46305232485853484d30 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.358Z level=ERROR msg=\"store pending push\" token=746f6b656e4b4d4e475652545952555045 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.354Z level=ERROR msg=\"store pending push\" token=746f6b656e374e4b52453143485953314d error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.352Z level=ERROR msg=\"store pending push\" token=746f6b656e4b4b414e5447463150544a59 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.354Z level=ERROR msg=\"store pending push\" token=746f6b656e345854555433545138414350 error=\"redigo: connection pool exhausted\"",
+      "time=2026-09-29T11:33:25.364Z level=ERROR msg=\"store pending push\" token=746f6b656e3744434632454e364543354a error=\"redigo: connection pool exhausted\""
+    ]
+  },
+  "rds_writer_extended": {
+    "freeable_memory": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 5702203164.4444,
+      "Minimum": 5596172288,
+      "Unit": "Bytes",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "buffer_cache_hit_ratio": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 99.6395,
+      "Minimum": 98.1052,
+      "Unit": "Percent",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "volume_bytes_used": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 58061897728,
+      "Maximum": 58061897728,
+      "Unit": "Bytes",
+      "data_points": 2,
+      "max_points": 9,
+      "data_coverage": 0.22
+    },
+    "select_latency": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 51.475,
+      "Maximum": 266.9299,
+      "Unit": "Milliseconds",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "insert_latency": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 15.503,
+      "Maximum": 79.4004,
+      "Unit": "Milliseconds",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "dml_latency": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 44.2996,
+      "Maximum": 278.0079,
+      "Unit": "Milliseconds",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "threads_running": {
+      "average": 14.21,
+      "maximum": 35.45,
+      "vcpus": 2
+    },
+    "iops_utilization": {
+      "instance_class": "db.r6g.large",
+      "max_iops": 10000,
+      "read_iops_avg": 816.8129,
+      "write_iops_avg": 605.7296,
+      "total_iops_avg": 1422.54,
+      "utilization_pct": 14.23
+    }
+  },
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "aurora_replica_lag": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 5639.3556,
+        "Maximum": 98081,
+        "Unit": "Milliseconds",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "freeable_memory": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 6125235859.9111,
+        "Minimum": 5849899008,
+        "Unit": "Bytes",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "buffer_cache_hit_ratio": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 97.6498,
+        "Minimum": 0,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "select_latency": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 16.5846,
+        "Maximum": 97.5927,
+        "Unit": "Milliseconds",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "iops_utilization": {
+        "instance_class": "db.r6g.large",
+        "max_iops": 10000,
+        "read_iops_avg": 399.7964,
+        "write_iops_avg": 0,
+        "total_iops_avg": 399.8,
+        "utilization_pct": 4
+      },
+      "threads_running": {
+        "average": 15.72,
+        "maximum": 53.83,
+        "vcpus": 2
+      }
+    }
+  ],
+  "redis_extended": [
+    {
+      "node": "redis-1",
+      "curr_connections": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 74.4889,
+        "Maximum": 146,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 88.0862,
+        "Minimum": 75.7904,
+        "Unit": "Percent",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "curr_connections": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 5.2222,
+        "Maximum": 6,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    },
+    {
+      "node": "redis-3",
+      "curr_connections": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Average": 6,
+        "Maximum": 6,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T16:31:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 9,
+        "max_points": 9,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    }
+  ],
+  "network": {
+    "network_rx_bytes": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 419027.5467,
+      "Sum": 188562396,
+      "Unit": "Bytes/Second",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    },
+    "network_tx_bytes": {
+      "Timestamp": "2026-09-29T16:31:00+05:30",
+      "Average": 148003.5289,
+      "Sum": 66601588,
+      "Unit": "Bytes/Second",
+      "data_points": 9,
+      "max_points": 9,
+      "data_coverage": 1
+    }
+  },
+  "container_health": {
+    "abnormal_stops": 0,
+    "fleet_abnormal_stops": 0,
+    "running_tasks": 10,
+    "failed_health_checks": 0,
+    "unable_to_place": 0,
+    "service_events": [],
+    "tasks": [
+      {
+        "task_id": "29c26b4d28d14e5bbba904be8119b95f",
+        "started_at": "2026-09-28T17:00:53.543000+05:30",
+        "started_epoch": 1790595053,
+        "uptime_min": 1455.12
+      },
+      {
+        "task_id": "e73d0f0b0c4840a3b9ef8029722b0298",
+        "started_at": "2026-09-28T17:00:54.952000+05:30",
+        "started_epoch": 1790595054,
+        "uptime_min": 1455.1
+      },
+      {
+        "task_id": "410aff66855b43bb95531e8d43a1ec39",
+        "started_at": "2026-09-28T17:00:56.627000+05:30",
+        "started_epoch": 1790595056,
+        "uptime_min": 1455.07
+      },
+      {
+        "task_id": "931404b3340848ab9896c11adcc07a9a",
+        "started_at": "2026-09-28T17:00:58.848000+05:30",
+        "started_epoch": 1790595058,
+        "uptime_min": 1455.03
+      },
+      {
+        "task_id": "f06da87d551e45c49fb7e929361452e9",
+        "started_at": "2026-09-28T17:00:58.568000+05:30",
+        "started_epoch": 1790595058,
+        "uptime_min": 1455.03
+      },
+      {
+        "task_id": "1244e0f776ce4290a7a4664de32951c3",
+        "started_at": "2026-09-28T17:05:54.315000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1450.1
+      },
+      {
+        "task_id": "6b72a1758d31428d97c8952d3f5ad571",
+        "started_at": "2026-09-28T17:05:54.311000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1450.1
+      },
+      {
+        "task_id": "87b8744099c84f55a1087401d2f7d693",
+        "started_at": "2026-09-28T17:05:54.933000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1450.1
+      },
+      {
+        "task_id": "a56a0cc9aaf3487cbcc4dda6e43f00f8",
+        "started_at": "2026-09-28T17:05:54.882000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1450.1
+      },
+      {
+        "task_id": "9fba4dae5fa84bad97fda751ec39a400",
+        "started_at": "2026-09-28T17:05:55.778000+05:30",
+        "started_epoch": 1790595355,
+        "uptime_min": 1450.08
+      }
+    ]
+  }
+}

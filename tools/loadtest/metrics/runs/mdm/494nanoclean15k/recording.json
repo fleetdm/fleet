@@ -1,0 +1,215 @@
+{
+ "scenario": {
+  "label": "15k hosts: 10k Macs + 5k iPhones",
+  "devices": 15000,
+  "simulated": false
+ },
+ "cleanup_on_at": "2026-09-29T07:12:28Z",
+ "growth_window": [
+  "2026-09-28T13:30:00Z",
+  "2026-09-29T02:30:00Z"
+ ],
+ "events": [
+  {
+   "t": "2026-09-29T04:54:48Z",
+   "label": "backlog seeded"
+  },
+  {
+   "t": "2026-09-29T09:43:00Z",
+   "label": "caps raised"
+  },
+  {
+   "t": "2026-09-29T11:00:47Z",
+   "label": "cleanup caps raised"
+  }
+ ],
+ "settle": {
+  "inflow_rows_per_hour": 36000,
+  "bytes_per_row": 959,
+  "steady_rows": 864000,
+  "steady_bytes": 828643968,
+  "growth_bytes_per_year": 302455048285,
+  "default": {
+   "rows_per_hour": 3000,
+   "days": null
+  },
+  "aggressive": {
+   "rows_per_hour": 310134,
+   "days": 5.3
+  }
+ },
+ "samples": [
+  {
+   "t": "2026-09-28T11:02:00Z",
+   "rows": 0,
+   "bytes": 114688,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T12:30:00Z",
+   "rows": 340259,
+   "bytes": 742277120,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T13:30:00Z",
+   "rows": 753059,
+   "bytes": 1576353792,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T14:30:00Z",
+   "rows": 900901,
+   "bytes": 1964081152,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T15:30:00Z",
+   "rows": 1060625,
+   "bytes": 2596716544,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T16:30:00Z",
+   "rows": 1224013,
+   "bytes": 3302506496,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T17:30:00Z",
+   "rows": 1359627,
+   "bytes": 3359129600,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T18:30:00Z",
+   "rows": 1397011,
+   "bytes": 3983032320,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T19:30:00Z",
+   "rows": 1522014,
+   "bytes": 4053286912,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T20:30:00Z",
+   "rows": 1532380,
+   "bytes": 4053286912,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T21:30:00Z",
+   "rows": 1676370,
+   "bytes": 4613210112,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T22:30:00Z",
+   "rows": 1682708,
+   "bytes": 4613210112,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-28T23:30:00Z",
+   "rows": 1699924,
+   "bytes": 4613210112,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T00:30:00Z",
+   "rows": 1862748,
+   "bytes": 5240242176,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T01:30:00Z",
+   "rows": 1938365,
+   "bytes": 5240242176,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T02:30:00Z",
+   "rows": 1978582,
+   "bytes": 5240242176,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T03:30:00Z",
+   "rows": 1978630,
+   "bytes": 5240242176,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T04:30:00Z",
+   "rows": 24345174,
+   "bytes": 23988486144,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T04:54:50Z",
+   "rows": 34993615,
+   "bytes": 32154697728,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T05:30:00Z",
+   "rows": 34993603,
+   "bytes": 32154697728,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T06:30:01Z",
+   "rows": 34993603,
+   "bytes": 32154697728,
+   "deleted_last_hour": 0
+  },
+  {
+   "t": "2026-09-29T07:30:00Z",
+   "rows": 34990603,
+   "bytes": 32154697728,
+   "deleted_last_hour": 3000
+  },
+  {
+   "t": "2026-09-29T08:30:00Z",
+   "rows": 34987603,
+   "bytes": 32154697728,
+   "deleted_last_hour": 3000
+  },
+  {
+   "t": "2026-09-29T09:30:00Z",
+   "rows": 34901651,
+   "bytes": 32154697728,
+   "deleted_last_hour": 3000
+  },
+  {
+   "t": "2026-09-29T10:30:00Z",
+   "rows": 34815077,
+   "bytes": 32154697728,
+   "deleted_last_hour": 122574,
+   "deleted_estimated": true
+  },
+  {
+   "t": "2026-09-29T11:30:00Z",
+   "rows": 34691758,
+   "bytes": 32154697728,
+   "deleted_last_hour": 159320,
+   "deleted_estimated": true
+  },
+  {
+   "t": "2026-09-29T12:30:00Z",
+   "rows": 34302426,
+   "bytes": 32154697728,
+   "deleted_last_hour": 425334,
+   "deleted_estimated": true
+  },
+  {
+   "t": "2026-09-29T13:30:00Z",
+   "rows": 33992679,
+   "bytes": 32601653248,
+   "deleted_last_hour": 345747,
+   "deleted_estimated": true
+  }
+ ]
+}

@@ -1,0 +1,797 @@
+{
+  "metadata": {
+    "workspace": "494nanoclean15k",
+    "collected_at": "2026-09-29T06:18:29Z",
+    "region": "us-east-2",
+    "interval": "30m",
+    "time_window": {
+      "start": "2026-09-29T05:48:29Z",
+      "end": "2026-09-29T06:18:29Z"
+    },
+    "note": "cleanup build just deployed; reader restart loop; diagnosing writer load"
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 42.7,
+      "Minimum": 41.49,
+      "Maximum": 46.54,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 9.96,
+      "Minimum": 9.13,
+      "Maximum": 11.47,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 10,
+      "desiredCount": 10
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 2.12,
+      "Minimum": 1.94,
+      "Maximum": 2.33,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 5.82,
+      "Minimum": 5.72,
+      "Maximum": 6,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 10,
+      "desiredCount": 10
+    }
+  },
+  "apns_mock": {
+    "service": "fleet-494nanoclean15k-apple-apns-mock",
+    "cpu_utilization": {
+      "Average": 0.84,
+      "Minimum": 0.84,
+      "Maximum": 0.86,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 3.37,
+      "Minimum": 3.36,
+      "Maximum": 3.37,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "per_task": {
+      "cpu": {
+        "avg_pct": 0.84,
+        "max_pct": 0.91,
+        "spread_pct": 0.07
+      },
+      "memory": {
+        "avg_pct": 3.37,
+        "max_pct": 3.37,
+        "spread_pct": 0
+      }
+    },
+    "network": {
+      "network_rx_bytes": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 33097.4667,
+        "Sum": 1985848,
+        "Unit": "Bytes/Second",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "network_tx_bytes": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 36779.6667,
+        "Sum": 2206780,
+        "Unit": "Bytes/Second",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    },
+    "task_counts": {
+      "runningCount": 2,
+      "desiredCount": 2
+    },
+    "container_health": {
+      "abnormal_stops": 0,
+      "running_tasks": 2,
+      "start_spread_min": 0.42,
+      "start_spread_alert": false,
+      "tasks": [
+        {
+          "task_id": "31e6cb6fa1ee4a14a5b840d1c33ab6cc",
+          "started_at": "2026-09-29T10:40:16.352000+05:30",
+          "uptime_min": -261.78
+        },
+        {
+          "task_id": "6f0eb395b5a143f9962c81a031d2efbf",
+          "started_at": "2026-09-29T10:40:41.497000+05:30",
+          "uptime_min": -262.2
+        }
+      ]
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 94.0287,
+      "Minimum": 80.8583,
+      "Maximum": 99.4767,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "database_connections": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 103.9667,
+      "Minimum": 96,
+      "Maximum": 121,
+      "Unit": "Count",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "read_iops": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 404.489,
+      "Maximum": 914.9804,
+      "Unit": "Count/Second",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "write_iops": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 1091.5504,
+      "Maximum": 1259.7781,
+      "Unit": "Count/Second",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "deadlocks": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 0,
+      "Sum": 0,
+      "Maximum": 0,
+      "Unit": "Count/Second",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 97.7547,
+        "Minimum": 91.7,
+        "Maximum": 99.5417,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "database_connections": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 100.4828,
+        "Minimum": 91,
+        "Maximum": 104,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "read_iops": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 315.6055,
+        "Maximum": 503.7667,
+        "Unit": "Count/Second",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "write_iops": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0,
+        "Maximum": 0,
+        "Unit": "Count/Second",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "rds_performance_insights": {
+    "writer": [
+      {
+        "rank": 1,
+        "sql": "COMMIT",
+        "load_avg": 6.29
+      },
+      {
+        "rank": 2,
+        "sql": "DELETE FROM `host_software_installed_paths` WHERE `id` IN (...) ",
+        "load_avg": 1.12
+      },
+      {
+        "rank": 3,
+        "sql": "SELECT `CONCAT` ( ? , ( SELECT COUNT ( * ) FROM `nano_enrollment_queue` `q` LEFT JOIN `nano_command_results` `r` USING ( `id` , `command_uuid` ) WHERE `q` . `command_uuid` LIKE ? AND `r` . `id` IS NULL ) , ? , ( SELECT COUNT ( * ) FROM `nano_command_results` WHERE `command_uuid` LIKE ? AND `updated_at` > NOW ( ) - INTERVAL ? SQL_TSI_MINUTE ) )",
+        "load_avg": 0.93
+      },
+      {
+        "rank": 4,
+        "sql": "UPDATE `host_software_installed_paths` SET `executable_hashes` = ? WHERE `id` = ? ",
+        "load_avg": 0.74
+      },
+      {
+        "rank": 5,
+        "sql": "DELETE FROM `host_software` WHERE `host_id` = ? AND `software_id` IN (...) ",
+        "load_avg": 0.6
+      }
+    ],
+    "readers": [
+      {
+        "instance": "reader-1",
+        "top_sql": [
+          {
+            "rank": 1,
+            "sql": "SELECT `macp` . `profile_uuid` AS `profile_uuid` , `macp` . `identifier` AS `identifier` , ? AS `count_profile_labels` , ? AS `count_non_broken_labels` , ? AS `count_host_labels` , `earliest_install_date` FROM `mdm_apple_configuration_profiles` `macp` JOIN ( SELECT CHECKSUM , MIN ( `uploaded_at` ) AS `earliest_install_date` FROM `mdm_apple_configuration_profiles` GROUP BY CHECKSUM ) `cs` ON `macp` . CHECKSUM = `cs` . CHECKSUM WHERE `macp` . `team_id` = ? AND NOT EXISTS ( SELECT ? FROM `mdm_confi",
+            "load_avg": 12.91
+          },
+          {
+            "rank": 2,
+            "sql": "SELECT `s` . `id` , `s` . NAME , `s` . `version` , `s` . SOURCE , `s` . `extension_for` , `s` . `bundle_identifier` , `s` . RELEASE , `s` . `vendor` , `s` . `arch` , `s` . `extension_id` , `s` . `upgrade_code` , `hs` . `last_opened_at` FROM `software` `s` JOIN `host_software` `hs` ON `hs` . `software_id` = `s` . `id` WHERE `hs` . `host_id` = ? ",
+            "load_avg": 5.33
+          },
+          {
+            "rank": 3,
+            "sql": "SELECT `t` . `id` , `t` . `host_id` , `t` . `software_id` , `t` . `installed_path` , `t` . `team_identifier` , `t` . `cdhash_sha256` , `t` . `executable_sha256` , `t` . `executable_path` , `t` . `executable_hashes` FROM `host_software_installed_paths` `t` WHERE `t` . `host_id` = ? ",
+            "load_avg": 4.12
+          },
+          {
+            "rank": 4,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` IS NULL AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` .",
+            "load_avg": 2.76
+          },
+          {
+            "rank": 5,
+            "sql": "SELECT DISTINCTROW `packs` . * FROM ( ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` JOIN `label_membership` `lm` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . `target_id` = `lm` . `label_id` AND `pt` . TYPE = ? ) WHERE `lm` . `host_id` = ? AND NOT `p` . `disabled` AND `p` . `pack_type` IS NULL ) UNION ALL ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . TYPE = ? AND `pt` . `target_id` = ? ) WHERE NOT `p` . `disabled` AND `p` . ",
+            "load_avg": 2.58
+          }
+        ]
+      }
+    ]
+  },
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 4.6879,
+        "Minimum": 4.1167,
+        "Maximum": 5.9254,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0.3377,
+        "Minimum": 0.291,
+        "Maximum": 0.3612,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 1.1136,
+        "Minimum": 0.6499,
+        "Maximum": 1.9333,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0.3262,
+        "Minimum": 0.2675,
+        "Maximum": 0.3398,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-3",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 1.103,
+        "Minimum": 0.6498,
+        "Maximum": 1.6325,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0.3268,
+        "Minimum": 0.2667,
+        "Maximum": 0.3404,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "apns_mock_redis": [
+    {
+      "node": "apns-redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0.2784,
+        "Minimum": 0.2494,
+        "Maximum": 0.3001,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0.8831,
+        "Minimum": 0.8829,
+        "Maximum": 0.8843,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "curr_connections": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 9,
+        "Maximum": 9,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "curr_items": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 3,
+        "Maximum": 3,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "string_based_cmds": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 524.0333,
+        "Sum": 15721,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "pubsub_based_cmds": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 0.0667,
+        "Sum": 2,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "network_bytes_out": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 741889.5333,
+        "Sum": 22256686,
+        "Unit": "Bytes",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "alb": {
+    "target_response_time": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 3.3597,
+      "Minimum": 0.0002,
+      "Maximum": 30.0036,
+      "Unit": "Seconds",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "target_response_time_percentiles": {
+      "p99": 26.1119,
+      "p95": 17.5615
+    },
+    "http_5xx_count": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Sum": 57174,
+      "Unit": "Count",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "http_elb_5xx_count": {
+      "Sum": 0,
+      "Unit": "Count",
+      "no_datapoints": true
+    },
+    "request_count": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Sum": 1999944,
+      "Unit": "Count",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "processed_bytes": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Sum": 23443955350,
+      "Unit": "Bytes",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    }
+  },
+  "fleet_server_errors": {
+    "error_count": 107117.0,
+    "sample_messages": [
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}",
+      "{\"ts\":\"2026-09-29T06:17:24Z\",\"level\":\"error\",\"msg\":\"failed to prepare statement\",\"query\":\"\\n    SELECT\\n      h.id,\\n      h.osquery_host_id,\\n      h.created_at,\\n      h.updated_at,\\n      h.detail_updated_at,\\n      h.node_key,\\n      h.hostname,\\n      h.uuid,\\n      h.platform,\\n      h.osquery_version,\\n      h.os_version,\\n      h.build,\\n      h.platform_like,\\n      h.code_name,\\n      h.uptime,\\n      h.memory,\\n      h.cpu_type,\\n      h.cpu_subtype,\\n      h.cpu_brand,\\n      h.cpu_physical_cores,\\n      h.cpu_logical_cores,\\n      h.hardware_vendor,\\n      h.hardware_model,\\n      h.hardware_version,\\n      h.hardware_serial,\\n      h.computer_name,\\n      h.primary_ip_id,\\n      h.distributed_interval,\\n      h.logger_tls_period,\\n      h.config_tls_refresh,\\n      h.primary_ip,\\n      h.primary_mac,\\n      h.label_updated_at,\\n      h.last_enrolled_at,\\n      h.refetch_requested,\\n      h.refetch_critical_queries_until,\\n      h.team_id,\\n      h.policy_updated_at,\\n      h.public_ip,\\n      h.orbit_node_key,\\n      h.last_restarted_at,\\n      h.timezone,\\n      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,\\n      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,\\n      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,\\n      EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0) as has_host_identity_cert\\n    FROM\\n      hosts h\\n    LEFT OUTER JOIN\\n      host_disks hd ON hd.host_id = h.id\\n    WHERE node_key = ?\",\"err\":\"context deadline exceeded\"}"
+    ]
+  },
+  "apns_mock_errors": {
+    "error_count": 2.0,
+    "sample_messages": [
+      "time=2026-09-29T06:12:02.626Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.3.46:59530->10.12.31.220:6379: i/o timeout\"",
+      "time=2026-09-29T06:12:02.618Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.1.216:40000->10.12.31.220:6379: i/o timeout\""
+    ]
+  },
+  "rds_writer_extended": {
+    "freeable_memory": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 5772414976,
+      "Minimum": 5703684096,
+      "Unit": "Bytes",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "buffer_cache_hit_ratio": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 99.865,
+      "Minimum": 99.6908,
+      "Unit": "Percent",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "volume_bytes_used": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 53671739392,
+      "Maximum": 53671739392,
+      "Unit": "Bytes",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "select_latency": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 9.8762,
+      "Maximum": 155.3485,
+      "Unit": "Milliseconds",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "insert_latency": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 11.8157,
+      "Maximum": 30.7367,
+      "Unit": "Milliseconds",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "dml_latency": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 9.2186,
+      "Maximum": 23.8187,
+      "Unit": "Milliseconds",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "threads_running": {
+      "average": 17.08,
+      "maximum": 30.78,
+      "vcpus": 2
+    },
+    "iops_utilization": {
+      "instance_class": "db.r6g.large",
+      "max_iops": 10000,
+      "read_iops_avg": 404.489,
+      "write_iops_avg": 1091.5504,
+      "total_iops_avg": 1496.04,
+      "utilization_pct": 14.96
+    }
+  },
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "aurora_replica_lag": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 49803.3103,
+        "Maximum": 119693,
+        "Unit": "Milliseconds",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "freeable_memory": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 5805377672.5333,
+        "Minimum": 5200154624,
+        "Unit": "Bytes",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "buffer_cache_hit_ratio": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 72.3537,
+        "Minimum": 0,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "select_latency": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 19.7002,
+        "Maximum": 32.3261,
+        "Unit": "Milliseconds",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "iops_utilization": {
+        "instance_class": "db.r6g.large",
+        "max_iops": 10000,
+        "read_iops_avg": 315.6055,
+        "write_iops_avg": 0,
+        "total_iops_avg": 315.61,
+        "utilization_pct": 3.16
+      },
+      "threads_running": {
+        "average": 46.97,
+        "maximum": 59.19,
+        "vcpus": 2
+      }
+    }
+  ],
+  "redis_extended": [
+    {
+      "node": "redis-1",
+      "curr_connections": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 157.9,
+        "Maximum": 600,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 78.5593,
+        "Minimum": 69.5546,
+        "Unit": "Percent",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "curr_connections": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 5.2667,
+        "Maximum": 6,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    },
+    {
+      "node": "redis-3",
+      "curr_connections": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Average": 5.1,
+        "Maximum": 6,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-09-29T11:18:00+05:30",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 6,
+        "max_points": 6,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    }
+  ],
+  "network": {
+    "network_rx_bytes": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 1241460.9067,
+      "Sum": 372438272,
+      "Unit": "Bytes/Second",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    },
+    "network_tx_bytes": {
+      "Timestamp": "2026-09-29T11:18:00+05:30",
+      "Average": 431558.29,
+      "Sum": 129467487,
+      "Unit": "Bytes/Second",
+      "data_points": 6,
+      "max_points": 6,
+      "data_coverage": 1
+    }
+  },
+  "container_health": {
+    "abnormal_stops": 0,
+    "fleet_abnormal_stops": 0,
+    "running_tasks": 10,
+    "failed_health_checks": 0,
+    "unable_to_place": 0,
+    "service_events": [],
+    "tasks": [
+      {
+        "task_id": "29c26b4d28d14e5bbba904be8119b95f",
+        "started_at": "2026-09-28T17:00:53.543000+05:30",
+        "started_epoch": 1790595053,
+        "uptime_min": 1127.6
+      },
+      {
+        "task_id": "e73d0f0b0c4840a3b9ef8029722b0298",
+        "started_at": "2026-09-28T17:00:54.952000+05:30",
+        "started_epoch": 1790595054,
+        "uptime_min": 1127.58
+      },
+      {
+        "task_id": "410aff66855b43bb95531e8d43a1ec39",
+        "started_at": "2026-09-28T17:00:56.627000+05:30",
+        "started_epoch": 1790595056,
+        "uptime_min": 1127.55
+      },
+      {
+        "task_id": "931404b3340848ab9896c11adcc07a9a",
+        "started_at": "2026-09-28T17:00:58.848000+05:30",
+        "started_epoch": 1790595058,
+        "uptime_min": 1127.52
+      },
+      {
+        "task_id": "f06da87d551e45c49fb7e929361452e9",
+        "started_at": "2026-09-28T17:00:58.568000+05:30",
+        "started_epoch": 1790595058,
+        "uptime_min": 1127.52
+      },
+      {
+        "task_id": "1244e0f776ce4290a7a4664de32951c3",
+        "started_at": "2026-09-28T17:05:54.315000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1122.58
+      },
+      {
+        "task_id": "6b72a1758d31428d97c8952d3f5ad571",
+        "started_at": "2026-09-28T17:05:54.311000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1122.58
+      },
+      {
+        "task_id": "87b8744099c84f55a1087401d2f7d693",
+        "started_at": "2026-09-28T17:05:54.933000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1122.58
+      },
+      {
+        "task_id": "a56a0cc9aaf3487cbcc4dda6e43f00f8",
+        "started_at": "2026-09-28T17:05:54.882000+05:30",
+        "started_epoch": 1790595354,
+        "uptime_min": 1122.58
+      },
+      {
+        "task_id": "9fba4dae5fa84bad97fda751ec39a400",
+        "started_at": "2026-09-28T17:05:55.778000+05:30",
+        "started_epoch": 1790595355,
+        "uptime_min": 1122.57
+      }
+    ]
+  }
+}
