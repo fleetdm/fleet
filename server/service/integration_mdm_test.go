@@ -16810,7 +16810,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.JSONEq(
 		t,
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
 			macOSApp.Name,
