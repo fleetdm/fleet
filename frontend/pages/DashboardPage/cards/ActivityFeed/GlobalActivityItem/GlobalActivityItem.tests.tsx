@@ -2427,6 +2427,22 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("Logic Pro")).toBeNull();
   });
 
+  it("shows software_display_name over software_title for canceled_setup_experience", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CanceledSetupExperience,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).toBeNull();
+  });
+
   it("renders script package ran status in InstalledSoftware activity", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,

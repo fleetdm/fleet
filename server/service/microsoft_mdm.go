@@ -2799,7 +2799,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			if softwareTitleID != 0 {
 				dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, softwareTitleID)
 				if dnErr != nil {
-					return nil, ctxerr.Wrap(ctx, dnErr, "look up software display name for canceled setup experience timeout activity")
+					svc.logger.WarnContext(ctx, "failed to look up software display name for canceled setup experience timeout activity", "err", dnErr)
 				}
 				softwareDisplayName = dn
 			}

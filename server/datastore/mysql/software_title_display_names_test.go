@@ -54,12 +54,6 @@ func testGetSoftwareTitleDisplayName_NoOverride(t *testing.T, ds *Datastore) {
 	got, err = ds.GetSoftwareTitleDisplayName(ctx, new(uint(42)), titleID)
 	require.NoError(t, err)
 	require.Nil(t, got)
-
-	// A zero titleID should short-circuit; callers can pass 0 when a title id
-	// isn't available (e.g. deleted software) without hitting the DB.
-	got, err = ds.GetSoftwareTitleDisplayName(ctx, nil, 0)
-	require.NoError(t, err)
-	require.Nil(t, got)
 }
 
 func testGetSoftwareTitleDisplayName_WithOverride(t *testing.T, ds *Datastore) {

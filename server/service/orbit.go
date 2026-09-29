@@ -2414,10 +2414,11 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 		var softwareDisplayName *string
 		if hsi.SoftwareTitleID != nil {
-			softwareDisplayName, err = svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *hsi.SoftwareTitleID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get software display name override")
+			dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *hsi.SoftwareTitleID)
+			if dnErr != nil {
+				svc.logger.WarnContext(ctx, "failed to look up software display name for install activity", "err", dnErr)
 			}
+			softwareDisplayName = dn
 		}
 		if err := svc.NewActivity(
 			ctx,
