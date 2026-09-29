@@ -245,6 +245,7 @@ type HostMDMAndroidProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
@@ -257,6 +258,8 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
+		Hidden:        p.Hidden,
+		SelfService:   false,
 	}
 }
 

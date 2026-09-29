@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.2.47",
+      "version": "1.2.48",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app' AND version_compare(bundle_short_version, '1.2.47') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app' AND version_compare(bundle_short_version, '1.2.48') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hive.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/morapelker/hive/releases/download/v1.2.47/Hive-1.2.47-arm64.dmg",
+      "installer_url": "https://github.com/morapelker/hive/releases/download/v1.2.48/Hive-1.2.48-arm64.dmg",
       "install_script_ref": "3bd4ebe4",
       "uninstall_script_ref": "951b5587",
-      "sha256": "d831c61e3f6c6c1b55b1607411952f70c661e1049e3dae0807db5d3dfa45c74a",
+      "sha256": "d7d0edfe9e4cf9136af5ba3aa0a07e806fa8b20b4ceeb38ee02e7ec4a8573c58",
       "default_categories": [
         "Productivity"
       ]

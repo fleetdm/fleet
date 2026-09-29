@@ -2897,6 +2897,8 @@ type Datastore interface {
 	// profile on every enrollment.
 	ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*AppleProfileForReconcile, error)
 
+	GetAppleProfileForReconcile(ctx context.Context, teamID uint, profileUUID string) (*AppleProfileForReconcile, error)
+
 	// BulkGetHostLabelMemberships returns the subset of (hostID, labelID)
 	// pairs from label_membership that are present, restricted to the
 	// provided host IDs and label IDs. The outer map is keyed by host ID and
@@ -3200,6 +3202,11 @@ type Datastore interface {
 	// CleanupUnusedScriptContents will remove script contents that have no references to them from
 	// the scripts or host_script_results tables.
 	CleanupUnusedScriptContents(ctx context.Context) error
+	// CleanupHostScriptResults deletes script runs whose result was recorded
+	// before olderThan, except those a host lock, wipe, unlock, setup
+	// experience, software uninstall or batch run still refers to. The count is
+	// what was deleted before any failure.
+	CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error)
 	// CleanupExpiredLiveQueries cleans up unsaved queries older than the given expiration window (in days),
 	// orphaned distributed query campaigns that reference non-existing queries, and orphaned campaign targets that reference non-existing campaigns.
 	CleanupExpiredLiveQueries(ctx context.Context, expiryWindowDays int) error
@@ -3458,6 +3465,11 @@ type Datastore interface {
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
 	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
+	// CleanupHostSoftwareInstalls deletes installs and uninstalls that finished
+	// before olderThan, except those a host is still working on, those setup
+	// experience refers to, and the newest one per host and installer in each
+	// direction. The count is what was deleted before any failure.
+	CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error)
 
 	// SaveInHouseAppUpdates persists new values to an existing in house app.
 	SaveInHouseAppUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
@@ -3944,12 +3956,10 @@ type Datastore interface {
 	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
 	// ScimUserByHostID retrieves a SCIM user associated with a host ID
 	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
-	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-	// If the slice is empty, it returns true
-	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
-	// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore
-	// If the slice is empty, it returns true
-	ScimGroupsExist(ctx context.Context, ids []uint) (bool, error)
+	// ExistingScimUserIDs returns the subset of the provided SCIM user IDs that exist.
+	ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error)
+	// ExistingScimGroupIDs returns the subset of the provided SCIM group IDs that exist.
+	ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
@@ -4296,6 +4306,14 @@ type Datastore interface {
 	// BulkGetHostMDMProfileOptIns returns opt-ins for the given hosts, keyed
 	// host UUID -> profile UUID set.
 	BulkGetHostMDMProfileOptIns(ctx context.Context, hostUUIDs []string) (map[string]map[string]struct{}, error)
+	// HasHostMDMProfileOptIn checks if a given host has opted in to a specific MDM profile.
+	HasHostMDMProfileOptIn(ctx context.Context, hostUUID string, profileUUID string) (bool, error)
+	// QueueHostMDMAppleProfileInstall upserts the host's profile row as a pending install (NULL status) for the
+	// reconciler to deliver.
+	QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *AppleProfileForReconcile) error
+	// QueueHostMDMAppleProfileRemoval marks the host's profile row as a pending removal (NULL status), or deletes it
+	// if the install was never sent. It is a no-op if the host has no row for the profile.
+	QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error
 }
 
 type AndroidDatastore interface {

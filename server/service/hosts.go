@@ -11,6 +11,7 @@ import (
 	"iter"
 	"net/http"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -2127,6 +2129,17 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
 
+				// Appended after the OS settings summary above so not-yet-installed opt-in profiles don't count as pending.
+				if host.Platform == "darwin" && license.IsPremium(ctx) {
+					available, err := svc.availableSelfServiceAppleProfiles(ctx, host, profs)
+					if err != nil {
+						return nil, err
+					}
+					for _, p := range available {
+						profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+					}
+				}
+
 				// Nano details were read above the outer MDM guard; reuse the
 				// pre-read struct for the fields that only make sense when
 				// Apple MDM is on (bootstrap token escrow).
@@ -3041,8 +3054,9 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 	// self-service tab. Same URL as the Web Clip profile in
 	// docs/solutions/ios-ipados.
 	if host.Platform == "ios" || host.Platform == "ipados" {
+		// Hosts assigned in Apple Business but not yet enrolled have no UUID.
 		if host.UUID == "" {
-			return "", ctxerr.New(ctx, "host has no UUID to build a device URL from")
+			return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLNotEnrolledMessage}
 		}
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -4978,4 +4992,54 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
+// with a nil status so they read as available to install.
+func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")
+	}
+
+	listed := make(map[string]struct{}, len(profs))
+	for _, p := range profs {
+		listed[p.ProfileUUID] = struct{}{}
+	}
+	var candidates []*fleet.AppleProfileForReconcile
+	var labelIDs []uint
+	for _, p := range teamProfiles {
+		if _, ok := listed[p.ProfileUUID]; ok || !p.SelfService {
+			continue
+		}
+		candidates = append(candidates, p)
+		for _, l := range slices.Concat(p.IncludeLabels, p.ExcludeLabels) {
+			if l.LabelID != nil {
+				labelIDs = append(labelIDs, *l.LabelID)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	memberships, err := svc.ds.BulkGetHostLabelMemberships(ctx, []uint{host.ID}, labelIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label memberships")
+	}
+	var out []fleet.HostMDMAppleProfile
+	for _, p := range candidates {
+		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], false) {
+			continue
+		}
+		out = append(out, fleet.HostMDMAppleProfile{
+			ProfileUUID: p.ProfileUUID,
+			Name:        p.ProfileName,
+			Identifier:  p.ProfileIdentifier,
+			Scope:       p.Scope,
+			SelfService: true,
+			Hidden:      p.Hidden,
+		})
+	}
+	return out, nil
 }

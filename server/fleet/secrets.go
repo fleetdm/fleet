@@ -39,7 +39,7 @@ const (
 
 	// HostSecretEnrollSecret is the host secret type for the per-device,
 	// single-use enroll secret embedded in the fleetd configuration profile when
-	// auth.use_one_time_enroll_secrets is enabled. The secret is minted for the
+	// mdm.apple_one_time_enroll_secrets is enabled. The secret is minted for the
 	// requesting host the first time the profile is delivered and re-delivered
 	// unchanged until it is consumed by enrollment.
 	HostSecretEnrollSecret = "ENROLL_SECRET" // nolint:gosec // G101: this is a constant identifier, not a credential
