@@ -158,7 +158,7 @@ trap 'rm -rf "${WORK_DIR}"' EXIT
 # ---------------------------------------------------------------------------
 
 preflight() {
-    for tool in openssl curl jq; do
+    for tool in openssl curl jq tpm2-tools tpm2-abrmd; do
         command -v "${tool}" >/dev/null 2>&1 || fail "required tool '${tool}' is not installed"
     done
 
