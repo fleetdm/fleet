@@ -75,13 +75,6 @@ After the first end user connects their device to Wi-Fi, confirm that it's set u
 3. On **Host details > OS settings**, confirm the Okta SCEP profile is **Verified**.
 4. In Okta, head to **Directory > Devices** and confirm the device appears with the status **Managed**.
 
-## Further reading
-
-- [Autopilot without Autopilot: zero-touch Windows deployment with Fleet](https://fleetdm.com/articles/autopilot-without-autopilot)
-- [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package)
-- [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile)
-- [Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet)
-
 <meta name="articleTitle" value="Provision Windows devices with Fleet, Okta, and a partner">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
