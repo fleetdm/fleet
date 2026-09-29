@@ -39,20 +39,6 @@ type mockAndroidModule struct {
 	setAppsForAndroidPolicyFunc          func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
 	addAppsToAndroidPolicyFunc           func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
 	removeAppsFromAndroidPolicyFunc      func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
-	patchPolicyStatusReportingFunc       func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy) (bool, error)
-	patchDeviceFunc                      func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error)
-}
-
-func (m *mockAndroidModule) PatchPolicyStatusReporting(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy) (bool, error) {
-	return m.patchPolicyStatusReportingFunc(ctx, policyID, policyName, policy)
-}
-
-func (m *mockAndroidModule) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error) {
-	return m.patchDeviceFunc(ctx, policyID, deviceName, device)
-}
-
-func (m *mockAndroidModule) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
-	return nil
 }
 
 func (m *mockAndroidModule) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
@@ -612,56 +598,5 @@ func TestBuildApplicationPolicyWithConfig(t *testing.T) {
 		require.Equal(t, "FORCE_INSTALLED", policies[0].InstallType)
 		require.Empty(t, policies[0].WorkProfileWidgets)
 		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
-	})
-}
-
-// The host-specific policy may already hold the host's merged configuration profiles (the
-// reconciler can run before this job, and a re-enrolled host reuses its policy), so moving the
-// host off the default policy must only touch status reporting. PatchPolicy is not mocked, so a
-// full patch panics.
-func TestEnsureHostSpecificPolicyIsAppliedOnlyPatchesStatusReporting(t *testing.T) {
-	const (
-		hostUUID       = "host-uuid"
-		enterpriseName = "enterprises/test"
-	)
-
-	var patchedPolicyName, patchedDeviceName, devicePolicyName string
-	var patchedPolicy *androidmanagement.Policy
-	androidModule := &mockAndroidModule{
-		patchPolicyStatusReportingFunc: func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy) (bool, error) {
-			patchedPolicyName = policyName
-			patchedPolicy = policy
-			return false, nil
-		},
-		patchDeviceFunc: func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error) {
-			patchedDeviceName = deviceName
-			devicePolicyName = device.PolicyName
-			return false, nil
-		},
-	}
-	ds := new(mock.Store)
-	ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
-		return &fleet.AndroidHost{Host: &fleet.Host{UUID: uuid}, Device: &android.Device{DeviceID: "device-id"}}, nil
-	}
-	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
-
-	t.Run("default policy", func(t *testing.T) {
-		err := w.ensureHostSpecificPolicyIsApplied(t.Context(), hostUUID, enterpriseName, fmt.Sprint(android.DefaultAndroidPolicyID))
-		require.NoError(t, err)
-
-		hostPolicyName := enterpriseName + "/policies/" + hostUUID
-		assert.Equal(t, hostPolicyName, patchedPolicyName)
-		require.NotNil(t, patchedPolicy)
-		assert.NotNil(t, patchedPolicy.StatusReportingSettings)
-		assert.Equal(t, enterpriseName+"/devices/device-id", patchedDeviceName)
-		assert.Equal(t, hostPolicyName, devicePolicyName)
-	})
-
-	t.Run("host policy already applied", func(t *testing.T) {
-		patchedPolicyName, patchedDeviceName = "", ""
-		err := w.ensureHostSpecificPolicyIsApplied(t.Context(), hostUUID, enterpriseName, hostUUID)
-		require.NoError(t, err)
-		assert.Empty(t, patchedPolicyName)
-		assert.Empty(t, patchedDeviceName)
 	})
 }

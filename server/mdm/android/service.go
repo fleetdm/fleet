@@ -64,9 +64,6 @@ type Service interface {
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
 	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
-	// PatchPolicyStatusReporting updates only the policy's status reporting settings, leaving any
-	// settings merged in from configuration profiles untouched.
-	PatchPolicyStatusReporting(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy) (skip bool, err error)
 
 	// VerifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
 	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.

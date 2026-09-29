@@ -314,11 +314,8 @@ func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, 
 			ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
 		}
 
-		// Only patch status reporting: the reconciler may have already merged the host's
-		// configuration profiles into this policy (and a re-enrolled host reuses its policy),
-		// so a full patch would silently wipe them while they still show as delivered.
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-		_, err := v.AndroidModule.PatchPolicyStatusReporting(ctx, hostUUID, policyName, &policy)
+		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
 		if err != nil {
 			return err
 		}

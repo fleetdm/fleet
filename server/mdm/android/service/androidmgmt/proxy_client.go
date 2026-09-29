@@ -166,28 +166,16 @@ type PoliciesPatchOpts struct {
 	OnlyUpdateApps bool
 	// ExcludeApps tells the client to not update the policy's application list.
 	ExcludeApps bool
-	// OnlyUpdateStatusReporting tells the client to only update the policy's
-	// status reporting settings, leaving every other field as-is.
-	OnlyUpdateStatusReporting bool
-}
-
-func (o PoliciesPatchOpts) updateMask() string {
-	switch {
-	case o.ExcludeApps:
-		return policyFieldMask
-	case o.OnlyUpdateApps:
-		return "applications"
-	case o.OnlyUpdateStatusReporting:
-		return "statusReportingSettings"
-	}
-	return ""
 }
 
 func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
 
-	if mask := opts.updateMask(); mask != "" {
-		call = call.UpdateMask(mask)
+	switch {
+	case opts.ExcludeApps:
+		call = call.UpdateMask(policyFieldMask)
+	case opts.OnlyUpdateApps:
+		call = call.UpdateMask("applications")
 	}
 
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
