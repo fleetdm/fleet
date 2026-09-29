@@ -362,11 +362,15 @@ activate_key_and_certificate() {
     fi
 
     # Step 2: Atomic moves
-    mv "${candidate_key}" "${KEY_FILE}"
-    chmod 600 "${KEY_FILE}"
+    if ! mv "${candidate_key}" "${KEY_FILE}" || ! chmod 600 "${KEY_FILE}"; then
+        restore_previous_pair || true
+        fail "key activation failed; previous key and certificate were restored when possible"
+    fi
     
-    mv "${candidate_cert}" "${CERT_FILE}"
-    chmod 644 "${CERT_FILE}"
+    if ! mv "${candidate_cert}" "${CERT_FILE}" || ! chmod 644 "${CERT_FILE}"; then
+        restore_previous_pair || true
+        fail "certificate activation failed; previous key and certificate were restored when possible"
+    fi
     log "activated new key+certificate pair"
 }
 
