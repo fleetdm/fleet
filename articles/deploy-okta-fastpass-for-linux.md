@@ -103,7 +103,24 @@ By default, the `certificate` field in the response is a PEM-encoded PKCS7 envel
 
 Until [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993) ships, use this script to test certificate issuance. It skips Fleet's "Request certificate" API endpoint and requests the certificate straight from Okta's SCEP endpoint. It's for testing only, because the Okta SCEP password is available to every host that runs it.
 
-1. Install the `scep` package on the test host (`sudo apt install scep`). It provides [`scepclient`](https://github.com/micromdm/scep), which the script uses to enroll with Okta's SCEP endpoint.
+1. Install [`scepclient`](https://github.com/micromdm/scep) v2.3.0 or later on the test host. The script uses it to enroll with Okta's SCEP endpoint. Don't use Ubuntu's `scep` package (`apt install scep`): it ships v2.1.0, which fails with `pkcs7: Message digest mismatch` when it reads Okta's response.
+
+   On x86_64 (amd64) hosts, install the release binary (install `unzip` first if it's missing):
+
+   ```shell
+   curl -fLO https://github.com/micromdm/scep/releases/download/v2.3.0/scepclient-linux-amd64-v2.3.0.zip
+   unzip scepclient-linux-amd64-v2.3.0.zip
+   sudo install -m 755 scepclient-linux-amd64 /usr/local/bin/scepclient
+   ```
+
+   The release doesn't include an arm64 binary. On arm64 hosts, build it with Go:
+
+   ```shell
+   sudo apt install -y golang-go git
+   git clone --depth 1 --branch v2.3.0 https://github.com/micromdm/scep
+   cd scep && go build -o scepclient ./cmd/scepclient
+   sudo install -m 755 scepclient /usr/local/bin/scepclient
+   ```
 2. In Fleet, head to **Controls > Variables** and create a variable called `OKTA_SCEP_PASSWORD` with the password from Okta's **Add device management platform** page in Step 3. The script reads it as `$FLEET_SECRET_OKTA_SCEP_PASSWORD`.
 3. Download [`okta-scep-enroll.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/okta-scep-enroll.sh), then replace `<Okta-challenge-URL>`, `<Okta-SCEP-URL>`, and `<Okta-SCEP-username>` with the values from the same Okta page.
 4. In Fleet, head to **Controls > Scripts**, upload the script, then run it on the test host from **Host details > Actions > Run script**.

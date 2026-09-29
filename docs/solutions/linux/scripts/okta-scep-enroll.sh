@@ -4,7 +4,9 @@
 #
 # Enroll this host's Okta device certificate over SCEP and install it.
 #
-# Uses scepclient from micromdm/scep (Ubuntu/Debian package "scep").
+# Uses scepclient v2.3.0 or later from micromdm/scep
+# (https://github.com/micromdm/scep/releases). Ubuntu's "scep" package ships
+# v2.1.0, which can't parse Okta's response ("pkcs7: Message digest mismatch").
 #
 # Optional overrides, useful for testing (defaults shown):
 #   CERT_DIR=/etc/okta          where device.key and device.pem are installed
@@ -38,7 +40,7 @@ case "$CHALLENGE_URL$SCEP_URL$SCEP_USERNAME" in
   *"<Okta-"*) die "Fill in CHALLENGE_URL, SCEP_URL and SCEP_USERNAME at the top of the script" ;;
 esac
 [ -n "$SCEP_PASSWORD" ] || die "FLEET_SECRET_OKTA_SCEP_PASSWORD is empty"
-[ -n "$IDP_USERNAME" ]  || die "FLEET_VAR_HOST_END_USER_IDP_USERNAME is empty"
+# IDP_USERNAME is optional; without it the CN is just "Okta FastPass".
 
 # Private scratch dir; always cleaned up, including on failure.
 WORK_DIR="$(mktemp -d /tmp/okta-scep.XXXXXX)"
@@ -73,13 +75,11 @@ unset cred
 # NDES returns UTF-16 HTML. Dropping NUL bytes decodes it and leaves the tags
 # strippable, so this works whether the response is UTF-16 or UTF-8.
 CHALLENGE_TEXT="$(tr -d '\0' < "$WORK_DIR/challenge.html" | sed 's/<[^>]*>/ /g' | tr -s '[:space:]' ' ')"
-# Prefer the value right after "password is"; fall back to the first long token.
+# Take the value right after "password is". Okta's challenges include - and _.
+# No "first long token" fallback: on Okta's page that's the CA thumbprint.
 CHALLENGE="$(printf '%s\n' "$CHALLENGE_TEXT" \
-  | grep -oiE 'password is:? *[A-Za-z0-9]{16,}' \
-  | grep -oE '[A-Za-z0-9]{16,}$' | head -n1 || true)"
-if [ -z "$CHALLENGE" ]; then
-  CHALLENGE="$(printf '%s\n' "$CHALLENGE_TEXT" | grep -oE '[A-Za-z0-9]{16,}' | head -n1 || true)"
-fi
+  | grep -oiE 'password is:? *[A-Za-z0-9_+/=-]{16,}' \
+  | grep -oE '[A-Za-z0-9_+/=-]{16,}$' | head -n1 || true)"
 [ -n "$CHALLENGE" ] || die "No challenge found in Okta's response (rerun with KEEP_WORK_DIR=1 and inspect challenge.html)"
 
 # --- 3. CA chain -----------------------------------------------------------
@@ -114,17 +114,14 @@ fi
 # GetCACaps and PKIOperation. Empty -organization/-ou/-country keep its
 # defaults ("scep-client", "MDM", "US") out of the subject, so the CSR subject
 # is just the CN.
-# Caveats of scepclient 2.1.0, with no flags to change them:
-#   - the challenge can only be passed as an argument, so it shows in `ps`
-#     while scepclient runs (it's one-time and short-lived)
-#   - the SCEP message uses DES-CBC encryption and SHA-1 signing; TLS on
-#     SCEP_URL still protects it in transit
+# scepclient can only take the challenge as an argument, so it shows in `ps`
+# while scepclient runs (it's one-time and short-lived).
 scep_args=(
   -server-url "$SCEP_URL"
   -private-key "$WORK_DIR/scep.key"
   -certificate "$WORK_DIR/device.pem"
   -challenge "$CHALLENGE"
-  -cn "$IDP_USERNAME Okta FastPass"
+  -cn "${IDP_USERNAME:+$IDP_USERNAME }Okta FastPass"
   -organization "" -ou "" -country ""
 )
 [ -z "$CA_FP" ] || scep_args+=(-ca-fingerprint "$CA_FP")
