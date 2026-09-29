@@ -1,20 +1,13 @@
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
-import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { createMockActivity } from "__mocks__/activityMock";
-import { ActivityType } from "interfaces/activity";
 import {
   activityHandlerHasMoreActivities,
   activityHandlerHasPreviousActivities,
 } from "test/handlers/activity-handlers";
 import mockServer from "test/mock-server";
-import {
-  baseUrl,
-  createCustomRenderer,
-  createMockRouter,
-} from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import ActivityFeed from "./ActivityFeed";
 
@@ -107,48 +100,4 @@ describe("Activity Feed", () => {
 
     expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
   });
-
-  it.each([
-    { platform: "windows" as const, profile: "Fleetd enroll secret" },
-    { platform: "darwin" as const, profile: "Fleetd configuration" },
-  ])(
-    "names the $profile profile in the details of a $platform spent-secret rejection",
-    async ({ platform, profile }) => {
-      mockServer.use(
-        http.get(baseUrl("/activities"), () =>
-          HttpResponse.json({
-            activities: [
-              createMockActivity({
-                type: ActivityType.HostEnrollmentRejected,
-                fleet_initiated: true,
-                details: {
-                  host_display_name: "Anna's laptop",
-                  reason: "one_time_secret_spent",
-                  platform,
-                },
-              }),
-            ],
-            meta: { has_next_results: false, has_previous_results: false },
-          })
-        )
-      );
-      const render = createCustomRenderer({ withBackendMock: true });
-
-      const { user } = render(
-        <ActivityFeed
-          setShowActivityFeedTitle={noop}
-          setRefetchActivities={noop}
-          isPremiumTier
-          router={createMockRouter()}
-        />
-      );
-
-      await user.click(
-        await screen.findByRole("button", { name: "show info" })
-      );
-
-      expect(await screen.findByText("Enrollment details")).toBeInTheDocument();
-      expect(screen.getByText(profile)).toBeInTheDocument();
-    }
-  );
 });

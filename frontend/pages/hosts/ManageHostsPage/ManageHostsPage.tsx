@@ -545,8 +545,6 @@ const ManageHostsPage = ({
     }
   );
 
-  // Either setting lets some hosts enroll without an enroll secret, so the
-  // "no enroll secrets" banner would overstate the problem.
   const useOneTimeEnrollSecrets =
     !!config?.auth?.mdm_apple_one_time_enroll_secrets ||
     !!config?.auth?.mdm_windows_one_time_enroll_secrets;
