@@ -91,7 +91,7 @@ Right after osquery starts, an hourly report's target moments are on the hour, U
 
 While a host sleeps, its schedule pauses. The schedule falls behind the clock by however long the host slept, and it stays behind until osquery restarts. For example, a laptop that's awake 8 hours a day and asleep the rest may run an "Every day" report only every 3 days.
 
-A host also has to be awake and running Fleet at a target moment to report in. A host whose off/on pattern lines up with its target moment, like a desktop that's always shut down in the evening, can go a long time without new results even if it's online plenty otherwise.
+A host also has to be awake and running Fleet at a target moment to report in. A host that is usually off at its target moment, like a desktop shut down for the evening in a less-compatible timezone, can go a long time without new results.
 
 Those are target moments, not exact ones. The first time a host picks up a report, Fleet nudges the interval up or down by up to 10% (configurable via `schedule_splay_percent` in [agent options](https://fleetdm.com/docs/configuration/agent-configuration)) and locks in that adjusted number for that host, so different hosts don't all check in at once. So in practice, an hourly report checks in every 54 to 66 minutes, and a weekly report checks in roughly every 6 to 8 days, consistently for that host. Want to know exactly when a specific host will check in next? Run `SELECT * FROM osquery_schedule` as a live query.
 
