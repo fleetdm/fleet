@@ -81,8 +81,10 @@ module.exports = {
 
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
       if (!sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
-      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;      let _rtKey = androidEnterpriseId + ':modify_app_policy';
-      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'modify_app_policy'}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;
+      let _requestType = googleAction === 'removePolicyApplications' ? 'remove_app_policy' : 'modify_app_policy';
+      let _rtKey = androidEnterpriseId + ':' + _requestType;
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: _requestType}; }
       sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       switch (googleAction) {
         case 'removePolicyApplications': {

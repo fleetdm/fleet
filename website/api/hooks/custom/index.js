@@ -202,20 +202,24 @@ will be disabled and/or hidden in the UI.
             });
             metricsToSendToDatadog = metricsToSendToDatadog.concat(perRequestTypeMetrics);
 
-            sails.helpers.http.post.with({
-              url: 'https://api.us5.datadoghq.com/api/v2/series',
-              data: {
-                series: metricsToSendToDatadog
-              },
-              headers: {
-                'DD-API-KEY': sails.config.custom.datadogApiKey,
-                'Content-Type': 'application/json',
-              },
-            }).exec((err)=>{
-              if (err) {
-                sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
-              }
-            });//_∏_
+            // Chunk metrics into batches of 500 to stay under Datadog's 512 KB request body limit.
+            let chunkedMetrics = _.chunk(metricsToSendToDatadog, 500);
+            for (let chunk of chunkedMetrics) {
+              sails.helpers.http.post.with({
+                url: 'https://api.us5.datadoghq.com/api/v2/series',
+                data: {
+                  series: chunk
+                },
+                headers: {
+                  'DD-API-KEY': sails.config.custom.datadogApiKey,
+                  'Content-Type': 'application/json',
+                },
+              }).exec((err)=>{
+                if (err) {
+                  sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
+                }
+              });//_∏_
+            }
           }//ﬁ
 
           sails.log.info(`Android proxy: ${requestCountInLastMinute} Android Management API request(s) in the last minute.`);
