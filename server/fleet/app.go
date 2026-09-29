@@ -2325,10 +2325,10 @@ type Partnerships struct {
 // AuthSettings exposes the read-only authentication settings that come from
 // the server configuration and that the UI adapts to.
 type AuthSettings struct {
-	// UseOneTimeEnrollSecrets mirrors the auth.use_one_time_enroll_secrets
+	// MDMAppleOneTimeEnrollSecrets mirrors the mdm.apple_one_time_enroll_secrets
 	// server configuration.
-	UseOneTimeEnrollSecrets bool `json:"use_one_time_enroll_secrets,omitempty"`
-	// MDMWindowsOneTimeEnrollSecrets mirrors the auth.mdm_windows_one_time_enroll_secrets server configuration.
+	MDMAppleOneTimeEnrollSecrets bool `json:"mdm_apple_one_time_enroll_secrets,omitempty"`
+	// MDMWindowsOneTimeEnrollSecrets mirrors the mdm.windows_one_time_enroll_secrets server configuration.
 	MDMWindowsOneTimeEnrollSecrets bool `json:"mdm_windows_one_time_enroll_secrets,omitempty"`
 }
 

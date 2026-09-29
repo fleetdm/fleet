@@ -59,10 +59,10 @@ type oneTimeEnrollFixture struct {
 }
 
 func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTimeEnrollFixture {
-	return newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) { auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets })
+	return newOneTimeEnrollFixtureWithMDM(t, func(mdmConfig *config.MDMConfig) { mdmConfig.AppleOneTimeEnrollSecrets = useOneTimeEnrollSecrets })
 }
 
-func newOneTimeEnrollFixtureWithAuth(t *testing.T, setAuth func(*config.AuthConfig)) *oneTimeEnrollFixture {
+func newOneTimeEnrollFixtureWithMDM(t *testing.T, setMDM func(*config.MDMConfig)) *oneTimeEnrollFixture {
 	hostID := uint(42)
 	row := fleet.HostOneTimeEnrollSecret{
 		ID:             7,
@@ -76,7 +76,7 @@ func newOneTimeEnrollFixtureWithAuth(t *testing.T, setAuth func(*config.AuthConf
 
 	ds := new(mock.DataStore)
 	cfg := config.TestConfig()
-	setAuth(&cfg.Auth)
+	setMDM(&cfg.MDM)
 	var logs bytes.Buffer
 	opts := &TestServerOpts{KeyValueStore: memoryKVStore(), Logger: slog.New(slog.NewTextHandler(&logs, nil))}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
@@ -175,7 +175,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		require.NotNil(t, got.OneTimeEnrollSecretID)
 		require.Equal(t, f.row.ID, *got.OneTimeEnrollSecretID)
 		require.Equal(t, f.row.TeamID, got.TeamID)
-		require.False(t, got.RejectSharedSecretForMDMHosts)
+		require.False(t, got.RejectSharedSecretForAppleMDMHosts)
 		require.Empty(t, *f.rejections)
 		require.Equal(t, 1, *f.enrolled)
 	})
@@ -221,7 +221,7 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 			require.NoError(t, err)
 			require.Nil(t, got.OneTimeEnrollSecretID)
 			require.Equal(t, new(uint(9)), got.TeamID)
-			require.Equal(t, flag, got.RejectSharedSecretForMDMHosts)
+			require.Equal(t, flag, got.RejectSharedSecretForAppleMDMHosts)
 		}
 	})
 
@@ -263,9 +263,9 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 			{name: "apple secret, only windows on", platform: "darwin", windowsOneTimeEnrollSecrets: true},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				f := newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) {
-					auth.UseOneTimeEnrollSecrets = tc.useOneTimeEnrollSecrets
-					auth.MDMWindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
+				f := newOneTimeEnrollFixtureWithMDM(t, func(mdmConfig *config.MDMConfig) {
+					mdmConfig.AppleOneTimeEnrollSecrets = tc.useOneTimeEnrollSecrets
+					mdmConfig.WindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
 				})
 				f.row.Platform = tc.platform
 				f.ds.GetHostOneTimeEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.HostOneTimeEnrollSecret, error) {
@@ -337,7 +337,7 @@ func TestEnrollOsqueryWithOneTimeEnrollSecret(t *testing.T) {
 			_, err := f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
 			require.NoError(t, err)
 			require.Nil(t, got.OneTimeEnrollSecretID)
-			require.Equal(t, flag, got.RejectSharedSecretForMDMHosts)
+			require.Equal(t, flag, got.RejectSharedSecretForAppleMDMHosts)
 		}
 	})
 
@@ -360,7 +360,7 @@ func TestRecordEnrollmentRejectedWithoutKeyValueStore(t *testing.T) {
 	f := newOneTimeEnrollFixture(t, true)
 	svc, ctx := newTestServiceWithConfig(t, f.ds, func() config.FleetConfig {
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = true
+		cfg.MDM.AppleOneTimeEnrollSecrets = true
 		return cfg
 	}(), nil, nil, &TestServerOpts{})
 	info := f.orbitInfo()
@@ -456,7 +456,7 @@ func TestResendFleetdProfileWithOneTimeEnrollSecrets(t *testing.T) {
 	newSvc := func(t *testing.T, flag bool, status fleet.MDMDeliveryStatus) (*mock.Store, fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = flag
+		cfg.MDM.AppleOneTimeEnrollSecrets = flag
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
 			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium},
 			SkipCreateTestUsers: true,
@@ -625,7 +625,9 @@ func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
 		{name: "disabled", windowsOneTimeEnrollSecrets: false, windowsMDMEnabled: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newOneTimeEnrollFixtureWithAuth(t, func(auth *config.AuthConfig) { auth.MDMWindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets })
+			f := newOneTimeEnrollFixtureWithMDM(t, func(mdmConfig *config.MDMConfig) {
+				mdmConfig.WindowsOneTimeEnrollSecrets = tc.windowsOneTimeEnrollSecrets
+			})
 			f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				ac := &fleet.AppConfig{}
 				ac.MDM.EnabledAndConfigured = true
@@ -646,12 +648,12 @@ func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
 			_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRejectOnWindows, orbitCfg.RejectSharedSecretForWindowsMDMHosts)
-			require.False(t, orbitCfg.RejectSharedSecretForMDMHosts)
+			require.False(t, orbitCfg.RejectSharedSecretForAppleMDMHosts)
 
 			_, err = f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
 			require.NoError(t, err)
 			require.Equal(t, tc.wantRejectOnWindows, osqueryCfg.RejectSharedSecretForWindowsMDMHosts)
-			require.False(t, osqueryCfg.RejectSharedSecretForMDMHosts)
+			require.False(t, osqueryCfg.RejectSharedSecretForAppleMDMHosts)
 		})
 	}
 }

@@ -110,12 +110,12 @@ func TestEnsureFleetWindowsProfiles(t *testing.T) {
 
 func TestDeliversOneTimeEnrollSecret(t *testing.T) {
 	// Each platform answers only to its own one-time enroll secrets setting.
-	appleOnly := config.AuthConfig{UseOneTimeEnrollSecrets: true}
-	windowsOnly := config.AuthConfig{MDMWindowsOneTimeEnrollSecrets: true}
+	appleOnly := config.MDMConfig{AppleOneTimeEnrollSecrets: true}
+	windowsOnly := config.MDMConfig{WindowsOneTimeEnrollSecrets: true}
 
 	for _, tc := range []struct {
 		name        string
-		auth        config.AuthConfig
+		mdmConfig   config.MDMConfig
 		profileUUID string
 		profileName string
 		want        bool
@@ -127,7 +127,7 @@ func TestDeliversOneTimeEnrollSecret(t *testing.T) {
 		{"other windows profiles carry no secret", windowsOnly, "w-1", mdm.FleetWindowsOSUpdatesProfileName, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, deliversOneTimeEnrollSecret(tc.auth, tc.profileUUID, tc.profileName))
+			require.Equal(t, tc.want, deliversOneTimeEnrollSecret(tc.mdmConfig, tc.profileUUID, tc.profileName))
 		})
 	}
 }
@@ -154,7 +154,7 @@ func TestResendWindowsEnrollSecretProfileRequiresWindowsOneTimeEnrollSecrets(t *
 			return 0, nil
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
+		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		opts := &TestServerOpts{}
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 		opts.ActivityMock.NewActivityFunc = func(ctx context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
@@ -224,7 +224,7 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 			return true, nil
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
+		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		return svc.(validationMiddleware).Service.(*Service), ds, st
 	}

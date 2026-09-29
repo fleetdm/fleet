@@ -6083,7 +6083,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	t := s.T()
 	ctx := context.Background()
 	kv := redis_key_value.New(s.redisPool)
-	// The Fleetd enroll secret profile only exists when auth.mdm_windows_one_time_enroll_secrets is on, which this suite doesn't set.
+	// The Fleetd enroll secret profile only exists when mdm.windows_one_time_enroll_secrets is on, which this suite doesn't set.
 	reservedWindowsNames := []string{servermdm.FleetWindowsOSUpdatesProfileName}
 
 	checkMacProfs := func(teamID *uint, names ...string) {

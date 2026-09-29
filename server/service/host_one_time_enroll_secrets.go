@@ -47,7 +47,7 @@ func (svc *Service) lookupOneTimeEnrollSecret(ctx context.Context, secret string
 		return nil, err
 	}
 	// The stored platform, not the presented one.
-	if !svc.config.Auth.OneTimeEnrollSecretsEnabledForPlatform(oneTime.Platform) {
+	if !svc.config.MDM.OneTimeEnrollSecretsEnabledForPlatform(oneTime.Platform) {
 		return nil, nil
 	}
 	return oneTime, nil
@@ -143,17 +143,17 @@ func isWindowsEnrollSecretProfile(profileUUID, profileName string) bool {
 // deliversOneTimeEnrollSecret reports whether resending this profile mints a new enrollment credential for the host: the fleetd
 // configuration profile on Apple, the enroll secret profile on Windows. Both names are reserved, so users cannot upload a
 // profile that impersonates one, which is what makes the name a reliable discriminator.
-func deliversOneTimeEnrollSecret(auth config.AuthConfig, profileUUID, profileName string) bool {
-	return (auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)) ||
-		(auth.MDMWindowsOneTimeEnrollSecrets && isWindowsEnrollSecretProfile(profileUUID, profileName))
+func deliversOneTimeEnrollSecret(mdmConfig config.MDMConfig, profileUUID, profileName string) bool {
+	return (mdmConfig.AppleOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)) ||
+		(mdmConfig.WindowsOneTimeEnrollSecrets && isWindowsEnrollSecretProfile(profileUUID, profileName))
 }
 
 // rejectSharedSecretForWindowsMDMHosts reports whether a shared enroll secret must be refused for a Windows host enrolled in Fleet MDM.
-func rejectSharedSecretForWindowsMDMHosts(auth config.AuthConfig, appConfig *fleet.AppConfig) bool {
-	return auth.MDMWindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
+func rejectSharedSecretForWindowsMDMHosts(mdmConfig config.MDMConfig, appConfig *fleet.AppConfig) bool {
+	return mdmConfig.WindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
 }
 
-// errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while auth.mdm_windows_one_time_enroll_secrets is off.
+// errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while mdm.windows_one_time_enroll_secrets is off.
 func errWindowsEnrollSecretProfileOff() error {
 	return fleet.NewInvalidArgumentError("HostMDMProfile",
 		"Couldn’t resend. The "+mdm.FleetWindowsEnrollSecretProfileName+

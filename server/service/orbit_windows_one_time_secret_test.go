@@ -28,7 +28,7 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 		ds := new(mock.DataStore)
 		cfg := config.TestConfig()
 		// The Windows switch alone, so this stays a test of the Windows path rather than passing on the macOS one.
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = true
+		cfg.MDM.WindowsOneTimeEnrollSecrets = true
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 
 		device := &fleet.MDMWindowsEnrolledDevice{ID: enrollmentID, MDMDeviceID: deviceID, MDMHardwareID: "hw-otes"}

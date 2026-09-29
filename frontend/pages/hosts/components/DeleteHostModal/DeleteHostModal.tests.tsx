@@ -15,7 +15,7 @@ const renderModal = (
     context: {
       app: {
         config: createMockConfig({
-          auth: { use_one_time_enroll_secrets: useOneTimeEnrollSecrets },
+          auth: { mdm_apple_one_time_enroll_secrets: useOneTimeEnrollSecrets },
         }),
       },
     },

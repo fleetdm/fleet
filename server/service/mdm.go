@@ -3811,7 +3811,7 @@ func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.
 
 	// With one-time enroll secrets, resending the profile that carries one mints a new enrollment credential for the device,
 	// which is an admin decision.
-	if deliversOneTimeEnrollSecret(svc.config.Auth, profileUUID, profileName) {
+	if deliversOneTimeEnrollSecret(svc.config.MDM, profileUUID, profileName) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile",
 			fmt.Sprintf("The %s profile contains a one-time enroll secret and can only be resent by an admin. Ask your IT admin to resend it.", profileName)).
 			WithStatus(http.StatusForbidden), "check one-time enroll secret profile device resend")
@@ -3836,7 +3836,7 @@ type checkAndResendPolicyArgs struct {
 }
 
 func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, onError func(err error, rejected bool), profileUUID string, profileName string, policyArgs *checkAndResendPolicyArgs) {
-	if isWindowsEnrollSecretProfile(profileUUID, profileName) && !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+	if isWindowsEnrollSecretProfile(profileUUID, profileName) && !svc.config.MDM.WindowsOneTimeEnrollSecrets {
 		onError(errWindowsEnrollSecretProfileOff(), true)
 		return
 	}
@@ -3853,7 +3853,7 @@ func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet
 	// fleetd profile may be terminally in the "verifying" state because it has been
 	// acknowledged by MDM but osquery will never report back for verification, so allow
 	// resending it to allow an admin to repair the host's orbit/osquery installation
-	deliversOneTimeSecret := svc.config.Auth.UseOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
+	deliversOneTimeSecret := svc.config.MDM.AppleOneTimeEnrollSecrets && isFleetdConfigProfile(profileUUID, profileName)
 	verifyingAllowed := deliversOneTimeSecret && status == fleet.MDMDeliveryVerifying
 	if status == fleet.MDMDeliveryPending || (status == fleet.MDMDeliveryVerifying && !verifyingAllowed) {
 		onError(ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.").WithStatus(http.StatusConflict), "check profile status"), true)
@@ -4383,7 +4383,7 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 		if err != nil {
 			return err
 		}
-		if isWindowsEnrollSecretProfile(profileUUID, prof.Name) && !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+		if isWindowsEnrollSecretProfile(profileUUID, prof.Name) && !svc.config.MDM.WindowsOneTimeEnrollSecrets {
 			return errWindowsEnrollSecretProfileOff()
 		}
 		teamID = prof.TeamID

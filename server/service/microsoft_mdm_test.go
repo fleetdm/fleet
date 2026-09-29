@@ -3704,7 +3704,7 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 			return nil
 		}
 		cfg := config.TestConfig()
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
+		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 		return svc.(validationMiddleware).Service.(*Service), ds, &events
 	}

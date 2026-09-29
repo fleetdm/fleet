@@ -4220,8 +4220,8 @@ func TestAuthSettings(t *testing.T) {
 	newSvc := func(t *testing.T, useOneTimeEnrollSecrets, windowsOneTimeEnrollSecrets bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
-		cfg.Auth.UseOneTimeEnrollSecrets = useOneTimeEnrollSecrets
-		cfg.Auth.MDMWindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
+		cfg.MDM.AppleOneTimeEnrollSecrets = useOneTimeEnrollSecrets
+		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		return newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	}
 
@@ -4238,7 +4238,7 @@ func TestAuthSettings(t *testing.T) {
 			settings, err := svc.AuthSettings(test.UserContext(ctx, user))
 			require.NoError(t, err)
 			require.NotNil(t, settings)
-			require.True(t, settings.UseOneTimeEnrollSecrets)
+			require.True(t, settings.MDMAppleOneTimeEnrollSecrets)
 		}
 	})
 

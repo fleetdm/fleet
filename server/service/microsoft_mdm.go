@@ -1520,7 +1520,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDev
 
 	// With one-time enroll secrets the command carries a placeholder.
 	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
-	if !svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+	if !svc.config.MDM.WindowsOneTimeEnrollSecrets {
 		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting enroll secrets")
@@ -1615,7 +1615,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDev
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
 	// Create the Windows one-time enroll secret, because the caller only gets here when fleetd is absent.
-	if svc.config.Auth.MDMWindowsOneTimeEnrollSecrets {
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
 		if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for fleetd install")
 		}
@@ -1645,7 +1645,7 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		}
 	}
 
-	if svc.config.Auth.MDMWindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
 		svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
 	}
 	return nil

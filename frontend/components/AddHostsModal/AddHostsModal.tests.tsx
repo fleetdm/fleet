@@ -404,7 +404,7 @@ describe("AddHostsModal", () => {
         app: {
           isPreviewMode: false,
           config: createMockConfig({
-            auth: { use_one_time_enroll_secrets: true },
+            auth: { mdm_apple_one_time_enroll_secrets: true },
           }),
         },
       },
