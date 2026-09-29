@@ -1889,7 +1889,7 @@ describe("Host Actions Dropdown", () => {
   describe.each(["On (personal)", "On (manual - personal)"] as const)(
     "personally enrolled hosts (enrollment status %s)",
     (enrollmentStatus) => {
-      it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
+      it("render only the Transfer, Unenroll, and Delete options for personally enrolled ios host", async () => {
         const render = createCustomRenderer({
           context: {
             app: {
@@ -1924,16 +1924,17 @@ describe("Host Actions Dropdown", () => {
         expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
         expect(screen.queryByText("Lock")).not.toBeInTheDocument();
         expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-        expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+        expect(screen.getByText("Unenroll")).toBeInTheDocument();
         expect(
           screen.queryByText("Show disk encryption key")
         ).not.toBeInTheDocument();
       });
 
-      it("render only the Transfer and Delete options for personally enrolled ipad host", async () => {
+      it("render only the Transfer, Unenroll, and Delete options for personally enrolled ipad host", async () => {
         const render = createCustomRenderer({
           context: {
             app: {
+              isMacMdmEnabledAndConfigured: true,
               isPremiumTier: true,
               isGlobalAdmin: true,
               currentUser: createMockUser(),
@@ -1964,7 +1965,7 @@ describe("Host Actions Dropdown", () => {
         expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
         expect(screen.queryByText("Lock")).not.toBeInTheDocument();
         expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-        expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+        expect(screen.getByText("Unenroll")).toBeInTheDocument();
         expect(
           screen.queryByText("Show disk encryption key")
         ).not.toBeInTheDocument();
