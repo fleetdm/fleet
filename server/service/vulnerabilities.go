@@ -158,6 +158,8 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 		return getVulnerabilityResponse{statusCode: http.StatusNoContent}, nil
 	}
 
+	vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
+
 	osVersions, _, err := svc.ListOSVersionsByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {
 		return getVulnerabilityResponse{Err: err}, nil
@@ -214,12 +216,6 @@ func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint,
 		return nil, false, err
 	default:
 		known = true
-		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
-		// Only premium loads NVD's published date, so free tier can't tell whether NVD has a page yet.
-		// CNAs such as MSRC publish on CVE.org before NVD does.
-		if useCVSScores && (vuln.CVEPublished == nil || *vuln.CVEPublished == nil) {
-			vuln.DetailsLink = fmt.Sprintf("https://www.cve.org/CVERecord?id=%s", vuln.CVE.CVE)
-		}
 	}
 
 	return vuln, known, nil
