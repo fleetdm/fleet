@@ -58,9 +58,15 @@ case " ${ID:-} ${ID_LIKE:-} " in
     # point release this policy checks; add
     # -o APT::Get::Always-Include-Phased-Updates=true if a future policy compares
     # package versions instead.
+    # A dirty dpkg journal with no dpkg running means a run was cut short (e.g. by
+    # power loss); apt refuses to start until `dpkg --configure -a` finishes it.
+    # Use-Pty=0 keeps dpkg's progress meter out of the output tail.
     UPGRADE_CMD='export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a UCF_FORCE_CONFFOLD=1
+      if [ -n "$(ls -A /var/lib/dpkg/updates 2>/dev/null)" ] && ! pgrep -x dpkg >/dev/null; then
+        dpkg --force-confdef --force-confold --configure -a
+      fi
       apt-get update -o DPkg::Lock::Timeout=300 || true
-      apt-get -y -o DPkg::Lock::Timeout=300 \
+      apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Use-Pty=0 \
         -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
         upgrade --with-new-pkgs'
     ;;
@@ -120,19 +126,19 @@ if command -v dnf >/dev/null 2>&1; then
     # needs-restarting exits 1 when a reboot is required.
     rc=0; dnf needs-restarting -r >/dev/null 2>&1 || rc=$?
     [ "$rc" -eq 1 ] && reboot_needed=1
-  elif command -v rpm >/dev/null 2>&1; then
-    # dnf5 dropped the needs-restarting plugin; fall back to comparing the running
-    # kernel against the newest installed one.
-    newest_kernel="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' 2>/dev/null | sort -V | tail -n 1)"
-    [ -n "$newest_kernel" ] && [ "$newest_kernel" != "$(uname -r)" ] && reboot_needed=1
+  elif rpm -q --quiet kernel-core 2>/dev/null; then
+    # needs-restarting is an optional plugin (dnf5-plugins / dnf-plugins-core); without
+    # it, compare the running kernel against the newest installed one.
+    newest_kernel="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' | sort -V | tail -n 1)"
+    [ "$newest_kernel" != "$(uname -r)" ] && reboot_needed=1
   fi
 fi
 if [ -n "$reboot_needed" ]; then
   log "Updates installed; a restart is required to finish (kernel or core libraries)."
-  username="$(ps -o user= -C fleet-desktop 2>/dev/null | head -n 1)"
-  if [ -n "$username" ] && command -v notify-send >/dev/null 2>&1; then
-    uid="$(id -u "$username")"
-    sudo -u "$username" -H env DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+  # No Fleet Desktop (login screen, servers) means no one to notify, not a failure.
+  uid="$(ps -o uid= -C fleet-desktop 2>/dev/null | head -n 1 | tr -d ' ' || true)"
+  if [ -n "$uid" ] && command -v notify-send >/dev/null 2>&1; then
+    sudo -u "#$uid" -H env DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
       notify-send --app-name=Fleet "Operating system updated" \
       "Fleet installed OS updates. Restart when convenient to finish applying them." 2>/dev/null || true
   fi
