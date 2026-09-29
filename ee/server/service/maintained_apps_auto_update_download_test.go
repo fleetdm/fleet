@@ -39,6 +39,7 @@ type fakeManifestServer struct {
 	install       string // install script ref body (default "echo install")
 	uninstall     string // uninstall script ref body (default "echo uninstall")
 	upgradeCode   string // manifest upgrade_code (default empty)
+	open          string // manifest open query (default empty)
 	installerPath string // path the installer is served from (default "/installer.pkg")
 	manifestHits  int
 	installerHits int
@@ -67,7 +68,7 @@ func newFakeManifestServerWithInstaller(t *testing.T, installerPath string) *fak
 				UpgradeCode:        f.upgradeCode,
 				InstallScriptRef:   "i",
 				UninstallScriptRef: "u",
-				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2"},
+				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2", Open: f.open},
 				DefaultCategories:  []string{"Browsers"},
 			}},
 			Refs: map[string]string{"i": f.install, "u": f.uninstall},
@@ -287,6 +288,54 @@ func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
 	// manifest publishes still has to become the newest download.
 	require.Equal(t, uint(7), markedInstallerID)
 	require.Equal(t, uint(7), activatedInstallerID)
+}
+
+func TestAutoUpdateNoCheckHashCachedVersionWithChangedOpenQueryRefreshesTheInstaller(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	downloadedHash := srv.sha
+	srv.sha = noCheckHash
+	srv.open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'new');"
+	ds := baseDownloadStore(t, testFMALatest, 9)
+	// Cache the manifest's version under the bytes the download returns, with an older open query on the active installer.
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, downloadedHash, nil
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: testFMALatest}}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerIDFunc = func(ctx context.Context, tmID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:     9,
+			Version:         testFMALatest,
+			InstallScript:   srv.install,
+			UninstallScript: srv.uninstall,
+			PatchQuery:      "SELECT 2",
+			AppOpenQuery:    "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'old');",
+			Extension:       "pkg",
+		}, nil
+	}
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not insert a version that is already cached")
+		return 0, nil
+	}
+	var gotInstallerID uint
+	var gotVersion string
+	var gotAppOpenQuery string
+	ds.UpdateInstallerScriptsAndQueriesFunc = func(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error {
+		gotInstallerID = installerID
+		gotVersion = version
+		gotAppOpenQuery = appOpenQuery
+		return nil
+	}
+
+	// Run the cron, the active installer should get the manifest's new open query.
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.Equal(t, 1, srv.installerHits)
+	require.True(t, ds.UpdateInstallerScriptsAndQueriesFuncInvoked)
+	require.Equal(t, uint(9), gotInstallerID)
+	require.Equal(t, testFMALatest, gotVersion)
+	require.Equal(t, srv.open, gotAppOpenQuery)
+	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
 }
 
 func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {

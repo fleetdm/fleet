@@ -68,7 +68,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
+		if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockPersonalHostsMessage,
 			}
@@ -292,7 +292,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
+		if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
 			}

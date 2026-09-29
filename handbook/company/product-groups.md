@@ -84,10 +84,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - CVE/CPE ingestion & matching
 - Vulnerability reporting
 - Conditional access
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
 - Host disk encryption
-- CIS benchmarks 
+- CIS benchmarks
 
 
 ### Apple @ Work group
@@ -141,6 +139,14 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
 | Software Engineer                 | [Matías Spinarolli](https://www.linkedin.com/in/matias-spinarolli/) _([@jbelbo](https://github.com/jbelbo))_
+
+**Areas of expertise**:
+- Windows MDM protocol & configuration
+- Windows device onboarding (Autopilot)
+- Windows setup experience
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal (except Apple)
+- Windows configuration profiles
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
 

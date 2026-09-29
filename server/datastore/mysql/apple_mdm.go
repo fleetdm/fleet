@@ -1027,48 +1027,56 @@ func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID strin
 	stmt := fmt.Sprintf(
 		`
 SELECT
-	profile_uuid,
-	profile_name AS name,
-	profile_identifier AS identifier,
+	hmap.profile_uuid,
+	hmap.profile_name AS name,
+	hmap.profile_identifier AS identifier,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	scope,
+	COALESCE(hmap.status, '%s') AS status,
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail,
+	hmap.scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
+		WHEN hmap.scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
-	END AS managed_local_account
+	END AS managed_local_account,
+	COALESCE(macp.hidden, FALSE) AS hidden,
+	COALESCE(macp.self_service, FALSE) AS self_service
 FROM
-	host_mdm_apple_profiles
+	host_mdm_apple_profiles hmap
+	LEFT JOIN mdm_apple_configuration_profiles macp
+		ON hmap.profile_uuid = macp.profile_uuid
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+	hmap.host_uuid = ? AND (NOT (hmap.operation_type = '%s' AND COALESCE(hmap.status, '%s') IN('%s', '%s')))
 
 UNION ALL
 
 SELECT
-	declaration_uuid AS profile_uuid,
-	declaration_name AS name,
-	declaration_identifier AS identifier,
+	hmad.declaration_uuid AS profile_uuid,
+	hmad.declaration_name AS name,
+	hmad.declaration_identifier AS identifier,
 	-- internally, a NULL status implies that the cron needs to pick up
 	-- this profile, for the user that difference doesn't exist, the
 	-- profile is effectively pending. This is consistent with all our
 	-- aggregation functions.
-	COALESCE(status, '%s') AS status,
-	COALESCE(operation_type, '') AS operation_type,
-	COALESCE(detail, '') AS detail,
-	scope,
+	COALESCE(hmad.status, '%s') AS status,
+	COALESCE(hmad.operation_type, '') AS operation_type,
+	COALESCE(hmad.detail, '') AS detail,
+	hmad.scope,
 	CASE
-		WHEN scope = 'User' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
+		WHEN hmad.scope = 'User' THEN COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1), '')
 		ELSE ''
-	END AS managed_local_account
+	END AS managed_local_account,
+	COALESCE(mad.hidden, FALSE) AS hidden,
+	FALSE AS self_service
 FROM
-	host_mdm_apple_declarations
+	host_mdm_apple_declarations hmad
+	LEFT JOIN mdm_apple_declarations mad
+		ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+	hmad.host_uuid = ? AND hmad.declaration_name NOT IN (?) AND NOT (hmad.operation_type = '%s' AND COALESCE(hmad.status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -1570,13 +1578,13 @@ WHERE
 	return devices, nil
 }
 
-func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
+func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "mdm apple upsert host get app config")
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg, fromPersonalEnrollment)
+		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg, personalType)
 	})
 }
 
@@ -1586,7 +1594,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	mdmHost *fleet.Host,
 	logger *slog.Logger,
 	appCfg *fleet.AppConfig,
-	fromPersonalEnrollment bool,
+	personalType fleet.PersonalEnrollmentType,
 ) error {
 	if mdmHost.HardwareSerial == "" {
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected device serial number but got empty string")
@@ -1600,13 +1608,13 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, fromPersonalEnrollment)
+		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
 
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
-		return updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, fromPersonalEnrollment)
+		return updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, personalType)
 	}
 }
 
@@ -1635,7 +1643,7 @@ func updateMDMAppleHostDB(
 	hostID uint,
 	mdmHost *fleet.Host,
 	appCfg *fleet.AppConfig,
-	fromPersonalEnrollment bool,
+	personalType fleet.PersonalEnrollmentType,
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
@@ -1647,7 +1655,7 @@ func updateMDMAppleHostDB(
 	// stale vitals are keyed by the host's *previous* UUID, not the new one.
 	transitioningToPersonal := false
 	var previousUUID string
-	if fromPersonalEnrollment {
+	if personalType.IsPersonal() {
 		var previouslyPersonal bool
 		err := sqlx.GetContext(ctx, tx, &previouslyPersonal, `SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -1714,7 +1722,7 @@ func updateMDMAppleHostDB(
 		}
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, fromPersonalEnrollment, hostID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, personalType, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
@@ -1727,7 +1735,7 @@ func insertMDMAppleHostDB(
 	mdmHost *fleet.Host,
 	logger *slog.Logger,
 	appCfg *fleet.AppConfig,
-	fromPersonalEnrollment bool,
+	personalType fleet.PersonalEnrollmentType,
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
@@ -1795,7 +1803,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, fromPersonalEnrollment, mdmHost.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, personalType, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1967,7 +1975,7 @@ func createHostFromMDMDB(
 		tx,
 		appCfg,
 		source,
-		false,
+		fleet.PersonalEnrollmentTypeNone,
 		unmanagedHostIDs...,
 	); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
@@ -2248,7 +2256,7 @@ const (
 	appleMDMInfoFromCheckin                                 // enrolled=1, from_dep=derived, wide ON DUPLICATE
 )
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, source appleMDMInfoSource, fromPersonalEnrollment bool, hostIDs ...uint) error {
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, source appleMDMInfoSource, personalType fleet.PersonalEnrollmentType, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -2281,7 +2289,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 	}
 
 	depAssignedSet := map[uint]struct{}{}
-	if source == appleMDMInfoFromCheckin && !fromPersonalEnrollment {
+	if source == appleMDMInfoFromCheckin && !personalType.IsPersonal() {
 		stmt, args, err := sqlx.In(`
 		SELECT host_id FROM host_dep_assignments
 		WHERE host_id IN (?) AND deleted_at IS NULL`, hostIDs)
@@ -2310,13 +2318,14 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		default:
 			isDepAssigned = false
 		}
-		args = append(args, enrolled, serverURL, isDepAssigned, mdmID, false, id, fromPersonalEnrollment)
-		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
+		args = append(args, enrolled, serverURL, isDepAssigned, mdmID, false, id, personalType.IsPersonal(), personalType)
+		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?, ?)")
 	}
 
 	stmt := fmt.Sprintf(`
-		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id, is_personal_enrollment) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ","))
+		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id, is_personal_enrollment, personal_enrollment_type) VALUES %s
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), is_personal_enrollment = VALUES(is_personal_enrollment),
+			personal_enrollment_type = VALUES(personal_enrollment_type)`, strings.Join(parts, ","))
 
 	if source == appleMDMInfoFromCheckin {
 		stmt += `, installed_from_dep = VALUES(installed_from_dep)`
@@ -2839,7 +2848,7 @@ INSERT INTO hosts (
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, appleMDMInfoFromDEPSync, false, host.ID); err != nil {
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, appleMDMInfoFromDEPSync, fleet.PersonalEnrollmentTypeNone, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -7857,8 +7866,29 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 	return result, err
 }
 
-func (ds *Datastore) AssociateHostMDMIdPAccountDB(ctx context.Context, hostUUID string, acctUUID string) error {
-	return associateHostMDMIdPAccountDB(ctx, ds.writer(ctx), hostUUID, acctUUID)
+func (ds *Datastore) AssociateHostMDMIdPAccountFromSSO(ctx context.Context, hostUUID string, acctUUID string, replaceExisting bool) (string, error) {
+	var previousAcctUUID string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// FOR UPDATE locks the (possibly absent) row so a concurrent binding
+		// cannot slip in between this read and the write below.
+		previousAcctUUID = ""
+		switch err := sqlx.GetContext(
+			ctx, tx, &previousAcctUUID,
+			`SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ? FOR UPDATE`, hostUUID,
+		); {
+		case errors.Is(err, sql.ErrNoRows):
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "get existing host mdm idp account")
+		}
+		if replaceExisting || previousAcctUUID == "" {
+			return associateHostMDMIdPAccountDB(ctx, tx, hostUUID, acctUUID)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return previousAcctUUID, nil
 }
 
 func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, acctUUID string) error {
@@ -9079,4 +9109,60 @@ func (ds *Datastore) bulkGetHostMDMProfileOptInsTransaction(
 	}
 
 	return out, nil
+}
+
+func (ds *Datastore) HasHostMDMProfileOptIn(ctx context.Context, hostUUID, profileUUID string) (bool, error) {
+	if hostUUID == "" {
+		return false, fleet.NewInvalidArgumentError("hostUUID", "hostUUID cannot be empty")
+	}
+	if profileUUID == "" {
+		return false, fleet.NewInvalidArgumentError("profileUUID", "profileUUID cannot be empty")
+	}
+
+	out, err := ds.BulkGetHostMDMProfileOptIns(ctx, []string{hostUUID})
+	if err != nil {
+		return false, err
+	}
+	if profiles, ok := out[hostUUID]; ok {
+		_, optedIn := profiles[profileUUID]
+		return optedIn, nil
+	}
+	return false, nil
+}
+
+func (ds *Datastore) QueueHostMDMAppleProfileInstall(ctx context.Context, hostUUID string, profile *fleet.AppleProfileForReconcile) error {
+	// command_uuid is kept on conflict so the reconciler can cancel whatever command it supersedes.
+	stmt := `
+INSERT INTO host_mdm_apple_profiles
+	(host_uuid, profile_uuid, profile_identifier, profile_name, checksum, secrets_updated_at, scope, operation_type, status, command_uuid, detail)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, '', '')
+ON DUPLICATE KEY UPDATE
+	profile_identifier = VALUES(profile_identifier),
+	profile_name = VALUES(profile_name),
+	checksum = VALUES(checksum),
+	secrets_updated_at = VALUES(secrets_updated_at),
+	scope = VALUES(scope),
+	operation_type = VALUES(operation_type),
+	status = NULL,
+	detail = '',
+	retries = 0`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, profile.ProfileUUID, profile.ProfileIdentifier, profile.ProfileName,
+		profile.Checksum, profile.SecretsUpdatedAt, profile.Scope, fleet.MDMOperationTypeInstall)
+	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile install")
+}
+
+func (ds *Datastore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error {
+	// An install that was never sent to the device has nothing to remove, so drop the row instead.
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+DELETE FROM host_mdm_apple_profiles
+WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ? AND status IS NULL AND command_uuid = ''`,
+		hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete unsent host mdm apple profile install")
+	}
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_mdm_apple_profiles
+SET operation_type = ?, status = NULL, detail = '', retries = 0
+WHERE host_uuid = ? AND profile_uuid = ?`,
+		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
+	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
 }
