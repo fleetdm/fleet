@@ -5,7 +5,7 @@ Okta's FastPass can require a managed device, confirmed by a certificate from MD
 See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm) for supported Linux distributions and what's new in each release.
 
 > **Note:** You can deploy and configure Okta FastPass for Linux today (Steps 1 and 2) if you request access from Okta. Marking Linux hosts as managed (Steps 3 through 5) is in the works and needs:
-> - **Fleet:** Okta certificate authority (CA) support in Fleet's "Request certificate" API endpoint, tracked in [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993). The endpoint currently only supports Hydrant and custom EST CAs, so the Step 4 script fails until #52993 ships. To test before then, use the script in [Test with Okta's SCEP endpoint directly](#test-with-oktas-scep-endpoint-directly).
+> - **Fleet:** Okta certificate authority (CA) support in Fleet's "Request certificate" API endpoint [coming soon](https://github.com/fleetdm/fleet/issues/52993). The endpoint currently only supports Hydrant and custom EST CAs, so the Step 4 script fails until this ships. To test before then, use the script in [Test with Okta's SCEP endpoint directly](#test-with-oktas-scep-endpoint-directly).
 > - **Okta:** Linux support in Okta's device management platform integration. Today, Okta's **Add platform** option covers Windows and macOS only.
 
 ## Step 1: Download Okta Verify for Linux
