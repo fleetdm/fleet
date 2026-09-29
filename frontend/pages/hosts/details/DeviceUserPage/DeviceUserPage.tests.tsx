@@ -754,58 +754,127 @@ describe("Device User Page", () => {
     });
   });
 
-  describe("Vitals refetch timeout", () => {
+  describe("Vitals refetch toasts", () => {
+    const OFFLINE_MESSAGE =
+      "This host is offline. Please try refetching host vitals later.";
+    const TIMEOUT_MESSAGE =
+      "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.";
+    const REPORTED = "2025-12-31T00:00:00Z";
+    const NEVER_REPORTED = "2000-01-01T00:00:00Z";
     const REAL_NOW = new Date("2026-01-01T00:00:00Z").getTime();
     let mockNow = REAL_NOW;
     let dateNowSpy: jest.SpyInstance;
+    let refetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
       mockNow = REAL_NOW;
       dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockNow);
+      refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
     });
 
     afterEach(() => {
       dateNowSpy.mockRestore();
+      refetchSpy.mockRestore();
     });
 
-    it("shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded", async () => {
-      const host = createMockHost({
-        refetch_requested: true,
-        status: "online",
-        platform: "ubuntu",
-      }) as IHostDevice;
+    const mockHost = (overrides: Partial<IHostDevice>) =>
+      createMockHost({ platform: "windows", ...overrides }) as IHostDevice;
 
+    const renderWithHost = (host: IHostDevice) => {
       mockServer.use(customDeviceHandler({ host }));
-      mockServer.use(defaultDeviceCertificatesHandler);
-      mockServer.use(emptySetupExperienceHandler);
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
-
-      render(
+      return createCustomRenderer({ withBackendMock: true })(
         <DeviceUserPage
           router={mockRouter}
           params={{ device_auth_token: "testToken" }}
           location={mockLocation}
         />
       );
+    };
 
-      // Wait for the first successful load, which starts the refetch
-      // timer and schedules the next poll via a real setTimeout.
+    it.each([
+      {
+        name: "reports a host that has reported vitals as offline",
+        detailUpdatedAt: REPORTED,
+        expectedErrors: [[OFFLINE_MESSAGE]],
+      },
+      {
+        name: "doesn't report a host that has never reported vitals as offline",
+        detailUpdatedAt: NEVER_REPORTED,
+        expectedErrors: [],
+      },
+    ])("$name", async ({ detailUpdatedAt, expectedErrors }) => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "offline",
+          detail_updated_at: detailUpdatedAt,
+        })
+      );
       await screen.findByText(/Details/);
+      expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+    });
 
-      // Jump the clock past the 3-minute give-up window before that
-      // scheduled poll fires and re-evaluates elapsed time.
-      mockNow += 200000;
+    it.each([
+      {
+        name:
+          "shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded",
+        detailUpdatedAt: REPORTED,
+        expectedErrors: [[TIMEOUT_MESSAGE]],
+      },
+      {
+        name:
+          "shows no timeout message for a host that has never reported vitals",
+        detailUpdatedAt: NEVER_REPORTED,
+        expectedErrors: [],
+      },
+    ])(
+      "$name",
+      async ({ detailUpdatedAt, expectedErrors }) => {
+        renderWithHost(
+          mockHost({
+            refetch_requested: true,
+            status: "online",
+            detail_updated_at: detailUpdatedAt,
+          })
+        );
+        // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
+        await screen.findByText(/fetching fresh vitals/i);
+        // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
+        mockNow += 200000;
+        await waitFor(
+          () =>
+            expect(
+              screen.queryByText(/fetching fresh vitals/i)
+            ).not.toBeInTheDocument(),
+          { timeout: 4000 }
+        );
+        expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+      },
+      10000
+    );
+
+    it("reports a host that has never reported vitals as offline when the user asked for the refetch", async () => {
+      const { user } = renderWithHost(
+        mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
+      );
+
+      await user.click(await screen.findByRole("button", { name: /refetch/i }));
+      await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
+      mockServer.use(
+        customDeviceHandler({
+          host: mockHost({
+            refetch_requested: true,
+            status: "offline",
+            detail_updated_at: NEVER_REPORTED,
+          }),
+        })
+      );
 
       await waitFor(
-        () => {
-          expect(notify.error).toHaveBeenCalledWith(
-            "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
-          );
-        },
-        { timeout: 4000 }
+        () => expect(notify.error).toHaveBeenCalledWith(OFFLINE_MESSAGE),
+        { timeout: 5000 }
       );
     }, 10000);
   });

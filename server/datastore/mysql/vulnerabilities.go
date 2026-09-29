@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -33,7 +32,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 
 	eeSelectStmt := `
 		SELECT DISTINCT
-			cm.cve,
+			cve_table.cve,
 			LEAST(COALESCE(osv.created_at, NOW()), COALESCE(sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
@@ -43,8 +42,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			cm.description,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
-		FROM cve_meta cm
-		JOIN (
+		FROM (
 			SELECT cve
 			FROM software_cve
 			WHERE cve = ?
@@ -54,10 +52,12 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			SELECT cve
 			FROM operating_system_vulnerabilities
 			WHERE cve = ?
-		) AS cve_table ON cm.cve = cve_table.cve
-		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = cm.cve
-		LEFT JOIN software_cve sc ON sc.cve = cm.cve
-		LEFT JOIN vulnerability_host_counts vhc ON cm.cve = vhc.cve
+		) AS cve_table
+		-- cve_meta is optional: other sources (e.g. MSRC, OVAL) can match a CVE before NVD publishes it.
+		LEFT JOIN cve_meta cm ON cm.cve = cve_table.cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = cve_table.cve
+		LEFT JOIN software_cve sc ON sc.cve = cve_table.cve
+		LEFT JOIN vulnerability_host_counts vhc ON vhc.cve = cve_table.cve
 `
 
 	freeSelectStmt := `
@@ -874,10 +874,15 @@ func (ds *Datastore) insertHostCountsIntoTable(ctx context.Context, tx sqlx.ExtC
 }
 
 func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
-	var count uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT 1 FROM cve_meta WHERE cve = ?", cve)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, err
+	var known bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &known, `
+		SELECT
+			EXISTS (SELECT 1 FROM cve_meta WHERE cve = ?)
+			OR EXISTS (SELECT 1 FROM software_cve WHERE cve = ?)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = ?)`,
+		cve, cve, cve)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking if CVE is known to Fleet")
 	}
-	return count > 0, nil
+	return known, nil
 }
