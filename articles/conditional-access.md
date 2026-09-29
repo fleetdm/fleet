@@ -6,6 +6,10 @@ Fleet currently has built-in conditional access integrations with Okta (macOS on
 - [Okta setup guide](https://fleetdm.com/guides/okta-conditional-access-integration)
 - [Entra setup guide](https://fleetdm.com/guides/entra-conditional-access-integration)
 
+You can also use Fleet's API for conditional access with [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) (macOS, Windows, and Linux).
+
+To only require that hosts are managed by Fleet, without checking policies, see [Require Fleet-managed hosts in Duo](https://fleetdm.com/guides/require-fleet-managed-hosts-in-duo) or [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile).
+
 ## How it works
 
 1. IT enables the conditional access automation for the policies which determine access.
