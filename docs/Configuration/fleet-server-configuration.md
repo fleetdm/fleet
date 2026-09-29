@@ -945,6 +945,30 @@ This is only supported as an environment variable.
 - Default value: not set (no `Content-Security-Policy` header is sent)
 - Environment variable: `FLEET_SERVER_ENABLE_CSP`
 
+### server_script_results_retention (Fleet 4.92.2+)
+
+Minimum time since a script run recorded its result before Fleet's hourly cleanup deletes it. Runs still waiting on a host are kept, as are runs a host lock, wipe, unlock, setup experience, software uninstall, or batch run depends on. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_SCRIPT_RESULTS_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    script_results_retention: 720h
+  ```
+
+### server_software_install_results_retention (Fleet 4.92.2+)
+
+Minimum time since a software install or uninstall finished before Fleet's hourly cleanup deletes its record. Records a host is still working on are kept, as are records setup experience depends on and the most recent install and uninstall per host and package. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_SOFTWARE_INSTALL_RESULTS_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    software_install_results_retention: 720h
+  ```
+
 ## Auth
 
 ### auth_sso_session_validity_period
