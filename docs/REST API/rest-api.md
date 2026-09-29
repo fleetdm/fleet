@@ -11179,16 +11179,11 @@ None.
 ## Policies
 
 - [List policies](#list-policies)
-- [List fleet-level policies](#list-fleet-level-policies)
 - [Get policies count](#get-policies-count)
-- [Get fleet-level policies count](#get-fleet-level-policies-count)
 - [Get policy](#get-policy)
-- [Get fleet-level policy](#get-fleet-level-policy)
 - [Create policy](#create-policy)
 - [Delete policies](#delete-policies)
-- [Delete fleet-level policies](#delete-fleet-level-policies)
 - [Update policy](#update-policy)
-- [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
 
 Policies are yes or no questions you can ask about your hosts.
