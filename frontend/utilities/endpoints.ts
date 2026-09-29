@@ -84,6 +84,10 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
+  DEVICE_NOTIFICATION: (token: string, notificationUuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/notifications/${notificationUuid}`,
+  DEVICE_NOTIFICATION_ACTIONS: (token: string, notificationUuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/notifications/${notificationUuid}/actions`,
 
   // Chart endpoints
   CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
@@ -166,6 +170,7 @@ export default {
   MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
   MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
   MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,
+  MDM_ANDROID_ZERO_TOUCH_CONFIGURATION: `/${API_VERSION}/fleet/android_enterprise/zero_touch_configuration`,
 
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,

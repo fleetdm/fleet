@@ -1864,7 +1864,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	// installed activity is now created
 	activityData = fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_uuid": %q, "install_uuid": "",
 	"software_title": "ipa_test", "software_package": "", "self_service": true, "status": "installed",
-	"policy_id": null, "policy_name": null, "from_setup_experience": false}`, iosHost.ID, iosHost.DisplayName(), installCmdUUID)
+	"policy_id": null, "policy_name": null, "from_setup_experience": false, "patch_when_closed": false}`, iosHost.ID, iosHost.DisplayName(), installCmdUUID)
 	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), activityData, 0)
 
 	// host has no more upcoming activities
@@ -3067,7 +3067,7 @@ func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDe
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host, device := s.createAppleMobileHostThenEnrollMDM("ipados")
-			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", false))
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, tc.installedFromDEP, "", "", fleet.PersonalEnrollmentTypeNone))
 			s.awaitRunAppleMDMWorkerSchedule()
 			s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
 			s.Do("POST", "/api/latest/fleet/hosts/transfer",

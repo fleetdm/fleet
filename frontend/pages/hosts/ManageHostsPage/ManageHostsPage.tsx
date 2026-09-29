@@ -545,7 +545,8 @@ const ManageHostsPage = ({
     }
   );
 
-  const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
+  const useOneTimeEnrollSecrets = !!config?.auth
+    ?.mdm_apple_one_time_enroll_secrets;
 
   const {
     data: teams,
@@ -2026,19 +2027,13 @@ const ManageHostsPage = ({
       },
     ];
 
-    // Global technicians can transfer hosts between fleets on Fleet Premium,
-    // so they need the selection checkbox column for bulk transfer.
-    const canTransferHostsInBulk =
-      isGlobalTechnician && isPremiumTier && !isPrimoMode;
-
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
-      isOnlyObserver:
-        !canTransferHostsInBulk &&
-        (isOnlyObserver ||
-          isGlobalTechnician ||
-          (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin)),
+      // The selection column is only for roles that can bulk delete hosts.
+      isOnlyObserver: isOnGlobalTeam
+        ? isOnlyObserver
+        : !isTeamMaintainerOrTeamAdmin && !isTeamTechnician,
       teamId: teamIdForApi,
     });
 
@@ -2122,19 +2117,13 @@ const ManageHostsPage = ({
         pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedLabels)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-        primarySelectAction={
-          // Global technicians cannot delete hosts, so hide the bulk Delete
-          // action while still allowing them to select hosts for transfer.
-          canTransferHostsInBulk
-            ? undefined
-            : {
-                name: "delete host",
-                buttonText: "Delete",
-                iconSvg: "trash",
-                variant: "secondary",
-                onClick: onDeleteHostsClick,
-              }
-        }
+        primarySelectAction={{
+          name: "delete host",
+          buttonText: "Delete",
+          iconSvg: "trash",
+          variant: "secondary",
+          onClick: onDeleteHostsClick,
+        }}
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}

@@ -17,3 +17,7 @@ func IsRunningOnWindowsServer() (bool, error) {
 func TriggerWindowsMDMSync() error {
 	return nil
 }
+
+func HasActiveFleetMDMEnrollment() bool {
+	return false
+}

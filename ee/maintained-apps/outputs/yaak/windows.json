@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.8.0",
+      "version": "2026.8.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Yaak' AND publisher = 'Yaak';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yaak' AND publisher = 'Yaak' AND version_compare(version, '2026.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yaak' AND publisher = 'Yaak' AND version_compare(version, '2026.8.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'yaak.exe');"
       },
-      "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.8.0/Yaak_2026.8.0_x64-setup.exe",
+      "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.8.1/Yaak_2026.8.1_x64-setup.exe",
       "install_script_ref": "685e3c98",
       "uninstall_script_ref": "2c0d82a5",
-      "sha256": "3ec6636d14d4df7a50f4d8b11962c17a74fb94e2aa192fb618404fbfe98ff26f",
+      "sha256": "7a242d083b3e85eb45ae4e5c954cf0d253ebe7ec46544fc03eafea2540c03df1",
       "default_categories": [
         "Developer tools"
       ]

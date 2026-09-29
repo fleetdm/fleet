@@ -28,6 +28,7 @@ import AccountPage from "pages/AccountPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
+import DeviceNotificationPage from "pages/DeviceNotificationPage";
 import DeviceUserSSOErrorPage from "pages/DeviceUserSSOErrorPage";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -389,6 +390,12 @@ const LazyAndroidMdmPage = lazyPage(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage"
     )
 );
+const LazyAndroidZeroTouchPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidZeroTouchPage"
+    )
+);
 const LazyWindowsEnrollmentPage = lazyPage(
   () =>
     import(
@@ -565,6 +572,10 @@ const routes = (
             <Route
               path="integrations/mdm/android"
               component={LazyAndroidMdmPage}
+            />
+            <Route
+              path="integrations/mdm/android-zero-touch"
+              component={LazyAndroidZeroTouchPage}
             />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
@@ -804,6 +815,13 @@ const routes = (
       </Route>
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
+        {/* Standalone toast route — kept outside the DeviceUserPage wrapper so
+        the Fleet Desktop notification window doesn't inherit the My device
+        header, nav, or chrome. */}
+        <Route
+          path=":device_auth_token/notifications/:notification_uuid"
+          component={DeviceNotificationPage}
+        />
         <Route path="sso-error" component={DeviceUserSSOErrorPage} />
         <Route component={LazyDeviceUserPage}>
           <Route path=":device_auth_token" component={LazyDeviceUserPage}>

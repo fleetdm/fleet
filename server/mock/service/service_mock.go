@@ -273,7 +273,7 @@ type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fle
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
-type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error)
+type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error)
 
 type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -416,6 +416,8 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error)
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
+
+type SetNotificationsServiceFunc func(notificationsSvc fleet.NotificationsWriteService)
 
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
 
@@ -634,8 +636,6 @@ type SkipAuthFunc func(ctx context.Context)
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
-
-type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
 type ListMDMAppleCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error)
 
@@ -1028,6 +1028,14 @@ type ApplyMicrosoftGraphCredentialsFunc func(ctx context.Context, creds []fleet.
 type SendAPNSPingFunc func(ctx context.Context, hostID uint) error
 
 type DeviceSendAPNSPingFunc func(ctx context.Context, host *fleet.Host) error
+
+type InstallSelfServiceConfigurationProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type UninstallSelfServiceConfigurationProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type DeviceInstallSelfServiceConfigurationProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
+
+type DeviceUninstallSelfServiceConfigurationProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -1624,6 +1632,9 @@ type Service struct {
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
 
+	SetNotificationsServiceFunc        SetNotificationsServiceFunc
+	SetNotificationsServiceFuncInvoked bool
+
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
 
@@ -1950,9 +1961,6 @@ type Service struct {
 
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
-
-	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
-	GetMDMAppleCommandResultsFuncInvoked bool
 
 	ListMDMAppleCommandsFunc        ListMDMAppleCommandsFunc
 	ListMDMAppleCommandsFuncInvoked bool
@@ -2541,6 +2549,18 @@ type Service struct {
 
 	DeviceSendAPNSPingFunc        DeviceSendAPNSPingFunc
 	DeviceSendAPNSPingFuncInvoked bool
+
+	InstallSelfServiceConfigurationProfileFunc        InstallSelfServiceConfigurationProfileFunc
+	InstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	UninstallSelfServiceConfigurationProfileFunc        UninstallSelfServiceConfigurationProfileFunc
+	UninstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	DeviceInstallSelfServiceConfigurationProfileFunc        DeviceInstallSelfServiceConfigurationProfileFunc
+	DeviceInstallSelfServiceConfigurationProfileFuncInvoked bool
+
+	DeviceUninstallSelfServiceConfigurationProfileFunc        DeviceUninstallSelfServiceConfigurationProfileFunc
+	DeviceUninstallSelfServiceConfigurationProfileFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3427,11 +3447,11 @@ func (s *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, e
 	return s.HostLiteByIDFunc(ctx, id)
 }
 
-func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (s *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	s.mu.Lock()
 	s.ListDevicePoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListDevicePoliciesFunc(ctx, host)
+	return s.ListDevicePoliciesFunc(ctx, host, includeHidden)
 }
 
 func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
@@ -3929,6 +3949,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	s.ApplyTeamSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
+}
+
+func (s *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	s.mu.Lock()
+	s.SetNotificationsServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetNotificationsServiceFunc(notificationsSvc)
 }
 
 func (s *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
@@ -4692,13 +4719,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	s.GetDeviceMDMAppleEnrollmentProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
-}
-
-func (s *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	s.mu.Lock()
-	s.GetMDMAppleCommandResultsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
 }
 
 func (s *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
@@ -6071,4 +6091,32 @@ func (s *Service) DeviceSendAPNSPing(ctx context.Context, host *fleet.Host) erro
 	s.DeviceSendAPNSPingFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeviceSendAPNSPingFunc(ctx, host)
+}
+
+func (s *Service) InstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	s.mu.Lock()
+	s.InstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.InstallSelfServiceConfigurationProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) UninstallSelfServiceConfigurationProfile(ctx context.Context, hostID uint, profileUUID string) error {
+	s.mu.Lock()
+	s.UninstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UninstallSelfServiceConfigurationProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) DeviceInstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	s.mu.Lock()
+	s.DeviceInstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceInstallSelfServiceConfigurationProfileFunc(ctx, host, profileUUID)
+}
+
+func (s *Service) DeviceUninstallSelfServiceConfigurationProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	s.mu.Lock()
+	s.DeviceUninstallSelfServiceConfigurationProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceUninstallSelfServiceConfigurationProfileFunc(ctx, host, profileUUID)
 }

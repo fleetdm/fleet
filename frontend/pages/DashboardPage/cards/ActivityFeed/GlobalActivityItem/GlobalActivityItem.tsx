@@ -1,6 +1,11 @@
 import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
+import {
+  renderNotifyTitleList,
+  formatNotifyTimeLabel,
+  isNotifyFailure,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -22,7 +27,10 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
+import {
+  formatMdmCommandNameForActivityItem,
+  PREMIUM_ONLY_DETAIL_ACTIVITIES,
+} from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -48,6 +56,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
   ActivityType.FailedEnrollmentProfileRenewal,
+  ActivityType.NotifiedEndUserBeforePatching,
   ActivityType.HostEnrollmentRejected,
 ]);
 
@@ -2148,6 +2157,29 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  refusedHostIdpAccountChange: (activity: IActivity) => {
+    return (
+      <>
+        kept <b>{activity.details?.host_uuid}</b> linked to the identity
+        provider account <b>{activity.details?.existing_idp_email}</b> instead
+        of <b>{activity.details?.idp_email}</b>.
+      </>
+    );
+  },
+  boundHostToIdpAccount: (activity: IActivity) => {
+    return (
+      <>
+        linked <b>{activity.details?.host_uuid}</b> to the identity provider
+        account <b>{activity.details?.idp_email}</b>
+        {activity.details?.replaced_idp_email ? (
+          <>
+            , replacing <b>{activity.details.replaced_idp_email}</b>
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   createdLabel: (activity: IActivity) => {
     const fleetText = activity.details?.fleet_name ? (
       <>
@@ -2436,6 +2468,32 @@ const TAGGED_TEMPLATES = {
       <>
         released <b>{activity.details?.host_display_name}</b> from Apple
         Business.
+      </>
+    );
+  },
+  notifiedEndUserBeforePatching: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const {
+      host_display_name: hostName,
+      software_titles: titles = [],
+      status,
+      time_before: timeBefore,
+    } = details;
+    const timeLabel = formatNotifyTimeLabel(timeBefore);
+    const failed = isNotifyFailure(status);
+    const verb = failed ? "failed to notify" : "notified";
+
+    const titleList = renderNotifyTitleList(titles);
+
+    return (
+      <>
+        {" "}
+        {verb} end user {timeLabel} before patching
+        {titleList && <> {titleList}</>} on{" "}
+        <strong>{hostName || "the host"}</strong>.
       </>
     );
   },
@@ -2920,6 +2978,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CreatedDiskEncryptionPIN: {
       return TAGGED_TEMPLATES.createdDiskEncryptionPIN(activity);
     }
+    case ActivityType.BoundHostToIdpAccount: {
+      return TAGGED_TEMPLATES.boundHostToIdpAccount(activity);
+    }
+    case ActivityType.RefusedHostIdpAccountChange: {
+      return TAGGED_TEMPLATES.refusedHostIdpAccountChange(activity);
+    }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
@@ -2989,6 +3053,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReleasedDeviceFromAB: {
       return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
+    case ActivityType.NotifiedEndUserBeforePatching: {
+      return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
+    }
     case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
     }
@@ -3017,7 +3084,9 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
-  const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
+  const hasDetails =
+    ACTIVITIES_WITH_DETAILS.has(activity.type) &&
+    (isPremiumTier || !PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type));
 
   const renderActivityPrefix = () => {
     const DEFAULT_ACTOR_DISPLAY = (

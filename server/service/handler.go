@@ -170,7 +170,8 @@ func MakeHandler(
 					// Use the guideline for span names: {method} {target}
 					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
 					return r.Method + " " + route
-				})))
+				}),
+			))
 		} else {
 			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
 			// cannot be installed alongside it.
@@ -310,9 +311,11 @@ const (
 	// ban requests from such IP for a duration of 1 minute.
 	//
 
-	deviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
-	deviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
-	deviceIPBanTime                                     = 1 * time.Minute
+	// Exported so bounded contexts with their own device-token endpoints (e.g.
+	// notifications) can apply the same IP ban policy.
+	DeviceIPAllowedConsecutiveFailingRequestsCount      = 1_000
+	DeviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
+	DeviceIPBanTime                                     = 1 * time.Minute
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
@@ -675,10 +678,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// platform-agnostic POST /mdm/commands/run. It is still supported
 	// indefinitely for backwards compatibility.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
-	// Deprecated: POST /mdm/apple/commandresults is now deprecated, replaced by the
-	// platform-agnostic POST /mdm/commands/commandresults. It is still supported
-	// indefinitely for backwards compatibility.
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/commandresults", getMDMAppleCommandResultsEndpoint, getMDMAppleCommandResultsRequest{})
 	// Deprecated: POST /mdm/apple/commands is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/commands. It is still supported
 	// indefinitely for backwards compatibility.
@@ -816,6 +815,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/assets/batch", batchSetAppleDDMAssetsEndpoint, batchSetAppleDDMAssetsRequest{})
 
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/apns_ping", apnsPingRequestEndpoint, sendAPNSPingRequest{})
+
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/install", installSelfServiceConfigurationProfileEndpoint, installSelfServiceConfigurationProfileRequest{})
+	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/uninstall", uninstallSelfServiceConfigurationProfileEndpoint, uninstallSelfServiceConfigurationProfileRequest{})
 
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAnyMDM())
 
@@ -960,10 +962,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAndroidMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAndroidMDM())
 	mdmAndroidMW.POST("/api/_version_/fleet/software/web_apps", createAndroidWebAppEndpoint, createAndroidWebAppRequest{})
 
-	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
-		deviceIPAllowedConsecutiveFailingRequestsCount,
-		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
-		deviceIPBanTime,
+	ipBanner := redis.NewIPBanner(
+		redisPool, "ipbanner::",
+		DeviceIPAllowedConsecutiveFailingRequestsCount,
+		DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
+		DeviceIPBanTime,
 	)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
 
@@ -1040,7 +1043,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint, getDeviceMDMCommandResultsRequest{})
 	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
-	demdm.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/apns_ping", deviceSendAPNSPing, deviceSendAPNSPingRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/install", deviceInstallSelfServiceConfigurationProfileEndpoint, deviceInstallSelfServiceConfigurationProfileRequest{})
+	demdm.AppendCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/uninstall", deviceUninstallSelfServiceConfigurationProfileEndpoint, deviceUninstallSelfServiceConfigurationProfileRequest{})
 
 	// host-authenticated endpoints
 	//

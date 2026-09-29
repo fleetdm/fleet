@@ -170,6 +170,8 @@ export enum ActivityType {
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedDiskEncryptionPIN = "created_disk_encryption_pin",
+  BoundHostToIdpAccount = "bound_host_to_idp_account",
+  RefusedHostIdpAccountChange = "refused_host_idp_account_change",
   CreatedCustomVariable = "created_custom_variable",
   UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
@@ -219,6 +221,7 @@ export enum ActivityType {
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
+  NotifiedEndUserBeforePatching = "notified_end_user_before_patching",
   EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
   DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
   HostEnrollmentRejected = "host_enrollment_rejected",
@@ -273,6 +276,7 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
   | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.NotifiedEndUserBeforePatching
   | ActivityType.ReleasedDeviceFromAB
   | ActivityType.ResentConfigurationProfile
   | ActivityType.ResetPolicy
@@ -314,6 +318,10 @@ export type IHostUpcomingActivity = Omit<
   details: IActivityDetails;
 };
 
+/** `details.status` values on a `notified_end_user_before_patching` activity.
+ * Distinct from the automation-runs wrapper's `"error" | "success"` union. */
+export type INotifyActivityStatus = "success" | "failed";
+
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
@@ -341,6 +349,7 @@ export interface IActivityDetails {
   canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
+  install_at?: string;
   install_uuid?: string;
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
@@ -352,9 +361,13 @@ export interface IActivityDetails {
   name?: string;
   pack_id?: number;
   pack_name?: string;
+  /** One notification may cover several patch policies and appear in each of their runs tables. */
+  patch_notification_uuid?: string;
   platform?: Platform; // OS platform
   policy_id?: number;
+  policy_ids?: number[];
   policy_name?: string;
+  pre_install_query_output?: string;
   profile_identifier?: string;
   profile_name?: string;
   profile_uuid?: string;
@@ -367,6 +380,9 @@ export interface IActivityDetails {
   request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
+  /** Notification script exit code on notify-before-patching activities; keys
+   *  into COPY_BY_EXIT_CODE for the failure reason shown in the details column. */
+  exit_code?: number;
   script_name?: string;
   self_service?: boolean;
   self_service_category_id?: number | null;
@@ -374,9 +390,14 @@ export interface IActivityDetails {
   /** Set on a patch-when-closed skip (the app was open); `status` is then
    * `failed_install`. */
   skipped_install?: boolean;
+  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
+   * because notify before patching did not ship until then. */
+  patch_when_closed?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Titles covered by a single notify-before-patching notification. */
+  software_titles?: string[];
   software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
@@ -388,6 +409,8 @@ export interface IActivityDetails {
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
+  /** Seconds before the patch install (drives "1 hour" vs "5 minutes" copy). */
+  time_before?: number;
   triggered_by?: string;
   from_setup_experience?: boolean;
   from_auto_update?: boolean;
@@ -416,6 +439,9 @@ export interface IActivityDetails {
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
+  idp_email?: string;
+  replaced_idp_email?: string;
+  existing_idp_email?: string;
   tenant_id?: string;
   client_id?: string;
   certificate_name?: string;
@@ -593,6 +619,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   [ActivityType.CreatedDiskEncryptionPIN]: "Created disk encryption PIN",
+  bound_host_to_idp_account: "Bound host to IdP account",
+  refused_host_idp_account_change: "Refused host IdP account change",
   created_custom_variable: "Created custom variable",
   updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
@@ -676,6 +704,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
+  [ActivityType.NotifiedEndUserBeforePatching]:
+    "Notified end user before patching",
   [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
     "Enabled Apple Business only enrollment",
   [ActivityType.DisabledAppleBusinessOnlyEnrollment]:

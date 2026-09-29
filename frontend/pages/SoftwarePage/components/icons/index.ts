@@ -409,6 +409,7 @@ import Flexoptix from "./png/Flexoptix.png";
 import Flexwhere from "./png/Flexwhere.png";
 import Fluid from "./png/Fluid.png";
 import FluxApp from "./png/FluxApp.png";
+import Flycut from "./png/Flycut.png";
 import FocusriteControl2 from "./png/FocusriteControl2.png";
 import Folx from "./png/Folx.png";
 import Fontbase from "./png/Fontbase.png";
@@ -1083,6 +1084,7 @@ import Viz from "./png/Viz.png";
 import Vlc from "./png/Vlc.png";
 import VncViewer from "./png/VncViewer.png";
 import Voiceink from "./png/Voiceink.png";
+import Vorssaint from "./png/Vorssaint.png";
 import VpnTracker365 from "./png/VpnTracker365.png";
 import VsCodium from "./png/VsCodium.png";
 import Vuescan from "./png/Vuescan.png";
@@ -1577,6 +1579,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "flexoptix app": Flexoptix,
   flexwhere: Flexwhere,
   fluid: Fluid,
+  flycut: Flycut,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
   fontbase: Fontbase,
@@ -2277,6 +2280,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc server": RealVncServer,
   "vnc viewer": VncViewer,
   voiceink: Voiceink,
+  vorssaint: Vorssaint,
   "vpn tracker 365": VpnTracker365,
   vscodium: VsCodium,
   vuescan: Vuescan,

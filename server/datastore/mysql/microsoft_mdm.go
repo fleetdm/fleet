@@ -699,7 +699,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.HostUUID,
 		device.CredentialsHash,
 		device.CredentialsAcknowledged,
-		device.ZTDRegistrationID)
+		device.ZTDRegistrationID,
+	)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
@@ -976,7 +977,8 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 			}
 
 			// Upsert host profile entries.
-			profileStmt := fmt.Sprintf(`
+			profileStmt := fmt.Sprintf(
+				`
 				INSERT INTO host_mdm_windows_profiles (
 					profile_uuid, host_uuid, status, operation_type,
 					detail, command_uuid, profile_name, checksum
@@ -1166,7 +1168,8 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.E
 	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
 		stmt, args, err := sqlx.In(
 			`SELECT MAX(id) FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid`,
-			batch)
+			batch,
+		)
 		if err != nil {
 			return err
 		}
@@ -1458,14 +1461,18 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			return ctxerr.Wrap(ctx, err, "updating host profile status")
 		}
 
-		// store the command results
+		// store the command results. updated_at is set explicitly because an
+		// identical re-ack changes no column and MySQL would leave it alone; the
+		// retention sweep reads it as the last time the device spoke about the
+		// command.
 		const insertResultsStmt = `
 INSERT INTO windows_mdm_command_results
     (enrollment_id, command_uuid, raw_result, response_id, status_code)
 VALUES %s
 ON DUPLICATE KEY UPDATE
     raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
+    status_code = COALESCE(VALUES(status_code), status_code),
+    updated_at = CURRENT_TIMESTAMP
 `
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -1475,7 +1482,8 @@ ON DUPLICATE KEY UPDATE
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
 			wipeSucceeded := strings.HasPrefix(wipeCmdStatus, "2")
-			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
+			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(
+				ctx, tx, enrolledDevice.HostUUID,
 				"wipe_ref", wipeCmdUUID, wipeSucceeded, false,
 			)
 			if err != nil {
@@ -1781,7 +1789,8 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 			}
 			retried = true
 		default:
-			if _, err := tx.ExecContext(ctx, failStmt,
+			if _, err := tx.ExecContext(
+				ctx, failStmt,
 				fleet.MDMDeliveryFailed, truncateMDMWindowsProfileDetail(detail), hostUUID, profileUUID, fleet.MDMOperationTypeInstall,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "set windows host profile failed")
@@ -2125,7 +2134,8 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
 	CASE
 		WHEN (%s) THEN '%s'
@@ -2266,7 +2276,8 @@ WHERE
 		switch {
 		case lbl.Exclude && lbl.RequireAll:
 			// this should never happen so log it for debugging
-			ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
+			ds.logger.DebugContext(
+				ctx, "unsupported profile label: cannot be both exclude and require all",
 				"profile_uuid", lbl.ProfileUUID,
 				"label_name", lbl.LabelName,
 			)
@@ -2353,7 +2364,8 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// status rollup after commit.
 	var affectedHostUUIDs []string
 	selHostsStmt, selHostsArgs, err := sqlx.In(
-		`SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid IN (?)`, profileUUIDs)
+		`SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid IN (?)`, profileUUIDs,
+	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building IN for affected hosts of deleted profiles")
 	}
@@ -2518,58 +2530,32 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	return nil
 }
 
-// windowsHostProfileStatusSubquery returns a correlated SQL scalar subquery
-// that resolves to one of `<statusPrefix>failed`, `<statusPrefix>pending`,
-// `<statusPrefix>verifying`, `<statusPrefix>verified`, or '<empty>' for the host
-// identified by h.uuid in the outer query.
-//
-// The subquery does a single aggregation pass over host_mdm_windows_profiles
-// via the PK(host_uuid, profile_uuid) prefix.
-//
-// The returned SQL does NOT include outer parentheses; callers wrap in
-// `(...)` as needed for the context (scalar subquery or CASE switch).
-//
-// Priority logic:
-//   - failed: any non-reserved profile has status='failed'.
-//   - pending: any non-reserved profile has status NULL or 'pending'.
-//   - verifying: at least one non-reserved install-type profile has
-//     status='verifying'.
-//     At this CASE branch we already know failed=0 and pending=0, so no
-//     profile has status NULL/pending/failed; since profile status is always
-//     one of {NULL,pending,failed,verifying,verified}, that leaves only
-//     verifying and verified for install-type rows.
-//   - verified: at least one non-reserved install-type profile has
-//     status='verified' and no install verifying exists (enforced by the
-//     earlier verifying branch).
-func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error) {
-	caseExpr, args := windowsHostProfileStatusCaseExpr(statusPrefix)
-	stmt := fmt.Sprintf(`
-        SELECT %s
-        FROM host_mdm_windows_profiles hmwp
-        WHERE hmwp.host_uuid = h.uuid`, caseExpr)
-	return sqlx.In(stmt, args...)
+// sqlJoinMDMWindowsProfilesStatus returns a SQL snippet that joins the maintained host_mdm_windows_profiles_status
+// rollup, which holds one aggregate status bucket per host.
+func sqlJoinMDMWindowsProfilesStatus() string {
+	return `
+	LEFT JOIN host_mdm_windows_profiles_status hmwps ON hmwps.host_uuid = h.uuid
+`
 }
 
 // windowsHostProfileStatusCaseExpr returns the SQL CASE expression (and its as-yet-unexpanded args) that reduces a group of
 // host_mdm_windows_profiles rows to a single status bucket. It is the single source of truth for the Windows
 // profile status priority logic (failed > pending > verifying > verified, reserved profiles excluded, install-only for
 // verifying/verified, NULL treated as pending).
-func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
+func windowsHostProfileStatusCaseExpr() (string, []any) {
 	reserved := mdm.ListFleetReservedWindowsProfileNames()
 
-	stmt := fmt.Sprintf(`CASE
+	stmt := `CASE
             WHEN SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sfailed'
+                THEN 'failed'
             WHEN SUM(CASE WHEN (hmwp.status IS NULL OR hmwp.status = ?) AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%spending'
+                THEN 'pending'
             WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sverifying'
+                THEN 'verifying'
             WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
-                THEN '%sverified'
+                THEN 'verified'
             ELSE ''
-        END`,
-		statusPrefix, statusPrefix, statusPrefix, statusPrefix,
-	)
+        END`
 
 	args := []any{
 		fleet.MDMDeliveryFailed, reserved,
@@ -2584,7 +2570,7 @@ func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 // windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that recomputes
 // host_mdm_windows_profiles_status rows for a set of hosts from their current host_mdm_windows_profiles rows.
 func windowsProfilesStatusUpsertStmtAndArgs() (string, []any) {
-	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
+	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr()
 	stmt := fmt.Sprintf(`
 INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
 SELECT hmwp.host_uuid, %s
@@ -2804,7 +2790,8 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 
 	// The per-host profile status bucket ('failed'|'pending'|'verifying'|'verified'|empty) is maintained in
 	// host_mdm_windows_profiles_status, so this is an O(hosts) grouped read.
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
     COALESCE(hmwps.status, '') AS final_status,
     SUM(1) AS count
@@ -2841,7 +2828,8 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 		args = append(args, *teamID)
 	}
 
-	bitlockerStatus := fmt.Sprintf(`
+	bitlockerStatus := fmt.Sprintf(
+		`
             CASE WHEN (%s) THEN
                 'bitlocker_verified'
             WHEN (%s) THEN
@@ -2863,7 +2851,8 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 	)
 
 	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status rollup.
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
     CASE COALESCE(hmwps.status, '')
     WHEN 'failed' THEN
@@ -2958,7 +2947,8 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`
+		stmt := fmt.Sprintf(
+			`
 	    INSERT INTO host_mdm_windows_profiles (
 	      profile_uuid,
 	      host_uuid,
@@ -3765,7 +3755,8 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
-	stmt := fmt.Sprintf(`
+	stmt := fmt.Sprintf(
+		`
 SELECT
 	hmwp.profile_uuid,
 	-- the live profile is the source of truth for the name; hmwp.profile_name is a
@@ -3779,7 +3770,8 @@ SELECT
 	COALESCE(hmwp.status, '%s') AS status,
 	COALESCE(hmwp.operation_type, '') AS operation_type,
 	COALESCE(hmwp.detail, '') AS detail,
-	hmwp.command_uuid
+	hmwp.command_uuid,
+	COALESCE(mwcp.hidden, FALSE) AS hidden
 FROM
 	host_mdm_windows_profiles hmwp
 	LEFT JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = hmwp.profile_uuid
@@ -3961,7 +3953,8 @@ func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Conte
 		return nil
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_hash = ?
 		WHERE mdm_device_id = ?`,
@@ -3975,7 +3968,8 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 		return nil
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err := ds.writer(ctx).ExecContext(
+		ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_acknowledged = TRUE
 		WHERE mdm_device_id = ?`,
@@ -4105,6 +4099,207 @@ JOIN (
 	res, err := q.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "delete stale windows mdm enrollments")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+// CleanupMDMWindowsCommandHistory ages out windows_mdm_responses,
+// windows_mdm_command_results and windows_mdm_commands. The queue is left to
+// CleanupWindowsMDMCommandQueue: a queue row still present here means the
+// command is pending, so its command row stays.
+//
+// Responses go first (a result never outlives the response that carried it),
+// then commands nothing references, so a command and the result that pinned
+// it go in the same run.
+func (ds *Datastore) CleanupMDMWindowsCommandHistory(ctx context.Context, olderThan time.Time) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k responses and 100k commands per tick
+	)
+	return cleanupMDMWindowsCommandHistoryDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+func cleanupMDMWindowsCommandHistoryDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (fleet.MDMWindowsCommandHistoryCleanupCounts, error) {
+	var counts fleet.MDMWindowsCommandHistoryCleanupCounts
+
+	// Both loops walk the created_at index behind a keyset cursor, so rows the
+	// sweep keeps are passed once per run rather than once per batch. Kept
+	// rows can be many: a command stays pinned while any offline host still
+	// has it queued, and those are the oldest rows, at the front of the index.
+	// The cursor is (created_at, primary key); created_at alone has ties, and
+	// the secondary index carries the primary key, so the form
+	// "created_at >= last AND (created_at > last OR pk > last_pk)" is a range
+	// on that index.
+
+	// A result is still in use if it was updated inside the retention window
+	// (the device re-acked) or it is the wipe behind host_mdm_actions.wipe_ref,
+	// which is what keeps a host reporting as wiped. Its response stays with
+	// it. Kept rows are excluded here so the delete only sees candidates.
+	const selectResponsesStmt = `
+SELECT wmr.id, wmr.created_at
+FROM windows_mdm_responses wmr
+WHERE wmr.created_at < ?
+	AND wmr.created_at >= ? AND (wmr.created_at > ? OR wmr.id > ?)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM windows_mdm_command_results r
+		LEFT JOIN host_mdm_actions hma ON hma.wipe_ref = r.command_uuid
+		WHERE r.response_id = wmr.id
+			AND (r.updated_at >= ? OR hma.host_id IS NOT NULL)
+	)
+ORDER BY wmr.created_at, wmr.id
+LIMIT ?`
+
+	type responseKey struct {
+		ID        uint      `db:"id"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	var last responseKey
+	hitCap := true
+	for range maxBatches {
+		var rows []responseKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectResponsesStmt,
+			olderThan, last.CreatedAt, last.CreatedAt, last.ID, olderThan, batchSize); err != nil {
+			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm responses")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		last = rows[len(rows)-1]
+		ids := make([]uint, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ID
+		}
+		// Counted before the error check: the results delete may have
+		// succeeded when the responses delete fails.
+		results, responses, err := deleteMDMWindowsResponsesByIDs(ctx, ds.writer(ctx), ids, olderThan)
+		counts.Results += results
+		counts.Responses += responses
+		if err != nil {
+			return counts, err
+		}
+		// No progress means the reader returned rows the delete refused or
+		// that are already gone (replica lag); stop rather than spin.
+		if responses == 0 || len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm responses hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", counts.Responses, "max_batches", maxBatches)
+	}
+
+	// The wipe_ref check is implied by the two above (a kept result pins its
+	// command, an unacked wipe keeps its queue row), but this delete cascades
+	// to the queue, so it is checked directly.
+	const selectCommandsStmt = `
+SELECT wmc.command_uuid, wmc.created_at
+FROM windows_mdm_commands wmc
+WHERE wmc.created_at < ?
+	AND wmc.created_at >= ? AND (wmc.created_at > ? OR wmc.command_uuid > ?)
+	AND ` + unreferencedWindowsMDMCommandPredicate + `
+ORDER BY wmc.created_at, wmc.command_uuid
+LIMIT ?`
+
+	type commandKey struct {
+		CommandUUID string    `db:"command_uuid"`
+		CreatedAt   time.Time `db:"created_at"`
+	}
+	var lastCmd commandKey
+	hitCap = true
+	for range maxBatches {
+		var rows []commandKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectCommandsStmt,
+			olderThan, lastCmd.CreatedAt, lastCmd.CreatedAt, lastCmd.CommandUUID, batchSize); err != nil {
+			return counts, ctxerr.Wrap(ctx, err, "select expired windows mdm commands")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		lastCmd = rows[len(rows)-1]
+		uuids := make([]string, len(rows))
+		for i, row := range rows {
+			uuids[i] = row.CommandUUID
+		}
+		n, err := deleteMDMWindowsCommandsByUUIDs(ctx, ds.writer(ctx), uuids)
+		if err != nil {
+			return counts, err
+		}
+		counts.Commands += n
+		if n == 0 || len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm commands hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", counts.Commands, "max_batches", maxBatches)
+	}
+
+	return counts, nil
+}
+
+// deleteMDMWindowsResponsesByIDs re-checks on the primary what the select saw
+// on the reader: a result re-acked or pinned by a wipe since then survives,
+// and so does the response carrying it.
+func deleteMDMWindowsResponsesByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (results, responses int64, err error) {
+	// Explicit rather than via the response's ON DELETE CASCADE, so the count
+	// is real and the re-check has somewhere to live.
+	const deleteResultsStmt = `
+DELETE r FROM windows_mdm_command_results r
+LEFT JOIN host_mdm_actions hma ON hma.wipe_ref = r.command_uuid
+WHERE r.response_id IN (?) AND r.updated_at < ? AND hma.host_id IS NULL`
+	stmt, args, err := sqlx.In(deleteResultsStmt, ids, olderThan)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm command results")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm command results")
+	}
+	results, _ = res.RowsAffected()
+
+	// Any result that survived pins its response.
+	const deleteResponsesStmt = `
+DELETE wmr FROM windows_mdm_responses wmr
+LEFT JOIN windows_mdm_command_results r ON r.response_id = wmr.id
+WHERE wmr.id IN (?) AND r.response_id IS NULL`
+	stmt, args, err = sqlx.In(deleteResponsesStmt, ids)
+	if err != nil {
+		return results, 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm responses")
+	}
+	res, err = q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return results, 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm responses")
+	}
+	responses, _ = res.RowsAffected()
+	return results, responses, nil
+}
+
+// unreferencedWindowsMDMCommandPredicate matches a command (aliased wmc) that
+// nothing points at any more. Shared by the select and the delete so the
+// re-check on the primary can never drift from what the reader selected.
+const unreferencedWindowsMDMCommandPredicate = `NOT EXISTS (SELECT 1 FROM windows_mdm_command_queue q WHERE q.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results r WHERE r.command_uuid = wmc.command_uuid)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = wmc.command_uuid)`
+
+// deleteMDMWindowsCommandsByUUIDs re-checks that nothing references the
+// command, since the delete cascades to the queue.
+func deleteMDMWindowsCommandsByUUIDs(ctx context.Context, q sqlx.ExecerContext, uuids []string) (int64, error) {
+	const deleteStmt = `
+DELETE wmc FROM windows_mdm_commands wmc
+WHERE wmc.command_uuid IN (?) AND ` + unreferencedWindowsMDMCommandPredicate
+	stmt, args, err := sqlx.In(deleteStmt, uuids)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete expired windows mdm commands")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired windows mdm commands")
 	}
 	n, _ := res.RowsAffected()
 	return n, nil

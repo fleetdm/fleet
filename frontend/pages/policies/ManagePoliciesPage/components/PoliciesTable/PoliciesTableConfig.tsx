@@ -11,6 +11,7 @@ import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
+import HiddenPolicyBadge from "components/HiddenPolicyBadge";
 import Icon from "components/Icon";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -286,7 +287,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, id, team_id, type } = cellProps.row.original;
+        const { critical, hidden, id, team_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -295,6 +296,7 @@ const generateTableHeaders = (
             suffix={
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
+                {isPremiumTier && hidden && <HiddenPolicyBadge />}
                 {type === "patch" && (
                   <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
                     Patch

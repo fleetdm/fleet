@@ -215,7 +215,9 @@ Open rows (sentinel `valid_to`) are never deleted.
    team users are scoped by data below).
 3. **Validate** metric exists, `1 ≤ days ≤ 31`, resolution is 0 or a positive
    divisor of 24.
-4. **Build the filter mask.** `effectiveTeamIDs` collapses the team scope, then
+4. **Build the filter mask.** `effectiveTeamIDs` collapses the team scope and
+   platform families are expanded to `hosts.platform` values (`linux` → the distro
+   names) via the `PlatformExpanderFn` injected at bootstrap, then
    `GetHostIDsForFilter` resolves team/label/platform/include/exclude into a host-id
    list → `NewBitmap`. This is memoized per canonicalized filter by `hostFilterCache`
    (60s TTL, singleflight-collapsed). The mask encodes "currently visible hosts,"
@@ -362,7 +364,7 @@ mocks elsewhere can crash if an interface method is missing.
 |------|--------------|
 | `blob.go` | Bitmap encode/decode, storage-form vs op-form, set ops |
 | `datasets.go` | `UptimeDataset`, `CVEDataset` — the `Dataset` implementations |
-| `api/service.go` | `Service`, `ViewerProvider`, `CollectScopeFn` |
+| `api/service.go` | `Service`, `ViewerProvider`, `CollectScopeFn`, `PlatformExpanderFn` |
 | `api/chart.go` | `Dataset`, `DatasetStore`, `SampleStrategy`, request/response types |
 | `api/http/types.go` | HTTP wire DTOs |
 | `internal/types/chart.go` | `Datastore` interface, `HostFilter` (nil/empty semantics) |
@@ -376,7 +378,7 @@ mocks elsewhere can crash if an interface method is missing.
 
 Related code outside this tree:
 
-- `server/acl/chartacl/` — anti-corruption layer (viewer adapter).
+- `server/acl/chartacl/` — anti-corruption layer (viewer and platform expander adapters).
 - `cmd/fleet/serve.go` — `createChartBoundedContext`, dataset registration.
 - `cmd/fleet/cron.go` — collection schedule, scope resolver, cleanup.
 - `server/worker/chart_scrub.go` — scrub worker jobs.

@@ -11,6 +11,7 @@ import (
 	"iter"
 	"net/http"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -444,7 +446,7 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 // otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
 	if host.FleetPlatform() == "android" &&
-		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal &&
+		host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) &&
 		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
 		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
 		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
@@ -728,7 +730,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	}
 
 	if len(ids) > 0 {
-		if err := svc.checkWriteForHostIDs(ctx, ids); err != nil {
+		if err := svc.checkDeleteForHostIDs(ctx, ids); err != nil {
 			return err
 		}
 
@@ -753,7 +755,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		return nil
 	}
 
-	err = svc.checkWriteForHostIDs(ctx, hostIDs)
+	err = svc.checkDeleteForHostIDs(ctx, hostIDs)
 	if err != nil {
 		return err
 	}
@@ -973,7 +975,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	return hostDetails, nil
 }
 
-func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
+func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error {
 	for _, id := range ids {
 		host, err := svc.ds.HostLite(ctx, id)
 		if err != nil {
@@ -981,7 +983,7 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 		}
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
+		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 			return err
 		}
 	}
@@ -1208,7 +1210,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// rather than a forbidden that would confirm the host exists on some
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, notFoundErr); err != nil {
+	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 		return err
 	}
 
@@ -1663,6 +1665,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	var host *fleet.Host
+	var platform string
 	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop,
 	// so we don't handle that case
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
@@ -1682,13 +1685,29 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return err
 		}
+
+		platform = host.Platform
+	} else if deviceHost, ok := hostctx.FromContext(ctx); ok {
+		// The device-authenticated routes resolve the host during authentication and
+		// leave it here, so the platform is available without another read. It is kept
+		// out of `host` so the iOS MDM commands below stay off the device path.
+		platform = deviceHost.Platform
+	}
+
+	// Android hosts report their data through AMAPI whenever it changes, so there is
+	// nothing to refetch on demand. The Host details page hides the Refetch button for
+	// them; reject the request here too so API callers get an explanation instead of a
+	// success response that never refetches anything.
+	if fleet.IsAndroidPlatform(platform) {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Refetch is not supported for Android hosts. Android hosts sync data automatically when it changes.",
+		})
 	}
 
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
-	// TODO(android): add android to this list?
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
 		// Get MDM commands already sent
 		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)
@@ -1836,7 +1855,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	// BYOD/personal enrollments never receive the device vitals fields (see
 	// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
 	// there's nothing to load.
-	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal
+	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)
 	if fleet.IsAppleMobilePlatform(host.Platform) && !isPersonalEnrollment {
 		if err := svc.ds.LoadHostMDMAppleDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm apple device vitals")
@@ -1916,15 +1935,29 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	// Calculate the number of failing policies for the host based on the returned policies to
 	// avoid discrepancies due to read replica delay.
-	var failingPolicies uint64
+	var failingPolicies, failingUnhiddenPolicies uint64
 	if policies != nil {
+		visible := make([]*fleet.HostPolicy, 0, len(*policies))
 		for _, p := range *policies {
-			if p != nil && p.Response == "fail" {
+			if p == nil {
+				continue
+			}
+			if p.Response == "fail" {
 				failingPolicies++
+				if !p.Hidden {
+					failingUnhiddenPolicies++
+				}
+			}
+			if !opts.ExcludeHiddenPolicies || !p.Hidden {
+				visible = append(visible, p)
 			}
 		}
+		policies = &visible
 	}
 	host.HostIssues.FailingPoliciesCount = failingPolicies
+	if license.IsPremium(ctx) {
+		host.HostIssues.FailingUnhiddenPoliciesCount = &failingUnhiddenPolicies
+	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
 	// disk encryption status, and macOS setup details for non-linux hosts.
@@ -2096,6 +2129,17 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
 
+				// Appended after the OS settings summary above so not-yet-installed opt-in profiles don't count as pending.
+				if host.Platform == "darwin" && license.IsPremium(ctx) {
+					available, err := svc.availableSelfServiceAppleProfiles(ctx, host, profs)
+					if err != nil {
+						return nil, err
+					}
+					for _, p := range available {
+						profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+					}
+				}
+
 				// Nano details were read above the outer MDM guard; reuse the
 				// pre-read struct for the fields that only make sense when
 				// Apple MDM is on (bootstrap token escrow).
@@ -2168,7 +2212,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if fleet.IsApplePlatform(host.Platform) &&
 		host.MDM.EnrollmentStatus != nil &&
 		(*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual ||
-			*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal) {
+			fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)) {
 		perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
@@ -3010,8 +3054,9 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 	// self-service tab. Same URL as the Web Clip profile in
 	// docs/solutions/ios-ipados.
 	if host.Platform == "ios" || host.Platform == "ipados" {
+		// Hosts assigned in Apple Business but not yet enrolled have no UUID.
 		if host.UUID == "" {
-			return "", ctxerr.New(ctx, "host has no UUID to build a device URL from")
+			return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLNotEnrolledMessage}
 		}
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -4947,4 +4992,54 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
+// with a nil status so they read as available to install.
+func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")
+	}
+
+	listed := make(map[string]struct{}, len(profs))
+	for _, p := range profs {
+		listed[p.ProfileUUID] = struct{}{}
+	}
+	var candidates []*fleet.AppleProfileForReconcile
+	var labelIDs []uint
+	for _, p := range teamProfiles {
+		if _, ok := listed[p.ProfileUUID]; ok || !p.SelfService {
+			continue
+		}
+		candidates = append(candidates, p)
+		for _, l := range slices.Concat(p.IncludeLabels, p.ExcludeLabels) {
+			if l.LabelID != nil {
+				labelIDs = append(labelIDs, *l.LabelID)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	memberships, err := svc.ds.BulkGetHostLabelMemberships(ctx, []uint{host.ID}, labelIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label memberships")
+	}
+	var out []fleet.HostMDMAppleProfile
+	for _, p := range candidates {
+		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], false) {
+			continue
+		}
+		out = append(out, fleet.HostMDMAppleProfile{
+			ProfileUUID: p.ProfileUUID,
+			Name:        p.ProfileName,
+			Identifier:  p.ProfileIdentifier,
+			Scope:       p.Scope,
+			SelfService: true,
+			Hidden:      p.Hidden,
+		})
+	}
+	return out, nil
 }

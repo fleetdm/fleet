@@ -88,6 +88,11 @@ const (
 	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
 	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
 
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
+	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
+
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
@@ -579,6 +584,9 @@ type HostMDMProfile struct {
 	Retrying   *bool `db:"-" json:"retrying,omitempty"`
 	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
 	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
+
+	SelfService bool `db:"-" json:"self_service"`
+	Hidden      bool `db:"-" json:"hidden"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -1517,9 +1525,7 @@ type NanoMDMEnrollmentDetails struct {
 	UnlockToken            *string    `db:"unlock_token"`
 	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
 	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
-	// "Device" or "User Enrollment (Device)". Manual BYOD and Account-Driven User
-	// Enrollment both produce the "On (manual - personal)" status, so the channel
-	// is the only way to tell them apart.
+	// "Device" or "User Enrollment (Device)".
 	EnrollmentType string `db:"enrollment_type"`
 	// Enabled is false after checkout, when last_seen_at still keeps updating.
 	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
