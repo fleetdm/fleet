@@ -11185,7 +11185,6 @@ None.
 - [Get policy](#get-policy)
 - [Get fleet-level policy](#get-fleet-level-policy)
 - [Create policy](#create-policy)
-- [Create fleet-level policy](#create-fleet-level-policy)
 - [Delete policies](#delete-policies)
 - [Delete fleet-level policies](#delete-fleet-level-policies)
 - [Update policy](#update-policy)
@@ -11542,7 +11541,10 @@ _Available in Fleet Premium_
 
 ### Get policy
 
-`GET /api/v1/fleet/global/policies/:id`
+Returns the policy specified by ID.
+
+
+`GET /api/v1/fleet/policies/:id`
 
 #### Parameters
 
@@ -11552,53 +11554,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`GET /api/v1/fleet/global/policies/1`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policy": {
-    "id": 1,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "critical": false,
-    "author_id": 42,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "team_id": null,
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "created_at": "2021-12-15T15:23:57Z",
-    "updated_at": "2021-12-15T15:23:57Z",
-    "passing_host_count": 2000,
-    "failing_host_count": 300,
-    "host_count_updated_at": "2023-12-20T15:23:57Z"
-  }
-}
-```
-
----
-
-### Get fleet-level policy
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/fleets/:fleet_id/policies/:policy_id`
-
-#### Parameters
-
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| fleet_id           | integer | path  | **Required.** Defines what fleet ID to operate on                                                            |
-| policy_id          | integer | path | **Required.** The policy's ID.                                                                                |
-
-#### Example
-
-`GET /api/v1/fleet/fleets/1/policies/43`
+`GET /api/v1/fleet/policies/43`
 
 ##### Default response
 
