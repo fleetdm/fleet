@@ -3606,6 +3606,70 @@ software:
 		require.Error(t, multiErr.ErrorOrNil())
 		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported")
 	})
+
+}
+
+func TestParseSoftwareFieldsBesideFileReference(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		files    map[string]string
+		software string
+	}{
+		{
+			name:  "app_store_apps beside path",
+			files: map[string]string{"from-file.yml": "- app_store_id: \"222222\"\n"},
+			software: `
+software:
+  app_store_apps:
+    - path: from-file.yml
+      self_service: true
+      labels_include_any: ["Eng"]
+`,
+		},
+		{
+			name:  "fleet_maintained_apps beside path",
+			files: map[string]string{"from-file.yml": "- slug: file-app/darwin\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - path: from-file.yml
+      self_service: true
+      labels_include_any: ["Eng"]
+`,
+		},
+		{
+			name:  "fleet_maintained_apps beside paths glob",
+			files: map[string]string{"software/a.yml": "- slug: app-a/darwin\n"},
+			software: `
+software:
+  fleet_maintained_apps:
+    - paths: "software/*.yml"
+      self_service: true
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for name, content := range tt.files {
+				path := filepath.Join(dir, name)
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+			}
+
+			teamName := "TestTeam"
+			result := &GitOps{TeamName: &teamName}
+			multiErr := parseSoftware(yamlToRawJSON(t, tt.software), result, dir, nopLogf, "test.yml", GitOpsOptions{}, nil)
+			require.Error(t, multiErr.ErrorOrNil())
+			assert.Contains(t, multiErr.ErrorOrNil().Error(), "cannot set other fields")
+			assert.Empty(t, result.Software.AppStoreApps)
+			assert.Empty(t, result.Software.FleetMaintainedApps)
+		})
+	}
 }
 
 // TestGitOpsPolicyReferencesPathSourcedSoftware exercises the full GitOpsFromFile

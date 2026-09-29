@@ -2638,6 +2638,11 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		if !reflect.DeepEqual(item.TeamSpecAppStoreApp, fleet.TeamSpecAppStoreApp{}) {
+			multiError = multierror.Append(multiError, fmt.Errorf("app_store_app entry that references a file cannot set other fields; move them into %s", *item.Path))
+			continue
+		}
+
 		fileBytes, err := os.ReadFile(*item.Path)
 		if err != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf("failed to read app_store_apps file %s: %v", *item.Path, err))
@@ -2689,6 +2694,11 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 			result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &resolved)
+			continue
+		}
+
+		if !reflect.DeepEqual(item.MaintainedAppSpec, fleet.MaintainedAppSpec{}) {
+			multiError = multierror.Append(multiError, fmt.Errorf("fleet_maintained_app entry that references a file cannot set other fields; move them into %s", *item.Path))
 			continue
 		}
 
