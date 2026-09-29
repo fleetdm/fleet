@@ -11491,6 +11491,9 @@ _Available in Fleet Premium_
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | query                 | string | query | Search query keywords. Searchable fields include `name`.  |
 | platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
+| fleet_id                 | integer | query  | _Available in Fleet Premium._ The ID of the fleet for the policies to be listed. When omitted, returns global policies.
+| merge_inherited     | boolean | query | _Available in Fleet Premium._ If `true` will include inherited ("All fleets") policies in the count when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) |
+| automation_type       | string | query | _Available in Fleet Premium._ Filters by automation type when filtering by `fleet_id`. (If no `fleet_id` is provided, this parameter is ignored.) Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
 
 #### Example
 
@@ -11506,36 +11509,6 @@ _Available in Fleet Premium_
 }
 ```
 
----
-
-### Get fleet-level policies count
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/fleets/:fleet_id/policies/count`
-
-#### Parameters
-| Name               | Type    | In   | Description                                                                                                   |
-| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| fleet_id                 | integer | path  | **Required.** Defines what fleet ID to operate on
-| query                 | string | query | Search query keywords. Searchable fields include `name`. |
-| merge_inherited     | boolean | query | If `true`, will include inherited ("All fleets") policies in the count. |
-| automation_type       | string | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
-| platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
-
-#### Example
-
-`GET /api/v1/fleet/fleets/1/policies/count`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "count": 43
-}
-```
 
 ---
 
