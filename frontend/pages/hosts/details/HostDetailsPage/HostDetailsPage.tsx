@@ -1535,7 +1535,11 @@ const HostDetailsPage = ({
   // no Fleet Desktop (so no token, and no page to load) or wiped.
   const canViewMyDeviceLink =
     isGlobalAdmin &&
-    canShowMyDeviceButton(host, config?.fleet_desktop.sso_enabled ?? false);
+    canShowMyDeviceButton(
+      host,
+      config?.fleet_desktop.sso_enabled ?? false,
+      isPremiumTier
+    );
 
   const canEditCustomHostVitals =
     isGlobalAdmin ||
